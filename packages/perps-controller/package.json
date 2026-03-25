@@ -34,7 +34,8 @@
   "files": [
     "dist/",
     "!dist/providers/MYXProvider*",
-    "!dist/services/MYXClientService*"
+    "!dist/services/MYXClientService*",
+    "!dist/services/MYXWalletService*"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
@@ -63,6 +64,7 @@
   "devDependencies": {
     "@metamask/account-tree-controller": "^5.0.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/geolocation-controller": "^0.1.1",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/network-controller": "^30.0.0",

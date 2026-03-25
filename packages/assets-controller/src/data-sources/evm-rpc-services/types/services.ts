@@ -1,5 +1,5 @@
 import type { Asset, AssetBalance } from './assets';
-import type { AccountId, Address, ChainId } from './core';
+import type { AccountId, Address, CaipAssetType, ChainId } from './core';
 
 /**
  * Token detection result.
@@ -58,25 +58,16 @@ export type BalanceFetchResult = {
 };
 
 /**
- * Balance fetch options.
+ * Entry describing a single asset to fetch a balance for.
+ * Bundles the CAIP-19 asset ID with the on-chain address (zero address for
+ * native assets even when the chain has a native asset with a non-zero address)
+ * and optional metadata
  */
-export type BalanceFetchOptions = {
-  /** Maximum number of tokens to fetch per batch */
-  batchSize?: number;
-  /** Timeout for fetch in milliseconds */
-  timeout?: number;
-  /** Include native token balance */
-  includeNative?: boolean;
-};
-
-/**
- * Token info for balance fetching.
- */
-export type TokenFetchInfo = {
-  /** Token contract address */
+export type AssetFetchEntry = {
+  /** CAIP-19 asset type identifier */
+  assetId: CaipAssetType;
+  /** On-chain contract address (zero address for native assets regardless of the chain's native asset address) */
   address: Address;
   /** Token decimals (omit when unknown — balance fetcher returns raw balance for RpcDataSource to resolve). */
   decimals?: number;
-  /** Token symbol (optional) */
-  symbol?: string;
 };

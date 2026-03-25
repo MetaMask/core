@@ -44,6 +44,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  * @param hooks.findNetworkClientIdByChainId - the hook for finding the networkClientId for a chainId.
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param hooks.sortAccountIdsByLastSelected - A function that sorts accounts by their last selected order.
  * @param hooks.handleNonEvmRequestForOrigin - A function that sends a request to the MultichainRouter for processing.
  * @returns Nothing.
  */
@@ -60,6 +61,9 @@ async function walletInvokeMethodHandler(
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     getSelectedNetworkClientId: () => NetworkClientId;
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    sortAccountIdsByLastSelected: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
     handleNonEvmRequestForOrigin: (params: {
       connectedAddresses: CaipAccountId[];
       scope: CaipChainId;
@@ -86,6 +90,7 @@ async function walletInvokeMethodHandler(
 
   const scopeObject = getSessionScopes(caveat.value, {
     getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
   })[scope];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
@@ -154,6 +159,7 @@ export const walletInvokeMethod = {
     findNetworkClientIdByChainId: true,
     getSelectedNetworkClientId: true,
     getNonEvmSupportedMethods: true,
+    sortAccountIdsByLastSelected: true,
     handleNonEvmRequestForOrigin: true,
   },
 };

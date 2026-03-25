@@ -16,6 +16,7 @@ import {
   getNativeAssetForChainId,
   FeatureId,
   getQuotesReceivedProperties,
+  UnifiedSwapBridgeEventName,
 } from '@metamask/bridge-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -2960,7 +2961,13 @@ describe('BridgeStatusController', () => {
       expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
-    it('should call handleMobileHardwareWalletDelay for hardware wallet on mobile', async () => {
+    it('waits for approval tx confirmation before swap for hardware wallet on mobile', async () => {
+      const waitForTxConfirmationSpy = jest
+        .spyOn(transactionUtils, 'waitForTxConfirmation')
+        .mockResolvedValueOnce({
+          ...mockApprovalTxMeta,
+          status: TransactionStatus.confirmed,
+        } as never);
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
@@ -3000,6 +3007,13 @@ describe('BridgeStatusController', () => {
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
       expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
       expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(true);
+      expect(
+        handleMobileHardwareWalletDelaySpy.mock.invocationCallOrder[0],
+      ).toBeLessThan(waitForTxConfirmationSpy.mock.invocationCallOrder[0]);
+      expect(waitForTxConfirmationSpy).toHaveBeenCalledWith(
+        expect.any(Object),
+        mockApprovalTxMeta.id,
+      );
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();
@@ -3848,7 +3862,40 @@ describe('BridgeStatusController', () => {
           ([action]) => action === 'TransactionController:addTransactionBatch',
         ),
       ).toHaveLength(0);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(5);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(6);
+      expect(
+        mockCalls.find(
+          ([action, eventName]) =>
+            action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+            eventName === UnifiedSwapBridgeEventName.Failed,
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Failed",
+          {
+            "action_type": "swapbridge-v1",
+            "chain_id_destination": "eip155:42161",
+            "chain_id_source": "eip155:42161",
+            "custom_slippage": false,
+            "error_message": "Failed to submit cross-chain swap batch transaction: unknown account in trade data",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "location": "Main View",
+            "price_impact": 0,
+            "provider": "lifi_across",
+            "quoted_time_minutes": 0,
+            "stx_enabled": true,
+            "swap_type": "single_chain",
+            "token_symbol_destination": "ETH",
+            "token_symbol_source": "ETH",
+            "usd_amount_source": 1.01,
+            "usd_quoted_gas": 2.5778,
+            "usd_quoted_return": 0,
+          },
+        ]
+      `);
     });
 
     it('should throw error if batched tx is not found', async () => {
@@ -3896,7 +3943,40 @@ describe('BridgeStatusController', () => {
         ),
       ).toHaveLength(0);
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(11);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(12);
+      expect(
+        mockCalls.find(
+          ([action, eventName]) =>
+            action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+            eventName === UnifiedSwapBridgeEventName.Failed,
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          "BridgeController:trackUnifiedSwapBridgeEvent",
+          "Unified SwapBridge Failed",
+          {
+            "action_type": "swapbridge-v1",
+            "chain_id_destination": "eip155:42161",
+            "chain_id_source": "eip155:42161",
+            "custom_slippage": false,
+            "error_message": "Failed to update cross-chain swap transaction batch: tradeMeta not found",
+            "gas_included": false,
+            "gas_included_7702": false,
+            "is_hardware_wallet": false,
+            "location": "Main View",
+            "price_impact": 0,
+            "provider": "lifi_across",
+            "quoted_time_minutes": 0,
+            "stx_enabled": true,
+            "swap_type": "single_chain",
+            "token_symbol_destination": "ETH",
+            "token_symbol_source": "ETH",
+            "usd_amount_source": 1.01,
+            "usd_quoted_gas": 2.5778,
+            "usd_quoted_return": 0,
+          },
+        ]
+      `);
     });
 
     it('should gracefully handle isAtomicBatchSupported failure', async () => {
