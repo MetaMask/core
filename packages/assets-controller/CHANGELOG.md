@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Refactored `BalanceFetcher` and `RpcDataSource` to ensure the correct `assetId` is used for EVM native assets that are not ETH ([#8284](https://github.com/MetaMask/core/pull/8284))
+
 ## [3.1.0]
 
 ### Changed
