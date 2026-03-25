@@ -49,6 +49,9 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "dependencies": {
+    "yargs": "^17.7.2"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/utils": "^11.9.0",
@@ -63,28 +66,12 @@
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
-    "yargs": "^17.7.2"
+    "typescript": "~5.3.3"
   },
   "peerDependencies": {
     "@metamask/utils": "^11.9.0",
     "eslint": ">=8",
-    "typescript": "~5.3.3",
-    "yargs": "^17.7.2"
-  },
-  "peerDependenciesMeta": {
-    "@metamask/utils": {
-      "optional": true
-    },
-    "eslint": {
-      "optional": true
-    },
-    "typescript": {
-      "optional": true
-    },
-    "yargs": {
-      "optional": true
-    }
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

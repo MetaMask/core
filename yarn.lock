@@ -4349,16 +4349,6 @@ __metadata:
     "@metamask/utils": ^11.9.0
     eslint: ">=8"
     typescript: ~5.3.3
-    yargs: ^17.7.2
-  peerDependenciesMeta:
-    "@metamask/utils":
-      optional: true
-    eslint:
-      optional: true
-    typescript:
-      optional: true
-    yargs:
-      optional: true
   bin:
     messenger-generate-action-types: ./dist/generate-action-types/cli.mjs
   languageName: unknown
