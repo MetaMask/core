@@ -65,6 +65,7 @@ export function createUIQueryClient(
     ...config,
     defaultOptions: {
       queries: {
+        ...config.defaultOptions?.queries,
         queryFn: async (options): Promise<unknown> => {
           const { queryKey } = options;
 
@@ -83,7 +84,6 @@ export function createUIQueryClient(
           );
         },
         staleTime: 0,
-        ...config.defaultOptions?.queries,
       },
       mutations: config.defaultOptions?.mutations,
     },
