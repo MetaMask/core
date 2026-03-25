@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Fix sentry issue about unsubscribe for event AccountActivityService:transactionUpdated called even if subscription is not done ([#8299](https://github.com/MetaMask/core/pull/8299))
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
 
 ## [63.1.0]
 
