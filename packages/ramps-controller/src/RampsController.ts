@@ -291,13 +291,13 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providers: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
   tokens: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,

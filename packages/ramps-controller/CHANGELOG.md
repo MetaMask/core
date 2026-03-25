@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stop persisting `providers` and `tokens` state across sessions to prevent stale data when API availability changes ([#8305](https://github.com/MetaMask/core/pull/8305))
 - `RampsService.getOrder` and `getOrderFromCallback` accept provider codes with or without a `/providers/` prefix; API paths use the short provider segment. `RampsController` forwards provider ids (including from order polling and `addPrecreatedOrder` stubs) to the service without stripping the prefix. ([#8278](https://github.com/MetaMask/core/pull/8278))
 
 ## [12.0.1]

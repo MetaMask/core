@@ -881,18 +881,6 @@ describe('RampsController', () => {
             },
             "orders": [],
             "providerAutoSelected": false,
-            "providers": {
-              "data": [],
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
-            "tokens": {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
             "userRegion": null,
           }
         `);
@@ -1665,41 +1653,14 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not clear persisted state when init() is called with same persisted region', async () => {
-      const mockTokens: TokensResponse = {
+    it('refetches providers and tokens when init() is called with same region but empty resource data', async () => {
+      const getTokensSpy = jest.fn(async () => ({
         topTokens: [],
         allTokens: [],
-      };
-      const mockProviders: Provider[] = [
-        {
-          id: '/providers/test',
-          name: 'Test Provider',
-          environmentType: 'STAGING',
-          description: 'Test',
-          hqAddress: '123 Test St',
-          links: [],
-          logos: {
-            light: '/assets/test_light.png',
-            dark: '/assets/test_dark.png',
-            height: 24,
-            width: 77,
-          },
-        },
-      ];
-      const mockSelectedProvider: Provider = {
-        id: '/providers/preferred',
-        name: 'Preferred Provider',
-        environmentType: 'STAGING',
-        description: 'Preferred',
-        hqAddress: '456 Preferred St',
-        links: [],
-        logos: {
-          light: '/assets/preferred_light.png',
-          dark: '/assets/preferred_dark.png',
-          height: 24,
-          width: 77,
-        },
-      };
+      }));
+      const getProvidersSpy = jest.fn(
+        async () => ({ providers: [] }) as { providers: Provider[] },
+      );
 
       await withController(
         {
@@ -1707,11 +1668,6 @@ describe('RampsController', () => {
             state: {
               countries: createResourceState(createMockCountries()),
               userRegion: createMockUserRegion('us-ca'),
-              tokens: createResourceState(mockTokens, null),
-              providers: createResourceState(
-                mockProviders,
-                mockSelectedProvider,
-              ),
             },
           },
         },
@@ -1722,22 +1678,18 @@ describe('RampsController', () => {
           );
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async () => ({ topTokens: [], allTokens: [] }),
+            getTokensSpy,
           );
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
-            async () => ({ providers: [] }),
+            getProvidersSpy,
           );
 
           await rootMessenger.call('RampsController:init');
 
-          // Verify persisted state is preserved
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
-          expect(controller.state.providers.data).toStrictEqual(mockProviders);
-          expect(controller.state.providers.selected).toStrictEqual(
-            mockSelectedProvider,
-          );
+          expect(getTokensSpy).toHaveBeenCalled();
+          expect(getProvidersSpy).toHaveBeenCalled();
         },
       );
     });
@@ -2139,7 +2091,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not clear persisted state when setting the same region', async () => {
+    it('does not refetch providers or tokens when setting the same region with existing data', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
         allTokens: [],
@@ -2202,7 +2154,6 @@ describe('RampsController', () => {
           // Set the same region
           await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
 
-          // Verify persisted state is preserved
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
@@ -2213,7 +2164,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('clears persisted state when setting a different region', async () => {
+    it('resets dependent resources when setting a different region', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
         allTokens: [],
