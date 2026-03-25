@@ -2310,9 +2310,7 @@ describe('Relay Quotes Utils', () => {
         );
 
         expect(body.originChainId).toBe(parseInt(CHAIN_ID_HYPERCORE, 16));
-        expect(body.originCurrency).toBe(
-          '0x00000000000000000000000000000000',
-        );
+        expect(body.originCurrency).toBe('0x00000000000000000000000000000000');
       });
 
       it('shifts source amount by 2 decimals (8→6)', async () => {
@@ -2346,9 +2344,7 @@ describe('Relay Quotes Utils', () => {
 
         const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
-        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(
-          zeroAmount,
-        );
+        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(zeroAmount);
         expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
       });
 
