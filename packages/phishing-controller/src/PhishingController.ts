@@ -20,6 +20,11 @@ import { CacheManager } from './CacheManager';
 import type { CacheEntry } from './CacheManager';
 import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
 import type { PathTrie } from './PathTrie';
+import type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerMethodActions,
+  PhishingControllerTestOriginAction,
+} from './PhishingController-method-action-types';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -374,30 +379,26 @@ export type PhishingControllerOptions = {
   state?: Partial<PhishingControllerState>;
 };
 
-export type MaybeUpdateState = {
-  type: `${typeof controllerName}:maybeUpdateState`;
-  handler: PhishingController['maybeUpdateState'];
-};
+const MESSENGER_EXPOSED_METHODS = [
+  'maybeUpdateState',
+  'testOrigin',
+  'isBlockedRequest',
+  'bypass',
+  'scanUrl',
+  'bulkScanUrls',
+  'bulkScanTokens',
+  'scanAddress',
+] as const;
 
-export type TestOrigin = {
-  type: `${typeof controllerName}:testOrigin`;
-  handler: PhishingController['test'];
-};
+/**
+ *  @deprecated Use `PhishingControllerTestOriginAction` instead.
+ */
+export type TestOrigin = PhishingControllerTestOriginAction;
 
-export type PhishingControllerBulkScanUrlsAction = {
-  type: `${typeof controllerName}:bulkScanUrls`;
-  handler: PhishingController['bulkScanUrls'];
-};
-
-export type PhishingControllerBulkScanTokensAction = {
-  type: `${typeof controllerName}:bulkScanTokens`;
-  handler: PhishingController['bulkScanTokens'];
-};
-
-export type PhishingControllerScanAddressAction = {
-  type: `${typeof controllerName}:scanAddress`;
-  handler: PhishingController['scanAddress'];
-};
+/**
+ *  @deprecated Use `PhishingControllerMaybeUpdateStateAction` instead.
+ */
+export type MaybeUpdateState = PhishingControllerMaybeUpdateStateAction;
 
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -406,11 +407,7 @@ export type PhishingControllerGetStateAction = ControllerGetStateAction<
 
 export type PhishingControllerActions =
   | PhishingControllerGetStateAction
-  | MaybeUpdateState
-  | TestOrigin
-  | PhishingControllerBulkScanUrlsAction
-  | PhishingControllerBulkScanTokensAction
-  | PhishingControllerScanAddressAction;
+  | PhishingControllerMethodActions;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -558,7 +555,10 @@ export class PhishingController extends BaseController<
       },
     });
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.updatePhishingDetector();
     this.#subscribeToTransactionControllerStateChange();
@@ -568,37 +568,6 @@ export class PhishingController extends BaseController<
     this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
-    );
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:maybeUpdateState` as const,
-      this.maybeUpdateState.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:testOrigin` as const,
-      this.test.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:bulkScanUrls` as const,
-      this.bulkScanUrls.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:bulkScanTokens` as const,
-      this.bulkScanTokens.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:scanAddress` as const,
-      this.scanAddress.bind(this),
     );
   }
 
@@ -798,7 +767,7 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): PhishingDetectorResult {
+  testOrigin(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
@@ -812,6 +781,19 @@ export class PhishingController extends BaseController<
     }
     return this.#detector.check(punycodeOrigin);
   }
+
+  /**
+   * Determines if a given origin is unapproved.
+   *
+   * It is strongly recommended that you call {@link maybeUpdateState} before calling this,
+   * to check whether the phishing configuration is up-to-date. It will be updated if necessary
+   * by calling {@link updateStalelist} or {@link updateHotlist}.
+   *
+   * @param origin - Domain origin of a website.
+   * @returns Whether the origin is an unapproved origin.
+   * @deprecated Use {@link testOrigin} instead. This method is exposed for backward compatibility and will be removed in a future release.
+   */
+  test = this.testOrigin.bind(this);
 
   /**
    * Checks if a request URL's domain is blocked against the request blocklist.
@@ -930,7 +912,7 @@ export class PhishingController extends BaseController<
    * @param url - The URL to scan.
    * @returns The phishing detection scan result.
    */
-  scanUrl = async (url: string): Promise<PhishingDetectionScanResult> => {
+  async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
     const [hostname, ok] = getHostnameFromWebUrl(url);
     if (!ok) {
       return {
@@ -991,7 +973,7 @@ export class PhishingController extends BaseController<
     this.#urlScanCache.set(hostname, result);
 
     return result;
-  };
+  }
 
   /**
    * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
@@ -1000,9 +982,9 @@ export class PhishingController extends BaseController<
    * @param urls - The URLs to scan.
    * @returns A mapping of URLs to their phishing detection scan results and errors.
    */
-  bulkScanUrls = async (
+  async bulkScanUrls(
     urls: string[],
-  ): Promise<BulkPhishingDetectionScanResponse> => {
+  ): Promise<BulkPhishingDetectionScanResponse> {
     if (!urls || urls.length === 0) {
       return {
         results: {},
@@ -1095,7 +1077,7 @@ export class PhishingController extends BaseController<
     }
 
     return combinedResponse;
-  };
+  }
 
   /**
    * Fetch bulk token scan results from the security alerts API.
@@ -1167,10 +1149,10 @@ export class PhishingController extends BaseController<
    * @param address - The address to scan.
    * @returns The address scan result.
    */
-  scanAddress = async (
+  async scanAddress(
     chainId: string,
     address: string,
-  ): Promise<AddressScanResult> => {
+  ): Promise<AddressScanResult> {
     if (!address || !chainId) {
       return {
         result_type: AddressScanResultType.ErrorResult,
@@ -1249,7 +1231,7 @@ export class PhishingController extends BaseController<
       result_type: apiResponse.result_type,
       label: apiResponse.label,
     };
-  };
+  }
 
   /**
    * Scan multiple tokens for malicious activity in bulk.
@@ -1263,9 +1245,9 @@ export class PhishingController extends BaseController<
    * addresses are lowercased; for non-EVM chains, original casing is preserved.
    * Tokens that fail to scan are omitted.
    */
-  bulkScanTokens = async (
+  async bulkScanTokens(
     request: BulkTokenScanRequest,
-  ): Promise<BulkTokenScanResponse> => {
+  ): Promise<BulkTokenScanResponse> {
     const { chainId, tokens } = request;
 
     if (!tokens || tokens.length === 0) {
@@ -1340,7 +1322,7 @@ export class PhishingController extends BaseController<
     }
 
     return results;
-  };
+  }
 
   /**
    * Process a batch of URLs (up to 50) for phishing detection.

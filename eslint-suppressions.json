@@ -1266,9 +1266,6 @@
     }
   },
   "packages/phishing-controller/src/PhishingController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
     "jest/unbound-method": {
       "count": 7
     }
@@ -1732,11 +1729,6 @@
   "packages/subscription-controller/src/index.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
