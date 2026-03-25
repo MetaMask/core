@@ -55,6 +55,7 @@ export const formatGroupForUserStorageUsage = (
   // This can be null if the user has not manually set a name, pinned or hidden the group
   const persistedGroupMetadata =
     context.controller.state.accountGroupsMetadata[group.id];
+  const { groupIndex } = group.metadata.entropy;
 
   try {
     // We mask and we try catch, since `mask` will throw if the persisted metadata has
@@ -62,7 +63,7 @@ export const formatGroupForUserStorageUsage = (
     return mask(
       {
         ...(persistedGroupMetadata ?? {}),
-        groupIndex: group.metadata.entropy.groupIndex,
+        groupIndex,
       },
       UserStorageSyncedWalletGroupSchema,
     );
@@ -72,7 +73,7 @@ export const formatGroupForUserStorageUsage = (
     );
 
     // If anything goes wrong with this group, we use blank metadata for it.
-    return { groupIndex: group.metadata.entropy.groupIndex };
+    return { groupIndex };
   }
 };
 
