@@ -8,7 +8,7 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote } from './types';
+import type { RelayQuote, RelayTransactionStep } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   ARBITRUM_USDC_ADDRESS,
@@ -87,6 +87,31 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
   targetTokenAddress: '0x1234567890123456789012345678901234567890',
 };
 
+const STEP_MOCK: RelayTransactionStep = {
+  id: 'swap',
+  requestId: '0x1',
+  kind: 'transaction',
+  items: [
+    {
+      check: {
+        endpoint: '/test',
+        method: 'GET',
+      },
+      data: {
+        chainId: 1,
+        data: '0x123' as Hex,
+        from: FROM_MOCK,
+        gas: '21000',
+        maxFeePerGas: '1000000000',
+        maxPriorityFeePerGas: '2000000000',
+        to: '0x2' as Hex,
+        value: '300000',
+      },
+      status: 'complete',
+    },
+  ],
+};
+
 const QUOTE_MOCK = {
   details: {
     currencyIn: {
@@ -117,32 +142,8 @@ const QUOTE_MOCK = {
     gasLimits: [21000],
     is7702: false,
   },
-  steps: [
-    {
-      id: 'swap',
-      items: [
-        {
-          check: {
-            endpoint: '/test',
-            method: 'GET',
-          },
-          data: {
-            chainId: 1,
-            data: '0x123' as Hex,
-            from: FROM_MOCK,
-            gas: '21000',
-            maxFeePerGas: '1000000000',
-            maxPriorityFeePerGas: '2000000000',
-            to: '0x2' as Hex,
-            value: '300000',
-          },
-          status: 'complete',
-        },
-      ],
-      kind: 'transaction',
-    },
-  ],
-} as RelayQuote;
+  steps: [STEP_MOCK],
+} as RelayQuote & { steps: RelayTransactionStep[] };
 
 const DELEGATION_RESULT_MOCK = {
   authorizationList: [
@@ -897,13 +898,13 @@ describe('Relay Quotes Utils', () => {
         ...QUOTE_MOCK,
         steps: [
           {
-            ...QUOTE_MOCK.steps[0],
+            ...STEP_MOCK,
             items: [
-              QUOTE_MOCK.steps[0].items[0],
+              STEP_MOCK.items[0],
               {
-                ...QUOTE_MOCK.steps[0].items[0],
+                ...STEP_MOCK.items[0],
                 data: {
-                  ...QUOTE_MOCK.steps[0].items[0].data,
+                  ...STEP_MOCK.items[0].data,
                   gas: '30000',
                 },
               },
@@ -956,13 +957,13 @@ describe('Relay Quotes Utils', () => {
         ...QUOTE_MOCK,
         steps: [
           {
-            ...QUOTE_MOCK.steps[0],
+            ...STEP_MOCK,
             items: [
-              QUOTE_MOCK.steps[0].items[0],
+              STEP_MOCK.items[0],
               {
-                ...QUOTE_MOCK.steps[0].items[0],
+                ...STEP_MOCK.items[0],
                 data: {
-                  ...QUOTE_MOCK.steps[0].items[0].data,
+                  ...STEP_MOCK.items[0].data,
                   gas: '30000',
                 },
               },
@@ -2932,7 +2933,7 @@ describe('Relay Quotes Utils', () => {
       quoteMock.steps[0].items = [
         {
           ...quoteMock.steps[0].items[0],
-          data: {},
+          data: {} as RelayTransactionStep['items'][0]['data'],
         },
       ];
 

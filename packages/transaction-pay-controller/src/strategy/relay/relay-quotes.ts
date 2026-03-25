@@ -394,7 +394,6 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
   }
 
   // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
-  // Override source chain/token and set protocolVersion=v2 (required by Relay).
   if (request.isHyperliquidSource) {
     newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
     newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
