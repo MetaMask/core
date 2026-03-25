@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0]
+
 ### Added
 
 - `MarketInsightsReport` now includes a required `digestId` field containing the unique UUID returned in the `/asset-summary` API response envelope ([#8283](https://github.com/MetaMask/core/pull/8283)).
@@ -75,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.0...HEAD
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.5.0...@metamask/ai-controllers@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.4.0...@metamask/ai-controllers@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.3.0...@metamask/ai-controllers@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.2.0...@metamask/ai-controllers@0.3.0
