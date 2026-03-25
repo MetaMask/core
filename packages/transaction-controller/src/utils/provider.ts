@@ -2,6 +2,9 @@ import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { createModuleLogger, projectLogger } from '../logger';
+
+const log = createModuleLogger(projectLogger, 'provider');
 
 type ProviderRequestParams = Parameters<Provider['request']>[0]['params'];
 
@@ -61,7 +64,12 @@ export async function rpcRequest({
   params?: ProviderRequestParams;
 }): Promise<unknown> {
   const provider = getProvider({ messenger, chainId, networkClientId });
-  return provider.request({ method, params });
+
+  const response = await provider.request({ method, params });
+
+  log(method, { params, response });
+
+  return response;
 }
 
 /**
