@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Sync mobile perps code to core (mobile branch `feat/perps/core-resolver`)
+- Add `@metamask/geolocation-controller` dependency for eligibility geolocation checks
+- Exclude `MYXWalletService` from published package files
+- MYX provider improvements: enhanced error handling, wallet service integration
+- HyperLiquid provider improvements: subscription reliability, order book processing
+- Eligibility service refactored for geolocation-based region blocking
+
 ## [1.3.0]
 
 ### Changed
