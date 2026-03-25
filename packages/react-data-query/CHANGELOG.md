@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Allow passing additional configuration options to `createUIQueryClient` ([#8295](https://github.com/MetaMask/core/pull/8295))
+- Move data service specific query configuration to hooks instead of `QueryClient` defaults ([#8296](https://github.com/MetaMask/core/pull/8296))
 
 ## [0.1.0]
 

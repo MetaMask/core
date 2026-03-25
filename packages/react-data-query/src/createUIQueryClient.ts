@@ -83,7 +83,6 @@ export function createUIQueryClient(
             options.pageParam,
           );
         },
-        staleTime: 0,
       },
       mutations: config.defaultOptions?.mutations,
     },
