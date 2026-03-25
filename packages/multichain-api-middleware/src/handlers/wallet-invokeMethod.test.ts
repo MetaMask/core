@@ -58,6 +58,7 @@ const createMockedHandler = () => {
     .fn()
     .mockReturnValue('selectedNetworkClientId');
   const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
   const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
   const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
@@ -66,6 +67,7 @@ const createMockedHandler = () => {
       findNetworkClientIdByChainId,
       getSelectedNetworkClientId,
       getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected,
       handleNonEvmRequestForOrigin,
     });
 
@@ -77,6 +79,7 @@ const createMockedHandler = () => {
     findNetworkClientIdByChainId,
     getSelectedNetworkClientId,
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
     handleNonEvmRequestForOrigin,
     handler,
   };
@@ -127,7 +130,8 @@ describe('wallet_invokeMethod', () => {
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
     const request = createMockedRequest();
-    const { handler, getNonEvmSupportedMethods } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods, sortAccountIdsByLastSelected } =
+      createMockedHandler();
     await handler(request);
     expect(chainAgnosticPermissionModule.getSessionScopes).toHaveBeenCalledWith(
       {
@@ -151,6 +155,7 @@ describe('wallet_invokeMethod', () => {
       },
       {
         getNonEvmSupportedMethods,
+        sortAccountIdsByLastSelected,
       },
     );
   });
