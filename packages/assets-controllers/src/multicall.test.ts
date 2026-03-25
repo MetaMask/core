@@ -1898,8 +1898,7 @@ describe('multicall', () => {
 
     describe('unknown-standard NFT exclusion', () => {
       it('should skip NFTs with explicitly unrecognized standard entirely', async () => {
-        const cryptoPunksAddress =
-          '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+        const cryptoPunksAddress = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
         const callSpy = jest.spyOn(provider, 'call');
 
         // Only call: multicall aggregate3 for the known-standard NFT
