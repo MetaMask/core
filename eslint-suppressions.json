@@ -1237,11 +1237,6 @@
       "count": 3
     }
   },
-  "packages/perps-controller/src/PerpsController.ts": {
-    "no-restricted-globals": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 2

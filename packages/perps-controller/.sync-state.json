@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "68a90b54535c02f8acda740ecb634330a0528000",
+  "lastSyncedMobileCommit": "71cbb3ac539d03f2635067a989a9165f45c9cd5c",
   "lastSyncedMobileBranch": "feat/perps/core-resolver",
-  "lastSyncedCoreCommit": "9b6fcbcf4f4f4fe4959e8b5d03224717db426fc2",
+  "lastSyncedCoreCommit": "41060c4f9dda5e8c0c9bb7a809729e130516b087",
   "lastSyncedCoreBranch": "feat/perps/sync-controller",
-  "lastSyncedDate": "2026-03-25T07:21:10Z",
-  "sourceChecksum": "d04f5d0bcb273f0e0e9db346e6d94450b933f756ec8f1ae359c6068e28201c97"
+  "lastSyncedDate": "2026-03-25T08:14:15Z",
+  "sourceChecksum": "85afd39571852bacd07cf31ff0e46e2a04111dbee223f5eec118f06c920c539f"
 }
