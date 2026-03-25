@@ -979,13 +979,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
     );
-    // Emit Submitted event after submit button is clicked
-    !quoteResponse.featureId &&
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.Submitted,
-        undefined,
-        preConfirmationProperties,
-      );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
@@ -998,14 +991,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
     const isTronTx = isTronChainId(quoteResponse.quote.srcChainId);
 
-    // Submit non-EVM tx (Solana, BTC, Tron)
-    if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
-      // Handle non-EVM approval if present (e.g., Tron token approvals)
-      if (quoteResponse.approval && isTronTrade(quoteResponse.approval)) {
-        const approvalTxMeta = await this.#trace(
-          getApprovalTraceParams(quoteResponse, false),
-          async () => {
-            try {
+    try {
+      // Emit Submitted event after submit button is clicked
+      !quoteResponse.featureId &&
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Submitted,
+          undefined,
+          preConfirmationProperties,
+        );
+      // Submit non-EVM tx (Solana, BTC, Tron)
+      if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
+        // Handle non-EVM approval if present (e.g., Tron token approvals)
+        if (quoteResponse.approval && isTronTrade(quoteResponse.approval)) {
+          const approvalTxMeta = await this.#trace(
+            getApprovalTraceParams(quoteResponse, false),
+            async () => {
               return quoteResponse.approval &&
                 isTronTrade(quoteResponse.approval)
                 ? await handleNonEvmTx(
@@ -1017,31 +1017,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 : /* c8 ignore start */
                   undefined;
               /* c8 ignore end */
-            } catch (error) {
-              !quoteResponse.featureId &&
-                this.#trackUnifiedSwapBridgeEvent(
-                  UnifiedSwapBridgeEventName.Failed,
-                  undefined,
-                  {
-                    error_message: (error as Error)?.message,
-                    ...preConfirmationProperties,
-                  },
-                );
-              throw error;
-            }
-          },
-        );
+            },
+          );
 
-        approvalTxId = approvalTxMeta?.id;
+          approvalTxId = approvalTxMeta?.id;
 
-        // Add delay after approval similar to EVM flow
-        await handleApprovalDelay(quoteResponse.quote.srcChainId);
-      }
+          // Add delay after approval similar to EVM flow
+          await handleApprovalDelay(quoteResponse.quote.srcChainId);
+        }
 
-      txMeta = await this.#trace(
-        getTraceParams(quoteResponse, false),
-        async () => {
-          try {
+        txMeta = await this.#trace(
+          getTraceParams(quoteResponse, false),
+          async () => {
             if (
               !(
                 isTronTrade(quoteResponse.trade) ||
@@ -1059,130 +1046,133 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse,
               selectedAccount,
             );
-          } catch (error) {
-            !quoteResponse.featureId &&
-              this.#trackUnifiedSwapBridgeEvent(
-                UnifiedSwapBridgeEventName.Failed,
-                undefined,
-                {
-                  error_message: (error as Error)?.message,
-                  ...preConfirmationProperties,
-                },
+          },
+        );
+      } else {
+        // Submit EVM tx
+        // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
+        // Extension does not have this issue
+        const requireApproval =
+          this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
+
+        // Handle smart transactions if enabled
+        txMeta = await this.#trace(
+          getTraceParams(quoteResponse, isStxEnabledOnClient),
+          async () => {
+            if (!isEvmTxData(quoteResponse.trade)) {
+              throw new Error(
+                'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
               );
-            throw error;
-          }
-        },
-      );
-    } else {
-      // Submit EVM tx
-      // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
-      // Extension does not have this issue
-      const requireApproval =
-        this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
-
-      // Handle smart transactions if enabled
-      txMeta = await this.#trace(
-        getTraceParams(quoteResponse, isStxEnabledOnClient),
-        async () => {
-          if (!isEvmTxData(quoteResponse.trade)) {
-            throw new Error(
-              'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
+            }
+            // Check if the account is an EIP-7702 delegated account
+            // Delegated accounts only allow 1 in-flight tx, so approve + swap
+            // must be batched into a single transaction
+            const hexChainId = formatChainIdToHex(
+              quoteResponse.quote.srcChainId,
             );
-          }
-          // Check if the account is an EIP-7702 delegated account
-          // Delegated accounts only allow 1 in-flight tx, so approve + swap
-          // must be batched into a single transaction
-          const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-          isDelegatedAccount = await checkIsDelegatedAccount(
-            this.messenger,
-            quoteResponse.trade.from as `0x`,
-            [hexChainId],
-          );
+            isDelegatedAccount = await checkIsDelegatedAccount(
+              this.messenger,
+              quoteResponse.trade.from as `0x`,
+              [hexChainId],
+            );
 
-          if (
-            isStxEnabledOnClient ||
-            quoteResponse.quote.gasIncluded7702 ||
-            isDelegatedAccount
-          ) {
-            const { tradeMeta, approvalMeta } =
-              await this.#handleEvmTransactionBatch({
-                isBridgeTx,
-                resetApproval: quoteResponse.resetApproval,
-                approval:
-                  quoteResponse.approval && isEvmTxData(quoteResponse.approval)
-                    ? quoteResponse.approval
-                    : undefined,
-                trade: quoteResponse.trade,
-                quoteResponse,
-                requireApproval,
-                isDelegatedAccount,
-              });
+            if (
+              isStxEnabledOnClient ||
+              quoteResponse.quote.gasIncluded7702 ||
+              isDelegatedAccount
+            ) {
+              const { tradeMeta, approvalMeta } =
+                await this.#handleEvmTransactionBatch({
+                  isBridgeTx,
+                  resetApproval: quoteResponse.resetApproval,
+                  approval:
+                    quoteResponse.approval &&
+                    isEvmTxData(quoteResponse.approval)
+                      ? quoteResponse.approval
+                      : undefined,
+                  trade: quoteResponse.trade,
+                  quoteResponse,
+                  requireApproval,
+                  isDelegatedAccount,
+                });
 
-            approvalTxId = approvalMeta?.id;
-            return tradeMeta;
-          }
-          // Set approval time and id if an approval tx is needed
-          const approvalTxMeta = await this.#handleApprovalTx(
-            quoteResponse,
-            isBridgeTx,
-            quoteResponse.quote.srcChainId,
-            quoteResponse.approval && isEvmTxData(quoteResponse.approval)
-              ? quoteResponse.approval
-              : undefined,
-            quoteResponse.resetApproval,
-            requireApproval,
-          );
+              approvalTxId = approvalMeta?.id;
+              return tradeMeta;
+            }
+            // Set approval time and id if an approval tx is needed
+            const approvalTxMeta = await this.#handleApprovalTx(
+              quoteResponse,
+              isBridgeTx,
+              quoteResponse.quote.srcChainId,
+              quoteResponse.approval && isEvmTxData(quoteResponse.approval)
+                ? quoteResponse.approval
+                : undefined,
+              quoteResponse.resetApproval,
+              requireApproval,
+            );
 
-          approvalTxId = approvalTxMeta?.id;
+            approvalTxId = approvalTxMeta?.id;
 
-          // Hardware-wallet delay first (Ledger second-prompt spacing), then wait for
-          // on-chain approval confirmation so swap gas estimation runs after allowance is set.
-          if (requireApproval && approvalTxMeta) {
-            await handleMobileHardwareWalletDelay(requireApproval);
-            await waitForTxConfirmation(this.messenger, approvalTxMeta.id);
-          } else {
-            await handleMobileHardwareWalletDelay(requireApproval);
-          }
+            // Hardware-wallet delay first (Ledger second-prompt spacing), then wait for
+            // on-chain approval confirmation so swap gas estimation runs after allowance is set.
+            if (requireApproval && approvalTxMeta) {
+              await handleMobileHardwareWalletDelay(requireApproval);
+              await waitForTxConfirmation(this.messenger, approvalTxMeta.id);
+            } else {
+              await handleMobileHardwareWalletDelay(requireApproval);
+            }
 
-          // Generate actionId for pre-submission history (non-batch EVM only)
-          const actionId = generateActionId().toString();
+            // Generate actionId for pre-submission history (non-batch EVM only)
+            const actionId = generateActionId().toString();
 
-          // Add pre-submission history keyed by actionId
-          // This ensures we have quote data available if transaction fails during submission
-          this.#addTxToHistory({
-            accountAddress: selectedAccount.address,
-            quoteResponse,
-            slippagePercentage: 0,
-            isStxEnabled: isStxEnabledOnClient,
-            startTime,
-            approvalTxId,
-            location,
-            abTests,
-            activeAbTests,
-            actionId,
-          });
+            // Add pre-submission history keyed by actionId
+            // This ensures we have quote data available if transaction fails during submission
+            this.#addTxToHistory({
+              accountAddress: selectedAccount.address,
+              quoteResponse,
+              slippagePercentage: 0,
+              isStxEnabled: isStxEnabledOnClient,
+              startTime,
+              approvalTxId,
+              location,
+              abTests,
+              activeAbTests,
+              actionId,
+            });
 
-          // Pass txFee when gasIncluded is true to use the quote's gas fees
-          // instead of re-estimating (which would fail for max native token swaps)
-          const tradeTxMeta = await submitEvmTransaction({
-            messenger: this.messenger,
-            transactionType: isBridgeTx
-              ? TransactionType.bridge
-              : TransactionType.swap,
-            trade: quoteResponse.trade,
-            requireApproval,
-            txFee: quoteResponse.quote.gasIncluded
-              ? quoteResponse.quote.feeData.txFee
-              : undefined,
-            actionId,
-          });
+            // Pass txFee when gasIncluded is true to use the quote's gas fees
+            // instead of re-estimating (which would fail for max native token swaps)
+            const tradeTxMeta = await submitEvmTransaction({
+              messenger: this.messenger,
+              transactionType: isBridgeTx
+                ? TransactionType.bridge
+                : TransactionType.swap,
+              trade: quoteResponse.trade,
+              requireApproval,
+              txFee: quoteResponse.quote.gasIncluded
+                ? quoteResponse.quote.feeData.txFee
+                : undefined,
+              actionId,
+            });
 
-          // On success, rekey from actionId to txMeta.id and update srcTxHash
-          this.#rekeyHistoryItem(actionId, tradeTxMeta);
+            // On success, rekey from actionId to txMeta.id and update srcTxHash
+            this.#rekeyHistoryItem(actionId, tradeTxMeta);
 
-          return tradeTxMeta;
-        },
-      );
+            return tradeTxMeta;
+          },
+        );
+      }
+    } catch (error) {
+      !quoteResponse.featureId &&
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Failed,
+          undefined,
+          {
+            error_message: (error as Error)?.message,
+            ...preConfirmationProperties,
+          },
+        );
+      throw error;
     }
 
     try {

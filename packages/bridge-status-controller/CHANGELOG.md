@@ -7,14 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [70.0.1]
+
 ### Changed
 
-- Moved more controller calls from bridge-status-controller.ts to their own utils ([#8215](https://github.com/MetaMask/core/pull/8215))
-- Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
+- Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.1` ([#8265](https://github.com/MetaMask/core/pull/8265), [#8288](https://github.com/MetaMask/core/pull/8288))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
 
 ### Fixed
 
+- Publish UnifiedSwapBridge Failed event for any exception thrown during `submitTx`. Previously the Failed event was only getting published for EVM txs after tx submission ([#8277](https://github.com/MetaMask/core/pull/8277))
 - Keep EIP-7702 batching disabled for gasless transactions that use smart transactions / `eth_sendBundle` when the quote is gas-included but not gas-included-7702 even when the account is a smart account ([#8275](https://github.com/MetaMask/core/pull/8275))
 - For hardware wallets on MetaMask Mobile, non-batch EVM flows with ERC-20 approval now run the hardware-wallet delay before waiting for approval confirmation, preserving Ledger second-prompt spacing while gas estimation still runs after allowance is set on-chain ([#8268](https://github.com/MetaMask/core/pull/8268))
 
@@ -1058,7 +1060,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.1...HEAD
+[70.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.0...@metamask/bridge-status-controller@70.0.1
 [70.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@69.0.0...@metamask/bridge-status-controller@70.0.0
 [69.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.1.0...@metamask/bridge-status-controller@69.0.0
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.2...@metamask/bridge-status-controller@68.1.0
