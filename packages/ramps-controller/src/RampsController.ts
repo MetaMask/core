@@ -264,6 +264,13 @@ export type RampsControllerState = {
    * and persists them.
    */
   orders: RampsOrder[];
+  /**
+   * Whether the currently selected provider was auto-selected by the system
+   * (no order history, no Transak) rather than chosen by the user or derived
+   * from order history. When true, the UI should silently switch providers on
+   * token conflict instead of showing the "Token Not Available" modal.
+   */
+  providerAutoSelected: boolean;
 };
 
 /**
@@ -313,6 +320,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  providerAutoSelected: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -378,6 +391,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       },
     },
     orders: [],
+    providerAutoSelected: false,
   };
 }
 
@@ -1163,12 +1177,20 @@ export class RampsController extends BaseController<
    * fetches payment methods for that provider.
    *
    * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+   * @param options - Optional settings for the selection.
+   * @param options.autoSelected - When true, marks the provider as system-guessed
+   *   (soft selection). The UI will silently auto-switch on token conflict instead
+   *   of showing the "Token Not Available" modal. Defaults to false.
    * @throws If region is not set, providers are not loaded, or provider is not found.
    */
-  setSelectedProvider(providerId: string | null): void {
+  setSelectedProvider(
+    providerId: string | null,
+    options?: { autoSelected?: boolean },
+  ): void {
     if (providerId === null) {
       this.update((state) => {
         state.providers.selected = null;
+        state.providerAutoSelected = false;
         resetResource(state, 'paymentMethods');
       });
       return;
@@ -1203,6 +1225,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.providers.selected = provider;
+      state.providerAutoSelected = options?.autoSelected ?? false;
       resetResource(state, 'paymentMethods');
     });
 
@@ -2021,12 +2044,14 @@ export class RampsController extends BaseController<
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
-    return await this.messenger.call(
+    const order = await this.messenger.call(
       'RampsService:getOrderFromCallback',
       providerCode,
       callbackUrl,
       wallet,
     );
+
+    return order;
   }
 
   // === TRANSAK METHODS ===
