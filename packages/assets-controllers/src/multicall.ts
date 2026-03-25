@@ -1301,9 +1301,6 @@ const getNftOwnershipViaMulticall = async (
       return;
     }
     const { nftIndex, callVariant } = meta[i];
-    // Once we have a definitive answer (true or false) from any call for this NFT,
-    // don't override it — mirrors the original isNftOwner behavior which returned
-    // immediately after the first successful contract call.
     if (results[nftIndex].isOwned !== undefined) {
       return;
     }
@@ -1419,9 +1416,50 @@ export const getNftOwnershipForMultipleNfts = async (
     return [];
   }
 
-  if (MULTICALL_CONTRACT_BY_CHAINID[chainId]) {
+  const results: NftOwnershipResult[] = nfts.map(({ nftAddress, tokenId }) => ({
+    nftAddress,
+    tokenId,
+    isOwned: undefined,
+  }));
+
+  // Filter out NFTs whose standard is explicitly unrecognized (e.g.
+  // CryptoPunks with standard="UNKNOWN"). Such contracts use pre-Solidity-
+  // 0.4.10 bytecode that compiles unrecognized selectors to the INVALID
+  // opcode, which consumes ALL forwarded gas. Including them in a Multicall3
+  // aggregate3 batch causes the entire batch to revert, and calling them
+  // individually also always fails. They stay as isOwned=undefined.
+  //
+  // NFTs with `standard: null` (not yet categorized) are still included
+  // because they are likely valid ERC-721/ERC-1155 contracts.
+  const callable = nfts.reduce<{ nft: NftOwnershipQuery; index: number }[]>(
+    (acc, nft, index) => {
+      const hasExplicitNonStandard =
+        nft.standard !== null && normalizeNftStandard(nft.standard) === null;
+      if (!hasExplicitNonStandard) {
+        acc.push({ nft, index });
+      }
+      return acc;
+    },
+    [],
+  );
+
+  if (callable.length === 0) {
+    return results;
+  }
+
+  const multicallAddress = MULTICALL_CONTRACT_BY_CHAINID[chainId];
+
+  if (multicallAddress) {
     try {
-      return await getNftOwnershipViaMulticall(nfts, chainId, provider);
+      const batchResults = await getNftOwnershipViaMulticall(
+        callable.map(({ nft }) => nft),
+        chainId,
+        provider,
+      );
+      batchResults.forEach((result, batchIndex) => {
+        results[callable[batchIndex].index] = result;
+      });
+      return results;
     } catch (error) {
       console.warn(
         'Multicall3 NFT ownership check failed, falling back to individual calls',
@@ -1430,5 +1468,13 @@ export const getNftOwnershipForMultipleNfts = async (
     }
   }
 
-  return getNftOwnershipIndividually(nfts, provider);
+  const individualResults = await getNftOwnershipIndividually(
+    callable.map(({ nft }) => nft),
+    provider,
+  );
+  individualResults.forEach((result, batchIndex) => {
+    results[callable[batchIndex].index] = result;
+  });
+
+  return results;
 };

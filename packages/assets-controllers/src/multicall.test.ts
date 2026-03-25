@@ -1895,5 +1895,65 @@ describe('multicall', () => {
         consoleSpy.mockRestore();
       });
     });
+
+    describe('unknown-standard NFT exclusion', () => {
+      it('should skip NFTs with explicitly unrecognized standard entirely', async () => {
+        const cryptoPunksAddress =
+          '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+        const callSpy = jest.spyOn(provider, 'call');
+
+        // Only call: multicall aggregate3 for the known-standard NFT
+        callSpy.mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [
+            makeQuery({ standard: 'ERC721' }),
+            makeQuery({
+              nftAddress: cryptoPunksAddress,
+              tokenId: '1434',
+              standard: 'UNKNOWN',
+            }),
+          ],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+          {
+            nftAddress: cryptoPunksAddress,
+            tokenId: '1434',
+            isOwned: undefined,
+          },
+        ]);
+        // Only 1 multicall call — no individual calls for the UNKNOWN NFT
+        expect(callSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('should still include standard=null NFTs in multicall batch', async () => {
+        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+            { success: false, data: '0x' },
+          ]),
+        );
+
+        const results = await getNftOwnershipForMultipleNfts(
+          [makeQuery({ standard: null })],
+          supportedChainId,
+          provider,
+        );
+
+        expect(results).toStrictEqual([
+          { nftAddress, tokenId: '1', isOwned: true },
+        ]);
+        // Single multicall call (no individual calls)
+        expect(provider.call).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 });
