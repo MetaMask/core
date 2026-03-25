@@ -17,6 +17,7 @@ export type {
   MultichainAccountServiceGetMultichainAccountGroupsAction,
   MultichainAccountServiceCreateNextMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupsAction,
   MultichainAccountServiceSetBasicFunctionalityAction,
   MultichainAccountServiceAlignWalletsAction,
   MultichainAccountServiceAlignWalletAction,

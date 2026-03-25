@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "../assets-controller"
+    },
+    {
       "path": "../assets-controllers"
     },
     {
@@ -24,6 +27,9 @@
     },
     {
       "path": "../network-controller"
+    },
+    {
+      "path": "../ramps-controller"
     },
     {
       "path": "../remote-feature-flag-controller"

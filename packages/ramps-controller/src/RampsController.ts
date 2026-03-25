@@ -8,7 +8,9 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type {
+  BuyWidget,
   Country,
   TokensResponse,
   Provider,
@@ -259,9 +261,8 @@ export type RampsControllerState = {
    */
   nativeProviders: NativeProvidersState;
   /**
-   * V2 orders stored directly as RampsOrder[].
    * The controller is the authority for V2 orders — it polls, updates,
-   * and persists them. No FiatOrder wrapper needed.
+   * and persists them.
    */
   orders: RampsOrder[];
 };
@@ -438,7 +439,9 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 /**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -595,6 +598,10 @@ function findRegionFromCode(
   };
 }
 
+export function normalizeProviderCode(providerCode: string): string {
+  return providerCode.replace(/^\/providers\//u, '');
+}
+
 // === ORDER POLLING CONSTANTS ===
 
 const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
@@ -620,6 +627,56 @@ type OrderPollingMetadata = {
 };
 
 // === CONTROLLER DEFINITION ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'executeRequest',
+  'abortRequest',
+  'getRequestState',
+  'setUserRegion',
+  'setSelectedProvider',
+  'init',
+  'getCountries',
+  'getTokens',
+  'setSelectedToken',
+  'getProviders',
+  'getPaymentMethods',
+  'setSelectedPaymentMethod',
+  'getQuotes',
+  'addOrder',
+  'removeOrder',
+  'startOrderPolling',
+  'stopOrderPolling',
+  'getBuyWidgetData',
+  'addPrecreatedOrder',
+  'getOrder',
+  'getOrderFromCallback',
+  'transakSetApiKey',
+  'transakSetAccessToken',
+  'transakClearAccessToken',
+  'transakSetAuthenticated',
+  'transakResetState',
+  'transakSendUserOtp',
+  'transakVerifyUserOtp',
+  'transakLogout',
+  'transakGetUserDetails',
+  'transakGetBuyQuote',
+  'transakGetKycRequirement',
+  'transakGetAdditionalRequirements',
+  'transakCreateOrder',
+  'transakGetOrder',
+  'transakGetUserLimits',
+  'transakRequestOtt',
+  'transakGeneratePaymentWidgetUrl',
+  'transakSubmitPurposeOfUsageForm',
+  'transakPatchUser',
+  'transakSubmitSsnDetails',
+  'transakConfirmPayment',
+  'transakGetTranslation',
+  'transakGetIdProofStatus',
+  'transakCancelOrder',
+  'transakCancelAllActiveOrders',
+  'transakGetActiveOrders',
+] as const;
 
 /**
  * Manages cryptocurrency on/off ramps functionality.
@@ -656,6 +713,8 @@ export class RampsController extends BaseController<
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
 
   #isPolling = false;
+
+  #initPromise: Promise<void> | null = null;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -716,6 +775,11 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -1138,31 +1202,78 @@ export class RampsController extends BaseController<
       );
     }
 
+    const selectedToken = this.state.tokens.selected;
+    const supportedCryptos = provider.supportedCryptoCurrencies;
+
+    // Only fetch payment methods if the selected token is supported by the new
+    // provider. If it isn't, the payment methods request would fail or return
+    // empty for the wrong reason; the UI will show the Token Not Available modal
+    // so the user can change token or pick a different provider.
+    const assetId = selectedToken?.assetId;
+    const tokenSupportedByProvider = !(
+      assetId && supportedCryptos?.[assetId] === false
+    );
+
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
     });
 
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }),
-    );
+    if (tokenSupportedByProvider) {
+      this.#fireAndForget(
+        this.getPaymentMethods(regionCode, { provider: provider.id }),
+      );
+    }
   }
 
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
    *
-   * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and use the existing region.
+   * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
+   * Skips getCountries when countries are already loaded; skips geolocation when
+   * userRegion already exists.
    *
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries(options);
+    if (!options?.forceRefresh && this.#initPromise !== null) {
+      return this.#initPromise;
+    }
 
-    let regionCode = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    if (options?.forceRefresh) {
+      this.#initPromise = null;
+    }
+
+    const initPromise = this.#runInit(options).then(
+      () => undefined,
+      (error) => {
+        if (this.#initPromise === initPromise) {
+          this.#initPromise = null;
+        }
+        throw error;
+      },
+    );
+    this.#initPromise = initPromise;
+    return initPromise;
+  }
+
+  async #runInit(options?: ExecuteRequestOptions): Promise<void> {
+    const forceRefresh = options?.forceRefresh === true;
+    const hasCountries = this.state.countries.data.length > 0;
+
+    if (forceRefresh || !hasCountries) {
+      await this.getCountries(options);
+    }
+
+    let regionCode: string | undefined;
+    if (forceRefresh) {
+      regionCode = await this.messenger.call('RampsService:getGeolocation');
+    } else {
+      regionCode = this.state.userRegion?.regionCode;
+      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    }
 
     if (!regionCode) {
       throw new Error(
@@ -1171,13 +1282,6 @@ export class RampsController extends BaseController<
     }
 
     await this.setUserRegion(regionCode, options);
-  }
-
-  hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.#requireRegion();
-
-    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
-    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
@@ -1662,12 +1766,11 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const providerCodeSegment = providerCode.replace('/providers/', '');
     const previousStatus = order.status;
 
     try {
       const updatedOrder = await this.getOrder(
-        providerCodeSegment,
+        providerCode,
         order.providerOrderId,
         order.walletAddress,
       );
@@ -1789,28 +1892,85 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Fetches the widget URL from a quote for redirect providers.
+   * Fetches the widget data from a quote for redirect providers.
    * Makes a request to the buyURL endpoint via the RampsService to get the
-   * actual provider widget URL.
+   * actual provider widget URL and optional order ID for polling.
    *
    * @param quote - The quote to fetch the widget URL from.
-   * @returns Promise resolving to the widget URL string, or null if not available.
+   * @returns Promise resolving to the full BuyWidget (url, browser, orderId), or null if not available (missing buyURL or empty url in response).
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
    */
-  async getWidgetUrl(quote: Quote): Promise<string | null> {
+  async getBuyWidgetData(quote: Quote): Promise<BuyWidget | null> {
     const buyUrl = quote.quote?.buyURL;
     if (!buyUrl) {
       return null;
     }
 
-    try {
-      const buyWidget = await this.messenger.call(
-        'RampsService:getBuyWidgetUrl',
-        buyUrl,
-      );
-      return buyWidget.url ?? null;
-    } catch {
+    const buyWidget = await this.messenger.call(
+      'RampsService:getBuyWidgetUrl',
+      buyUrl,
+    );
+    if (!buyWidget?.url) {
       return null;
     }
+    return buyWidget;
+  }
+
+  /**
+   * Registers an order ID for polling until the order is created or resolved.
+   * Adds a minimal stub order to controller state; the existing order polling
+   * will fetch the full order when the provider has created it.
+   *
+   * @param params - Object containing order identifiers and wallet info.
+   * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
+   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.walletAddress - Wallet address for the order.
+   * @param params.chainId - Optional chain ID for the order.
+   */
+  addPrecreatedOrder(params: {
+    orderId: string;
+    providerCode: string;
+    walletAddress: string;
+    chainId?: string;
+  }): void {
+    const { orderId, providerCode, walletAddress, chainId } = params;
+
+    const orderCode = orderId.includes('/orders/')
+      ? orderId.split('/orders/')[1]
+      : orderId;
+    if (!orderCode?.trim()) {
+      return;
+    }
+    const stubOrder: RampsOrder = {
+      providerOrderId: orderCode,
+      provider: {
+        id: providerCode,
+        name: '',
+        environmentType: '',
+        description: '',
+        hqAddress: '',
+        links: [],
+        logos: { light: '', dark: '', height: 0, width: 0 },
+      },
+      walletAddress,
+      status: RampsOrderStatus.Precreated,
+      orderType: 'buy',
+      createdAt: Date.now(),
+      isOnlyLink: false,
+      success: false,
+      cryptoAmount: 0,
+      fiatAmount: 0,
+      providerOrderLink: '',
+      totalFeesFiat: 0,
+      txHash: '',
+      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      canBeUpdated: true,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+    };
+
+    this.addOrder(stubOrder);
   }
 
   /**
@@ -1834,19 +1994,28 @@ export class RampsController extends BaseController<
       wallet,
     );
 
+    const healedWalletAddress = order.walletAddress || wallet;
+    const healedOrder = {
+      ...order,
+      walletAddress: healedWalletAddress,
+      providerOrderId: orderCode,
+    };
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === orderCode,
+        (existing: RampsOrder) => existing.providerOrderId === orderCode,
       );
-      if (idx !== -1) {
+      if (idx === -1) {
+        state.orders.push(healedOrder as Draft<RampsOrder>);
+      } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
+          ...healedOrder,
         } as Draft<RampsOrder>;
       }
     });
 
-    return order;
+    return healedOrder;
   }
 
   /**

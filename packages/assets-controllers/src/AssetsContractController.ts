@@ -3,7 +3,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
-import type { Messenger, ActionConstraint } from '@metamask/messenger';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -14,11 +14,11 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import { getKnownPropertyNames } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
+import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types';
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
@@ -101,83 +101,10 @@ export type BalanceMap = {
 const name = 'AssetsContractController';
 
 /**
- * A utility type that derives the public method names of a given messenger consumer class,
- * and uses it to generate the class's internal messenger action types.
- *
- * @template Controller - A messenger consumer class.
- */
-// TODO: Figure out generic constraint and move to base-controller
-type ControllerActionsMap<Controller> = {
-  [ClassMethod in keyof Controller as Controller[ClassMethod] extends ActionConstraint['handler']
-    ? ClassMethod
-    : never]: {
-    type: `${typeof name}:${ClassMethod & string}`;
-    handler: Controller[ClassMethod];
-  };
-};
-
-type AssetsContractControllerActionsMap =
-  ControllerActionsMap<AssetsContractController>;
-
-/**
- * The union of all public class method names of {@link AssetsContractController}.
- */
-type AssetsContractControllerMethodName =
-  keyof AssetsContractControllerActionsMap;
-
-/**
  * The union of all internal messenger actions available to the {@link AssetsContractControllerMessenger}.
  */
 export type AssetsContractControllerActions =
-  AssetsContractControllerActionsMap[AssetsContractControllerMethodName];
-
-export type AssetsContractControllerGetERC20StandardAction =
-  AssetsContractControllerActionsMap['getERC20Standard'];
-
-export type AssetsContractControllerGetERC721StandardAction =
-  AssetsContractControllerActionsMap['getERC721Standard'];
-
-export type AssetsContractControllerGetERC1155StandardAction =
-  AssetsContractControllerActionsMap['getERC1155Standard'];
-
-export type AssetsContractControllerGetERC20BalanceOfAction =
-  AssetsContractControllerActionsMap['getERC20BalanceOf'];
-
-export type AssetsContractControllerGetERC20TokenDecimalsAction =
-  AssetsContractControllerActionsMap['getERC20TokenDecimals'];
-
-export type AssetsContractControllerGetERC20TokenNameAction =
-  AssetsContractControllerActionsMap['getERC20TokenName'];
-
-export type AssetsContractControllerGetERC721NftTokenIdAction =
-  AssetsContractControllerActionsMap['getERC721NftTokenId'];
-
-export type AssetsContractControllerGetERC721TokenURIAction =
-  AssetsContractControllerActionsMap['getERC721TokenURI'];
-
-export type AssetsContractControllerGetERC721AssetNameAction =
-  AssetsContractControllerActionsMap['getERC721AssetName'];
-
-export type AssetsContractControllerGetERC721AssetSymbolAction =
-  AssetsContractControllerActionsMap['getERC721AssetSymbol'];
-
-export type AssetsContractControllerGetERC721OwnerOfAction =
-  AssetsContractControllerActionsMap['getERC721OwnerOf'];
-
-export type AssetsContractControllerGetERC1155TokenURIAction =
-  AssetsContractControllerActionsMap['getERC1155TokenURI'];
-
-export type AssetsContractControllerGetERC1155BalanceOfAction =
-  AssetsContractControllerActionsMap['getERC1155BalanceOf'];
-
-export type AssetsContractControllerTransferSingleERC1155Action =
-  AssetsContractControllerActionsMap['transferSingleERC1155'];
-
-export type AssetsContractControllerGetTokenStandardAndDetailsAction =
-  AssetsContractControllerActionsMap['getTokenStandardAndDetails'];
-
-export type AssetsContractControllerGetBalancesInSingleCallAction =
-  AssetsContractControllerActionsMap['getBalancesInSingleCall'];
+  AssetsContractControllerMethodActions;
 
 /**
  * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
@@ -210,6 +137,26 @@ export type AssetsContractControllerMessenger = Messenger<
 >;
 
 export type StakedBalance = string | undefined;
+
+const MESSENGER_EXPOSED_METHODS = [
+  'getERC20Standard',
+  'getERC721Standard',
+  'getERC1155Standard',
+  'getERC20BalanceOf',
+  'getERC20TokenDecimals',
+  'getERC20TokenName',
+  'getERC721NftTokenId',
+  'getERC721TokenURI',
+  'getERC721AssetName',
+  'getERC721AssetSymbol',
+  'getERC721OwnerOf',
+  'getERC1155TokenURI',
+  'getERC1155BalanceOf',
+  'transferSingleERC1155',
+  'getTokenStandardAndDetails',
+  'getBalancesInSingleCall',
+  'getStakedBalanceForChain',
+] as const;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
@@ -244,37 +191,8 @@ export class AssetsContractController {
     this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
     this.#chainId = initialChainId;
 
-    this.#registerActionHandlers();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
     this.#registerEventSubscriptions();
-  }
-
-  // TODO: Expand into base-controller utility function that batch registers action handlers.
-  #registerActionHandlers() {
-    const methodsExcludedFromMessenger = [
-      'constructor',
-      'messenger',
-      'setProvider',
-      'provider',
-      'ipfsGateway',
-      'chainId',
-    ];
-
-    getKnownPropertyNames<keyof this>(Object.getPrototypeOf(this)).forEach(
-      (method) => {
-        if (
-          ((key: keyof this): key is AssetsContractControllerMethodName =>
-            !methodsExcludedFromMessenger.find((e) => e === key) &&
-            typeof this[key] === 'function')(method)
-        ) {
-          this.messenger.registerActionHandler(
-            `${name}:${method}`,
-            // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
-            // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
-            this[method].bind(this),
-          );
-        }
-      },
-    );
   }
 
   #registerEventSubscriptions() {

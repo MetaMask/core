@@ -1,12 +1,17 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { uniq } from 'lodash';
 
-import { NATIVE_TOKEN_ADDRESS, STABLECOINS } from '../constants';
+import { getAssetsUnifyStateFeature } from './feature-flags';
+import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  STABLECOINS,
+} from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 
 /**
@@ -45,18 +50,32 @@ export function getTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): string {
-  const tokenBalanceControllerState = messenger.call(
-    'TokenBalancesController:getState',
-  );
+  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+
+  let tokenBalances;
+  let accountsByChainId;
+  if (assetsUnifyStateFeatureEnabled) {
+    const assetsControllerState = messenger.call(
+      'AssetsController:getStateForTransactionPay',
+    );
+
+    tokenBalances = assetsControllerState?.tokenBalances;
+    accountsByChainId = assetsControllerState?.accountsByChainId;
+  } else {
+    tokenBalances = messenger.call(
+      'TokenBalancesController:getState',
+    )?.tokenBalances;
+    accountsByChainId = messenger.call(
+      'AccountTrackerController:getState',
+    )?.accountsByChainId;
+  }
 
   const normalizedAccount = account.toLowerCase() as Hex;
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
   const balanceHex =
-    tokenBalanceControllerState.tokenBalances?.[normalizedAccount]?.[chainId]?.[
-      normalizedTokenAddress
-    ];
+    tokenBalances?.[normalizedAccount]?.[chainId]?.[normalizedTokenAddress];
 
   if (!isNative && balanceHex === undefined) {
     return '0';
@@ -66,66 +85,12 @@ export function getTokenBalance(
     return new BigNumber(balanceHex, 16).toString(10);
   }
 
-  const accountTrackerControllerState = messenger.call(
-    'AccountTrackerController:getState',
-  );
-
-  const chainAccounts =
-    accountTrackerControllerState.accountsByChainId?.[chainId];
+  const chainAccounts = accountsByChainId?.[chainId];
 
   const checksumAccount = toChecksumHexAddress(normalizedAccount) as Hex;
   const nativeBalanceHex = chainAccounts?.[checksumAccount]?.balance as Hex;
 
   return new BigNumber(nativeBalanceHex ?? '0x0', 16).toString(10);
-}
-
-/**
- * Get the token balance for a specific account and token.
- *
- * @param messenger - Controller messenger.
- * @param account - Address of the account.
- * @returns The token balance as a BigNumber.
- */
-export function getAllTokenBalances(
-  messenger: TransactionPayControllerMessenger,
-  account: Hex,
-): {
-  balance: string;
-  chainId: Hex;
-  tokenAddress: Hex;
-}[] {
-  const tokenBalanceControllerState = messenger.call(
-    'TokenBalancesController:getState',
-  );
-
-  const accountTrackerControllerState = messenger.call(
-    'AccountTrackerController:getState',
-  );
-
-  const nativeChainIds = Object.keys(
-    accountTrackerControllerState.accountsByChainId,
-  ) as Hex[];
-
-  const normalizedAccount = account.toLowerCase() as Hex;
-
-  const balancesByTokenByChain =
-    tokenBalanceControllerState.tokenBalances?.[normalizedAccount];
-
-  const tokenChainIds = Object.keys(balancesByTokenByChain) as Hex[];
-  const chainIds = uniq([...tokenChainIds, ...nativeChainIds]);
-
-  return chainIds.flatMap((chainId) => {
-    const tokenAddresses = [
-      ...(Object.keys(balancesByTokenByChain[chainId] ?? {}) as Hex[]),
-      getNativeToken(chainId),
-    ];
-
-    return tokenAddresses.map((tokenAddress) => ({
-      chainId,
-      tokenAddress,
-      balance: getTokenBalance(messenger, account, chainId, tokenAddress),
-    }));
-  });
 }
 
 /**
@@ -141,13 +106,23 @@ export function getTokenInfo(
   tokenAddress: Hex,
   chainId: Hex,
 ): { decimals: number; symbol: string } | undefined {
-  const controllerState = messenger.call('TokensController:getState');
+  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+
+  let allTokens: TokensControllerState['allTokens'];
+  if (assetsUnifyStateFeatureEnabled) {
+    allTokens = messenger.call(
+      'AssetsController:getStateForTransactionPay',
+    )?.allTokens;
+  } else {
+    allTokens = messenger.call('TokensController:getState')?.allTokens;
+  }
+
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
   const isNative =
     normalizedTokenAddress === getNativeToken(chainId).toLowerCase();
 
-  const token = Object.values(controllerState.allTokens?.[chainId] ?? {})
+  const token = Object.values(allTokens?.[chainId] ?? {})
     .flat()
     .find(
       (singleToken) =>
@@ -184,23 +159,35 @@ export function getTokenFiatRate(
   tokenAddress: Hex,
   chainId: Hex,
 ): FiatRates | undefined {
+  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+
+  let marketData;
+  let currencyRates;
+  if (assetsUnifyStateFeatureEnabled) {
+    const assetsControllerState = messenger.call(
+      'AssetsController:getStateForTransactionPay',
+    );
+
+    marketData = assetsControllerState?.marketData;
+    currencyRates = assetsControllerState?.currencyRates;
+  } else {
+    marketData = messenger.call('TokenRatesController:getState')?.marketData;
+    currencyRates = messenger.call(
+      'CurrencyRateController:getState',
+    )?.currencyRates;
+  }
+
   const ticker = getTicker(chainId, messenger);
 
   if (!ticker) {
     return undefined;
   }
 
-  const rateControllerState = messenger.call('TokenRatesController:getState');
-
-  const currencyRateControllerState = messenger.call(
-    'CurrencyRateController:getState',
-  );
-
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
   const tokenToNativeRate =
-    rateControllerState.marketData?.[chainId]?.[normalizedTokenAddress]?.price;
+    marketData?.[chainId]?.[normalizedTokenAddress]?.price;
 
   if (tokenToNativeRate === undefined && !isNative) {
     return undefined;
@@ -209,7 +196,7 @@ export function getTokenFiatRate(
   const {
     conversionRate: nativeToFiatRate,
     usdConversionRate: nativeToUsdRate,
-  } = currencyRateControllerState.currencyRates?.[ticker] ?? {
+  } = currencyRates?.[ticker] ?? {
     conversionRate: null,
     usdConversionRate: null,
   };
@@ -261,6 +248,38 @@ export function computeTokenAmounts(
     usd: humanValue.multipliedBy(fiatRates.usdRate).toString(10),
     fiat: humanValue.multipliedBy(fiatRates.fiatRate).toString(10),
   };
+}
+
+/**
+ * Compute a raw token amount from a fiat (USD) amount.
+ * This is the inverse of `computeTokenAmounts` — it goes from USD to raw.
+ *
+ * @param fiatAmount - Amount in fiat/USD.
+ * @param decimals - Token decimals.
+ * @param usdRate - USD rate for the token (price per one unit of the token).
+ * @returns Raw token amount string, or undefined if the conversion produces an invalid result.
+ */
+export function computeRawFromFiatAmount(
+  fiatAmount: BigNumber.Value,
+  decimals: number,
+  usdRate: BigNumber.Value,
+): string | undefined {
+  const rate = new BigNumber(usdRate);
+  if (!rate.isFinite() || !rate.gt(0)) {
+    return undefined;
+  }
+
+  const humanAmount = new BigNumber(fiatAmount).dividedBy(rate);
+  if (!humanAmount.isFinite() || !humanAmount.gt(0)) {
+    return undefined;
+  }
+
+  const raw = humanAmount
+    .shiftedBy(decimals)
+    .decimalPlaces(0, BigNumber.ROUND_DOWN)
+    .toFixed(0);
+
+  return new BigNumber(raw).gt(0) ? raw : undefined;
 }
 
 /**
@@ -340,4 +359,51 @@ function getTicker(
   } catch {
     return undefined;
   }
+}
+
+export enum TokenAddressTarget {
+  Relay = 'relay',
+  MetaMask = 'metamask',
+}
+
+/**
+ * Normalize token address formats between MetaMask and Relay for Polygon native
+ * token handling.
+ *
+ * MetaMask uses Polygon's native token contract-like address (`0x...1010`),
+ * while Relay expects the zero address for native tokens.
+ *
+ * @param tokenAddress - Token address to normalize.
+ * @param chainId - Chain ID for the token.
+ * @param target - Optional target system format.
+ * @returns Normalized token address for the target system, or the original
+ * address if no target is provided.
+ */
+export function normalizeTokenAddress(
+  tokenAddress: Hex,
+  chainId: Hex,
+  target?: TokenAddressTarget,
+): Hex {
+  if (chainId !== CHAIN_ID_POLYGON) {
+    return tokenAddress;
+  }
+
+  const nativeTokenAddress = getNativeToken(chainId).toLowerCase() as Hex;
+  const normalizedTokenAddress = tokenAddress.toLowerCase();
+
+  if (
+    target === TokenAddressTarget.Relay &&
+    normalizedTokenAddress === nativeTokenAddress
+  ) {
+    return NATIVE_TOKEN_ADDRESS;
+  }
+
+  if (
+    target === TokenAddressTarget.MetaMask &&
+    normalizedTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  ) {
+    return nativeTokenAddress;
+  }
+
+  return tokenAddress;
 }

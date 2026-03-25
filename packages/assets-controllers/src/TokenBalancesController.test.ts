@@ -17,6 +17,7 @@ import BN from 'bn.js';
 import type nock from 'nock';
 
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import * as multicall from './multicall';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
@@ -4992,6 +4993,68 @@ describe('TokenBalancesController', () => {
       jest.useRealTimers();
     });
 
+    it('should skip non-EVM chains like solana without crashing', async () => {
+      jest.useFakeTimers();
+
+      const { controller, messenger } = setupController();
+
+      const updateConfigSpy = jest.spyOn(
+        controller,
+        'updateChainPollingConfigs',
+      );
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['solana:mainnet'],
+        status: 'up',
+      });
+
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(updateConfigSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should process EVM chains and skip non-EVM chains in mixed status changes', async () => {
+      jest.useFakeTimers();
+
+      const { controller, messenger } = setupController();
+
+      const updateConfigSpy = jest.spyOn(
+        controller,
+        'updateChainPollingConfigs',
+      );
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['eip155:1', 'solana:mainnet'],
+        status: 'up',
+      });
+
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(updateConfigSpy).toHaveBeenCalledTimes(1);
+      expect(updateConfigSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          '0x1': { interval: 300000 },
+        }),
+        { immediateUpdate: true },
+      );
+      expect(updateConfigSpy).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          'solana:mainnet': expect.anything(),
+        }),
+        expect.anything(),
+      );
+
+      jest.useRealTimers();
+    });
+
     it('should handle multiple chains in a single balance update', async () => {
       const accountAddress = '0x1234567890123456789012345678901234567890';
       const token1 = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC
@@ -6678,6 +6741,94 @@ describe('TokenBalancesController', () => {
       );
 
       messengerCallSpy.mockRestore();
+    });
+
+    it('should forward unprocessed token fallbacks from API fetcher to RPC fetcher', async () => {
+      const chainId = '0x1' as ChainIdHex;
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+      const token1 = '0x1111111111111111111111111111111111111111';
+
+      const tokens = {
+        allDetectedTokens: {},
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: token1, symbol: 'TK1', decimals: 18 },
+            ],
+          },
+        },
+      };
+
+      const selectedAccount = createMockInternalAccount({
+        address: accountAddress,
+      });
+
+      const apiFetchSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({
+          balances: [
+            {
+              success: true,
+              value: new BN(1),
+              account: accountAddress,
+              token: NATIVE_TOKEN_ADDRESS as Hex,
+              chainId,
+            },
+          ],
+          unprocessedTokens: {
+            [accountAddress]: {
+              [chainId]: [token1],
+            },
+          },
+        });
+
+      const { controller } = setupController({
+        tokens,
+        listAccounts: [selectedAccount],
+        config: {
+          accountsApiChainIds: () => [chainId],
+        },
+      });
+
+      const rpcFetchSpy = jest
+        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({
+          balances: [
+            {
+              success: true,
+              value: new BN(200),
+              account: accountAddress as ChecksumAddress,
+              token: token1 as Hex,
+              chainId,
+            },
+          ],
+        });
+
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
+
+      expect(apiFetchSpy).toHaveBeenCalled();
+      expect(rpcFetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainIds: [chainId],
+          unprocessedTokens: {
+            [accountAddress]: {
+              [chainId]: [token1],
+            },
+          },
+        }),
+      );
+
+      expect(
+        controller.state.tokenBalances[accountAddress as ChecksumAddress]?.[
+          chainId
+        ]?.[toChecksumHexAddress(token1) as ChecksumAddress],
+      ).toStrictEqual(toHex(200));
+
+      apiFetchSpy.mockRestore();
+      rpcFetchSpy.mockRestore();
     });
 
     it('should handle fetcher throwing error (lines 868-880)', async () => {

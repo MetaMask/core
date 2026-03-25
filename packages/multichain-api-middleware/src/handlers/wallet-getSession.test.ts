@@ -23,6 +23,7 @@ const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
   const getNonEvmSupportedMethods = jest.fn();
+  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
   const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
@@ -54,6 +55,7 @@ const createMockedHandler = () => {
     walletGetSession.implementation(request, response, next, end, {
       getCaveatForOrigin,
       getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected,
     });
 
   return {
@@ -62,6 +64,7 @@ const createMockedHandler = () => {
     end,
     getCaveatForOrigin,
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
     handler,
   };
 };
@@ -96,7 +99,8 @@ describe('wallet_getSession', () => {
   });
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
-    const { handler, getNonEvmSupportedMethods } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods, sortAccountIdsByLastSelected } =
+      createMockedHandler();
 
     await handler(baseRequest);
     expect(chainAgnosticPermissionModule.getSessionScopes).toHaveBeenCalledWith(
@@ -120,6 +124,7 @@ describe('wallet_getSession', () => {
       },
       {
         getNonEvmSupportedMethods,
+        sortAccountIdsByLastSelected,
       },
     );
   });

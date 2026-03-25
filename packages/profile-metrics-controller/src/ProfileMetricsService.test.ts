@@ -76,6 +76,28 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
+    it('sends fetch requests with credentials omitted', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
+        new Response(JSON.stringify({ data: { success: true } }), {
+          status: 200,
+        }),
+      );
+      const { rootMessenger } = getService({
+        options: { fetch: mockFetch },
+      });
+
+      await rootMessenger.call(
+        'ProfileMetricsService:submitMetrics',
+        createMockRequest(),
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({ credentials: 'omit' }),
+      );
+    });
+
     it('resolves when there is a successful response from the API and the accounts do not have an entropy source id', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')

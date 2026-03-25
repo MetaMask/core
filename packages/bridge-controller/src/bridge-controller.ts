@@ -21,7 +21,10 @@ import {
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
-import { selectIsAssetExchangeRateInState } from './selectors';
+import {
+  ExchangeRateSourcesForLookup,
+  selectIsAssetExchangeRateInState,
+} from './selectors';
 import { RequestStatus } from './types';
 import type {
   L1GasFees,
@@ -137,6 +140,12 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  tokenWarnings: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -196,6 +205,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     customBridgeApiBaseUrl?: string;
   };
 
+  /**
+   * Returns whether to use AssetsController for exchange rates.
+   * Set via constructor option getUseAssetsControllerForRates; defaults to false.
+   *
+   * @returns True when exchange rates should be read from AssetsController:getExchangeRatesForBridge.
+   */
+  readonly #getUseAssetsControllerForRates: () => boolean;
+
   constructor({
     messenger,
     state,
@@ -206,6 +223,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config,
     trackMetaMetricsFn,
     traceFn,
+    getUseAssetsControllerForRates,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -224,6 +242,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
     traceFn?: TraceCallback;
+    /**
+     * When provided, called to determine whether to use AssetsController for exchange rates.
+     * When true, rates are read from AssetsController:getExchangeRatesForBridge instead of
+     * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
+     */
+    getUseAssetsControllerForRates?: () => boolean;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -245,6 +269,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#getUseAssetsControllerForRates =
+      getUseAssetsControllerForRates ?? (() => false);
 
     // Register action handlers
     this.messenger.registerActionHandler(
@@ -372,7 +398,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientVersion,
     );
 
-    this.#trackResponseValidationFailures(validationFailures);
+    this.#trackQuoteValidationFailures(validationFailures);
 
     const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
@@ -384,9 +410,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
-  readonly #trackResponseValidationFailures = (
-    validationFailures: string[],
-  ) => {
+  readonly #trackQuoteValidationFailures = (validationFailures: string[]) => {
     if (validationFailures.length === 0) {
       return;
     }
@@ -399,7 +423,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  readonly #getExchangeRateSources = () => {
+  readonly #getExchangeRateSources = (): ExchangeRateSourcesForLookup => {
+    if (this.#getUseAssetsControllerForRates()) {
+      return {
+        ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
+        historicalPrices: {},
+        ...this.state,
+      };
+    }
     return {
       ...this.messenger.call('MultichainAssetsRatesController:getState'),
       ...this.messenger.call('CurrencyRateController:getState'),
@@ -453,9 +484,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
-    const currency = this.messenger.call(
-      'CurrencyRateController:getState',
-    ).currentCurrency;
+    const currency = this.#getUseAssetsControllerForRates()
+      ? this.messenger.call('AssetsController:getExchangeRatesForBridge')
+          .currentCurrency
+      : this.messenger.call('CurrencyRateController:getState').currentCurrency;
 
     if (assetIds.size === 0) {
       return;
@@ -581,6 +613,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
     });
   };
 
@@ -623,6 +656,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
@@ -766,7 +800,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       jwt,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: this.#trackResponseValidationFailures,
+        onQuoteValidationFailure: this.#trackQuoteValidationFailures,
         onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
@@ -808,6 +842,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Await the promise to ensure errors are caught and handled before continuing
           // The promise is also tracked in pendingFeeAppendPromises for onClose to wait for
           await feeAppendPromise;
+        },
+        onTokenWarning: (warning) => {
+          this.update((state) => {
+            const isDuplicate = state.tokenWarnings.some(
+              (existing) => existing.feature_id === warning.feature_id,
+            );
+            if (!isDuplicate) {
+              state.tokenWarnings = [...state.tokenWarnings, warning];
+            }
+          });
         },
         onClose: async () => {
           // Wait for all pending appendFeesToQuotes operations to complete
@@ -997,6 +1041,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       }
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
+      case UnifiedSwapBridgeEventName.AssetPickerOpened:
         return baseProperties;
       // These events may be published after the bridge-controller state is reset
       // So the BridgeStatusController populates all the properties

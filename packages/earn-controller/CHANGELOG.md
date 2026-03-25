@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose public `EarnController` methods through its messenger ([#8173](https://github.com/MetaMask/core/pull/8173))
+  - The following actions are now available:
+    - `EarnController:refreshPooledStakes`
+    - `EarnController:refreshEarnEligibility`
+    - `EarnController:refreshPooledStakingVaultMetadata`
+    - `EarnController:refreshPooledStakingVaultDailyApys`
+    - `EarnController:refreshPooledStakingVaultApyAverages`
+    - `EarnController:refreshPooledStakingData`
+    - `EarnController:refreshLendingMarkets`
+    - `EarnController:refreshLendingPositions`
+    - `EarnController:refreshLendingEligibility`
+    - `EarnController:refreshLendingData`
+    - `EarnController:refreshTronStakingApy`
+    - `EarnController:getTronStakingApy`
+    - `EarnController:getLendingPositionHistory`
+    - `EarnController:getLendingMarketDailyApysAndAverages`
+    - `EarnController:executeLendingDeposit`
+    - `EarnController:executeLendingWithdraw`
+    - `EarnController:executeLendingTokenApprove`
+    - `EarnController:getLendingTokenAllowance`
+    - `EarnController:getLendingTokenMaxWithdraw`
+    - `EarnController:getLendingTokenMaxDeposit`
+  - Corresponding action types (e.g. `EarnControllerRefreshPooledStakesAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
+
+## [11.1.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^4.1.1` to `^5.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.20.0` to `^62.21.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
 ## [11.1.1]
 
 ### Changed
@@ -353,7 +392,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.2...HEAD
+[11.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...@metamask/earn-controller@11.1.2
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.0...@metamask/earn-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.0.0...@metamask/earn-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@10.0.0...@metamask/earn-controller@11.0.0

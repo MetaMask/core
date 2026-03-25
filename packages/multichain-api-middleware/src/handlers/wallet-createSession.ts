@@ -66,6 +66,7 @@ const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
  * @param hooks.getNonEvmSupportedMethods - The hook that returns the supported methods for a non EVM scope.
  * @param hooks.isNonEvmScopeSupported - The hook that returns true if a non EVM scope is supported.
  * @param hooks.getNonEvmAccountAddresses - The hook that returns a list of CaipAccountIds that are supported for a CaipChainId.
+ * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
  * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run. Can be undefined.
  * @returns A promise with wallet_createSession handler
  */
@@ -87,6 +88,9 @@ async function walletCreateSessionHandler(
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
     isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
     getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
+    sortAccountIdsByLastSelected: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
     trackSessionCreatedEvent?: (
       approvedCaip25CaveatValue: Caip25CaveatValue,
     ) => void;
@@ -263,6 +267,7 @@ async function walletCreateSessionHandler(
 
     const sessionScopes = getSessionScopes(approvedCaip25CaveatValue, {
       getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
     });
 
     const { sessionProperties: approvedSessionProperties = {} } =
@@ -290,6 +295,7 @@ export const walletCreateSession = {
     getNonEvmSupportedMethods: true,
     isNonEvmScopeSupported: true,
     getNonEvmAccountAddresses: true,
+    sortAccountIdsByLastSelected: true,
     trackSessionCreatedEvent: true,
   },
 };

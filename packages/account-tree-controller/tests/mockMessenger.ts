@@ -44,8 +44,8 @@ export function getAccountTreeControllerMessenger(
   rootMessenger.delegate({
     messenger: accountTreeControllerMessenger,
     events: [
-      'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
+      'AccountsController:accountsAdded',
+      'AccountsController:accountsRemoved',
       'AccountsController:selectedAccountChange',
       'UserStorageController:stateChange',
       'MultichainAccountService:walletStatusChange',

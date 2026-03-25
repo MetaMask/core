@@ -29,3 +29,14 @@ export {
   ApprovalFeatureType,
 } from './types';
 export type { CacheEntry } from './CacheManager';
+
+export type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerTestOriginAction,
+  PhishingControllerIsBlockedRequestAction,
+  PhishingControllerBypassAction,
+  PhishingControllerScanUrlAction,
+  PhishingControllerBulkScanUrlsAction,
+  PhishingControllerBulkScanTokensAction,
+  PhishingControllerScanAddressAction,
+} from './PhishingController-method-action-types';

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.0]
+
+### Added
+
+- Expose missing public `EnsController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `EnsController:resetState`
+    - `EnsController:clear`
+    - `EnsController:delete`
+    - `EnsController:get`
+    - `EnsController:set`
+    - `EnsController:reverseResolveAddress`
+  - Corresponding action types (e.g. `EnsControllerResetStateAction`) are available as well.
+
 ## [19.0.3]
 
 ### Changed
@@ -365,7 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.0...HEAD
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.3...@metamask/ens-controller@19.1.0
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.2...@metamask/ens-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.1...@metamask/ens-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.0...@metamask/ens-controller@19.0.1

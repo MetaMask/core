@@ -7,10 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `RampsService.getOrder` and `getOrderFromCallback` accept provider codes with or without a `/providers/` prefix; API paths use the short provider segment. `RampsController` forwards provider ids (including from order polling and `addPrecreatedOrder` stubs) to the service without stripping the prefix. ([#8278](https://github.com/MetaMask/core/pull/8278))
+
+## [12.0.1]
+
+### Added
+
+- Expose all public `RampsController` methods through its messenger ([#8221](https://github.com/MetaMask/core/pull/8221))
+  - The following actions are now available:
+    - `RampsController:executeRequest`
+    - `RampsController:abortRequest`
+    - `RampsController:getRequestState`
+    - `RampsController:setUserRegion`
+    - `RampsController:setSelectedProvider`
+    - `RampsController:init`
+    - `RampsController:getCountries`
+    - `RampsController:getTokens`
+    - `RampsController:getProviders`
+    - `RampsController:getPaymentMethods`
+    - `RampsController:setSelectedPaymentMethod`
+    - `RampsController:addOrder`
+    - `RampsController:removeOrder`
+    - `RampsController:startOrderPolling`
+    - `RampsController:stopOrderPolling`
+    - `RampsController:getBuyWidgetData`
+    - `RampsController:addPrecreatedOrder`
+    - `RampsController:getOrderFromCallback`
+    - `RampsController:transakSetApiKey`
+    - `RampsController:transakSetAccessToken`
+    - `RampsController:transakClearAccessToken`
+    - `RampsController:transakSetAuthenticated`
+    - `RampsController:transakResetState`
+    - `RampsController:transakSendUserOtp`
+    - `RampsController:transakVerifyUserOtp`
+    - `RampsController:transakLogout`
+    - `RampsController:transakGetUserDetails`
+    - `RampsController:transakGetBuyQuote`
+    - `RampsController:transakGetKycRequirement`
+    - `RampsController:transakGetAdditionalRequirements`
+    - `RampsController:transakCreateOrder`
+    - `RampsController:transakGetOrder`
+    - `RampsController:transakGetUserLimits`
+    - `RampsController:transakRequestOtt`
+    - `RampsController:transakGeneratePaymentWidgetUrl`
+    - `RampsController:transakSubmitPurposeOfUsageForm`
+    - `RampsController:transakPatchUser`
+    - `RampsController:transakSubmitSsnDetails`
+    - `RampsController:transakConfirmPayment`
+    - `RampsController:transakGetTranslation`
+    - `RampsController:transakGetIdProofStatus`
+    - `RampsController:transakCancelOrder`
+    - `RampsController:transakCancelAllActiveOrders`
+    - `RampsController:transakGetActiveOrders`
+  - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`)
+
+### Fixed
+
+- Fix `getOrder` wallet handling so API requests and event payloads stay valid and consistent ([#8251](https://github.com/MetaMask/core/pull/8251))
+  - `RampsService.getOrder` no longer sends an empty `wallet` query parameter, avoiding invalid API responses (e.g. 400).
+  - `RampsController.getOrder` persists and returns a healed order (`walletAddress` and `providerOrderId`) so controller state matches the return value and `RampsController:orderStatusChanged` listeners.
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Update state hydration to make `init()` idempotent and remove `hydrateState()` ([#8157](https://github.com/MetaMask/core/pull/8157))
+
+### Removed
+
+- Remove `hydrateState()` — use `init()` as the single entry point for controller hydration
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Replace `getWidgetUrl` with `getBuyWidgetData` (returns `BuyWidget | null`); add `addPrecreatedOrder` for custom-action ramp flows (e.g., PayPal, Robinhood, Coinbase) ([#8100](https://github.com/MetaMask/core/pull/8100))
+
+## [10.2.0]
+
+### Fixed
+
+- `setSelectedProvider` no longer fetches payment methods when the selected token is explicitly not supported by the new provider, preventing empty payment method state with no user feedback ([#8103](https://github.com/MetaMask/core/pull/8103))
+
+## [10.1.0]
+
 ### Added
 
 - Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `apiMessage` property to `TransakApiError` to surface human-readable error messages from the Transak API (e.g. OTP rate-limit cooldown) ([#8072](https://github.com/MetaMask/core/pull/8072))
 - Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
+- Add messenger actions for `RampsController:setSelectedToken`, `RampsController:getQuotes`, and `RampsController:getOrder`, register their handlers in `RampsController`, and export the action types from the package index ([#8081](https://github.com/MetaMask/core/pull/8081))
 
 ## [10.0.0]
 
@@ -188,7 +276,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...@metamask/ramps-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.2.0...@metamask/ramps-controller@11.0.0
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.1.0...@metamask/ramps-controller@10.2.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...@metamask/ramps-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@9.0.0...@metamask/ramps-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.1.0...@metamask/ramps-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.0.0...@metamask/ramps-controller@8.1.0

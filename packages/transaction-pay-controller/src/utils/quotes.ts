@@ -70,7 +70,9 @@ export async function updateQuotes(
   const {
     isMaxAmount,
     isPostQuote,
+    isHyperliquidSource,
     paymentToken: originalPaymentToken,
+    refundTo,
     sourceAmounts,
     tokens,
   } = transactionData;
@@ -94,7 +96,9 @@ export async function updateQuotes(
       from,
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
+      isHyperliquidSource,
       paymentToken,
+      refundTo,
       sourceAmounts,
       tokens,
       transactionId,
@@ -105,6 +109,7 @@ export async function updateQuotes(
       requests,
       getStrategies,
       messenger,
+      transactionData.fiatPayment?.selectedPaymentMethodId,
     );
 
     const totals = calculateTotals({
@@ -251,8 +256,10 @@ export async function refreshQuotes(
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
+ * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -262,7 +269,9 @@ function buildQuoteRequests({
   from,
   isMaxAmount,
   isPostQuote,
+  isHyperliquidSource,
   paymentToken,
+  refundTo,
   sourceAmounts,
   tokens,
   transactionId,
@@ -270,7 +279,9 @@ function buildQuoteRequests({
   from: Hex;
   isMaxAmount: boolean;
   isPostQuote?: boolean;
+  isHyperliquidSource?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
+  refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
@@ -280,12 +291,12 @@ function buildQuoteRequests({
   }
 
   if (isPostQuote) {
-    // Post-quote flow: source = transaction's required token, target = paymentToken (destination)
-    // The user wants to receive the transaction output in paymentToken
     return buildPostQuoteRequests({
       from,
       isMaxAmount,
+      isHyperliquidSource,
       destinationToken: paymentToken,
+      refundTo,
       sourceAmounts,
       transactionId,
     });
@@ -325,7 +336,9 @@ function buildQuoteRequests({
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
+ * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests for post-quote flow.
@@ -333,13 +346,17 @@ function buildQuoteRequests({
 function buildPostQuoteRequests({
   from,
   isMaxAmount,
+  isHyperliquidSource,
   destinationToken,
+  refundTo,
   sourceAmounts,
   transactionId,
 }: {
   from: Hex;
   isMaxAmount: boolean;
+  isHyperliquidSource?: boolean;
   destinationToken: TransactionPaymentToken;
+  refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   transactionId: string;
 }): QuoteRequest[] {
@@ -366,12 +383,12 @@ function buildPostQuoteRequests({
     from,
     isMaxAmount,
     isPostQuote: true,
+    isHyperliquidSource,
+    refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,
     sourceTokenAddress: sourceAmount.sourceTokenAddress,
-    // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
-    // and we show them how much they'll receive after fees
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
     targetTokenAddress: destinationToken.address,
@@ -454,6 +471,7 @@ async function refreshPaymentTokenBalance({
  * @param requests - Quote requests.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
+ * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -461,6 +479,7 @@ async function getQuotes(
   requests: QuoteRequest[],
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
+  fiatPaymentMethod?: string,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -484,6 +503,7 @@ async function getQuotes(
   }
 
   const request = {
+    fiatPaymentMethod,
     messenger,
     requests,
     transaction,

@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
+  - Those new events can be used instead of single `:accountAdded` and `:accountRemoved` events to reduce the number of events emitted during batch operations (e.g. `KeyringController` state re-synchronization).
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+
+### Fixed
+
+- Prevent `getSelectedAccount` and `getSelectedMultichainAccount` from throwing when `selectedAccount` is `undefined` ([#8231](https://github.com/MetaMask/core/pull/8231))
+
+## [37.0.0]
+
+### Added
+
+- Add `accountIdByAddress` mapping to state ([#7893](https://github.com/MetaMask/core/pull/7893))
+  - This state was added to improve lookup times for an account by address from O(n) to O(1).
+  - `getAccountByAddress` also leverages this new map, thus, should be slightly faster too.
+- Add logging capabilities ([#8118](https://github.com/MetaMask/core/pull/8118/))
 - Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - The following actions are now available:
     - `AccountController:loadBackupAction`
@@ -715,7 +734,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...HEAD
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...@metamask/accounts-controller@37.0.0
 [36.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...@metamask/accounts-controller@36.0.1
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...@metamask/accounts-controller@36.0.0
 [35.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.1...@metamask/accounts-controller@35.0.2
