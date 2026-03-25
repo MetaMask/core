@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `providerAutoSelected` boolean to `RampsControllerState` to track whether the selected provider was system-guessed (soft selection) or user-chosen
+- Add optional `options` parameter to `setSelectedProvider` accepting `{ autoSelected?: boolean }` to control the `providerAutoSelected` flag
+
 ## [12.0.0]
 
 ### Changed
