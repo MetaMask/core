@@ -391,6 +391,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'bulkScanUrls',
   'bulkScanTokens',
   'scanAddress',
+  'getApprovals',
 ] as const;
 
 /**
@@ -1290,7 +1291,11 @@ export class PhishingController extends BaseController<
       5000,
     );
 
-    if (!apiResponse || 'error' in apiResponse) {
+    if (
+      !apiResponse ||
+      'error' in apiResponse ||
+      !Array.isArray(apiResponse.approvals)
+    ) {
       return { approvals: [] };
     }
 

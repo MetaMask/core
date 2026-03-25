@@ -111,6 +111,11 @@ export type PhishingControllerBulkScanTokensAction = {
   handler: PhishingController['bulkScanTokens'];
 };
 
+export type PhishingControllerGetApprovalsAction = {
+  type: `PhishingController:getApprovals`;
+  handler: PhishingController['getApprovals'];
+};
+
 /**
  * Union of all PhishingController action types.
  */
@@ -122,4 +127,5 @@ export type PhishingControllerMethodActions =
   | PhishingControllerScanUrlAction
   | PhishingControllerBulkScanUrlsAction
   | PhishingControllerScanAddressAction
-  | PhishingControllerBulkScanTokensAction;
+  | PhishingControllerBulkScanTokensAction
+  | PhishingControllerGetApprovalsAction;

@@ -39,6 +39,8 @@ import {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
+  ApprovalResultType,
+  ApprovalFeatureType,
 } from './types';
 import { getHostnameFromUrl } from './utils';
 
@@ -3667,7 +3669,7 @@ describe('PhishingController', () => {
   });
 
   describe('getApprovals', () => {
-    let controller: PhishingController;
+    let rootMessenger: RootMessenger;
 
     const testChainId = '0x1';
     const testAddress = '0x1234567890123456789012345678901234567890';
@@ -3687,18 +3689,19 @@ describe('PhishingController', () => {
         label: 'Uniswap',
         features: [
           {
-            type: 'Benign',
+            type: ApprovalFeatureType.Benign,
             feature_id: 'VERIFIED_CONTRACT',
             description: 'This contract is verified',
           },
         ],
       },
-      verdict: 'Benign',
+      verdict: ApprovalResultType.Benign,
     };
     const mockResponse = { approvals: [mockApproval] };
 
     beforeEach(() => {
-      controller = getPhishingController();
+      const { rootMessenger: createdMessenger } = getPhishingController();
+      rootMessenger = createdMessenger;
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
@@ -3714,28 +3717,48 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.getApprovals(testChainId, testAddress);
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
       expect(response).toStrictEqual(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
 
     it('will return empty approvals when address is missing', async () => {
-      const response = await controller.getApprovals(testChainId, '');
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        '',
+      );
       expect(response).toStrictEqual({ approvals: [] });
     });
 
     it('will return empty approvals when chainId is missing', async () => {
-      const response = await controller.getApprovals('', testAddress);
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '',
+        testAddress,
+      );
       expect(response).toStrictEqual({ approvals: [] });
     });
 
     it('will return empty approvals for unknown chain ID', async () => {
-      const response = await controller.getApprovals('0x999999', testAddress);
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '0x999999',
+        testAddress,
+      );
       expect(response).toStrictEqual({ approvals: [] });
     });
 
     it('will return empty approvals for chains not supported by the approvals API', async () => {
-      const response = await controller.getApprovals('0x82750', testAddress);
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '0x82750',
+        testAddress,
+      );
       expect(response).toStrictEqual({ approvals: [] });
     });
 
@@ -3750,7 +3773,11 @@ describe('PhishingController', () => {
         })
         .reply(statusCode);
 
-      const response = await controller.getApprovals(testChainId, testAddress);
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
       expect(response).toStrictEqual({ approvals: [] });
       expect(scope.isDone()).toBe(true);
     });
@@ -3764,7 +3791,11 @@ describe('PhishingController', () => {
         .delayConnection(10000)
         .reply(200, mockResponse);
 
-      const promise = controller.getApprovals(testChainId, testAddress);
+      const promise = rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
       jest.advanceTimersByTime(5000);
       const response = await promise;
       expect(response).toStrictEqual({ approvals: [] });
@@ -3780,7 +3811,8 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.getApprovals(
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
         testChainId,
         mixedCaseAddress,
       );
@@ -3797,7 +3829,8 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.getApprovals(
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
         mixedCaseChainId,
         testAddress,
       );
