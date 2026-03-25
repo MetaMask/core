@@ -15,6 +15,7 @@ import type {
   UserStorageSyncedWalletGroup,
 } from '../types';
 import { UserStorageSyncedWalletGroupSchema } from '../types';
+import { toErrorMessage } from '../utils/errors';
 
 /**
  * Formats the wallet for user storage usage.
@@ -69,7 +70,7 @@ export const formatGroupForUserStorageUsage = (
     );
   } catch (error) {
     backupAndSyncLogger(
-      `Error trying to format group for user storage usage: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to format group for user storage usage: ${toErrorMessage(error)}`,
     );
 
     // If anything goes wrong with this group, we use blank metadata for it.
@@ -95,7 +96,7 @@ export const parseWalletFromUserStorageResponse = (
     return walletData;
   } catch (error: unknown) {
     throw new Error(
-      `Error trying to parse wallet from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse wallet from user storage response: ${toErrorMessage(error)}`,
     );
   }
 };
@@ -118,7 +119,7 @@ export const parseGroupFromUserStorageResponse = (
     return groupData;
   } catch (error: unknown) {
     throw new Error(
-      `Error trying to parse group from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse group from user storage response: ${toErrorMessage(error)}`,
     );
   }
 };
@@ -141,7 +142,7 @@ export const parseLegacyAccountFromUserStorageResponse = (
     return accountData;
   } catch (error: unknown) {
     throw new Error(
-      `Error trying to parse legacy account from user storage response: ${error instanceof Error ? error.message : String(error)}`,
+      `Error trying to parse legacy account from user storage response: ${toErrorMessage(error)}`,
     );
   }
 };
