@@ -2333,24 +2333,6 @@ describe('Relay Quotes Utils', () => {
         expect(body.amount).toBe('10000000000');
       });
 
-      it('adds protocolVersion v2 to request body', async () => {
-        successfulFetchMock.mockResolvedValue({
-          json: async () => QUOTE_MOCK,
-        } as never);
-
-        await getRelayQuotes({
-          messenger,
-          requests: [HL_REQUEST],
-          transaction: TRANSACTION_META_MOCK,
-        });
-
-        const body = JSON.parse(
-          successfulFetchMock.mock.calls[0][1]?.body as string,
-        );
-
-        expect(body.protocolVersion).toBe('v2');
-      });
-
       it('zeroes source network fees (gasless)', async () => {
         successfulFetchMock.mockResolvedValue({
           json: async () => QUOTE_MOCK,

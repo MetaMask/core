@@ -250,10 +250,6 @@ async function getSingleQuote(
       body.refundTo = request.refundTo;
     }
 
-    if (request.isHyperliquidSource) {
-      body.protocolVersion = 'v2';
-    }
-
     log('Request body', body);
 
     const quote = await fetchRelayQuote(messenger, body);
