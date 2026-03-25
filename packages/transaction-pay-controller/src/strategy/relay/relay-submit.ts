@@ -315,7 +315,10 @@ async function submitTransactions(
     (step): step is RelayTransactionStep => step.kind === 'transaction',
   );
   const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
-  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
+  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
+  )?.kind;
 
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);

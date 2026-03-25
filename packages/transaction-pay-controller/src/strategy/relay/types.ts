@@ -76,7 +76,11 @@ export type RelayQuote = {
   };
   metamask: RelayQuoteMetamask;
   request: RelayQuoteRequest;
-  steps: (RelayTransactionStep | RelaySignatureStep | RelayHyperliquidDepositStep)[];
+  steps: (
+    | RelayTransactionStep
+    | RelaySignatureStep
+    | RelayHyperliquidDepositStep
+  )[];
 };
 
 export type RelayTransactionStep = {
