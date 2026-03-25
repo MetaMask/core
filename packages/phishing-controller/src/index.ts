@@ -39,4 +39,5 @@ export type {
   PhishingControllerBulkScanUrlsAction,
   PhishingControllerBulkScanTokensAction,
   PhishingControllerScanAddressAction,
+  PhishingControllerGetApprovalsAction,
 } from './PhishingController-method-action-types';

@@ -404,11 +404,6 @@ export type TestOrigin = PhishingControllerTestOriginAction;
  */
 export type MaybeUpdateState = PhishingControllerMaybeUpdateStateAction;
 
-export type PhishingControllerGetApprovalsAction = {
-  type: `${typeof controllerName}:getApprovals`;
-  handler: PhishingController['getApprovals'];
-};
-
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PhishingControllerState
