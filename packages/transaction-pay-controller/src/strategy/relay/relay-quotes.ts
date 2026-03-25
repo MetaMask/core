@@ -326,9 +326,8 @@ async function processTransactions(
   requestBody.authorizationList = normalizedAuthorizationList;
   requestBody.tradeType = 'EXACT_OUTPUT';
 
-  const tokenTransferData = nestedTransactions?.find(
-    (nestedTx: { data?: Hex }) =>
-      nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
+  const tokenTransferData = nestedTransactions?.find((nestedTx) =>
+    nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
   )?.data;
 
   // If the transactions include a token transfer, change the recipient
@@ -891,9 +890,7 @@ function combinePostQuoteGas(
   gasLimits: number[];
   is7702: boolean;
 } {
-  const nestedGas = transaction.nestedTransactions?.find(
-    (tx: { gas?: string }) => tx.gas,
-  )?.gas;
+  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
   const rawGas = nestedGas ?? transaction.txParams.gas;
   const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
 
