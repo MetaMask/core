@@ -8,6 +8,7 @@ import {
   OmitKeyof,
   parseFilterArgs,
   QueryKey,
+  QueryClientConfig,
 } from '@tanstack/query-core';
 
 type SubscriptionCallback = (
@@ -28,11 +29,13 @@ type MessengerAdapter = {
  *
  * @param dataServices - A list of data services.
  * @param messenger - A messenger adapter.
+ * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
 export function createUIQueryClient(
   dataServices: string[],
   messenger: MessengerAdapter,
+  config: QueryClientConfig = {},
 ): QueryClient {
   const subscriptions = new Map<string, SubscriptionCallback>();
 
@@ -59,8 +62,10 @@ export function createUIQueryClient(
   }
 
   const client: QueryClient = new QueryClient({
+    ...config,
     defaultOptions: {
       queries: {
+        ...config.defaultOptions?.queries,
         queryFn: async (options): Promise<unknown> => {
           const { queryKey } = options;
 
@@ -80,6 +85,7 @@ export function createUIQueryClient(
         },
         staleTime: 0,
       },
+      mutations: config.defaultOptions?.mutations,
     },
   });
 
