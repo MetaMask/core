@@ -75,6 +75,10 @@ export type RampsControllerSetUserRegionAction = {
  * fetches payment methods for that provider.
  *
  * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+ * @param options - Optional settings for the selection.
+ * @param options.autoSelected - When true, marks the provider as system-guessed
+ * (soft selection). The UI will silently auto-switch on token conflict instead
+ * of showing the "Token Not Available" modal. Defaults to false.
  * @throws If region is not set, providers are not loaded, or provider is not found.
  */
 export type RampsControllerSetSelectedProviderAction = {
