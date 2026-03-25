@@ -80,6 +80,8 @@ export class PendingTransactionTracker {
 
   readonly #getGlobalLock: () => Promise<() => void>;
 
+  readonly #chainId: string;
+
   readonly #networkClientId: NetworkClientId;
 
   readonly #getTransactions: () => TransactionMeta[];
@@ -135,6 +137,7 @@ export class PendingTransactionTracker {
 
     const chainId = getChainId({ messenger, networkClientId });
 
+    this.#chainId = chainId;
     this.#droppedBlockCountByHash = new Map();
     this.#getGlobalLock = getGlobalLock;
     this.#networkClientId = networkClientId;
@@ -757,11 +760,7 @@ export class PendingTransactionTracker {
   }
 
   #getChainTransactions(): TransactionMeta[] {
-    const chainId = getChainId({
-      messenger: this.#messenger,
-      networkClientId: this.#networkClientId,
-    });
-    return this.#getTransactions().filter((tx) => tx.chainId === chainId);
+    return this.#getTransactions().filter((tx) => tx.chainId === this.#chainId);
   }
 
   #getNetworkClientTransactions(): TransactionMeta[] {

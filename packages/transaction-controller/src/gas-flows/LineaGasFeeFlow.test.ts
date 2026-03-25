@@ -122,9 +122,6 @@ describe('LineaGasFeeFlow', () => {
         params: [
           {
             from: request.transactionMeta.txParams.from,
-            input: null,
-            to: null,
-            value: null,
           },
         ],
       });

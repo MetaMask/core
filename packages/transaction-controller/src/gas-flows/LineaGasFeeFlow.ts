@@ -121,18 +121,27 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     messenger: TransactionControllerMessenger,
     networkClientId: NetworkClientId,
   ): Promise<LineaEstimateGasResponse> {
+    const { from, to, value, data } = transactionMeta.txParams;
+
+    const params: Record<string, string> = { from };
+
+    if (to) {
+      params.to = to;
+    }
+
+    if (value) {
+      params.value = value;
+    }
+
+    if (data) {
+      params.input = data;
+    }
+
     return rpcRequest({
       messenger,
       networkClientId,
       method: 'linea_estimateGas',
-      params: [
-        {
-          from: transactionMeta.txParams.from,
-          to: transactionMeta.txParams.to ?? null,
-          value: transactionMeta.txParams.value ?? null,
-          input: transactionMeta.txParams.data ?? null,
-        },
-      ],
+      params: [params],
     }) as Promise<LineaEstimateGasResponse>;
   }
 
