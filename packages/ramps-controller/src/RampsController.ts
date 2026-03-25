@@ -437,6 +437,7 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
+  state.providerAutoSelected = false;
 }
 
 // === MESSENGER ===

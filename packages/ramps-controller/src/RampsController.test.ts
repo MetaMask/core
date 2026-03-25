@@ -214,6 +214,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -790,6 +791,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -832,6 +834,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -867,6 +870,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "orders": [],
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -931,6 +935,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -1906,6 +1911,60 @@ describe('RampsController', () => {
           expect(controller.state.providers.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false when user region changes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const mockTokens: TokensResponse = {
+            topTokens: [],
+            allTokens: [],
+          };
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => mockTokens,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          await controller.setUserRegion('FR');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false on cleanup when setUserRegion fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          await expect(controller.setUserRegion('us-ca')).rejects.toThrow(
+            'No countries found',
+          );
+
+          expect(controller.state.providerAutoSelected).toBe(false);
         },
       );
     });
