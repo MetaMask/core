@@ -2981,7 +2981,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/base-data-service@npm:^0.0.0, @metamask/base-data-service@workspace:packages/base-data-service":
+"@metamask/base-data-service@npm:^0.1.0, @metamask/base-data-service@workspace:packages/base-data-service":
   version: 0.0.0-use.local
   resolution: "@metamask/base-data-service@workspace:packages/base-data-service"
   dependencies:
@@ -4982,7 +4982,7 @@ __metadata:
   resolution: "@metamask/react-data-query@workspace:packages/react-data-query"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-data-service": "npm:^0.0.0"
+    "@metamask/base-data-service": "npm:^0.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@tanstack/query-core": "npm:^4.43.0"
     "@tanstack/react-query": "npm:^4.43.0"
