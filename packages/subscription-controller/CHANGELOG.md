@@ -22,11 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Normalized payment token addresses before the comparison in `getCryptoApproveTransactionParams` method. ([#8297](https://github.com/MetaMask/core/pull/8297))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
-
-### Fixed
-
-- Fixed `getCryptoApproveTransactionParams` rejecting valid payment token addresses when the request used mixed-case formatting. ([#8297] (https://github.com/MetaMask/core/pull/8297))
 
 ## [6.0.2]
 
