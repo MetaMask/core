@@ -13,6 +13,10 @@ import {
 
 // We provide re-exports of the underlying TanStack Query hooks with narrower types,
 // removing `staleTime` and `queryFn` which aren't useful when using data services.
+const DATA_SERVICE_QUERY_DEFAULTS = {
+  staleTime: 0,
+  retry: false,
+};
 
 /**
  * Consume a query from a data service.
@@ -37,7 +41,7 @@ export function useQuery<
       | NonUndefinedGuard<TQueryFnData>;
   },
 ): UseQueryResult<TData, TError> {
-  return useQueryTanStack(options);
+  return useQueryTanStack({ ...DATA_SERVICE_QUERY_DEFAULTS, ...options });
 }
 
 /**
@@ -64,5 +68,8 @@ export function useInfiniteQuery<
     'staleTime' | 'queryFn'
   >,
 ): UseInfiniteQueryResult<TData, TError> {
-  return useInfiniteQueryTanStack(options);
+  return useInfiniteQueryTanStack({
+    ...DATA_SERVICE_QUERY_DEFAULTS,
+    ...options,
+  });
 }
