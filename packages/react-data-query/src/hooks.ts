@@ -11,8 +11,11 @@ import {
   UseInfiniteQueryResult,
 } from '@tanstack/react-query';
 
-// We provide re-exports of the underlying TanStack Query hooks with narrower types,
-// removing `staleTime` and `queryFn` which aren't useful when using data services.
+/**
+ * We provide re-exports of the underlying TanStack Query hooks with narrower types,
+ * removing `staleTime` and `queryFn` which aren't useful when using data services.
+ */
+
 const DATA_SERVICE_QUERY_DEFAULTS = {
   staleTime: 0,
   retry: false,
