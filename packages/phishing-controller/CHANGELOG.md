@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     be removed in a future release.
 - `PhishingController` no longer advances `c2DomainBlocklistLastFetched` when the C2 domain blocklist fetch fails, allowing the blocklist to be retried on the next update cycle ([#8250](https://github.com/MetaMask/core/pull/8250))
 - Reduce default cache TTL for `DEFAULT_URL_SCAN_CACHE_TTL`, `DEFAULT_TOKEN_SCAN_CACHE_TTL`, and `DEFAULT_ADDRESS_SCAN_CACHE_TTL` from 15 minutes to 1 minute ([#8254](https://github.com/MetaMask/core/pull/8254))
-- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.2.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301))
 
 ## [17.0.0]
 
