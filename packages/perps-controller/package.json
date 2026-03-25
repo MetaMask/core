@@ -34,7 +34,8 @@
   "files": [
     "dist/",
     "!dist/providers/MYXProvider*",
-    "!dist/services/MYXClientService*"
+    "!dist/services/MYXClientService*",
+    "!dist/services/MYXWalletService*"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
@@ -63,12 +64,13 @@
   "devDependencies": {
     "@metamask/account-tree-controller": "^5.0.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/geolocation-controller": "^0.1.1",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/network-controller": "^30.0.0",
     "@metamask/profile-sync-controller": "^28.0.0",
     "@metamask/remote-feature-flag-controller": "^4.1.0",
-    "@metamask/transaction-controller": "^63.0.0",
+    "@metamask/transaction-controller": "^63.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/uuid": "^8.3.0",

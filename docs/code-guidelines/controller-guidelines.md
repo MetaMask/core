@@ -381,6 +381,8 @@ It is tempting to extract action registrations to a private method:
 🚫
 
 ```typescript
+/* packages/foo-controller/src/foo-controller.ts */
+
 export type FooControllerSomeMethodAction = {
   type: 'FooController:someMethod';
   handler: FooController['someMethod'];
@@ -396,16 +398,10 @@ export type FooControllerYetAnotherMethodAction = {
   handler: FooController['yetAnotherMethod'];
 };
 
-export type FooControllerStillYetAnotherMethodAction = {
-  type: 'FooController:stillYetAnotherMethod';
-  handler: FooController['stillYetAnotherMethod'];
-};
-
 export type FooControllerActions =
   | FooControllerSomeMethodAction
   | FooControllerAnotherMethodAction
-  | FooControllerYetAnotherMethodAction
-  | FooControllerStillYetAnotherMethodAction;
+  | FooControllerYetAnotherMethodAction;
 
 export type FooControllerMessenger = Messenger<
   'FooController',
@@ -436,10 +432,6 @@ class FooController extends BaseController<
     // ...
   }
 
-  stillYetAnotherMethod() {
-    // ...
-  }
-
   // ...
 
   #registerActionHandlers() {
@@ -455,10 +447,6 @@ class FooController extends BaseController<
       'FooController:yetAnotherMethod',
       this.yetAnotherMethod.bind(this),
     );
-    this.messenger.registerActionHandler(
-      'FooController:stillYetAnotherMethod',
-      this.stillYetAnotherMethod.bind(this),
-    );
   }
 }
 ```
@@ -471,10 +459,13 @@ Instead, you can follow this process:
 2. Remove manual action registrations; instead, call `registerMethodActionHandlers` and pass `MESSENGER_EXPOSED_METHODS`.
 3. Remove messenger action types; instead, run `yarn generate-method-action-types`. This will create a file called `${ControllerName}-method-action-types.ts`, which exports a type called `${ControllerName}MethodActions`.
 4. Import `${ControllerName}-method-action-types.ts` in your controller file, and add `${ControllerName}MethodActions` to `${ControllerName}Actions`.
+5. Export the action types from `${ControllerName}-method-action-types.ts` in your package's `index.ts` file. Do **not** export the `${ControllerName}MethodActions` type.
 
 ✅
 
 ```typescript
+/* packages/foo-controller/src/foo-controller.ts */
+
 import { FooControllerMethodActions } from './FooController-method-action-types';
 
 export type FooControllerActions = FooControllerMethodActions;
@@ -489,7 +480,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'someMethod',
   'anotherMethod',
   'yetAnotherMethod',
-  'stillYetAnotherMethod',
 ];
 
 class FooController extends BaseController<
@@ -518,12 +508,22 @@ class FooController extends BaseController<
     // ...
   }
 
-  stillYetAnotherMethod() {
-    // ...
-  }
-
   // ...
 }
+
+/* packages/foo-controller/src/index.ts */
+
+// Note that we import the `*Actions` union type as well as each individual
+// action type, but NOT the `*MethodActions` union type
+export type {
+  FooControllerActions,
+  // ...
+} from './foo-controller';
+export type {
+  FooControllerSomeMethodAction,
+  FooControllerAnotherMethodAction,
+  FooControllerYetAnotherMethodAction,
+} from './FooController-method-action-types';
 ```
 
 ## Define the `*:getState` action using the `ControllerGetStateAction` utility type

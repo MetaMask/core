@@ -95,6 +95,11 @@
       "count": 1
     }
   },
+  "packages/accounts-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/address-book-controller/src/AddressBookController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -109,6 +114,11 @@
     },
     "no-param-reassign": {
       "count": 2
+    }
+  },
+  "packages/analytics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
@@ -130,6 +140,11 @@
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
     "import-x/no-relative-packages": {
       "count": 1
+    }
+  },
+  "packages/assets-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 9
     }
   },
   "packages/assets-controllers/jest.environment.js": {
@@ -597,9 +612,6 @@
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    },
     "id-length": {
       "count": 2
     }
@@ -607,11 +619,6 @@
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
-    }
-  },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
@@ -675,6 +682,16 @@
       "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/config-registry-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/index.ts": {
+    "no-restricted-syntax": {
       "count": 2
     }
   },
@@ -815,6 +832,11 @@
   "packages/ens-controller/src/EnsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
+    }
+  },
+  "packages/error-reporting-service/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/foundryup/src/cli.ts": {
@@ -1215,6 +1237,11 @@
       "count": 3
     }
   },
+  "packages/perps-controller/src/utils/myxAdapter.ts": {
+    "@typescript-eslint/no-base-to-string": {
+      "count": 2
+    }
+  },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -1307,6 +1334,11 @@
     },
     "no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "packages/profile-metrics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
@@ -1613,6 +1645,16 @@
       "count": 1
     }
   },
+  "packages/ramps-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/selected-network-controller/src/SelectedNetworkController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
@@ -1684,6 +1726,11 @@
       "count": 2
     },
     "id-length": {
+      "count": 2
+    }
+  },
+  "packages/subscription-controller/src/index.ts": {
+    "no-restricted-syntax": {
       "count": 2
     }
   },

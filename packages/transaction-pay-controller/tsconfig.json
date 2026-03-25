@@ -29,6 +29,9 @@
       "path": "../network-controller"
     },
     {
+      "path": "../ramps-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
     },
     {

@@ -1,18 +1,16 @@
 import type { TraceRequest } from '@metamask/controller-utils';
+import { AccountCreationType } from '@metamask/keyring-api';
+import type { CreateAccountOptions } from '@metamask/keyring-api';
 
-import { traceFallback } from './traces';
-import { TraceName } from '../constants/traces';
+import {
+  toCreateAccountsV2DataTraces,
+  toProviderDataTraces,
+  traceFallback,
+  TraceName,
+} from './traces';
+import type { Bip44AccountProvider } from '../providers';
 
 describe('MultichainAccountService - Traces', () => {
-  describe('TraceName', () => {
-    it('contains expected trace names', () => {
-      expect(TraceName).toStrictEqual({
-        SnapDiscoverAccounts: 'Snap Discover Accounts',
-        EvmDiscoverAccounts: 'EVM Discover Accounts',
-      });
-    });
-  });
-
   describe('traceFallback', () => {
     let mockTraceRequest: TraceRequest;
 
@@ -71,6 +69,62 @@ describe('MultichainAccountService - Traces', () => {
         mockError,
       );
       expect(mockFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('toProviderDataTraces', () => {
+    const mockProvider = (name: string): Bip44AccountProvider =>
+      ({ getName: () => name }) as unknown as Bip44AccountProvider;
+
+    it('returns an empty object for an empty providers list', () => {
+      expect(toProviderDataTraces([])).toStrictEqual({});
+    });
+
+    it('returns a single entry for a single provider', () => {
+      expect(toProviderDataTraces([mockProvider('evm')])).toStrictEqual({
+        evm: true,
+      });
+    });
+
+    it('returns one entry per provider', () => {
+      expect(
+        toProviderDataTraces([mockProvider('evm'), mockProvider('btc')]),
+      ).toStrictEqual({ evm: true, btc: true });
+    });
+  });
+
+  describe('toCreateAccountsV2DataTraces', () => {
+    it('returns groupIndex for bip44:derive-index options', () => {
+      const options: CreateAccountOptions = {
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: 'entropy-source-id',
+        groupIndex: 3,
+      };
+
+      expect(toCreateAccountsV2DataTraces(options)).toStrictEqual({
+        groupIndex: 3,
+      });
+    });
+
+    it('returns range bounds for bip44:derive-index-range options', () => {
+      const options: CreateAccountOptions = {
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: 'entropy-source-id',
+        range: { from: 0, to: 5 },
+      };
+
+      expect(toCreateAccountsV2DataTraces(options)).toStrictEqual({
+        from: 0,
+        to: 5,
+      });
+    });
+
+    it('returns empty options otherwise', () => {
+      const options: CreateAccountOptions = {
+        type: AccountCreationType.Custom,
+      };
+
+      expect(toCreateAccountsV2DataTraces(options)).toStrictEqual({});
     });
   });
 });
