@@ -14,16 +14,19 @@ type CommandLineArguments = {
 };
 
 /**
- * Uses `yargs` to parse the arguments given to the script.
+ * Parses the given CLI arguments.
  *
- * @returns The command line arguments.
+ * @param args - The arguments to parse.
+ * @returns The parsed command line arguments.
  */
-async function parseCommandLineArguments(): Promise<CommandLineArguments> {
+export async function parseCommandLineArguments(
+  args: string[],
+): Promise<CommandLineArguments> {
   const {
     check,
     fix,
     path: sourcePath,
-  } = await yargs(globalThis.process.argv.slice(2))
+  } = await yargs(args)
     .command(
       '$0 [path]',
       'Generate method action types for controller and service messengers',
@@ -47,6 +50,7 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       default: false,
     })
     .help()
+    .exitProcess(false)
     .check((argv) => {
       if (!argv.check && !argv.fix) {
         throw new Error('Either --check or --fix must be provided.\n');
@@ -66,7 +70,7 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
  *
  * @returns An ESLint object with instance and static methods, or null if unavailable.
  */
-async function loadESLint(): Promise<ESLint | null> {
+export async function loadESLint(): Promise<ESLint | null> {
   try {
     const { ESLint: ESLintClass } = await import('eslint');
     const instance = new ESLintClass({
@@ -79,15 +83,18 @@ async function loadESLint(): Promise<ESLint | null> {
       getErrorResults: ESLintClass.getErrorResults.bind(ESLintClass),
     };
   } catch {
+    // istanbul ignore next: ESLint not available in all environments
     return null;
   }
 }
 
 /**
  * Main entry point for the CLI.
+ *
+ * @param args - The command line arguments to parse.
  */
-async function main(): Promise<void> {
-  const { fix, sourcePath } = await parseCommandLineArguments();
+export async function main(args: string[]): Promise<void> {
+  const { fix, sourcePath } = await parseCommandLineArguments(args);
 
   console.log(
     '🔍 Searching for controllers/services with MESSENGER_EXPOSED_METHODS...',
@@ -116,7 +123,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error('❌ Script failed:', error);
-  globalThis.process.exitCode = 1;
-});
+// istanbul ignore next: auto-invocation guard only runs when executed as a script
+if (globalThis.process.argv[1]?.includes('generate-action-types/cli')) {
+  main(globalThis.process.argv.slice(2)).catch((error) => {
+    console.error('❌ Script failed:', error);
+    globalThis.process.exitCode = 1;
+  });
+}
