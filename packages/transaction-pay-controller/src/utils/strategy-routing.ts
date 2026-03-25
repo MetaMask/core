@@ -1,12 +1,12 @@
 import type { Hex } from '@metamask/utils';
 import { uniq } from 'lodash';
 
-import { TransactionPayStrategy, isTransactionPayStrategy } from '../constants';
-import type { TransactionPayControllerMessenger } from '../types';
 import {
   DEFAULT_STRATEGY_ORDER,
   getConfirmationsPayFeatureFlags,
 } from './feature-flags';
+import { TransactionPayStrategy, isTransactionPayStrategy } from '../constants';
+import type { TransactionPayControllerMessenger } from '../types';
 
 export type TransactionPayRouteContext = {
   chainId?: Hex;

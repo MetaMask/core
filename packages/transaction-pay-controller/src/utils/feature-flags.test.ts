@@ -23,13 +23,13 @@ import {
   getSlippage,
   getStrategyOrder,
 } from './feature-flags';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { TransactionPayStrategy } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
 import {
   getStrategyOrderForRoute,
   getStrategyOrderForRouteFromFeatureFlags,
 } from './strategy-routing';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { TransactionPayStrategy } from '../constants';
+import { getMessengerMock } from '../tests/messenger-mock';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;

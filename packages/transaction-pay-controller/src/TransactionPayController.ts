@@ -23,10 +23,10 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { getStrategyOrderForRoute } from './utils/strategy-routing';
-import type { TransactionPayRouteContext } from './utils/strategy-routing';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
+import { getStrategyOrderForRoute } from './utils/strategy-routing';
+import type { TransactionPayRouteContext } from './utils/strategy-routing';
 import { pollTransactionChanges } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [

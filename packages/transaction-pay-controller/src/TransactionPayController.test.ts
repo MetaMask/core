@@ -13,10 +13,10 @@ import type {
   TransactionPaySourceAmount,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import type { TransactionPayRouteContext } from './utils/strategy-routing';
-import { getStrategyOrderForRoute } from './utils/strategy-routing';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
+import { getStrategyOrderForRoute } from './utils/strategy-routing';
+import type { TransactionPayRouteContext } from './utils/strategy-routing';
 import { pollTransactionChanges } from './utils/transaction';
 
 jest.mock('./actions/update-fiat-payment');

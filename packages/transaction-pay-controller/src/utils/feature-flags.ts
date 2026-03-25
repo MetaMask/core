@@ -46,19 +46,10 @@ type FeatureFlagsRaw = {
     max?: number;
   };
   relayQuoteUrl?: string;
-  routingOverrides?: {
-    overrides?: Record<string, RoutingOverrideRaw>;
-  };
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
   strategyOrder?: string[];
   payStrategies?: PayStrategiesConfigRaw;
-};
-
-type RoutingOverrideRaw = {
-  default?: unknown;
-  chains?: Record<string, unknown>;
-  tokens?: Record<string, Record<string, unknown>>;
 };
 
 export type FeatureFlags = {
@@ -117,8 +108,9 @@ export type PayStrategiesConfig = {
 export function getStrategyOrder(
   messenger: TransactionPayControllerMessenger,
 ): StrategyOrder {
-  const { strategyOrder: strategyPriority } =
-    getConfirmationsPayFeatureFlags(messenger) as FeatureFlagsRaw;
+  const { strategyOrder: strategyPriority } = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
 
   if (!Array.isArray(strategyPriority)) {
     return [...DEFAULT_STRATEGY_ORDER];
