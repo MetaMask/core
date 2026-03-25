@@ -1,6 +1,9 @@
+/* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
-import { createClientTransactionRequest } from './snaps';
+import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
+import { ChainId } from '../../../bridge-controller/src/types';
+import { BridgeStatusControllerMessenger } from '../types';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),
@@ -10,6 +13,214 @@ describe('Snaps Utils', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (uuid as jest.Mock).mockReturnValue('test-uuid-1234');
+  });
+
+  describe('handleNonEvmTx', () => {
+    it.each([
+      {
+        snapResponse: {
+          result: {
+            signature: 'solanaSignature123',
+          },
+        },
+        label: 'result.signature',
+      },
+      {
+        snapResponse: {
+          result: {
+            txid: 'solanaSignature123',
+          },
+        },
+        label: 'result.txid',
+      },
+      {
+        snapResponse: {
+          result: {
+            hash: 'solanaSignature123',
+          },
+        },
+        label: 'result.hash',
+      },
+      {
+        snapResponse: {
+          result: {
+            txHash: 'solanaSignature123',
+          },
+        },
+        label: 'result.txHash',
+      },
+      {
+        snapResponse: {
+          transactionId: 'solanaSignature123',
+        },
+        label: 'transactionId',
+      },
+    ])(
+      'should submit a non-EVM transaction ({label})',
+      async ({ snapResponse }) => {
+        const snapId = 'test-snap-id';
+        const transaction = 'base64-encoded-transaction';
+        const accountId = 'test-account-id';
+
+        const mockCall = jest.fn((...args: unknown[]) => {
+          const [action] = args;
+          if (action === 'SnapController:handleRequest') {
+            return Promise.resolve(snapResponse);
+          }
+        });
+        const messenger = {
+          call: (...args: unknown[]) => mockCall(...args),
+        } as unknown as BridgeStatusControllerMessenger;
+        const { time, ...result } = await handleNonEvmTx(
+          messenger,
+          transaction,
+          {
+            quote: {
+              srcChainId: ChainId.SOLANA,
+              srcAsset: { symbol: 'SOL' },
+              destAsset: { symbol: 'MATIC' },
+            },
+            sentAmount: {
+              amount: '1000000000',
+            },
+          } as never,
+          { id: accountId, metadata: { snap: { id: snapId } } } as never,
+        );
+
+        expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+                  [
+                    [
+                      "SnapController:handleRequest",
+                      {
+                        "handler": "onClientRequest",
+                        "origin": "metamask",
+                        "request": {
+                          "id": "test-uuid-1234",
+                          "jsonrpc": "2.0",
+                          "method": "signAndSendTransaction",
+                          "params": {
+                            "accountId": "test-account-id",
+                            "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                            "transaction": "base64-encoded-transaction",
+                          },
+                        },
+                        "snapId": "test-snap-id",
+                      },
+                    ],
+                  ]
+              `);
+        expect(result).toMatchInlineSnapshot(`
+                  {
+                    "approvalTxId": undefined,
+                    "chainId": "0x416edef1601be",
+                    "destinationChainId": "0x1",
+                    "destinationTokenAddress": undefined,
+                    "destinationTokenAmount": undefined,
+                    "destinationTokenDecimals": undefined,
+                    "destinationTokenSymbol": "MATIC",
+                    "hash": "solanaSignature123",
+                    "id": "solanaSignature123",
+                    "isBridgeTx": false,
+                    "isSolana": true,
+                    "networkClientId": "test-snap-id",
+                    "origin": "test-snap-id",
+                    "sourceTokenAddress": undefined,
+                    "sourceTokenAmount": undefined,
+                    "sourceTokenDecimals": undefined,
+                    "sourceTokenSymbol": "SOL",
+                    "status": "submitted",
+                    "swapTokenValue": "1000000000",
+                    "txParams": {
+                      "data": "base64-encoded-transaction",
+                      "from": undefined,
+                    },
+                    "type": "swap",
+                  }
+              `);
+      },
+    );
+
+    it('should submit a non-EVM transaction (no result in response)', async () => {
+      const snapId = 'test-snap-id';
+      const transaction = 'base64-encoded-transaction';
+      const accountId = 'test-account-id';
+
+      const mockCall = jest.fn((...args: unknown[]) => {
+        const [action] = args;
+        if (action === 'SnapController:handleRequest') {
+          return Promise.resolve(undefined);
+        }
+      });
+      const messenger = {
+        call: (...args: unknown[]) => mockCall(...args),
+      } as unknown as BridgeStatusControllerMessenger;
+      const { time, ...result } = await handleNonEvmTx(
+        messenger,
+        transaction,
+        {
+          quote: {
+            srcChainId: ChainId.SOLANA,
+            srcAsset: { symbol: 'SOL' },
+            destAsset: { symbol: 'MATIC' },
+          },
+          sentAmount: {
+            amount: '1000000000',
+          },
+        } as never,
+        { id: accountId, metadata: { snap: { id: snapId } } } as never,
+      );
+
+      expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+        [
+          [
+            "SnapController:handleRequest",
+            {
+              "handler": "onClientRequest",
+              "origin": "metamask",
+              "request": {
+                "id": "test-uuid-1234",
+                "jsonrpc": "2.0",
+                "method": "signAndSendTransaction",
+                "params": {
+                  "accountId": "test-account-id",
+                  "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                  "transaction": "base64-encoded-transaction",
+                },
+              },
+              "snapId": "test-snap-id",
+            },
+          ],
+        ]
+      `);
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "approvalTxId": undefined,
+          "chainId": "0x416edef1601be",
+          "destinationChainId": "0x1",
+          "destinationTokenAddress": undefined,
+          "destinationTokenAmount": undefined,
+          "destinationTokenDecimals": undefined,
+          "destinationTokenSymbol": "MATIC",
+          "hash": undefined,
+          "id": "test-uuid-1234",
+          "isBridgeTx": false,
+          "isSolana": true,
+          "networkClientId": "test-snap-id",
+          "origin": "test-snap-id",
+          "sourceTokenAddress": undefined,
+          "sourceTokenAmount": undefined,
+          "sourceTokenDecimals": undefined,
+          "sourceTokenSymbol": "SOL",
+          "status": "submitted",
+          "swapTokenValue": "1000000000",
+          "txParams": {
+            "data": "base64-encoded-transaction",
+            "from": undefined,
+          },
+          "type": "swap",
+        }
+      `);
+    });
   });
 
   describe('createClientTransactionRequest', () => {

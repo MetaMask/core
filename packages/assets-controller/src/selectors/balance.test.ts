@@ -56,8 +56,8 @@ describe('balance selectors', () => {
           metadata: {},
         },
       },
-      selectedAccountGroup: '',
     },
+    selectedAccountGroup: '',
     isAccountTreeSyncingInProgress: false,
     hasAccountTreeSyncingSyncedAtLeastOnce: true,
     accountGroupsMetadata: {},
@@ -86,8 +86,8 @@ describe('balance selectors', () => {
         ...accountTreeState,
         accountTree: {
           wallets: {},
-          selectedAccountGroup: '',
         },
+        selectedAccountGroup: '',
       };
       expect(getGroupIdForAccount(emptyTree, accountId1)).toBeUndefined();
     });
@@ -129,8 +129,8 @@ describe('balance selectors', () => {
         ...accountTreeState,
         accountTree: {
           wallets: {},
-          selectedAccountGroup: '',
         },
+        selectedAccountGroup: '',
       };
       const result = getInternalAccountsForGroup(
         emptyTree,

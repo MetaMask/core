@@ -22,14 +22,16 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
+  TransactionControllerAddTransactionAction,
+  TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionFailedEvent,
+  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
@@ -107,6 +109,9 @@ export type RefuelStatusResponse = object & StatusResponse;
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
@@ -209,8 +214,12 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: TransactionMeta;
-  statusRequest: StatusRequest;
+  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
+  actionId?: string;
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
+  originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
@@ -316,12 +325,14 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
-  | RemoteFeatureFlagControllerGetStateAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;
 

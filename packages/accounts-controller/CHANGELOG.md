@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
   - Those new events can be used instead of single `:accountAdded` and `:accountRemoved` events to reduce the number of events emitted during batch operations (e.g. `KeyringController` state re-synchronization).
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+
 ### Fixed
 
 - Prevent `getSelectedAccount` and `getSelectedMultichainAccount` from throwing when `selectedAccount` is `undefined` ([#8231](https://github.com/MetaMask/core/pull/8231))

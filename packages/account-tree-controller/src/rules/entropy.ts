@@ -74,6 +74,7 @@ export class EntropyRule
           },
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };

@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [63.2.0]
+
+### Changed
+
+- Fix sentry issue about unsubscribe for event AccountActivityService:transactionUpdated called even if subscription is not done ([#8299](https://github.com/MetaMask/core/pull/8299))
+
+## [63.1.0]
+
+### Added
+
+- Add `perpsWithdraw` to `TransactionType` ([#8271](https://github.com/MetaMask/core/pull/8271))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^6.1.1` to `^6.2.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Remove legacy `actionId` deduplication logic from transaction lifecycle methods ([#8256](https://github.com/MetaMask/core/pull/8256))
 
 ## [63.0.0]
 
@@ -2258,7 +2271,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.2.0...HEAD
+[63.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.1.0...@metamask/transaction-controller@63.2.0
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.0.0...@metamask/transaction-controller@63.1.0
 [63.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.22.0...@metamask/transaction-controller@63.0.0
 [62.22.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.21.0...@metamask/transaction-controller@62.22.0
 [62.21.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.20.0...@metamask/transaction-controller@62.21.0

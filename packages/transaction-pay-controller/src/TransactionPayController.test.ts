@@ -149,6 +149,19 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates isHyperliquidSource in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isHyperliquidSource = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]
+          .isHyperliquidSource,
+      ).toBe(true);
+    });
+
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
       const controller = createController();
 

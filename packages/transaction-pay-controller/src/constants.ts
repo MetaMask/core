@@ -14,6 +14,11 @@ export const ARBITRUM_USDC_ADDRESS =
 export const POLYGON_USDCE_ADDRESS =
   '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Hex;
 
+export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
+
+export const HYPERCORE_USDC_DECIMALS = 8;
+export const USDC_DECIMALS = 6;
+
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet
   '0x1': [
@@ -29,12 +34,13 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
     '0xa219439258ca9da29e9cc4ce5596924745e12b93', // USDT
   ],
   [CHAIN_ID_POLYGON]: [POLYGON_USDCE_ADDRESS.toLowerCase() as Hex],
-  [CHAIN_ID_HYPERCORE]: ['0x00000000000000000000000000000000'], // USDC
+  [CHAIN_ID_HYPERCORE]: [HYPERCORE_USDC_ADDRESS], // USDC
 };
 
 export enum TransactionPayStrategy {
   Across = 'across',
   Bridge = 'bridge',
+  Fiat = 'fiat',
   Relay = 'relay',
   Test = 'test',
 }

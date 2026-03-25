@@ -1,6 +1,4 @@
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
-import type { TransactionController } from '@metamask/transaction-controller';
-import { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
@@ -9,9 +7,9 @@ import {
   IntentApi,
   IntentApiImpl,
   IntentBridgeStatus,
-  IntentSubmissionParams,
   translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
+import { getTransactionMetaById, updateTransaction } from './utils/transaction';
 import { IntentStatusResponse, IntentOrderStatus } from './utils/validators';
 
 type IntentStatuses = {
@@ -22,8 +20,6 @@ type IntentStatuses = {
 export class IntentManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
-  readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
-
   readonly intentApi: IntentApi;
 
   readonly #intentStatusesByBridgeTxMetaId: Map<string, IntentStatuses> =
@@ -31,17 +27,14 @@ export class IntentManager {
 
   constructor({
     messenger,
-    updateTransactionFn,
     customBridgeApiBaseUrl,
     fetchFn,
   }: {
     messenger: BridgeStatusControllerMessenger;
-    updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
     customBridgeApiBaseUrl: string;
     fetchFn: FetchFunction;
   }) {
     this.#messenger = messenger;
-    this.#updateTransactionFn = updateTransactionFn;
     this.intentApi = new IntentApiImpl(
       customBridgeApiBaseUrl,
       fetchFn,
@@ -63,7 +56,7 @@ export class IntentManager {
     bridgeTxMetaId: string,
     order: IntentStatusResponse,
     srcChainId: number,
-    txHash: string,
+    txHash?: string,
   ): IntentStatuses {
     const bridgeStatus = translateIntentOrderToBridgeStatus(
       order,
@@ -92,7 +85,7 @@ export class IntentManager {
     srcChainId: number,
     protocol: string,
     clientId: BridgeClientId,
-    txHash: string = '',
+    txHash?: string,
   ): Promise<IntentStatuses | undefined> => {
     try {
       const orderStatus = await this.intentApi.getOrderStatus(
@@ -106,7 +99,7 @@ export class IntentManager {
         bridgeTxMetaId,
         orderStatus,
         srcChainId,
-        txHash.toString(),
+        txHash,
       );
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -145,11 +138,9 @@ export class IntentManager {
 
     try {
       // Merge with existing TransactionMeta to avoid wiping required fields
-      const { transactions } = this.#messenger.call(
-        'TransactionController:getState',
-      );
-      const existingTxMeta = transactions.find(
-        (tx: TransactionMeta) => tx.id === originalTxId,
+      const existingTxMeta = getTransactionMetaById(
+        this.#messenger,
+        originalTxId,
       );
       if (!existingTxMeta) {
         console.warn(
@@ -160,6 +151,7 @@ export class IntentManager {
       }
       const { bridgeStatus, orderStatus } = intentStatuses;
       const txHash = bridgeStatus?.txHash;
+
       const isComplete = bridgeStatus?.status.status === StatusTypes.COMPLETE;
       const isFinalStatus =
         bridgeStatus?.status.status === StatusTypes.COMPLETE ||
@@ -171,21 +163,20 @@ export class IntentManager {
         ? {
             txReceipt: {
               ...existingTxReceipt,
-              transactionHash: txHash,
-              status: (isComplete ? '0x1' : '0x0') as unknown as string,
+              transactionHash: txHash as `0x${string}` | undefined,
+              status: isComplete ? '0x1' : '0x0',
             },
           }
         : {};
 
-      const updatedTxMeta: TransactionMeta = {
-        ...existingTxMeta,
-        status: bridgeStatus?.transactionStatus,
-        ...(txHash ? { hash: txHash } : {}),
-        ...txReceiptUpdate,
-      } as TransactionMeta;
-
-      this.#updateTransactionFn(
-        updatedTxMeta,
+      updateTransaction(
+        this.#messenger,
+        existingTxMeta,
+        {
+          status: bridgeStatus?.transactionStatus,
+          ...(txHash ? { hash: txHash } : {}),
+          ...txReceiptUpdate,
+        },
         `BridgeStatusController - Intent order status updated: ${orderStatus}`,
       );
 
@@ -199,19 +190,5 @@ export class IntentManager {
         error,
       });
     }
-  };
-
-  /**
-   * Submit an intent order.
-   *
-   * @param submissionParams - The submission parameters.
-   * @param clientId - The client ID.
-   * @returns The intent order.
-   */
-  submitIntent = async (
-    submissionParams: IntentSubmissionParams,
-    clientId: BridgeClientId,
-  ): Promise<IntentStatusResponse> => {
-    return this.intentApi.submitIntent(submissionParams, clientId);
   };
 }

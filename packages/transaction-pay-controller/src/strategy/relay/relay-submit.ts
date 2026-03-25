@@ -19,6 +19,7 @@ import type {
   RelayExecuteRequest,
   RelayQuote,
   RelayStatusResponse,
+  RelayTransactionStep,
 } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -216,7 +217,7 @@ async function waitForRelayCompletion(
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
-  params: RelayQuote['steps'][0]['items'][0]['data'],
+  params: RelayTransactionStep['items'][0]['data'],
   messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
   const featureFlags = getFeatureFlags(messenger);
@@ -310,8 +311,14 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
   const { steps } = quote.original;
-  const params = steps.flatMap((step) => step.items).map((item) => item.data);
-  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
+  const txSteps = steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
+  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
+  )?.kind;
 
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);
@@ -520,7 +527,8 @@ async function submitViaTransactionController(
         }))
       : undefined;
 
-  const { gasLimits } = quote.original.metamask;
+  const { metamask } = quote.original;
+  const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
     const transactionParams = {
@@ -541,10 +549,9 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 =
-      gasLimits.length === 1 && allParams.length > 1
-        ? toHex(gasLimits[0])
-        : undefined;
+    const gasLimit7702 = metamask.is7702
+      ? toHex(metamask.gasLimits[0])
+      : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
