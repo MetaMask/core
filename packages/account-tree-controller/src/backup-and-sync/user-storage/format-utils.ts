@@ -1,9 +1,12 @@
+import { mask } from '@metamask/superstruct';
+
 import {
   assertValidUserStorageWallet,
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
 } from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type {
   BackupAndSyncContext,
@@ -11,6 +14,7 @@ import type {
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
+import { UserStorageSyncedWalletGroupSchema } from '../types';
 
 /**
  * Formats the wallet for user storage usage.
@@ -52,10 +56,24 @@ export const formatGroupForUserStorageUsage = (
   const persistedGroupMetadata =
     context.controller.state.accountGroupsMetadata[group.id];
 
-  return {
-    ...(persistedGroupMetadata ?? {}),
-    groupIndex: group.metadata.entropy.groupIndex,
-  };
+  try {
+    // We mask and we try catch, since `mask` will throw if the persisted metadata has
+    // fields with wrong types.
+    return mask(
+      {
+        ...(persistedGroupMetadata ?? {}),
+        groupIndex: group.metadata.entropy.groupIndex,
+      },
+      UserStorageSyncedWalletGroupSchema,
+    );
+  } catch (error) {
+    backupAndSyncLogger(
+      `Error trying to format group for user storage usage: ${error instanceof Error ? error.message : String(error)}`,
+    );
+
+    // If anything goes wrong with this group, we use blank metadata for it.
+    return { groupIndex: group.metadata.entropy.groupIndex };
+  }
 };
 
 /**
