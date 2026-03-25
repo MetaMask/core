@@ -614,6 +614,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
     });
   };
 
@@ -657,6 +659,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
@@ -851,6 +855,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             if (!isDuplicate) {
               state.tokenWarnings = [...state.tokenWarnings, warning];
             }
+          });
+        },
+        onComplete: (data) => {
+          this.update((state) => {
+            state.quoteStreamComplete = data;
           });
         },
         onClose: async () => {
