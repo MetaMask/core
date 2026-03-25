@@ -16,8 +16,8 @@ export const POLYGON_USDCE_ADDRESS =
 
 export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 
-// HyperCore Perps USDC uses 8 decimals vs standard USDC's 6.
-export const HYPERCORE_USDC_DECIMAL_SHIFT = 2;
+export const HYPERCORE_USDC_DECIMALS = 8;
+export const USDC_DECIMALS = 6;
 
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet

@@ -27,8 +27,9 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   HYPERCORE_USDC_ADDRESS,
-  HYPERCORE_USDC_DECIMAL_SHIFT,
+  HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
+  USDC_DECIMALS,
   STABLECOINS,
 } from '../../constants';
 import { projectLogger } from '../../logger';
@@ -383,7 +384,7 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
     newRequest.targetChainId = CHAIN_ID_HYPERCORE;
     newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
     newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(HYPERCORE_USDC_DECIMAL_SHIFT)
+      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
       .toString(10);
 
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
@@ -400,7 +401,7 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
 
     if (newRequest.sourceTokenAmount) {
       newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
-        .shiftedBy(HYPERCORE_USDC_DECIMAL_SHIFT)
+        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
         .toString(10);
     }
   }
