@@ -73,6 +73,13 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
+  /**
+   * Whether the source of funds is HyperLiquid (HyperCore).
+   * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
+   * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
+   */
+  isHyperliquidSource?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -82,13 +89,6 @@ export type TransactionConfig = {
    * and the quote source is derived from the transaction's output token.
    */
   isPostQuote?: boolean;
-
-  /**
-   * Whether the source of funds is HyperLiquid (HyperCore).
-   * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
-   * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
-   */
-  isHyperliquidSource?: boolean;
 
   /**
    * Optional address to receive refunds if the Relay transaction fails.
