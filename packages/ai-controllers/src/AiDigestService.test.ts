@@ -525,20 +525,11 @@ describe('AiDigestService', () => {
       ],
     };
 
-    const mockEnvelope = {
-      id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-      report: mockMarketOverview,
-      generatedAt: '2026-02-16T10:00:00.000Z',
-      processingTime: 12345,
-      success: true,
-      error: null,
-    };
-
     it('fetches market overview from correct endpoint', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockEnvelope),
+        json: () => Promise.resolve(mockMarketOverview),
       });
 
       const service = new AiDigestService({
@@ -546,34 +537,13 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual({
-        ...mockMarketOverview,
-        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-      });
+      expect(result).toStrictEqual(mockMarketOverview);
       expect(mockFetch).toHaveBeenCalledWith(
         'http://test.com/api/v1/market-overview',
       );
     });
 
-    it('extracts digestId from the envelope id field', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(mockEnvelope),
-      });
-
-      const service = new AiDigestService({
-        baseUrl: 'http://test.com/api/v1',
-      });
-      const result = await service.fetchMarketOverview();
-
-      expect(result).toStrictEqual({
-        ...mockMarketOverview,
-        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-      });
-    });
-
-    it('throws when envelope id is missing', async () => {
+    it('accepts report envelope responses', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -584,16 +554,17 @@ describe('AiDigestService', () => {
             processingTime: 12345,
             success: true,
             error: null,
+            createdAt: '2026-02-16T10:00:00.000Z',
+            updatedAt: '2026-02-16T10:00:00.000Z',
           }),
       });
 
       const service = new AiDigestService({
         baseUrl: 'http://test.com/api/v1',
       });
+      const result = await service.fetchMarketOverview();
 
-      await expect(service.fetchMarketOverview()).rejects.toThrow(
-        AiDigestControllerErrorMessage.API_INVALID_RESPONSE,
-      );
+      expect(result).toStrictEqual(mockMarketOverview);
     });
 
     it('returns null when API returns 404', async () => {
@@ -625,11 +596,8 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: {
-              generatedAt: '2026-02-16T10:00:00.000Z',
-              trends: 'invalid-trends',
-            },
+            generatedAt: '2026-02-16T10:00:00.000Z',
+            trends: 'invalid-trends',
           }),
       });
 
@@ -648,16 +616,13 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: {
-              ...mockMarketOverview,
-              trends: [
-                {
-                  ...mockMarketOverview.trends[0],
-                  category: 'unknown-category',
-                },
-              ],
-            },
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                category: 'unknown-category',
+              },
+            ],
           }),
       });
 
@@ -676,16 +641,13 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: {
-              ...mockMarketOverview,
-              trends: [
-                {
-                  ...mockMarketOverview.trends[0],
-                  impact: 'unknown-impact',
-                },
-              ],
-            },
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                impact: 'unknown-impact',
+              },
+            ],
           }),
       });
 
@@ -720,11 +682,7 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: withoutVersion,
-          }),
+        json: () => Promise.resolve(withoutVersion),
       });
 
       const service = new AiDigestService({
@@ -732,10 +690,7 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual({
-        ...withoutVersion,
-        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-      });
+      expect(result).toStrictEqual(withoutVersion);
     });
 
     it('accepts response with optional metadata field', async () => {
@@ -747,11 +702,7 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: withMetadata,
-          }),
+        json: () => Promise.resolve(withMetadata),
       });
 
       const service = new AiDigestService({
@@ -759,10 +710,7 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual({
-        ...withMetadata,
-        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-      });
+      expect(result).toStrictEqual(withMetadata);
     });
 
     it('throws when a trend has an invalid relatedAssets entry', async () => {
@@ -771,16 +719,13 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: {
-              ...mockMarketOverview,
-              trends: [
-                {
-                  ...mockMarketOverview.trends[0],
-                  relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
-                },
-              ],
-            },
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
+              },
+            ],
           }),
       });
 
@@ -808,11 +753,7 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: withExtras,
-          }),
+        json: () => Promise.resolve(withExtras),
       });
 
       const service = new AiDigestService({
@@ -820,10 +761,7 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual({
-        ...withExtras,
-        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-      });
+      expect(result).toStrictEqual(withExtras);
     });
   });
 });

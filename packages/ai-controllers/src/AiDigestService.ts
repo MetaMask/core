@@ -110,13 +110,16 @@ const MarketOverviewStruct = structType({
 });
 
 const MarketOverviewReportEnvelopeStruct = structType({
-  id: string(),
   report: MarketOverviewStruct,
 });
 
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
+  if (is(value, MarketOverviewStruct)) {
+    return value;
+  }
+
   if (is(value, MarketOverviewReportEnvelopeStruct)) {
-    return { ...value.report, digestId: value.id };
+    return value.report;
   }
 
   return null;
