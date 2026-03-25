@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `getCryptoApproveTransactionParams` rejecting valid payment token addresses when the request used mixed-case formatting. ([#8297] (https://github.com/MetaMask/core/pull/8297))
+
 ## [6.0.2]
 
 ### Changed
