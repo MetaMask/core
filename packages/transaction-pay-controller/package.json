@@ -64,7 +64,7 @@
     "@metamask/network-controller": "^30.0.0",
     "@metamask/ramps-controller": "^12.0.1",
     "@metamask/remote-feature-flag-controller": "^4.1.0",
-    "@metamask/transaction-controller": "^63.1.0",
+    "@metamask/transaction-controller": "^63.2.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
