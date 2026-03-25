@@ -79,6 +79,7 @@ const MarketInsightsReportStruct = structType({
 });
 
 const MarketInsightsDigestEnvelopeStruct = structType({
+  id: string(),
   digest: MarketInsightsReportStruct,
 });
 
@@ -127,12 +128,8 @@ const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
 const getNormalizedMarketInsightsReport = (
   value: unknown,
 ): MarketInsightsReport | null => {
-  if (is(value, MarketInsightsReportStruct)) {
-    return value;
-  }
-
   if (is(value, MarketInsightsDigestEnvelopeStruct)) {
-    return value.digest;
+    return { ...value.digest, digestId: value.id };
   }
 
   return null;

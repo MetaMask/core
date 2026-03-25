@@ -621,11 +621,6 @@
       "count": 3
     }
   },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 11
@@ -1240,6 +1235,11 @@
   "packages/network-enablement-controller/src/selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
+    }
+  },
+  "packages/perps-controller/src/utils/myxAdapter.ts": {
+    "@typescript-eslint/no-base-to-string": {
+      "count": 2
     }
   },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {

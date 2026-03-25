@@ -101,6 +101,7 @@ const getNormalizedScopesObject = (
  * @param caip25CaveatValue - The CAIP-25 CaveatValue to convert.
  * @param hooks - An object containing the following properties:
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param [hooks.sortAccountIdsByLastSelected] - Optional function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
  * @returns A NormalizedScopesObject.
  */
 export const getSessionScopes = (
@@ -110,11 +111,15 @@ export const getSessionScopes = (
   >,
   {
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
   }: {
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    sortAccountIdsByLastSelected?: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
   },
 ) => {
-  return mergeNormalizedScopes(
+  const mergedScopes = mergeNormalizedScopes(
     getNormalizedScopesObject(caip25CaveatValue.requiredScopes, {
       getNonEvmSupportedMethods,
     }),
@@ -122,6 +127,20 @@ export const getSessionScopes = (
       getNonEvmSupportedMethods,
     }),
   );
+
+  if (sortAccountIdsByLastSelected) {
+    Object.keys(mergedScopes).forEach((scopeString) => {
+      const scope = scopeString as keyof typeof mergedScopes;
+      const scopeObject = mergedScopes[scope];
+      if (scopeObject) {
+        scopeObject.accounts = sortAccountIdsByLastSelected(
+          scopeObject.accounts,
+        );
+      }
+    });
+  }
+
+  return mergedScopes;
 };
 
 /**
