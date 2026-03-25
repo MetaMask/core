@@ -292,6 +292,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Check balance and gas fee tokens only after before sign hook ([#7234](https://github.com/MetaMask/core/pull/7234))
+- Fix sentry issue about unsubscribe for event AccountActivityService:transactionUpdated called even if subscription is not done ([#8299](https://github.com/MetaMask/core/pull/8299))
 
 ## [62.2.0]
 
