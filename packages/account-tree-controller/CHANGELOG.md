@@ -19,17 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Move `selectedAccountGroup` to top-level persisted state to prevent selected account group from reverting after app restart ([#8245](https://github.com/MetaMask/core/pull/8245))
+- **BREAKING**: Use `:accounts{Added,Removed}` batched events to reduce number of state updates ([#8160](https://github.com/MetaMask/core/pull/8160))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/multichain-account-service` from `^7.1.0` to `^8.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
-- **BREAKING**: Move `selectedAccountGroup` to top-level persisted state to prevent selected account group from reverting after app restart ([#8245](https://github.com/MetaMask/core/pull/8245))
-- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - Batch multichain account groups creation in backup and sync ([#7907](https://github.com/MetaMask/core/pull/7907))
   - This prevents multiple consecutive tree rebuilds, as well as keyring updates and thus improves performance during the initial backup and sync process.
-- **BREAKING**: Use `:accounts{Added,Removed}` batched events to reduce number of state updates ([#8160](https://github.com/MetaMask/core/pull/8160))
 
 ### Fixed
 

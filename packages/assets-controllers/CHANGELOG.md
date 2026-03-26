@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `AssetListState` type now requires a top-level `selectedAccountGroup` property, matching the updated `AccountTreeControllerState` shape where `selectedAccountGroup` was moved out of `accountTree` ([#8245](https://github.com/MetaMask/core/pull/8245))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - Bump `@metamask/account-tree-controller` from `^5.0.1` to `^6.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/approval-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
@@ -34,8 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/preferences-controller` from `^23.0.0` to `^23.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/storage-service` from `^1.0.0` to `^1.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
-- **BREAKING:** `AssetListState` type now requires a top-level `selectedAccountGroup` property, matching the updated `AccountTreeControllerState` shape where `selectedAccountGroup` was moved out of `accountTree` ([#8245](https://github.com/MetaMask/core/pull/8245))
-- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - `fetchTokenPrices` to use `SPOT_PRICES_SUPPORT_INFO` as override - use if defined - instead of fallback for native token price ([#8258](https://github.com/MetaMask/core/pull/8258))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
 - Changed INK native asset to `slip44:60` (ETH) in `codefi-v2.ts` ([#8303](https://github.com/MetaMask/core/pull/8303))
