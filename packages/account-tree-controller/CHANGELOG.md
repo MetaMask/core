@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+
 ## [6.0.0]
 
 ### Added
@@ -30,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Batch multichain account groups creation in backup and sync ([#7907](https://github.com/MetaMask/core/pull/7907))
   - This prevents multiple consecutive tree rebuilds, as well as keyring updates and thus improves performance during the initial backup and sync process.
+- **BREAKING**: Use `:accounts{Added,Removed}` batched events to reduce number of state updates ([#8160](https://github.com/MetaMask/core/pull/8160))
 
 ### Fixed
 
