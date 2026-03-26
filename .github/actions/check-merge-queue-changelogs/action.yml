@@ -54,7 +54,6 @@ runs:
       id: changelog-check
       shell: bash
       env:
-        HEAD_REF: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
         BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
         PR_BRANCH: ${{ steps.pr-branch.outputs.pr-branch }}
         REPOSITORY: ${{ github.repository }}
