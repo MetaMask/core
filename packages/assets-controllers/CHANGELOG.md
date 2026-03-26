@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `AssetListState` type now requires a top-level `selectedAccountGroup` property, matching the updated `AccountTreeControllerState` shape where `selectedAccountGroup` was moved out of `accountTree` ([#8245](https://github.com/MetaMask/core/pull/8245))
 - Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - `fetchTokenPrices` to use `SPOT_PRICES_SUPPORT_INFO` as override - use if defined - instead of fallback for native token price ([#8258](https://github.com/MetaMask/core/pull/8258))
-- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.2.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313))
 - Changed INK native asset to `slip44:60` (ETH) in `codefi-v2.ts` ([#8303](https://github.com/MetaMask/core/pull/8303))
 
 ## [101.0.1]
