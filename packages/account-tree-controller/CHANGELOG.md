@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.0]
 
-### Uncategorized
-
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-
 ### Added
 
 - Add `lastSelected` (timestamp) to account group tree node metadata ([#8261](https://github.com/MetaMask/core/pull/8261)), ([#8300](https://github.com/MetaMask/core/pull/8300))
