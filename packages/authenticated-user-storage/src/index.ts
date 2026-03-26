@@ -6,6 +6,7 @@ export { AuthenticatedUserStorageError } from './errors';
 export { Env, getEnvUrls } from './env';
 export type {
   AuthenticatedUserStorageConfig,
+  Hex,
   Caveat,
   SignedDelegation,
   DelegationMetadata,

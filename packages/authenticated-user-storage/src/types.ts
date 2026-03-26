@@ -1,5 +1,7 @@
 import type { Env } from './env';
 
+export type Hex = `0x${string}`;
+
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
@@ -16,41 +18,41 @@ export type AuthenticatedUserStorageConfig = {
 /** A single caveat attached to a delegation. */
 export type Caveat = {
   /** Address of the caveat enforcer contract (0x-prefixed). */
-  enforcer: string;
-  /** ABI-encoded caveat terms. */
-  terms: string;
-  /** ABI-encoded caveat arguments. */
-  args: string;
+  enforcer: Hex;
+  /** ABI-encoded caveat terms (0x-prefixed). */
+  terms: Hex;
+  /** ABI-encoded caveat arguments (0x-prefixed). */
+  args: Hex;
 };
 
 /** An EIP-712 signed delegation. */
 export type SignedDelegation = {
   /** Address the delegation is granted to (0x-prefixed). */
-  delegate: string;
+  delegate: Hex;
   /** Address granting the delegation (0x-prefixed). */
-  delegator: string;
+  delegator: Hex;
   /** Root authority or parent delegation hash (0x-prefixed). */
-  authority: string;
+  authority: Hex;
   /** Caveats restricting how the delegation may be used. */
   caveats: Caveat[];
   /** Unique salt to prevent replay (0x-prefixed). */
-  salt: string;
+  salt: Hex;
   /** EIP-712 signature over the delegation (0x-prefixed). */
-  signature: string;
+  signature: Hex;
 };
 
 /** Metadata associated with a delegation. */
 export type DelegationMetadata = {
   /** Keccak-256 hash uniquely identifying the delegation (0x-prefixed). */
-  delegationHash: string;
+  delegationHash: Hex;
   /** Chain ID in hex format (0x-prefixed). */
-  chainIdHex: string;
+  chainIdHex: Hex;
   /** Token allowance in hex format (0x-prefixed). */
-  allowance: string;
+  allowance: Hex;
   /** Symbol of the token (e.g. "USDC"). */
   tokenSymbol: string;
   /** Token contract address (0x-prefixed). */
-  tokenAddress: string;
+  tokenAddress: Hex;
   /** Type of delegation. */
   type: string;
 };
@@ -74,7 +76,7 @@ export type DelegationResponse = {
 /** Wallet activity tracking for a single address. */
 export type WalletActivityAccount = {
   /** Wallet address to track activity for (0x-prefixed). */
-  address: string;
+  address: Hex;
   enabled: boolean;
 };
 
