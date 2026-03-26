@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0]
+
 ### Uncategorized
 
 - chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
@@ -290,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...@metamask/ramps-controller@12.1.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...@metamask/ramps-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.2.0...@metamask/ramps-controller@11.0.0
