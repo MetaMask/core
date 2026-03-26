@@ -1222,8 +1222,13 @@ describe('AssetsController', () => {
           // Allow #start() -> getAssets() to resolve so the callback runs
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(traceMock).toHaveBeenCalledTimes(1);
-          const [request] = traceMock.mock.calls[0];
+          const firstInitFetchCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name ===
+              'AssetsController First Init Fetch',
+          );
+          expect(firstInitFetchCalls).toHaveLength(1);
+          const [request] = firstInitFetchCalls[0];
           expect(request).toMatchObject({
             name: 'AssetsController First Init Fetch',
             data: expect.objectContaining({
@@ -1271,7 +1276,12 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(traceMock).toHaveBeenCalledTimes(1);
+          const firstInitFetchCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name ===
+              'AssetsController First Init Fetch',
+          );
+          expect(firstInitFetchCalls).toHaveLength(1);
         },
       );
     });
