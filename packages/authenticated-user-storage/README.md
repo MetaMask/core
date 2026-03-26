@@ -1,6 +1,6 @@
 # `@metamask/authenticated-user-storage`
 
-A TypeScript SDK for MetaMask's Authenticated User Storage API. Unlike end-to-end encrypted user storage (where the server stores opaque ciphertext), authenticated user storage holds **structured JSON** scoped to the authenticated user. The server can read and validate the contents, which allows other backend services to consume the data (e.g. delegation execution, notification delivery).
+A TypeScript SDK for MetaMask's Authenticated User Storage API. Unlike E2EE user-storage, authenticated user storage holds **structured JSON** scoped to the authenticated user. The server can read and validate the contents, which allows other backend services to consume the data (e.g. delegation execution, notification delivery).
 
 The SDK currently supports two domains:
 
@@ -19,15 +19,19 @@ or
 
 ### Creating a client
 
+The constructor requires two options:
+
+- **`env`** -- selects the backend environment (`DEV`, `UAT`, or `PRD`).
+- **`getAccessToken`** -- an async callback that returns a valid JWT access token for the current user. In MetaMask clients this is wired through the messenger to `AuthenticationController:getBearerToken`, which handles the full SRP-based OIDC login flow internally.
+
 ```typescript
 import { AuthenticatedUserStorage, Env } from '@metamask/authenticated-user-storage';
 
+// Inside a controller that has access to the messenger:
 const storage = new AuthenticatedUserStorage({
   env: Env.PRD,
-  getAccessToken: async () => {
-    // Return a valid JWT access token for the current user.
-    return myAuthProvider.getToken();
-  },
+  getAccessToken: () =>
+    this.messenger.call('AuthenticationController:getBearerToken'),
 });
 ```
 
@@ -38,6 +42,8 @@ The `env` option selects the backend environment:
 | `Env.DEV` | `user-storage.dev-api.cx.metamask.io` |
 | `Env.UAT` | `user-storage.uat-api.cx.metamask.io` |
 | `Env.PRD` | `user-storage.api.cx.metamask.io` |
+
+The `AuthenticationController` manages the full authentication lifecycle (SRP key derivation, nonce signing, backend authentication, OIDC token exchange, and session caching). Callers do not need to handle tokens directly -- the `getBearerToken` action returns a cached access token or transparently re-authenticates when the session has expired.
 
 ### Delegations
 
