@@ -4,36 +4,48 @@ import { CONNECTIVITY_STATUSES } from './types';
 
 describe('connectivityControllerSelectors', () => {
   describe('selectConnectivityStatus', () => {
-    it.each([[CONNECTIVITY_STATUSES.Online], [CONNECTIVITY_STATUSES.Offline]])(
-      'returns %s when connectivityStatus is %s',
-      (connectivityStatus) => {
-        const state: ConnectivityControllerState = {
-          connectivityStatus,
-        };
+    it('returns Online when connectivityStatus is Online', () => {
+      const state: ConnectivityControllerState = {
+        connectivityStatus: CONNECTIVITY_STATUSES.Online,
+      };
 
-        const result =
-          connectivityControllerSelectors.selectConnectivityStatus(state);
+      const result =
+        connectivityControllerSelectors.selectConnectivityStatus(state);
 
-        expect(result).toBe(connectivityStatus);
-      },
-    );
+      expect(result).toBe(CONNECTIVITY_STATUSES.Online);
+    });
+
+    it('returns Offline when connectivityStatus is Offline', () => {
+      const state: ConnectivityControllerState = {
+        connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+      };
+
+      const result =
+        connectivityControllerSelectors.selectConnectivityStatus(state);
+
+      expect(result).toBe(CONNECTIVITY_STATUSES.Offline);
+    });
   });
 
   describe('selectIsOffline', () => {
-    it.each([
-      [CONNECTIVITY_STATUSES.Online, false],
-      [CONNECTIVITY_STATUSES.Offline, true],
-    ])(
-      'when connectivityStatus=%s, returns %s',
-      (connectivityStatus, expected) => {
-        const state: ConnectivityControllerState = {
-          connectivityStatus,
-        };
+    it('returns false when connectivityStatus is Online', () => {
+      const state: ConnectivityControllerState = {
+        connectivityStatus: CONNECTIVITY_STATUSES.Online,
+      };
 
-        const result = connectivityControllerSelectors.selectIsOffline(state);
+      const result = connectivityControllerSelectors.selectIsOffline(state);
 
-        expect(result).toBe(expected);
-      },
-    );
+      expect(result).toBe(false);
+    });
+
+    it('returns true when connectivityStatus is Offline', () => {
+      const state: ConnectivityControllerState = {
+        connectivityStatus: CONNECTIVITY_STATUSES.Offline,
+      };
+
+      const result = connectivityControllerSelectors.selectIsOffline(state);
+
+      expect(result).toBe(true);
+    });
   });
 });
