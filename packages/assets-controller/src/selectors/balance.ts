@@ -483,25 +483,21 @@ export function getAggregatedBalanceForAccount(
       const info = getAssetInfo(assetInfoCache, assetId);
       uniqueNetworks.add(info.chainId);
     }
-    try {
-      trace(
-        {
-          name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-          data: {
-            duration_ms: durationMs,
-            asset_count: merged.size,
-            network_count: uniqueNetworks.size,
-            account_count: accountsToAggregate.length,
-          },
-          tags: { controller: 'AssetsController' },
+    trace(
+      {
+        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+        data: {
+          duration_ms: durationMs,
+          asset_count: merged.size,
+          network_count: uniqueNetworks.size,
+          account_count: accountsToAggregate.length,
         },
-        () => undefined,
-      ).catch(() => {
-        // Telemetry failure must not break.
-      });
-    } catch {
+        tags: { controller: 'AssetsController' },
+      },
+      () => undefined,
+    ).catch(() => {
       // Telemetry failure must not break.
-    }
+    });
   }
 
   if (hasPrices) {

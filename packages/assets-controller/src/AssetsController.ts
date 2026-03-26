@@ -540,13 +540,9 @@ export class AssetsController extends BaseController<
     if (!this.#trace) {
       return;
     }
-    try {
-      this.#trace({ name, data, tags }, () => undefined).catch(() => {
-        // Telemetry failure must not break.
-      });
-    } catch {
+    this.#trace({ name, data, tags }, () => undefined).catch(() => {
       // Telemetry failure must not break.
-    }
+    });
   }
 
   /**
@@ -1017,11 +1013,11 @@ export class AssetsController extends BaseController<
           response: DataResponse;
           getAssetsState: () => AssetsControllerStateInternal;
         }> => {
-          const start = Date.now();
+          const start = performance.now();
           try {
             return await middleware(ctx, next);
           } finally {
-            inclusive[i] = Date.now() - start;
+            inclusive[i] = performance.now() - start;
           }
         }) as Middleware,
     );
@@ -1125,7 +1121,7 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
-      const startTime = Date.now();
+      const startTime = performance.now();
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
@@ -1165,7 +1161,7 @@ export class AssetsController extends BaseController<
         options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
       await this.#updateState({ ...response, updateMode });
 
-      const durationMs = Date.now() - startTime;
+      const durationMs = performance.now() - startTime;
 
       // Emit trace for every full fetch (Assets Health dashboard)
       this.#emitTrace(TRACE_FULL_FETCH, {
@@ -2427,7 +2423,7 @@ export class AssetsController extends BaseController<
     sourceId: string,
     request?: DataRequest,
   ): Promise<void> {
-    const updateStart = Date.now();
+    const updateStart = performance.now();
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
@@ -2456,7 +2452,7 @@ export class AssetsController extends BaseController<
 
     this.#emitTrace(TRACE_UPDATE_PIPELINE, {
       source: sourceId,
-      duration_ms: Date.now() - updateStart,
+      duration_ms: performance.now() - updateStart,
       has_balance: Boolean(response.assetsBalance),
       has_price: Boolean(response.assetsPrice),
       has_metadata: Boolean(enrichedResponse.assetsInfo),
