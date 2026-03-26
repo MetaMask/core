@@ -9,10 +9,7 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import type {
-  DelegationResponse,
-  NotificationPreferences,
-} from './types';
+import type { DelegationResponse, NotificationPreferences } from './types';
 
 const HexSchema = define<`0x${string}`>(
   'Hex',
