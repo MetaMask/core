@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.2.0]
 
-### Uncategorized
-
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-
 ### Added
 
 - Expose missing public `RemoteFeatureFlagController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))

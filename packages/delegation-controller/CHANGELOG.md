@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Uncategorized
-
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-
 ### Added
 
 - Export `DelegationControllerGetStateAction` type ([#8205](https://github.com/MetaMask/core/pull/8205))
