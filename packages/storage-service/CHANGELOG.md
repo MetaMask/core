@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+
 ### Uncategorized
 
 - chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
@@ -31,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of `@metamask/storage-service` ([#7192](https://github.com/MetaMask/core/pull/7192))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.0...@metamask/storage-service@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/storage-service@0.0.1...@metamask/storage-service@1.0.0
 [0.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/storage-service@0.0.1

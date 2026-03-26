@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.1]
+
 ### Uncategorized
 
 - chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
@@ -219,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@7.0.1...HEAD
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@7.0.0...@metamask/rate-limit-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.1...@metamask/rate-limit-controller@7.0.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.0...@metamask/rate-limit-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.3...@metamask/rate-limit-controller@6.1.0

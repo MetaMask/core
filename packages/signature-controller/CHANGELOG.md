@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.1]
+
 ### Uncategorized
 
 - chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
@@ -717,7 +719,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.1...HEAD
+[39.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...@metamask/signature-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...@metamask/signature-controller@39.1.0
 [39.0.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.4...@metamask/signature-controller@39.0.5
 [39.0.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.3...@metamask/signature-controller@39.0.4

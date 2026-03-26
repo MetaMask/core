@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.1]
+
 ### Uncategorized
 
 - chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
@@ -383,7 +385,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.1...HEAD
+[19.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.1.0...@metamask/ens-controller@19.1.1
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.3...@metamask/ens-controller@19.1.0
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.2...@metamask/ens-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.1...@metamask/ens-controller@19.0.2
