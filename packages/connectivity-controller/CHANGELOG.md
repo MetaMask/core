@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - **BREAKING:** `ConnectivityAdapter.getStatus()` must now return a `Promise<ConnectivityStatus>` (async) ([#7679](https://github.com/MetaMask/core/pull/7679))
   - Adapter implementations must update their `getStatus()` method to return a Promise
   - This change enables asynchronous initialization of the controller via the `init()` method
