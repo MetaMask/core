@@ -28,12 +28,15 @@ const DOMAIN_FIELD_MAP: Record<string, EIP712DomainField> = {
  * Derive the EIP712Domain type array from a domain object.
  * eth-sig-util defaults to EIP712Domain: [] when absent, breaking
  * the domain separator hash. This ensures it matches ethers.js behavior.
+ *
+ * @param domain - The EIP-712 domain object.
+ * @returns The EIP712Domain type array in canonical order.
  */
 function deriveEIP712DomainType(
   domain: Record<string, unknown>,
 ): EIP712DomainField[] {
-  return Object.keys(domain)
-    .filter((key) => key in DOMAIN_FIELD_MAP)
+  return Object.keys(DOMAIN_FIELD_MAP)
+    .filter((key) => key in domain)
     .map((key) => DOMAIN_FIELD_MAP[key]);
 }
 
@@ -59,18 +62,18 @@ export async function submitHyperliquidWithdraw(
 
   log('Starting HyperLiquid withdrawal', {
     stepCount: steps.length,
-    stepIds: steps.map((s) => s.id),
+    stepIds: steps.map((step) => step.id),
   });
 
   const authorizeStep = steps.find(
-    (s) => s.kind === 'signature' && s.id === 'authorize',
+    (step) => step.kind === 'signature' && step.id === 'authorize',
   ) as RelaySignatureStep | undefined;
 
-  const depositStep = steps.find((s) => s.id === 'deposit');
+  const depositStep = steps.find((step) => step.id === 'deposit');
 
   if (!authorizeStep || !depositStep) {
     throw new Error(
-      `Expected authorize and deposit steps for HyperLiquid withdrawal, got: ${steps.map((s) => `${s.id}(${s.kind})`).join(', ')}`,
+      `Expected authorize and deposit steps for HyperLiquid withdrawal, got: ${steps.map((step) => `${step.id}(${step.kind})`).join(', ')}`,
     );
   }
 
@@ -85,6 +88,10 @@ export async function submitHyperliquidWithdraw(
 
 /**
  * Execute the authorize step: sign EIP-712 nonce-mapping and POST to Relay.
+ *
+ * @param step - The authorize signature step from the Relay quote.
+ * @param from - User's account address.
+ * @param messenger - Controller messenger for signing.
  */
 async function executeAuthorizeStep(
   step: RelaySignatureStep,
@@ -139,6 +146,10 @@ async function executeAuthorizeStep(
  *
  * The signature data must be constructed from the step's eip712Types and action
  * parameters, following the Relay HyperLiquid integration spec.
+ *
+ * @param step - The deposit step from the Relay quote.
+ * @param from - User's account address.
+ * @param messenger - Controller messenger for signing.
  */
 async function executeDepositStep(
   step: RelaySignatureStep | { id: string; kind: string; items: unknown[] },
@@ -154,7 +165,10 @@ async function executeDepositStep(
 
   const { data } = item;
 
-  const action = data.action as { type: string; parameters: Record<string, unknown> };
+  const action = data.action as {
+    type: string;
+    parameters: Record<string, unknown>;
+  };
   const nonce = data.nonce as number;
   const eip712Types = data.eip712Types as Record<string, unknown>;
   const eip712PrimaryType = data.eip712PrimaryType as string;
@@ -182,7 +196,10 @@ async function executeDepositStep(
     },
   };
 
-  log('Signing HyperLiquid deposit (sendAsset)', { nonce, action: action.type });
+  log('Signing HyperLiquid deposit (sendAsset)', {
+    nonce,
+    action: action.type,
+  });
 
   const signature = await messenger.call(
     'KeyringController:signTypedMessage',
@@ -193,9 +210,11 @@ async function executeDepositStep(
     SignTypedDataVersion.V4,
   );
 
-  // Parse r, s, v from the 65-byte signature
+  // eslint-disable-next-line id-length
   const r = signature.slice(0, 66);
+  // eslint-disable-next-line id-length
   const s = `0x${signature.slice(66, 130)}`;
+  // eslint-disable-next-line id-length
   const v = parseInt(signature.slice(130, 132), 16);
 
   log('Posting deposit to HyperLiquid exchange');
@@ -217,9 +236,7 @@ async function executeDepositStep(
   const result = await response.json();
 
   if (result?.status !== 'ok') {
-    throw new Error(
-      `HyperLiquid deposit failed: ${JSON.stringify(result)}`,
-    );
+    throw new Error(`HyperLiquid deposit failed: ${JSON.stringify(result)}`);
   }
 
   log('HyperLiquid deposit response', result);

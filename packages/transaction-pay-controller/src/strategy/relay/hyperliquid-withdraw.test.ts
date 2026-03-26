@@ -15,11 +15,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 const FROM_MOCK = '0xabc123' as Hex;
 
-const SIGNATURE_MOCK =
-  '0x' +
-  'aa'.repeat(32) +
-  'bb'.repeat(32) +
-  '1b';
+const SIGNATURE_MOCK = `0x${'aa'.repeat(32)}${'bb'.repeat(32)}1b`;
 
 const AUTHORIZE_STEP_MOCK: RelaySignatureStep = {
   id: 'authorize',

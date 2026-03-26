@@ -1112,10 +1112,9 @@ describe('Relay Submit Utils', () => {
 
     describe('HyperLiquid source', () => {
       it('calls submitHyperliquidWithdraw instead of submitTransactions', async () => {
-        const { submitHyperliquidWithdraw: hlWithdrawMock } =
-          jest.requireMock('./hyperliquid-withdraw') as {
-            submitHyperliquidWithdraw: jest.Mock;
-          };
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
 
         request.quotes[0].request.isHyperliquidSource = true;
         request.quotes[0].original.steps[0].kind = 'transaction';
@@ -1149,10 +1148,9 @@ describe('Relay Submit Utils', () => {
       });
 
       it('does not call submitHyperliquidWithdraw for non-HL source', async () => {
-        const { submitHyperliquidWithdraw: hlWithdrawMock } =
-          jest.requireMock('./hyperliquid-withdraw') as {
-            submitHyperliquidWithdraw: jest.Mock;
-          };
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
 
         request.quotes[0].request.isHyperliquidSource = false;
 
