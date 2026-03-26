@@ -5466,7 +5466,7 @@ describe('RampsController', () => {
         expect(controller.state.orders).toHaveLength(1);
         const stub = controller.state.orders[0];
         expect(stub?.providerOrderId).toBe('abc123');
-        expect(stub?.provider?.id).toBe('paypal');
+        expect(stub?.provider?.id).toBe('/providers/paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
       });
