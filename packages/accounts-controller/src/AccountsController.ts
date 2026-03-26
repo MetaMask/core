@@ -30,7 +30,7 @@ import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
-  SnapStateChange,
+  SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { isCaipChainId } from '@metamask/utils';
@@ -211,8 +211,8 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  */
 export type AllowedEvents =
-  | SnapStateChange
   | KeyringControllerStateChangeEvent
+  | SnapControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
