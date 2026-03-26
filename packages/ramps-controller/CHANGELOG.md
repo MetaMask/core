@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.1.0]
 
-### Uncategorized
-
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-
 ### Added
 
 - Add `providerAutoSelected` boolean to `RampsControllerState` to track whether the selected provider was system-guessed (soft selection) or user-chosen ([#8305](https://github.com/MetaMask/core/pull/8305))
@@ -20,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
 - Stop persisting `providers` and `tokens` state across sessions to prevent stale data when API availability changes ([#8307](https://github.com/MetaMask/core/pull/8307))
 - `RampsService.getOrder` and `getOrderFromCallback` accept provider codes with or without a `/providers/` prefix; API paths use the short provider segment. `RampsController` forwards provider ids from order polling to the service without stripping the prefix. ([#8278](https://github.com/MetaMask/core/pull/8278))
 
