@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-- chore: bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
-
 ### Changed
 
 - Bump `@metamask/address-book-controller` from `^7.0.1` to `^7.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))

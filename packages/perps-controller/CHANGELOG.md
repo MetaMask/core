@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/884.0.0 ([#8301](https://github.com/MetaMask/core/pull/8301))
-- Release/877.0.0 ([#8272](https://github.com/MetaMask/core/pull/8272))
-
 ### Changed
 
 - Sync mobile perps code to core (mobile branch `feat/perps/core-resolver`) ([#8291](https://github.com/MetaMask/core/pull/8291))
