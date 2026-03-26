@@ -138,6 +138,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -213,6 +214,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -799,6 +801,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -841,6 +844,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -876,18 +880,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "orders": [],
-            "providers": {
-              "data": [],
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
-            "tokens": {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "providerAutoSelected": false,
             "userRegion": null,
           }
         `);
@@ -940,6 +933,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -1659,41 +1653,14 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not clear persisted state when init() is called with same persisted region', async () => {
-      const mockTokens: TokensResponse = {
+    it('refetches providers and tokens when init() is called with same region but empty resource data', async () => {
+      const getTokensSpy = jest.fn(async () => ({
         topTokens: [],
         allTokens: [],
-      };
-      const mockProviders: Provider[] = [
-        {
-          id: '/providers/test',
-          name: 'Test Provider',
-          environmentType: 'STAGING',
-          description: 'Test',
-          hqAddress: '123 Test St',
-          links: [],
-          logos: {
-            light: '/assets/test_light.png',
-            dark: '/assets/test_dark.png',
-            height: 24,
-            width: 77,
-          },
-        },
-      ];
-      const mockSelectedProvider: Provider = {
-        id: '/providers/preferred',
-        name: 'Preferred Provider',
-        environmentType: 'STAGING',
-        description: 'Preferred',
-        hqAddress: '456 Preferred St',
-        links: [],
-        logos: {
-          light: '/assets/preferred_light.png',
-          dark: '/assets/preferred_dark.png',
-          height: 24,
-          width: 77,
-        },
-      };
+      }));
+      const getProvidersSpy = jest.fn(
+        async () => ({ providers: [] }) as { providers: Provider[] },
+      );
 
       await withController(
         {
@@ -1701,11 +1668,6 @@ describe('RampsController', () => {
             state: {
               countries: createResourceState(createMockCountries()),
               userRegion: createMockUserRegion('us-ca'),
-              tokens: createResourceState(mockTokens, null),
-              providers: createResourceState(
-                mockProviders,
-                mockSelectedProvider,
-              ),
             },
           },
         },
@@ -1716,22 +1678,18 @@ describe('RampsController', () => {
           );
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async () => ({ topTokens: [], allTokens: [] }),
+            getTokensSpy,
           );
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
-            async () => ({ providers: [] }),
+            getProvidersSpy,
           );
 
           await rootMessenger.call('RampsController:init');
 
-          // Verify persisted state is preserved
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
-          expect(controller.state.providers.data).toStrictEqual(mockProviders);
-          expect(controller.state.providers.selected).toStrictEqual(
-            mockSelectedProvider,
-          );
+          expect(getTokensSpy).toHaveBeenCalled();
+          expect(getProvidersSpy).toHaveBeenCalled();
         },
       );
     });
@@ -2044,6 +2002,60 @@ describe('RampsController', () => {
       );
     });
 
+    it('resets providerAutoSelected to false when user region changes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const mockTokens: TokensResponse = {
+            topTokens: [],
+            allTokens: [],
+          };
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => mockTokens,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          await controller.setUserRegion('FR');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false on cleanup when setUserRegion fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          await expect(controller.setUserRegion('us-ca')).rejects.toThrow(
+            'No countries found',
+          );
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
     it('aborts in-flight dependent requests when user region changes', async () => {
       const mockTokens: TokensResponse = { topTokens: [], allTokens: [] };
 
@@ -2079,7 +2091,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not clear persisted state when setting the same region', async () => {
+    it('does not refetch providers or tokens when setting the same region with existing data', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
         allTokens: [],
@@ -2142,7 +2154,6 @@ describe('RampsController', () => {
           // Set the same region
           await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
 
-          // Verify persisted state is preserved
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
@@ -2153,7 +2164,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('clears persisted state when setting a different region', async () => {
+    it('resets dependent resources when setting a different region', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
         allTokens: [],
@@ -2936,6 +2947,99 @@ describe('RampsController', () => {
           await new Promise((resolve) => setTimeout(resolve, 0));
 
           expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('sets providerAutoSelected to false by default', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProvider.id);
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('sets providerAutoSelected to true when autoSelected option is true', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProvider.id, {
+            autoSelected: true,
+          });
+
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false when provider is cleared', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], mockProvider),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          controller.setSelectedProvider(null);
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('overrides providerAutoSelected when selecting a new provider without autoSelected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProvider.id);
+
+          expect(controller.state.providerAutoSelected).toBe(false);
         },
       );
     });
@@ -5362,7 +5466,7 @@ describe('RampsController', () => {
         expect(controller.state.orders).toHaveLength(1);
         const stub = controller.state.orders[0];
         expect(stub?.providerOrderId).toBe('abc123');
-        expect(stub?.provider?.id).toBe('paypal');
+        expect(stub?.provider?.id).toBe('/providers/paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
       });
