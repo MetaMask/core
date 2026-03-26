@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.2.4]
+
 ### Fixed
 
 - `JsonRpcServer.handle()` no longer throws or produces unhandled promise rejections when the `onError` callback throws or rejects ([#8071](https://github.com/MetaMask/core/pull/8071))
@@ -280,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...HEAD
+[10.2.4]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.3...@metamask/json-rpc-engine@10.2.4
 [10.2.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.2...@metamask/json-rpc-engine@10.2.3
 [10.2.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.1...@metamask/json-rpc-engine@10.2.2
 [10.2.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.0...@metamask/json-rpc-engine@10.2.1

@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [5.1.0]
+
+### Added
 
 - Expose missing public `PermissionLogController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
   - The following actions are now available:
@@ -16,8 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Corresponding action types
     (e.g. `PermissionLogControllerCreateMiddlewareAction`) are available as
     well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.3` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.4` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [5.0.0]
 
@@ -145,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@5.0.0...@metamask/permission-log-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.1...@metamask/permission-log-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.1.0...@metamask/permission-log-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@4.0.0...@metamask/permission-log-controller@4.1.0

@@ -500,7 +500,7 @@ describe('AiDigestService', () => {
       symbol: 'BTC',
       caip19: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
       sourceAssetId: 'bitcoin',
-      hlPerpsMarket: 'BTC',
+      hlPerpsMarket: ['BTC'],
     };
 
     const mockMarketOverview = {
@@ -711,6 +711,36 @@ describe('AiDigestService', () => {
       const result = await service.fetchMarketOverview();
 
       expect(result).toStrictEqual(withMetadata);
+    });
+
+    it('throws when related asset hlPerpsMarket is a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [
+                  {
+                    ...mockMarketOverview.trends[0].relatedAssets[0],
+                    hlPerpsMarket: 'BTC',
+                  },
+                ],
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(service.fetchMarketOverview()).rejects.toThrow(
+        AiDigestControllerErrorMessage.API_INVALID_RESPONSE,
+      );
     });
 
     it('throws when a trend has an invalid relatedAssets entry', async () => {

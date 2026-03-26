@@ -1,5 +1,6 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import {
@@ -18,6 +19,11 @@ import type {
   AssetPreferences,
   Caip19AssetId,
 } from '../types';
+
+// ============================================================================
+// TRACE NAMES — used in Sentry spans (search these strings in Discover)
+// ============================================================================
+const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
 
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
@@ -394,7 +400,9 @@ export function getAggregatedBalanceForAccount(
   accountTreeState?: AccountTreeControllerState,
   internalAccountsOrAccountIds?: InternalAccount[] | AccountId[],
   accountsById?: AccountsById,
+  trace?: TraceCallback,
 ): AggregatedBalanceForAccount {
+  const startTime = trace ? performance.now() : 0;
   const { assetsBalance, assetsInfo, assetPreferences, assetsPrice } = state;
 
   const metadata = (assetsInfo ?? {}) as Record<Caip19AssetId, AssetMetadata>;
@@ -466,6 +474,30 @@ export function getAggregatedBalanceForAccount(
         weightedNumerator += contribution * pricePercentChange1d;
       }
     }
+  }
+
+  if (trace) {
+    const durationMs = performance.now() - startTime;
+    const uniqueNetworks = new Set<CaipChainId>();
+    for (const assetId of merged.keys()) {
+      const info = getAssetInfo(assetInfoCache, assetId);
+      uniqueNetworks.add(info.chainId);
+    }
+    trace(
+      {
+        name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+        data: {
+          duration_ms: durationMs,
+          asset_count: merged.size,
+          network_count: uniqueNetworks.size,
+          account_count: accountsToAggregate.length,
+        },
+        tags: { controller: 'AssetsController' },
+      },
+      () => undefined,
+    ).catch(() => {
+      // Telemetry failure must not break.
+    });
   }
 
   if (hasPrices) {

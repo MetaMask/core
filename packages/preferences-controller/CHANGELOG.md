@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.0]
+
 ### Added
 
 - Expose missing public `PreferencesController` methods through its messenger ([#8193](https://github.com/MetaMask/core/pull/8193))
@@ -31,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `PreferencesController:setSmartAccountOptIn`
     - `PreferencesController:setTokenNetworkFilter`
   - Corresponding action types (e.g. `PreferencesControllerSetFeatureFlagAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [23.0.0]
 
@@ -527,7 +534,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...@metamask/preferences-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...@metamask/preferences-controller@23.0.0
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0

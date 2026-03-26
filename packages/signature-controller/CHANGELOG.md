@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/approval-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/gator-permissions-controller` from `^2.1.1` to `^2.2.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/logging-controller` from `^8.0.0` to `^8.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [39.1.0]
 
 ### Added
@@ -713,7 +726,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.1...HEAD
+[39.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...@metamask/signature-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...@metamask/signature-controller@39.1.0
 [39.0.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.4...@metamask/signature-controller@39.0.5
 [39.0.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.3...@metamask/signature-controller@39.0.4

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0]
+
 ### Added
 
 - Expose all public `SeedlessOnboardingController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
@@ -37,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `SeedlessOnboardingController:checkMetadataAccessTokenExpired`
     - `SeedlessOnboardingController:checkAccessTokenExpired`
   - Corresponding action types are now exported (e.g. `SeedlessOnboardingControllerGetAccessTokenAction`)
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [9.0.0]
 
@@ -340,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.0.0...@metamask/seedless-onboarding-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.1.0...@metamask/seedless-onboarding-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.0.0...@metamask/seedless-onboarding-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.1.0...@metamask/seedless-onboarding-controller@8.0.0
