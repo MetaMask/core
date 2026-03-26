@@ -3260,6 +3260,7 @@ __metadata:
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
+    reselect: "npm:^5.1.1"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
