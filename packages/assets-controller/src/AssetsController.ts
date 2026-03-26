@@ -159,6 +159,17 @@ const MESSENGER_EXPOSED_METHODS = [
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 
+// ============================================================================
+// TRACE NAMES — used in Sentry spans (search these strings in Discover)
+// ============================================================================
+const TRACE_FIRST_INIT_FETCH = 'AssetsController First Init Fetch';
+const TRACE_FULL_FETCH = 'Assets Full Fetch';
+const TRACE_DATA_SOURCE_TIMING = 'Assets Data Source Timing';
+const TRACE_DATA_SOURCE_ERROR = 'Assets Data Source Error';
+const TRACE_UPDATE_PIPELINE = 'Assets Update Pipeline';
+const TRACE_SUBSCRIPTION_ERROR = 'Assets Subscription Error';
+const TRACE_STATE_SIZE = 'Assets State Size';
+
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
@@ -566,7 +577,7 @@ export class AssetsController extends BaseController<
       }
     }
 
-    this.#emitTrace('Assets State Size', {
+    this.#emitTrace(TRACE_STATE_SIZE, {
       balance_entries: balanceEntries,
       balance_accounts: Object.keys(balances).length,
       metadata_entries: Object.keys(assetsInfo).length,
@@ -1047,7 +1058,7 @@ export class AssetsController extends BaseController<
     for (const [sourceName, durationMs] of Object.entries(
       durationByDataSource,
     )) {
-      this.#emitTrace('Assets Data Source Timing', {
+      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
         source: sourceName,
         duration_ms: durationMs,
         chain_count: request.chainIds.length,
@@ -1057,7 +1068,7 @@ export class AssetsController extends BaseController<
 
     // Emit error traces for failed middlewares
     if (middlewareErrors.length > 0) {
-      this.#emitTrace('Assets Data Source Error', {
+      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
         failed_sources: middlewareErrors.join(','),
         error_count: middlewareErrors.length,
         chain_count: request.chainIds.length,
@@ -1142,7 +1153,7 @@ export class AssetsController extends BaseController<
       const durationMs = Date.now() - startTime;
 
       // Emit trace for every full fetch (Assets Health dashboard)
-      this.#emitTrace('Assets Full Fetch', {
+      this.#emitTrace(TRACE_FULL_FETCH, {
         duration_ms: durationMs,
         chain_count: chainIds.length,
         account_count: accounts.length,
@@ -1161,7 +1172,7 @@ export class AssetsController extends BaseController<
 
       if (!this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
-        this.#emitTrace('AssetsController First Init Fetch', {
+        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
           duration_ms: durationMs,
           chain_ids: JSON.stringify(chainIds),
           ...durationByDataSource,
@@ -2203,7 +2214,7 @@ export class AssetsController extends BaseController<
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
       );
-      this.#emitTrace('Assets Subscription Error', {
+      this.#emitTrace(TRACE_SUBSCRIPTION_ERROR, {
         source: sourceId,
         error_message: String(error),
       });
@@ -2428,7 +2439,7 @@ export class AssetsController extends BaseController<
 
     await this.#updateState(enrichedResponse);
 
-    this.#emitTrace('Assets Update Pipeline', {
+    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
       source: sourceId,
       duration_ms: Date.now() - updateStart,
       has_balance: Boolean(response.assetsBalance),

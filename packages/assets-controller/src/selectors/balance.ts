@@ -20,6 +20,11 @@ import type {
   Caip19AssetId,
 } from '../types';
 
+// ============================================================================
+// TRACE NAMES — used in Sentry spans (search these strings in Discover)
+// ============================================================================
+const TRACE_AGGREGATED_BALANCE_SELECTOR = 'Aggregated Balance Selector';
+
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
   | undefined;
@@ -481,7 +486,7 @@ export function getAggregatedBalanceForAccount(
     try {
       trace(
         {
-          name: 'Aggregated Balance Selector',
+          name: TRACE_AGGREGATED_BALANCE_SELECTOR,
           data: {
             duration_ms: durationMs,
             asset_count: merged.size,
