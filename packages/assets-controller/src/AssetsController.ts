@@ -162,13 +162,13 @@ const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
-const TRACE_FIRST_INIT_FETCH = 'AssetsController First Init Fetch';
-const TRACE_FULL_FETCH = 'Assets Full Fetch';
-const TRACE_DATA_SOURCE_TIMING = 'Assets Data Source Timing';
-const TRACE_DATA_SOURCE_ERROR = 'Assets Data Source Error';
-const TRACE_UPDATE_PIPELINE = 'Assets Update Pipeline';
-const TRACE_SUBSCRIPTION_ERROR = 'Assets Subscription Error';
-const TRACE_STATE_SIZE = 'Assets State Size';
+const TRACE_FIRST_INIT_FETCH = 'AssetsControllerFirstInitFetch';
+const TRACE_FULL_FETCH = 'AssetsFullFetch';
+const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
+const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
+const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
+const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
+const TRACE_STATE_SIZE = 'AssetsStateSize';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -528,13 +528,11 @@ export class AssetsController extends BaseController<
    *
    * @param name - Trace / span name visible in Sentry.
    * @param data - Key-value pairs attached as span data.
-   * @param op - Sentry operation category (e.g. 'controller.fetch').
    * @param tags - Key-value pairs used for Sentry filtering.
    */
   #emitTrace(
     name: string,
     data: Record<string, number | string | boolean>,
-    op: string = 'assets-controller',
     tags: Record<string, number | string | boolean> = {
       controller: 'AssetsController',
     },
@@ -543,7 +541,7 @@ export class AssetsController extends BaseController<
       return;
     }
     try {
-      this.#trace({ name, op, data, tags }, () => undefined).catch(() => {
+      this.#trace({ name, data, tags }, () => undefined).catch(() => {
         // Telemetry failure must not break.
       });
     } catch {
@@ -592,19 +590,15 @@ export class AssetsController extends BaseController<
       }
     }
 
-    this.#emitTrace(
-      TRACE_STATE_SIZE,
-      {
-        balance_entries: balanceEntries,
-        balance_accounts: Object.keys(balances).length,
-        unique_asset_count: uniqueAssets.size,
-        network_count: uniqueNetworks.size,
-        metadata_entries: Object.keys(assetsInfo).length,
-        price_entries: Object.keys(assetsPrice).length,
-        custom_asset_entries: customAssetEntries,
-      },
-      'controller.state',
-    );
+    this.#emitTrace(TRACE_STATE_SIZE, {
+      balance_entries: balanceEntries,
+      balance_accounts: Object.keys(balances).length,
+      unique_asset_count: uniqueAssets.size,
+      network_count: uniqueNetworks.size,
+      metadata_entries: Object.keys(assetsInfo).length,
+      price_entries: Object.keys(assetsPrice).length,
+      custom_asset_entries: customAssetEntries,
+    });
   }
 
   /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
@@ -1079,29 +1073,21 @@ export class AssetsController extends BaseController<
     for (const [sourceName, durationMs] of Object.entries(
       durationByDataSource,
     )) {
-      this.#emitTrace(
-        TRACE_DATA_SOURCE_TIMING,
-        {
-          source: sourceName,
-          duration_ms: durationMs,
-          chain_count: request.chainIds.length,
-          account_count: request.accountsWithSupportedChains.length,
-        },
-        'controller.datasource',
-      );
+      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
+        source: sourceName,
+        duration_ms: durationMs,
+        chain_count: request.chainIds.length,
+        account_count: request.accountsWithSupportedChains.length,
+      });
     }
 
     // Emit error traces for failed middlewares
     if (middlewareErrors.length > 0) {
-      this.#emitTrace(
-        TRACE_DATA_SOURCE_ERROR,
-        {
-          failed_sources: middlewareErrors.join(','),
-          error_count: middlewareErrors.length,
-          chain_count: request.chainIds.length,
-        },
-        'controller.error',
-      );
+      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
+        failed_sources: middlewareErrors.join(','),
+        error_count: middlewareErrors.length,
+        chain_count: request.chainIds.length,
+      });
     }
 
     return { response: result.response, durationByDataSource };
@@ -1182,38 +1168,30 @@ export class AssetsController extends BaseController<
       const durationMs = Date.now() - startTime;
 
       // Emit trace for every full fetch (Assets Health dashboard)
-      this.#emitTrace(
-        TRACE_FULL_FETCH,
-        {
-          duration_ms: durationMs,
-          chain_count: chainIds.length,
-          account_count: accounts.length,
-          basic_functionality: this.#isBasicFunctionality(),
-          asset_count: response.assetsBalance
-            ? Object.values(response.assetsBalance).reduce(
-                (sum, acct) => sum + Object.keys(acct).length,
-                0,
-              )
-            : 0,
-          price_count: response.assetsPrice
-            ? Object.keys(response.assetsPrice).length
-            : 0,
-          ...durationByDataSource,
-        },
-        'controller.fetch',
-      );
+      this.#emitTrace(TRACE_FULL_FETCH, {
+        duration_ms: durationMs,
+        chain_count: chainIds.length,
+        account_count: accounts.length,
+        basic_functionality: this.#isBasicFunctionality(),
+        asset_count: response.assetsBalance
+          ? Object.values(response.assetsBalance).reduce(
+              (sum, acct) => sum + Object.keys(acct).length,
+              0,
+            )
+          : 0,
+        price_count: response.assetsPrice
+          ? Object.keys(response.assetsPrice).length
+          : 0,
+        ...durationByDataSource,
+      });
 
       if (!this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
-        this.#emitTrace(
-          TRACE_FIRST_INIT_FETCH,
-          {
-            duration_ms: durationMs,
-            chain_ids: JSON.stringify(chainIds),
-            ...durationByDataSource,
-          },
-          'controller.fetch',
-        );
+        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
+          duration_ms: durationMs,
+          chain_ids: JSON.stringify(chainIds),
+          ...durationByDataSource,
+        });
       }
     }
 
@@ -2251,14 +2229,10 @@ export class AssetsController extends BaseController<
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
       );
-      this.#emitTrace(
-        TRACE_SUBSCRIPTION_ERROR,
-        {
-          source: sourceId,
-          error_message: String(error),
-        },
-        'controller.error',
-      );
+      this.#emitTrace(TRACE_SUBSCRIPTION_ERROR, {
+        source: sourceId,
+        error_message: String(error),
+      });
     });
 
     // Track subscription
@@ -2480,20 +2454,16 @@ export class AssetsController extends BaseController<
 
     await this.#updateState(enrichedResponse);
 
-    this.#emitTrace(
-      TRACE_UPDATE_PIPELINE,
-      {
-        source: sourceId,
-        duration_ms: Date.now() - updateStart,
-        has_balance: Boolean(response.assetsBalance),
-        has_price: Boolean(response.assetsPrice),
-        has_metadata: Boolean(enrichedResponse.assetsInfo),
-        balance_account_count: response.assetsBalance
-          ? Object.keys(response.assetsBalance).length
-          : 0,
-      },
-      'controller.update',
-    );
+    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
+      source: sourceId,
+      duration_ms: Date.now() - updateStart,
+      has_balance: Boolean(response.assetsBalance),
+      has_price: Boolean(response.assetsPrice),
+      has_metadata: Boolean(enrichedResponse.assetsInfo),
+      balance_account_count: response.assetsBalance
+        ? Object.keys(response.assetsBalance).length
+        : 0,
+    });
   }
 
   // ============================================================================

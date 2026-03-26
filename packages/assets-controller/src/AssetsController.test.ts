@@ -1225,12 +1225,12 @@ describe('AssetsController', () => {
           const firstInitFetchCalls = traceMock.mock.calls.filter(
             (call) =>
               (call[0] as TraceRequest).name ===
-              'AssetsController First Init Fetch',
+              'AssetsControllerFirstInitFetch',
           );
           expect(firstInitFetchCalls).toHaveLength(1);
           const [request] = firstInitFetchCalls[0];
           expect(request).toMatchObject({
-            name: 'AssetsController First Init Fetch',
+            name: 'AssetsControllerFirstInitFetch',
             data: expect.objectContaining({
               duration_ms: expect.any(Number),
               chain_ids: expect.any(String),
@@ -1279,7 +1279,7 @@ describe('AssetsController', () => {
           const firstInitFetchCalls = traceMock.mock.calls.filter(
             (call) =>
               (call[0] as TraceRequest).name ===
-              'AssetsController First Init Fetch',
+              'AssetsControllerFirstInitFetch',
           );
           expect(firstInitFetchCalls).toHaveLength(1);
         },

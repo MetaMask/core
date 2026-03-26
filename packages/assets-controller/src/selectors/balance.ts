@@ -23,7 +23,7 @@ import type {
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
-const TRACE_AGGREGATED_BALANCE_SELECTOR = 'Aggregated Balance Selector';
+const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
 
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
@@ -487,7 +487,6 @@ export function getAggregatedBalanceForAccount(
       trace(
         {
           name: TRACE_AGGREGATED_BALANCE_SELECTOR,
-          op: 'ui.selector.aggregated-balance',
           data: {
             duration_ms: durationMs,
             asset_count: merged.size,
