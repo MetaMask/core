@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adding new transaction types for Money Account ([#8312](https://github.com/MetaMask/core/pull/8312))
+
 ## [63.2.0]
 
 ### Changed
