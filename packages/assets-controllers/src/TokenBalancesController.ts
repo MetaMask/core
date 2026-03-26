@@ -100,8 +100,8 @@ export type UpdateBalancesOptions = {
 
 /**
  * Merges two UpdateBalancesOptions per queue-and-merge rules:
- * - chainIds: union when both specify; undefined or empty means "all" so result becomes undefined.
- * - tokenAddresses: union when both specify; undefined or empty means "all" so result becomes undefined.
+ * - chainIds: union of both lists when each option includes `chainIds`; if either omits `chainIds`, the merged field is undefined (all chains).
+ * - tokenAddresses: union of both lists when each option includes `tokenAddresses`; if either omits `tokenAddresses`, the merged field is undefined (all tokens).
  * - queryAllAccounts: true if either is true.
  * Exported for tests.
  *
