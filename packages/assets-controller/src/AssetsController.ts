@@ -534,7 +534,7 @@ export class AssetsController extends BaseController<
   #emitTrace(
     name: string,
     data: Record<string, number | string | boolean>,
-    op: string = 'controller',
+    op: string = 'assets-controller',
     tags: Record<string, number | string | boolean> = {
       controller: 'AssetsController',
     },
