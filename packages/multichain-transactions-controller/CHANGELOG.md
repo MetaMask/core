@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.3]
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
@@ -250,7 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.3...HEAD
+[7.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.2...@metamask/multichain-transactions-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.1...@metamask/multichain-transactions-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.0...@metamask/multichain-transactions-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@6.0.0...@metamask/multichain-transactions-controller@7.0.0
