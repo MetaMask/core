@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add missing `@metamask/messenger` dependency ([#8318](https://github.com/MetaMask/core/pull/8318))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^63.1.0` to `^63.3.0` ([#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313))
