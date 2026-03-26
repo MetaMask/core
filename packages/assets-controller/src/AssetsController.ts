@@ -40,8 +40,8 @@ import type {
 } from '@metamask/permission-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type {
-  GetRunnableSnaps,
-  HandleSnapRequest,
+  SnapControllerGetRunnableSnapsAction,
+  SnapControllerHandleRequestAction,
 } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
@@ -271,8 +271,8 @@ type AllowedActions =
   // RpcDataSource, StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
   // SnapDataSource
-  | GetRunnableSnaps
-  | HandleSnapRequest
+  | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | GetPermissions
   // BackendWebsocketDataSource
   | BackendWebSocketServiceActions;
