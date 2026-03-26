@@ -30,9 +30,9 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type {
-  HandleSnapRequest as SnapControllerHandleSnapRequestAction,
+  SnapControllerHandleRequestAction,
   SnapControllerGetStateAction,
-  SnapStateChange as SnapControllerStateChangeEvent,
+  SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 
 import type { serviceName } from './MultichainAccountService';
@@ -78,8 +78,6 @@ type AllowedActions =
   | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
-  | SnapControllerGetStateAction
-  | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   | KeyringControllerGetKeyringsByTypeAction
@@ -88,17 +86,19 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerCreateNewVaultAndRestoreAction
-  | KeyringControllerRemoveAccountAction;
+  | KeyringControllerRemoveAccountAction
+  | SnapControllerGetStateAction
+  | SnapControllerHandleRequestAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
  * subscribes to.
  */
 type AllowedEvents =
-  | SnapControllerStateChangeEvent
-  | KeyringControllerStateChangeEvent
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | KeyringControllerStateChangeEvent
+  | SnapControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events that
