@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+
 - `RelatedAsset.hlPerpsMarket` is now `string[]` (optional) instead of `string` to match the `/market-overview` API payload shape. `AiDigestService.fetchMarketOverview` now validates `hlPerpsMarket` as an array of strings and rejects string values ([#8308](https://github.com/MetaMask/core/pull/8308)).
 
 ## [0.6.0]
