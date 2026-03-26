@@ -90,7 +90,7 @@ const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 const DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS = 300_000; // 5 minutes
 
 /** Debounce wait (ms) for coalescing rapid updateBalances calls before flush */
-export const UPDATE_BALANCES_BATCH_MS = 50;
+export const UPDATE_BALANCES_BATCH_MS = 200;
 
 export type UpdateBalancesOptions = {
   chainIds?: ChainIdHex[];
