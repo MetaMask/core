@@ -75,11 +75,7 @@ function getUnreleasedSection(content) {
  */
 function getAddedLines(oldLines, newLines) {
   return Array.from(newLines).filter(
-    (line) =>
-      line.length > 0 &&
-      !oldLines.has(line) &&
-      !line.startsWith('#') &&
-      !line.startsWith('['),
+    (line) => line.length > 0 && !oldLines.has(line) && !line.startsWith('#'),
   );
 }
 
