@@ -1,6 +1,94 @@
 import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
 
 describe('InMemoryStorageAdapter', () => {
+  describe('constructor', () => {
+    it('creates an empty adapter when no initial data is provided', async () => {
+      const adapter = new InMemoryStorageAdapter();
+
+      const keys = await adapter.getAllKeys('TestNamespace');
+
+      expect(keys).toStrictEqual([]);
+    });
+
+    it('initializes with provided data', async () => {
+      const adapter = new InMemoryStorageAdapter({
+        TestNamespace: {
+          key1: 'value1',
+          key2: { nested: 'object' },
+        },
+      });
+
+      const result1 = await adapter.getItem('TestNamespace', 'key1');
+      const result2 = await adapter.getItem('TestNamespace', 'key2');
+
+      expect(result1).toStrictEqual({ result: 'value1' });
+      expect(result2).toStrictEqual({ result: { nested: 'object' } });
+    });
+
+    it('initializes with multiple namespaces', async () => {
+      const adapter = new InMemoryStorageAdapter({
+        Namespace1: {
+          key1: 'value1',
+        },
+        Namespace2: {
+          key2: 'value2',
+        },
+      });
+
+      const result1 = await adapter.getItem('Namespace1', 'key1');
+      const result2 = await adapter.getItem('Namespace2', 'key2');
+
+      expect(result1).toStrictEqual({ result: 'value1' });
+      expect(result2).toStrictEqual({ result: 'value2' });
+    });
+
+    it('initializes with various JSON types', async () => {
+      const adapter = new InMemoryStorageAdapter({
+        TestNamespace: {
+          string: 'hello',
+          number: 42,
+          boolean: true,
+          null: null,
+          array: [1, 2, 3],
+          object: { a: 1, b: 2 },
+        },
+      });
+
+      expect(await adapter.getItem('TestNamespace', 'string')).toStrictEqual({
+        result: 'hello',
+      });
+      expect(await adapter.getItem('TestNamespace', 'number')).toStrictEqual({
+        result: 42,
+      });
+      expect(await adapter.getItem('TestNamespace', 'boolean')).toStrictEqual({
+        result: true,
+      });
+      expect(await adapter.getItem('TestNamespace', 'null')).toStrictEqual({
+        result: null,
+      });
+      expect(await adapter.getItem('TestNamespace', 'array')).toStrictEqual({
+        result: [1, 2, 3],
+      });
+      expect(await adapter.getItem('TestNamespace', 'object')).toStrictEqual({
+        result: { a: 1, b: 2 },
+      });
+    });
+
+    it('getAllKeys returns keys from initial data', async () => {
+      const adapter = new InMemoryStorageAdapter({
+        TestNamespace: {
+          key1: 'value1',
+          key2: 'value2',
+        },
+      });
+
+      const keys = await adapter.getAllKeys('TestNamespace');
+
+      expect(keys).toStrictEqual(expect.arrayContaining(['key1', 'key2']));
+      expect(keys).toHaveLength(2);
+    });
+  });
+
   describe('getItem', () => {
     it('returns empty object {} for non-existent keys', async () => {
       const adapter = new InMemoryStorageAdapter();

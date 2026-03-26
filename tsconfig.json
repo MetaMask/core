@@ -18,7 +18,13 @@
       "path": "./packages/address-book-controller"
     },
     {
+      "path": "./packages/ai-controllers"
+    },
+    {
       "path": "./packages/analytics-controller"
+    },
+    {
+      "path": "./packages/analytics-data-regulation-controller"
     },
     {
       "path": "./packages/announcement-controller"
@@ -39,6 +45,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/base-data-service"
+    },
+    {
       "path": "./packages/bridge-controller"
     },
     {
@@ -54,7 +63,16 @@
       "path": "./packages/claims-controller"
     },
     {
+      "path": "./packages/client-controller"
+    },
+    {
+      "path": "./packages/compliance-controller"
+    },
+    {
       "path": "./packages/composable-controller"
+    },
+    {
+      "path": "./packages/config-registry-controller"
     },
     {
       "path": "./packages/connectivity-controller"
@@ -97,6 +115,9 @@
     },
     {
       "path": "./packages/gator-permissions-controller"
+    },
+    {
+      "path": "./packages/geolocation-controller"
     },
     {
       "path": "./packages/json-rpc-engine"
@@ -168,6 +189,9 @@
       "path": "./packages/rate-limit-controller"
     },
     {
+      "path": "./packages/react-data-query"
+    },
+    {
       "path": "./packages/remote-feature-flag-controller"
     },
     {
@@ -187,9 +211,6 @@
     },
     {
       "path": "./packages/subscription-controller"
-    },
-    {
-      "path": "./packages/token-search-discovery-controller"
     },
     {
       "path": "./packages/transaction-controller"

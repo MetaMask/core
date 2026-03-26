@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
@@ -5,6 +6,7 @@ import type {
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
+  PollingStatus,
 } from './constants';
 import type { SortOrder, StatusTypes } from '../../types';
 
@@ -61,7 +63,8 @@ export type InputKeys =
   | 'token_destination'
   | 'chain_source'
   | 'chain_destination'
-  | 'slippage';
+  | 'slippage'
+  | 'token_amount_source';
 
 export type InputValues = {
   token_source: CaipAssetType;
@@ -69,6 +72,7 @@ export type InputValues = {
   chain_source: CaipChainId;
   chain_destination: CaipChainId;
   slippage: number;
+  token_amount_source: string;
 };
 
 export type QuoteWarning =
@@ -81,12 +85,15 @@ export type QuoteWarning =
   | 'tx_alert';
 
 /**
- * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This is the base type without the `location` property which is added to all events
+ * via the RequiredEventContextFromClient mapped type.
  */
-export type RequiredEventContextFromClient = {
-  [UnifiedSwapBridgeEventName.ButtonClicked]: {
-    location: MetaMetricsSwapsEventSource;
-  } & Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'>;
+type RequiredEventContextFromClientBase = {
+  [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
+    RequestParams,
+    'token_symbol_source' | 'token_symbol_destination'
+  >;
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
@@ -95,8 +102,10 @@ export type RequiredEventContextFromClient = {
       | 'token_destination'
       | 'chain_source'
       | 'chain_destination'
-      | 'slippage';
+      | 'slippage'
+      | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
+    input_amount_preset?: string;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -211,6 +220,41 @@ export type RequiredEventContextFromClient = {
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
+    refresh_count: number;
+  };
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
+    asset_location: 'source' | 'destination';
+  };
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
+    Pick<QuoteFetchData, 'price_impact'> &
+    Omit<RequestMetadata, 'security_warnings'> &
+    Pick<
+      RequestParams,
+      | 'token_symbol_source'
+      | 'token_symbol_destination'
+      | 'chain_id_source'
+      | 'chain_id_destination'
+    > & {
+      action_type: MetricsActionType;
+      polling_status: PollingStatus;
+      retry_attempts: number;
+    };
+};
+
+/**
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This combines the event-specific properties from RequiredEventContextFromClientBase
+ * with an optional `location` property. When `location` is omitted, the controller
+ * falls back to the value stored via `setLocation()` (defaults to MainView).
+ *
+ * `ab_tests` is the legacy field and `active_ab_tests` is the newer field.
+ * Both are kept for a migration window and are treated as separate payloads.
+ */
+export type RequiredEventContextFromClient = {
+  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
+    location?: MetaMetricsSwapsEventSource;
+    ab_tests?: Record<string, string>;
+    active_ab_tests?: { key: string; value: string }[];
   };
 };
 
@@ -265,20 +309,26 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: RequestParams & {
     refresh_count: number;
   };
-  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams & {
-    refresh_count: number;
-  };
+  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams;
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
 
 /**
  * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
  * and properties from the bridge controller
+ *
+ * `ab_tests` will be deprecated in favor of `active_ab_tests` in the future.
+ * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
  */
 export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
 > =
   | {
       action_type: MetricsActionType;
+      location: MetaMetricsSwapsEventSource;
+      ab_tests?: Record<string, string>;
+      active_ab_tests?: { key: string; value: string }[];
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];

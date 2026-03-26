@@ -33,8 +33,8 @@ describe('SamplePetnamesController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -201,7 +201,7 @@ describe('SamplePetnamesController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -214,8 +214,8 @@ describe('SamplePetnamesController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -230,8 +230,8 @@ describe('SamplePetnamesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -246,8 +246,8 @@ describe('SamplePetnamesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });

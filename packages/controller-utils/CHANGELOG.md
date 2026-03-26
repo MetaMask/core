@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.0]
+
+### Added
+
+- Add `megaeth-mainnet` to `BUILT_IN_NETWORKS` ([#7994](https://github.com/MetaMask/core/pull/7994))
+
 ## [11.18.0]
 
 ### Changed
@@ -641,7 +647,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...HEAD
+[11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
 [11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
 [11.16.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...@metamask/controller-utils@11.16.0

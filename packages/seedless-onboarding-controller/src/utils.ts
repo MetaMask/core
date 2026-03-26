@@ -112,3 +112,37 @@ export function deserializeAuthKeyPair(value: string): KeyPair {
     pk: base64ToBytes(parsedKeyPair.pk),
   };
 }
+
+/**
+ * Compare two JWT tokens and return the latest token.
+ *
+ * @param jwtToken1 - The first JWT token to compare.
+ * @param jwtToken2 - The second JWT token to compare.
+ * @returns The latest JWT token.
+ */
+export function compareAndGetLatestToken(
+  jwtToken1: string,
+  jwtToken2: string,
+): string {
+  let decodedToken1: DecodedBaseJWTToken;
+  let decodedToken2: DecodedBaseJWTToken;
+
+  try {
+    decodedToken1 = decodeJWTToken(jwtToken1);
+  } catch {
+    // if the first token is invalid, return the second token
+    return jwtToken2;
+  }
+
+  try {
+    decodedToken2 = decodeJWTToken(jwtToken2);
+  } catch {
+    // if the second token is invalid, return the first token
+    return jwtToken1;
+  }
+
+  if (decodedToken1.exp > decodedToken2.exp) {
+    return jwtToken1;
+  }
+  return jwtToken2;
+}

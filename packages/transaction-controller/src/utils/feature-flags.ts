@@ -104,6 +104,9 @@ export type TransactionControllerFeatureFlags = {
   [FeatureFlag.IncomingTransactions]?: {
     /** Interval between requests to accounts API to retrieve incoming transactions. */
     pollingIntervalMs?: number;
+
+    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
+    useBackendWebSocketService?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -472,6 +475,24 @@ export function getTimeoutAttempts(
   return (
     timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
     timeoutAttemptsFlags?.default
+  );
+}
+
+/**
+ * Checks if WebSocket-based transaction updates are enabled.
+ * When enabled, incoming transactions are fetched via event-driven updates
+ * instead of polling.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns True if WebSocket updates are enabled, false otherwise.
+ */
+export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.IncomingTransactions]
+      ?.useBackendWebSocketService ?? false
   );
 }
 

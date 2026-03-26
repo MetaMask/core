@@ -17,6 +17,7 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
+import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types';
 import { PAYMENT_TYPES, PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from './types';
 import type {
   AssignCohortRequest,
@@ -38,6 +39,7 @@ import type {
   LinkRewardsRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
+  CancelSubscriptionRequest,
 } from './types';
 import type {
   ISubscriptionService,
@@ -67,82 +69,17 @@ export type SubscriptionControllerState = {
   >;
 };
 
-// Messenger Actions
-export type SubscriptionControllerGetSubscriptionsAction = {
-  type: `${typeof controllerName}:getSubscriptions`;
-  handler: SubscriptionController['getSubscriptions'];
-};
-export type SubscriptionControllerGetSubscriptionByProductAction = {
-  type: `${typeof controllerName}:getSubscriptionByProduct`;
-  handler: SubscriptionController['getSubscriptionByProduct'];
-};
-export type SubscriptionControllerCancelSubscriptionAction = {
-  type: `${typeof controllerName}:cancelSubscription`;
-  handler: SubscriptionController['cancelSubscription'];
-};
-export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
-  type: `${typeof controllerName}:startShieldSubscriptionWithCard`;
-  handler: SubscriptionController['startShieldSubscriptionWithCard'];
-};
-export type SubscriptionControllerGetPricingAction = {
-  type: `${typeof controllerName}:getPricing`;
-  handler: SubscriptionController['getPricing'];
-};
-export type SubscriptionControllerGetCryptoApproveTransactionParamsAction = {
-  type: `${typeof controllerName}:getCryptoApproveTransactionParams`;
-  handler: SubscriptionController['getCryptoApproveTransactionParams'];
-};
-export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
-  type: `${typeof controllerName}:startSubscriptionWithCrypto`;
-  handler: SubscriptionController['startSubscriptionWithCrypto'];
-};
-export type SubscriptionControllerUpdatePaymentMethodAction = {
-  type: `${typeof controllerName}:updatePaymentMethod`;
-  handler: SubscriptionController['updatePaymentMethod'];
-};
-export type SubscriptionControllerGetBillingPortalUrlAction = {
-  type: `${typeof controllerName}:getBillingPortalUrl`;
-  handler: SubscriptionController['getBillingPortalUrl'];
-};
-
-export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
-  type: `${typeof controllerName}:submitSponsorshipIntents`;
-  handler: SubscriptionController['submitSponsorshipIntents'];
-};
-
-export type SubscriptionControllerLinkRewardsAction = {
-  type: `${typeof controllerName}:linkRewards`;
-  handler: SubscriptionController['linkRewards'];
-};
-
-export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
-  {
-    type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
-    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
-  };
-
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
 >;
 export type SubscriptionControllerActions =
-  | SubscriptionControllerGetSubscriptionsAction
-  | SubscriptionControllerGetSubscriptionByProductAction
-  | SubscriptionControllerCancelSubscriptionAction
-  | SubscriptionControllerStartShieldSubscriptionWithCardAction
-  | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
-  | SubscriptionControllerGetCryptoApproveTransactionParamsAction
-  | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerUpdatePaymentMethodAction
-  | SubscriptionControllerGetBillingPortalUrlAction
-  | SubscriptionControllerSubmitSponsorshipIntentsAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
-  | SubscriptionControllerLinkRewardsAction;
+  | SubscriptionControllerMethodActions;
 
 export type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerPerformSignOut;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerPerformSignOutAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -251,6 +188,31 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     },
   };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getPricing',
+  'getSubscriptions',
+  'getSubscriptionByProduct',
+  'getSubscriptionsEligibilities',
+  'cancelSubscription',
+  'unCancelSubscription',
+  'startShieldSubscriptionWithCard',
+  'startSubscriptionWithCrypto',
+  'submitShieldSubscriptionCryptoApproval',
+  'getCryptoApproveTransactionParams',
+  'updatePaymentMethod',
+  'getBillingPortalUrl',
+  'cacheLastSelectedPaymentMethod',
+  'clearLastSelectedPaymentMethod',
+  'submitSponsorshipIntents',
+  'submitUserEvent',
+  'assignUserToCohort',
+  'linkRewards',
+  'getTokenApproveAmount',
+  'getTokenMinimumBalanceAmount',
+  'clearState',
+  'triggerAccessTokenRefresh',
+] as const;
+
 export class SubscriptionController extends StaticIntervalPollingController()<
   typeof controllerName,
   SubscriptionControllerState,
@@ -285,72 +247,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     this.setIntervalLength(pollingInterval);
     this.#subscriptionService = subscriptionService;
-    this.#registerMessageHandlers();
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getSubscriptions',
-      this.getSubscriptions.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getSubscriptionByProduct',
-      this.getSubscriptionByProduct.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:cancelSubscription',
-      this.cancelSubscription.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:startShieldSubscriptionWithCard',
-      this.startShieldSubscriptionWithCard.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getPricing',
-      this.getPricing.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getCryptoApproveTransactionParams',
-      this.getCryptoApproveTransactionParams.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:startSubscriptionWithCrypto',
-      this.startSubscriptionWithCrypto.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:updatePaymentMethod',
-      this.updatePaymentMethod.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getBillingPortalUrl',
-      this.getBillingPortalUrl.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:submitSponsorshipIntents`,
-      this.submitSponsorshipIntents.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:submitShieldSubscriptionCryptoApproval`,
-      this.submitShieldSubscriptionCryptoApproval.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:linkRewards`,
-      this.linkRewards.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -450,13 +349,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
-  async cancelSubscription(request: { subscriptionId: string }): Promise<void> {
+  async cancelSubscription(request: CancelSubscriptionRequest): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     const cancelledSubscription =
-      await this.#subscriptionService.cancelSubscription({
-        subscriptionId: request.subscriptionId,
-      });
+      await this.#subscriptionService.cancelSubscription(request);
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
@@ -640,7 +537,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Invalid chain id');
     }
     const tokenPaymentInfo = chainPaymentInfo.tokens.find(
-      (token) => token.address === request.paymentTokenAddress,
+      (token) =>
+        token.address.toLowerCase() ===
+        request.paymentTokenAddress.toLowerCase(),
     );
     if (!tokenPaymentInfo) {
       throw new Error('Invalid token address');
@@ -712,6 +611,21 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         ...state.lastSelectedPaymentMethod,
         [product]: paymentMethod,
       };
+    });
+  }
+
+  /**
+   * Clear the last selected payment method for a specific product.
+   *
+   * @param product - The product to clear the payment method for.
+   */
+  clearLastSelectedPaymentMethod(product: ProductType): void {
+    this.update((state) => {
+      if (state.lastSelectedPaymentMethod) {
+        const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod =
+          rest as typeof state.lastSelectedPaymentMethod;
+      }
     });
   }
 
@@ -908,6 +822,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Clears the subscription state and resets to default values.
+   */
+  clearState(): void {
+    const defaultState = getDefaultSubscriptionControllerState();
+    this.update(() => {
+      return defaultState;
+    });
+  }
+
+  /**
    * Triggers an access token refresh.
    */
   triggerAccessTokenRefresh(): void {
@@ -995,8 +919,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     value: CachedLastSelectedPaymentMethod | undefined,
   ): asserts value is Required<CachedLastSelectedPaymentMethod> {
     if (
-      !value ||
-      value.type !== PAYMENT_TYPES.byCrypto ||
+      value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||
       !value.paymentTokenSymbol
     ) {

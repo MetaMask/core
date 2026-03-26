@@ -724,9 +724,19 @@ describe('Bridge Quotes Utils', () => {
 
       expect(quotes[0].targetAmount).toStrictEqual({
         fiat: '24.6',
-        human: '12.3',
-        raw: QUOTE_REQUEST_1_MOCK.targetAmountMinimum,
         usd: '36.9',
+      });
+    });
+
+    it('returns zero metaMask fee in quote', async () => {
+      const quotes = await getBridgeQuotes({
+        ...request,
+        requests: [QUOTE_REQUEST_1_MOCK],
+      });
+
+      expect(quotes[0].fees.metaMask).toStrictEqual({
+        usd: '0',
+        fiat: '0',
       });
     });
 

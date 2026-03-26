@@ -22,6 +22,7 @@ import {
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
+  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -864,6 +865,58 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
+    });
+  });
+
+  describe('isIncomingTransactionsUseBackendWebSocketServiceEnabled', () => {
+    it('returns true when useBackendWebSocketService is true', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          useBackendWebSocketService: true,
+        },
+      });
+
+      expect(
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when useBackendWebSocketService is false', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          useBackendWebSocketService: false,
+        },
+      });
+
+      expect(
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when flag is not present', () => {
+      mockFeatureFlags({});
+
+      expect(
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when useBackendWebSocketService property is not present', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {},
+      });
+
+      expect(
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
+      ).toBe(false);
     });
   });
 });

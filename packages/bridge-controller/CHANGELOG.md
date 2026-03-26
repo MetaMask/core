@@ -7,6 +7,255 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^3.1.0` to `^3.1.1` ([#8298](https://github.com/MetaMask/core/pull/8298))
+- Bump `@metamask/transaction-controller` from `^63.1.0` to `^63.2.0` ([#8301](https://github.com/MetaMask/core/pull/8301))
+
+## [69.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
+- Bump `@metamask/assets-controller` from `^3.0.0` to `^3.1.0` ([#8276](https://github.com/MetaMask/core/pull/8276))
+
+## [69.2.0]
+
+### Added
+
+- Consume `token_warning` SSE events from the bridge-api quote stream and expose them as `tokenWarnings` in `BridgeControllerState` ([#8198](https://github.com/MetaMask/core/pull/8198))
+- Export `TokenFeature` type and `TokenFeatureType` enum for use by clients ([#8198](https://github.com/MetaMask/core/pull/8198))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/assets-controller` from `^2.4.0` to `^3.0.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
+
+## [69.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^2.3.0` to `^2.4.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/assets-controllers` from `^100.2.1` to `^101.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^63.0.0` ([#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [69.1.0]
+
+### Added
+
+- Add optional `active_ab_tests` property in Unified SwapBridge metrics event context and payload types, alongside existing `ab_tests`. ([#8152](https://github.com/MetaMask/core/pull/8152))
+
+### Fixed
+
+- Check whether `selectedQuote` exists in `selectBridgeQuotes.sortedQuotes` before returning it as the `activeQuote`. Fall back on the `recommendedQuote` if selectedQuote is stale ([#8154](https://github.com/MetaMask/core/pull/8154))
+
+## [69.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
+## [69.0.0]
+
+### Added
+
+- **BREAKING:** Optional constructor option `getUseAssetsControllerForRates`: when it returns true, exchange rates are read from the new `@metamask/assets-controller` (`AssetsController:getExchangeRatesForBridge`) instead of `MultichainAssetsRatesController`, `TokenRatesController`, and `CurrencyRateController`. ([#8090](https://github.com/MetaMask/core/pull/8090))
+- Add `AssetPickerOpened` unified swap bridge metrics event with an `asset_location` property to indicate `'source'` or `'destination'`. ([#7985](https://github.com/MetaMask/core/pull/7985))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107)), ([#8107](https://github.com/MetaMask/core/pull/8107)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0` ([#8104](https://github.com/MetaMask/core/pull/8104)), ([#8104](https://github.com/MetaMask/core/pull/8104)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/assets-controller` from `2.2.0` to `2.3.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/multichain-network-controller` from `3.0.4` to `3.0.5` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Update price impact danger field to error in bridge ([#8150](https://github.com/MetaMask/core/pull/8150))
+- Update price impact threshold LD config schema to include new unified properties ([#8143](https://github.com/MetaMask/core/pull/8143))
+
+## [68.0.0]
+
+### Changed
+
+- **BREAKING:** Add validation support for intent EIP-712 `typedData` payloads so clients can pass signed intent data through the bridge flow. ([#8048](https://github.com/MetaMask/core/pull/8048))
+
+### Fixed
+
+- Use 9005 as AVAX slip44 reference to match the token api's responses ([#8098](https://github.com/MetaMask/core/pull/8098))
+
+## [67.4.0]
+
+### Changed
+
+- Widen `RequiredEventContextFromClient` `InputChanged.input_amount_preset` to accept arbitrary string labels (for example `85%`, `95%`, `MAX`) while preserving compatibility with `InputAmountPreset` enum values. ([#8069](https://github.com/MetaMask/core/pull/8069))
+
+## [67.3.0]
+
+### Added
+
+- Added optional `ab_tests` property to `RequiredEventContextFromClient` and `CrossChainSwapsEventProperties` types for A/B test experiment attribution ([#8007](https://github.com/MetaMask/core/pull/8007))
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
+- Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.19.0` ([#8031](https://github.com/MetaMask/core/pull/8031))
+- Bump `@metamask/assets-controllers` from `^100.0.2` to `^100.0.3` ([#8029](https://github.com/MetaMask/core/pull/8029))
+
+## [67.2.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.18.0` ([#8005](https://github.com/MetaMask/core/pull/8005))
+- Bump `@metamask/assets-controllers` from `^100.0.1` to `^100.0.2` ([#8004](https://github.com/MetaMask/core/pull/8004))
+- Replace `PERCENT_90` with `PERCENT_75` in `InputAmountPreset` enum ([#7997](https://github.com/MetaMask/core/pull/7997))
+- Add `PERCENT_90` in `InputAmountPreset` enum ([#8008](https://github.com/MetaMask/core/pull/8008))
+
+## [67.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/assets-controllers` from `^100.0.0` to `^100.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/gas-fee-controller` from `^26.0.2` to `^26.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/multichain-network-controller` from `^3.0.3` to `^3.0.4` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.17.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+
+## [67.1.0]
+
+### Added
+
+- Added optional `input_amount_preset` property to the `InputChanged` event in `RequiredEventContextFromClient` ([#7987](https://github.com/MetaMask/core/pull/7987))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^99.4.0` to `^100.0.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [67.0.0]
+
+### Added
+
+- **BREAKING:** Retrieve JWT token from the ProfileSyncController and include it in bridge request headers ([#7955](https://github.com/MetaMask/core/pull/7955))
+
+## [66.2.0]
+
+### Added
+
+- Added `TrendingExplore` value to `MetaMetricsSwapsEventSource` enum for attributing swaps to the trending explore flow ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `location` as a required property on all Unified SwapBridge events in `RequiredEventContextFromClient` ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `setLocation()` method to `BridgeController` for clients to set the entry point when the flow starts ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Exported `MetaMetricsSwapsEventSource` from the package index ([#7931](https://github.com/MetaMask/core/pull/7931))
+
+### Changed
+
+- Updated `#getEventProperties` to fall back to stored `#location` when `location` is not provided by the client ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Replaced `@deprecated` tag on `MetaMetricsSwapsEventSource` with proper JSDoc description ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Bump `@metamask/assets-controllers` from `^99.3.2` to `^99.4.0` ([#7944](https://github.com/MetaMask/core/pull/7944))
+
+### Fixed
+
+- Fix `usd_amount_source`, `usd_quoted_gas`, and `usd_quoted_return` metrics fields being empty for non-EVM chains by deriving USD exchange rates from multichain asset rates ([#7899](https://github.com/MetaMask/core/pull/7899))
+
+## [66.1.1]
+
+### Fixed
+
+- Return 0-prefixed hex string from `formatChainIdToHex` utility ([#7909](https://github.com/MetaMask/core/pull/7909))
+
+## [66.1.0] [DEPRECATED]
+
+### Added
+
+- Add support for Tron assets in the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+
+### Changed
+
+- Refresh asset exchange rates each time quotes are fetched ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Return checksummed EVM assetIds from the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.17.0` ([#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-network-controller` from `^3.0.2` to `^3.0.3` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/assets-controllers` from `^99.3.1` to `^99.3.2` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+### Fixed
+
+- Fall back to the quoted `priceImpact` or `destTokenAmount` to sort quotes if the `cost` is not available ([#7896](https://github.com/MetaMask/core/pull/7896))
+
+## [66.0.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.15.0` ([#7854](https://github.com/MetaMask/core/pull/7854))
+- Bump `@metamask/assets-controllers` from `^99.2.0` to `^99.3.1` ([#7855](https://github.com/MetaMask/core/pull/7855), [#7860](https://github.com/MetaMask/core/pull/7860))
+
+## [65.3.0] [DEPRECATED]
+
+### Added
+
+- Add `MEGAETH` network support ([#7823](https://github.com/MetaMask/core/pull/7823))
+  - Add `MEGAETH` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `DEFAULT_CHAIN_RANKING`, `CHAIN_IDS`, `CURRENCY_SYMBOLS` and `SWAPS_CHAINID_DEFAULT_TOKEN_MAP`
+- Export `isTronChainId` from the package entrypoint ([#7697](https://github.com/MetaMask/core/pull/7697))
+
+### Changed
+
+- **BREAKING** Use `gasEstimatesByChainId` instead of `gasEstimates` to remove reference to the global selected network. Clients need to replace gasEstimates with the `gasEstimatesByChainId` state from the GasFeeController when using the `selectBridgeQuotes` selector ([#7826](https://github.com/MetaMask/core/pull/7826))
+- Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.14.0` ([#7832](https://github.com/MetaMask/core/pull/7832))
+
+## [65.2.0]
+
+### Added
+
+- Add `HYPEREVM` network support ([#7787](https://github.com/MetaMask/core/pull/7787))
+  - Add `HYPEREVM` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+- Add `PollingStatusUpdated` to `UnifiedSwapBridgeEventName` enum and `PollingStatus` enum with `MaxPollingReached` and `ManuallyRestarted` values ([#7825](https://github.com/MetaMask/core/pull/7825))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.13.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
+- Bump `@metamask/assets-controllers` from `^99.0.0` to `^99.2.0` ([#7771](https://github.com/MetaMask/core/pull/7771), [#7802](https://github.com/MetaMask/core/pull/7802))
+
+## [65.1.0]
+
+### Added
+
+- Restore `getMinimumBalanceForRentExemptionInLamports`, `getMinimumBalanceForRentExemptionRequest`, `selectMinimumBalanceForRentExemptionInSOL`, and `minimumBalanceForRentExemptionInLamports` to state ([#7742](https://github.com/MetaMask/core/pull/7742))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` ([#7760](https://github.com/MetaMask/core/pull/7760))
+
+## [65.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^98.0.0` to `^99.0.0` ([#7751](https://github.com/MetaMask/core/pull/7751))
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.10.0` ([#7737](https://github.com/MetaMask/core/pull/7737))
+
+## [65.0.0]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^97.0.0` to `^98.0.0` ([#7731](https://github.com/MetaMask/core/pull/7731))
+- Corrects the previous 64.8.2 release to document breaking changes that were missed:
+  - **BREAKING:** Remove `getMinimumBalanceForRentExemptionInLamports`, `getMinimumBalanceForRentExemptionRequest`, `selectMinimumBalanceForRentExemptionInSOL`, and `minimumBalanceForRentExemptionInLamports` from state ([#7715](https://github.com/MetaMask/core/pull/7715))
+
+## [64.8.2] [DEPRECATED]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^96.0.0` to `^97.0.0` ([#7722](https://github.com/MetaMask/core/pull/7722))
+
+## [64.8.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^95.3.0` to `^96.0.0` ([#7704](https://github.com/MetaMask/core/pull/7704))
+
 ## [64.8.0]
 
 ### Changed
@@ -1034,7 +1283,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.1...HEAD
+[69.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.0...@metamask/bridge-controller@69.2.1
+[69.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.1.1...@metamask/bridge-controller@69.2.0
+[69.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.1.0...@metamask/bridge-controller@69.1.1
+[69.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.0.1...@metamask/bridge-controller@69.1.0
+[69.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.0.0...@metamask/bridge-controller@69.0.1
+[69.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@68.0.0...@metamask/bridge-controller@69.0.0
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.4.0...@metamask/bridge-controller@68.0.0
+[67.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.3.0...@metamask/bridge-controller@67.4.0
+[67.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.2.0...@metamask/bridge-controller@67.3.0
+[67.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.1.1...@metamask/bridge-controller@67.2.0
+[67.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.1.0...@metamask/bridge-controller@67.1.1
+[67.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.0.0...@metamask/bridge-controller@67.1.0
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.2.0...@metamask/bridge-controller@67.0.0
+[66.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.1...@metamask/bridge-controller@66.2.0
+[66.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.0...@metamask/bridge-controller@66.1.1
+[66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...@metamask/bridge-controller@66.1.0
+[66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.3.0...@metamask/bridge-controller@66.0.0
+[65.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.2.0...@metamask/bridge-controller@65.3.0
+[65.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.1.0...@metamask/bridge-controller@65.2.0
+[65.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.0.1...@metamask/bridge-controller@65.1.0
+[65.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.0.0...@metamask/bridge-controller@65.0.1
+[65.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.8.2...@metamask/bridge-controller@65.0.0
+[64.8.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.8.1...@metamask/bridge-controller@64.8.2
+[64.8.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.8.0...@metamask/bridge-controller@64.8.1
 [64.8.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.7.0...@metamask/bridge-controller@64.8.0
 [64.7.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.1...@metamask/bridge-controller@64.7.0
 [64.6.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@64.6.0...@metamask/bridge-controller@64.6.1

@@ -8,13 +8,15 @@ import type {
   SendCallsParams,
 } from '../types';
 
-type GetAccounts = (req: JsonRpcRequest) => Promise<string[]>;
+type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 
 const ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123a';
 const HEX_MOCK = '0x123abc';
 const ID_MOCK = '0x12345678';
+const ORIGIN_MOCK = 'https://example.com';
 
 const REQUEST_MOCK = {
+  origin: ORIGIN_MOCK,
   params: [
     {
       version: '1.0',
@@ -30,13 +32,13 @@ const REQUEST_MOCK = {
       ],
     },
   ],
-} as unknown as JsonRpcRequest<SendCallsParams>;
+} as unknown as JsonRpcRequest<SendCallsParams> & { origin: string };
 
 describe('wallet_sendCalls', () => {
-  let request: JsonRpcRequest<SendCallsParams>;
+  let request: JsonRpcRequest<SendCallsParams> & { origin: string };
   let params: SendCallsParams;
   let response: PendingJsonRpcResponse<string>;
-  let getAccountsMock: jest.MockedFn<GetAccounts>;
+  let getPermittedAccountsForOriginMock: jest.MockedFn<GetPermittedAccountsForOrigin>;
   let processSendCallsMock: jest.MockedFunction<ProcessSendCallsHook>;
 
   /**
@@ -45,7 +47,7 @@ describe('wallet_sendCalls', () => {
    */
   async function callMethod() {
     return walletSendCalls(request, response, {
-      getAccounts: getAccountsMock,
+      getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       processSendCalls: processSendCallsMock,
     });
   }
@@ -57,10 +59,10 @@ describe('wallet_sendCalls', () => {
     params = request.params as SendCallsParams;
     response = {} as PendingJsonRpcResponse<string>;
 
-    getAccountsMock = jest.fn();
+    getPermittedAccountsForOriginMock = jest.fn();
     processSendCallsMock = jest.fn();
 
-    getAccountsMock.mockResolvedValue([ADDRESS_MOCK]);
+    getPermittedAccountsForOriginMock.mockResolvedValue([ADDRESS_MOCK]);
 
     processSendCallsMock.mockResolvedValue({
       id: ID_MOCK,
@@ -108,7 +110,7 @@ describe('wallet_sendCalls', () => {
   it('throws if no hook', async () => {
     await expect(
       walletSendCalls(request, response, {
-        getAccounts: getAccountsMock,
+        getPermittedAccountsForOrigin: getPermittedAccountsForOriginMock,
       }),
     ).rejects.toMatchInlineSnapshot(`[Error: Method not supported.]`);
   });
@@ -207,7 +209,7 @@ describe('wallet_sendCalls', () => {
   });
 
   it('throws if from is not in accounts', async () => {
-    getAccountsMock.mockResolvedValueOnce([]);
+    getPermittedAccountsForOriginMock.mockResolvedValueOnce([]);
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(
       `[Error: The requested account and/or method has not been authorized by the user.]`,

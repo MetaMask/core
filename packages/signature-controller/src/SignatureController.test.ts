@@ -148,6 +148,7 @@ function createMessengerMock() {
 
   const messenger = {
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: callMock,
@@ -1536,7 +1537,7 @@ describe('SignatureController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1549,11 +1550,11 @@ describe('SignatureController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "signatureRequests": Object {},
+        {
+          "signatureRequests": {},
           "unapprovedPersonalMsgCount": 0,
-          "unapprovedPersonalMsgs": Object {},
-          "unapprovedTypedMessages": Object {},
+          "unapprovedPersonalMsgs": {},
+          "unapprovedTypedMessages": {},
           "unapprovedTypedMessagesCount": 0,
         }
       `);
@@ -1568,7 +1569,7 @@ describe('SignatureController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -1581,11 +1582,11 @@ describe('SignatureController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "signatureRequests": Object {},
+        {
+          "signatureRequests": {},
           "unapprovedPersonalMsgCount": 0,
-          "unapprovedPersonalMsgs": Object {},
-          "unapprovedTypedMessages": Object {},
+          "unapprovedPersonalMsgs": {},
+          "unapprovedTypedMessages": {},
           "unapprovedTypedMessagesCount": 0,
         }
       `);

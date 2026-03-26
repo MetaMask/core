@@ -42,7 +42,7 @@ export type TransactionMeta = {
   assetsFiatValues?: AssetsFiatValues;
 
   /**
-   * Unique ID to prevent duplicate requests.
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
    */
   actionId?: string;
 
@@ -393,6 +393,11 @@ export type TransactionMeta = {
    * ID of JSON-RPC request from DAPP.
    */
   requestId?: string;
+
+  /**
+   * Assets required by the transaction.
+   */
+  requiredAssets?: RequiredAsset[];
 
   /**
    * IDs of any transactions that must be confirmed before this one is submitted.
@@ -771,9 +776,19 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction that claims yield from a mUSD contract.
+   */
+  musdClaim = 'musdClaim',
+
+  /**
    * A transaction that converts tokens to mUSD.
    */
   musdConversion = 'musdConversion',
+
+  /**
+   * Deposit funds for Across quote via Perps.
+   */
+  perpsAcrossDeposit = 'perpsAcrossDeposit',
 
   /**
    * Deposit funds to be available for trading via Perps.
@@ -781,9 +796,30 @@ export enum TransactionType {
   perpsDeposit = 'perpsDeposit',
 
   /**
+   * Deposit funds and place an order for trading via Perps.
+   * Supports paying with any token, not just native assets.
+   */
+  perpsDepositAndOrder = 'perpsDepositAndOrder',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
+   */
+  perpsRelayDeposit = 'perpsRelayDeposit',
+
+  /**
+   * Withdraw funds from Perps.
+   */
+  perpsWithdraw = 'perpsWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
+
+  /**
+   * Deposit funds for Across quote via Predict.
+   */
+  predictAcrossDeposit = 'predictAcrossDeposit',
 
   /**
    * Buy a position via Predict.
@@ -803,6 +839,11 @@ export enum TransactionType {
   predictDeposit = 'predictDeposit',
 
   /**
+   * Deposit funds and place an order via Predict.
+   */
+  predictDepositAndOrder = 'predictDepositAndOrder',
+
+  /**
    * Sell a position via Predict.
    *
    * @deprecated Not used.
@@ -813,6 +854,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is a Predict deposit.
+   */
+  predictRelayDeposit = 'predictRelayDeposit',
 
   /**
    * Deposit funds for Relay quote.
@@ -1116,6 +1162,12 @@ export interface RemoteTransactionSourceRequest {
    * The address of the account to fetch transactions for.
    */
   address: Hex;
+
+  /**
+   * Optional array of chain IDs to fetch transactions for.
+   * If not provided, defaults to all supported chains.
+   */
+  chainIds?: Hex[];
 
   /**
    * Whether to also include incoming token transfers.
@@ -1545,6 +1597,9 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
@@ -1783,6 +1838,9 @@ export type TransactionBatchRequest = {
 
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
+
+  /** Assets required by the batch transaction. */
+  requiredAssets?: RequiredAsset[];
 
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
@@ -2068,8 +2126,17 @@ export type MetamaskPayMetadata = {
   /** Chain ID of the payment token. */
   chainId?: Hex;
 
+  /**
+   * Whether this is a post-quote transaction (e.g., withdrawal flow).
+   * When true, the token represents the destination rather than source.
+   */
+  isPostQuote?: boolean;
+
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
+
+  /** Source chain transaction hash if no local transaction. */
+  sourceHash?: Hex;
 
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
@@ -2098,7 +2165,9 @@ export type GetSimulationConfig = (
  * Options for adding a transaction.
  */
 export type AddTransactionOptions = {
-  /** Unique ID to prevent duplicate requests.  */
+  /**
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
+   */
   actionId?: string;
 
   /** Fiat values of the assets being sent and received. */
@@ -2146,6 +2215,9 @@ export type AddTransactionOptions = {
 
   /** ID of JSON-RPC request from DAPP.  */
   requestId?: string;
+
+  /** Assets required by the transaction. */
+  requiredAssets?: RequiredAsset[];
 
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;
@@ -2197,4 +2269,18 @@ export type GetGasFeeTokensRequest = {
 
   /** Value of the transaction. */
   value?: Hex;
+};
+
+/**
+ * An asset required by a transaction.
+ */
+export type RequiredAsset = {
+  /** Contract address of the asset. */
+  address: Hex;
+
+  /** Amount of the asset required. */
+  amount: Hex;
+
+  /** Token standard of the asset (e.g., 'erc20'). */
+  standard: string;
 };

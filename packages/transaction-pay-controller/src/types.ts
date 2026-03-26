@@ -1,8 +1,8 @@
+import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
-import type { TokenListControllerActions } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
@@ -15,6 +15,7 @@ import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -36,18 +37,20 @@ import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
+  | AssetsControllerGetStateForTransactionPayAction
   | BridgeControllerActions
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RampsControllerGetQuotesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
-  | TokenListControllerActions
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
@@ -68,28 +71,42 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
   TransactionPayControllerState
 >;
 
-export type TransactionPayControllerGetDelegationTransactionAction = {
-  type: `${typeof CONTROLLER_NAME}:getDelegationTransaction`;
-  handler: GetDelegationTransactionCallback;
+/** Configurable properties of a transaction. */
+export type TransactionConfig = {
+  /**
+   * Whether the source of funds is HyperLiquid (HyperCore).
+   * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
+   * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
+   */
+  isHyperliquidSource?: boolean;
+
+  /** Whether the user has selected the maximum amount. */
+  isMaxAmount?: boolean;
+
+  /**
+   * Whether this is a post-quote transaction.
+   * When true, the paymentToken represents the destination token,
+   * and the quote source is derived from the transaction's output token.
+   */
+  isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request. Use this for post-quote flows where the user's funds originate
+   * from a smart contract account (e.g. Predict Safe proxy) so that refunds
+   * go back to that account rather than the EOA.
+   */
+  refundTo?: Hex;
 };
 
-/** Action to get the pay strategy type used for a transaction. */
-export type TransactionPayControllerGetStrategyAction = {
-  type: `${typeof CONTROLLER_NAME}:getStrategy`;
-  handler: (transaction: TransactionMeta) => TransactionPayStrategy;
-};
+/** Callback to update transaction config. */
+export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
-/** Action to update the payment token for a transaction. */
-export type TransactionPayControllerUpdatePaymentTokenAction = {
-  type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
-  handler: (request: UpdatePaymentTokenRequest) => void;
-};
-
-/** Action to set the max amount flag for a transaction. */
-export type TransactionPayControllerSetIsMaxAmountAction = {
-  type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
-  handler: (transactionId: string, isMaxAmount: boolean) => void;
-};
+/** Callback to update fiat payment state. */
+export type TransactionFiatPaymentCallback = (
+  fiatPayment: TransactionFiatPayment,
+) => void;
 
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -98,11 +115,8 @@ export type TransactionPayControllerStateChangeEvent =
   >;
 
 export type TransactionPayControllerActions =
-  | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
-  | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerSetIsMaxAmountAction
-  | TransactionPayControllerUpdatePaymentTokenAction;
+  | TransactionPayControllerMethodActions;
 
 export type TransactionPayControllerEvents =
   TransactionPayControllerStateChangeEvent;
@@ -121,6 +135,9 @@ export type TransactionPayControllerOptions = {
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
+  /** Callback to select ordered PayStrategies for a transaction. */
+  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -136,13 +153,39 @@ export type TransactionPayControllerState = {
 
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
 
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
-  /** Source token selected for the transaction. */
+  /**
+   * Whether this is a post-quote transaction.
+   * When true, the paymentToken represents the destination token,
+   * and the quote source is derived from the transaction's output token.
+   * Used when funds need to be moved after a transaction completes
+   * (e.g., bridging output to a different token/chain).
+   */
+  isPostQuote?: boolean;
+
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
+
+  /**
+   * Token selected for the transaction.
+   * - For standard flows (isPostQuote=false): This is the SOURCE/payment token
+   * - For post-quote flows (isPostQuote=true): This is the DESTINATION token
+   */
   paymentToken?: TransactionPaymentToken;
 
   /** Quotes retrieved for the transaction. */
@@ -159,6 +202,15 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Entered fiat amount for the selected payment method. */
+  amountFiat?: string;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId?: string;
 };
 
 /** A token required by a transaction. */
@@ -214,7 +266,16 @@ export type TransactionPaySourceAmount = {
   /** Amount of payment token required in atomic format without factoring token decimals. */
   sourceAmountRaw: string;
 
-  /** Address of the required token. */
+  /** Balance of the source token in atomic format (for post-quote flows). */
+  sourceBalanceRaw?: string;
+
+  /** Chain ID of the source token (for post-quote flows). */
+  sourceChainId?: Hex;
+
+  /** Address of the source token (for post-quote flows). */
+  sourceTokenAddress?: Hex;
+
+  /** Address of the target token. */
   targetTokenAddress: Hex;
 };
 
@@ -270,6 +331,19 @@ export type QuoteRequest = {
   /** Whether the transaction is a maximum amount transaction. */
   isMaxAmount?: boolean;
 
+  /** Whether this is a post-quote flow. */
+  isPostQuote?: boolean;
+
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 
@@ -300,8 +374,14 @@ export type TransactionPayFees = {
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
 
+  /** Fee charged by MetaMask. */
+  metaMask: FiatValue;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
+
+  /** Fee charged by fiat on-ramp provider (breakdown of the provider total). */
+  providerFiat?: FiatValue;
 
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
@@ -337,11 +417,14 @@ export type TransactionPayQuote<OriginalQuote> = {
   strategy: TransactionPayStrategy;
 
   /** Amount of target token provided. */
-  targetAmount: Amount;
+  targetAmount: FiatValue;
 };
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Selected fiat payment method ID, if applicable. */
+  fiatPaymentMethod?: string;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -387,6 +470,12 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
+  /**
+   * Check if the strategy supports the given request.
+   * Defaults to true if not implemented.
+   */
+  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
@@ -432,7 +521,7 @@ export type TransactionPayTotals = {
   sourceAmount: Amount;
 
   /** Total amount of target token provided. */
-  targetAmount: Amount;
+  targetAmount: FiatValue;
 
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;
@@ -448,6 +537,15 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Request to update fiat payment state for a transaction. */
+export type UpdateFiatPaymentRequest = {
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Callback to mutate fiat payment state. */
+  callback: TransactionFiatPaymentCallback;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */

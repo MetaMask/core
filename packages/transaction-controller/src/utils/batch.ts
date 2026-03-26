@@ -303,6 +303,7 @@ async function addTransactionBatchWith7702(
     origin,
     overwriteUpgrade,
     requestId,
+    requiredAssets,
     requireApproval,
     securityAlertId,
     skipInitialGasEstimate,
@@ -436,6 +437,7 @@ async function addTransactionBatchWith7702(
     origin,
     requestId,
     requireApproval,
+    requiredAssets,
     securityAlertResponse,
     skipInitialGasEstimate,
     type: TransactionType.batch,
@@ -467,6 +469,7 @@ async function addTransactionBatchWithHook(
   } = request;
 
   const {
+    batchId: batchIdOverride,
     from,
     networkClientId,
     origin,
@@ -514,7 +517,7 @@ async function addTransactionBatchWithHook(
   }
 
   let txBatchMeta: TransactionBatchMeta | undefined;
-  const batchId = generateBatchId();
+  const batchId = batchIdOverride ?? generateBatchId();
 
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,

@@ -7,6 +7,7 @@ import type {
   GasPriceValue,
   TransactionParams,
 } from '../types';
+import { TransactionStatus } from '../types';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -353,6 +354,76 @@ describe('utils', () => {
       );
       expect(() => util.toBN({} as unknown)).toThrow(
         'Unexpected value returned from oracle contract',
+      );
+    });
+  });
+
+  describe('caip2ToHex', () => {
+    it('converts eip155:1 to 0x1', () => {
+      expect(util.caip2ToHex('eip155:1')).toBe('0x1');
+    });
+
+    it('converts eip155:137 to 0x89', () => {
+      expect(util.caip2ToHex('eip155:137')).toBe('0x89');
+    });
+
+    it('converts eip155:8453 to 0x2105', () => {
+      expect(util.caip2ToHex('eip155:8453')).toBe('0x2105');
+    });
+
+    it('returns undefined for invalid format', () => {
+      expect(util.caip2ToHex('invalid')).toBeUndefined();
+    });
+
+    it('returns undefined for malformed CAIP-2 format', () => {
+      expect(util.caip2ToHex('not:valid:format')).toBeUndefined();
+    });
+  });
+
+  describe('validateIfTransactionUnapprovedOrSubmitted', () => {
+    const fnName = 'testFn';
+
+    it('does not throw when transaction status is unapproved', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status: TransactionStatus.unapproved },
+          fnName,
+        ),
+      ).not.toThrow();
+    });
+
+    it('does not throw when transaction status is submitted', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status: TransactionStatus.submitted },
+          fnName,
+        ),
+      ).not.toThrow();
+    });
+
+    it('throws when transactionMeta is undefined', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(undefined, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: undefined`,
+      );
+    });
+
+    it('throws when transaction status is not unapproved or submitted', () => {
+      const status = TransactionStatus.failed;
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted({ status }, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
+    });
+
+    it('throws when transaction status is confirmed', () => {
+      const status = TransactionStatus.confirmed;
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted({ status }, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
       );
     });
   });

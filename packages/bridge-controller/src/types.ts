@@ -1,4 +1,5 @@
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
+import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
   GetCurrencyRateState,
   MultichainAssetsRatesControllerGetStateAction,
@@ -13,6 +14,7 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
@@ -39,6 +41,7 @@ import type {
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TokenFeatureSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -112,7 +115,8 @@ export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
  */
 export type QuoteMetadata = {
   /**
-   * If gas is included, this is the value of the src or dest token that was used to pay for the gas
+   * If gas is included, this is the value of the src or dest token that was used to pay for the gas.
+   * Show this value to indicate transaction fees for gasless quotes.
    */
   includedTxFees?: TokenAmountValues | null;
   /**
@@ -123,6 +127,12 @@ export type QuoteMetadata = {
    * max is the max gas fee that will be used by the transaction.
    */
   gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
+  /**
+   * The total network fee required to submit the trade and any approvals. This includes
+   * the relayer fee or other native fees. Should be used for balance checks and tx submission.
+   * Note: This is only accurate for non-gasless transactions. Use {@link QuoteMetadata.includedTxFees} to
+   * get the total network fee for gasless transactions.
+   */
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**
@@ -134,16 +144,24 @@ export type QuoteMetadata = {
    */
   minToTokenAmount: TokenAmountValues;
   /**
-   * If gas is included: toTokenAmount
-   * Otherwise: toTokenAmount - totalNetworkFee
+   * If gas is included: {@link QuoteMetadata.toTokenAmount} - {@link QuoteMetadata.includedTxFees}.
+   * Otherwise: {@link QuoteMetadata.toTokenAmount} - {@link QuoteMetadata.totalNetworkFee}.
    */
   adjustedReturn: Omit<TokenAmountValues, 'amount'>;
   /**
-   * The amount that the user will send, including fees
-   * srcTokenAmount + metabridgeFee + txFee
+   * The amount that the user will send, including fees that are paid in the src token
+   * {@link Quote.srcTokenAmount} + {@link Quote.feeData[FeeType.METABRIDGE].amount} + {@link Quote.feeData[FeeType.TX_FEE].amount}
    */
   sentAmount: TokenAmountValues;
-  swapRate: string; // destTokenAmount / sentAmount
+  /**
+   * The swap rate is the amount that the user will receive per amount sent. Accounts for fees paid in the src or dest token.
+   * This is calculated as {@link QuoteMetadata.toTokenAmount} / {@link QuoteMetadata.sentAmount}.
+   */
+  swapRate: string;
+  /**
+   * The cost of the trade, which is the difference between the amount sent and the adjusted return.
+   * This is calculated as {@link QuoteMetadata.sentAmount} - {@link QuoteMetadata.adjustedReturn}.
+   */
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 
@@ -299,9 +317,13 @@ export enum ChainId {
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,
+  HYPEREVM = 999,
+  MEGAETH = 4326,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
+
+export type TokenFeature = Infer<typeof TokenFeatureSchema>;
 
 export enum RequestStatus {
   LOADING,
@@ -357,6 +379,11 @@ export type BridgeControllerState = {
    * the max amount that can be sent.
    */
   minimumBalanceForRentExemptionInLamports: string | null;
+  /**
+   * Security alerts for the destination token in the current quote request,
+   * populated from `token_warning` SSE events.
+   */
+  tokenWarnings: TokenFeature[];
 };
 
 export type BridgeControllerAction<
@@ -390,13 +417,15 @@ export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
+  | AuthenticationControllerGetBearerTokenAction
   | GetCurrencyRateState
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AssetsControllerGetExchangeRatesForBridgeAction;
 export type AllowedEvents = never;
 
 /**

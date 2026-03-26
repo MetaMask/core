@@ -3,7 +3,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
-import type { Messenger, ActionConstraint } from '@metamask/messenger';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -14,11 +14,11 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import { getKnownPropertyNames } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
+import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types';
 import {
   SupportedStakedBalanceNetworks,
   SupportedTokenDetectionNetworks,
@@ -36,48 +36,48 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
  * @returns Whether the current network supports token detection
  */
 export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
-  [SupportedTokenDetectionNetworks.mainnet]:
+  [SupportedTokenDetectionNetworks.Mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
-  [SupportedTokenDetectionNetworks.bsc]:
+  [SupportedTokenDetectionNetworks.Bsc]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.polygon]:
+  [SupportedTokenDetectionNetworks.Polygon]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.avax]:
+  [SupportedTokenDetectionNetworks.Avax]:
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
-  [SupportedTokenDetectionNetworks.aurora]:
+  [SupportedTokenDetectionNetworks.Aurora]:
     '0x1286415D333855237f89Df27D388127181448538',
-  [SupportedTokenDetectionNetworks.linea_goerli]:
+  [SupportedTokenDetectionNetworks.LineaGoerli]:
     '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
-  [SupportedTokenDetectionNetworks.linea_mainnet]:
+  [SupportedTokenDetectionNetworks.LineaMainnet]:
     '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
-  [SupportedTokenDetectionNetworks.arbitrum]:
+  [SupportedTokenDetectionNetworks.Arbitrum]:
     '0x151E24A486D7258dd7C33Fb67E4bB01919B7B32c',
-  [SupportedTokenDetectionNetworks.optimism]:
+  [SupportedTokenDetectionNetworks.Optimism]:
     '0xB1c568e9C3E6bdaf755A60c7418C269eb11524FC',
-  [SupportedTokenDetectionNetworks.base]:
+  [SupportedTokenDetectionNetworks.Base]:
     '0x6AA75276052D96696134252587894ef5FFA520af',
-  [SupportedTokenDetectionNetworks.zksync]:
+  [SupportedTokenDetectionNetworks.Zksync]:
     '0x458fEd3144680a5b8bcfaa0F9594aa19B4Ea2D34',
-  [SupportedTokenDetectionNetworks.cronos]:
+  [SupportedTokenDetectionNetworks.Cronos]:
     '0x768ca200f0fc702ac9ea502498c18f5eff176378',
-  [SupportedTokenDetectionNetworks.celo]:
+  [SupportedTokenDetectionNetworks.Celo]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.gnosis]:
+  [SupportedTokenDetectionNetworks.Gnosis]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.fantom]:
+  [SupportedTokenDetectionNetworks.Fantom]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.polygon_zkevm]:
+  [SupportedTokenDetectionNetworks.PolygonZkevm]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.moonbeam]:
+  [SupportedTokenDetectionNetworks.Moonbeam]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-  [SupportedTokenDetectionNetworks.moonriver]:
+  [SupportedTokenDetectionNetworks.Moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
 } as const satisfies Record<Hex, string>;
 
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
-  [SupportedStakedBalanceNetworks.mainnet]:
+  [SupportedStakedBalanceNetworks.Mainnet]:
     '0x4fef9d741011476750a243ac70b9789a63dd47df',
-  [SupportedStakedBalanceNetworks.hoodi]:
+  [SupportedStakedBalanceNetworks.Hoodi]:
     '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
 } as Record<Hex, string>;
 
@@ -101,83 +101,10 @@ export type BalanceMap = {
 const name = 'AssetsContractController';
 
 /**
- * A utility type that derives the public method names of a given messenger consumer class,
- * and uses it to generate the class's internal messenger action types.
- *
- * @template Controller - A messenger consumer class.
- */
-// TODO: Figure out generic constraint and move to base-controller
-type ControllerActionsMap<Controller> = {
-  [ClassMethod in keyof Controller as Controller[ClassMethod] extends ActionConstraint['handler']
-    ? ClassMethod
-    : never]: {
-    type: `${typeof name}:${ClassMethod & string}`;
-    handler: Controller[ClassMethod];
-  };
-};
-
-type AssetsContractControllerActionsMap =
-  ControllerActionsMap<AssetsContractController>;
-
-/**
- * The union of all public class method names of {@link AssetsContractController}.
- */
-type AssetsContractControllerMethodName =
-  keyof AssetsContractControllerActionsMap;
-
-/**
  * The union of all internal messenger actions available to the {@link AssetsContractControllerMessenger}.
  */
 export type AssetsContractControllerActions =
-  AssetsContractControllerActionsMap[AssetsContractControllerMethodName];
-
-export type AssetsContractControllerGetERC20StandardAction =
-  AssetsContractControllerActionsMap['getERC20Standard'];
-
-export type AssetsContractControllerGetERC721StandardAction =
-  AssetsContractControllerActionsMap['getERC721Standard'];
-
-export type AssetsContractControllerGetERC1155StandardAction =
-  AssetsContractControllerActionsMap['getERC1155Standard'];
-
-export type AssetsContractControllerGetERC20BalanceOfAction =
-  AssetsContractControllerActionsMap['getERC20BalanceOf'];
-
-export type AssetsContractControllerGetERC20TokenDecimalsAction =
-  AssetsContractControllerActionsMap['getERC20TokenDecimals'];
-
-export type AssetsContractControllerGetERC20TokenNameAction =
-  AssetsContractControllerActionsMap['getERC20TokenName'];
-
-export type AssetsContractControllerGetERC721NftTokenIdAction =
-  AssetsContractControllerActionsMap['getERC721NftTokenId'];
-
-export type AssetsContractControllerGetERC721TokenURIAction =
-  AssetsContractControllerActionsMap['getERC721TokenURI'];
-
-export type AssetsContractControllerGetERC721AssetNameAction =
-  AssetsContractControllerActionsMap['getERC721AssetName'];
-
-export type AssetsContractControllerGetERC721AssetSymbolAction =
-  AssetsContractControllerActionsMap['getERC721AssetSymbol'];
-
-export type AssetsContractControllerGetERC721OwnerOfAction =
-  AssetsContractControllerActionsMap['getERC721OwnerOf'];
-
-export type AssetsContractControllerGetERC1155TokenURIAction =
-  AssetsContractControllerActionsMap['getERC1155TokenURI'];
-
-export type AssetsContractControllerGetERC1155BalanceOfAction =
-  AssetsContractControllerActionsMap['getERC1155BalanceOf'];
-
-export type AssetsContractControllerTransferSingleERC1155Action =
-  AssetsContractControllerActionsMap['transferSingleERC1155'];
-
-export type AssetsContractControllerGetTokenStandardAndDetailsAction =
-  AssetsContractControllerActionsMap['getTokenStandardAndDetails'];
-
-export type AssetsContractControllerGetBalancesInSingleCallAction =
-  AssetsContractControllerActionsMap['getBalancesInSingleCall'];
+  AssetsContractControllerMethodActions;
 
 /**
  * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
@@ -210,6 +137,26 @@ export type AssetsContractControllerMessenger = Messenger<
 >;
 
 export type StakedBalance = string | undefined;
+
+const MESSENGER_EXPOSED_METHODS = [
+  'getERC20Standard',
+  'getERC721Standard',
+  'getERC1155Standard',
+  'getERC20BalanceOf',
+  'getERC20TokenDecimals',
+  'getERC20TokenName',
+  'getERC721NftTokenId',
+  'getERC721TokenURI',
+  'getERC721AssetName',
+  'getERC721AssetSymbol',
+  'getERC721OwnerOf',
+  'getERC1155TokenURI',
+  'getERC1155BalanceOf',
+  'transferSingleERC1155',
+  'getTokenStandardAndDetails',
+  'getBalancesInSingleCall',
+  'getStakedBalanceForChain',
+] as const;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
@@ -244,37 +191,8 @@ export class AssetsContractController {
     this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
     this.#chainId = initialChainId;
 
-    this.#registerActionHandlers();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
     this.#registerEventSubscriptions();
-  }
-
-  // TODO: Expand into base-controller utility function that batch registers action handlers.
-  #registerActionHandlers() {
-    const methodsExcludedFromMessenger = [
-      'constructor',
-      'messenger',
-      'setProvider',
-      'provider',
-      'ipfsGateway',
-      'chainId',
-    ];
-
-    getKnownPropertyNames<keyof this>(Object.getPrototypeOf(this)).forEach(
-      (method) => {
-        if (
-          ((key: keyof this): key is AssetsContractControllerMethodName =>
-            !methodsExcludedFromMessenger.find((e) => e === key) &&
-            typeof this[key] === 'function')(method)
-        ) {
-          this.messenger.registerActionHandler(
-            `${name}:${method}`,
-            // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
-            // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
-            this[method].bind(this),
-          );
-        }
-      },
-    );
   }
 
   #registerEventSubscriptions() {
@@ -728,8 +646,8 @@ export class AssetsContractController {
     // Only fetch staked balance on supported networks
     if (
       ![
-        SupportedStakedBalanceNetworks.mainnet,
-        SupportedStakedBalanceNetworks.hoodi,
+        SupportedStakedBalanceNetworks.Mainnet,
+        SupportedStakedBalanceNetworks.Hoodi,
       ].includes(chainId as SupportedStakedBalanceNetworks)
     ) {
       return {};

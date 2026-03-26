@@ -1,10 +1,14 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { AddressZero } from '@ethersproject/constants';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
-import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
+import type {
+  GasFeeEstimates,
+  GasFeeEstimatesByChainId,
+} from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -31,6 +35,7 @@ import {
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
+  formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
@@ -65,8 +70,27 @@ type RemoteFeatureFlagControllerState = {
     bridgeConfig: unknown;
   };
 };
+
+/**
+ * Minimal shape required for exchange-rate lookups (used by getExchangeRateByChainIdAndAddress).
+ * Uses types from assets-controllers; marketData and conversionRates also accept the bridge format.
+ */
+export type ExchangeRateSourcesForLookup = Pick<
+  BridgeControllerState,
+  'assetExchangeRates'
+> &
+  Partial<Pick<CurrencyRateState, 'currencyRates'>> &
+  Partial<Pick<MultichainAssetsRatesControllerState, 'historicalPrices'>> & {
+    marketData?:
+      | TokenRatesControllerState['marketData']
+      | Record<string, Record<string, { price?: number; currency?: string }>>;
+    conversionRates?:
+      | MultichainAssetsRatesControllerState['conversionRates']
+      | Record<string, { rate: string }>;
+  };
+
 export type BridgeAppState = BridgeControllerState & {
-  gasFeeEstimates: GasFeeEstimates;
+  gasFeeEstimatesByChainId: GasFeeEstimatesByChainId;
 } & ExchangeRateControllerState & {
     participateInMetaMetrics: boolean;
   } & RemoteFeatureFlagControllerState;
@@ -117,14 +141,14 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
 );
 
 const getExchangeRateByChainIdAndAddress = (
-  exchangeRateSources: ExchangeRateControllerState,
+  exchangeRateSources: ExchangeRateSourcesForLookup,
   chainId?: GenericQuoteRequest['srcChainId'],
-  address?: GenericQuoteRequest['srcTokenAddress'],
+  rawAddress?: GenericQuoteRequest['srcTokenAddress'],
 ): ExchangeRate => {
-  if (!chainId || !address) {
+  if (!chainId) {
     return {};
   }
-  // TODO return usd exchange rate if user has opted into metrics
+  const address = formatAddressToCaipReference(rawAddress ?? '');
   const assetId = formatAddressToAssetId(address, chainId);
   if (!assetId) {
     return {};
@@ -136,18 +160,46 @@ const getExchangeRateByChainIdAndAddress = (
   // If the asset exchange rate is available in the bridge controller, use it
   // This is defined if the token's rate is not available from the assets controllers
   const bridgeControllerRate =
-    assetExchangeRates?.[assetId] ??
-    assetExchangeRates?.[assetId.toLowerCase() as CaipAssetType];
-  if (bridgeControllerRate?.exchangeRate) {
+    assetExchangeRates?.[assetId.toLowerCase() as CaipAssetType] ??
+    assetExchangeRates?.[assetId];
+  if (
+    bridgeControllerRate?.exchangeRate &&
+    bridgeControllerRate?.usdExchangeRate
+  ) {
     return bridgeControllerRate;
   }
   // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
   if (isNonEvmChainId(chainId)) {
-    const multichainAssetExchangeRate = conversionRates?.[assetId];
-    if (multichainAssetExchangeRate) {
+    const conversionRatesByKey = conversionRates as
+      | Record<string, { rate?: string }>
+      | undefined;
+    const multichainAssetExchangeRate = conversionRatesByKey?.[assetId];
+    const rate = multichainAssetExchangeRate?.rate;
+    if (rate) {
+      // The multichain rate is denominated in the user's selected currency.
+      // To get a USD rate, find the user's-currency-to-USD conversion factor from any EVM native currency rate.
+      const nativeCurrencyRate = Object.values(currencyRates ?? {}).find(
+        (rateEntry) =>
+          rateEntry?.conversionRate !== undefined &&
+          rateEntry?.conversionRate !== null &&
+          rateEntry?.usdConversionRate !== undefined &&
+          rateEntry?.usdConversionRate !== null,
+      );
+      const usersCurrencyToUsdRate =
+        nativeCurrencyRate?.conversionRate !== undefined &&
+        nativeCurrencyRate?.conversionRate !== null &&
+        nativeCurrencyRate?.usdConversionRate !== undefined &&
+        nativeCurrencyRate?.usdConversionRate !== null
+          ? new BigNumber(nativeCurrencyRate.usdConversionRate).div(
+              nativeCurrencyRate.conversionRate,
+            )
+          : undefined;
+      const usdExchangeRate = usersCurrencyToUsdRate
+        ? new BigNumber(rate).times(usersCurrencyToUsdRate).toString()
+        : undefined;
       return {
-        exchangeRate: multichainAssetExchangeRate.rate,
-        usdExchangeRate: undefined,
+        exchangeRate: rate,
+        usdExchangeRate,
       };
     }
     return {};
@@ -158,27 +210,35 @@ const getExchangeRateByChainIdAndAddress = (
     const evmNativeExchangeRate = currencyRates?.[symbol];
     if (evmNativeExchangeRate) {
       return {
-        exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
-        usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
+        exchangeRate: evmNativeExchangeRate.conversionRate?.toString(),
+        usdExchangeRate: evmNativeExchangeRate.usdConversionRate?.toString(),
       };
     }
     return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
-    const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const marketDataByChain =
+      (marketData as
+        | Record<string, Record<string, { price?: number; currency?: string }>>
+        | undefined) ?? {};
+    const evmTokenExchangeRates =
+      marketDataByChain[formatChainIdToHex(chainId)];
     const evmTokenExchangeRateForAddress = isStrictHexString(address)
       ? evmTokenExchangeRates?.[address]
       : null;
-    const nativeCurrencyRate = evmTokenExchangeRateForAddress
-      ? currencyRates[evmTokenExchangeRateForAddress?.currency]
-      : undefined;
+    const currencyKey = evmTokenExchangeRateForAddress?.currency;
+    const nativeCurrencyRate =
+      currencyKey !== undefined && currencyKey !== null
+        ? currencyRates?.[currencyKey]
+        : undefined;
+    const price = evmTokenExchangeRateForAddress?.price ?? 0;
     if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
       return {
-        exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        exchangeRate: new BigNumber(price)
           .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
           .toString(),
-        usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        usdExchangeRate: new BigNumber(price)
           .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
           .toString(),
       };
@@ -220,16 +280,39 @@ export const selectIsAssetExchangeRateInState = (
  * Selects the gas fee estimates from the gas fee controller. All potential networks
  * support EIP1559 gas fees so assume that gasFeeEstimates is of type GasFeeEstimates
  *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @param state.gasFeeEstimatesByChainId - gasEstimates by Hex ChainId
+ * @param state.quotes - Fetched bridge/swap quotes
  * @returns The gas fee estimates in decGWEI
  */
-const selectBridgeFeesPerGas = createStructuredBridgeSelector({
-  estimatedBaseFeeInDecGwei: ({ gasFeeEstimates }) =>
-    gasFeeEstimates?.estimatedBaseFee,
-  feePerGasInDecGwei: ({ gasFeeEstimates }) =>
-    gasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE]?.suggestedMaxFeePerGas,
-  maxFeePerGasInDecGwei: ({ gasFeeEstimates }) =>
-    gasFeeEstimates?.high?.suggestedMaxFeePerGas,
-});
+const selectBridgeFeesPerGas = createBridgeSelector(
+  [
+    (state) => state.gasFeeEstimatesByChainId,
+    (state) => state.quotes?.[0]?.quote.srcChainId,
+  ],
+  (gasFeeEstimatesByChainId, srcChainId) => {
+    if (!srcChainId) {
+      return null;
+    }
+    if (isNonEvmChainId(srcChainId)) {
+      return null;
+    }
+    // @ts-expect-error - all supported networks use this type of estimates
+    const gasFeeEstimates: GasFeeEstimates | undefined =
+      gasFeeEstimatesByChainId?.[
+        formatChainIdToHex(srcChainId) as keyof typeof gasFeeEstimatesByChainId
+      ]?.gasFeeEstimates;
+    if (!gasFeeEstimates) {
+      return null;
+    }
+    return {
+      estimatedBaseFeeInDecGwei: gasFeeEstimates.estimatedBaseFee,
+      feePerGasInDecGwei:
+        gasFeeEstimates[BRIDGE_PREFERRED_GAS_ESTIMATE]?.suggestedMaxFeePerGas,
+      maxFeePerGasInDecGwei: gasFeeEstimates.high?.suggestedMaxFeePerGas,
+    };
+  },
+);
 
 // Selects cross-chain swap quotes including their metadata
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
@@ -289,19 +372,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         relayerFee,
         gasFee: QuoteMetadata['gasFee'];
 
-      if (!isEvmQuoteResponse(quote)) {
-        // Use the new generic function for all non-EVM chains
-        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
-          quote,
-          nativeExchangeRate,
-        );
-        gasFee = {
-          effective: totalEstimatedNetworkFee,
-          total: totalEstimatedNetworkFee,
-          max: totalEstimatedNetworkFee,
-        };
-        totalMaxNetworkFee = totalEstimatedNetworkFee;
-      } else {
+      if (isEvmQuoteResponse(quote)) {
         relayerFee = calcRelayerFee(quote, nativeExchangeRate);
         gasFee = calcEstimatedAndMaxTotalGasFee({
           bridgeQuote: quote,
@@ -314,6 +385,18 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
           relayerFee,
         );
         totalMaxNetworkFee = calcTotalMaxNetworkFee(gasFee, relayerFee);
+      } else {
+        // Use the new generic function for all non-EVM chains
+        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
+          quote,
+          nativeExchangeRate,
+        );
+        gasFee = {
+          effective: totalEstimatedNetworkFee,
+          total: totalEstimatedNetworkFee,
+          max: totalEstimatedNetworkFee,
+        };
+        totalMaxNetworkFee = totalEstimatedNetworkFee;
       }
 
       const adjustedReturn = calcAdjustedReturn(
@@ -331,15 +414,15 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         minToTokenAmount,
         swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
         /**
-        This is the amount required to submit the transactions
-        Includes the relayer fee or other native fees
+        This is the amount required to submit all the transactions.
+        Includes the relayer fee or other native fees.
         Should be used for balance checks and tx submission.
          */
         totalNetworkFee: totalEstimatedNetworkFee,
         totalMaxNetworkFee,
         /**
         This contains gas fee estimates for the bridge transaction
-        Does not include the relayer fee (if needed), just the gasLimit and effectiveGas returned by the bridge API
+        Does not include the relayer fee (if needed), just the gasLimit and effectiveGas returned by the bridge API.
         Should only be used for display purposes.
          */
         gasFee,
@@ -367,11 +450,28 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
+        if (quotesWithMetadata.every((quote) => quote.cost.valueInCurrency)) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ cost }) => Number(cost.valueInCurrency),
+            'asc',
+          );
+        }
+        if (
+          quotesWithMetadata.every(
+            (quote) => quote.quote.priceData?.priceImpact,
+          )
+        ) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ quote }) => Number(quote.priceData?.priceImpact),
+            'asc',
+          );
+        }
         return orderBy(
           quotesWithMetadata,
-          ({ cost }) =>
-            cost.valueInCurrency ? Number(cost.valueInCurrency) : 0,
-          'asc',
+          ({ quote }) => Number(quote.destTokenAmount),
+          'desc',
         );
     }
   },
@@ -385,9 +485,13 @@ const selectRecommendedQuote = createBridgeSelector(
 const selectActiveQuote = createBridgeSelector(
   [
     selectRecommendedQuote,
-    (_, { selectedQuote }: BridgeQuotesClientParams) => selectedQuote,
+    selectSortedBridgeQuotes,
+    (_, { selectedQuote }) => selectedQuote,
   ],
-  (recommendedQuote, selectedQuote) => selectedQuote ?? recommendedQuote,
+  (recommendedQuote, sortedQuotes, selectedQuote) =>
+    sortedQuotes.find(
+      (quote) => quote.quote.requestId === selectedQuote?.quote.requestId,
+    ) ?? recommendedQuote,
 );
 
 const selectIsQuoteGoingToRefresh = createBridgeSelector(
@@ -413,7 +517,7 @@ export const selectIsQuoteExpired = createBridgeSelector(
     selectIsQuoteGoingToRefresh,
     ({ quotesLastFetched }) => quotesLastFetched,
     selectQuoteRefreshRate,
-    (_, __, currentTimeInMs: number) => currentTimeInMs,
+    (_, _ignoredParam, currentTimeInMs: number) => currentTimeInMs,
   ],
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
@@ -460,6 +564,9 @@ export const selectMinimumBalanceForRentExemptionInSOL = (
   new BigNumber(state.minimumBalanceForRentExemptionInLamports ?? 0)
     .div(10 ** 9)
     .toString();
+
+export const selectTokenWarnings = (state: BridgeAppState) =>
+  state.tokenWarnings;
 
 export const selectDefaultSlippagePercentage = createBridgeSelector(
   [

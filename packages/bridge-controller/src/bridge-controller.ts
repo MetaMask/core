@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
@@ -20,7 +21,10 @@ import {
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
-import { selectIsAssetExchangeRateInState } from './selectors';
+import {
+  ExchangeRateSourcesForLookup,
+  selectIsAssetExchangeRateInState,
+} from './selectors';
 import { RequestStatus } from './types';
 import type {
   L1GasFees,
@@ -57,6 +61,7 @@ import {
 } from './utils/fetch';
 import {
   AbortReason,
+  MetaMetricsSwapsEventSource,
   MetricsActionType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -135,6 +140,12 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  tokenWarnings: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -165,6 +176,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #quotesFirstFetched: number | undefined;
 
+  /**
+   * Stores the location/entry point from which the user initiated the swap or bridge flow.
+   * Set via setLocation() before navigating to the swap/bridge flow.
+   * Used as default for all subsequent internal events.
+   */
+  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView;
+
   readonly #clientId: BridgeClientId;
 
   readonly #clientVersion: string;
@@ -174,11 +192,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchFn: FetchFunction;
 
   readonly #trackMetaMetricsFn: <
-    T extends
+    EventName extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(
-    eventName: T,
-    properties: CrossChainSwapsEventProperties<T>,
+    eventName: EventName,
+    properties: CrossChainSwapsEventProperties<EventName>,
   ) => void;
 
   readonly #trace: TraceCallback;
@@ -186,6 +204,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #config: {
     customBridgeApiBaseUrl?: string;
   };
+
+  /**
+   * Returns whether to use AssetsController for exchange rates.
+   * Set via constructor option getUseAssetsControllerForRates; defaults to false.
+   *
+   * @returns True when exchange rates should be read from AssetsController:getExchangeRatesForBridge.
+   */
+  readonly #getUseAssetsControllerForRates: () => boolean;
 
   constructor({
     messenger,
@@ -197,6 +223,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config,
     trackMetaMetricsFn,
     traceFn,
+    getUseAssetsControllerForRates,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -208,13 +235,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       customBridgeApiBaseUrl?: string;
     };
     trackMetaMetricsFn: <
-      T extends
+      EventName extends
         (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
     >(
-      eventName: T,
-      properties: CrossChainSwapsEventProperties<T>,
+      eventName: EventName,
+      properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
     traceFn?: TraceCallback;
+    /**
+     * When provided, called to determine whether to use AssetsController for exchange rates.
+     * When true, rates are read from AssetsController:getExchangeRatesForBridge instead of
+     * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
+     */
+    getUseAssetsControllerForRates?: () => boolean;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -236,6 +269,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#getUseAssetsControllerForRates =
+      getUseAssetsControllerForRates ?? (() => false);
 
     // Register action handlers
     this.messenger.registerActionHandler(
@@ -283,10 +318,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
     });
-
-    await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
-      console.warn('Failed to fetch asset exchange rates', error),
-    );
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
@@ -346,6 +377,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     featureId: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
+    const jwt = await this.#getJwt();
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
@@ -359,13 +391,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : { ...quoteRequest, resetApproval },
       abortSignal,
       this.#clientId,
+      jwt,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       featureId,
       this.#clientVersion,
     );
 
-    this.#trackResponseValidationFailures(validationFailures);
+    this.#trackQuoteValidationFailures(validationFailures);
 
     const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
@@ -377,9 +410,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
-  readonly #trackResponseValidationFailures = (
-    validationFailures: string[],
-  ) => {
+  readonly #trackQuoteValidationFailures = (validationFailures: string[]) => {
     if (validationFailures.length === 0) {
       return;
     }
@@ -387,11 +418,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       UnifiedSwapBridgeEventName.QuotesValidationFailed,
       {
         failures: validationFailures,
+        location: this.#location,
       },
     );
   };
 
-  readonly #getExchangeRateSources = () => {
+  readonly #getExchangeRateSources = (): ExchangeRateSourcesForLookup => {
+    if (this.#getUseAssetsControllerForRates()) {
+      return {
+        ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
+        historicalPrices: {},
+        ...this.state,
+      };
+    }
     return {
       ...this.messenger.call('MultichainAssetsRatesController:getState'),
       ...this.messenger.call('CurrencyRateController:getState'),
@@ -445,9 +484,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
-    const currency = this.messenger.call(
-      'CurrencyRateController:getState',
-    ).currentCurrency;
+    const currency = this.#getUseAssetsControllerForRates()
+      ? this.messenger.call('AssetsController:getExchangeRatesForBridge')
+          .currentCurrency
+      : this.messenger.call('CurrencyRateController:getState').currentCurrency;
 
     if (assetIds.size === 0) {
       return;
@@ -543,6 +583,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController?.abort(reason);
   };
 
+  /**
+   * Sets the location/entry point for the current swap or bridge flow.
+   * Call this when the user enters the flow so that all internally-fired
+   * events (InputChanged, QuotesRequested, etc.) carry the correct location.
+   *
+   * @param location - The entry point from which the user initiated the flow
+   */
+  setLocation = (location: MetaMetricsSwapsEventSource) => {
+    this.#location = location;
+  };
+
   resetState = (reason = AbortReason.ResetState) => {
     this.stopPollingForQuotes(reason);
     this.update((state) => {
@@ -562,6 +613,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
     });
   };
 
@@ -587,6 +639,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController?.abort(AbortReason.NewQuoteRequest);
     this.#abortController = new AbortController();
 
+    this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
+      console.warn('Failed to fetch asset exchange rates', error),
+    );
+
     this.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesRequested,
       context,
@@ -600,9 +656,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
+
+    const jwt = await this.#getJwt();
 
     try {
       await this.#trace(
@@ -632,6 +691,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           if (shouldStream) {
             await this.#handleQuoteStreaming(
               updatedQuoteRequest,
+              jwt,
               selectedAccount,
             );
             return;
@@ -718,6 +778,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #handleQuoteStreaming = async (
     updatedQuoteRequest: GenericQuoteRequest,
+    jwt?: string,
     selectedAccount?: InternalAccount,
   ) => {
     /**
@@ -736,9 +797,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       updatedQuoteRequest,
       this.#abortController?.signal,
       this.#clientId,
+      jwt,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: this.#trackResponseValidationFailures,
+        onQuoteValidationFailure: this.#trackQuoteValidationFailures,
         onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
@@ -780,6 +842,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Await the promise to ensure errors are caught and handled before continuing
           // The promise is also tracked in pendingFeeAppendPromises for onClose to wait for
           await feeAppendPromise;
+        },
+        onTokenWarning: (warning) => {
+          this.update((state) => {
+            const isDuplicate = state.tokenWarnings.some(
+              (existing) => existing.feature_id === warning.feature_id,
+            );
+            if (!isDuplicate) {
+              state.tokenWarnings = [...state.tokenWarnings, warning];
+            }
+          });
         },
         onClose: async () => {
           // Wait for all pending appendFeesToQuotes operations to complete
@@ -843,6 +915,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return networkClient;
   }
 
+  readonly #getJwt = async (): Promise<string | undefined> => {
+    try {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      return token;
+    } catch (error) {
+      console.error('Error getting JWT token for bridge-api request', error);
+      return undefined;
+    }
+  };
+
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
     | 'stx_enabled'
@@ -874,14 +958,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #getEventProperties = <
-    T extends
+    EventName extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(
-    eventName: T,
-    propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
-  ): CrossChainSwapsEventProperties<T> => {
+    eventName: EventName,
+    propertiesFromClient: Pick<
+      RequiredEventContextFromClient,
+      EventName
+    >[EventName],
+  ): CrossChainSwapsEventProperties<EventName> => {
+    const clientProps = propertiesFromClient as Record<string, unknown>;
     const baseProperties = {
       ...propertiesFromClient,
+      location: clientProps?.location ?? this.#location,
       action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
     switch (eventName) {
@@ -952,6 +1041,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         };
       }
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
+      case UnifiedSwapBridgeEventName.AssetPickerOpened:
         return baseProperties;
       // These events may be published after the bridge-controller state is reset
       // So the BridgeStatusController populates all the properties
@@ -983,6 +1073,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           {
             input: inputKey,
             input_value: inputValue,
+            location: this.#location,
           },
         );
       }
@@ -1000,14 +1091,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * });
    */
   trackUnifiedSwapBridgeEvent = <
-    T extends
+    EventName extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(
-    eventName: T,
-    propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
+    eventName: EventName,
+    propertiesFromClient: Pick<
+      RequiredEventContextFromClient,
+      EventName
+    >[EventName],
   ) => {
     try {
-      const combinedPropertiesForEvent = this.#getEventProperties<T>(
+      const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
         eventName,
         propertiesFromClient,
       );

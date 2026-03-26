@@ -1,7 +1,8 @@
+export { DetectionMiddleware } from './DetectionMiddleware';
 export {
-  DetectionMiddleware,
-  type DetectionMiddlewareOptions,
-  type DetectionMiddlewareMessenger,
-  type DetectionMiddlewareActions,
-  type DetectionMiddlewareGetAssetsMiddlewareAction,
-} from './DetectionMiddleware';
+  createParallelBalanceMiddleware,
+  createParallelMiddleware,
+  mergeDataResponses,
+} from './ParallelMiddleware';
+export type { BalanceSource } from './ParallelMiddleware';
+export type { AssetsDataSource } from '../types';

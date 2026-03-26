@@ -3,6 +3,9 @@ export { BridgeController } from './bridge-controller';
 export {
   UnifiedSwapBridgeEventName,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  InputAmountPreset,
+  MetaMetricsSwapsEventSource,
+  PollingStatus,
 } from './utils/metrics/constants';
 
 export type {
@@ -65,6 +68,7 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
+  type TokenFeature,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
 } from './types';
@@ -74,6 +78,7 @@ export {
   ActionTypes,
   BridgeAssetSchema,
   FeatureId,
+  TokenFeatureType,
 } from './utils/validators';
 
 export {
@@ -119,6 +124,7 @@ export {
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
+  isTronChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
@@ -158,6 +164,7 @@ export {
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
+  selectTokenWarnings,
 } from './selectors';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';

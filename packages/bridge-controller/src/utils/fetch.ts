@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
@@ -9,25 +10,42 @@ import {
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
 import type { FeatureId } from './validators';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
+import {
+  validateQuoteResponse,
+  validateSwapsTokenObject,
+  validateTokenFeature,
+} from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  TokenFeature,
 } from '../types';
 
-export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
+export const getClientHeaders = ({
+  clientId,
+  clientVersion,
+  jwt,
+}: {
+  clientId: string;
+  clientVersion?: string;
+  jwt?: string;
+}) => ({
   'X-Client-Id': clientId,
+  ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
   ...(clientVersion ? { 'Client-Version': clientVersion } : {}),
 });
 
 /**
  * Returns a list of enabled (unblocked) tokens
  *
+ * @deprecated Use the popular and search bridge-api endpoints instead
+ *
  * @param chainId - The chain ID to fetch tokens for
  * @param clientId - The client ID for metrics
+ * @param jwt - The JWT token for authentication
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param clientVersion - The client version for metrics (optional)
@@ -36,18 +54,18 @@ export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
 export async function fetchBridgeTokens(
   chainId: Hex | CaipChainId,
   clientId: string,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   clientVersion?: string,
 ): Promise<Record<string, BridgeAsset>> {
-  // TODO make token api v2 call
   const url = `${bridgeApiBaseUrl}/getTokens?chainId=${formatChainIdToDec(chainId)}`;
 
   // TODO we will need to cache these. In Extension fetchWithCache is used. This is due to the following:
   // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await fetchFn(url, {
-    headers: getClientHeaders(clientId, clientVersion),
+    headers: getClientHeaders({ clientId, clientVersion, jwt }),
   });
 
   const transformedTokens: Record<string, BridgeAsset> = {};
@@ -107,6 +125,7 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
  * @param request - The quote request
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
+ * @param jwt - The JWT token for authentication
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param featureId - The feature ID to append to each quote
@@ -117,6 +136,7 @@ export async function fetchBridgeQuotes(
   request: GenericQuoteRequest,
   signal: AbortSignal | null,
   clientId: string,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   featureId: FeatureId | null,
@@ -129,7 +149,7 @@ export async function fetchBridgeQuotes(
 
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {
-    headers: getClientHeaders(clientId, clientVersion),
+    headers: getClientHeaders({ clientId, clientVersion, jwt }),
     signal,
   });
 
@@ -142,10 +162,10 @@ export async function fetchBridgeQuotes(
         if (error instanceof StructError) {
           error.failures().forEach(({ branch, path }) => {
             const aggregatorId =
-              branch?.[0]?.quote?.bridgeId ||
-              branch?.[0]?.quote?.bridges?.[0] ||
-              (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
-              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+              branch?.[0]?.quote?.bridgeId ??
+              branch?.[0]?.quote?.bridges?.[0] ??
+              (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
+              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ??
               'unknown';
             const pathString = path?.join('.') || 'unknown';
             uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
@@ -200,7 +220,7 @@ const fetchAssetPricesForCurrency = async (request: {
   });
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
   const priceApiResponse = (await fetchFn(url, {
-    headers: getClientHeaders(clientId, clientVersion),
+    headers: getClientHeaders({ clientId, clientVersion }),
     signal,
   })) as Record<CaipAssetType, { [currency: string]: number }>;
   if (!priceApiResponse || typeof priceApiResponse !== 'object') {
@@ -274,10 +294,12 @@ export const fetchAssetPrices = async (
  * @param request - The quote request
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
+ * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param serverEventHandlers - The server event handlers
- * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
+ * @param serverEventHandlers.onQuoteValidationFailure - The function to handle quote validation failures
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onTokenWarning - The function to handle token warning events
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quote promises
@@ -287,17 +309,19 @@ export async function fetchBridgeQuoteStream(
   request: GenericQuoteRequest,
   signal: AbortSignal | undefined,
   clientId: string,
+  jwt: string | undefined,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
-    onValidationFailure: (validationFailures: string[]) => void;
+    onQuoteValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+    onTokenWarning: (warning: TokenFeature) => void;
   },
   clientVersion?: string,
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
-  const onMessage = async (quoteResponse: unknown): Promise<void> => {
+  const onQuoteReceived = async (quoteResponse: unknown): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
@@ -320,11 +344,11 @@ export async function fetchBridgeQuoteStream(
       if (error instanceof StructError) {
         error.failures().forEach(({ branch, path }) => {
           const aggregatorId =
-            branch?.[0]?.quote?.bridgeId ||
-            branch?.[0]?.quote?.bridges?.[0] ||
-            (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
-            (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
-            'unknown';
+            branch?.[0]?.quote?.bridgeId ??
+            branch?.[0]?.quote?.bridges?.[0] ??
+            (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
+            ((quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+              ('unknown' as string));
           const pathString = path?.join('.') || 'unknown';
           uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
         });
@@ -332,7 +356,7 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        return serverEventHandlers.onValidationFailure(validationFailures);
+        return serverEventHandlers.onQuoteValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors
       throw error;
@@ -340,17 +364,41 @@ export async function fetchBridgeQuoteStream(
     return undefined;
   };
 
+  const onTokenWarningReceived = (data: unknown): void => {
+    try {
+      if (validateTokenFeature(data)) {
+        serverEventHandlers.onTokenWarning(data);
+      }
+    } catch (error) {
+      console.warn('Token warning validation failed', error);
+    }
+  };
+
+  const onMessage = async (
+    data: Record<string, unknown>,
+    eventName?: string,
+  ): Promise<void> => {
+    switch (eventName) {
+      case 'quote':
+        return await onQuoteReceived(data);
+      case 'token_warning':
+        return onTokenWarningReceived(data);
+      default:
+        return undefined;
+    }
+  };
+
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
   await fetchServerEvents(urlStream, {
     headers: {
-      ...getClientHeaders(clientId, clientVersion),
+      ...getClientHeaders({ clientId, clientVersion, jwt }),
       'Content-Type': 'text/event-stream',
     },
     signal,
     onMessage,
-    onError: (e) => {
+    onError: (error) => {
       // Rethrow error to prevent silent fetch failures
-      throw e;
+      throw error;
     },
     onClose: async () => {
       await serverEventHandlers.onClose();

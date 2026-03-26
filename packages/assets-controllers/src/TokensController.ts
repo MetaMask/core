@@ -6,7 +6,7 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -51,12 +51,14 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
+  TokenRwaData,
 } from './token-service';
 import type {
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
 /**
  * @type SuggestedAssetMeta
@@ -130,31 +132,20 @@ const metadata: StateMetadata<TokensControllerState> = {
 
 const controllerName = 'TokensController';
 
-export type TokensControllerActions =
-  | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction
-  | TokensControllerAddTokensAction;
-
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensControllerState
 >;
 
-export type TokensControllerAddDetectedTokensAction = {
-  type: `${typeof controllerName}:addDetectedTokens`;
-  handler: TokensController['addDetectedTokens'];
-};
-
-export type TokensControllerAddTokensAction = {
-  type: `${typeof controllerName}:addTokens`;
-  handler: TokensController['addTokens'];
-};
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerMethodActions;
 
 /**
  * The external actions available to the {@link TokensController}.
  */
 export type AllowedActions =
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -190,6 +181,17 @@ export const getDefaultTokensState = (): TokensControllerState => {
     allDetectedTokens: {},
   };
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addDetectedTokens',
+  'addTokens',
+  'addToken',
+  'ignoreTokens',
+  'updateTokenType',
+  'watchAsset',
+  'clearIgnoredTokens',
+  'resetState',
+] as const;
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -242,15 +244,7 @@ export class TokensController extends BaseController<
 
     this.#abortController = new AbortController();
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokens` as const,
-      this.addDetectedTokens.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addTokens` as const,
-      this.addTokens.bind(this),
-    );
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
@@ -284,9 +278,12 @@ export class TokensController extends BaseController<
               const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
 
               for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address];
+                const cachedToken = chainData[token.address.toLowerCase()];
                 if (cachedToken && cachedToken.name && !token.name) {
                   token.name = cachedToken.name; // Update the token name
+                }
+                if (cachedToken?.rwaData) {
+                  token.rwaData = cachedToken.rwaData; // Update the token RWA data
                 }
               }
             }
@@ -416,6 +413,7 @@ export class TokensController extends BaseController<
    * @param options.image - Image of the token.
    * @param options.interactingAddress - The address of the account to add a token to.
    * @param options.networkClientId - Network Client ID.
+   * @param options.rwaData - Optional RWA data for the token.
    * @returns Current token list.
    */
   async addToken({
@@ -426,6 +424,7 @@ export class TokensController extends BaseController<
     image,
     interactingAddress,
     networkClientId,
+    rwaData,
   }: {
     address: string;
     symbol: string;
@@ -434,6 +433,7 @@ export class TokensController extends BaseController<
     image?: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    rwaData?: TokenRwaData;
   }): Promise<Token[]> {
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -473,7 +473,7 @@ export class TokensController extends BaseController<
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
         name,
-        ...(tokenMetadata?.rwaData && { rwaData: tokenMetadata.rwaData }),
+        ...(rwaData !== undefined && { rwaData }),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -761,7 +761,7 @@ export class TokensController extends BaseController<
   async updateTokenType(
     tokenAddress: string,
     networkClientId: NetworkClientId,
-  ) {
+  ): Promise<Token> {
     const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -986,7 +986,7 @@ export class TokensController extends BaseController<
 
     await this.#requestApproval(suggestedAssetMeta);
 
-    const { address, symbol, decimals, name, image } = asset;
+    const { address, symbol, decimals, name, image, rwaData } = asset;
     await this.addToken({
       address,
       symbol,
@@ -995,6 +995,7 @@ export class TokensController extends BaseController<
       image,
       interactingAddress: suggestedAssetMeta.interactingAddress,
       networkClientId,
+      rwaData,
     });
   }
 

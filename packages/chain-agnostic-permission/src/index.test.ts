@@ -3,7 +3,7 @@ import * as allExports from '.';
 describe('@metamask/chain-agnostic-permission', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+      [
         "getEthAccounts",
         "setEthAccounts",
         "setNonSCACaipAccountIdsInCaip25CaveatValue",

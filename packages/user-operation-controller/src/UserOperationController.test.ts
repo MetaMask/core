@@ -106,6 +106,7 @@ function createMessengerMock() {
     call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
   } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
@@ -1457,7 +1458,7 @@ describe('UserOperationController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1470,8 +1471,8 @@ describe('UserOperationController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });
@@ -1486,8 +1487,8 @@ describe('UserOperationController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });
@@ -1502,8 +1503,8 @@ describe('UserOperationController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });

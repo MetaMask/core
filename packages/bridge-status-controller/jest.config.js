@@ -18,11 +18,23 @@ module.exports = merge(baseConfig, {
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
-    global: {
-      branches: 92.06,
+    './src/bridge-status-controller.ts': {
+      branches: 100,
       functions: 100,
-      lines: 99.75,
-      statements: 99.75,
+      lines: 100,
+      statements: 100,
+    },
+    './src/bridge-status-controller.intent.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+    global: {
+      branches: 96.5,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
 });

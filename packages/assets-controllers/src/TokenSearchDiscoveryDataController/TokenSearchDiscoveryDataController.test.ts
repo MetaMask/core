@@ -8,7 +8,6 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
-import { useFakeTimers } from 'sinon';
 
 import {
   getDefaultTokenSearchDiscoveryDataControllerState,
@@ -21,7 +20,6 @@ import type {
   TokenSearchDiscoveryDataControllerState,
 } from './TokenSearchDiscoveryDataController';
 import type { NotFoundTokenDisplayData, FoundTokenDisplayData } from './types';
-import { advanceTime } from '../../../../tests/helpers';
 import type {
   AbstractTokenPricesService,
   EvmAssetWithMarketData,
@@ -164,27 +162,12 @@ function buildMockTokenPricesService(
   };
 }
 
-/**
- * Builds a mock fetchTokens function.
- *
- * @param tokenAddresses - The token addresses to return.
- * @returns A function that returns the token addresses.
- */
-function buildMockFetchTokens(tokenAddresses: string[] = []) {
-  return async (_chainId: Hex) => {
-    return tokenAddresses.map((address) => ({ address }));
-  };
-}
-
 type WithControllerOptions = {
   options?: Partial<
     ConstructorParameters<typeof TokenSearchDiscoveryDataController>[0]
   >;
   mockCurrencyRateState?: { currentCurrency: string };
   mockTokenPricesService?: Partial<AbstractTokenPricesService>;
-  mockFetchTokens?: (chainId: Hex) => Promise<{ address: string }[]>;
-  mockSwapsSupportedChainIds?: Hex[];
-  mockFetchSwapsTokensThresholdMs?: number;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -244,19 +227,10 @@ async function withController<ReturnValue>(
     messenger: controllerMessenger,
     state: {
       tokenDisplayData: [],
-      swapsTokenAddressesByChainId: {},
     },
     tokenPricesService: buildMockTokenPricesService(
       options.mockTokenPricesService,
     ),
-    swapsSupportedChainIds: options.mockSwapsSupportedChainIds ?? [
-      ChainId.mainnet,
-    ],
-    fetchTokens:
-      options.mockFetchTokens ??
-      buildMockFetchTokens(['0x6B175474E89094C44Da98b954EedeAC495271d0F']),
-    fetchSwapsTokensThresholdMs:
-      options.mockFetchSwapsTokensThresholdMs ?? 86400000,
     ...options.options,
   });
 
@@ -285,7 +259,6 @@ describe('TokenSearchDiscoveryDataController', () => {
       await withController(async ({ controller }) => {
         expect(controller.state).toStrictEqual({
           tokenDisplayData: [],
-          swapsTokenAddressesByChainId: {},
         });
       });
     });
@@ -305,177 +278,8 @@ describe('TokenSearchDiscoveryDataController', () => {
           expect(controller.state.tokenDisplayData).toStrictEqual(
             initialState.tokenDisplayData,
           );
-          expect(controller.state.swapsTokenAddressesByChainId).toStrictEqual(
-            {},
-          );
         },
       );
-    });
-  });
-
-  describe('fetchSwapsTokens', () => {
-    let clock: sinon.SinonFakeTimers;
-
-    beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
-    });
-
-    afterEach(() => {
-      clock.restore();
-    });
-
-    it('should not fetch tokens for unsupported chain IDs', async () => {
-      const mockFetchTokens = jest.fn().mockResolvedValue([]);
-      const unsupportedChainId = '0x5' as Hex;
-
-      await withController(
-        {
-          mockFetchTokens,
-          mockSwapsSupportedChainIds: [ChainId.mainnet],
-        },
-        async ({ controller }) => {
-          await controller.fetchSwapsTokens(unsupportedChainId);
-
-          expect(mockFetchTokens).not.toHaveBeenCalled();
-          expect(
-            controller.state.swapsTokenAddressesByChainId[unsupportedChainId],
-          ).toBeUndefined();
-        },
-      );
-    });
-
-    it('should fetch tokens for supported chain IDs', async () => {
-      const mockTokens = [{ address: '0xToken1' }, { address: '0xToken2' }];
-      const mockFetchTokens = jest.fn().mockResolvedValue(mockTokens);
-
-      await withController(
-        {
-          mockFetchTokens,
-          mockSwapsSupportedChainIds: [ChainId.mainnet],
-        },
-        async ({ controller }) => {
-          await controller.fetchSwapsTokens(ChainId.mainnet);
-
-          expect(mockFetchTokens).toHaveBeenCalledWith(ChainId.mainnet);
-          expect(
-            controller.state.swapsTokenAddressesByChainId[ChainId.mainnet],
-          ).toBeDefined();
-          expect(
-            controller.state.swapsTokenAddressesByChainId[ChainId.mainnet]
-              .addresses,
-          ).toStrictEqual(['0xToken1', '0xToken2']);
-          expect(
-            controller.state.swapsTokenAddressesByChainId[ChainId.mainnet]
-              .isFetching,
-          ).toBe(false);
-        },
-      );
-    });
-
-    it('should not fetch tokens again if threshold has not passed', async () => {
-      const mockTokens = [{ address: '0xToken1' }];
-      const mockFetchTokens = jest.fn().mockResolvedValue(mockTokens);
-      const fetchThreshold = 10000;
-
-      await withController(
-        {
-          mockFetchTokens,
-          mockSwapsSupportedChainIds: [ChainId.mainnet],
-          mockFetchSwapsTokensThresholdMs: fetchThreshold,
-        },
-        async ({ controller }) => {
-          await controller.fetchSwapsTokens(ChainId.mainnet);
-          expect(mockFetchTokens).toHaveBeenCalledTimes(1);
-
-          mockFetchTokens.mockClear();
-
-          await controller.fetchSwapsTokens(ChainId.mainnet);
-          expect(mockFetchTokens).not.toHaveBeenCalled();
-
-          await advanceTime({ clock, duration: fetchThreshold + 1000 });
-
-          await controller.fetchSwapsTokens(ChainId.mainnet);
-          expect(mockFetchTokens).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('should set isFetching flag while fetching', async () => {
-      let resolveTokens: (tokens: { address: string }[]) => void;
-      const fetchTokensPromise = new Promise<{ address: string }[]>(
-        (resolve) => {
-          resolveTokens = resolve;
-        },
-      );
-      const mockFetchTokens = jest.fn().mockReturnValue(fetchTokensPromise);
-
-      await withController(
-        {
-          mockFetchTokens,
-          mockSwapsSupportedChainIds: [ChainId.mainnet],
-        },
-        async ({ controller }) => {
-          const fetchPromise = controller.fetchSwapsTokens(ChainId.mainnet);
-
-          expect(
-            controller.state.swapsTokenAddressesByChainId[ChainId.mainnet]
-              .isFetching,
-          ).toBe(true);
-
-          resolveTokens([{ address: '0xToken1' }]);
-
-          await fetchPromise;
-
-          expect(
-            controller.state.swapsTokenAddressesByChainId[ChainId.mainnet]
-              .isFetching,
-          ).toBe(false);
-        },
-      );
-    });
-
-    it('should refresh tokens after threshold time has elapsed', async () => {
-      const chainId = ChainId.mainnet;
-      const initialAddresses = ['0x123', '0x456'];
-      const newAddresses = ['0x123', '0x456', '0x789'];
-      const fetchTokensMock = jest
-        .fn()
-        .mockResolvedValueOnce(initialAddresses.map((address) => ({ address })))
-        .mockResolvedValueOnce(newAddresses.map((address) => ({ address })));
-
-      const testClock = useFakeTimers();
-      const initialTime = Date.now();
-
-      try {
-        testClock.setSystemTime(initialTime);
-
-        await withController(
-          {
-            mockFetchTokens: fetchTokensMock,
-            mockFetchSwapsTokensThresholdMs: 1000,
-          },
-          async ({ controller }) => {
-            await controller.fetchSwapsTokens(chainId);
-            expect(
-              controller.state.swapsTokenAddressesByChainId[chainId].addresses,
-            ).toStrictEqual(initialAddresses);
-
-            await controller.fetchSwapsTokens(chainId);
-            expect(fetchTokensMock).toHaveBeenCalledTimes(1);
-
-            const fetchThreshold = 86400000;
-            testClock.tick(fetchThreshold + 1000);
-
-            await controller.fetchSwapsTokens(chainId);
-            expect(fetchTokensMock).toHaveBeenCalledTimes(2);
-            expect(
-              controller.state.swapsTokenAddressesByChainId[chainId].addresses,
-            ).toStrictEqual(newAddresses);
-          },
-        );
-      } finally {
-        testClock.restore();
-      }
     });
   });
 
@@ -609,19 +413,6 @@ describe('TokenSearchDiscoveryDataController', () => {
           );
         },
       );
-    });
-
-    it('should call fetchSwapsTokens before fetching token display data', async () => {
-      const tokenAddress = '0x0000000000000000000000000000000000000010';
-      const tokenChainId = ChainId.mainnet;
-
-      await withController(async ({ controller }) => {
-        const fetchSwapsTokensSpy = jest.spyOn(controller, 'fetchSwapsTokens');
-
-        await controller.fetchTokenDisplayData(tokenChainId, tokenAddress);
-
-        expect(fetchSwapsTokensSpy).toHaveBeenCalledWith(tokenChainId);
-      });
     });
 
     it('should handle currency changes correctly', async () => {
@@ -907,7 +698,6 @@ describe('TokenSearchDiscoveryDataController', () => {
 
       expect(defaultState).toStrictEqual({
         tokenDisplayData: [],
-        swapsTokenAddressesByChainId: {},
       });
     });
   });
@@ -921,7 +711,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -933,7 +723,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -946,9 +736,8 @@ describe('TokenSearchDiscoveryDataController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "swapsTokenAddressesByChainId": Object {},
-            "tokenDisplayData": Array [],
+          {
+            "tokenDisplayData": [],
           }
         `);
       });
@@ -963,9 +752,8 @@ describe('TokenSearchDiscoveryDataController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "swapsTokenAddressesByChainId": Object {},
-            "tokenDisplayData": Array [],
+          {
+            "tokenDisplayData": [],
           }
         `);
       });

@@ -8,6 +8,7 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
+import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 import { createHandleParams, createRequest } from '../test/util/helpers';
 
 const testAddresses = [
@@ -901,6 +902,115 @@ describe('wallet', () => {
       );
       expect(ecrecoverResult).toBeDefined();
       expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
+    });
+  });
+
+  describe('prototype pollution validation', () => {
+    describe('signTypedData (V1)', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if value contains nested ${dangerousProperty}`, async () => {
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessage = async (): Promise<string> => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessage }),
+            ],
+          });
+
+          const value = {};
+          Object.defineProperty(value, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = [{ type: 'object', name: 'data', value }];
+          const payload = {
+            method: 'eth_signTypedData',
+            params: [message, testAddresses[0]],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
+    });
+
+    describe('signTypedDataV3', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if message contains ${dangerousProperty}`, async () => {
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessageV3 = async (): Promise<string> => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+            ],
+          });
+
+          const msgObj = {};
+          Object.defineProperty(msgObj, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = {
+            types: {
+              EIP712Domain: [{ name: 'name', type: 'string' }],
+            },
+            primaryType: 'EIP712Domain',
+            domain: {},
+            message: msgObj,
+          };
+
+          const payload = {
+            method: 'eth_signTypedData_v3',
+            params: [testAddresses[0], JSON.stringify(message)],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
+    });
+
+    describe('signTypedDataV4', () => {
+      DANGEROUS_PROTOTYPE_PROPERTIES.forEach((dangerousProperty) => {
+        it(`should throw if message contains ${dangerousProperty}`, async () => {
+          const getAccounts = async (): Promise<string[]> =>
+            testAddresses.slice();
+          const processTypedMessageV4 = async (): Promise<string> => testMsgSig;
+          const engine = JsonRpcEngineV2.create({
+            middleware: [
+              createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+            ],
+          });
+
+          const msgObj = {};
+          Object.defineProperty(msgObj, dangerousProperty, {
+            value: 'malicious',
+            enumerable: true,
+          });
+          const message = {
+            types: {
+              EIP712Domain: [{ name: 'name', type: 'string' }],
+              Permit: [{ name: 'owner', type: 'address' }],
+            },
+            primaryType: 'Permit',
+            domain: {},
+            message: msgObj,
+          };
+
+          const payload = {
+            method: 'eth_signTypedData_v4',
+            params: [testAddresses[0], JSON.stringify(message)],
+          };
+
+          await expect(
+            engine.handle(...createHandleParams(payload)),
+          ).rejects.toThrow('Invalid input.');
+        });
+      });
     });
   });
 });

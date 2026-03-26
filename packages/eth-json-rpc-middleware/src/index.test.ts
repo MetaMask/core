@@ -3,7 +3,7 @@ import * as indexModule from '.';
 describe('index module', () => {
   it('has expected JavaScript exports', () => {
     expect(indexModule).toMatchInlineSnapshot(`
-      Object {
+      {
         "GetGrantedExecutionPermissionsResultStruct": Struct {
           "coercer": [Function],
           "entries": [Function],
@@ -12,7 +12,7 @@ describe('index module', () => {
             "coercer": [Function],
             "entries": [Function],
             "refiner": [Function],
-            "schema": Object {
+            "schema": {
               "chainId": Struct {
                 "coercer": [Function],
                 "entries": [Function],
@@ -45,7 +45,7 @@ describe('index module', () => {
                   "coercer": [Function],
                   "entries": [Function],
                   "refiner": [Function],
-                  "schema": Object {
+                  "schema": {
                     "factory": Struct {
                       "coercer": [Function],
                       "entries": [Function],
@@ -81,7 +81,7 @@ describe('index module', () => {
                 "coercer": [Function],
                 "entries": [Function],
                 "refiner": [Function],
-                "schema": Object {
+                "schema": {
                   "data": Struct {
                     "coercer": [Function],
                     "entries": [Function],
@@ -137,7 +137,7 @@ describe('index module', () => {
           "coercer": [Function],
           "entries": [Function],
           "refiner": [Function],
-          "schema": Object {
+          "schema": {
             "chainId": Struct {
               "coercer": [Function],
               "entries": [Function],
@@ -170,7 +170,7 @@ describe('index module', () => {
                 "coercer": [Function],
                 "entries": [Function],
                 "refiner": [Function],
-                "schema": Object {
+                "schema": {
                   "factory": Struct {
                     "coercer": [Function],
                     "entries": [Function],
@@ -206,7 +206,7 @@ describe('index module', () => {
               "coercer": [Function],
               "entries": [Function],
               "refiner": [Function],
-              "schema": Object {
+              "schema": {
                 "data": Struct {
                   "coercer": [Function],
                   "entries": [Function],
@@ -251,7 +251,7 @@ describe('index module', () => {
           "coercer": [Function],
           "entries": [Function],
           "refiner": [Function],
-          "schema": Object {
+          "schema": {
             "chainIds": Struct {
               "coercer": [Function],
               "entries": [Function],

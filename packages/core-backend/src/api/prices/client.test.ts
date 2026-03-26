@@ -2,9 +2,14 @@
  * Prices API Client Tests - price.api.cx.metamask.io
  */
 
-import type { V1ExchangeRatesResponse, V3SpotPricesResponse } from './types';
+import type {
+  PriceSupportedNetworksResponse,
+  V1ExchangeRatesResponse,
+  V3SpotPricesResponse,
+} from './types';
 import type { ApiPlatformClient } from '../ApiPlatformClient';
 import { API_URLS } from '../shared-types';
+import type { FetchOptions } from '../shared-types';
 import {
   createMockResponse,
   mockFetch,
@@ -72,6 +77,13 @@ describe('PricesApiClient', () => {
         expect.stringContaining('/v1/exchange-rates'),
         expect.any(Object),
       );
+    });
+
+    it('returns empty object for empty baseCurrency', async () => {
+      const result = await client.prices.fetchV1ExchangeRates('');
+
+      expect(result).toStrictEqual({});
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('fetches fiat exchange rates', async () => {
@@ -190,18 +202,14 @@ describe('PricesApiClient', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('fetches single token price and returns undefined on error', async () => {
+    it('fetchV1TokenPrice throws on request error', async () => {
       mockFetch.mockResolvedValueOnce(
         createMockResponse({ error: 'Not found' }, 404, 'Not Found'),
       );
 
-      const result = await client.prices.fetchV1TokenPrice(
-        '0x1',
-        '0xtoken',
-        'usd',
-      );
-
-      expect(result).toBeUndefined();
+      await expect(
+        client.prices.fetchV1TokenPrice('0x1', '0xtoken', 'usd'),
+      ).rejects.toThrow(Error);
     });
 
     it('fetches single token price successfully', async () => {
@@ -517,6 +525,150 @@ describe('PricesApiClient', () => {
       const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
       expect(calledUrl).toContain('vsCurrency=usd');
       expect(calledUrl).toContain('includeOHLC=false');
+    });
+  });
+
+  describe('get*QueryOptions default currency branch', () => {
+    it('getV1SpotPriceByCoinIdQueryOptions uses default currency usd when not passed', () => {
+      const options =
+        client.prices.getV1SpotPriceByCoinIdQueryOptions('ethereum');
+      expect(options.queryKey).toStrictEqual([
+        'prices',
+        'v1SpotPriceByCoinId',
+        'ethereum',
+        'usd',
+      ]);
+    });
+
+    it('getV1TokenPriceQueryOptions uses default currency usd when not passed', () => {
+      const options = client.prices.getV1TokenPriceQueryOptions(
+        '0x1',
+        '0xabc123',
+      );
+      expect(options.queryKey).toStrictEqual([
+        'prices',
+        'v1TokenPrice',
+        '0x1',
+        '0xabc123',
+        'usd',
+      ]);
+    });
+  });
+
+  describe('get*QueryOptions empty-input short-circuit', () => {
+    it('getV1SpotPricesByCoinIdsQueryOptions queryFn returns {} for empty coinIds without calling fetch', async () => {
+      const options = client.prices.getV1SpotPricesByCoinIdsQueryOptions([]);
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({});
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV1TokenPricesQueryOptions queryFn returns {} for empty tokenAddresses without calling fetch', async () => {
+      const options = client.prices.getV1TokenPricesQueryOptions('0x1', []);
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({});
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV2SpotPricesQueryOptions queryFn returns {} for empty tokenAddresses without calling fetch', async () => {
+      const options = client.prices.getV2SpotPricesQueryOptions('0x1', []);
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({});
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV3SpotPricesQueryOptions queryFn returns {} for empty assetIds without calling fetch', async () => {
+      const options = client.prices.getV3SpotPricesQueryOptions([]);
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({});
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV1ExchangeRatesQueryOptions queryFn returns {} for empty baseCurrency without calling fetch', async () => {
+      const options = client.prices.getV1ExchangeRatesQueryOptions('');
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({});
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV1SpotPriceByCoinIdQueryOptions queryFn returns safe empty result for empty coinId without calling fetch', async () => {
+      const options = client.prices.getV1SpotPriceByCoinIdQueryOptions('');
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({ id: '', price: 0 });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('get*QueryOptions pass-through options (select, initialPageParam)', () => {
+    it('getPriceV1SupportedNetworksQueryOptions merges select and initialPageParam from options', () => {
+      const select = (
+        data: PriceSupportedNetworksResponse,
+      ): PriceSupportedNetworksResponse => data;
+      const options = client.prices.getPriceV1SupportedNetworksQueryOptions({
+        select,
+        initialPageParam: 0,
+      } as unknown as FetchOptions);
+      expect(options.queryKey).toStrictEqual(['prices', 'v1SupportedNetworks']);
+      const opts = options as unknown as Record<string, unknown>;
+      expect(opts.select).toBe(select);
+      expect(opts.initialPageParam).toBe(0);
+    });
+
+    it('getPriceV1SupportedNetworksQueryOptions applies staleTime and gcTime from options', () => {
+      const options = client.prices.getPriceV1SupportedNetworksQueryOptions({
+        staleTime: 100,
+        gcTime: 200,
+      });
+      expect(options.staleTime).toBe(100);
+      expect(options.gcTime).toBe(200);
     });
   });
 });

@@ -1,12 +1,13 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { BtcAccountType } from '@metamask/keyring-api';
+import { AccountCreationType, BtcAccountType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
+import deepmerge from 'deepmerge';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
@@ -14,8 +15,8 @@ import {
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
 } from './BtcAccountProvider';
-import { SnapAccountProviderConfig } from './SnapAccountProvider';
-import { TraceName } from '../constants/traces';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -25,8 +26,18 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
+  toGroupIndexRangeArray,
 } from '../tests';
-import type { RootMessenger } from '../tests';
+import type { RootMessenger, DeepPartial } from '../tests';
+
+function asConfig(
+  partial: DeepPartial<SnapAccountProviderConfig>,
+): SnapAccountProviderConfig {
+  return deepmerge(
+    BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+    partial,
+  ) as SnapAccountProviderConfig;
+}
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';
@@ -98,7 +109,37 @@ class MockBtcKeyring {
 
       return account;
     });
+
+  createAccounts: SnapKeyring['createAccounts'] = jest
+    .fn()
+    .mockImplementation((_, options) => {
+      const groupIndices =
+        options.type === 'bip44:derive-index'
+          ? [options.groupIndex]
+          : toGroupIndexRangeArray(options.range);
+
+      return groupIndices.map((groupIndex) => {
+        const found = this.accounts.find(
+          (account) =>
+            isBip44Account(account) &&
+            account.options.entropy.groupIndex === groupIndex,
+        );
+
+        if (found) {
+          return found; // Idempotent.
+        }
+
+        const account = MockAccountBuilder.from(MOCK_BTC_P2WPKH_ACCOUNT_1)
+          .withUuid()
+          .withAddressSuffix(`${groupIndex}`)
+          .withGroupIndex(groupIndex)
+          .get();
+        this.accounts.push(account);
+        return account;
+      });
+    });
 }
+
 class MockBtcAccountProvider extends BtcAccountProvider {
   override async ensureCanUseSnapPlatform(): Promise<void> {
     // Override to avoid waiting during tests.
@@ -130,10 +171,17 @@ function setup({
     handleRequest: jest.Mock;
     keyring: {
       createAccount: jest.Mock;
+      createAccounts: jest.Mock;
     };
+    trace: jest.Mock;
   };
 } {
   const keyring = new MockBtcKeyring(accounts);
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccounts',
+    () => accounts,
+  );
 
   messenger.registerActionHandler(
     'SnapController:getState',
@@ -143,6 +191,14 @@ function setup({
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     () => accounts,
+  );
+
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
   );
 
   const mockHandleRequest = jest
@@ -166,11 +222,19 @@ function setup({
       }),
   );
 
+  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+    return await fn();
+  });
+
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
+  const btcProvider = new MockBtcAccountProvider(
     multichainMessenger,
-    new MockBtcAccountProvider(multichainMessenger, config),
+    config,
+    mockTrace,
   );
+  const accountIds = accounts.map((account) => account.id);
+  btcProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, btcProvider);
 
   return {
     provider,
@@ -180,7 +244,9 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
+        createAccounts: keyring.createAccounts as jest.Mock,
       },
+      trace: mockTrace,
     },
   };
 }
@@ -221,97 +287,329 @@ describe('BtcAccountProvider', () => {
     );
   });
 
-  it('creates accounts', async () => {
-    const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
-    const { provider, keyring } = setup({
-      accounts,
-    });
-
-    const newGroupIndex = accounts.length; // Group-index are 0-based.
-    const newAccounts = await provider.createAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: newGroupIndex,
-    });
-    expect(newAccounts).toHaveLength(1);
-    expect(keyring.createAccount).toHaveBeenCalled();
-  });
-
-  it('does not re-create accounts (idempotent)', async () => {
-    const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_BTC_P2WPKH_ACCOUNT_1;
     const { provider } = setup({
-      accounts,
+      accounts: [account],
     });
-
-    const newAccounts = await provider.createAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-    expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2WPKH_ACCOUNT_1);
+    expect(provider.isAccountCompatible(account)).toBe(true);
   });
 
-  it('throws if the account creation process takes too long', async () => {
-    const { provider, mocks } = setup({
-      accounts: [],
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
     });
+    expect(provider.isAccountCompatible(account)).toBe(false);
+  });
 
-    mocks.keyring.createAccount.mockImplementation(() => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(MOCK_BTC_P2TR_ACCOUNT_1);
-        }, 4000);
+  describe('v1', () => {
+    it('uses v1 by default when no config is provided', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+        // Force v1 by not providing the config at all, so it relies on the default value.
+        config: asConfig({ createAccounts: { batched: undefined } }),
       });
+
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: accounts.length,
+      });
+
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
     });
+
+    it('creates accounts', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider, mocks } = setup({ accounts });
+
+      const newGroupIndex = accounts.length; // Group-index are 0-based.
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('does not re-create accounts (idempotent)', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider } = setup({ accounts });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+      expect(newAccounts).toHaveLength(1);
+      expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2WPKH_ACCOUNT_1);
+    });
+
+    it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider, mocks } = setup({ accounts });
+
+      const from = 1;
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from, to: 3 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      expect(mocks.keyring.createAccount).toHaveBeenCalledTimes(3);
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+
+      // Verify each account has the correct group index.
+      for (const [index, account] of newAccounts.entries()) {
+        expect(isBip44Account(account)).toBe(true);
+        expect(account.options.entropy.groupIndex).toBe(from + index);
+      }
+    });
+
+    it('creates accounts with range starting from 0', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 0, to: 2 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      expect(mocks.keyring.createAccount).toHaveBeenCalledTimes(3);
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('creates a single account when range from equals to', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 5, to: 5 },
+      });
+
+      expect(newAccounts).toHaveLength(1);
+      expect(mocks.keyring.createAccount).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+      expect(
+        isBip44Account(newAccounts[0]) &&
+          newAccounts[0].options.entropy.groupIndex,
+      ).toBe(5);
+    });
+
+    it('throws if the account creation process takes too long', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      mocks.keyring.createAccount.mockImplementation(() => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(MOCK_BTC_P2TR_ACCOUNT_1);
+          }, 4000);
+        });
+      });
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('Timed out');
+    });
+
+    // Skip this test for now, since we manually inject those options upon
+    // account creation, so it cannot fails (until the Bitcoin Snap starts
+    // using the new typed options).
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('throws if the created account is not BIP-44 compatible', async () => {
+      const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+      });
+
+      mocks.keyring.createAccount.mockResolvedValue({
+        ...MOCK_BTC_P2TR_ACCOUNT_1,
+        options: {}, // No options, so it cannot be BIP-44 compatible.
+      });
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('Created account is not BIP-44 compatible');
+    });
+
+    it('discover accounts at a new group index creates an account', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      // Simulate one discovered account at the requested index.
+      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      // Ensure we did go through creation path
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
+      // Provider should now expose one account (newly created)
+      expect(provider.getAccounts()).toHaveLength(1);
+    });
+  });
+
+  describe('v2 - batched', () => {
+    it('creates accounts', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newGroupIndex = accounts.length; // Group-index are 0-based.
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      // Batch endpoint must be called, NOT the singular one.
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith(
+        BtcAccountProvider.BTC_SNAP_ID,
+        {
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: newGroupIndex,
+        },
+      );
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+    });
+
+    it('does not re-create accounts (idempotent)', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider } = setup({
+        accounts,
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newAccounts = await provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+        type: AccountCreationType.Bip44DeriveIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2WPKH_ACCOUNT_1);
+    });
+
+    it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const from = 1;
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from, to: 3 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      // Single batch call, NOT three individual calls.
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+
+      // Verify each account has the correct group index.
+      for (const [index, account] of newAccounts.entries()) {
+        expect(isBip44Account(account)).toBe(true);
+        expect(account.options.entropy.groupIndex).toBe(from + index);
+      }
+    });
+
+    it('creates accounts with range starting from 0', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 0, to: 2 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+    });
+
+    it('creates a single account when range from equals to', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 5, to: 5 },
+      });
+
+      expect(newAccounts).toHaveLength(1);
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+      expect(
+        isBip44Account(newAccounts[0]) &&
+          newAccounts[0].options.entropy.groupIndex,
+      ).toBe(5);
+    });
+
+    it('throws if the account creation process takes too long', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      mocks.keyring.createAccounts.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve([MOCK_BTC_P2WPKH_ACCOUNT_1]), 4000);
+          }),
+      );
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('Timed out');
+    });
+  });
+
+  it('throws an error when type is not "bip44:derive-index"', async () => {
+    const { provider } = setup();
 
     await expect(
       provider.createAccounts({
+        // @ts-expect-error Testing invalid type handling.
+        type: 'unsupported-type',
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
-    ).rejects.toThrow('Timed out');
-  });
-
-  // Skip this test for now, since we manually inject those options upon
-  // account creation, so it cannot fails (until the Bitcoin Snap starts
-  // using the new typed options).
-  // eslint-disable-next-line jest/no-disabled-tests
-  it.skip('throws if the created account is not BIP-44 compatible', async () => {
-    const accounts = [MOCK_BTC_P2TR_ACCOUNT_1];
-    const { provider, mocks } = setup({
-      accounts,
-    });
-
-    mocks.keyring.createAccount.mockResolvedValue({
-      ...MOCK_BTC_P2TR_ACCOUNT_1,
-      options: {}, // No options, so it cannot be BIP-44 compatible.
-    });
-
-    await expect(
-      provider.createAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
-      }),
-    ).rejects.toThrow('Created account is not BIP-44 compatible');
-  });
-
-  it('discover accounts at a new group index creates an account', async () => {
-    const { provider, mocks } = setup({
-      accounts: [],
-    });
-
-    // Simulate one discovered account at the requested index.
-    mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
-
-    const discovered = await provider.discoverAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-
-    expect(discovered).toHaveLength(1);
-    // Ensure we did go through creation path
-    expect(mocks.keyring.createAccount).toHaveBeenCalled();
-    // Provider should now expose one account (newly created)
-    expect(provider.getAccounts()).toHaveLength(1);
+    ).rejects.toThrow(
+      'Unsupported create account option type: unsupported-type',
+    );
   });
 
   it('returns existing account if it already exists at index', async () => {
@@ -348,13 +646,11 @@ describe('BtcAccountProvider', () => {
   it('does not run discovery if disabled', async () => {
     const { provider } = setup({
       accounts: [MOCK_BTC_P2WPKH_ACCOUNT_1],
-      config: {
-        ...BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+      config: asConfig({
         discovery: {
-          ...BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
           enabled: false,
         },
-      },
+      }),
     });
 
     expect(
@@ -367,28 +663,37 @@ describe('BtcAccountProvider', () => {
 
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-        expect(request.data).toStrictEqual({
-          provider: BTC_ACCOUNT_PROVIDER_NAME,
-        });
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
       // Simulate one discovered account at the requested index.
       mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
 
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      expect(mocks.trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: TraceName.SnapDiscoverAccounts,
+          data: { provider: BTC_ACCOUNT_PROVIDER_NAME },
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('uses fallback trace when no trace callback is provided', async () => {
+      const { messenger, mocks } = setup({ accounts: [] });
+
+      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new MockBtcAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
+      // No trace callback (defaults to `traceFallback`).
+      const btcProvider = new MockBtcAccountProvider(multichainMessenger);
       const provider = new AccountProviderWrapper(
         multichainMessenger,
         btcProvider,
@@ -400,51 +705,14 @@ describe('BtcAccountProvider', () => {
       });
 
       expect(discovered).toHaveLength(1);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
     });
 
-    it('uses fallback trace when no trace callback is provided', async () => {
+    it('trace callback is called even when discovery returns empty results', async () => {
       const { provider, mocks } = setup({
         accounts: [],
       });
 
-      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
-
-      const discovered = await provider.discoverAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
-      });
-
-      expect(discovered).toHaveLength(1);
-      // No trace errors, fallback trace should be used silently
-    });
-
-    it('trace callback is called even when discovery returns empty results', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-        expect(request.data).toStrictEqual({
-          provider: BTC_ACCOUNT_PROVIDER_NAME,
-        });
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
-        accounts: [],
-      });
-
       mocks.handleRequest.mockReturnValue([]);
-
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new MockBtcAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        btcProvider,
-      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -452,32 +720,16 @@ describe('BtcAccountProvider', () => {
       });
 
       expect(discovered).toStrictEqual([]);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
     });
 
     it('trace callback receives error when discovery fails', async () => {
       const mockError = new Error('Discovery failed');
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
       mocks.handleRequest.mockRejectedValue(mockError);
-
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new MockBtcAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        btcProvider,
-      );
 
       await expect(
         provider.discoverAccounts({
@@ -486,7 +738,27 @@ describe('BtcAccountProvider', () => {
         }),
       ).rejects.toThrow(mockError);
 
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('isDisabled', () => {
+    it('returns false when the provider is enabled (default)', () => {
+      const { provider } = setup();
+      expect(provider.isDisabled()).toBe(false);
+    });
+
+    it('returns true after setEnabled(false)', () => {
+      const { provider } = setup();
+      provider.setEnabled(false);
+      expect(provider.isDisabled()).toBe(true);
+    });
+
+    it('returns false after re-enabling', () => {
+      const { provider } = setup();
+      provider.setEnabled(false);
+      provider.setEnabled(true);
+      expect(provider.isDisabled()).toBe(false);
     });
   });
 });

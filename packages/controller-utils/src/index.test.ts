@@ -3,7 +3,7 @@ import * as allExports from '.';
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+      [
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",

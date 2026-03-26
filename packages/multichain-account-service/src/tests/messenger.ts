@@ -70,6 +70,10 @@ export function getMultichainAccountServiceMessenger(
       'KeyringController:addNewKeyring',
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
+      'KeyringController:createNewVaultAndKeychain',
+      'KeyringController:createNewVaultAndRestore',
+      'AccountsController:getAccounts',
+      'KeyringController:removeAccount',
       ...(extra?.actions ?? []),
     ],
     events: [

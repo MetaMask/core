@@ -6,21 +6,17 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import type { SampleGasPricesServiceMessenger } from './sample-gas-prices-service';
 import { SampleGasPricesService } from './sample-gas-prices-service';
 
 describe('SampleGasPricesService', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('SampleGasPricesService:fetchGasPrices', () => {
@@ -79,7 +75,7 @@ describe('SampleGasPricesService', () => {
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
         .reply(200, () => {
-          clock.tick(6000);
+          jest.advanceTimersByTime(6000);
           return {
             data: {
               low: 5,
@@ -102,7 +98,7 @@ describe('SampleGasPricesService', () => {
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
         .reply(200, () => {
-          clock.tick(1000);
+          jest.advanceTimersByTime(1000);
           return {
             data: {
               low: 5,
@@ -132,7 +128,7 @@ describe('SampleGasPricesService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(
@@ -150,7 +146,7 @@ describe('SampleGasPricesService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
@@ -171,7 +167,7 @@ describe('SampleGasPricesService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
@@ -231,7 +227,7 @@ describe('SampleGasPricesService', () => {
         },
       });
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(
@@ -254,7 +250,7 @@ describe('SampleGasPricesService', () => {
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
-      await clock.tickAsync(circuitBreakDuration);
+      await jest.advanceTimersByTimeAsync(circuitBreakDuration);
       const gasPricesResponse = await service.fetchGasPrices('0x1');
       expect(gasPricesResponse).toStrictEqual({
         low: 5,

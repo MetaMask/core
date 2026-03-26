@@ -1,5 +1,14 @@
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
+/**
+ * Error response from the Subscription API.
+ */
+export type SubscriptionApiError = {
+  errorCode?: string;
+  message?: string;
+  statusCode?: number;
+};
+
 export const PRODUCT_TYPES = {
   SHIELD: 'shield',
 } as const;
@@ -40,6 +49,15 @@ export const SUBSCRIPTION_STATUSES = {
 
 export type SubscriptionStatus =
   (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
+
+export const CANCEL_TYPES = {
+  ALLOWED_IMMEDIATE: 'allowed_immediate',
+  ALLOWED_AT_PERIOD_END: 'allowed_at_period_end',
+  NOT_ALLOWED: 'not_allowed',
+  NOT_ALLOWED_PENDING_VERIFICATION: 'not_allowed_pending_verification',
+} as const;
+
+export type CancelType = (typeof CANCEL_TYPES)[keyof typeof CANCEL_TYPES];
 
 export const CRYPTO_PAYMENT_METHOD_ERRORS = {
   APPROVAL_TRANSACTION_TOO_OLD: 'approval_transaction_too_old',
@@ -88,6 +106,8 @@ export type Subscription = {
   endDate?: string; // ISO 8601
   /** The date the subscription was canceled. */
   canceledAt?: string; // ISO 8601
+  /** The cancellation type indicating what cancellation options are available for this subscription. */
+  cancelType: CancelType;
   /** The date the subscription was marked as inactive (paused/past_due/canceled). */
   inactiveAt?: string; // ISO 8601
   /** Whether the user is eligible for support features (priority support and filing claims). True for active subscriptions and inactive subscriptions within grace period. */
@@ -134,6 +154,7 @@ export type StartSubscriptionRequest = {
   isTrialRequested: boolean;
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  cancelUrl?: string;
   useTestClock?: boolean;
 
   /**
@@ -194,6 +215,12 @@ export type SubscriptionApiGeneralResponse = {
    * The message of the response.
    */
   message?: string;
+};
+
+export type CancelSubscriptionRequest = {
+  subscriptionId: string;
+  /** Whether to cancel at the end of the current period */
+  cancelAtPeriodEnd?: boolean;
 };
 
 export type AuthUtils = {
@@ -359,9 +386,7 @@ export type SubmitSponsorshipIntentsMethodParams = Pick<
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
-  cancelSubscription(request: {
-    subscriptionId: string;
-  }): Promise<Subscription>;
+  cancelSubscription(request: CancelSubscriptionRequest): Promise<Subscription>;
   unCancelSubscription(request: {
     subscriptionId: string;
   }): Promise<Subscription>;
@@ -430,6 +455,7 @@ export type UpdatePaymentMethodCardRequest = {
    */
   recurringInterval: RecurringInterval;
   successUrl?: string;
+  cancelUrl?: string;
 };
 
 export type UpdatePaymentMethodCardResponse = {

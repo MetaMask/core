@@ -16,7 +16,6 @@
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
 /packages/network-enablement-controller @MetaMask/metamask-assets
-/packages/token-search-discovery-controller @MetaMask/metamask-assets
 /packages/assets-controller          @MetaMask/metamask-assets
 
 ## Confirmations Team
@@ -38,15 +37,22 @@
 /packages/eip-7702-internal-rpc-middleware  @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
-/packages/earn-controller                   @MetaMask/earn
+/packages/earn-controller                   @MetaMask/metamask-earn
+
+## Social AI Team
+/packages/ai-controllers                    @MetaMask/social-ai
 
 ## Ramp Team
 /packages/ramps-controller                  @MetaMask/ramp
+
+## Networks Team
+/packages/config-registry-controller        @MetaMask/networks
 
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
 
 ## Perps Team
+/packages/compliance-controller             @MetaMask/perps
 /packages/perps-controller                  @MetaMask/perps
 
 ## Product Safety Team
@@ -59,6 +65,7 @@
 ## Mobile Platform Team
 /packages/app-metadata-controller @MetaMask/mobile-platform
 /packages/analytics-controller    @MetaMask/mobile-platform @MetaMask/extension-platform
+/packages/analytics-data-regulation-controller @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
@@ -69,9 +76,11 @@
 
 ## Core Platform Team
 /packages/base-controller              @MetaMask/core-platform
+/packages/base-data-service            @MetaMask/core-platform
 /packages/build-utils                  @MetaMask/core-platform
 /packages/composable-controller        @MetaMask/core-platform
 /packages/connectivity-controller      @MetaMask/core-platform
+/packages/geolocation-controller       @MetaMask/core-platform
 /packages/controller-utils             @MetaMask/core-platform
 /packages/error-reporting-service      @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
@@ -80,6 +89,7 @@
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
 /packages/rate-limit-controller        @MetaMask/core-platform
+/packages/react-data-query             @MetaMask/core-platform
 /packages/profile-metrics-controller   @MetaMask/core-platform
 
 ## Web3Auth Team
@@ -105,6 +115,7 @@
 /packages/permission-log-controller             @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -112,6 +123,8 @@
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/analytics-controller/package.json       @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/analytics-controller/CHANGELOG.md       @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-data-regulation-controller/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/analytics-data-regulation-controller/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/accounts-controller/CHANGELOG.md        @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/address-book-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
@@ -125,10 +138,12 @@
 /packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/config-registry-controller/CHANGELOG.md @MetaMask/networks @MetaMask/core-platform
+/packages/config-registry-controller/package.json @MetaMask/networks @MetaMask/core-platform
 /packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
-/packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
-/packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
+/packages/earn-controller/package.json            @MetaMask/metamask-earn @MetaMask/core-platform
+/packages/earn-controller/CHANGELOG.md            @MetaMask/metamask-earn @MetaMask/core-platform
 /packages/eip-5792-middleware/package.json        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip-5792-middleware/CHANGELOG.md        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip1193-permission-middleware/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
@@ -139,6 +154,8 @@
 /packages/gas-fee-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
 /packages/gator-permissions-controller/package.json @MetaMask/delegation @MetaMask/core-platform
 /packages/gator-permissions-controller/CHANGELOG.md @MetaMask/delegation @MetaMask/core-platform
+/packages/geolocation-controller/package.json      @MetaMask/core-platform
+/packages/geolocation-controller/CHANGELOG.md      @MetaMask/core-platform
 /packages/keyring-controller/package.json         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/logging-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
@@ -153,6 +170,8 @@
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/core-platform
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
+/packages/compliance-controller/package.json   @MetaMask/perps @MetaMask/core-platform
+/packages/compliance-controller/CHANGELOG.md   @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/package.json       @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/CHANGELOG.md       @MetaMask/perps @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
@@ -173,8 +192,6 @@
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/core-platform
 /packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/token-search-discovery-controller/package.json      @MetaMask/metamask-assets @MetaMask/core-platform
-/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/bridge-controller/package.json                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
@@ -199,3 +216,7 @@
 /packages/core-backend/CHANGELOG.md           @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/claims-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
 /packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
+/packages/ai-controllers/package.json @MetaMask/social-ai @MetaMask/core-platform
+/packages/ai-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
+/packages/client-controller/package.json @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/client-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform

@@ -9,14 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/address-book-controller` from `^7.0.1` to `^7.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [28.0.0]
+
+### Added
+
+- Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - The following actions are now available:
+    - `UserStorageController:performDeleteStorageAllFeatureEntries`
+    - `UserStorageController:listEntropySources`
+    - `UserStorageController:setIsBackupAndSyncFeatureEnabled`
+    - `UserStorageController:setIsContactSyncingInProgress`
+    - `UserStorageController:syncContactsWithUserStorage`
+  - Corresponding action types (e.g. `UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
+  - `validateLoginResponse` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
+  - Non-JWT access tokens are now rejected as invalid. In production this has no effect (access tokens are always JWTs from the OIDC server), but E2E test mocks that use raw identifier strings as access tokens must be updated. `getMockAuthAccessTokenResponse` now wraps identifiers in a JWT; consumers should use `getE2EIdentifierFromJwt` (newly exported) to extract the identifier from the bearer token in mock servers.
+- **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `AuthenticationControllerPerformSignIn` -> `AuthenticationControllerPerformSignInAction`). You will need to update imports appropriately.
+  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AuthenticationController` and `UserStorageController` messengers.
+
+### Fixed
+
+- Fix `AuthenticationController` silently discarding tokens when `entropySourceId` is `undefined` ([#8144](https://github.com/MetaMask/core/pull/8144))
+  - `getBearerToken`, `getSessionProfile`, and `getUserProfileLineage` now resolve `undefined` `entropySourceId` to the primary SRP entropy source ID via the message-signing snap before delegating to the auth SDK
+  - This also eliminates a login deduplication race condition where `getBearerToken(undefined)` and `getBearerToken("primary-srp-id")` would trigger two independent OIDC logins for the same identity
+- Update `getUserProfileLineage` to accept an optional `entropySourceId` parameter ([#8144](https://github.com/MetaMask/core/pull/8144))
+
+## [27.1.0]
+
+### Changed
+
+- Centralize authentication error handling into a single `throwServiceError` helper for consistent error management across all service functions ([#7721](https://github.com/MetaMask/core/pull/7721))
+  - This fixes authentication services crashing when server returns non-JSON error responses.
 - Bump `@metamask/snaps-controllers` from `^14.0.1` to `^17.2.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7713](https://github.com/MetaMask/core/pull/7713))
   - The dependencies moved are:
     - `@metamask/address-book-controller` (^7.0.1)
-    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/keyring-controller` (^25.1.0)
     - `@metamask/snaps-controllers` (^14.0.1)
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
@@ -789,7 +826,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...@metamask/profile-sync-controller@28.0.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.0.0...@metamask/profile-sync-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...@metamask/profile-sync-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.2...@metamask/profile-sync-controller@26.0.0
 [25.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.1...@metamask/profile-sync-controller@25.1.2

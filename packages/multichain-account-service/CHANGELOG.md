@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
+  - Those providers were initially provided by the clients.
+- Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
+- Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
+  - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
+  - This behavior was enabled by default and can now be turned off by the clients.
+- Add new `snapPlatformWatcher.timeoutMs` configuration ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - Allows configuring how long to wait for the Snap keyring to appear in `KeyringController` before timing out (Default is 5000 ms).
+- Add more tracing (alignment, create account v1/v2) ([#8244](https://github.com/MetaMask/core/pull/8244))
+- Add local perf tracing ([#8244](https://github.com/MetaMask/core/pull/8244))
+  - Each trace is now automatically wrapped and will log performance timings using the internal logger.
+  - Only enabled if `metamask:multichain-account-service` is part of `DEBUG` (env var) filters.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Optimize `{Sol,Btc,Trx}AccountProvider.createAccounts` for range operations ([#8131](https://github.com/MetaMask/core/pull/8131))
+  - Each Snaps have to implement the new `keyring_createAccounts` method accordingly and enable the batch option using the provider's configuration object.
+  - Batch account creation with the new `SnapKeyring.createAccounts` method.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+- Optimize `EvmAccountProvider.createAccounts` for range operations ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Batch account creation with single a `withKeyring` call for entire range instead of one call per account.
+  - Batch account creation with single `keyring.addAccounts` call.
+  - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+- Do not report `TimeoutError` errors ([#8249](https://github.com/MetaMask/core/pull/8249))
+  - All other kind of errors are still reported as usual.
+
+### Removed
+
+- **BREAKING:** Remove `MultichainAccountGroup.alignAccounts` method ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Use `MultichainAccountWallet.alignAccountsOf` instead, since this method properly lock the wallet (parent of this group) state.
+
+### Fixed
+
+- Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
+  - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
+- Wait for Snap keyring in KeyringController before non-EVM account creation ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - After wallet reset or restore, the Snap keyring is created lazily (e.g. when `getSnapKeyring()` runs). We now wait for it to appear (via `KeyringController:getState` and `KeyringController:stateChange`) with a timeout, avoiding "Keyring not found" error.
+
+## [7.1.0]
+
+### Added
+
+- Add new optional `ensureOnboardingComplete` callback ([#8124](https://github.com/MetaMask/core/pull/8124))
+  - This allows the service to wait for the user to re-onboard after a wallet reset.
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.12.0` to `^1.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- **BREAKING:** Bump `@metamask/eth-snap-keyring` from `^18.0.0` to `^19.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+  - Required to invoke `createAccounts` on any account management Snaps.
+- **BREAKING:** Use new `AccountProvider.createAccounts` method with `CreateAccountOptions` ([#7857](https://github.com/MetaMask/core/pull/7857))
+  - All account providers now accept `CreateAccountOptions` with `type` field.
+  - Added `capabilities` property to all account providers defining supported account creation types.
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-snap-client` from `^8.0.0` to `^8.2.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
+## [6.0.0]
+
+### Changed
+
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - The `MultichainAccountService` is refactored to construct a top level service state for its `init` function, this state is passed down to the `MultichainAccountWallet` and `MultichainAccountGroup` classes in slices for them to construct their internal states.
+  - Additional state is generated at the entry points where it needs to be updated i.e. `createMultichainAccountGroup`, `discoverAccounts` and `alignAccounts`.
+  - We no longer prevent group creation if some providers' `createAccounts` calls fail during group creation, only if they all fail.
+  - The `getAccounts` method in the `BaseBip44AccountProvider` class no longer relies on fetching the entire list of internal accounts from the `AccountsController`, instead it gets the specific accounts that it stores in its internal accounts list.
+  - The `EvmAccountProvider` no longer fetches from the `AccountController` to get an account for its ID, we deterministically get the associated account ID through `getUUIDFromAddressOfNormalAccount`.
+  - The `EvmAccountProvider` now uses the `getAccount` method from the `AccountsController` when fetching an account after account creation as it is more efficient.
+  - Add logic in the `createMultichainAccountWallet` method in `MultichainAccountService` so that it can handle all entry points: importing an SRP, recovering a vault and creating a new vault.
+  - Add a `getAccountIds` method which returns all the account ids pertaining to a group.
+  - Add an `addAccounts` method on the `BaseBip44AccountProvider` class which keeps track of all the account IDs that pertain to it.
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+
+### Removed
+
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - Remove `#handleOnAccountAdded` and `#handleOnAccountRemoved` methods in `MultichainAccountService` due to internal state being updated within the service.
+  - Remove `getAccountContext` (and associated map) in the `MultichainAccountService` as the service no longer uses that method.
+  - Remove the `sync` method in favor of the sole `init` method for both `MultichainAccountWallet` and `MultichainAccountGroup`.
+
 ## [5.1.0]
 
 ### Added
@@ -341,7 +433,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.0...@metamask/multichain-account-service@7.1.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@6.0.0...@metamask/multichain-account-service@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...@metamask/multichain-account-service@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...@metamask/multichain-account-service@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...@metamask/multichain-account-service@4.1.0

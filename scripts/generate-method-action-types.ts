@@ -1,6 +1,6 @@
 #!yarn tsx
 
-import { hasProperty, isObject } from '@metamask/utils';
+import { assert, hasProperty, isObject } from '@metamask/utils';
 import { ESLint } from 'eslint';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -32,6 +32,10 @@ type CommandLineArguments = {
    * Whether to fix the action types files.
    */
   fix: boolean;
+  /**
+   * Optional path to a specific controller to process.
+   */
+  controllerPath: string;
 };
 
 /**
@@ -40,7 +44,22 @@ type CommandLineArguments = {
  * @returns The command line arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { check, fix } = await yargs(process.argv.slice(2))
+  const {
+    check,
+    fix,
+    path: controllerPath,
+  } = await yargs(process.argv.slice(2))
+    .command(
+      '$0 [path]',
+      'Generate method action types for a controller messenger',
+      (yargsInstance) => {
+        yargsInstance.positional('path', {
+          type: 'string',
+          description: 'Path to the folder where controllers are located',
+          default: 'src',
+        });
+      },
+    )
     .option('check', {
       type: 'boolean',
       description: 'Check if generated action type files are up to date',
@@ -59,7 +78,12 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       return true;
     }).argv;
 
-  return { check, fix };
+  return {
+    check,
+    fix,
+    // TypeScript doesn't narrow the type of `controllerPath` even though we defined it as a string in yargs, so we need to cast it here.
+    controllerPath: controllerPath as string,
+  };
 }
 
 /**
@@ -181,11 +205,11 @@ async function checkActionTypesFiles(
  * Main entry point for the script.
  */
 async function main(): Promise<void> {
-  const { fix } = await parseCommandLineArguments();
+  const { fix, controllerPath } = await parseCommandLineArguments();
 
   console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
 
-  const controllers = await findControllersWithExposedMethods();
+  const controllers = await findControllersWithExposedMethods(controllerPath);
 
   if (controllers.length === 0) {
     console.log('⚠️  No controllers found with MESSENGER_EXPOSED_METHODS');
@@ -237,43 +261,33 @@ async function isDirectory(pathValue: string): Promise<boolean> {
 /**
  * Finds all controller files that have MESSENGER_EXPOSED_METHODS constants.
  *
+ * @param controllerPath - Path to the folder where controllers are located.
  * @returns A list of controller information objects.
  */
-async function findControllersWithExposedMethods(): Promise<ControllerInfo[]> {
-  const packagesDir = path.resolve(__dirname, '../packages');
+async function findControllersWithExposedMethods(
+  controllerPath: string,
+): Promise<ControllerInfo[]> {
+  const srcPath = path.resolve(process.cwd(), controllerPath);
   const controllers: ControllerInfo[] = [];
 
-  const packageDirs = await fs.promises.readdir(packagesDir, {
-    withFileTypes: true,
-  });
+  if (!(await isDirectory(srcPath))) {
+    throw new Error(`The specified path is not a directory: ${srcPath}`);
+  }
 
-  for (const packageDir of packageDirs) {
-    if (!packageDir.isDirectory()) {
+  const srcFiles = await fs.promises.readdir(srcPath);
+
+  for (const file of srcFiles) {
+    if (!file.endsWith('.ts') || file.endsWith('.test.ts')) {
       continue;
     }
 
-    const packagePath = path.join(packagesDir, packageDir.name);
-    const srcPath = path.join(packagePath, 'src');
+    const filePath = path.join(srcPath, file);
+    const content = await fs.promises.readFile(filePath, 'utf8');
 
-    if (!(await isDirectory(srcPath))) {
-      continue;
-    }
-
-    const srcFiles = await fs.promises.readdir(srcPath);
-
-    for (const file of srcFiles) {
-      if (!file.endsWith('.ts') || file.endsWith('.test.ts')) {
-        continue;
-      }
-
-      const filePath = path.join(srcPath, file);
-      const content = await fs.promises.readFile(filePath, 'utf8');
-
-      if (content.includes('MESSENGER_EXPOSED_METHODS')) {
-        const controllerInfo = await parseControllerFile(filePath);
-        if (controllerInfo) {
-          controllers.push(controllerInfo);
-        }
+    if (content.includes('MESSENGER_EXPOSED_METHODS')) {
+      const controllerInfo = await parseControllerFile(filePath);
+      if (controllerInfo) {
+        controllers.push(controllerInfo);
       }
     }
   }
@@ -374,6 +388,94 @@ function createASTVisitor(context: VisitorContext): (node: ts.Node) => void {
 }
 
 /**
+ * Create a TypeScript program for the given file by locating the nearest
+ * tsconfig.json.
+ *
+ * @param filePath - Absolute path to the source file.
+ * @returns A TypeScript program, or null if no tsconfig was found.
+ */
+function createProgramForFile(filePath: string): ts.Program | null {
+  const configPath = ts.findConfigFile(
+    path.dirname(filePath),
+    ts.sys.fileExists.bind(ts.sys),
+    'tsconfig.json',
+  );
+  if (!configPath) {
+    return null;
+  }
+
+  const { config, error } = ts.readConfigFile(
+    configPath,
+    ts.sys.readFile.bind(ts.sys),
+  );
+
+  if (error) {
+    return null;
+  }
+
+  const parsedConfig = ts.parseJsonConfigFileContent(
+    config,
+    ts.sys,
+    path.dirname(configPath),
+  );
+
+  return ts.createProgram({
+    rootNames: parsedConfig.fileNames,
+    options: parsedConfig.options,
+  });
+}
+
+/**
+ * Find a class declaration with the given name in a source file.
+ *
+ * @param sourceFile - The source file to search.
+ * @param className - The class name to look for.
+ * @returns The class declaration node, or null if not found.
+ */
+function findClassInSourceFile(
+  sourceFile: ts.SourceFile,
+  className: string,
+): ts.ClassDeclaration | null {
+  return (
+    sourceFile.statements.find(
+      (node): node is ts.ClassDeclaration =>
+        ts.isClassDeclaration(node) && node.name?.text === className,
+    ) ?? null
+  );
+}
+
+/**
+ * Search through the class hierarchy of a TypeScript type to find the
+ * declaration of a method with the given name.
+ *
+ * @param classType - The class type to search.
+ * @param methodName - The method name to look for.
+ * @returns The method declaration node, or null if not found.
+ */
+function findMethodInHierarchy(
+  classType: ts.Type,
+  methodName: string,
+): ts.MethodDeclaration | null {
+  const symbol = classType.getProperty(methodName);
+  if (!symbol) {
+    return null;
+  }
+
+  const declarations = symbol.getDeclarations();
+  if (!declarations) {
+    return null;
+  }
+
+  for (const declaration of declarations) {
+    if (ts.isMethodDeclaration(declaration)) {
+      return declaration;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Parses a controller file to extract exposed methods and their metadata.
  *
  * @param filePath - Path to the controller file to parse.
@@ -402,6 +504,52 @@ async function parseControllerFile(
 
     if (context.exposedMethods.length === 0 || !context.className) {
       return null;
+    }
+
+    // For exposed methods not found directly in the class body, attempt to
+    // locate them in the inheritance hierarchy using the type checker.
+    const foundMethodNames = new Set(
+      context.methods.map((method) => method.name),
+    );
+
+    const inheritedMethodNames = context.exposedMethods.filter(
+      (name) => !foundMethodNames.has(name),
+    );
+
+    if (inheritedMethodNames.length > 0) {
+      const program = createProgramForFile(filePath);
+      const checker = program?.getTypeChecker();
+      const programSourceFile = program?.getSourceFile(filePath);
+
+      assert(
+        checker,
+        `Type checker could not be created for "${filePath}". Ensure a valid tsconfig.json is present.`,
+      );
+
+      assert(
+        programSourceFile,
+        `Source file "${filePath}" not found in program.`,
+      );
+
+      const classNode = findClassInSourceFile(
+        programSourceFile,
+        context.className,
+      );
+
+      assert(
+        classNode,
+        `Class "${context.className}" not found in "${filePath}".`,
+      );
+
+      const classType = checker.getTypeAtLocation(classNode);
+      for (const methodName of inheritedMethodNames) {
+        const methodDeclaration = findMethodInHierarchy(classType, methodName);
+
+        const jsDoc = methodDeclaration
+          ? extractJSDoc(methodDeclaration, methodDeclaration.getSourceFile())
+          : '';
+        context.methods.push({ name: methodName, jsDoc, signature: '' });
+      }
     }
 
     return {
@@ -547,7 +695,7 @@ function generateActionTypesContent(controller: ControllerInfo): string {
   const controllerImportPath = `./${baseFileName}`;
 
   let content = `/**
- * This file is auto generated by \`scripts/generate-method-action-types.ts\`.
+ * This file is auto generated.
  * Do not edit manually.
  */
 

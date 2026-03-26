@@ -35,6 +35,10 @@ describe('TestStrategy', () => {
           },
           estimatedDuration: expect.any(Number),
           fees: {
+            metaMask: {
+              fiat: expect.any(String),
+              usd: expect.any(String),
+            },
             provider: {
               fiat: expect.any(String),
               usd: expect.any(String),
@@ -69,8 +73,6 @@ describe('TestStrategy', () => {
           strategy: TransactionPayStrategy.Test,
           targetAmount: {
             fiat: expect.any(String),
-            human: expect.any(String),
-            raw: expect.any(String),
             usd: expect.any(String),
           },
         },

@@ -5,8 +5,6 @@ import {
 } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
 import nock from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
@@ -40,14 +38,12 @@ const DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK =
   2 * DEFAULT_RPC_SERVICE_ATTEMPTS_UNTIL_BREAK - 1;
 
 describe('RpcServiceChain', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('onServiceRetry', () => {
@@ -268,7 +264,7 @@ describe('RpcServiceChain', () => {
         },
       ]);
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       const jsonRpcRequest = {
@@ -382,7 +378,7 @@ describe('RpcServiceChain', () => {
         },
       ]);
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       const jsonRpcRequest = {
@@ -448,7 +444,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -539,7 +535,7 @@ describe('RpcServiceChain', () => {
         },
       ]);
       const onServiceRetryListener = jest.fn(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceRetry(onServiceRetryListener);
 
@@ -624,7 +620,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -690,7 +686,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -792,7 +788,7 @@ describe('RpcServiceChain', () => {
       const onBreakListener = jest.fn();
       const onAvailableListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
       rpcServiceChain.onAvailable(onAvailableListener);
@@ -812,7 +808,7 @@ describe('RpcServiceChain', () => {
       }
       // Wait until the circuit break duration passes, try the first endpoint
       // and see that it succeeds.
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       await rpcServiceChain.request(jsonRpcRequest);
       // Do it again: retry the first endpoint until its circuit breaks, then
       // retry the second endpoint until *its* circuit breaks.
@@ -851,7 +847,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -893,7 +889,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -912,7 +908,7 @@ describe('RpcServiceChain', () => {
       }
       // Wait until the circuit break duration passes, try the first endpoint
       // and see that it succeeds.
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       await rpcServiceChain.request(jsonRpcRequest);
       // Do it again: retry the first endpoint until its circuit breaks, then
       // retry the second endpoint until *its* circuit breaks.
@@ -985,7 +981,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceBreakListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceBreak(onServiceBreakListener);
 
@@ -1070,7 +1066,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1097,6 +1093,7 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1111,7 +1108,7 @@ describe('RpcServiceChain', () => {
         })
         .times(2)
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1128,7 +1125,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1142,7 +1139,9 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith({});
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        rpcMethodName: 'eth_chainId',
+      });
     });
 
     it('calls onDegraded only once even if a service runs out of retries and then responds successfully but slowly, or vice versa', async () => {
@@ -1164,7 +1163,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1192,7 +1191,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1216,6 +1215,75 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
+      });
+    });
+
+    it('reports only the first RPC method that triggered the degraded condition when different methods fail or respond slowly', async () => {
+      const endpointUrl = 'https://some.endpoint';
+      // First request: eth_blockNumber runs out of retries (triggers degraded)
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .times(5)
+        .reply(503);
+      // Second request: eth_gasPrice responds slowly (already degraded, no new event)
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .reply(200, () => {
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 2,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      const expectedError = createResourceUnavailableError(503);
+      const expectedDegradedError = new HttpError(503);
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          isOffline: (): boolean => false,
+          endpointUrl,
+        },
+      ]);
+      const onDegradedListener = jest.fn();
+      rpcServiceChain.onServiceRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+      rpcServiceChain.onDegraded(onDegradedListener);
+
+      // eth_blockNumber exhausts retries, triggering degraded
+      await expect(
+        rpcServiceChain.request({
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+      ).rejects.toThrow(expectedError);
+      // eth_gasPrice responds slowly, but chain is already degraded
+      await rpcServiceChain.request({
+        id: 2,
+        jsonrpc: '2.0' as const,
+        method: 'eth_gasPrice',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        error: expectedDegradedError,
+        rpcMethodName: 'eth_blockNumber',
       });
     });
 
@@ -1239,7 +1307,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1265,7 +1333,7 @@ describe('RpcServiceChain', () => {
       const onBreakListener = jest.fn();
       const onDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
       rpcServiceChain.onDegraded(onDegradedListener);
@@ -1292,6 +1360,7 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1314,7 +1383,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1333,7 +1402,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1358,14 +1427,17 @@ describe('RpcServiceChain', () => {
       );
       // Wait until the circuit break duration passes, try the endpoint again,
       // and see that it succeeds, but slowly.
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
-      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {});
+      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
+        rpcMethodName: 'eth_chainId',
+      });
     });
 
     it("calls onDegraded again when a failover service's underlying circuit breaks, and then after waiting, the primary responds successfully but slowly", async () => {
@@ -1388,7 +1460,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1422,7 +1494,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1455,15 +1527,18 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expectedError,
       );
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       // Hit the first endpoint again, and see that it succeeds, but slowly
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
-      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {});
+      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
+        rpcMethodName: 'eth_chainId',
+      });
     });
 
     it('calls onServiceDegraded each time a service continually runs out of retries (but before its circuit breaks)', async () => {
@@ -1489,7 +1564,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1518,11 +1593,13 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1537,7 +1614,7 @@ describe('RpcServiceChain', () => {
         })
         .times(2)
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1554,7 +1631,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1571,10 +1648,12 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1597,7 +1676,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1625,7 +1704,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1651,15 +1730,18 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1683,7 +1765,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1709,7 +1791,7 @@ describe('RpcServiceChain', () => {
       const onBreakListener = jest.fn();
       const onServiceDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onBreak(onBreakListener);
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
@@ -1738,15 +1820,18 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1769,7 +1854,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1788,7 +1873,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1813,7 +1898,7 @@ describe('RpcServiceChain', () => {
       );
       // Wait until the circuit break duration passes, try the endpoint again,
       // and see that it succeeds, but slowly.
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onServiceDegradedListener).toHaveBeenCalledTimes(3);
@@ -1821,15 +1906,18 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1853,7 +1941,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1887,7 +1975,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1920,7 +2008,7 @@ describe('RpcServiceChain', () => {
       await expect(rpcServiceChain.request(jsonRpcRequest)).rejects.toThrow(
         expectedError,
       );
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       // Hit the first endpoint again, and see that it succeeds, but slowly
       await rpcServiceChain.request(jsonRpcRequest);
 
@@ -1929,25 +2017,30 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(4, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(5, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1976,7 +2069,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onAvailableListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onAvailable(onAvailableListener);
 
@@ -2035,7 +2128,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onAvailableListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onAvailable(onAvailableListener);
 
@@ -2072,7 +2165,7 @@ describe('RpcServiceChain', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -2102,7 +2195,7 @@ describe('RpcServiceChain', () => {
       const onDegradedListener = jest.fn();
       const onAvailableListener = jest.fn();
       rpcServiceChain.onServiceRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       rpcServiceChain.onDegraded(onDegradedListener);
       rpcServiceChain.onAvailable(onAvailableListener);
@@ -2118,7 +2211,9 @@ describe('RpcServiceChain', () => {
 
       // Verify degradation occurred after the first (slow) request
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith({});
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        rpcMethodName: 'eth_chainId',
+      });
 
       // Verify recovery occurred after the second (fast) request
       expect(onAvailableListener).toHaveBeenCalledTimes(1);

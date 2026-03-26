@@ -44,6 +44,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
+import type { EarnControllerMethodActions } from './EarnController-method-action-types';
 import type {
   RefreshEarnEligibilityOptions,
   RefreshLendingEligibilityOptions,
@@ -252,6 +253,29 @@ export function getDefaultEarnControllerState(): EarnControllerState {
 
 // === MESSENGER ===
 
+const MESSENGER_EXPOSED_METHODS = [
+  'refreshPooledStakes',
+  'refreshEarnEligibility',
+  'refreshPooledStakingVaultMetadata',
+  'refreshPooledStakingVaultDailyApys',
+  'refreshPooledStakingVaultApyAverages',
+  'refreshPooledStakingData',
+  'refreshLendingMarkets',
+  'refreshLendingPositions',
+  'refreshLendingEligibility',
+  'refreshLendingData',
+  'refreshTronStakingApy',
+  'getTronStakingApy',
+  'getLendingPositionHistory',
+  'getLendingMarketDailyApysAndAverages',
+  'executeLendingDeposit',
+  'executeLendingWithdraw',
+  'executeLendingTokenApprove',
+  'getLendingTokenAllowance',
+  'getLendingTokenMaxWithdraw',
+  'getLendingTokenMaxDeposit',
+] as const;
+
 /**
  * The action which can be used to retrieve the state of the EarnController.
  */
@@ -263,7 +287,9 @@ export type EarnControllerGetStateAction = ControllerGetStateAction<
 /**
  * All actions that EarnController registers, to be called externally.
  */
-export type EarnControllerActions = EarnControllerGetStateAction;
+export type EarnControllerActions =
+  | EarnControllerGetStateAction
+  | EarnControllerMethodActions;
 
 /**
  * All actions that EarnController calls internally.
@@ -384,6 +410,11 @@ export class EarnController extends BaseController<
         this.refreshLendingMarkets().catch(console.error);
         this.refreshLendingPositions().catch(console.error);
       },
+    );
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
     // Listen for account group changes

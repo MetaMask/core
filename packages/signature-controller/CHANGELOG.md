@@ -7,9 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.0]
+
+### Added
+
+- Expose missing public `SignatureController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `SignatureController:resetState`
+    - `SignatureController:rejectUnapproved`
+    - `SignatureController:clearUnapproved`
+    - `SignatureController:newUnsignedPersonalMessage`
+    - `SignatureController:newUnsignedTypedMessage`
+    - `SignatureController:setDeferredSignSuccess`
+    - `SignatureController:setMessageMetadata`
+    - `SignatureController:setDeferredSignError`
+    - `SignatureController:setTypedMessageInProgress`
+    - `SignatureController:setPersonalMessageInProgress`
+  - Corresponding action types (e.g. `SignatureControllerResetStateAction`) are available as well.
+
 ### Changed
 
-- Bump `@metamask/gator-permissions-controller` from `^1.0.0` to `^1.1.0` ([#7682](https://github.com/MetaMask/core/pull/7682))
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/logging-controller` from `^7.0.1` to `^8.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gator-permissions-controller` from `^2.0.0` to `^2.1.1` ([#8156](https://github.com/MetaMask/core/pull/8156), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [39.0.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+## [39.0.4]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [39.0.3]
+
+### Changed
+
+- Bump `@metamask/gator-permissions-controller` from `^1.1.2` to `^2.0.0` ([#7946](https://github.com/MetaMask/core/pull/7946))
+
+## [39.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+- Bump `@metamask/gator-permissions-controller` from `^1.0.0` to `^1.1.2` ([#7682](https://github.com/MetaMask/core/pull/7682), [#7739](https://github.com/MetaMask/core/pull/7739), [#7767](https://github.com/MetaMask/core/pull/7767))
 
 ## [39.0.1]
 
@@ -665,7 +713,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...HEAD
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...@metamask/signature-controller@39.1.0
+[39.0.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.4...@metamask/signature-controller@39.0.5
+[39.0.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.3...@metamask/signature-controller@39.0.4
+[39.0.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.2...@metamask/signature-controller@39.0.3
+[39.0.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.1...@metamask/signature-controller@39.0.2
 [39.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.0...@metamask/signature-controller@39.0.1
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.1...@metamask/signature-controller@39.0.0
 [38.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@38.0.0...@metamask/signature-controller@38.0.1

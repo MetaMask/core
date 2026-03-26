@@ -7,10 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `PermissionController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `PermissionController:clearState`
+  - Corresponding action types (e.g. `PermissionControllerClearStateAction`) are
+    available as well.
+- Expose missing public `SubjectMetadataController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `SubjectMetadataController:clearState`
+    - `SubjectMetadataController:trimMetadataState`
+  - Corresponding action types
+    (e.g. `SubjectMetadataControllerClearStateAction`) are available as well.
+
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
-- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Deprecate action types in favor of `PermissionController...Action` and `SubjectMetadataController...Action` types ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - For the `PermissionController`:
+    - `GetPermissionControllerState` is now `PermissionControllerGetStateAction`.
+    - `GetSubjects` is now `PermissionControllerGetSubjectsAction`.
+    - `GetPermissions` is now `PermissionControllerGetPermissionsAction`.
+    - `HasPermissions` is now `PermissionControllerHasPermissionsAction`.
+    - `HasPermission` is now `PermissionControllerHasPermissionAction`.
+    - `GrantPermissions` is now `PermissionControllerGrantPermissionsAction`.
+    - `GrantPermissionsIncremental` is now `PermissionControllerGrantPermissionsIncrementalAction`.
+    - `RequestPermissions` is now `PermissionControllerRequestPermissionsAction`.
+    - `RequestPermissionsIncremental` is now `PermissionControllerRequestPermissionsIncrementalAction`.
+    - `RevokePermissions` is now `PermissionControllerRevokePermissionsAction`.
+    - `RevokeAllPermissions` is now `PermissionControllerRevokeAllPermissionsAction`.
+    - `RevokePermissionForAllSubjects` is now `PermissionControllerRevokePermissionForAllSubjectsAction`.
+    - `UpdateCaveat` is now `PermissionControllerUpdateCaveatAction`.
+    - `GetCaveat` is now `PermissionControllerGetCaveatAction`.
+    - `ClearPermissions` is now `PermissionControllerClearPermissionsAction`.
+    - `GetEndowments` is now `PermissionControllerGetEndowmentsAction`.
+  - For the `SubjectMetadataController`:
+    - `GetSubjectMetadataControllerState` is now `SubjectMetadataControllerGetStateAction`.
+    - `GetSubjectMetadata` is now `SubjectMetadataControllerGetMetadataAction`.
+    - `AddSubjectMetadata` is now `SubjectMetadataControllerAddMetadataAction`.
+  - The old types are still exported but are now marked as deprecated and will
+    be removed in a future release.
+
+## [12.2.1]
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.3` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078))
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.19.0` ([#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [12.2.0]
 
@@ -394,7 +438,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.1...HEAD
+[12.2.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.0...@metamask/permission-controller@12.2.1
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.1...@metamask/permission-controller@12.2.0
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.0...@metamask/permission-controller@12.1.1
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.0.0...@metamask/permission-controller@12.1.0

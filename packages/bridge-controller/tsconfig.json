@@ -14,7 +14,9 @@
     { "path": "../gas-fee-controller" },
     { "path": "../assets-controllers" },
     { "path": "../multichain-network-controller" },
-    { "path": "../remote-feature-flag-controller" }
+    { "path": "../profile-sync-controller" },
+    { "path": "../remote-feature-flag-controller" },
+    { "path": "../assets-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

@@ -1,13 +1,14 @@
-import { BaseController } from '@metamask/base-controller';
-import type {
+import {
+  BaseController,
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
+import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -69,41 +70,24 @@ const remoteFeatureFlagControllerMetadata = {
 
 // === MESSENGER ===
 
-/**
- * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
- */
+const MESSENGER_EXPOSED_METHODS = [
+  'clearAllFlagOverrides',
+  'disable',
+  'enable',
+  'removeFlagOverride',
+  'setFlagOverride',
+  'updateRemoteFeatureFlags',
+] as const;
+
 export type RemoteFeatureFlagControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     RemoteFeatureFlagControllerState
   >;
 
-export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
-  type: `${typeof controllerName}:updateRemoteFeatureFlags`;
-  handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
-};
-
-export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
-  type: `${typeof controllerName}:setFlagOverride`;
-  handler: RemoteFeatureFlagController['setFlagOverride'];
-};
-
-export type RemoteFeatureFlagControllerRemoveFlagOverrideAction = {
-  type: `${typeof controllerName}:removeFlagOverride`;
-  handler: RemoteFeatureFlagController['removeFlagOverride'];
-};
-
-export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
-  type: `${typeof controllerName}:clearAllFlagOverrides`;
-  handler: RemoteFeatureFlagController['clearAllFlagOverrides'];
-};
-
 export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
-  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
-  | RemoteFeatureFlagControllerSetFlagOverrideAction
-  | RemoteFeatureFlagControllerRemoveFlagOverrideAction
-  | RemoteFeatureFlagControllerClearAllFlagOverridesAction;
+  | RemoteFeatureFlagControllerMethodActions;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -168,6 +152,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
+   * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    */
   constructor({
     messenger,
@@ -177,6 +162,7 @@ export class RemoteFeatureFlagController extends BaseController<
     disabled = false,
     getMetaMetricsId,
     clientVersion,
+    prevClientVersion,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
@@ -185,6 +171,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
+    prevClientVersion?: string;
   }) {
     if (!isValidSemVerVersion(clientVersion)) {
       throw new Error(
@@ -192,13 +179,24 @@ export class RemoteFeatureFlagController extends BaseController<
       );
     }
 
+    const initialState: RemoteFeatureFlagControllerState = {
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      ...state,
+    };
+
+    const hasClientVersionChanged =
+      isValidSemVerVersion(prevClientVersion) &&
+      prevClientVersion !== clientVersion;
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        ...state,
+        ...initialState,
+        cacheTimestamp: hasClientVersionChanged
+          ? 0
+          : initialState.cacheTimestamp,
       },
     });
 
@@ -207,6 +205,11 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
     this.#clientVersion = clientVersion;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

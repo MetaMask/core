@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.2.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301))
+
+## [41.1.0]
+
+### Added
+
+- Expose missing public `UserOperationController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `UserOperationController:addUserOperation`
+    - `UserOperationController:addUserOperationFromTransaction`
+    - `UserOperationController:startPollingByNetworkClientId`
+  - Corresponding action types (e.g. `UserOperationControllerAddUserOperationAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^63.0.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [41.0.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.1` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897), [#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/gas-fee-controller` from `^26.0.2` to `^26.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
 ## [41.0.2]
 
 ### Changed
@@ -527,7 +559,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.1.0...HEAD
+[41.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.3...@metamask/user-operation-controller@41.1.0
+[41.0.3]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.2...@metamask/user-operation-controller@41.0.3
 [41.0.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.1...@metamask/user-operation-controller@41.0.2
 [41.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.0...@metamask/user-operation-controller@41.0.1
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@40.0.0...@metamask/user-operation-controller@41.0.0

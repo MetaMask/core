@@ -1,8 +1,15 @@
-import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
+import type {
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  BtcAccountType,
+  BtcScope,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
@@ -13,7 +20,7 @@ import type {
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type BtcAccountProviderConfig = SnapAccountProviderConfig;
@@ -23,6 +30,7 @@ export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin';
 export const BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG: BtcAccountProviderConfig = {
   maxConcurrency: 3,
   createAccounts: {
+    batched: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
   discovery: {
@@ -31,12 +39,23 @@ export const BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG: BtcAccountProviderConfig = {
     maxAttempts: 3,
     backOffMs: 1000,
   },
+  resyncAccounts: {
+    autoRemoveExtraSnapAccounts: true,
+  },
 };
 
 export class BtcAccountProvider extends SnapAccountProvider {
   static NAME = BTC_ACCOUNT_PROVIDER_NAME;
 
   static BTC_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap' as SnapId;
+
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [BtcScope.Mainnet, BtcScope.Testnet],
+    bip44: {
+      deriveIndex: true,
+      deriveIndexRange: true,
+    },
+  };
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -57,40 +76,18 @@ export class BtcAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async #createAccounts({
-    keyring,
-    entropySource,
-    groupIndex: index,
-  }: {
-    keyring: RestrictedSnapKeyring;
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withMaxConcurrency(async () => {
-      const account = await withTimeout(
-        keyring.createAccount({
-          entropySource,
-          index,
-          addressType: BtcAccountType.P2wpkh,
-          scope: BtcScope.Mainnet,
-        }),
-        this.config.createAccounts.timeoutMs,
-      );
-
-      assertIsBip44Account(account);
-      return [account];
-    });
-  }
-
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withSnap(async ({ keyring }) => {
-      return this.#createAccounts({ keyring, entropySource, groupIndex });
+  protected override createAccountV1(
+    keyring: RestrictedSnapKeyring,
+    {
+      entropySource,
+      groupIndex,
+    }: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount> {
+    return keyring.createAccount({
+      entropySource,
+      index: groupIndex,
+      addressType: BtcAccountType.P2wpkh,
+      scope: BtcScope.Mainnet,
     });
   }
 
@@ -117,11 +114,12 @@ export class BtcAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [BtcScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [BtcScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {
@@ -137,13 +135,11 @@ export class BtcAccountProvider extends SnapAccountProvider {
             return [];
           }
 
-          const createdAccounts = await this.#createAccounts({
-            keyring,
+          return await this.createBip44Accounts(keyring, {
+            type: AccountCreationType.Bip44DeriveIndex,
             entropySource,
             groupIndex,
           });
-
-          return createdAccounts;
         },
       );
     });

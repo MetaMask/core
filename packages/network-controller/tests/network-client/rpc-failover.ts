@@ -94,7 +94,7 @@ export function testsForRpcFailoverBehavior({
                   },
                 }),
               },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 messenger.subscribe(
                   'NetworkController:rpcEndpointRetried',
                   () => {
@@ -103,7 +103,7 @@ export function testsForRpcFailoverBehavior({
                     // We also don't need to await this, it just needs to
                     // be added to the promise queue.
                     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                    clock.tickAsync(backoffDuration);
+                    jest.advanceTimersByTimeAsync(backoffDuration);
                   },
                 );
 
@@ -210,7 +210,7 @@ export function testsForRpcFailoverBehavior({
                     };
                   },
                 },
-                async ({ makeRpcCall, clock }) => {
+                async ({ makeRpcCall }) => {
                   messenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
@@ -219,7 +219,7 @@ export function testsForRpcFailoverBehavior({
                       // We also don't need to await this, it just needs to
                       // be added to the promise queue.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      clock.tickAsync(backoffDuration);
+                      jest.advanceTimersByTimeAsync(backoffDuration);
                     },
                   );
 
@@ -274,14 +274,14 @@ export function testsForRpcFailoverBehavior({
               },
             }),
           },
-          async ({ makeRpcCall, clock, rpcUrl }) => {
+          async ({ makeRpcCall, rpcUrl }) => {
             messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
               // Ensure that we advance to the next RPC request
               // retry, not the next block tracker request.
               // We also don't need to await this, it just needs to
               // be added to the promise queue.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.tickAsync(backoffDuration);
+              jest.advanceTimersByTimeAsync(backoffDuration);
             });
 
             for (let i = 0; i < numRequestsToMake - 1; i++) {

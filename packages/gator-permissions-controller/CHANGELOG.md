@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `GatorPermissionsController` methods through its messenger ([#8205](https://github.com/MetaMask/core/pull/8205))
+  - The following actions are now available:
+    - `GatorPermissionsController:initialize`
+  - Corresponding action types (e.g. `GatorPermissionsControllerInitializeAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.2.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301))
+
+## [2.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^63.0.0` ([#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [2.1.0]
+
+### Changed
+
+- Improves permission validation during decoding ([#7844](https://github.com/MetaMask/core/pull/7844), [#8127](https://github.com/MetaMask/core/pull/8127))
+  - Validates `ExactCalldataEnforcer` and `ValueLteEnforcer` caveat terms
+  - Validates that `periodAmount` is positive in `erc20-token-periodic` and `native-token-periodic` permission types
+  - Validates that `tokenAddress` is a valid hex string in `erc20-token-periodic` and `erc20-token-stream` permission types
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.21.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Refactor `GatorPermissionsController`: simplified config, permission storage, and public API ([#7847](https://github.com/MetaMask/core/pull/7847))
+  - Constructor now requires `config`, internal configuration is removed from controller state
+  - New `initialize()` function performs a syncronisation process if required when the controller is first initialized
+  - Replaces `gatorPermissionsMapSerialized` with `grantedPermissions` property in internal state, replaces related types, and utility functions
+  - `fetchAndUpdateGatorPermissions()` no longer accepts parameters and resolves to `void`
+  - `getPendingRevocations` / `pendingRevocations` getter replaced by `isPendingRevocation(permissionContext)`; list on `state.pendingRevocations`
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.17.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+## [1.1.2]
+
+### Fixed
+
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` to resolve mismatching `WebSocketState` enum export in `@metamask/core-backend` transient dependency ([#7760](https://github.com/MetaMask/core/pull/7760))
+
+## [1.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.10.0` ([#7737](https://github.com/MetaMask/core/pull/7737))
+
+### Fixed
+
+- Correctly validate `erc20-token-revocation` terms when decoding permission. ([#7729](https://github.com/MetaMask/core/pull/7729))
+
 ## [1.1.0]
 
 ### Changed
@@ -134,7 +189,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.1...HEAD
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.0...@metamask/gator-permissions-controller@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.0.0...@metamask/gator-permissions-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.2...@metamask/gator-permissions-controller@2.0.0
+[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.1...@metamask/gator-permissions-controller@1.1.2
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...@metamask/gator-permissions-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.0.0...@metamask/gator-permissions-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.8.0...@metamask/gator-permissions-controller@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...@metamask/gator-permissions-controller@0.8.0

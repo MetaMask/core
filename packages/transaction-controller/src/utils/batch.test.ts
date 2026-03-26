@@ -40,6 +40,7 @@ import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook'
 import type {
   GasFeeFlow,
   PublishBatchHook,
+  RequiredAsset,
   TransactionBatchSingleRequest,
 } from '../types';
 
@@ -397,6 +398,46 @@ describe('Batch Utils', () => {
       const result = await addTransactionBatch(request);
 
       expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+    });
+
+    it('passes requiredAssets from batch request to addTransaction for 7702 flow', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      const requiredAssets: RequiredAsset[] = [
+        {
+          address: '0x1234567890123456789012345678901234567890',
+          amount: '0x1',
+          standard: 'erc20',
+        },
+      ];
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      await addTransactionBatch({
+        ...request,
+        request: {
+          ...request.request,
+          requiredAssets,
+          transactions: [
+            {
+              params: TRANSACTION_BATCH_PARAMS_MOCK,
+            },
+          ],
+        },
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          requiredAssets,
+        }),
+      );
     });
 
     it('preserves nested transaction types when disable7702 is true', async () => {
@@ -1112,6 +1153,79 @@ describe('Batch Utils', () => {
         doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
       });
 
+      it('returns provided batch ID', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            batchId: BATCH_ID_CUSTOM_MOCK,
+            disable7702: true,
+          },
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const result = await resultPromise;
+
+        expect(result.batchId).toBe(BATCH_ID_CUSTOM_MOCK);
+        expect(addTransactionMock.mock.calls[0][1].batchId).toBe(
+          BATCH_ID_CUSTOM_MOCK,
+        );
+        expect(addTransactionMock.mock.calls[1][1].batchId).toBe(
+          BATCH_ID_CUSTOM_MOCK,
+        );
+      });
+
       it('adds each nested transaction', async () => {
         const publishBatchHook = jest.fn();
 
@@ -1146,6 +1260,7 @@ describe('Batch Utils', () => {
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             origin: ORIGIN_MOCK,
             publishHook: expect.any(Function),
+            requiredAssets: undefined,
             requireApproval: false,
             type: undefined,
           },

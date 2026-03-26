@@ -1,6 +1,6 @@
 {
   "name": "@metamask/name-controller",
-  "version": "9.0.0",
+  "version": "9.1.0",
   "description": "Stores and suggests names for values such as Ethereum addresses",
   "keywords": [
     "MetaMask",
@@ -40,8 +40,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/name-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/name-controller",
+    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.9.0",
     "async-mutex": "^0.5.0"
@@ -58,11 +58,12 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },

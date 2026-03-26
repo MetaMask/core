@@ -537,5 +537,22 @@ describe('compatibility-utils', () => {
 
       expect(result.data).toBe(thrownValue.data);
     });
+
+    it('preserves existing data.cause if defined', () => {
+      const thrownValue = {
+        code: -31001,
+        message: 'Wrapped Snap Error',
+        data: {
+          cause: { code: -31002, message: 'Snap Error', data: {} },
+          foo: 'bar',
+        },
+      };
+
+      const result = deserializeError(thrownValue) as JsonRpcError<string>;
+
+      expect(result.code).toBe(thrownValue.code);
+      expect(result.message).toBe(thrownValue.message);
+      expect(result.data).toStrictEqual(thrownValue.data);
+    });
   });
 });

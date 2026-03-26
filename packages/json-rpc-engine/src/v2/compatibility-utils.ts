@@ -146,7 +146,7 @@ function deserializeData(
 ): OptionalDataWithOptionalCause {
   // If data is an object, merge with cause.
   if (isObject(data)) {
-    return { ...data, cause };
+    return { ...data, cause: cause ?? data.cause };
   }
 
   // If data is a JSON value that's not mergeable.

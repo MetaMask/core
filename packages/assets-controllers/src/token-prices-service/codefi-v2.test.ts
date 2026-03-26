@@ -1,7 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
-import { useFakeTimers } from 'sinon';
+import nock, { isDone } from 'nock';
 
 import {
   CodefiTokenPricesServiceV2,
@@ -13,6 +12,9 @@ import {
   fetchSupportedCurrencies,
   getSupportedCurrencies,
   resetSupportedCurrenciesCache,
+  fetchSupportedNetworks,
+  getSupportedNetworks,
+  resetSupportedNetworksCache,
 } from './codefi-v2';
 
 // We're not customizing the default max delay
@@ -21,14 +23,15 @@ const defaultMaxRetryDelay = 30_000;
 
 describe('CodefiTokenPricesServiceV2', () => {
   describe('onBreak', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
+      jest.useFakeTimers({
+        now: Date.now(),
+        doNotFake: ['nextTick', 'queueMicrotask'],
+      });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('registers a listener that is called upon break', async () => {
@@ -152,10 +155,8 @@ describe('CodefiTokenPricesServiceV2', () => {
       // Initial three calls to exhaust maximum allowed failures
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for (const _retryAttempt of Array(retries).keys()) {
-        // eslint-disable-next-line no-loop-func
         await expect(() =>
           fetchTokenPricesWithFakeTimers({
-            clock,
             fetchTokenPrices,
             retries,
           }),
@@ -167,14 +168,15 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('onDegraded', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
+      jest.useFakeTimers({
+        now: Date.now(),
+        doNotFake: ['nextTick', 'queueMicrotask'],
+      });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('calls onDegraded when request is slower than threshold', async () => {
@@ -216,7 +218,6 @@ describe('CodefiTokenPricesServiceV2', () => {
       service.onDegraded(onDegradedHandler);
 
       await fetchTokenPricesWithFakeTimers({
-        clock,
         fetchTokenPrices: () =>
           service.fetchTokenPrices({
             assets: [
@@ -1018,14 +1019,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('before circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onDegraded when request is slower than threshold', async () => {
@@ -1067,7 +1069,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
 
         await fetchTokenPricesWithFakeTimers({
-          clock,
           fetchTokenPrices: () =>
             service.fetchTokenPrices({
               assets: [
@@ -1094,14 +1095,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('after circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onBreak handler upon break', async () => {
@@ -1225,10 +1227,8 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Initial three calls to exhaust maximum allowed failures
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const _retryAttempt of Array(retries).keys()) {
-          // eslint-disable-next-line no-loop-func
           await expect(() =>
             fetchTokenPricesWithFakeTimers({
-              clock,
               fetchTokenPrices,
               retries,
             }),
@@ -1650,14 +1650,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('before circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onDegraded when request is slower than threshold', async () => {
@@ -1678,7 +1679,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
 
         await fetchExchangeRatesWithFakeTimers({
-          clock,
           fetchExchangeRates: () =>
             service.fetchExchangeRates({
               baseCurrency: 'eur',
@@ -1693,14 +1693,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('after circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onBreak handler upon break', async () => {
@@ -1744,10 +1745,8 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Initial three calls to exhaust maximum allowed failures
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const _retryAttempt of Array(retries).keys()) {
-          // eslint-disable-next-line no-loop-func
           await expect(() =>
             fetchExchangeRatesWithFakeTimers({
-              clock,
               fetchExchangeRates,
               retries,
             }),
@@ -1920,6 +1919,270 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(result).toStrictEqual([...SUPPORTED_CURRENCIES_FALLBACK]);
     });
   });
+
+  describe('fetchSupportedNetworks', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('fetches supported networks from the API and returns them', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1', 'eip155:137'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:137', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:137', 'eip155:42161'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      const result = await fetchSupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('returns the fallback list when the API returns an invalid response', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, { invalid: 'response' });
+
+      const result = await fetchSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+      expect(result.partialSupport.spotPricesV3).toBeDefined();
+    });
+
+    it('returns the fallback list when the API request fails', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .replyWithError('Network error');
+
+      const result = await fetchSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+      expect(result.partialSupport.spotPricesV3).toBeDefined();
+    });
+
+    it('updates getSupportedNetworks after a successful fetch', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:42161'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      await fetchSupportedNetworks();
+      const result = getSupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('deduplicates concurrent requests to the same endpoint', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:42161'],
+        },
+      };
+      // Only set up the mock to respond once
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      // Make 5 concurrent calls
+      const promises = [
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+      ];
+
+      const results = await Promise.all(promises);
+
+      // All promises should resolve to the same response
+      results.forEach((result) => {
+        expect(result).toStrictEqual(mockResponse);
+      });
+
+      // Verify no pending mocks (i.e., only one request was made)
+      expect(isDone()).toBe(true);
+    });
+  });
+
+  describe('getSupportedNetworks', () => {
+    beforeEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('returns the fallback list when no networks have been fetched', () => {
+      const result = getSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+      expect(result.partialSupport.spotPricesV3).toBeDefined();
+      expect(Array.isArray(result.fullSupport)).toBe(true);
+      expect(Array.isArray(result.partialSupport.spotPricesV3)).toBe(true);
+    });
+  });
+
+  describe('updateSupportedNetworks', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('fetches and returns supported networks via the service method', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1', 'eip155:10'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1'],
+          spotPricesV3: ['eip155:1', 'eip155:10'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      const service = new CodefiTokenPricesServiceV2();
+      const result = await service.updateSupportedNetworks();
+
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('returns the fallback list when the API fails', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .replyWithError('Network error');
+
+      const service = new CodefiTokenPricesServiceV2();
+      const result = await service.updateSupportedNetworks();
+
+      expect(result.fullSupport).toBeDefined();
+      expect(result.partialSupport).toBeDefined();
+    });
+  });
+
+  describe('setNativeAssetIdentifiers', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('sets native asset identifiers and uses them in fetchTokenPrices', async () => {
+      // Mock supportedNetworks to include our test chain
+      const mockNetworksResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: ['eip155:1'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockNetworksResponse)
+        .persist();
+
+      // Pre-populate the cache
+      await fetchSupportedNetworks();
+
+      const customNativeAssetId = 'eip155:1/slip44:60';
+      const nativeAssetIdentifiers = {
+        'eip155:1': customNativeAssetId,
+      };
+
+      // Mock the spot-prices response
+      nock('https://price.api.cx.metamask.io')
+        .get('/v3/spot-prices')
+        .query(true)
+        .reply(200, {
+          [customNativeAssetId]: {
+            price: 2000,
+            currency: 'USD',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 1000000,
+            allTimeHigh: 5000,
+            allTimeLow: 100,
+            totalVolume: 50000,
+            high1d: 2100,
+            low1d: 1900,
+            circulatingSupply: 1000000,
+            dilutedMarketCap: 2000000,
+            marketCapPercentChange1d: 0.5,
+            pricePercentChange1h: 0.1,
+            pricePercentChange7d: 5,
+            pricePercentChange14d: 10,
+            pricePercentChange30d: 15,
+            pricePercentChange200d: 50,
+            pricePercentChange1y: 100,
+          },
+        });
+
+      const service = new CodefiTokenPricesServiceV2();
+      service.setNativeAssetIdentifiers(
+        nativeAssetIdentifiers as Record<
+          `${string}:${string}`,
+          `${string}:${string}/${string}:${string}`
+        >,
+      );
+
+      const result = await service.fetchTokenPrices({
+        assets: [{ chainId: '0x1', tokenAddress: ZERO_ADDRESS }],
+        currency: 'USD',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].price).toBe(2000);
+    });
+  });
+
+  describe('validateChainIdSupported with dynamic networks', () => {
+    afterEach(() => {
+      resetSupportedNetworksCache();
+    });
+
+    it('returns true for chains in the dynamic supported networks list', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:999999'],
+        partialSupport: {
+          spotPricesV2: [],
+          spotPricesV3: ['eip155:999999'],
+        },
+      };
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      await fetchSupportedNetworks();
+
+      const service = new CodefiTokenPricesServiceV2();
+      // 0xf423f = 999999 in hex
+      expect(service.validateChainIdSupported('0xf423f')).toBe(true);
+    });
+
+    it('returns true for chains in the hardcoded fallback list', () => {
+      resetSupportedNetworksCache();
+
+      const service = new CodefiTokenPricesServiceV2();
+      // 0x1 (Ethereum mainnet) should always be in the hardcoded list
+      expect(service.validateChainIdSupported('0x1')).toBe(true);
+    });
+
+    it('returns false for unsupported chains', () => {
+      resetSupportedNetworksCache();
+
+      const service = new CodefiTokenPricesServiceV2();
+      // Some random chain ID that's not supported
+      expect(service.validateChainIdSupported('0xdeadbeef')).toBe(false);
+    });
+  });
 });
 
 /**
@@ -1933,17 +2196,14 @@ describe('CodefiTokenPricesServiceV2', () => {
  * resolves.
  *
  * @param args - Arguments
- * @param args.clock - The fake timers clock to advance.
  * @param args.fetchTokenPrices - The "fetchTokenPrices" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
  * @returns The result of the fetch call.
  */
 async function fetchTokenPricesWithFakeTimers({
-  clock,
   fetchTokenPrices,
   retries,
 }: {
-  clock: sinon.SinonFakeTimers;
   fetchTokenPrices: () => ReturnType<
     CodefiTokenPricesServiceV2['fetchTokenPrices']
   >;
@@ -1958,7 +2218,7 @@ async function fetchTokenPricesWithFakeTimers({
   // subsequent retries
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _retryAttempt of Array(retries + 1).keys()) {
-    await clock.tickAsync(defaultMaxRetryDelay);
+    await jest.advanceTimersByTimeAsync(defaultMaxRetryDelay);
   }
 
   return await pendingUpdate;
@@ -1975,17 +2235,14 @@ async function fetchTokenPricesWithFakeTimers({
  * resolves.
  *
  * @param args - Arguments
- * @param args.clock - The fake timers clock to advance.
  * @param args.fetchExchangeRates - The "fetchExchangeRates" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
  * @returns The result of the fetch call.
  */
 async function fetchExchangeRatesWithFakeTimers({
-  clock,
   fetchExchangeRates,
   retries,
 }: {
-  clock: sinon.SinonFakeTimers;
   fetchExchangeRates: () => ReturnType<
     CodefiTokenPricesServiceV2['fetchExchangeRates']
   >;
@@ -2000,7 +2257,7 @@ async function fetchExchangeRatesWithFakeTimers({
   // subsequent retries
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _retryAttempt of Array(retries + 1).keys()) {
-    await clock.tickAsync(defaultMaxRetryDelay);
+    await jest.advanceTimersByTimeAsync(defaultMaxRetryDelay);
   }
 
   return await pendingUpdate;
