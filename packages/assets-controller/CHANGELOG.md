@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Sentry traces for Assets Health dashboard ([#8310](https://github.com/MetaMask/core/pull/8310))
+  - `Assets Data Source Timing` — per-source latency for each middleware in the fetch pipeline
+  - `Assets Data Source Error` — tracks middleware failures with source names and error counts
+  - `Assets Full Fetch` — end-to-end fetch timing with asset/price/chain/account counts
+  - `Assets Update Pipeline` — enrichment pipeline timing for pushed data source updates
+  - `Assets Subscription Error` — subscription failure tracking per data source
+  - `Assets State Size` — entry counts for balances, metadata, prices, and custom assets (once on app start)
+  - `Aggregated Balance Selector` — balance selector computation time with asset/network/account counts
+  - Add optional `trace` parameter to `getAggregatedBalanceForAccount` selector
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^63.1.0` to `^63.2.0` ([#8301](https://github.com/MetaMask/core/pull/8301))
