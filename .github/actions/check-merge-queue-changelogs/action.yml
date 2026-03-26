@@ -56,7 +56,6 @@ runs:
       env:
         BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
         PR_BRANCH: ${{ steps.pr-branch.outputs.pr-branch }}
-        REPOSITORY: ${{ github.repository }}
         ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
