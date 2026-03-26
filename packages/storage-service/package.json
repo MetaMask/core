@@ -1,6 +1,6 @@
 {
   "name": "@metamask/storage-service",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Platform-agnostic service for storing large, infrequently accessed controller data",
   "keywords": [
     "MetaMask",
@@ -48,7 +48,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/messenger": "^0.3.0",
+    "@metamask/messenger": "^1.0.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.3.0]
+
 ### Added
 
 - Expose missing public `PermissionController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
@@ -22,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (e.g. `SubjectMetadataControllerClearStateAction`) are available as well.
 
 ### Changed
+
+- Bump `@metamask/approval-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+### Deprecated
 
 - Deprecate action types in favor of `PermissionController...Action` and `SubjectMetadataController...Action` types ([#8201](https://github.com/MetaMask/core/pull/8201))
   - For the `PermissionController`:
@@ -438,7 +447,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.3.0...HEAD
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.1...@metamask/permission-controller@12.3.0
 [12.2.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.0...@metamask/permission-controller@12.2.1
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.1...@metamask/permission-controller@12.2.0
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.0...@metamask/permission-controller@12.1.1

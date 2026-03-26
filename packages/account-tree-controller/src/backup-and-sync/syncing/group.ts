@@ -17,6 +17,7 @@ import {
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
 import { getLocalGroupsForEntropyWallet } from '../utils';
+import { toErrorMessage } from '../utils/errors';
 
 /**
  * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
@@ -90,7 +91,7 @@ export const createMultichainAccountGroupsBatch = async (
     backupAndSyncLogger(
       `Failed to create account groups batch:`,
       // istanbul ignore next
-      error instanceof Error ? error.message : String(error),
+      toErrorMessage(error),
     );
   }
 };
