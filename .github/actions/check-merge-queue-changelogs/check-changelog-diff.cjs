@@ -5,7 +5,7 @@ const fs = require('fs');
 
 if (process.argv.length < 5) {
   console.error(
-    'Usage: tsx check-changelog-diff.mts <base-file> <pr-file> <merged-file>',
+    'Usage: node check-changelog-diff.cjs <base-file> <pr-file> <merged-file>',
   );
 
   // eslint-disable-next-line n/no-process-exit
