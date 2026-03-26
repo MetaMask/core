@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-data-service",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Provides utilities for building data services",
   "keywords": [
     "MetaMask",
@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@metamask/controller-utils": "^11.19.0",
-    "@metamask/messenger": "^0.3.0",
+    "@metamask/messenger": "^1.0.0",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^4.43.0",
     "fast-deep-equal": "^3.1.3"

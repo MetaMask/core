@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
 ### Added
 
 - Expose all public `ShieldController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
@@ -19,7 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.0` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/signature-controller` from `^39.1.0` to `^39.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [5.0.2]
 
@@ -223,7 +228,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.2...@metamask/shield-controller@5.1.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.1...@metamask/shield-controller@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.0...@metamask/shield-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.1.0...@metamask/shield-controller@5.0.0

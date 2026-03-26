@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [9.1.0]
 
 ### Added
@@ -204,7 +211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.1...HEAD
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.0...@metamask/name-controller@9.1.1
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.0.0...@metamask/name-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.1...@metamask/name-controller@9.0.0
 [8.1.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.0...@metamask/name-controller@8.1.1

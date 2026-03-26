@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-data-service` from `^0.1.0` to `^0.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [0.2.0]
 
 ### Added

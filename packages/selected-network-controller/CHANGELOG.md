@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.1.0]
+
 ### Added
 
 - Expose missing public `SelectedNetworkController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
@@ -18,11 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.3.0` ([#8225](https://github.com/MetaMask/core/pull/8225), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.4` ([#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+### Deprecated
+
 - Deprecate `SelectedNetworkControllerGetSelectedNetworkStateAction` type in favor of `SelectedNetworkControllerGetStateAction` ([#8201](https://github.com/MetaMask/core/pull/8201))
   - The old types is still exported but is now marked as deprecated and will
     be removed in a future release.
-- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
-- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.3` ([#8078](https://github.com/MetaMask/core/pull/8078))
 
 ## [26.0.3]
 
@@ -461,7 +469,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.0...HEAD
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.3...@metamask/selected-network-controller@26.1.0
 [26.0.3]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.2...@metamask/selected-network-controller@26.0.3
 [26.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.1...@metamask/selected-network-controller@26.0.2
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.0...@metamask/selected-network-controller@26.0.1

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
 ### Added
 
 - Expose `AnnouncementController` methods through its messenger ([#8206](https://github.com/MetaMask/core/pull/8206))
@@ -14,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `AnnouncementController:resetViewed`
     - `AnnouncementController:updateViewed`
   - Corresponding action types (e.g. `AnnouncementControllerResetViewedAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [8.0.0]
 
@@ -209,7 +216,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.0.0...@metamask/announcement-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.1...@metamask/announcement-controller@8.0.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.0...@metamask/announcement-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...@metamask/announcement-controller@7.1.0
