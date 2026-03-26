@@ -64,5 +64,8 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@metamask/superstruct": "^3.2.1"
   }
 }

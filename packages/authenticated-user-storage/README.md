@@ -86,9 +86,13 @@ const updated: NotificationPreferences = {
 await storage.preferences.putNotifications(updated, 'extension');
 ```
 
+## Response validation
+
+All API responses are validated at runtime using [`@metamask/superstruct`](https://github.com/MetaMask/superstruct) schemas before being returned to callers. If the server returns data that doesn't match the expected shape, the SDK throws an `AuthenticatedUserStorageError` with details about the structural mismatch rather than silently returning malformed data.
+
 ## Error handling
 
-All methods throw `AuthenticatedUserStorageError` on failure. The error message includes the HTTP status code and the server's error response when available.
+All methods throw `AuthenticatedUserStorageError` on failure. This covers HTTP errors, response validation failures, and network issues. The error message includes the HTTP status code and the server's error response when available.
 
 ```typescript
 import { AuthenticatedUserStorageError } from '@metamask/authenticated-user-storage';

@@ -8,6 +8,10 @@ import type {
   DelegationSubmission,
   NotificationPreferences,
 } from './types';
+import {
+  assertDelegationResponseArray,
+  assertNotificationPreferences,
+} from './validators';
 
 export function authenticatedStorageUrl(env: Env): string {
   return `${getEnvUrls(env).userStorageApiUrl}/api/v1`;
@@ -116,7 +120,9 @@ export class AuthenticatedUserStorage {
         throw await this.#buildHttpError(response);
       }
 
-      return (await response.json()) as DelegationResponse[];
+      const data: unknown = await response.json();
+      assertDelegationResponseArray(data);
+      return data;
     } catch (error) {
       throw this.#wrapError('list delegations', error);
     }
@@ -188,7 +194,9 @@ export class AuthenticatedUserStorage {
         throw await this.#buildHttpError(response);
       }
 
-      return (await response.json()) as NotificationPreferences;
+      const data: unknown = await response.json();
+      assertNotificationPreferences(data);
+      return data;
     } catch (error) {
       throw this.#wrapError('get notification preferences', error);
     }
