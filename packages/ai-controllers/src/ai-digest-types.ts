@@ -79,6 +79,8 @@ export type MarketInsightsTrend = {
  * Returned by `GET /asset-summary?asset=<identifier>`.
  */
 export type MarketInsightsReport = {
+  /** Unique identifier for this digest, sourced from the API response envelope. */
+  digestId: string;
   /** API version */
   version?: string;
   /** Asset symbol (lowercase, e.g. "btc") */
@@ -139,12 +141,12 @@ export type RelatedAsset = {
   /** Canonical source asset identifier (e.g. "bitcoin") */
   sourceAssetId: string;
   /**
-   * Optional HyperLiquid market identifier for this asset (e.g. `BTC`, `ETH`,
+   * Optional HyperLiquid market identifiers for this asset (e.g. `BTC`, `ETH`,
    * `xyz:TSLA`). Covers both regular crypto tokens that trade on HyperLiquid
    * and purely synthetic perps assets. Use this to resolve Perps icon URLs via
    * `getAssetIconUrls` on clients when `caip19` is empty.
    */
-  hlPerpsMarket?: string;
+  hlPerpsMarket?: string[];
 };
 
 export type MarketOverviewTrend = {

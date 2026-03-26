@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.1.0]
+
 ### Added
 
 - Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
@@ -14,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 
 ### Fixed
@@ -734,7 +740,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.0...HEAD
+[37.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...@metamask/accounts-controller@37.1.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...@metamask/accounts-controller@37.0.0
 [36.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...@metamask/accounts-controller@36.0.1
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...@metamask/accounts-controller@36.0.0

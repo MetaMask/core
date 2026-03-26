@@ -1213,6 +1213,31 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('matches the payment token address case-insensitively', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller }) => {
+          const result = controller.getCryptoApproveTransactionParams({
+            chainId: '0x1',
+            paymentTokenAddress: '0xToKeN',
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
+          });
+
+          expect(result).toStrictEqual({
+            approveAmount: '108000000000000000000',
+            paymentAddress: '0xspender',
+            paymentTokenAddress: '0xToKeN',
+            chainId: '0x1',
+          });
+        },
+      );
+    });
+
     it('throws when pricing not found', async () => {
       await withController(async ({ rootMessenger }) => {
         expect(() =>

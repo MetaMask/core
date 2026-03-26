@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [0.1.1]
 
 ### Fixed
@@ -19,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8037](https://github.com/MetaMask/core/pull/8037))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.2...HEAD
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.1...@metamask/geolocation-controller@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.0...@metamask/geolocation-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/geolocation-controller@0.1.0

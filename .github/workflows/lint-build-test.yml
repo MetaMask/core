@@ -70,6 +70,16 @@ jobs:
             exit 1
           fi
 
+  validate-changelog-diffs:
+    name: Validate changelog diffs
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Validate changelog diffs
+        uses: ./.github/actions/check-merge-queue-changelogs
+
   build:
     name: Build
     runs-on: ubuntu-latest

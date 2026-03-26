@@ -8,6 +8,7 @@ import {
   getSessionScopes,
 } from '@metamask/chain-agnostic-permission';
 import type { Caveat } from '@metamask/permission-controller';
+import type { CaipAccountId } from '@metamask/utils';
 import type {
   CaipChainId,
   JsonRpcRequest,
@@ -27,6 +28,7 @@ import type {
  * @param hooks - The hooks object.
  * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by corresponding last selected account in the wallet.
  * @returns Nothing.
  */
 async function walletGetSessionHandler(
@@ -40,6 +42,9 @@ async function walletGetSessionHandler(
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    sortAccountIdsByLastSelected: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
   },
 ) {
   let caveat;
@@ -60,6 +65,7 @@ async function walletGetSessionHandler(
   response.result = {
     sessionScopes: getSessionScopes(caveat.value, {
       getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
     }),
   };
   return end();
@@ -71,5 +77,6 @@ export const walletGetSession = {
   hookNames: {
     getCaveatForOrigin: true,
     getNonEvmSupportedMethods: true,
+    sortAccountIdsByLastSelected: true,
   },
 };

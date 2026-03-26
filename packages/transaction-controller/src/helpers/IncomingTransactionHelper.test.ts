@@ -851,6 +851,51 @@ describe('IncomingTransactionHelper', () => {
           expect.any(Function),
         );
       });
+
+      it('does not throw when WebSocket disconnects before ever connecting', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        expect(() => {
+          connectionStateChangedHandler(
+            createConnectionInfo(WebSocketState.DISCONNECTED),
+          );
+        }).not.toThrow();
+
+        expect(unsubscribeMock).not.toHaveBeenCalled();
+      });
+
+      it('does not throw when WebSocket disconnects twice', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.DISCONNECTED),
+        );
+
+        expect(() => {
+          connectionStateChangedHandler(
+            createConnectionInfo(WebSocketState.DISCONNECTED),
+          );
+        }).not.toThrow();
+      });
     });
 
     describe('error handling', () => {

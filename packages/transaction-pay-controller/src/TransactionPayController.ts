@@ -117,6 +117,7 @@ export class TransactionPayController extends BaseController<
       const config = {
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
         refundTo: transactionData.refundTo,
       };
 
@@ -124,6 +125,7 @@ export class TransactionPayController extends BaseController<
 
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
+      transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
     });
   }

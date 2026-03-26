@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Changed
 
 - **BREAKING:** `ConfigRegistryControllerMessenger` now requires `KeyringController:getState` action to be allowed ([#8230](https://github.com/MetaMask/core/pull/8230))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.1.0` to `^4.2.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [0.1.1]
 
@@ -23,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.1...@metamask/config-registry-controller@0.2.0
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.0...@metamask/config-registry-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/config-registry-controller@0.1.0

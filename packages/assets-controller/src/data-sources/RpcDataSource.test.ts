@@ -476,7 +476,7 @@ describe('RpcDataSource', () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       await withController(async ({ controller }) => {
         jest
-          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForTokens')
+          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
           .mockResolvedValue({
             chainId: MOCK_CHAIN_ID_HEX,
             accountId: MOCK_ACCOUNT_ID,
@@ -565,7 +565,7 @@ describe('RpcDataSource', () => {
     it('initializes assetsBalance[accountId] in catch when first fetch for account throws', async () => {
       await withController(async ({ controller }) => {
         jest
-          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForTokens')
+          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
           .mockRejectedValue(new Error('RPC unavailable'));
         const request = createDataRequest();
         const response = await controller.fetch(request);
@@ -759,12 +759,12 @@ describe('RpcDataSource', () => {
       );
     });
 
-    it('passes custom ERC20 token addresses to BalanceFetcher', async () => {
+    it('passes custom ERC20 asset entries (plus native) to BalanceFetcher', async () => {
       const customAssetId =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
       const fetchSpy = jest
-        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForTokens')
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
         .mockResolvedValue(createBalanceFetchResult());
 
       await withController(async ({ controller }) => {
@@ -777,9 +777,16 @@ describe('RpcDataSource', () => {
           MOCK_CHAIN_ID_HEX,
           MOCK_ACCOUNT_ID,
           MOCK_ADDRESS,
-          ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
-          { includeNative: true },
-          [],
+          [
+            {
+              assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+              address: '0x0000000000000000000000000000000000000000',
+            },
+            expect.objectContaining({
+              assetId: customAssetId,
+              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            }),
+          ],
         );
       });
 
@@ -793,7 +800,7 @@ describe('RpcDataSource', () => {
         'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
 
       const fetchSpy = jest
-        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForTokens')
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
         .mockResolvedValue(createBalanceFetchResult());
 
       await withController(async ({ controller }) => {
@@ -806,9 +813,16 @@ describe('RpcDataSource', () => {
           MOCK_CHAIN_ID_HEX,
           MOCK_ACCOUNT_ID,
           MOCK_ADDRESS,
-          ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
-          { includeNative: true },
-          [],
+          [
+            {
+              assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+              address: '0x0000000000000000000000000000000000000000',
+            },
+            expect.objectContaining({
+              assetId: matchingAsset,
+              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            }),
+          ],
         );
       });
 

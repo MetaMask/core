@@ -5,7 +5,7 @@ import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
 } from './gas-station';
-import type { RelayQuote } from './types';
+import type { RelayQuote, RelayTransactionStep } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -307,7 +307,10 @@ async function getGasCostFromQuoteOrGasStation(
     };
   }
 
-  const firstStepData = quote.original.steps[0]?.items[0]?.data;
+  const firstTxStep = quote.original.steps.find(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const firstStepData = firstTxStep?.items[0]?.data;
 
   if (!firstStepData) {
     return undefined;
