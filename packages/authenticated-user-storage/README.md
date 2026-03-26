@@ -25,7 +25,10 @@ The constructor requires two options:
 - **`getAccessToken`** -- an async callback that returns a valid JWT access token for the current user. In MetaMask clients this is wired through the messenger to `AuthenticationController:getBearerToken`, which handles the full SRP-based OIDC login flow internally.
 
 ```typescript
-import { AuthenticatedUserStorage, Env } from '@metamask/authenticated-user-storage';
+import {
+  AuthenticatedUserStorage,
+  Env,
+} from '@metamask/authenticated-user-storage';
 
 // Inside a controller that has access to the messenger:
 const storage = new AuthenticatedUserStorage({
@@ -37,11 +40,11 @@ const storage = new AuthenticatedUserStorage({
 
 The `env` option selects the backend environment:
 
-| `Env` value | Server |
-| --- | --- |
-| `Env.DEV` | `user-storage.dev-api.cx.metamask.io` |
-| `Env.UAT` | `user-storage.uat-api.cx.metamask.io` |
-| `Env.PRD` | `user-storage.api.cx.metamask.io` |
+| `Env` value | Server                                |
+| ----------- | ------------------------------------- |
+| `Env.DEV`   | `user-storage.dev-api.cx.metamask.io` |
+| `Env.UAT`   | `user-storage.uat-api.cx.metamask.io` |
+| `Env.PRD`   | `user-storage.api.cx.metamask.io`     |
 
 The `AuthenticationController` manages the full authentication lifecycle (SRP key derivation, nonce signing, backend authentication, OIDC token exchange, and session caching). Callers do not need to handle tokens directly -- the `getBearerToken` action returns a cached access token or transparently re-authenticates when the session has expired.
 
