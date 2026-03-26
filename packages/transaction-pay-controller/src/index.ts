@@ -30,7 +30,4 @@ export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
 export type { TransactionPayBridgeQuote } from './strategy/bridge/types';
 export type { TransactionPayRouteContext } from './utils/strategy-routing';
-export {
-  getStrategyOrderForRoute,
-  getStrategyOrderForRouteFromFeatureFlags,
-} from './utils/strategy-routing';
+export { getStrategiesForRoute } from './utils/strategy-routing';

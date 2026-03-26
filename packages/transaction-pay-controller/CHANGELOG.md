@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add route-based `confirmations_pay` strategy resolution ([#8282](https://github.com/MetaMask/core/pull/8282))
+
 ## [19.0.0]
 
 ### Added
@@ -41,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `FiatStrategy` to retrieve quotes via `RampsController` ([#8121](https://github.com/MetaMask/core/pull/8121))
-- Add route-based `confirmations_pay` strategy resolution via the `getStrategyRouteContext` controller option and `getStrategyOrderForRouteFromFeatureFlags` helper ([#8282](https://github.com/MetaMask/core/pull/8282))
 
 ### Changed
 

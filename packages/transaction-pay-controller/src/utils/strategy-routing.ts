@@ -1,10 +1,8 @@
 import type { Hex } from '@metamask/utils';
 import { uniq } from 'lodash';
 
-import {
-  DEFAULT_STRATEGY_ORDER,
-  getConfirmationsPayFeatureFlags,
-} from './feature-flags';
+import { getConfirmationsPayFeatureFlags } from './confirmations-pay-feature-flags';
+import { DEFAULT_STRATEGY_ORDER } from './feature-flags';
 import { TransactionPayStrategy, isTransactionPayStrategy } from '../constants';
 import type { TransactionPayControllerMessenger } from '../types';
 
@@ -14,16 +12,21 @@ export type TransactionPayRouteContext = {
   transactionType?: string;
 };
 
-type RoutingOverrideRaw = {
+type StrategyOverrideRaw = {
   default?: unknown;
   chains?: Record<string, unknown>;
   tokens?: Record<string, Record<string, unknown>>;
 };
 
-type RoutingOverride = {
+type StrategyOverride = {
   chains: Record<Hex, TransactionPayStrategy[]>;
   default?: TransactionPayStrategy[];
   tokens: Record<Hex, Record<Hex, TransactionPayStrategy[]>>;
+};
+
+type StrategyOverrides = {
+  default?: StrategyOverride;
+  transactionTypes: Record<string, StrategyOverride>;
 };
 
 type RawStrategyRoutingFlags = {
@@ -35,8 +38,9 @@ type RawStrategyRoutingFlags = {
       enabled?: boolean;
     };
   };
-  routingOverrides?: {
-    overrides?: Record<string, RoutingOverrideRaw>;
+  strategyOverrides?: {
+    default?: StrategyOverrideRaw;
+    transactionTypes?: Record<string, StrategyOverrideRaw>;
   };
   strategyOrder?: string[];
 };
@@ -50,9 +54,7 @@ type StrategyRoutingConfig = {
       enabled: boolean;
     };
   };
-  routingOverrides: {
-    overrides: Record<string, RoutingOverride>;
-  };
+  strategyOverrides: StrategyOverrides;
   strategyOrder: TransactionPayStrategy[];
 };
 
@@ -89,9 +91,9 @@ function normalizeStrategyList(strategies: unknown): TransactionPayStrategy[] {
   );
 }
 
-function normalizeRoutingOverride(
-  override: RoutingOverrideRaw | undefined,
-): RoutingOverride {
+function normalizeStrategyOverride(
+  override: StrategyOverrideRaw | undefined,
+): StrategyOverride {
   const chains = Object.entries(override?.chains ?? {}).reduce<
     Record<Hex, TransactionPayStrategy[]>
   >((result, [chainId, strategies]) => {
@@ -153,11 +155,14 @@ function normalizeStrategyRoutingConfig(
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
       },
     },
-    routingOverrides: {
-      overrides: Object.entries(
-        featureFlags.routingOverrides?.overrides ?? {},
-      ).reduce<Record<string, RoutingOverride>>((result, [type, override]) => {
-        result[type] = normalizeRoutingOverride(override);
+    strategyOverrides: {
+      default: featureFlags.strategyOverrides?.default
+        ? normalizeStrategyOverride(featureFlags.strategyOverrides.default)
+        : undefined,
+      transactionTypes: Object.entries(
+        featureFlags.strategyOverrides?.transactionTypes ?? {},
+      ).reduce<Record<string, StrategyOverride>>((result, [type, override]) => {
+        result[type] = normalizeStrategyOverride(override);
         return result;
       }, {}),
     },
@@ -166,14 +171,18 @@ function normalizeStrategyRoutingConfig(
   };
 }
 
+function getStrategyRoutingConfig(
+  messenger: TransactionPayControllerMessenger,
+): StrategyRoutingConfig {
+  return normalizeStrategyRoutingConfig(
+    getConfirmationsPayFeatureFlags(messenger),
+  );
+}
+
 function filterEnabledStrategies(
-  strategies: readonly TransactionPayStrategy[] | undefined,
+  strategies: readonly TransactionPayStrategy[],
   routingConfig: StrategyRoutingConfig,
 ): TransactionPayStrategy[] {
-  if (!strategies?.length) {
-    return [];
-  }
-
   return strategies.filter(
     (strategy) =>
       (strategy === TransactionPayStrategy.Across &&
@@ -181,6 +190,35 @@ function filterEnabledStrategies(
       (strategy === TransactionPayStrategy.Relay &&
         routingConfig.payStrategies.relay.enabled),
   );
+}
+
+function getTokenOverrideStrategies(
+  override: StrategyOverride | undefined,
+  normalizedChainId: Hex | undefined,
+  normalizedTokenAddress: Hex | undefined,
+): readonly TransactionPayStrategy[] | undefined {
+  if (!override || !normalizedChainId || !normalizedTokenAddress) {
+    return undefined;
+  }
+
+  return override.tokens[normalizedChainId]?.[normalizedTokenAddress];
+}
+
+function getChainOverrideStrategies(
+  override: StrategyOverride | undefined,
+  normalizedChainId: Hex | undefined,
+): readonly TransactionPayStrategy[] | undefined {
+  if (!override || !normalizedChainId) {
+    return undefined;
+  }
+
+  return override.chains[normalizedChainId];
+}
+
+function getDefaultOverrideStrategies(
+  override: StrategyOverride | undefined,
+): readonly TransactionPayStrategy[] | undefined {
+  return override?.default;
 }
 
 /**
@@ -192,56 +230,65 @@ function filterEnabledStrategies(
  * and token overrides.
  * @returns Ordered strategy list for the route.
  */
-export function getStrategyOrderForRoute(
+export function getStrategiesForRoute(
   messenger: TransactionPayControllerMessenger,
   routeContext: TransactionPayRouteContext,
 ): TransactionPayStrategy[] {
-  return getStrategyOrderForRouteFromFeatureFlags(
-    getConfirmationsPayFeatureFlags(messenger),
+  return resolveStrategyOrderForRoute(
+    getStrategyRoutingConfig(messenger),
     routeContext,
   );
 }
 
 /**
- * Resolve ordered strategies for a route from raw confirmations_pay feature
- * flags.
+ * Resolve ordered strategies for a route from the normalized strategy routing
+ * config.
  *
- * @param rawFeatureFlags - Raw confirmations_pay flag block.
+ * @param routingConfig - Normalized routing config.
  * @param routeContext - Route context used to match transaction type, chain,
  * and token overrides.
  * @returns Ordered strategy list for the route.
  */
-export function getStrategyOrderForRouteFromFeatureFlags(
-  rawFeatureFlags: unknown,
+function resolveStrategyOrderForRoute(
+  routingConfig: StrategyRoutingConfig,
   routeContext: TransactionPayRouteContext,
 ): TransactionPayStrategy[] {
-  const routingConfig = normalizeStrategyRoutingConfig(rawFeatureFlags);
-  const { chainId, tokenAddress, transactionType } = routeContext;
-  const normalizedChainId = normalizeHex(chainId);
-  const normalizedTokenAddress = normalizeHex(tokenAddress);
-  const override = transactionType
-    ? routingConfig.routingOverrides.overrides[transactionType]
+  const normalizedChainId = normalizeHex(routeContext.chainId);
+  const normalizedTokenAddress = normalizeHex(routeContext.tokenAddress);
+  const transactionTypeOverride = routeContext.transactionType
+    ? routingConfig.strategyOverrides.transactionTypes[
+        routeContext.transactionType
+      ]
     : undefined;
 
   const candidates: (readonly TransactionPayStrategy[] | undefined)[] = [
-    normalizedChainId && normalizedTokenAddress
-      ? override?.tokens[normalizedChainId]?.[normalizedTokenAddress]
-      : undefined,
-    normalizedChainId ? override?.chains[normalizedChainId] : undefined,
-    override?.default,
-    routingConfig.strategyOrder,
+    getTokenOverrideStrategies(
+      transactionTypeOverride,
+      normalizedChainId,
+      normalizedTokenAddress,
+    ),
+    getChainOverrideStrategies(transactionTypeOverride, normalizedChainId),
+    getTokenOverrideStrategies(
+      routingConfig.strategyOverrides.default,
+      normalizedChainId,
+      normalizedTokenAddress,
+    ),
+    getChainOverrideStrategies(
+      routingConfig.strategyOverrides.default,
+      normalizedChainId,
+    ),
+    getDefaultOverrideStrategies(transactionTypeOverride),
+    getDefaultOverrideStrategies(routingConfig.strategyOverrides.default),
   ];
 
+  // Overrides are authoritative. Once a route matches a specific override
+  // scope, disabled strategies do not inherit candidates from lower-precedence
+  // scopes.
   for (const strategies of candidates) {
-    const resolvedStrategies = filterEnabledStrategies(
-      strategies,
-      routingConfig,
-    );
-
-    if (resolvedStrategies.length) {
-      return resolvedStrategies;
+    if (strategies) {
+      return filterEnabledStrategies(strategies, routingConfig);
     }
   }
 
-  return [];
+  return filterEnabledStrategies(routingConfig.strategyOrder, routingConfig);
 }
