@@ -234,6 +234,12 @@ export type TraceRequest = {
    */
   id?: string;
 
+  /**
+   * Custom operation name for the trace span (e.g. 'function', 'ui.selector',
+   * 'controller.fetch'). When omitted the consumer may default to 'custom'.
+   */
+  op?: string;
+
   /** Trace context in which to execute the operation. */
   parentContext?: TraceContext;
 

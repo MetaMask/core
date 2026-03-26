@@ -487,6 +487,7 @@ export function getAggregatedBalanceForAccount(
       trace(
         {
           name: TRACE_AGGREGATED_BALANCE_SELECTOR,
+          op: 'ui.selector.aggregated-balance',
           data: {
             duration_ms: durationMs,
             asset_count: merged.size,

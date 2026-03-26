@@ -528,11 +528,13 @@ export class AssetsController extends BaseController<
    *
    * @param name - Trace / span name visible in Sentry.
    * @param data - Key-value pairs attached as span data.
+   * @param op - Sentry operation category (e.g. 'controller.fetch').
    * @param tags - Key-value pairs used for Sentry filtering.
    */
   #emitTrace(
     name: string,
     data: Record<string, number | string | boolean>,
+    op: string = 'controller',
     tags: Record<string, number | string | boolean> = {
       controller: 'AssetsController',
     },
@@ -541,7 +543,7 @@ export class AssetsController extends BaseController<
       return;
     }
     try {
-      this.#trace({ name, data, tags }, () => undefined).catch(() => {
+      this.#trace({ name, op, data, tags }, () => undefined).catch(() => {
         // Telemetry failure must not break.
       });
     } catch {
@@ -565,9 +567,22 @@ export class AssetsController extends BaseController<
       assetsPrice,
     } = this.state;
 
+    // Count balance entries and collect unique asset IDs / chain IDs in one pass.
     let balanceEntries = 0;
+    const uniqueAssets = new Set<string>();
+    const uniqueNetworks = new Set<string>();
+
     for (const acct of Object.values(balances)) {
-      balanceEntries += Object.keys(acct).length;
+      const assetIds = Object.keys(acct);
+      balanceEntries += assetIds.length;
+      for (const assetId of assetIds) {
+        uniqueAssets.add(assetId);
+        // CAIP-19 format: "eip155:1/slip44:60" — chainId is everything before "/"
+        const slash = assetId.indexOf('/');
+        if (slash > 0) {
+          uniqueNetworks.add(assetId.slice(0, slash));
+        }
+      }
     }
 
     let customAssetEntries = 0;
@@ -577,13 +592,19 @@ export class AssetsController extends BaseController<
       }
     }
 
-    this.#emitTrace(TRACE_STATE_SIZE, {
-      balance_entries: balanceEntries,
-      balance_accounts: Object.keys(balances).length,
-      metadata_entries: Object.keys(assetsInfo).length,
-      price_entries: Object.keys(assetsPrice).length,
-      custom_asset_entries: customAssetEntries,
-    });
+    this.#emitTrace(
+      TRACE_STATE_SIZE,
+      {
+        balance_entries: balanceEntries,
+        balance_accounts: Object.keys(balances).length,
+        unique_asset_count: uniqueAssets.size,
+        network_count: uniqueNetworks.size,
+        metadata_entries: Object.keys(assetsInfo).length,
+        price_entries: Object.keys(assetsPrice).length,
+        custom_asset_entries: customAssetEntries,
+      },
+      'controller.state',
+    );
   }
 
   /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
@@ -1058,21 +1079,29 @@ export class AssetsController extends BaseController<
     for (const [sourceName, durationMs] of Object.entries(
       durationByDataSource,
     )) {
-      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
-        source: sourceName,
-        duration_ms: durationMs,
-        chain_count: request.chainIds.length,
-        account_count: request.accountsWithSupportedChains.length,
-      });
+      this.#emitTrace(
+        TRACE_DATA_SOURCE_TIMING,
+        {
+          source: sourceName,
+          duration_ms: durationMs,
+          chain_count: request.chainIds.length,
+          account_count: request.accountsWithSupportedChains.length,
+        },
+        'controller.datasource',
+      );
     }
 
     // Emit error traces for failed middlewares
     if (middlewareErrors.length > 0) {
-      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
-        failed_sources: middlewareErrors.join(','),
-        error_count: middlewareErrors.length,
-        chain_count: request.chainIds.length,
-      });
+      this.#emitTrace(
+        TRACE_DATA_SOURCE_ERROR,
+        {
+          failed_sources: middlewareErrors.join(','),
+          error_count: middlewareErrors.length,
+          chain_count: request.chainIds.length,
+        },
+        'controller.error',
+      );
     }
 
     return { response: result.response, durationByDataSource };
@@ -1153,30 +1182,38 @@ export class AssetsController extends BaseController<
       const durationMs = Date.now() - startTime;
 
       // Emit trace for every full fetch (Assets Health dashboard)
-      this.#emitTrace(TRACE_FULL_FETCH, {
-        duration_ms: durationMs,
-        chain_count: chainIds.length,
-        account_count: accounts.length,
-        basic_functionality: this.#isBasicFunctionality(),
-        asset_count: response.assetsBalance
-          ? Object.values(response.assetsBalance).reduce(
-              (sum, acct) => sum + Object.keys(acct).length,
-              0,
-            )
-          : 0,
-        price_count: response.assetsPrice
-          ? Object.keys(response.assetsPrice).length
-          : 0,
-        ...durationByDataSource,
-      });
+      this.#emitTrace(
+        TRACE_FULL_FETCH,
+        {
+          duration_ms: durationMs,
+          chain_count: chainIds.length,
+          account_count: accounts.length,
+          basic_functionality: this.#isBasicFunctionality(),
+          asset_count: response.assetsBalance
+            ? Object.values(response.assetsBalance).reduce(
+                (sum, acct) => sum + Object.keys(acct).length,
+                0,
+              )
+            : 0,
+          price_count: response.assetsPrice
+            ? Object.keys(response.assetsPrice).length
+            : 0,
+          ...durationByDataSource,
+        },
+        'controller.fetch',
+      );
 
       if (!this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
-        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
-          duration_ms: durationMs,
-          chain_ids: JSON.stringify(chainIds),
-          ...durationByDataSource,
-        });
+        this.#emitTrace(
+          TRACE_FIRST_INIT_FETCH,
+          {
+            duration_ms: durationMs,
+            chain_ids: JSON.stringify(chainIds),
+            ...durationByDataSource,
+          },
+          'controller.fetch',
+        );
       }
     }
 
@@ -2214,10 +2251,14 @@ export class AssetsController extends BaseController<
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
       );
-      this.#emitTrace(TRACE_SUBSCRIPTION_ERROR, {
-        source: sourceId,
-        error_message: String(error),
-      });
+      this.#emitTrace(
+        TRACE_SUBSCRIPTION_ERROR,
+        {
+          source: sourceId,
+          error_message: String(error),
+        },
+        'controller.error',
+      );
     });
 
     // Track subscription
@@ -2439,16 +2480,20 @@ export class AssetsController extends BaseController<
 
     await this.#updateState(enrichedResponse);
 
-    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
-      source: sourceId,
-      duration_ms: Date.now() - updateStart,
-      has_balance: Boolean(response.assetsBalance),
-      has_price: Boolean(response.assetsPrice),
-      has_metadata: Boolean(enrichedResponse.assetsInfo),
-      balance_account_count: response.assetsBalance
-        ? Object.keys(response.assetsBalance).length
-        : 0,
-    });
+    this.#emitTrace(
+      TRACE_UPDATE_PIPELINE,
+      {
+        source: sourceId,
+        duration_ms: Date.now() - updateStart,
+        has_balance: Boolean(response.assetsBalance),
+        has_price: Boolean(response.assetsPrice),
+        has_metadata: Boolean(enrichedResponse.assetsInfo),
+        balance_account_count: response.assetsBalance
+          ? Object.keys(response.assetsBalance).length
+          : 0,
+      },
+      'controller.update',
+    );
   }
 
   // ============================================================================
