@@ -277,9 +277,11 @@ export type TransactionMeta = {
   /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
   isGasFeeTokenIgnoredIfBalance?: boolean;
 
-  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
-  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
-  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  /**
+   * When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance.
+   * Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions
+   * This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all
+   */
   excludeNativeTokenForFee?: boolean;
 
   /** Whether the intent of the transaction was achieved via an alternate route or chain. */

@@ -1029,8 +1029,10 @@ describe('Batch Utils', () => {
       );
     });
 
-    // This ensures that Tempo-related additions keep things unchanged
-    // as long as input parameters are unchanged.
+    /*
+     * This ensures that Tempo-related additions keep things unchanged
+     * as long as input parameters are unchanged.
+     */
     it('default to no action ID in transaction', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -1077,8 +1079,10 @@ describe('Batch Utils', () => {
       );
     });
 
-    // This ensures that Tempo-related additions keep things unchanged
-    // as long as input parameters are unchanged.
+    /*
+     * This ensures that Tempo-related additions keep things unchanged
+     * as long as input parameters are unchanged.
+     */
     it('defaults to no excludeNativeTokenForFee in transaction', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,

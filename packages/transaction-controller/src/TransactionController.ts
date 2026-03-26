@@ -1276,9 +1276,11 @@ export class TransactionController extends BaseController<
         })
       ).type;
 
-    // Original behavior was that this was set to 'true' whenever a gasFeeToken was passed.
-    // 'excludeNativeTokenForFee' optionnally overrides this behavior to prevent native token from
-    // being used when another gasFeeToken is set.
+    /**
+     * Original behavior was that this was set to 'true' whenever a gasFeeToken was passed.
+     * 'excludeNativeTokenForFee' optionally overrides this behavior to prevent native token from
+     * being used when another gasFeeToken is set.
+     */
     const isGasFeeTokenIgnoredIfBalance =
       Boolean(gasFeeToken) && !excludeNativeTokenForFee;
     let addedTransactionMeta: TransactionMeta = {
