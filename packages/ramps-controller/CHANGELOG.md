@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
+
 ### Added
 
 - Add `providerAutoSelected` boolean to `RampsControllerState` to track whether the selected provider was system-guessed (soft selection) or user-chosen ([#8305](https://github.com/MetaMask/core/pull/8305))
