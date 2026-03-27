@@ -126,12 +126,18 @@ export async function isAccountUpgradedToEIP7702(
  *
  * @param from - The sender address.
  * @param transactions - The transactions to batch.
+ * @param options - Options bag.
+ * @param options.atomic - Whether the batch should be atomic. Defaults to `true`.
+ * When `true`, mode `0x01` is used and all calls revert together.
+ * When `false`, mode `0x00` is used and individual calls can fail independently.
  * @returns The batch transaction.
  */
 export function generateEIP7702BatchTransaction(
   from: Hex,
   transactions: BatchTransactionParams[],
+  options?: { atomic?: boolean },
 ): BatchTransactionParams {
+  const atomic = options?.atomic ?? true;
   const erc7821Contract = Contract.getInterface(ABI_IERC7821);
 
   const calls = transactions.map((transaction) => {
@@ -144,8 +150,7 @@ export function generateEIP7702BatchTransaction(
     ];
   });
 
-  // Single batch mode, no opData.
-  const mode = '0x01'.padEnd(66, '0');
+  const mode = (atomic ? '0x01' : '0x00').padEnd(66, '0');
 
   const callData = defaultAbiCoder.encode([CALLS_SIGNATURE], [calls]);
 

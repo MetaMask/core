@@ -894,6 +894,56 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('passes atomic option to generateEIP7702BatchTransaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.atomic = false;
+
+      await addTransactionBatch(request);
+
+      expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        expect.any(Array),
+        { atomic: false },
+      );
+    });
+
+    it('passes atomic as undefined to generateEIP7702BatchTransaction by default', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      await addTransactionBatch(request);
+
+      expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        expect.any(Array),
+        { atomic: undefined },
+      );
+    });
+
     it('throws if chain not supported', async () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
