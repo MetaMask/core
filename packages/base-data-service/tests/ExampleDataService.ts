@@ -60,6 +60,8 @@ export type PageParam =
     }
   | { after: string };
 
+const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
+
 export class ExampleDataService extends BaseDataService<
   typeof serviceName,
   ExampleMessenger
@@ -79,14 +81,9 @@ export class ExampleDataService extends BaseDataService<
       },
     });
 
-    messenger.registerActionHandler(
-      `${this.name}:getAssets`,
-      this.getAssets.bind(this),
-    );
-
-    messenger.registerActionHandler(
-      `${this.name}:getActivity`,
-      this.getActivity.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
