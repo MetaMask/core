@@ -45,7 +45,8 @@ jobs:
         with:
           is-high-risk-environment: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn "$SCRIPT"
+      - name: Run yarn ${{ matrix.script }}
+        run: yarn "$SCRIPT"
         env:
           SCRIPT: ${{ matrix.script }}
       - name: Require clean working directory
