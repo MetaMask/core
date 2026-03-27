@@ -11,6 +11,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8260](https://github.com/MetaMask/core/pull/8260))
   - `AuthenticatedUserStorage` class with namespaced domain accessors: `delegations` (list, create, revoke) and `preferences` (getNotifications, putNotifications)
-- Add runtime validation of API responses using `@metamask/superstruct` ([#8260](https://github.com/MetaMask/core/pull/8260))
 
 [Unreleased]: https://github.com/MetaMask/core/
