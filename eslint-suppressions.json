@@ -834,11 +834,6 @@
       "count": 6
     }
   },
-  "packages/error-reporting-service/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/foundryup/src/cli.ts": {
     "no-restricted-globals": {
       "count": 1
