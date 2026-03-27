@@ -136,6 +136,8 @@ export enum KnownCaipNamespace {
   Bip122 = 'bip122',
   /** Solana compatible chains */
   Solana = 'solana',
+  /** Stellar compatible chains */
+  Stellar = 'stellar',
   /** Tron compatible chains */
   Tron = 'tron',
   /** EIP-155 compatible chains. */
