@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.2]
+
 ### Changed
 
 - Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
@@ -837,7 +839,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...HEAD
+[28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...@metamask/profile-sync-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...@metamask/profile-sync-controller@28.0.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.0.0...@metamask/profile-sync-controller@27.1.0

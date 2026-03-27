@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
 ### Added
 
 - **BREAKING:** Add `KeyringControllerSignTypedMessageAction` to `AllowedActions` for HyperLiquid EIP-712 signing ([#8314](https://github.com/MetaMask/core/pull/8314))
@@ -587,7 +589,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.2.0...@metamask/transaction-pay-controller@19.0.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.1.0...@metamask/transaction-pay-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.0.0...@metamask/transaction-pay-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.1.0...@metamask/transaction-pay-controller@18.0.0
