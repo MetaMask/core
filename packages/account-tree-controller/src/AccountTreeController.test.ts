@@ -466,7 +466,7 @@ describe('AccountTreeController', () => {
       });
 
       messenger.registerActionHandler(
-        'SnapController:get',
+        'SnapController:getSnap',
         () =>
           // TODO: Update this to avoid the unknown cast if possible.
           MOCK_SNAP_2 as unknown as ReturnType<
@@ -743,7 +743,7 @@ describe('AccountTreeController', () => {
       });
 
       messenger.registerActionHandler(
-        'SnapController:get',
+        'SnapController:getSnap',
         () =>
           ({
             manifest: {
@@ -774,7 +774,10 @@ describe('AccountTreeController', () => {
         keyrings: [],
       });
 
-      messenger.registerActionHandler('SnapController:get', () => undefined); // Snap won't be found.
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => undefined,
+      ); // Snap won't be found.
 
       controller.init();
 
