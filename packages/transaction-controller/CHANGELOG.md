@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `@metamask/eth-query` dependency and all `EthQuery` usage in favour of messenger-based provider utilities ([#8273](https://github.com/MetaMask/core/pull/8273))
+  - Remove `determineTransactionType` from exported functions.
+
 ## [63.3.1]
 
 ### Changed
@@ -31,13 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Fix sentry issue about unsubscribe for event AccountActivityService:transactionUpdated called even if subscription is not done ([#8299](https://github.com/MetaMask/core/pull/8299))
-
-## [63.1.0]
-
-### Removed
-
-- **BREAKING:** Remove `@metamask/eth-query` dependency and all `EthQuery` usage in favour of messenger-based provider utilities ([#8273](https://github.com/MetaMask/core/pull/8273))
-  - Remove `determineTransactionType` from exported functions.
 
 ## [63.1.0]
 
