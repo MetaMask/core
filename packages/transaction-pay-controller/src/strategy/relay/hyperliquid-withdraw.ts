@@ -238,10 +238,10 @@ async function executeDepositStep(
 
   log('Posting deposit to HyperLiquid exchange');
 
-  let response: Response;
+  let result: unknown;
 
   try {
-    response = await successfulFetch(HYPERLIQUID_EXCHANGE_URL, {
+    const response = await successfulFetch(HYPERLIQUID_EXCHANGE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -254,13 +254,13 @@ async function executeDepositStep(
         signature: { r, s, v },
       }),
     });
+
+    result = await response.json();
   } catch (error) {
     throw new Error(`HyperLiquid deposit failed: ${(error as Error).message}`);
   }
 
-  const result = await response.json();
-
-  if (result?.status !== 'ok') {
+  if ((result as { status?: string })?.status !== 'ok') {
     throw new Error(`HyperLiquid deposit failed: ${JSON.stringify(result)}`);
   }
 

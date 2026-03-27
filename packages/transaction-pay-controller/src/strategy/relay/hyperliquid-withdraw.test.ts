@@ -265,6 +265,32 @@ describe('submitHyperliquidWithdraw', () => {
     ).rejects.toThrow('Expected exactly 1 deposit item, got 0');
   });
 
+  it('throws if authorize step has a sparse single item', async () => {
+    const sparseAuthorize = {
+      ...AUTHORIZE_STEP_MOCK,
+      items: [undefined],
+    };
+
+    const quote = buildQuote([sparseAuthorize, DEPOSIT_STEP_MOCK]);
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('Authorize step has no items');
+  });
+
+  it('throws if deposit step has a sparse single item', async () => {
+    const sparseDeposit = {
+      ...DEPOSIT_STEP_MOCK,
+      items: [undefined],
+    };
+
+    const quote = buildQuote([AUTHORIZE_STEP_MOCK, sparseDeposit]);
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('Deposit step has no items');
+  });
+
   it('throws if authorize step has multiple items', async () => {
     const multiAuthorize = {
       ...AUTHORIZE_STEP_MOCK,
@@ -313,5 +339,23 @@ describe('submitHyperliquidWithdraw', () => {
     await expect(
       submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
     ).rejects.toThrow('HyperLiquid deposit failed: Connection refused');
+  });
+
+  it('wraps deposit JSON parse errors with context', async () => {
+    successfulFetchMock
+      .mockResolvedValueOnce({
+        json: async () => ({ status: 'ok' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        json: async () => {
+          throw new Error('Invalid JSON');
+        },
+      } as Response);
+
+    const quote = buildQuote();
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('HyperLiquid deposit failed: Invalid JSON');
   });
 });
