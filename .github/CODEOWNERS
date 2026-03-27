@@ -82,7 +82,6 @@
 /packages/connectivity-controller      @MetaMask/core-platform
 /packages/geolocation-controller       @MetaMask/core-platform
 /packages/controller-utils             @MetaMask/core-platform
-/packages/error-reporting-service      @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform

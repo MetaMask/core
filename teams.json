@@ -44,7 +44,6 @@
   "metamask/connectivity-controller": "team-core-platform",
   "metamask/geolocation-controller": "team-core-platform",
   "metamask/controller-utils": "team-core-platform",
-  "metamask/error-reporting-service": "team-core-platform",
   "metamask/messenger": "team-core-platform",
   "metamask/sample-controllers": "team-core-platform",
   "metamask/polling-controller": "team-core-platform",

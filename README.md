@@ -51,7 +51,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
-- [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
 - [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
@@ -135,7 +134,6 @@ linkStyle default opacity:0.5
   eip_7702_internal_rpc_middleware(["@metamask/eip-7702-internal-rpc-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
-  error_reporting_service(["@metamask/error-reporting-service"]);
   eth_block_tracker(["@metamask/eth-block-tracker"]);
   eth_json_rpc_middleware(["@metamask/eth-json-rpc-middleware"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
@@ -313,8 +311,6 @@ linkStyle default opacity:0.5
   ens_controller --> controller_utils;
   ens_controller --> messenger;
   ens_controller --> network_controller;
-  error_reporting_service --> base_controller;
-  error_reporting_service --> messenger;
   eth_block_tracker --> eth_json_rpc_provider;
   eth_block_tracker --> json_rpc_engine;
   eth_json_rpc_middleware --> eth_block_tracker;
