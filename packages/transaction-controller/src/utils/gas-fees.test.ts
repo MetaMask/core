@@ -1,13 +1,15 @@
-import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
 
 import type { UpdateGasFeesRequest } from './gas-fees';
 import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
+import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
 import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
 // eslint-disable-next-line jest/prefer-spy-on
@@ -17,10 +19,13 @@ const GAS_MOCK = 123;
 const GAS_HEX_MOCK = toHex(GAS_MOCK);
 const GAS_HEX_WEI_MOCK = toHex(GAS_MOCK * 1e9);
 const ORIGIN_MOCK = 'test.com';
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
 
 const UPDATE_GAS_FEES_REQUEST_MOCK = {
   eip1559: true,
-  ethQuery: {},
+  messenger: MESSENGER_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   txMeta: {
     txParams: {},
   },
@@ -76,7 +81,7 @@ function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
 
 describe('gas-fees', () => {
   let updateGasFeeRequest: jest.Mocked<UpdateGasFeesRequest>;
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
 
   /**
@@ -286,7 +291,7 @@ describe('gas-fees', () => {
           new Error('TestError'),
         );
 
-        queryMock.mockResolvedValueOnce(GAS_MOCK);
+        rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -400,7 +405,7 @@ describe('gas-fees', () => {
           new Error('TestError'),
         );
 
-        queryMock.mockResolvedValueOnce(GAS_MOCK);
+        rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -475,7 +480,7 @@ describe('gas-fees', () => {
             new Error('TestError'),
           );
 
-          queryMock.mockResolvedValueOnce(GAS_MOCK);
+          rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
 
           await updateGasFees(updateGasFeeRequest);
 

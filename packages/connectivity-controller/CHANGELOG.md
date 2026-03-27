@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Added
 
 - Add `init` method to asynchronously fetch and set the initial connectivity status from the adapter ([#7679](https://github.com/MetaMask/core/pull/7679))
@@ -20,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `ConnectivityAdapter.getStatus()` must now return a `Promise<ConnectivityStatus>` (async) ([#7679](https://github.com/MetaMask/core/pull/7679))
   - Adapter implementations must update their `getStatus()` method to return a Promise
   - This change enables asynchronous initialization of the controller via the `init()` method
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
 
 ## [0.1.0]
 
@@ -27,5 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7623](https://github.com/MetaMask/core/pull/7623))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.1.0...@metamask/connectivity-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/connectivity-controller@0.1.0

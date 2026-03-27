@@ -1,10 +1,8 @@
 import {
   ORIGIN_METAMASK,
   gweiDecToWEIBN,
-  query,
   toHex,
 } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
@@ -13,6 +11,7 @@ import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
 import { getGasFeeFlow } from './gas-flow';
+import { rpcRequest } from './provider';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -27,7 +26,6 @@ import { GasFeeEstimateType, UserFeeLevel } from '../types';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
-  ethQuery: EthQuery;
   gasFeeFlows: GasFeeFlow[];
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
@@ -347,15 +345,8 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta): void {
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {
-  const {
-    eip1559,
-    ethQuery,
-    gasFeeFlows,
-    getGasFeeEstimates,
-    messenger,
-    txMeta,
-  } = request;
-
+  const { eip1559, gasFeeFlows, getGasFeeEstimates, messenger, txMeta } =
+    request;
   const { networkClientId } = txMeta;
 
   if (
@@ -377,7 +368,6 @@ async function getSuggestedGasFees(
     const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
 
     const response = await gasFeeFlow.getGasFees({
-      ethQuery,
       gasFeeControllerData,
       messenger,
       transactionMeta: txMeta,
@@ -405,11 +395,13 @@ async function getSuggestedGasFees(
     log('Failed to get suggested gas fees', error);
   }
 
-  const gasPriceDecimal = (await query(ethQuery, 'gasPrice')) as number;
+  const gasPriceHex = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_gasPrice',
+  })) as Hex | undefined;
 
-  const gasPrice = gasPriceDecimal
-    ? add0x(gasPriceDecimal.toString(16))
-    : undefined;
+  const gasPrice = gasPriceHex ? add0x(gasPriceHex) : undefined;
 
   return { gasPrice };
 }

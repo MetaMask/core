@@ -1,10 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
@@ -36,7 +33,6 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
-jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
@@ -166,7 +162,6 @@ describe('UserOperationController', () => {
   const networkControllerGetClientByIdMock = jest.fn();
   const resultCallbackSuccessMock = jest.fn();
   const resultCallbackErrorMock = jest.fn();
-  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
   const getGasFeeEstimates = jest.fn();
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
@@ -245,10 +240,6 @@ describe('UserOperationController', () => {
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
-
-    determineTransactionTypeMock.mockResolvedValue({
-      type: TransactionType.simpleSend,
-    });
 
     updateGasMock.mockImplementation(async (metadata) => {
       metadata.userOperation.callGasLimit = PREPARE_USER_OPERATION_RESPONSE_MOCK
@@ -1281,11 +1272,9 @@ describe('UserOperationController', () => {
         expect(controller.state.userOperations[id].transactionType).toBe(
           TransactionType.swap,
         );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(0);
       });
 
-      it('determines transaction type if not set', async () => {
+      it('defaults transaction type to contractInteraction if not set', async () => {
         const controller = new UserOperationController(optionsMock);
 
         const { id } = await addUserOperation(
@@ -1300,13 +1289,7 @@ describe('UserOperationController', () => {
         await flushPromises();
 
         expect(controller.state.userOperations[id].transactionType).toBe(
-          TransactionType.simpleSend,
-        );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(1);
-        expect(determineTransactionTypeMock).toHaveBeenCalledWith(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          expect.anything(),
+          TransactionType.contractInteraction,
         );
       });
     }

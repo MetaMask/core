@@ -6,7 +6,10 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
+import type {
+  SnapControllerHandleRequestAction,
+  SnapControllerHasSnapAction,
+} from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { TransactionStatus } from '@metamask/transaction-controller';
@@ -197,10 +200,13 @@ export type GatorPermissionsControllerActions =
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
  *
- * SnapController:handleRequest and SnapController:has are allowed to be called
- * internally because they are used to fetch gator permissions from the Snap.
+ * SnapController:handleRequest and SnapController:hasSnap are allowed to be
+ * called internally because they are used to fetch gator permissions from the
+ * Snap.
  */
-type AllowedActions = HandleSnapRequest | HasSnap;
+type AllowedActions =
+  | SnapControllerHandleRequestAction
+  | SnapControllerHasSnapAction;
 
 /**
  * The event that {@link GatorPermissionsController} publishes when updating state.

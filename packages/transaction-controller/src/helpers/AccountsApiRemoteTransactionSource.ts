@@ -3,7 +3,6 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
-import { determineTransactionType } from '..';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
@@ -18,6 +17,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
+import { determineTransactionType } from '../utils/transaction-type';
 
 export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.MAINNET,
