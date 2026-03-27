@@ -41,6 +41,7 @@
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
+/packages/social-controllers                @MetaMask/social-ai
 
 ## Ramp Team
 /packages/ramps-controller                  @MetaMask/ramp
@@ -220,3 +221,5 @@
 /packages/ai-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
 /packages/client-controller/package.json @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/client-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/social-controllers/package.json @MetaMask/social-ai @MetaMask/core-platform
+/packages/social-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
