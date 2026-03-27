@@ -1221,27 +1221,22 @@ export class TransakService {
 
   // === WEBSOCKET METHODS ===
 
-  #ensurePusher(): PusherLike {
-    if (!this.#pusher) {
-      if (!this.#createPusher) {
-        throw new Error(
-          'WebSocket support requires a Pusher factory. Pass createPusher to the TransakService constructor.',
-        );
-      }
-      this.#pusher = this.#createPusher(TRANSAK_PUSHER_KEY, {
-        cluster: TRANSAK_PUSHER_CLUSTER,
-      });
-    }
-    return this.#pusher;
-  }
-
   subscribeToOrder(transakOrderId: string): void {
     if (this.#subscribedChannels.has(transakOrderId)) {
       return;
     }
 
-    const pusher = this.#ensurePusher();
-    const channel = pusher.subscribe(transakOrderId);
+    if (!this.#createPusher) {
+      return;
+    }
+
+    if (!this.#pusher) {
+      this.#pusher = this.#createPusher(TRANSAK_PUSHER_KEY, {
+        cluster: TRANSAK_PUSHER_CLUSTER,
+      });
+    }
+
+    const channel = this.#pusher.subscribe(transakOrderId);
 
     for (const event of TRANSAK_WS_ORDER_EVENTS) {
       channel.bind(event, (data: unknown) => {

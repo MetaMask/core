@@ -113,6 +113,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `apiMessage` property to `TransakApiError` to surface human-readable error messages from the Transak API (e.g. OTP rate-limit cooldown) ([#8072](https://github.com/MetaMask/core/pull/8072))
 - Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
 - Add messenger actions for `RampsController:setSelectedToken`, `RampsController:getQuotes`, and `RampsController:getOrder`, register their handlers in `RampsController`, and export the action types from the package index ([#8081](https://github.com/MetaMask/core/pull/8081))
+- Added real-time order status tracking for Transak orders via Pusher WebSockets ([#8075](https://github.com/MetaMask/core/pull/8075))
+  - Added `TransakService:orderUpdate` event to notify when WebSocket events are received
+  - Added `subscribeToOrder()`, `unsubscribeFromOrder()`, and `disconnectWebSocket()` methods to `TransakService`
+  - Added `subscribeToTransakOrderUpdates()` method to `RampsController` for bootstrapping WebSocket subscriptions on app restart
+  - Added `PusherFactory`, `PusherLike`, and `ChannelLike` types for dependency injection
+  - Exported new action types: `TransakServiceSubscribeToOrderAction`, `TransakServiceUnsubscribeFromOrderAction`, `TransakServiceDisconnectWebSocketAction`
 
 ## [10.0.0]
 

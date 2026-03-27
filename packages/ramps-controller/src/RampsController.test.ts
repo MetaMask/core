@@ -6664,6 +6664,80 @@ describe('RampsController', () => {
       });
     });
 
+    it('does not refresh when event is for a non-Transak order', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          jest.fn(),
+        );
+
+        const moonpayOrder = createMockOrder({
+          providerOrderId: 'moonpay-123',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/moonpay', name: 'MoonPay' },
+          walletAddress: '0xabc',
+        });
+        controller.addOrder(moonpayOrder);
+
+        const getOrderHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          getOrderHandler,
+        );
+
+        rootMessenger.publish('TransakService:orderUpdate', {
+          transakOrderId: 'some-transak-order',
+          status: 'COMPLETED',
+          eventType: 'ORDER_COMPLETED',
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(getOrderHandler).not.toHaveBeenCalled();
+      });
+    });
+
+    it('handles errors in refreshOrder silently when triggered by orderUpdate event', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          jest.fn(),
+        );
+
+        const order = createMockOrder({
+          providerOrderId: 'error-order',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/transak-native', name: 'Transak' },
+          walletAddress: '0xabc',
+        });
+        controller.addOrder(order);
+
+        const getOrderMock = jest
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          getOrderMock,
+        );
+
+        rootMessenger.publish('TransakService:orderUpdate', {
+          transakOrderId: 'error-order',
+          status: 'COMPLETED',
+          eventType: 'ORDER_COMPLETED',
+        });
+
+        await new Promise((resolve) => process.nextTick(resolve));
+        await new Promise((resolve) => process.nextTick(resolve));
+        await new Promise((resolve) => process.nextTick(resolve));
+
+        expect(getOrderMock).toHaveBeenCalledWith(
+          '/providers/transak-native',
+          'error-order',
+          '0xabc',
+        );
+      });
+    });
+
     it('subscribeToTransakOrderUpdates subscribes all pending Transak orders', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const subscribeHandler = jest.fn();
