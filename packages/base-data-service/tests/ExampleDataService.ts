@@ -2,6 +2,7 @@ import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
+import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 import {
   BaseDataService,
   DataServiceInvalidateQueriesAction,
@@ -11,19 +12,8 @@ import {
 
 export const serviceName = 'ExampleDataService';
 
-export type ExampleDataServiceGetAssetsAction = {
-  type: `${typeof serviceName}:getAssets`;
-  handler: ExampleDataService['getAssets'];
-};
-
-export type ExampleDataServiceGetActivityAction = {
-  type: `${typeof serviceName}:getActivity`;
-  handler: ExampleDataService['getActivity'];
-};
-
 export type ExampleDataServiceActions =
-  | ExampleDataServiceGetAssetsAction
-  | ExampleDataServiceGetActivityAction
+  | ExampleDataServiceMethodActions
   | DataServiceInvalidateQueriesAction<typeof serviceName>;
 
 export type ExampleDataServiceEvents =
