@@ -25,23 +25,7 @@ const DOMAIN_FIELD_MAP: Record<string, EIP712DomainField> = {
 };
 
 /**
- * Derive the EIP712Domain type array from a domain object.
- * eth-sig-util defaults to EIP712Domain: [] when absent, breaking
- * the domain separator hash. This ensures it matches ethers.js behavior.
- *
- * @param domain - The EIP-712 domain object.
- * @returns The EIP712Domain type array in canonical order.
- */
-function deriveEIP712DomainType(
-  domain: Record<string, unknown>,
-): EIP712DomainField[] {
-  return Object.keys(DOMAIN_FIELD_MAP)
-    .filter((key) => key in domain)
-    .map((key) => DOMAIN_FIELD_MAP[key]);
-}
-
-/**
- * Execute the HyperLiquid 2-step withdrawal via Relay.
+ * Submit a HyperLiquid 2-step withdrawal via Relay.
  *
  * Step 1 (authorize): Sign an EIP-712 nonce-mapping message, POST to Relay /authorize.
  * Step 2 (deposit): Sign an EIP-712 HyperliquidSignTransaction, POST to HyperLiquid exchange.
@@ -87,6 +71,22 @@ export async function submitHyperliquidWithdraw(
 }
 
 /**
+ * Derive the EIP712Domain type array from a domain object.
+ * eth-sig-util defaults to EIP712Domain: [] when absent, breaking
+ * the domain separator hash. This ensures it matches ethers.js behavior.
+ *
+ * @param domain - The EIP-712 domain object.
+ * @returns The EIP712Domain type array in canonical order.
+ */
+function deriveEIP712DomainType(
+  domain: Record<string, unknown>,
+): EIP712DomainField[] {
+  return Object.keys(DOMAIN_FIELD_MAP)
+    .filter((key) => key in domain)
+    .map((key) => DOMAIN_FIELD_MAP[key]);
+}
+
+/**
  * Execute the authorize step: sign EIP-712 nonce-mapping and POST to Relay.
  *
  * @param step - The authorize signature step from the Relay quote.
@@ -98,6 +98,12 @@ async function executeAuthorizeStep(
   from: Hex,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
+  if (step.items.length !== 1) {
+    throw new Error(
+      `Expected exactly 1 authorize item, got ${step.items.length}`,
+    );
+  }
+
   const item = step.items[0];
   if (!item) {
     throw new Error('Authorize step has no items');
@@ -130,15 +136,21 @@ async function executeAuthorizeStep(
 
   const authorizeUrl = `${RELAY_AUTHORIZE_URL}?signature=${signature}`;
 
-  const response = await successfulFetch(authorizeUrl, {
-    method: post.method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(post.body),
-  });
+  try {
+    const response = await successfulFetch(authorizeUrl, {
+      method: post.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(post.body),
+    });
 
-  const result = await response.json();
+    const result = await response.json();
 
-  log('Authorize response', result);
+    log('Authorize response', result);
+  } catch (error) {
+    throw new Error(
+      `HyperLiquid authorize failed: ${(error as Error).message}`,
+    );
+  }
 }
 
 /**
@@ -156,9 +168,13 @@ async function executeDepositStep(
   from: Hex,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  // The deposit step for HL has kind='transaction' but its data is not a
-  // standard on-chain tx. It contains action, nonce, eip712Types, eip712PrimaryType.
-  const item = (step.items as { data: Record<string, unknown> }[])[0];
+  const items = step.items as { data: Record<string, unknown> }[];
+
+  if (items.length !== 1) {
+    throw new Error(`Expected exactly 1 deposit item, got ${items.length}`);
+  }
+
+  const item = items[0];
   if (!item) {
     throw new Error('Deposit step has no items');
   }
@@ -173,6 +189,9 @@ async function executeDepositStep(
   const eip712Types = data.eip712Types as Record<string, unknown>;
   const eip712PrimaryType = data.eip712PrimaryType as string;
 
+  // HyperLiquid's EIP-712 signing spec requires Arbitrum's chain ID in the
+  // domain and message. This does not affect which chain the withdrawal
+  // targets — the destination chain is determined by the Relay quote.
   const chainId = Number(CHAIN_ID_ARBITRUM);
 
   const domain = {
@@ -219,19 +238,25 @@ async function executeDepositStep(
 
   log('Posting deposit to HyperLiquid exchange');
 
-  const response = await successfulFetch(HYPERLIQUID_EXCHANGE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: {
-        ...action.parameters,
-        type: action.type,
-        signatureChainId: `0x${chainId.toString(16)}`,
-      },
-      nonce,
-      signature: { r, s, v },
-    }),
-  });
+  let response: Response;
+
+  try {
+    response = await successfulFetch(HYPERLIQUID_EXCHANGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: {
+          ...action.parameters,
+          type: action.type,
+          signatureChainId: `0x${chainId.toString(16)}`,
+        },
+        nonce,
+        signature: { r, s, v },
+      }),
+    });
+  } catch (error) {
+    throw new Error(`HyperLiquid deposit failed: ${(error as Error).message}`);
+  }
 
   const result = await response.json();
 

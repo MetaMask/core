@@ -47,6 +47,7 @@ export type AllowedActions =
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
+  | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RampsControllerGetQuotesAction
@@ -60,8 +61,7 @@ export type AllowedActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
-  | TransactionControllerUpdateTransactionAction
-  | KeyringControllerSignTypedMessageAction;
+  | TransactionControllerUpdateTransactionAction;
 
 export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent

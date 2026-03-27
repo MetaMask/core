@@ -249,7 +249,7 @@ describe('submitHyperliquidWithdraw', () => {
 
     await expect(
       submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
-    ).rejects.toThrow('Authorize step has no items');
+    ).rejects.toThrow('Expected exactly 1 authorize item, got 0');
   });
 
   it('throws if deposit step has no items', async () => {
@@ -262,6 +262,56 @@ describe('submitHyperliquidWithdraw', () => {
 
     await expect(
       submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
-    ).rejects.toThrow('Deposit step has no items');
+    ).rejects.toThrow('Expected exactly 1 deposit item, got 0');
+  });
+
+  it('throws if authorize step has multiple items', async () => {
+    const multiAuthorize = {
+      ...AUTHORIZE_STEP_MOCK,
+      items: [AUTHORIZE_STEP_MOCK.items[0], AUTHORIZE_STEP_MOCK.items[0]],
+    };
+
+    const quote = buildQuote([multiAuthorize, DEPOSIT_STEP_MOCK]);
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('Expected exactly 1 authorize item, got 2');
+  });
+
+  it('throws if deposit step has multiple items', async () => {
+    const multiDeposit = {
+      ...DEPOSIT_STEP_MOCK,
+      items: [DEPOSIT_STEP_MOCK.items[0], DEPOSIT_STEP_MOCK.items[0]],
+    };
+
+    const quote = buildQuote([AUTHORIZE_STEP_MOCK, multiDeposit]);
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('Expected exactly 1 deposit item, got 2');
+  });
+
+  it('wraps authorize fetch errors with context', async () => {
+    successfulFetchMock.mockRejectedValueOnce(new Error('Network timeout'));
+
+    const quote = buildQuote();
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('HyperLiquid authorize failed: Network timeout');
+  });
+
+  it('wraps deposit fetch errors with context', async () => {
+    successfulFetchMock
+      .mockResolvedValueOnce({
+        json: async () => ({ status: 'ok' }),
+      } as Response)
+      .mockRejectedValueOnce(new Error('Connection refused'));
+
+    const quote = buildQuote();
+
+    await expect(
+      submitHyperliquidWithdraw(quote, FROM_MOCK, messenger),
+    ).rejects.toThrow('HyperLiquid deposit failed: Connection refused');
   });
 });
