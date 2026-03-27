@@ -34,18 +34,18 @@ jobs:
         node-version: [22.x]
         script:
           - lint:eslint
-          - lint:misc --check
+          - lint:misc:check
           - constraints
           - lint:dependencies
           - lint:teams
-          - generate-method-action-types --check
+          - generate-method-action-types:check
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn $SCRIPT
+      - run: yarn "$SCRIPT"
         env:
           SCRIPT: ${{ matrix.script }}
       - name: Require clean working directory
