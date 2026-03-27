@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clients must now provide `KeyringController:signTypedMessage` permission when constructing the controller messenger
 - Add HyperLiquid withdrawal submission via Relay ([#8314](https://github.com/MetaMask/core/pull/8314))
 - Add HyperLiquid source quote support for Relay strategy ([#8285](https://github.com/MetaMask/core/pull/8285))
+- Bump `@metamask/assets-controller` from `^3.2.0` to `^3.2.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/assets-controllers` from `^102.0.0` to `^103.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/bridge-controller` from `^69.2.2` to `^69.2.3` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/bridge-status-controller` from `^70.0.2` to `^70.0.3` ([#8325](https://github.com/MetaMask/core/pull/8325))
 
 ## [18.2.0]
 
