@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "rootDir": "../../"
+  },
+  "references": [],
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/*.test-d.ts", "**/*.spec.ts"]
+}
