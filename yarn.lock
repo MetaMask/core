@@ -3562,26 +3562,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/error-reporting-service@workspace:packages/error-reporting-service":
-  version: 0.0.0-use.local
-  resolution: "@metamask/error-reporting-service@workspace:packages/error-reporting-service"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^9.0.1"
-    "@metamask/messenger": "npm:^1.0.0"
-    "@sentry/core": "npm:^9.22.0"
-    "@ts-bridge/cli": "npm:^0.6.4"
-    "@types/jest": "npm:^29.5.14"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^29.7.0"
-    ts-jest: "npm:^29.2.5"
-    tsx: "npm:^4.20.5"
-    typedoc: "npm:^0.25.13"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.3.3"
-  languageName: unknown
-  linkType: soft
-
 "@metamask/eslint-config-jest@npm:^15.0.0":
   version: 15.0.0
   resolution: "@metamask/eslint-config-jest@npm:15.0.0"
@@ -5989,7 +5969,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/core@npm:^9.10.0, @sentry/core@npm:^9.22.0":
+"@sentry/core@npm:^9.10.0":
   version: 9.23.0
   resolution: "@sentry/core@npm:9.23.0"
   checksum: 10/4ee771098d4ce4f4d2f7bd62cacb41ee2993780f4cab0eea600e73de3a3803cb953ac47ac015c23bcd7a9919e2220fd6cdc5a9a22a3663440296336d8df959b7
