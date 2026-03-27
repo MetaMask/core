@@ -200,8 +200,9 @@ export type GatorPermissionsControllerActions =
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
  *
- * SnapController:handleRequest and SnapController:has are allowed to be called
- * internally because they are used to fetch gator permissions from the Snap.
+ * SnapController:handleRequest and SnapController:hasSnap are allowed to be
+ * called internally because they are used to fetch gator permissions from the
+ * Snap.
  */
 type AllowedActions =
   | SnapControllerHandleRequestAction
