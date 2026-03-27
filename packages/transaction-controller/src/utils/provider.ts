@@ -1,8 +1,8 @@
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
 import { createModuleLogger, projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 
 const log = createModuleLogger(projectLogger, 'provider');
 
