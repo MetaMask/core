@@ -311,8 +311,6 @@ linkStyle default opacity:0.5
   ens_controller --> controller_utils;
   ens_controller --> messenger;
   ens_controller --> network_controller;
-  error_reporting_service --> base_controller;
-  error_reporting_service --> messenger;
   eth_block_tracker --> eth_json_rpc_provider;
   eth_block_tracker --> json_rpc_engine;
   eth_json_rpc_middleware --> eth_block_tracker;
