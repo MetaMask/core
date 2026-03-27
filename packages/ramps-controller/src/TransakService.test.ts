@@ -2554,9 +2554,19 @@ describe('TransakService', () => {
   });
 
   describe('getWebSocketSubscriptions', () => {
-    function createMockPusher() {
-      const channels: Record<string, { bind: jest.Mock; unbindAll: jest.Mock }> =
-        {};
+    function createMockPusher(): {
+      createPusher: jest.Mock;
+      mockPusher: {
+        subscribe: jest.Mock;
+        unsubscribe: jest.Mock;
+        disconnect: jest.Mock;
+      };
+      channels: Record<string, { bind: jest.Mock; unbindAll: jest.Mock }>;
+    } {
+      const channels: Record<
+        string,
+        { bind: jest.Mock; unbindAll: jest.Mock }
+      > = {};
       const mockPusher = {
         subscribe: jest.fn((channelName: string) => {
           channels[channelName] = { bind: jest.fn(), unbindAll: jest.fn() };
@@ -2570,7 +2580,7 @@ describe('TransakService', () => {
 
     it('returns connected: false and empty array when no Pusher factory', () => {
       const { service } = getService();
-      expect(service.getWebSocketSubscriptions()).toEqual({
+      expect(service.getWebSocketSubscriptions()).toStrictEqual({
         connected: false,
         subscribedOrderIds: [],
       });
@@ -2579,7 +2589,7 @@ describe('TransakService', () => {
     it('returns connected: false when Pusher exists but no subscriptions', () => {
       const { createPusher } = createMockPusher();
       const { service } = getService({ options: { createPusher } });
-      expect(service.getWebSocketSubscriptions()).toEqual({
+      expect(service.getWebSocketSubscriptions()).toStrictEqual({
         connected: false,
         subscribedOrderIds: [],
       });
@@ -2590,7 +2600,7 @@ describe('TransakService', () => {
       const { service } = getService({ options: { createPusher } });
       service.subscribeToOrder('order-a');
       service.subscribeToOrder('order-b');
-      expect(service.getWebSocketSubscriptions()).toEqual({
+      expect(service.getWebSocketSubscriptions()).toStrictEqual({
         connected: true,
         subscribedOrderIds: ['order-a', 'order-b'],
       });
@@ -2601,7 +2611,7 @@ describe('TransakService', () => {
       const { service } = getService({ options: { createPusher } });
       service.subscribeToOrder('order-x');
       service.disconnectWebSocket();
-      expect(service.getWebSocketSubscriptions()).toEqual({
+      expect(service.getWebSocketSubscriptions()).toStrictEqual({
         connected: false,
         subscribedOrderIds: [],
       });
