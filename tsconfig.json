@@ -96,9 +96,6 @@
       "path": "./packages/ens-controller"
     },
     {
-      "path": "./packages/error-reporting-service"
-    },
-    {
       "path": "./packages/eth-block-tracker"
     },
     {

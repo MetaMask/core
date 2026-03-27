@@ -1,14 +1,9 @@
-import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 
 import { SequentialPublishBatchHook } from './SequentialPublishBatchHook';
 import { flushPromises } from '../../../../tests/helpers';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import type { PublishBatchHookTransaction, TransactionMeta } from '../types';
-
-jest.mock('@metamask/controller-utils', () => ({
-  query: jest.fn(),
-}));
 
 const TRANSACTION_HASH_MOCK = '0x123';
 const TRANSACTION_HASH_2_MOCK = '0x456';
@@ -48,11 +43,9 @@ const TRANSACTION_META_2_MOCK = {
 describe('SequentialPublishBatchHook', () => {
   const eventListeners: Record<string, jest.Mock[]> = {};
   let publishTransactionMock: jest.MockedFn<
-    (ethQuery: EthQuery, transactionMeta: TransactionMeta) => Promise<Hex>
+    (transactionMeta: TransactionMeta) => Promise<Hex>
   >;
   let getTransactionMock: jest.MockedFn<(id: string) => TransactionMeta>;
-  let getEthQueryMock: jest.MockedFn<(networkClientId: string) => EthQuery>;
-  let ethQueryInstanceMock: EthQuery;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
 
   /**
@@ -73,10 +66,6 @@ describe('SequentialPublishBatchHook', () => {
 
     publishTransactionMock = jest.fn();
     getTransactionMock = jest.fn();
-    getEthQueryMock = jest.fn();
-
-    ethQueryInstanceMock = {} as EthQuery;
-    getEthQueryMock.mockReturnValue(ethQueryInstanceMock);
 
     getTransactionMock.mockImplementation((id) => {
       if (id === TRANSACTION_ID_MOCK) {
@@ -128,7 +117,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
@@ -168,12 +156,10 @@ describe('SequentialPublishBatchHook', () => {
     expect(publishTransactionMock).toHaveBeenCalledTimes(2);
     expect(publishTransactionMock).toHaveBeenNthCalledWith(
       1,
-      ethQueryInstanceMock,
       TRANSACTION_META_MOCK,
     );
     expect(publishTransactionMock).toHaveBeenNthCalledWith(
       2,
-      ethQueryInstanceMock,
       TRANSACTION_META_2_MOCK,
     );
 
@@ -213,7 +199,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
@@ -241,7 +226,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
@@ -270,7 +254,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
@@ -319,7 +302,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
@@ -369,7 +351,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
@@ -409,7 +390,6 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getEthQuery: getEthQueryMock,
       getPendingTransactionTracker: jest
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),

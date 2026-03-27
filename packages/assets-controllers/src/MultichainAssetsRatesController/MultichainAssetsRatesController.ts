@@ -17,7 +17,7 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type {
   SnapId,
   AssetConversion,
@@ -119,7 +119,7 @@ export type MultichainAssetsRatesControllerEvents =
  * Actions that this controller is allowed to call.
  */
 export type AllowedActions =
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | AccountsControllerListMultichainAccountsAction
   | GetCurrencyRateState
   | MultichainAssetsControllerGetStateAction

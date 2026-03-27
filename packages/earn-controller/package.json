@@ -1,6 +1,6 @@
 {
   "name": "@metamask/earn-controller",
-  "version": "11.2.0",
+  "version": "11.2.1",
   "description": "Manages state for earning features and coordinates interactions between staking services, SDK integrations, and other controllers to enable users to participate in various earning opportunities",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^6.0.0",
+    "@metamask/account-tree-controller": "^7.0.0",
     "@metamask/base-controller": "^9.0.1",
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/keyring-api": "^21.6.0",
