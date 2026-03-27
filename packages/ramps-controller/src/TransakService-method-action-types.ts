@@ -143,6 +143,8 @@ export type TransakServiceDisconnectWebSocketAction = {
 /**
  * Returns the current WebSocket subscription state for debugging.
  * Used by the ramps debug dashboard to display live connection status.
+ *
+ * @returns The connection status and list of subscribed order IDs.
  */
 export type TransakServiceGetWebSocketSubscriptionsAction = {
   type: `TransakService:getWebSocketSubscriptions`;
