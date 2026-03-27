@@ -3237,16 +3237,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/connectivity-controller@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@metamask/connectivity-controller@npm:0.1.0"
-  dependencies:
-    "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/messenger": "npm:^0.3.0"
-  checksum: 10/b73982779bc1a7e86b21e63303b313c498ab34bd64eeb80b0fc9046d2041a567bc212a08d3987f05b083951e8bd4f3fb0540c3042d70d685bd4c200cba44b724
-  languageName: node
-  linkType: hard
-
 "@metamask/connectivity-controller@npm:^0.2.0, @metamask/connectivity-controller@workspace:packages/connectivity-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/connectivity-controller@workspace:packages/connectivity-controller"
@@ -5424,7 +5414,7 @@ __metadata:
     "@metamask/approval-controller": "npm:^9.0.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.1"
-    "@metamask/connectivity-controller": "npm:^0.1.0"
+    "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/controller-utils": "npm:^11.19.0"
     "@metamask/core-backend": "npm:^6.2.1"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
