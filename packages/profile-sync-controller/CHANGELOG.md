@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.2]
+
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+
+## [28.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/address-book-controller` from `^7.0.1` to `^7.1.1` ([#8225](https://github.com/MetaMask/core/pull/8225), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [28.0.0]
+
 ### Added
 
 - Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
@@ -20,9 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
+  - `validateLoginResponse` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
+  - Non-JWT access tokens are now rejected as invalid. In production this has no effect (access tokens are always JWTs from the OIDC server), but E2E test mocks that use raw identifier strings as access tokens must be updated. `getMockAuthAccessTokenResponse` now wraps identifiers in a JWT; consumers should use `getE2EIdentifierFromJwt` (newly exported) to extract the identifier from the bearer token in mock servers.
 - **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `AuthenticationControllerPerformSignIn` -> `AuthenticationControllerPerformSignInAction`). You will need to update imports appropriately.
   - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AuthenticationController` and `UserStorageController` messengers.
+
+### Fixed
+
+- Fix `AuthenticationController` silently discarding tokens when `entropySourceId` is `undefined` ([#8144](https://github.com/MetaMask/core/pull/8144))
+  - `getBearerToken`, `getSessionProfile`, and `getUserProfileLineage` now resolve `undefined` `entropySourceId` to the primary SRP entropy source ID via the message-signing snap before delegating to the auth SDK
+  - This also eliminates a login deduplication race condition where `getBearerToken(undefined)` and `getBearerToken("primary-srp-id")` would trigger two independent OIDC logins for the same identity
+- Update `getUserProfileLineage` to accept an optional `entropySourceId` parameter ([#8144](https://github.com/MetaMask/core/pull/8144))
 
 ## [27.1.0]
 
@@ -810,7 +839,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...HEAD
+[28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2
+[28.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...@metamask/profile-sync-controller@28.0.1
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...@metamask/profile-sync-controller@28.0.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.0.0...@metamask/profile-sync-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@26.0.0...@metamask/profile-sync-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@25.1.2...@metamask/profile-sync-controller@26.0.0

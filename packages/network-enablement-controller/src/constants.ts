@@ -1,4 +1,6 @@
-export const POPULAR_NETWORKS = [
+import type { Hex } from '@metamask/utils';
+
+export const POPULAR_NETWORKS: readonly Hex[] = [
   '0x1', // Ethereum Mainnet
   '0xe708', // Linea (59144)
   '0x2105', // Base (8453)

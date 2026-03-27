@@ -1,4 +1,9 @@
-import { StatusTypes, FeeType, ActionTypes } from '@metamask/bridge-controller';
+import {
+  StatusTypes,
+  FeeType,
+  ActionTypes,
+  MetaMetricsSwapsEventSource,
+} from '@metamask/bridge-controller';
 import {
   MetricsSwapType,
   MetricsActionType,
@@ -17,6 +22,7 @@ import {
   getTradeDataFromHistory,
   getRequestMetadataFromHistory,
   getEVMTxPropertiesFromTransactionMeta,
+  getPreConfirmationPropertiesFromQuote,
 } from './metrics';
 import type { BridgeHistoryItem } from '../types';
 
@@ -960,6 +966,36 @@ describe('metrics utils', () => {
       // Cross chain swap (already tested in the main test)
       expect(mockHistoryItem.quote.srcChainId).not.toBe(
         mockHistoryItem.quote.destChainId,
+      );
+    });
+  });
+
+  describe('getPreConfirmationPropertiesFromQuote', () => {
+    it('should include both ab_tests and active_ab_tests when both sets are provided', () => {
+      const abTests = { token_details_layout: 'treatment' };
+      const activeAbTests = [
+        { key: 'bridge_quote_sorting', value: 'variant_b' },
+      ];
+      const result = getPreConfirmationPropertiesFromQuote(
+        {
+          quote: mockHistoryItem.quote,
+          estimatedProcessingTimeInSeconds: 900,
+          adjustedReturn: { usd: '1980' },
+          sentAmount: { usd: '2000' },
+          gasFee: { effective: { usd: '2.54739' } },
+        } as never,
+        false,
+        false,
+        MetaMetricsSwapsEventSource.MainView,
+        abTests,
+        activeAbTests,
+      );
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          ab_tests: abTests,
+          active_ab_tests: activeAbTests,
+        }),
       );
     });
   });

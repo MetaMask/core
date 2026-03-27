@@ -1,11 +1,12 @@
-import { query } from '@metamask/controller-utils';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { NetworkClientId } from '@metamask/network-controller';
 
+import { rpcRequest } from './provider';
 import {
   updateSwapsTransaction,
   updatePostTransactionBalance,
@@ -18,7 +19,10 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType, TransactionStatus } from '../types';
 
-jest.mock('@metamask/controller-utils');
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
+}));
+
 jest.useFakeTimers();
 
 describe('updateSwapsTransaction', () => {
@@ -391,13 +395,17 @@ describe('updateSwapsTransaction', () => {
 });
 
 describe('updatePostTransactionBalance', () => {
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
+  const messengerMock = {} as unknown as TransactionControllerMessenger;
+  const networkClientIdMock = 'testNetworkClientId' as NetworkClientId;
   let transactionMeta: TransactionMeta;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let request: any;
 
   beforeEach(() => {
+    jest.resetAllMocks();
+
     transactionMeta = {
       id: '1',
       txParams: {
@@ -411,7 +419,8 @@ describe('updatePostTransactionBalance', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     request = {
-      ethQuery: {},
+      messenger: messengerMock,
+      networkClientId: networkClientIdMock,
       getTransaction: jest.fn().mockReturnValue(transactionMeta),
       updateTransaction: jest.fn(),
     };
@@ -419,7 +428,7 @@ describe('updatePostTransactionBalance', () => {
 
   it('updates post transaction balance', async () => {
     const mockPostTxBalance = '200';
-    queryMock.mockResolvedValue(mockPostTxBalance);
+    rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
     // First call to getTransaction returns transactionMeta
     // Second call to getTransaction returns approvalTransactionMeta
@@ -440,9 +449,12 @@ describe('updatePostTransactionBalance', () => {
       approvalTransactionMeta: undefined,
     });
 
-    expect(queryMock).toHaveBeenCalledWith(expect.anything(), 'getBalance', [
-      transactionMeta.txParams.from,
-    ]);
+    expect(rpcRequestMock).toHaveBeenCalledWith({
+      messenger: messengerMock,
+      networkClientId: networkClientIdMock,
+      method: 'eth_getBalance',
+      params: [transactionMeta.txParams.from, 'latest'],
+    });
     expect(request.updateTransaction).toHaveBeenCalledWith(
       expectedTransactionMeta,
       'TransactionController#updatePostTransactionBalance - Add post transaction balance',
@@ -454,7 +466,7 @@ describe('updatePostTransactionBalance', () => {
     transactionMeta.approvalTxId = mockApprovalTransactionId;
 
     const mockPostTxBalance = '200';
-    queryMock.mockResolvedValue(mockPostTxBalance);
+    rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
     const mockApprovalTransactionMeta = {
       id: mockApprovalTransactionId,
@@ -491,7 +503,7 @@ describe('updatePostTransactionBalance', () => {
 
   it(`retries at least ${UPDATE_POST_TX_BALANCE_ATTEMPTS} times then updates`, async () => {
     const mockPostTxBalance = transactionMeta.preTxBalance;
-    queryMock.mockResolvedValue(mockPostTxBalance);
+    rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
     jest
       .spyOn(request, 'getTransaction')
@@ -507,6 +519,8 @@ describe('updatePostTransactionBalance', () => {
     const { updatedTransactionMeta } = await promise;
 
     expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);
-    expect(queryMock).toHaveBeenCalledTimes(UPDATE_POST_TX_BALANCE_ATTEMPTS);
+    expect(rpcRequestMock).toHaveBeenCalledTimes(
+      UPDATE_POST_TX_BALANCE_ATTEMPTS,
+    );
   });
 });

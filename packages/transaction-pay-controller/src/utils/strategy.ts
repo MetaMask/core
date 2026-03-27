@@ -1,5 +1,7 @@
 import { TransactionPayStrategy } from '../constants';
+import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategy } from '../types';
@@ -19,11 +21,17 @@ export function getStrategyByName(
   strategyName: TransactionPayStrategy,
 ): PayStrategy<unknown> {
   switch (strategyName) {
+    case TransactionPayStrategy.Across:
+      return new AcrossStrategy() as never;
+
     case TransactionPayStrategy.Bridge:
       return new BridgeStrategy() as never;
 
     case TransactionPayStrategy.Relay:
       return new RelayStrategy() as never;
+
+    case TransactionPayStrategy.Fiat:
+      return new FiatStrategy() as never;
 
     case TransactionPayStrategy.Test:
       return new TestStrategy() as never;

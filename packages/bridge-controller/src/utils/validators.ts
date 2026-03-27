@@ -1,6 +1,7 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
 import type { Infer } from '@metamask/superstruct';
 import {
+  any,
   string,
   boolean,
   number,
@@ -132,8 +133,20 @@ export const ChainConfigurationSchema = type({
 });
 
 export const PriceImpactThresholdSchema = type({
-  gasless: number(),
-  normal: number(),
+  // TODO:
+  // We are moving into a unified approach where
+  // price impact thresholds will be segmented by
+  // importance rather than transaction type.
+  // The introduction of warning/danger will first be handled
+  // by mobile, followed by extension and then removal of gasless/normal
+  // from LD configs.
+  // To make the migration easier, we define all fields as optional for now.
+  // After the migration takes place, gasless/normal will be removed
+  // and warning/danger will be set as required fields.
+  gasless: number(), // Percentage value in decimal format (eg 0.02 is 2%)
+  normal: number(), // Percentage value in decimal format
+  warning: optional(number()), // Percentage value in decimal format
+  error: optional(number()), // Percentage value in decimal format
 });
 
 const GenericQuoteRequestSchema = type({
@@ -329,9 +342,26 @@ export const IntentSchema = type({
   settlementContract: optional(HexAddressSchema),
 
   /**
-   * Optional relayer address responsible for order submission.
+   * Optional EIP-712 typed data payload for signing.
+   * Must be JSON-serializable and include required EIP-712 fields.
    */
-  relayer: optional(HexAddressSchema),
+  typedData: type({
+    // Keep values as `any()` here. Using `unknown()` in this record causes
+    // TS2321/TS2589 (excessive type instantiation depth) in bridge state
+    // inference during build.
+    types: record(
+      string(),
+      array(
+        type({
+          name: string(),
+          type: string(),
+        }),
+      ),
+    ),
+    primaryType: string(),
+    domain: record(string(), any()),
+    message: record(string(), any()),
+  }),
 });
 
 export const QuoteSchema = type({
@@ -443,5 +473,25 @@ export const validateQuoteResponse = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
+  return true;
+};
+
+export enum TokenFeatureType {
+  MALICIOUS = 'Malicious',
+  WARNING = 'Warning',
+  INFO = 'Info',
+  BENIGN = 'Benign',
+}
+
+export const TokenFeatureSchema = type({
+  feature_id: string(),
+  type: enums(Object.values(TokenFeatureType)),
+  description: string(),
+});
+
+export const validateTokenFeature = (
+  data: unknown,
+): data is Infer<typeof TokenFeatureSchema> => {
+  assert(data, TokenFeatureSchema);
   return true;
 };

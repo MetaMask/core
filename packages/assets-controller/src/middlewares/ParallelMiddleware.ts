@@ -6,6 +6,7 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
+  AssetsDataSource,
 } from '../types';
 
 // ============================================================================
@@ -165,20 +166,33 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
 
       // Round 1: partition chains (no overlap), run with limited concurrency
       const requests = partitionChainsBySource(context.request, sources);
-      const results = await Promise.all(
+      const round1Timed = await Promise.all(
         sources.map((source, i) =>
-          limit(() =>
-            source.assetsMiddleware(
+          limit(async () => {
+            const start = Date.now();
+            const result = await source.assetsMiddleware(
               {
                 request: requests[i],
                 response: {},
                 getAssetsState: context.getAssetsState,
               },
               noopNext,
-            ),
-          ),
+            );
+            const durationMs = Date.now() - start;
+            return { result, sourceName: source.getName(), durationMs };
+          }),
         ),
       );
+      const results = round1Timed.map((entry) => entry.result);
+
+      const durationByDataSource: Record<string, number> = {
+        ...context.durationByDataSource,
+      };
+      for (const { sourceName, durationMs } of round1Timed) {
+        const key = `${PARALLEL_BALANCE_MIDDLEWARE_NAME}.${sourceName}`;
+        durationByDataSource[key] =
+          (durationByDataSource[key] ?? 0) + durationMs;
+      }
 
       let mergedResponse = mergeDataResponses(
         results.map((result) => result.response),
@@ -195,20 +209,29 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
           fallbackRequest,
           sources,
         );
-        const fallbackResults = await Promise.all(
+        const fallbackTimed = await Promise.all(
           sources.map((source, i) =>
-            limit(() =>
-              source.assetsMiddleware(
+            limit(async () => {
+              const start = Date.now();
+              const result = await source.assetsMiddleware(
                 {
                   request: fallbackRequests[i],
                   response: {},
                   getAssetsState: context.getAssetsState,
                 },
                 noopNext,
-              ),
-            ),
+              );
+              const durationMs = Date.now() - start;
+              return { result, sourceName: source.getName(), durationMs };
+            }),
           ),
         );
+        const fallbackResults = fallbackTimed.map((entry) => entry.result);
+        for (const { sourceName, durationMs } of fallbackTimed) {
+          const key = `${PARALLEL_BALANCE_MIDDLEWARE_NAME}.${sourceName}`;
+          durationByDataSource[key] =
+            (durationByDataSource[key] ?? 0) + durationMs;
+        }
         const fallbackMerged = mergeDataResponses(
           fallbackResults.map((result) => result.response),
         );
@@ -235,6 +258,7 @@ export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
       return next({
         ...context,
         response: mergeDataResponses([context.response, mergedResponse]),
+        durationByDataSource,
       });
     },
   };
@@ -249,21 +273,16 @@ const PARALLEL_MIDDLEWARE_NAME = 'ParallelMiddleware';
 /** Max concurrent token/price source calls. */
 const CONCURRENCY = 2;
 
-export type TokenPriceSource = {
-  getName(): string;
-  assetsMiddleware: Middleware;
-};
-
 /**
  * Middleware that runs multiple data source middlewares (e.g. TokenDataSource,
  * PriceDataSource) in parallel with the same request. Responses are merged so
  * that assetsInfo (token metadata) and assetsPrice are combined. Use this to
  * fetch token and price data concurrently instead of sequentially.
  *
- * @param sources - Array of sources with getName() and assetsMiddleware.
+ * @param sources - Array of named middleware sources (getName + assetsMiddleware).
  * @returns A single middleware that runs all sources in parallel and merges responses.
  */
-export function createParallelMiddleware(sources: TokenPriceSource[]): {
+export function createParallelMiddleware(sources: AssetsDataSource[]): {
   getName(): string;
   assetsMiddleware: Middleware;
 } {
@@ -281,28 +300,41 @@ export function createParallelMiddleware(sources: TokenPriceSource[]): {
         ctx;
       const limit = pLimit(CONCURRENCY);
 
-      const results = await Promise.all(
+      const timedResults = await Promise.all(
         sources.map((source) =>
-          limit(() =>
-            source.assetsMiddleware(
+          limit(async () => {
+            const start = Date.now();
+            const result = await source.assetsMiddleware(
               {
                 request: context.request,
                 response: { ...context.response },
                 getAssetsState: context.getAssetsState,
               },
               noopNext,
-            ),
-          ),
+            );
+            const durationMs = Date.now() - start;
+            return { result, sourceName: source.getName(), durationMs };
+          }),
         ),
       );
 
+      const results = timedResults.map((entry) => entry.result);
       const mergedResponse = mergeDataResponses(
         results.map((result) => result.response),
       );
 
+      const durationByDataSource: Record<string, number> = {
+        ...context.durationByDataSource,
+      };
+      for (const { sourceName, durationMs } of timedResults) {
+        durationByDataSource[`${PARALLEL_MIDDLEWARE_NAME}.${sourceName}`] =
+          durationMs;
+      }
+
       return next({
         ...context,
         response: mergeDataResponses([context.response, mergedResponse]),
+        durationByDataSource,
       });
     },
   };

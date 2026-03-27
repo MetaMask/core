@@ -1,6 +1,6 @@
 import type {
   AcceptResultCallbacks,
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -9,7 +9,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerPrepareUserOperationAction,
@@ -22,11 +21,10 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import { determineTransactionType } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionParams,
-  TransactionType,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -46,6 +44,7 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -58,6 +57,12 @@ import {
 } from './utils/validation';
 
 const controllerName = 'UserOperationController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addUserOperation',
+  'addUserOperationFromTransaction',
+  'startPollingByNetworkClientId',
+] as const;
 
 const stateMetadata = {
   userOperations: {
@@ -111,8 +116,9 @@ export type UserOperationStateChange = ControllerStateChangeEvent<
 
 export type UserOperationControllerActions =
   | GetUserOperationState
+  | UserOperationControllerMethodActions
   | NetworkControllerGetNetworkClientByIdAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction;
@@ -229,6 +235,11 @@ export class UserOperationController extends BaseController<
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;
 
@@ -303,6 +314,12 @@ export class UserOperationController extends BaseController<
     return await this.#addUserOperation(request, { ...options, transaction });
   }
 
+  /**
+   * Starts polling for pending user operations on the given network.
+   *
+   * @param networkClientId - The ID of the network client to poll.
+   * @returns The polling token that can be used to stop polling.
+   */
   startPollingByNetworkClientId(networkClientId: string): string {
     return this.#pendingUserOperationTracker.startPolling({
       networkClientId,
@@ -490,7 +507,6 @@ export class UserOperationController extends BaseController<
 
     const transactionType = await this.#getTransactionType(
       transaction,
-      provider,
       options,
     );
 
@@ -745,7 +761,6 @@ export class UserOperationController extends BaseController<
 
   async #getTransactionType(
     transaction: TransactionParams | undefined,
-    provider: Provider,
     options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
@@ -756,10 +771,7 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
-
-    return (await result).type;
+    return TransactionType.contractInteraction;
   }
 
   async #getProvider(

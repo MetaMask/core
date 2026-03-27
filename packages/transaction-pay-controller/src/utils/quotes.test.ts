@@ -578,6 +578,35 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('uses provider fee directly as bridgeFeeFiat even when providerFiat breakdown exists', async () => {
+      calculateTotalsMock.mockReturnValue({
+        ...TOTALS_MOCK,
+        fees: {
+          ...TOTALS_MOCK.fees,
+          providerFiat: {
+            fiat: '0.11',
+            usd: '0.22',
+          },
+        },
+      });
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject({
+        metamaskPay: {
+          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+          chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
+          tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          totalFiat: TOTALS_MOCK.total.usd,
+        },
+      });
+    });
+
     it('does nothing if transaction is not unapproved', async () => {
       getTransactionMock.mockReturnValue({
         ...TRANSACTION_META_MOCK,
@@ -861,6 +890,65 @@ describe('Quotes Utils', () => {
         ],
         transaction: TRANSACTION_META_MOCK,
       });
+    });
+
+    it('includes refundTo in post-quote request when set in transaction data', async () => {
+      const refundTo = '0xsafe000000000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          refundTo,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              refundTo,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('omits refundTo from post-quote request when not set', async () => {
+      await run({
+        transactionData: POST_QUOTE_TRANSACTION_DATA,
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              refundTo: undefined,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('passes isHyperliquidSource through to post-quote request', async () => {
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          isHyperliquidSource: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              isHyperliquidSource: true,
+            }),
+          ],
+        }),
+      );
     });
 
     it('does not fetch quotes when sourceAmounts is empty (same-token filtered in source-amounts)', async () => {

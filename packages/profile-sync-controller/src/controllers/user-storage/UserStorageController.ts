@@ -24,7 +24,7 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
@@ -167,7 +167,7 @@ export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
   // Snap Requests
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   // Auth Requests
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction

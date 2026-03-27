@@ -6,7 +6,7 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -58,6 +58,7 @@ import type {
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
 /**
  * @type SuggestedAssetMeta
@@ -131,31 +132,20 @@ const metadata: StateMetadata<TokensControllerState> = {
 
 const controllerName = 'TokensController';
 
-export type TokensControllerActions =
-  | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction
-  | TokensControllerAddTokensAction;
-
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensControllerState
 >;
 
-export type TokensControllerAddDetectedTokensAction = {
-  type: `${typeof controllerName}:addDetectedTokens`;
-  handler: TokensController['addDetectedTokens'];
-};
-
-export type TokensControllerAddTokensAction = {
-  type: `${typeof controllerName}:addTokens`;
-  handler: TokensController['addTokens'];
-};
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerMethodActions;
 
 /**
  * The external actions available to the {@link TokensController}.
  */
 export type AllowedActions =
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -191,6 +181,17 @@ export const getDefaultTokensState = (): TokensControllerState => {
     allDetectedTokens: {},
   };
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addDetectedTokens',
+  'addTokens',
+  'addToken',
+  'ignoreTokens',
+  'updateTokenType',
+  'watchAsset',
+  'clearIgnoredTokens',
+  'resetState',
+] as const;
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -243,15 +244,7 @@ export class TokensController extends BaseController<
 
     this.#abortController = new AbortController();
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokens` as const,
-      this.addDetectedTokens.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addTokens` as const,
-      this.addTokens.bind(this),
-    );
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
@@ -768,7 +761,7 @@ export class TokensController extends BaseController<
   async updateTokenType(
     tokenAddress: string,
     networkClientId: NetworkClientId,
-  ) {
+  ): Promise<Token> {
     const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,

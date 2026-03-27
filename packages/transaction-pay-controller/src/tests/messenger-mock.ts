@@ -27,7 +27,7 @@ import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-statu
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
-} from '../types';
+} from '../TransactionPayController-method-action-types';
 import type { TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
@@ -126,6 +126,8 @@ export function getMessengerMock({
   const estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
   > = jest.fn();
+
+  const getAssetsControllerStateMock = jest.fn();
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -241,12 +243,18 @@ export function getMessengerMock({
       'TransactionController:estimateGasBatch',
       estimateGasBatchMock,
     );
+
+    messenger.registerActionHandler(
+      'AssetsController:getStateForTransactionPay',
+      getAssetsControllerStateMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
     addTransactionMock,
+    getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,

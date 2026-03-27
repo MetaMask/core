@@ -486,6 +486,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
           ],
         });
         const { transactionController } = await setupController();
@@ -516,6 +517,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -535,7 +537,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -559,6 +561,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -580,7 +583,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -608,6 +611,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e482e7050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -628,6 +632,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -657,8 +662,10 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(firstTransaction.transactionMeta.id),
-          approvalController.accept(secondTransaction.transactionMeta.id),
+          approvalController.acceptRequest(firstTransaction.transactionMeta.id),
+          approvalController.acceptRequest(
+            secondTransaction.transactionMeta.id,
+          ),
         ]);
         await jestAdvanceTime({ duration: 1 });
         await jestAdvanceTime({ duration: 1 });
@@ -698,6 +705,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a7010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
@@ -725,7 +733,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -750,6 +758,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -790,7 +799,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -826,6 +835,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -867,7 +877,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -914,6 +924,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -943,6 +954,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -1010,8 +1022,8 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
         await jestAdvanceTime({ duration: 1 });
         await jestAdvanceTime({ duration: 1 });
@@ -1039,6 +1051,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
@@ -1087,8 +1100,8 @@ describe('TransactionController Integration', () => {
         await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
 
         await jestAdvanceTime({ duration: 1 });
@@ -1117,6 +1130,7 @@ describe('TransactionController Integration', () => {
         buildEthGetCodeRequestMock(ACCOUNT_MOCK),
         buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
         buildEthGasPriceRequestMock(),
+        buildEthGasPriceRequestMock(),
       ],
     });
     mockNetwork({
@@ -1129,6 +1143,7 @@ describe('TransactionController Integration', () => {
         buildEthGetBlockByNumberRequestMock('0x1'),
         buildEthGetCodeRequestMock(ACCOUNT_MOCK),
         buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+        buildEthGasPriceRequestMock(),
         buildEthGasPriceRequestMock(),
       ],
     });

@@ -14,6 +14,7 @@ import {
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
   selectDefaultSlippagePercentage,
+  selectTokenWarnings,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -1256,12 +1257,37 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle selected quote', () => {
+      const selectedQuote = {
+        ...mockState.quotes[0],
+        quote: { ...mockState.quotes[0].quote, requestId: '123' },
+      } as never;
       const result = selectBridgeQuotes(mockState, {
         ...mockClientParams,
-        selectedQuote: mockQuote as never,
+        selectedQuote,
       });
 
-      expect(result.activeQuote).toStrictEqual(mockQuote);
+      expect(result.recommendedQuote).toStrictEqual(
+        expect.objectContaining(mockState.quotes[1]),
+      );
+      expect(result.activeQuote).toStrictEqual(
+        expect.objectContaining(selectedQuote),
+      );
+    });
+
+    it('should set recommendedQuote as activeQuote when selected quote is not found', () => {
+      const selectedQuote = {
+        ...mockState.quotes[0],
+        quote: { ...mockState.quotes[0].quote, requestId: 'abc' },
+      } as never;
+      const result = selectBridgeQuotes(mockState, {
+        ...mockClientParams,
+        selectedQuote,
+      });
+
+      expect(result.recommendedQuote).toStrictEqual(
+        expect.objectContaining(mockState.quotes[1]),
+      );
+      expect(result.activeQuote).toStrictEqual(result.recommendedQuote);
     });
 
     it('should handle quote refresh state', () => {
@@ -1707,6 +1733,32 @@ describe('Bridge Selectors', () => {
       );
 
       expect(result).toBe(2);
+    });
+  });
+
+  describe('selectTokenWarnings', () => {
+    it('should return the tokenWarnings array from state', () => {
+      const warnings = [
+        {
+          feature_id: 'HONEYPOT',
+          type: 'Malicious',
+          description: 'Token is a honeypot',
+        },
+        {
+          feature_id: 'FAKE_TOKEN',
+          type: 'Warning',
+          description: 'Possible fake token',
+        },
+      ];
+      const state = { tokenWarnings: warnings } as BridgeAppState;
+
+      expect(selectTokenWarnings(state)).toBe(warnings);
+    });
+
+    it('should return an empty array when there are no warnings', () => {
+      const state = { tokenWarnings: [] } as BridgeAppState;
+
+      expect(selectTokenWarnings(state)).toStrictEqual([]);
     });
   });
 });

@@ -15,6 +15,7 @@ import type {
   UserRegion,
 } from './RampsController';
 import {
+  normalizeProviderCode,
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -60,6 +61,20 @@ import type {
 } from './TransakService';
 
 describe('RampsController', () => {
+  describe('normalizeProviderCode', () => {
+    it('strips /providers/ prefix', () => {
+      expect(normalizeProviderCode('/providers/transak')).toBe('transak');
+      expect(normalizeProviderCode('/providers/transak-staging')).toBe(
+        'transak-staging',
+      );
+    });
+
+    it('returns string unchanged when no prefix', () => {
+      expect(normalizeProviderCode('transak')).toBe('transak');
+      expect(normalizeProviderCode('')).toBe('');
+    });
+  });
+
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
     it('includes every RampsService action that RampsController calls', async () => {
       expect.hasAssertions();
@@ -123,6 +138,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -198,6 +214,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -237,6 +254,149 @@ describe('RampsController', () => {
           expect(controller.state.requests).toStrictEqual({});
         },
       );
+    });
+  });
+
+  describe('messenger action handlers', () => {
+    it('handles RampsController:setSelectedToken', async () => {
+      const mockToken: RampsToken = {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        chainId: 'eip155:1',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdc.png',
+        tokenSupported: true,
+      };
+
+      const mockTokensResponse: TokensResponse = {
+        topTokens: [mockToken],
+        allTokens: [mockToken],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokensResponse, null),
+            },
+          },
+        },
+        ({ controller, messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          messenger.call('RampsController:setSelectedToken', mockToken.assetId);
+
+          expect(controller.state.tokens.selected).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('handles RampsController:getQuotes', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              amountOutInFiat: 98,
+            },
+            metadata: {
+              reliability: 95,
+              tags: {
+                isBestRate: true,
+                isMostReliable: false,
+              },
+            },
+          },
+        ],
+        sorted: [
+          {
+            sortBy: 'price',
+            ids: ['/providers/moonpay'],
+          },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => mockQuotesResponse,
+        );
+
+        const quotes = await messenger.call('RampsController:getQuotes', {
+          action: 'buy',
+          amount: 100,
+          assetId: 'eip155:1/slip44:60',
+          fiat: 'USD',
+          paymentMethods: ['/payments/debit-credit-card'],
+          providers: ['/providers/moonpay'],
+          region: 'US',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        });
+
+        expect(quotes).toStrictEqual(mockQuotesResponse);
+      });
+    });
+
+    it('handles RampsController:getOrder', async () => {
+      const mockOrder = {
+        id: '/providers/transak-staging/orders/abc-123',
+        isOnlyLink: false,
+        provider: {
+          id: '/providers/transak-staging',
+          name: 'Transak (Staging)',
+          environmentType: 'STAGING',
+          description: 'Test provider description',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: { light: '', dark: '', height: 24, width: 77 },
+        },
+        success: true,
+        cryptoAmount: 0.05,
+        fiatAmount: 100,
+        cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+        fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+        providerOrderId: 'abc-123',
+        providerOrderLink: 'https://transak.com/order/abc-123',
+        createdAt: 1700000000000,
+        paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+        totalFeesFiat: 5,
+        txHash: '',
+        walletAddress: '0xabc',
+        status: RampsOrderStatus.Completed,
+        network: { chainId: '1', name: 'Ethereum Mainnet' },
+        canBeUpdated: false,
+        idHasExpired: false,
+        excludeFromPurchases: false,
+        timeDescriptionPending: '',
+        orderType: 'BUY',
+        exchangeRate: 2000,
+      };
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => mockOrder,
+        );
+
+        const order = await messenger.call(
+          'RampsController:getOrder',
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
+
+        expect(order).toStrictEqual(mockOrder);
+      });
     });
   });
 
@@ -286,7 +446,10 @@ describe('RampsController', () => {
 
         expect(controller.state.providers.data).toStrictEqual([]);
 
-        const result = await controller.getProviders('us-ca');
+        const result = await rootMessenger.call(
+          'RampsController:getProviders',
+          'us-ca',
+        );
 
         expect(result.providers).toStrictEqual(mockProviders);
         expect(controller.state.providers.data).toStrictEqual(mockProviders);
@@ -294,7 +457,7 @@ describe('RampsController', () => {
     });
 
     it('caches responses for the same region', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
@@ -304,15 +467,15 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getProviders('us-ca');
-        await controller.getProviders('us-ca');
+        await rootMessenger.call('RampsController:getProviders', 'us-ca');
+        await rootMessenger.call('RampsController:getProviders', 'us-ca');
 
         expect(callCount).toBe(1);
       });
     });
 
     it('normalizes region case and caches with normalized key', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
@@ -323,15 +486,15 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getProviders('US-ca');
-        await controller.getProviders('us-ca');
+        await rootMessenger.call('RampsController:getProviders', 'US-ca');
+        await rootMessenger.call('RampsController:getProviders', 'us-ca');
 
         expect(callCount).toBe(1);
       });
     });
 
     it('creates separate cache entries for different regions', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getProviders',
@@ -341,8 +504,8 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getProviders('us-ca');
-        await controller.getProviders('fr');
+        await rootMessenger.call('RampsController:getProviders', 'us-ca');
+        await rootMessenger.call('RampsController:getProviders', 'fr');
 
         expect(callCount).toBe(2);
       });
@@ -357,7 +520,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
@@ -367,7 +530,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getProviders();
+          await rootMessenger.call('RampsController:getProviders');
 
           expect(receivedRegion).toBe('fr');
         },
@@ -383,7 +546,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
@@ -393,7 +556,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getProviders('us-ca');
+          await rootMessenger.call('RampsController:getProviders', 'us-ca');
 
           expect(receivedRegion).toBe('us-ca');
         },
@@ -421,7 +584,7 @@ describe('RampsController', () => {
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.providers.data).toStrictEqual([]);
 
-          await controller.getProviders('US-ca');
+          await rootMessenger.call('RampsController:getProviders', 'US-ca');
 
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
         },
@@ -469,7 +632,7 @@ describe('RampsController', () => {
             existingProviders,
           );
 
-          await controller.getProviders('fr');
+          await rootMessenger.call('RampsController:getProviders', 'fr');
 
           expect(controller.state.providers.data).toStrictEqual(
             existingProviders,
@@ -479,7 +642,7 @@ describe('RampsController', () => {
     });
 
     it('passes filter options to the service', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let receivedOptions:
           | {
               provider?: string | string[];
@@ -504,7 +667,7 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getProviders('us-ca', {
+        await rootMessenger.call('RampsController:getProviders', 'us-ca', {
           provider: 'paypal',
           crypto: 'ETH',
           fiat: 'USD',
@@ -521,8 +684,10 @@ describe('RampsController', () => {
     });
 
     it('throws error when region is not provided and userRegion is not set', async () => {
-      await withController(async ({ controller }) => {
-        await expect(controller.getProviders()).rejects.toThrow(
+      await withController(async ({ rootMessenger }) => {
+        await expect(
+          rootMessenger.call('RampsController:getProviders'),
+        ).rejects.toThrow(
           'Region is required. Cannot proceed without valid region information.',
         );
       });
@@ -538,7 +703,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let serviceCalled = false;
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
@@ -548,7 +713,10 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getProviders('us-ca');
+          const result = await rootMessenger.call(
+            'RampsController:getProviders',
+            'us-ca',
+          );
 
           expect(serviceCalled).toBe(true);
           expect(result.providers).toStrictEqual(mockProviders);
@@ -566,7 +734,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let serviceCalled = false;
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
@@ -576,7 +744,9 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getProviders('us-ca', { provider: 'moonpay' });
+          await rootMessenger.call('RampsController:getProviders', 'us-ca', {
+            provider: 'moonpay',
+          });
 
           expect(serviceCalled).toBe(true);
         },
@@ -631,6 +801,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -673,6 +844,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -708,18 +880,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "orders": [],
-            "providers": {
-              "data": [],
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
-            "tokens": {
-              "data": null,
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
+            "providerAutoSelected": false,
             "userRegion": null,
           }
         `);
@@ -772,6 +933,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "providerAutoSelected": false,
             "providers": {
               "data": [],
               "error": null,
@@ -794,17 +956,22 @@ describe('RampsController', () => {
 
   describe('executeRequest', () => {
     it('returns cached data when available and not expired', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         const fetcher = async (): Promise<string> => {
           callCount += 1;
           return 'cached-result';
         };
 
-        await controller.executeRequest('cache-test-key', fetcher);
+        await rootMessenger.call(
+          'RampsController:executeRequest',
+          'cache-test-key',
+          fetcher,
+        );
         expect(callCount).toBe(1);
 
-        const result = await controller.executeRequest(
+        const result = await rootMessenger.call(
+          'RampsController:executeRequest',
           'cache-test-key',
           fetcher,
         );
@@ -814,7 +981,7 @@ describe('RampsController', () => {
     });
 
     it('deduplicates concurrent requests with the same cache key', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         const fetcher = async (): Promise<string> => {
           callCount += 1;
@@ -823,8 +990,16 @@ describe('RampsController', () => {
         };
 
         const [result1, result2] = await Promise.all([
-          controller.executeRequest('test-key', fetcher),
-          controller.executeRequest('test-key', fetcher),
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'test-key',
+            fetcher,
+          ),
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'test-key',
+            fetcher,
+          ),
         ]);
 
         expect(callCount).toBe(1);
@@ -834,13 +1009,17 @@ describe('RampsController', () => {
     });
 
     it('stores error state when request fails', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const fetcher = async (): Promise<string> => {
           throw new Error('Test error');
         };
 
         await expect(
-          controller.executeRequest('error-key', fetcher),
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key',
+            fetcher,
+          ),
         ).rejects.toThrow('Test error');
 
         const requestState = controller.state.requests['error-key'];
@@ -850,7 +1029,7 @@ describe('RampsController', () => {
     });
 
     it('stores fallback error message when error has no message', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const fetcher = async (): Promise<string> => {
           const error = new Error();
           Object.defineProperty(error, 'message', { value: undefined });
@@ -858,7 +1037,11 @@ describe('RampsController', () => {
         };
 
         await expect(
-          controller.executeRequest('error-key-no-message', fetcher),
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-no-message',
+            fetcher,
+          ),
         ).rejects.toThrow(Error);
 
         const requestState = controller.state.requests['error-key-no-message'];
@@ -868,7 +1051,7 @@ describe('RampsController', () => {
     });
 
     it('sets loading state while request is in progress', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         let resolvePromise: (value: string) => void;
         const fetcher = async (): Promise<string> => {
           return new Promise<string>((resolve) => {
@@ -876,7 +1059,8 @@ describe('RampsController', () => {
           });
         };
 
-        const requestPromise = controller.executeRequest(
+        const requestPromise = rootMessenger.call(
+          'RampsController:executeRequest',
           'loading-key',
           fetcher,
         );
@@ -896,7 +1080,7 @@ describe('RampsController', () => {
     });
 
     it('keeps resource isLoading true until last concurrent request (different cache keys) finishes', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         let resolveFirst: (value: string) => void;
         let resolveSecond: (value: string) => void;
         const fetcherA = async (): Promise<string> => {
@@ -910,12 +1094,14 @@ describe('RampsController', () => {
           });
         };
 
-        const promiseA = controller.executeRequest(
+        const promiseA = rootMessenger.call(
+          'RampsController:executeRequest',
           'providers-key-a',
           fetcherA,
           { resourceType: 'providers' },
         );
-        const promiseB = controller.executeRequest(
+        const promiseB = rootMessenger.call(
+          'RampsController:executeRequest',
           'providers-key-b',
           fetcherB,
           { resourceType: 'providers' },
@@ -938,7 +1124,7 @@ describe('RampsController', () => {
     });
 
     it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         let resolveFetcher: (value: string) => void;
         const fetcher = async (): Promise<string> => {
           return new Promise<string>((resolve) => {
@@ -946,7 +1132,8 @@ describe('RampsController', () => {
           });
         };
 
-        const promise = controller.executeRequest(
+        const promise = rootMessenger.call(
+          'RampsController:executeRequest',
           'providers-defensive-key',
           fetcher,
           { resourceType: 'providers' },
@@ -967,7 +1154,7 @@ describe('RampsController', () => {
 
   describe('abortRequest', () => {
     it('aborts a pending request', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         let wasAborted = false;
         const fetcher = async (signal: AbortSignal): Promise<string> => {
           return new Promise<string>((_resolve, reject) => {
@@ -978,8 +1165,15 @@ describe('RampsController', () => {
           });
         };
 
-        const requestPromise = controller.executeRequest('abort-key', fetcher);
-        const didAbort = controller.abortRequest('abort-key');
+        const requestPromise = rootMessenger.call(
+          'RampsController:executeRequest',
+          'abort-key',
+          fetcher,
+        );
+        const didAbort = rootMessenger.call(
+          'RampsController:abortRequest',
+          'abort-key',
+        );
 
         expect(didAbort).toBe(true);
         await expect(requestPromise).rejects.toThrow('Aborted');
@@ -988,14 +1182,17 @@ describe('RampsController', () => {
     });
 
     it('returns false if no pending request exists', async () => {
-      await withController(({ controller }) => {
-        const didAbort = controller.abortRequest('non-existent-key');
+      await withController(({ rootMessenger }) => {
+        const didAbort = rootMessenger.call(
+          'RampsController:abortRequest',
+          'non-existent-key',
+        );
         expect(didAbort).toBe(false);
       });
     });
 
     it('clears LOADING state from requests cache when aborted', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const fetcher = async (signal: AbortSignal): Promise<string> => {
           return new Promise<string>((_resolve, reject) => {
             signal.addEventListener('abort', () => {
@@ -1004,13 +1201,17 @@ describe('RampsController', () => {
           });
         };
 
-        const requestPromise = controller.executeRequest('abort-key', fetcher);
+        const requestPromise = rootMessenger.call(
+          'RampsController:executeRequest',
+          'abort-key',
+          fetcher,
+        );
 
         expect(controller.state.requests['abort-key']?.status).toBe(
           RequestStatus.LOADING,
         );
 
-        controller.abortRequest('abort-key');
+        rootMessenger.call('RampsController:abortRequest', 'abort-key');
 
         expect(controller.state.requests['abort-key']).toBeUndefined();
 
@@ -1019,7 +1220,7 @@ describe('RampsController', () => {
     });
 
     it('throws if fetch completes after abort signal is triggered', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         const fetcher = async (signal: AbortSignal): Promise<string> => {
           // Simulate: abort is called, but fetcher still returns successfully
           signal.dispatchEvent(new Event('abort'));
@@ -1027,7 +1228,8 @@ describe('RampsController', () => {
           return 'completed-after-abort';
         };
 
-        const requestPromise = controller.executeRequest(
+        const requestPromise = rootMessenger.call(
+          'RampsController:executeRequest',
           'abort-after-success-key',
           fetcher,
         );
@@ -1037,7 +1239,7 @@ describe('RampsController', () => {
     });
 
     it('does not delete newer pending request when aborted request settles', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         let requestASettled = false;
         let requestBCallCount = 0;
 
@@ -1062,17 +1264,29 @@ describe('RampsController', () => {
         };
 
         // Start request A
-        const promiseA = controller.executeRequest('race-key', fetcherA);
+        const promiseA = rootMessenger.call(
+          'RampsController:executeRequest',
+          'race-key',
+          fetcherA,
+        );
 
         // Abort request A (removes from pendingRequests, triggers abort)
-        controller.abortRequest('race-key');
+        rootMessenger.call('RampsController:abortRequest', 'race-key');
 
         // Start request B with the same key before request A settles
         expect(requestASettled).toBe(false);
-        const promiseB = controller.executeRequest('race-key', fetcherB);
+        const promiseB = rootMessenger.call(
+          'RampsController:executeRequest',
+          'race-key',
+          fetcherB,
+        );
 
         // Start request C with same key - should deduplicate with B
-        const promiseC = controller.executeRequest('race-key', fetcherB);
+        const promiseC = rootMessenger.call(
+          'RampsController:executeRequest',
+          'race-key',
+          fetcherB,
+        );
 
         // Wait for request A to finish settling (its finally block runs)
         await expect(promiseA).rejects.toThrow('Request A aborted');
@@ -1092,14 +1306,30 @@ describe('RampsController', () => {
     it('evicts oldest entries when cache exceeds max size', async () => {
       await withController(
         { options: { requestCacheMaxSize: 3 } },
-        async ({ controller }) => {
-          await controller.executeRequest('key1', async () => 'data1');
+        async ({ controller, rootMessenger }) => {
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key1',
+            async () => 'data1',
+          );
           await new Promise((resolve) => setTimeout(resolve, 20));
-          await controller.executeRequest('key2', async () => 'data2');
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key2',
+            async () => 'data2',
+          );
           await new Promise((resolve) => setTimeout(resolve, 20));
-          await controller.executeRequest('key3', async () => 'data3');
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key3',
+            async () => 'data3',
+          );
           await new Promise((resolve) => setTimeout(resolve, 20));
-          await controller.executeRequest('key4', async () => 'data4');
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key4',
+            async () => 'data4',
+          );
 
           const keys = Object.keys(controller.state.requests);
           expect(keys).toHaveLength(3);
@@ -1114,7 +1344,7 @@ describe('RampsController', () => {
     it('handles entries with missing timestamps during eviction', async () => {
       await withController(
         { options: { requestCacheMaxSize: 2 } },
-        async ({ controller }) => {
+        async ({ controller, rootMessenger }) => {
           // Manually inject cache entries with missing timestamps
           // This shouldn't happen in normal usage but tests the defensive fallback
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1139,7 +1369,11 @@ describe('RampsController', () => {
           });
 
           // Adding a fourth entry should trigger eviction of 2 entries
-          await controller.executeRequest('key4', async () => 'data4');
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key4',
+            async () => 'data4',
+          );
 
           const keys = Object.keys(controller.state.requests);
           expect(keys).toHaveLength(2);
@@ -1156,9 +1390,17 @@ describe('RampsController', () => {
       const shortTTL = 100;
       await withController(
         { options: { requestCacheTTL: shortTTL, requestCacheMaxSize: 100 } },
-        async ({ controller }) => {
-          await controller.executeRequest('key1', async () => 'data1');
-          await controller.executeRequest('key2', async () => 'data2');
+        async ({ controller, rootMessenger }) => {
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key1',
+            async () => 'data1',
+          );
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key2',
+            async () => 'data2',
+          );
 
           const keysBeforeExpiry = Object.keys(controller.state.requests);
           expect(keysBeforeExpiry).toContain('key1');
@@ -1166,7 +1408,11 @@ describe('RampsController', () => {
 
           await new Promise((resolve) => setTimeout(resolve, shortTTL + 50));
 
-          await controller.executeRequest('key3', async () => 'data3');
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key3',
+            async () => 'data3',
+          );
 
           const keysAfterExpiry = Object.keys(controller.state.requests);
           expect(keysAfterExpiry).not.toContain('key1');
@@ -1180,13 +1426,25 @@ describe('RampsController', () => {
       const longTTL = 1000;
       await withController(
         { options: { requestCacheTTL: longTTL, requestCacheMaxSize: 100 } },
-        async ({ controller }) => {
-          await controller.executeRequest('key1', async () => 'data1');
-          await controller.executeRequest('key2', async () => 'data2');
+        async ({ controller, rootMessenger }) => {
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key1',
+            async () => 'data1',
+          );
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key2',
+            async () => 'data2',
+          );
 
           await new Promise((resolve) => setTimeout(resolve, 50));
 
-          await controller.executeRequest('key3', async () => 'data3');
+          await rootMessenger.call(
+            'RampsController:executeRequest',
+            'key3',
+            async () => 'data3',
+          );
 
           const keys = Object.keys(controller.state.requests);
           expect(keys).toContain('key1');
@@ -1199,18 +1457,28 @@ describe('RampsController', () => {
 
   describe('getRequestState', () => {
     it('returns the cached request state', async () => {
-      await withController(async ({ controller }) => {
-        await controller.executeRequest('state-key', async () => 'data');
+      await withController(async ({ rootMessenger }) => {
+        await rootMessenger.call(
+          'RampsController:executeRequest',
+          'state-key',
+          async () => 'data',
+        );
 
-        const state = controller.getRequestState('state-key');
+        const state = rootMessenger.call(
+          'RampsController:getRequestState',
+          'state-key',
+        );
         expect(state?.status).toBe(RequestStatus.SUCCESS);
         expect(state?.data).toBe('data');
       });
     });
 
     it('returns undefined for non-existent cache key', async () => {
-      await withController(({ controller }) => {
-        const state = controller.getRequestState('non-existent');
+      await withController(({ rootMessenger }) => {
+        const state = rootMessenger.call(
+          'RampsController:getRequestState',
+          'non-existent',
+        );
         expect(state).toBeUndefined();
       });
     });
@@ -1254,7 +1522,9 @@ describe('RampsController', () => {
 
         expect(controller.state.countries.data).toStrictEqual([]);
 
-        const countries = await controller.getCountries();
+        const countries = await rootMessenger.call(
+          'RampsController:getCountries',
+        );
 
         expect(countries).toMatchInlineSnapshot(`
           [
@@ -1302,7 +1572,9 @@ describe('RampsController', () => {
           async () => 'not an array' as unknown as Country[],
         );
 
-        const countries = await controller.getCountries();
+        const countries = await rootMessenger.call(
+          'RampsController:getCountries',
+        );
 
         expect(countries).toBe('not an array');
         expect(controller.state.countries.data).toStrictEqual([]);
@@ -1321,14 +1593,14 @@ describe('RampsController', () => {
             state: stateWithNullCountries,
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getCountries',
             async () => mockCountries,
           );
-          await expect(controller.getCountries()).rejects.toThrow(
-            /Cannot set propert(y|ies) of null/u,
-          );
+          await expect(
+            rootMessenger.call('RampsController:getCountries'),
+          ).rejects.toThrow(/Cannot set propert(y|ies) of null/u);
         },
       );
     });
@@ -1346,7 +1618,7 @@ describe('RampsController', () => {
           async () => createMockCountries(),
         );
 
-        await controller.init();
+        await rootMessenger.call('RampsController:init');
 
         expect(controller.state.countries.data).toStrictEqual(
           createMockCountries(),
@@ -1371,7 +1643,7 @@ describe('RampsController', () => {
             async () => createMockCountries(),
           );
 
-          await controller.init();
+          await rootMessenger.call('RampsController:init');
 
           expect(controller.state.countries.data).toStrictEqual(
             createMockCountries(),
@@ -1381,41 +1653,14 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not clear persisted state when init() is called with same persisted region', async () => {
-      const mockTokens: TokensResponse = {
+    it('refetches providers and tokens when init() is called with same region but empty resource data', async () => {
+      const getTokensSpy = jest.fn(async () => ({
         topTokens: [],
         allTokens: [],
-      };
-      const mockProviders: Provider[] = [
-        {
-          id: '/providers/test',
-          name: 'Test Provider',
-          environmentType: 'STAGING',
-          description: 'Test',
-          hqAddress: '123 Test St',
-          links: [],
-          logos: {
-            light: '/assets/test_light.png',
-            dark: '/assets/test_dark.png',
-            height: 24,
-            width: 77,
-          },
-        },
-      ];
-      const mockSelectedProvider: Provider = {
-        id: '/providers/preferred',
-        name: 'Preferred Provider',
-        environmentType: 'STAGING',
-        description: 'Preferred',
-        hqAddress: '456 Preferred St',
-        links: [],
-        logos: {
-          light: '/assets/preferred_light.png',
-          dark: '/assets/preferred_dark.png',
-          height: 24,
-          width: 77,
-        },
-      };
+      }));
+      const getProvidersSpy = jest.fn(
+        async () => ({ providers: [] }) as { providers: Provider[] },
+      );
 
       await withController(
         {
@@ -1423,11 +1668,6 @@ describe('RampsController', () => {
             state: {
               countries: createResourceState(createMockCountries()),
               userRegion: createMockUserRegion('us-ca'),
-              tokens: createResourceState(mockTokens, null),
-              providers: createResourceState(
-                mockProviders,
-                mockSelectedProvider,
-              ),
             },
           },
         },
@@ -1438,28 +1678,24 @@ describe('RampsController', () => {
           );
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
-            async () => ({ topTokens: [], allTokens: [] }),
+            getTokensSpy,
           );
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
-            async () => ({ providers: [] }),
+            getProvidersSpy,
           );
 
-          await controller.init();
+          await rootMessenger.call('RampsController:init');
 
-          // Verify persisted state is preserved
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
-          expect(controller.state.providers.data).toStrictEqual(mockProviders);
-          expect(controller.state.providers.selected).toStrictEqual(
-            mockSelectedProvider,
-          );
+          expect(getTokensSpy).toHaveBeenCalled();
+          expect(getProvidersSpy).toHaveBeenCalled();
         },
       );
     });
 
     it('throws error when geolocation fetch fails', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getCountries',
           async () => createMockCountries(),
@@ -1469,14 +1705,16 @@ describe('RampsController', () => {
           async () => null as unknown as string,
         );
 
-        await expect(controller.init()).rejects.toThrow(
+        await expect(
+          rootMessenger.call('RampsController:init'),
+        ).rejects.toThrow(
           'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
         );
       });
     });
 
     it('handles countries fetch failure', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getCountries',
           async () => {
@@ -1484,14 +1722,14 @@ describe('RampsController', () => {
           },
         );
 
-        await expect(controller.init()).rejects.toThrow(
-          'Countries fetch error',
-        );
+        await expect(
+          rootMessenger.call('RampsController:init'),
+        ).rejects.toThrow('Countries fetch error');
       });
     });
 
     it('rejects when init fails with error that has no message', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const errorWithoutMessage = Object.assign(new Error(), {
           code: 'ERR_NO_MESSAGE',
           message: undefined,
@@ -1504,102 +1742,150 @@ describe('RampsController', () => {
           },
         );
 
-        await expect(controller.init()).rejects.toMatchObject({
+        await expect(
+          rootMessenger.call('RampsController:init'),
+        ).rejects.toMatchObject({
           code: 'ERR_NO_MESSAGE',
         });
       });
     });
-  });
 
-  describe('hydrateState', () => {
-    it('triggers fetching tokens and providers for user region', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us-ca'),
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          let tokensCalled = false;
-          let providersCalled = false;
-
-          rootMessenger.registerActionHandler(
-            'RampsService:getTokens',
-            async () => {
-              tokensCalled = true;
-              return { topTokens: [], allTokens: [] };
-            },
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getProviders',
-            async () => {
-              providersCalled = true;
-              return { providers: [] };
-            },
-          );
-
-          controller.hydrateState();
-
-          await new Promise((resolve) => setTimeout(resolve, 10));
-
-          expect(tokensCalled).toBe(true);
-          expect(providersCalled).toBe(true);
-        },
-      );
-    });
-
-    it('throws error when userRegion is not set', async () => {
-      await withController(async ({ controller }) => {
-        expect(() => controller.hydrateState()).toThrow(
-          'Region is required. Cannot proceed without valid region information.',
+    it('does not double-fetch when init() called twice concurrently', async () => {
+      await withController(async ({ rootMessenger }) => {
+        let getCountriesCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ca',
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            getCountriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        await Promise.all([
+          rootMessenger.call('RampsController:init'),
+          rootMessenger.call('RampsController:init'),
+        ]);
+        expect(getCountriesCallCount).toBe(1);
       });
     });
 
-    it('calls getTokens and getProviders when hydrating even if state has data', async () => {
-      const existingProviders: Provider[] = [
-        {
-          id: '/providers/test',
-          name: 'Test Provider',
-          environmentType: 'STAGING',
-          description: 'Test',
-          hqAddress: '123 Test St',
-          links: [],
-          logos: { light: '', dark: '', height: 24, width: 77 },
-        },
-      ];
+    it('returns immediately on second init() after first completes', async () => {
+      await withController(async ({ rootMessenger }) => {
+        let getCountriesCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ca',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            getCountriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        await rootMessenger.call('RampsController:init');
+        await rootMessenger.call('RampsController:init');
+        expect(getCountriesCallCount).toBe(1);
+      });
+    });
+
+    it('skips getCountries and geolocation when userRegion and countries exist', async () => {
+      let getCountriesCalled = false;
+      let getGeolocationCalled = false;
       await withController(
         {
           options: {
             state: {
+              countries: createResourceState(createMockCountries()),
               userRegion: createMockUserRegion('us-ca'),
-              providers: createResourceState(existingProviders, null),
             },
           },
         },
         async ({ controller, rootMessenger }) => {
-          let providersCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              getCountriesCalled = true;
+              return createMockCountries();
+            },
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ca';
+            },
+          );
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
             async () => ({ topTokens: [], allTokens: [] }),
           );
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
-            async () => {
-              providersCalled = true;
-              return { providers: [] };
-            },
+            async () => ({ providers: [] }),
           );
 
-          controller.hydrateState();
+          await rootMessenger.call('RampsController:init');
 
-          await new Promise((resolve) => setTimeout(resolve, 10));
-
-          expect(providersCalled).toBe(true);
+          expect(getCountriesCalled).toBe(false);
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
       );
+    });
+
+    it('forceRefresh bypasses idempotency and re-runs full flow', async () => {
+      let getCountriesCallCount = 0;
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ca',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            getCountriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        await rootMessenger.call('RampsController:init');
+        expect(getCountriesCallCount).toBe(1);
+
+        await rootMessenger.call('RampsController:init', {
+          forceRefresh: true,
+        });
+        expect(getCountriesCallCount).toBe(2);
+      });
     });
   });
 
@@ -1623,7 +1909,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('US-CA');
+          await rootMessenger.call('RampsController:setUserRegion', 'US-CA');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.userRegion?.country.isoCode).toBe('US');
@@ -1685,10 +1971,16 @@ describe('RampsController', () => {
             async () => ({ payments: [mockPaymentMethod] }),
           );
 
-          await controller.setUserRegion('US-ca');
+          await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
           await new Promise((resolve) => setTimeout(resolve, 50));
-          await controller.getPaymentMethods('us-ca');
-          controller.setSelectedPaymentMethod(mockPaymentMethod.id);
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+          );
+          rootMessenger.call(
+            'RampsController:setSelectedPaymentMethod',
+            mockPaymentMethod.id,
+          );
 
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
@@ -1700,12 +1992,66 @@ describe('RampsController', () => {
           );
 
           providersToReturn = [];
-          await controller.setUserRegion('FR');
+          await rootMessenger.call('RampsController:setUserRegion', 'FR');
           await new Promise((resolve) => setTimeout(resolve, 50));
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false when user region changes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const mockTokens: TokensResponse = {
+            topTokens: [],
+            allTokens: [],
+          };
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => mockTokens,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          await controller.setUserRegion('FR');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false on cleanup when setUserRegion fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          await expect(controller.setUserRegion('us-ca')).rejects.toThrow(
+            'No countries found',
+          );
+
+          expect(controller.state.providerAutoSelected).toBe(false);
         },
       );
     });
@@ -1735,8 +2081,8 @@ describe('RampsController', () => {
             async () => providersPromise,
           );
 
-          await controller.setUserRegion('US-ca');
-          await controller.setUserRegion('FR');
+          await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
+          await rootMessenger.call('RampsController:setUserRegion', 'FR');
 
           await new Promise((resolve) => setTimeout(resolve, 50));
           expect(controller.state.userRegion?.regionCode).toBe('fr');
@@ -1745,7 +2091,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not clear persisted state when setting the same region', async () => {
+    it('does not refetch providers or tokens when setting the same region with existing data', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
         allTokens: [],
@@ -1806,9 +2152,8 @@ describe('RampsController', () => {
           );
 
           // Set the same region
-          await controller.setUserRegion('US-ca');
+          await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
 
-          // Verify persisted state is preserved
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual(mockProviders);
@@ -1819,7 +2164,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('clears persisted state when setting a different region', async () => {
+    it('resets dependent resources when setting a different region', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
         allTokens: [],
@@ -1889,7 +2234,7 @@ describe('RampsController', () => {
           );
 
           // Set a different region
-          await controller.setUserRegion('FR');
+          await rootMessenger.call('RampsController:setUserRegion', 'FR');
 
           // Verify persisted state is cleared
           expect(controller.state.userRegion?.regionCode).toBe('fr');
@@ -1939,7 +2284,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('us-ca');
+          await rootMessenger.call('RampsController:setUserRegion', 'us-ca');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.userRegion?.country.name).toBe(
@@ -1980,7 +2325,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('fr');
+          await rootMessenger.call('RampsController:setUserRegion', 'fr');
 
           expect(controller.state.userRegion?.regionCode).toBe('fr');
           expect(controller.state.userRegion?.country.name).toBe('France');
@@ -2026,7 +2371,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('us-ca');
+          await rootMessenger.call('RampsController:setUserRegion', 'us-ca');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.userRegion?.country.name).toBe(
@@ -2056,10 +2401,10 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          await expect(controller.setUserRegion('xx')).rejects.toThrow(
-            'Region "xx" not found in countries data',
-          );
+        async ({ controller, rootMessenger }) => {
+          await expect(
+            rootMessenger.call('RampsController:setUserRegion', 'xx'),
+          ).rejects.toThrow('Region "xx" not found in countries data');
 
           expect(controller.state.userRegion).toBeNull();
         },
@@ -2067,8 +2412,10 @@ describe('RampsController', () => {
     });
 
     it('throws error when countries are not in state', async () => {
-      await withController(async ({ controller }) => {
-        await expect(controller.setUserRegion('us-ca')).rejects.toThrow(
+      await withController(async ({ controller, rootMessenger }) => {
+        await expect(
+          rootMessenger.call('RampsController:setUserRegion', 'us-ca'),
+        ).rejects.toThrow(
           'No countries found. Cannot set user region without valid country information.',
         );
 
@@ -2087,8 +2434,10 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          await expect(controller.setUserRegion('FR')).rejects.toThrow(
+        async ({ controller, rootMessenger }) => {
+          await expect(
+            rootMessenger.call('RampsController:setUserRegion', 'FR'),
+          ).rejects.toThrow(
             'No countries found. Cannot set user region without valid country information.',
           );
 
@@ -2135,7 +2484,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('us-ny');
+          await rootMessenger.call('RampsController:setUserRegion', 'us-ny');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ny');
           expect(controller.state.userRegion?.country.isoCode).toBe('US');
@@ -2181,7 +2530,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('us-ca');
+          await rootMessenger.call('RampsController:setUserRegion', 'us-ca');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.userRegion?.country.isoCode).toBe('US');
@@ -2232,7 +2581,7 @@ describe('RampsController', () => {
             async () => ({ providers: [] }),
           );
 
-          await controller.setUserRegion('us-xx');
+          await rootMessenger.call('RampsController:setUserRegion', 'us-xx');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-xx');
           expect(controller.state.userRegion?.country.isoCode).toBe('US');
@@ -2289,7 +2638,10 @@ describe('RampsController', () => {
 
           expect(controller.state.providers.selected).toBeNull();
 
-          controller.setSelectedProvider(mockProvider.id);
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider.id,
+          );
 
           expect(controller.state.providers.selected).toStrictEqual(
             mockProvider,
@@ -2320,7 +2672,7 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ controller, rootMessenger }) => {
           expect(controller.state.providers.selected).toStrictEqual(
             mockProvider,
           );
@@ -2331,7 +2683,7 @@ describe('RampsController', () => {
             mockPaymentMethod,
           );
 
-          controller.setSelectedProvider(null);
+          rootMessenger.call('RampsController:setSelectedProvider', null);
 
           expect(controller.state.providers.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
@@ -2351,9 +2703,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ rootMessenger }) => {
           expect(() => {
-            controller.setSelectedProvider(mockProvider.id);
+            rootMessenger.call(
+              'RampsController:setSelectedProvider',
+              mockProvider.id,
+            );
           }).toThrow(
             'Region is required. Cannot proceed without valid region information.',
           );
@@ -2370,9 +2725,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ rootMessenger }) => {
           expect(() => {
-            controller.setSelectedProvider(mockProvider.id);
+            rootMessenger.call(
+              'RampsController:setSelectedProvider',
+              mockProvider.id,
+            );
           }).toThrow(
             'Providers not loaded. Cannot set selected provider before providers are fetched.',
           );
@@ -2390,9 +2748,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ rootMessenger }) => {
           expect(() => {
-            controller.setSelectedProvider('/providers/nonexistent');
+            rootMessenger.call(
+              'RampsController:setSelectedProvider',
+              '/providers/nonexistent',
+            );
           }).toThrow(
             'Provider with ID "/providers/nonexistent" not found in available providers.',
           );
@@ -2444,7 +2805,10 @@ describe('RampsController', () => {
             existingPaymentMethod,
           );
 
-          controller.setSelectedProvider(newProvider.id);
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            newProvider.id,
+          );
 
           expect(controller.state.providers.selected).toStrictEqual(
             newProvider,
@@ -2454,6 +2818,228 @@ describe('RampsController', () => {
           );
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+        },
+      );
+    });
+
+    it('skips getPaymentMethods when selected token is explicitly not supported by the new provider', async () => {
+      const unsupportedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:0',
+        chainId: 'eip155:1',
+        name: 'Bitcoin',
+        symbol: 'BTC',
+        decimals: 8,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
+      const providerWithExclusion: Provider = {
+        ...mockProvider,
+        supportedCryptoCurrencies: {
+          'eip155:1/slip44:60': true,
+          [unsupportedToken.assetId]: false,
+        },
+      };
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithExclusion], null),
+              tokens: createResourceState(null, unsupportedToken),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            providerWithExclusion.id,
+          );
+
+          expect(getPaymentMethodsMock).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field', async () => {
+      const providerWithoutField: Provider = { ...mockProvider };
+      delete (providerWithoutField as Partial<Provider>)
+        .supportedCryptoCurrencies;
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithoutField], null),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            providerWithoutField.id,
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('fetches getPaymentMethods when selected token is explicitly supported by the new provider', async () => {
+      const supportedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
+      const providerWithSupport: Provider = {
+        ...mockProvider,
+        supportedCryptoCurrencies: {
+          [supportedToken.assetId]: true,
+        },
+      };
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithSupport], null),
+              tokens: createResourceState(null, supportedToken),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            providerWithSupport.id,
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('sets providerAutoSelected to false by default', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProvider.id);
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('sets providerAutoSelected to true when autoSelected option is true', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProvider.id, {
+            autoSelected: true,
+          });
+
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('resets providerAutoSelected to false when provider is cleared', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], mockProvider),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.providerAutoSelected).toBe(true);
+
+          controller.setSelectedProvider(null);
+
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('overrides providerAutoSelected when selecting a new provider without autoSelected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+              providerAutoSelected: true,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProvider.id);
+
+          expect(controller.state.providerAutoSelected).toBe(false);
         },
       );
     });
@@ -2501,7 +3087,10 @@ describe('RampsController', () => {
 
           expect(controller.state.tokens.selected).toBeNull();
 
-          controller.setSelectedToken(mockToken.assetId);
+          rootMessenger.call(
+            'RampsController:setSelectedToken',
+            mockToken.assetId,
+          );
 
           expect(controller.state.tokens.selected).toStrictEqual(mockToken);
         },
@@ -2522,12 +3111,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ controller, rootMessenger }) => {
           expect(controller.state.tokens.selected).toStrictEqual(mockToken);
           expect(controller.state.paymentMethods.data).toHaveLength(1);
           expect(controller.state.paymentMethods.selected).not.toBeNull();
 
-          controller.setSelectedToken(undefined);
+          rootMessenger.call('RampsController:setSelectedToken', undefined);
 
           expect(controller.state.tokens.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
@@ -2547,8 +3136,13 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          expect(() => controller.setSelectedToken(mockToken.assetId)).toThrow(
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'RampsController:setSelectedToken',
+              mockToken.assetId,
+            ),
+          ).toThrow(
             'Region is required. Cannot proceed without valid region information.',
           );
         },
@@ -2564,8 +3158,13 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          expect(() => controller.setSelectedToken(mockToken.assetId)).toThrow(
+        async ({ rootMessenger }) => {
+          expect(() =>
+            rootMessenger.call(
+              'RampsController:setSelectedToken',
+              mockToken.assetId,
+            ),
+          ).toThrow(
             'Tokens not loaded. Cannot set selected token before tokens are fetched.',
           );
         },
@@ -2582,9 +3181,12 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           expect(() =>
-            controller.setSelectedToken('eip155:1/erc20:0xNONEXISTENT'),
+            rootMessenger.call(
+              'RampsController:setSelectedToken',
+              'eip155:1/erc20:0xNONEXISTENT',
+            ),
           ).toThrow(
             'Token with asset ID "eip155:1/erc20:0xNONEXISTENT" not found in available tokens.',
           );
@@ -2602,7 +3204,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedAssetId: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
@@ -2617,7 +3219,10 @@ describe('RampsController', () => {
             },
           );
 
-          controller.setSelectedToken(mockToken.assetId);
+          rootMessenger.call(
+            'RampsController:setSelectedToken',
+            mockToken.assetId,
+          );
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(receivedAssetId).toBe(mockToken.assetId);
@@ -2664,7 +3269,10 @@ describe('RampsController', () => {
             mockPaymentMethod,
           );
 
-          controller.setSelectedToken(newToken.assetId);
+          rootMessenger.call(
+            'RampsController:setSelectedToken',
+            newToken.assetId,
+          );
 
           expect(controller.state.tokens.selected).toStrictEqual(newToken);
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
@@ -2722,7 +3330,11 @@ describe('RampsController', () => {
 
         expect(controller.state.tokens.data).toBeNull();
 
-        const tokens = await controller.getTokens('us-ca', 'buy');
+        const tokens = await rootMessenger.call(
+          'RampsController:getTokens',
+          'us-ca',
+          'buy',
+        );
 
         expect(tokens).toMatchInlineSnapshot(`
           {
@@ -2764,7 +3376,7 @@ describe('RampsController', () => {
     });
 
     it('fetches tokens with sell action', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -2778,14 +3390,14 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca', 'sell');
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'sell');
 
         expect(receivedAction).toBe('sell');
       });
     });
 
     it('uses default buy action when no argument is provided', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let receivedAction: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -2799,14 +3411,14 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca');
+        await rootMessenger.call('RampsController:getTokens', 'us-ca');
 
         expect(receivedAction).toBe('buy');
       });
     });
 
     it('normalizes region case when calling service', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let receivedRegion: string | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -2820,14 +3432,14 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('US-ca', 'buy');
+        await rootMessenger.call('RampsController:getTokens', 'US-ca', 'buy');
 
         expect(receivedRegion).toBe('us-ca');
       });
     });
 
     it('creates separate cache entries for different actions', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -2841,15 +3453,15 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca', 'buy');
-        await controller.getTokens('us-ca', 'sell');
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy');
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'sell');
 
         expect(callCount).toBe(2);
       });
     });
 
     it('creates separate cache entries for different regions', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -2863,8 +3475,8 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca', 'buy');
-        await controller.getTokens('fr', 'buy');
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy');
+        await rootMessenger.call('RampsController:getTokens', 'fr', 'buy');
 
         expect(callCount).toBe(2);
       });
@@ -2879,7 +3491,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -2893,7 +3505,11 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getTokens(undefined, 'buy');
+          await rootMessenger.call(
+            'RampsController:getTokens',
+            undefined,
+            'buy',
+          );
 
           expect(receivedRegion).toBe('fr');
         },
@@ -2901,8 +3517,10 @@ describe('RampsController', () => {
     });
 
     it('throws error when region is not provided and userRegion is not set', async () => {
-      await withController(async ({ controller }) => {
-        await expect(controller.getTokens(undefined, 'buy')).rejects.toThrow(
+      await withController(async ({ rootMessenger }) => {
+        await expect(
+          rootMessenger.call('RampsController:getTokens', undefined, 'buy'),
+        ).rejects.toThrow(
           'Region is required. Cannot proceed without valid region information.',
         );
       });
@@ -2918,7 +3536,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let serviceCalled = false;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -2928,7 +3546,11 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getTokens('us-ca', 'buy');
+          const result = await rootMessenger.call(
+            'RampsController:getTokens',
+            'us-ca',
+            'buy',
+          );
 
           expect(serviceCalled).toBe(true);
           expect(result).toStrictEqual(mockTokens);
@@ -2946,7 +3568,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let serviceCalled = false;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -2956,7 +3578,12 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getTokens('us-ca', 'buy', { provider: 'moonpay' });
+          await rootMessenger.call(
+            'RampsController:getTokens',
+            'us-ca',
+            'buy',
+            { provider: 'moonpay' },
+          );
 
           expect(serviceCalled).toBe(true);
         },
@@ -2972,7 +3599,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
@@ -2986,7 +3613,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getTokens('us-ca', 'buy');
+          await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy');
 
           expect(receivedRegion).toBe('us-ca');
         },
@@ -3018,7 +3645,7 @@ describe('RampsController', () => {
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toBeNull();
 
-          await controller.getTokens('US-ca');
+          await rootMessenger.call('RampsController:getTokens', 'US-ca');
 
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
         },
@@ -3076,7 +3703,7 @@ describe('RampsController', () => {
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(controller.state.tokens.data).toStrictEqual(existingTokens);
 
-          await controller.getTokens('fr');
+          await rootMessenger.call('RampsController:getTokens', 'fr');
 
           expect(controller.state.tokens.data).toStrictEqual(existingTokens);
         },
@@ -3084,7 +3711,7 @@ describe('RampsController', () => {
     });
 
     it('passes provider parameter to service', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let receivedProvider: string | string[] | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -3098,14 +3725,16 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca', 'buy', { provider: 'provider-id' });
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy', {
+          provider: 'provider-id',
+        });
 
         expect(receivedProvider).toBe('provider-id');
       });
     });
 
     it('creates separate cache entries for different providers', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -3119,15 +3748,19 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca', 'buy', { provider: 'provider-1' });
-        await controller.getTokens('us-ca', 'buy', { provider: 'provider-2' });
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy', {
+          provider: 'provider-1',
+        });
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy', {
+          provider: 'provider-2',
+        });
 
         expect(callCount).toBe(2);
       });
     });
 
     it('creates separate cache entries for requests with and without provider', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getTokens',
@@ -3141,8 +3774,10 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getTokens('us-ca', 'buy');
-        await controller.getTokens('us-ca', 'buy', { provider: 'provider-1' });
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy');
+        await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy', {
+          provider: 'provider-1',
+        });
 
         expect(callCount).toBe(2);
       });
@@ -3220,10 +3855,14 @@ describe('RampsController', () => {
             mockPaymentMethod1,
           );
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
@@ -3269,10 +3908,14 @@ describe('RampsController', () => {
             removedPaymentMethod,
           );
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
@@ -3305,10 +3948,14 @@ describe('RampsController', () => {
 
           expect(controller.state.paymentMethods.selected).toBeNull();
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod1,
@@ -3340,10 +3987,14 @@ describe('RampsController', () => {
 
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod1,
@@ -3362,7 +4013,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
@@ -3377,7 +4028,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getPaymentMethods('fr', {
+          await rootMessenger.call('RampsController:getPaymentMethods', 'fr', {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           });
@@ -3409,9 +4060,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getPaymentMethods('us-ca', {
+            rootMessenger.call('RampsController:getPaymentMethods', 'us-ca', {
               assetId: 'eip155:1/slip44:60',
               provider: '/providers/stripe',
             }),
@@ -3442,7 +4093,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedAssetId: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
@@ -3457,9 +4108,13 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getPaymentMethods('us-ca', {
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(receivedAssetId).toBe(mockToken.assetId);
         },
@@ -3491,7 +4146,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedProvider: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
@@ -3506,9 +4161,13 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+            },
+          );
 
           expect(receivedProvider).toBe(testProvider.id);
         },
@@ -3524,7 +4183,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedRegion: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
@@ -3539,10 +4198,14 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getPaymentMethods(undefined, {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            undefined,
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(receivedRegion).toBe('fr');
         },
@@ -3578,10 +4241,14 @@ describe('RampsController', () => {
             async () => ({ payments: [] }),
           );
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(controller.state.paymentMethods.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
@@ -3590,9 +4257,9 @@ describe('RampsController', () => {
     });
 
     it('throws error when region is not provided and userRegion is not set', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         await expect(
-          controller.getPaymentMethods(undefined, {
+          rootMessenger.call('RampsController:getPaymentMethods', undefined, {
             assetId: 'eip155:1/slip44:60',
             provider: '/providers/stripe',
           }),
@@ -3613,7 +4280,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let receivedAssetId: string | undefined;
           let receivedProvider: string | undefined;
           rootMessenger.registerActionHandler(
@@ -3630,7 +4297,10 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getPaymentMethods('us-ca');
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+          );
 
           expect(receivedAssetId).toBe('');
           expect(receivedProvider).toBe('');
@@ -3720,14 +4390,18 @@ describe('RampsController', () => {
             },
           );
 
-          const tokenAPaymentMethodsPromise = controller.getPaymentMethods(
+          const tokenAPaymentMethodsPromise = rootMessenger.call(
+            'RampsController:getPaymentMethods',
             'us-ca',
             {
               assetId: tokenA.assetId,
             },
           );
 
-          controller.setSelectedToken(tokenB.assetId);
+          rootMessenger.call(
+            'RampsController:setSelectedToken',
+            tokenB.assetId,
+          );
 
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
@@ -3828,14 +4502,18 @@ describe('RampsController', () => {
             },
           );
 
-          const providerAPaymentMethodsPromise = controller.getPaymentMethods(
+          const providerAPaymentMethodsPromise = rootMessenger.call(
+            'RampsController:getPaymentMethods',
             'us-ca',
             {
               provider: providerA.id,
             },
           );
 
-          controller.setSelectedProvider(providerB.id);
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            providerB.id,
+          );
 
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
@@ -3903,10 +4581,14 @@ describe('RampsController', () => {
             async () => ({ payments: newPaymentMethods }),
           );
 
-          await controller.getPaymentMethods('us-ca', {
-            assetId: token.assetId,
-            provider: provider.id,
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: token.assetId,
+              provider: provider.id,
+            },
+          );
 
           expect(controller.state.tokens.selected).toStrictEqual(token);
           expect(controller.state.providers.selected).toStrictEqual(provider);
@@ -3936,10 +4618,13 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ controller, rootMessenger }) => {
           expect(controller.state.paymentMethods.selected).toBeNull();
 
-          controller.setSelectedPaymentMethod(mockPaymentMethod.id);
+          rootMessenger.call(
+            'RampsController:setSelectedPaymentMethod',
+            mockPaymentMethod.id,
+          );
 
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
@@ -3960,12 +4645,15 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ controller, rootMessenger }) => {
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
 
-          controller.setSelectedPaymentMethod(undefined);
+          rootMessenger.call(
+            'RampsController:setSelectedPaymentMethod',
+            undefined,
+          );
 
           expect(controller.state.paymentMethods.selected).toBeNull();
         },
@@ -3973,9 +4661,12 @@ describe('RampsController', () => {
     });
 
     it('throws error when payment methods are not loaded', async () => {
-      await withController(({ controller }) => {
+      await withController(({ rootMessenger }) => {
         expect(() => {
-          controller.setSelectedPaymentMethod(mockPaymentMethod.id);
+          rootMessenger.call(
+            'RampsController:setSelectedPaymentMethod',
+            mockPaymentMethod.id,
+          );
         }).toThrow(
           'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
         );
@@ -3991,9 +4682,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ controller }) => {
+        ({ rootMessenger }) => {
           expect(() => {
-            controller.setSelectedPaymentMethod('/payments/nonexistent');
+            rootMessenger.call(
+              'RampsController:setSelectedPaymentMethod',
+              '/payments/nonexistent',
+            );
           }).toThrow(
             'Payment method with ID "/payments/nonexistent" not found in available payment methods.',
           );
@@ -4053,13 +4747,13 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => mockQuotesResponse,
           );
 
-          const result = await controller.getQuotes({
+          const result = await rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4104,7 +4798,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async (params) => {
@@ -4113,7 +4807,7 @@ describe('RampsController', () => {
             },
           );
 
-          const result = await controller.getQuotes({
+          const result = await rootMessenger.call('RampsController:getQuotes', {
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           });
@@ -4144,7 +4838,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async (params) => {
@@ -4154,7 +4848,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getQuotes({
+          await rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4164,9 +4858,9 @@ describe('RampsController', () => {
     });
 
     it('throws when region is not provided and not in state', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         await expect(
-          controller.getQuotes({
+          rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4196,9 +4890,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: 100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4219,9 +4913,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: 100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4252,9 +4946,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: 0,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4262,7 +4956,7 @@ describe('RampsController', () => {
           ).rejects.toThrow('Amount must be a positive finite number');
 
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: -100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4270,7 +4964,7 @@ describe('RampsController', () => {
           ).rejects.toThrow('Amount must be a positive finite number');
 
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: Infinity,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4301,9 +4995,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: '',
               amount: 100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4311,7 +5005,7 @@ describe('RampsController', () => {
           ).rejects.toThrow('assetId is required');
 
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: '   ',
               amount: 100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4342,9 +5036,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               amount: 100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
             }),
@@ -4374,9 +5068,9 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: 100,
               walletAddress: '',
@@ -4384,7 +5078,7 @@ describe('RampsController', () => {
           ).rejects.toThrow('walletAddress is required');
 
           await expect(
-            controller.getQuotes({
+            rootMessenger.call('RampsController:getQuotes', {
               assetId: 'eip155:1/slip44:60',
               amount: 100,
               walletAddress: '   ',
@@ -4415,7 +5109,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let callCount = 0;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -4425,12 +5119,12 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getQuotes({
+          await rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           });
-          await controller.getQuotes({
+          await rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4442,7 +5136,7 @@ describe('RampsController', () => {
     });
 
     it('accepts explicit region and fiat parameters', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getQuotes',
           async (params) => {
@@ -4452,7 +5146,7 @@ describe('RampsController', () => {
           },
         );
 
-        await controller.getQuotes({
+        await rootMessenger.call('RampsController:getQuotes', {
           region: 'fr',
           fiat: 'eur',
           assetId: 'eip155:1/slip44:60',
@@ -4484,7 +5178,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async (params) => {
@@ -4496,7 +5190,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getQuotes({
+          await rootMessenger.call('RampsController:getQuotes', {
             assetId: '  eip155:1/slip44:60  ',
             amount: 100,
             walletAddress: '  0x1234567890abcdef1234567890abcdef12345678  ',
@@ -4526,7 +5220,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let capturedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -4536,7 +5230,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getQuotes({
+          await rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4604,7 +5298,7 @@ describe('RampsController', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ rootMessenger }) => {
           let capturedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -4614,7 +5308,7 @@ describe('RampsController', () => {
             },
           );
 
-          await controller.getQuotes({
+          await rootMessenger.call('RampsController:getQuotes', {
             assetId: 'eip155:1/slip44:60',
             amount: 100,
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
@@ -4630,9 +5324,9 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getWidgetUrl', () => {
+  describe('getBuyWidgetData', () => {
     it('fetches and returns widget URL via RampsService messenger', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
           quote: {
@@ -4653,14 +5347,21 @@ describe('RampsController', () => {
           }),
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getBuyWidgetData',
+          quote,
+        );
 
-        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
+        expect(buyWidget).toStrictEqual({
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
       });
     });
 
     it('returns null when buyURL is not present', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak',
           quote: {
@@ -4670,26 +5371,32 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getBuyWidgetData',
+          quote,
+        );
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
     it('returns null when quote object is malformed', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         const quote = {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getBuyWidgetData',
+          quote,
+        );
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
-    it('returns null when service call throws an error', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+    it('propagates error when service call throws', async () => {
+      await withController(async ({ rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
           quote: {
@@ -4708,14 +5415,14 @@ describe('RampsController', () => {
           },
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
-
-        expect(widgetUrl).toBeNull();
+        await expect(
+          rootMessenger.call('RampsController:getBuyWidgetData', quote),
+        ).rejects.toThrow('Network error');
       });
     });
 
     it('returns null when service returns BuyWidget with null url', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
           quote: {
@@ -4730,28 +5437,77 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
           async () => ({
-            url: null,
+            url: '',
             browser: 'APP_BROWSER' as const,
             orderId: null,
           }),
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await rootMessenger.call(
+          'RampsController:getBuyWidgetData',
+          quote,
+        );
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
+      });
+    });
+  });
+
+  describe('addPrecreatedOrder', () => {
+    it('adds a stub order with Precreated status for polling', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(1);
+        const stub = controller.state.orders[0];
+        expect(stub?.providerOrderId).toBe('abc123');
+        expect(stub?.provider?.id).toBe('/providers/paypal');
+        expect(stub?.walletAddress).toBe('0xabc');
+        expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+      });
+    });
+
+    it('parses orderCode when orderId has no /orders/ segment', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: 'plain-order-id',
+          providerCode: 'transak',
+          walletAddress: '0xdef',
+        });
+
+        expect(controller.state.orders[0]?.providerOrderId).toBe(
+          'plain-order-id',
+        );
+      });
+    });
+
+    it('skips addOrder when orderId ends with /orders/ (empty orderCode)', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addPrecreatedOrder', {
+          orderId: '/providers/paypal/orders/',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
       });
     });
   });
 
   describe('destroy', () => {
     it('clears stateChange subscriptions so listeners stop firing', async () => {
-      await withController(({ controller, messenger }) => {
+      await withController(({ controller, rootMessenger, messenger }) => {
         const listener = jest.fn();
         messenger.subscribe('RampsController:stateChange', listener);
 
         controller.destroy();
 
-        controller.setSelectedProvider(null);
+        rootMessenger.call('RampsController:setSelectedProvider', null);
 
         expect(listener).not.toHaveBeenCalled();
       });
@@ -4794,19 +5550,19 @@ describe('RampsController', () => {
     };
 
     it('adds a new order to state', async () => {
-      await withController(({ controller }) => {
-        controller.addOrder(mockOrder);
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addOrder', mockOrder);
         expect(controller.state.orders).toHaveLength(1);
         expect(controller.state.orders[0]).toStrictEqual(mockOrder);
       });
     });
 
     it('merges an existing order with the same providerOrderId', async () => {
-      await withController(({ controller }) => {
-        controller.addOrder(mockOrder);
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addOrder', mockOrder);
 
         const updatedOrder = { ...mockOrder, fiatAmount: 200 };
-        controller.addOrder(updatedOrder);
+        rootMessenger.call('RampsController:addOrder', updatedOrder);
 
         expect(controller.state.orders).toHaveLength(1);
         expect(controller.state.orders[0]?.fiatAmount).toBe(200);
@@ -4814,7 +5570,7 @@ describe('RampsController', () => {
     });
 
     it('preserves existing fields not present in the update', async () => {
-      await withController(({ controller }) => {
+      await withController(({ controller, rootMessenger }) => {
         const orderWithPaymentDetails = createMockOrder({
           providerOrderId: 'abc-123',
           paymentDetails: [
@@ -4827,13 +5583,13 @@ describe('RampsController', () => {
             },
           ],
         });
-        controller.addOrder(orderWithPaymentDetails);
+        rootMessenger.call('RampsController:addOrder', orderWithPaymentDetails);
 
         const apiUpdate = createMockOrder({
           providerOrderId: 'abc-123',
           status: RampsOrderStatus.Pending,
         });
-        controller.addOrder(apiUpdate);
+        rootMessenger.call('RampsController:addOrder', apiUpdate);
 
         expect(controller.state.orders).toHaveLength(1);
         expect(controller.state.orders[0]?.status).toBe(
@@ -4850,9 +5606,9 @@ describe('RampsController', () => {
     });
 
     it('adds orders with different providerOrderIds independently', async () => {
-      await withController(({ controller }) => {
-        controller.addOrder(mockOrder);
-        controller.addOrder({
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:addOrder', mockOrder);
+        rootMessenger.call('RampsController:addOrder', {
           ...mockOrder,
           providerOrderId: 'def-456',
         });
@@ -4864,22 +5620,22 @@ describe('RampsController', () => {
 
   describe('removeOrder', () => {
     it('removes an order from state by providerOrderId', async () => {
-      await withController(({ controller }) => {
+      await withController(({ controller, rootMessenger }) => {
         const order = createMockOrder({ providerOrderId: 'abc-123' });
-        controller.addOrder(order);
+        rootMessenger.call('RampsController:addOrder', order);
         expect(controller.state.orders).toHaveLength(1);
 
-        controller.removeOrder('abc-123');
+        rootMessenger.call('RampsController:removeOrder', 'abc-123');
         expect(controller.state.orders).toHaveLength(0);
       });
     });
 
     it('does nothing when providerOrderId is not found', async () => {
-      await withController(({ controller }) => {
+      await withController(({ controller, rootMessenger }) => {
         const order = createMockOrder({ providerOrderId: 'abc-123' });
-        controller.addOrder(order);
+        rootMessenger.call('RampsController:addOrder', order);
 
-        controller.removeOrder('nonexistent');
+        rootMessenger.call('RampsController:removeOrder', 'nonexistent');
         expect(controller.state.orders).toHaveLength(1);
       });
     });
@@ -4921,13 +5677,14 @@ describe('RampsController', () => {
     };
 
     it('fetches order via RampsService messenger', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getOrder',
           async () => mockOrder,
         );
 
-        const order = await controller.getOrder(
+        const order = await rootMessenger.call(
+          'RampsController:getOrder',
           'transak-staging',
           'abc-123',
           '0xabc',
@@ -4943,7 +5700,7 @@ describe('RampsController', () => {
           providerOrderId: 'abc-123',
           status: RampsOrderStatus.Pending,
         });
-        controller.addOrder(existingOrder);
+        rootMessenger.call('RampsController:addOrder', existingOrder);
 
         const updatedOrder = {
           ...mockOrder,
@@ -4954,9 +5711,38 @@ describe('RampsController', () => {
           async () => updatedOrder,
         );
 
-        await controller.getOrder('transak-staging', 'abc-123', '0xabc');
+        await rootMessenger.call(
+          'RampsController:getOrder',
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
 
         expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Completed,
+        );
+      });
+    });
+
+    it('adds order to state when not found (e.g. race after PayPal return)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => mockOrder,
+        );
+
+        expect(controller.state.orders).toHaveLength(0);
+
+        await rootMessenger.call(
+          'RampsController:getOrder',
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.providerOrderId).toBe('abc-123');
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Completed,
         );
@@ -4978,7 +5764,7 @@ describe('RampsController', () => {
             },
           ],
         });
-        controller.addOrder(existingOrder);
+        rootMessenger.call('RampsController:addOrder', existingOrder);
 
         const apiResponse = createMockOrder({
           providerOrderId: 'abc-123',
@@ -4989,7 +5775,12 @@ describe('RampsController', () => {
           async () => apiResponse,
         );
 
-        await controller.getOrder('transak-staging', 'abc-123', '0xabc');
+        await rootMessenger.call(
+          'RampsController:getOrder',
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
 
         expect(controller.state.orders).toHaveLength(1);
         expect(controller.state.orders[0]?.status).toBe(
@@ -5002,6 +5793,91 @@ describe('RampsController', () => {
             fields: [{ name: 'Account Number', id: 'account', value: '12345' }],
           },
         ]);
+      });
+    });
+
+    it('sets walletAddress from wallet param when API response omits it', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const orderWithoutWallet = {
+          ...createMockOrder({ providerOrderId: 'abc-123' }),
+          walletAddress: undefined,
+        } as unknown as RampsOrder;
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => orderWithoutWallet,
+        );
+
+        await controller.getOrder(
+          'transak-staging',
+          'abc-123',
+          '0xpassed-wallet-address',
+        );
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.walletAddress).toBe(
+          '0xpassed-wallet-address',
+        );
+      });
+    });
+
+    it('uses wallet param when API response has empty walletAddress', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const orderWithEmptyWallet = createMockOrder({
+          providerOrderId: 'abc-123',
+          walletAddress: '',
+        });
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => orderWithEmptyWallet,
+        );
+
+        await controller.getOrder(
+          'transak-staging',
+          'abc-123',
+          '0xfallback-wallet',
+        );
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.walletAddress).toBe(
+          '0xfallback-wallet',
+        );
+      });
+    });
+
+    it('uses wallet param when updating existing order and API omits walletAddress', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const existingOrder = createMockOrder({
+          providerOrderId: 'abc-123',
+          status: RampsOrderStatus.Pending,
+          walletAddress: '0xexisting',
+        });
+        controller.addOrder(existingOrder);
+
+        const apiOrderWithoutWallet = {
+          ...createMockOrder({
+            providerOrderId: 'abc-123',
+            status: RampsOrderStatus.Completed,
+          }),
+          walletAddress: undefined,
+        } as unknown as RampsOrder;
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => apiOrderWithoutWallet,
+        );
+
+        await controller.getOrder(
+          'transak-staging',
+          'abc-123',
+          '0xwallet-from-param',
+        );
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.walletAddress).toBe(
+          '0xwallet-from-param',
+        );
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Completed,
+        );
       });
     });
   });
@@ -5042,13 +5918,14 @@ describe('RampsController', () => {
     };
 
     it('fetches order from callback URL via RampsService messenger', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         rootMessenger.registerActionHandler(
           'RampsService:getOrderFromCallback',
           async () => mockOrder,
         );
 
-        const order = await controller.getOrderFromCallback(
+        const order = await rootMessenger.call(
+          'RampsController:getOrderFromCallback',
           'transak-staging',
           'https://metamask.app.link/on-ramp?orderId=abc-123',
           '0xabc',
@@ -5073,10 +5950,13 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'poll-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         const updatedOrder = {
           ...pendingOrder,
@@ -5087,19 +5967,19 @@ describe('RampsController', () => {
           async () => updatedOrder,
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Completed,
         );
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('startOrderPolling is idempotent', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const handler = jest.fn(async () =>
           createMockOrder({
             providerOrderId: 'p1',
@@ -5108,28 +5988,28 @@ describe('RampsController', () => {
         );
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
-        controller.startOrderPolling();
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
+        rootMessenger.call('RampsController:startOrderPolling');
 
         expect(handler).not.toHaveBeenCalled();
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('stopOrderPolling clears the polling timer', async () => {
-      await withController(async ({ controller }) => {
-        controller.startOrderPolling();
-        controller.stopOrderPolling();
-        controller.stopOrderPolling();
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:startOrderPolling');
+        rootMessenger.call('RampsController:stopOrderPolling');
+        rootMessenger.call('RampsController:stopOrderPolling');
 
         expect(controller.state.orders).toStrictEqual([]);
       });
     });
 
     it('destroy stops order polling', async () => {
-      await withController(async ({ controller }) => {
-        controller.startOrderPolling();
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:startOrderPolling');
         controller.destroy();
 
         expect(controller.state.orders).toStrictEqual([]);
@@ -5137,14 +6017,17 @@ describe('RampsController', () => {
     });
 
     it('publishes orderStatusChanged when order status transitions', async () => {
-      await withController(async ({ controller, rootMessenger, messenger }) => {
+      await withController(async ({ rootMessenger, messenger }) => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'status-change-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         const updatedOrder = {
           ...pendingOrder,
@@ -5161,7 +6044,7 @@ describe('RampsController', () => {
           statusChangedListener,
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(statusChangedListener).toHaveBeenCalledWith({
@@ -5169,19 +6052,22 @@ describe('RampsController', () => {
           previousStatus: RampsOrderStatus.Pending,
         });
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('does not publish orderStatusChanged when status stays the same', async () => {
-      await withController(async ({ controller, rootMessenger, messenger }) => {
+      await withController(async ({ rootMessenger, messenger }) => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'no-change-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         rootMessenger.registerActionHandler(
           'RampsService:getOrder',
@@ -5194,12 +6080,12 @@ describe('RampsController', () => {
           statusChangedListener,
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(statusChangedListener).not.toHaveBeenCalled();
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
@@ -5208,10 +6094,13 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'terminal-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         const completedOrder = {
           ...pendingOrder,
@@ -5222,14 +6111,14 @@ describe('RampsController', () => {
           async () => completedOrder,
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Completed,
         );
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
@@ -5238,10 +6127,13 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'unknown-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         const unknownOrder = {
           ...pendingOrder,
@@ -5252,14 +6144,14 @@ describe('RampsController', () => {
           async () => unknownOrder,
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Unknown,
         );
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
@@ -5268,10 +6160,13 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'error-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         rootMessenger.registerActionHandler(
           'RampsService:getOrder',
@@ -5280,92 +6175,101 @@ describe('RampsController', () => {
           },
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Pending,
         );
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('skips orders without provider code or wallet address', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const orderWithoutProvider = createMockOrder({
           providerOrderId: 'no-provider-1',
           status: RampsOrderStatus.Pending,
           provider: undefined,
           walletAddress: '0xabc',
         });
-        controller.addOrder(orderWithoutProvider);
+        rootMessenger.call('RampsController:addOrder', orderWithoutProvider);
 
         const handler = jest.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('skips orders without providerOrderId', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const orderNoId = createMockOrder({
           providerOrderId: '',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(orderNoId);
+        rootMessenger.call('RampsController:addOrder', orderNoId);
 
         const handler = jest.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('skips orders without wallet address', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const orderNoWallet = createMockOrder({
           providerOrderId: 'no-wallet-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '',
         });
-        controller.addOrder(orderNoWallet);
+        rootMessenger.call('RampsController:addOrder', orderNoWallet);
 
         const handler = jest.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
-    it('strips /providers/ prefix from provider id', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+    it('passes provider id through to service without stripping prefix', async () => {
+      await withController(async ({ rootMessenger }) => {
         const order = createMockOrder({
           providerOrderId: 'strip-prefix-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(order);
+        rootMessenger.call('RampsController:addOrder', order);
 
         const handler = jest.fn(async () => ({
           ...order,
@@ -5373,28 +6277,31 @@ describe('RampsController', () => {
         }));
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(handler).toHaveBeenCalledWith(
-          'transak',
+          '/providers/transak',
           'strip-prefix-1',
           '0xabc',
         );
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('skips polling orders that have not waited long enough (backoff)', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const order = createMockOrder({
           providerOrderId: 'backoff-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(order);
+        rootMessenger.call('RampsController:addOrder', order);
 
         let callCount = 0;
         rootMessenger.registerActionHandler(
@@ -5405,27 +6312,30 @@ describe('RampsController', () => {
           },
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
         await jest.advanceTimersByTimeAsync(30_000);
         expect(callCount).toBe(2);
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('respects pollingSecondsMinimum on orders', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const order = createMockOrder({
           providerOrderId: 'poll-min-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
           pollingSecondsMinimum: 120,
         });
-        controller.addOrder(order);
+        rootMessenger.call('RampsController:addOrder', order);
 
         let callCount = 0;
         rootMessenger.registerActionHandler(
@@ -5436,7 +6346,7 @@ describe('RampsController', () => {
           },
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
@@ -5446,30 +6356,30 @@ describe('RampsController', () => {
         await jest.advanceTimersByTimeAsync(90_000);
         expect(callCount).toBe(2);
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('catches errors if poll cycle throws synchronously on initial call', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const realState = controller.state;
         jest.spyOn(controller, 'state', 'get').mockReturnValue({
           ...realState,
           orders: null as unknown as RampsOrder[],
         });
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         jest.restoreAllMocks();
         expect(controller.state.orders).toStrictEqual([]);
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('catches errors if poll cycle throws on interval tick', async () => {
-      await withController(async ({ controller }) => {
-        controller.startOrderPolling();
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         const realState = controller.state;
@@ -5482,41 +6392,47 @@ describe('RampsController', () => {
 
         jest.restoreAllMocks();
         expect(controller.state.orders).toStrictEqual([]);
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('does not poll orders with terminal statuses', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const completedOrder = createMockOrder({
           providerOrderId: 'completed-1',
           status: RampsOrderStatus.Completed,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(completedOrder);
+        rootMessenger.call('RampsController:addOrder', completedOrder);
 
         const handler = jest.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('resets error count when order returns non-Unknown status', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
+      await withController(async ({ rootMessenger }) => {
         const order = createMockOrder({
           providerOrderId: 'reset-err-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(order);
+        rootMessenger.call('RampsController:addOrder', order);
 
         let callCount = 0;
         rootMessenger.registerActionHandler(
@@ -5530,7 +6446,7 @@ describe('RampsController', () => {
           },
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
@@ -5540,19 +6456,22 @@ describe('RampsController', () => {
         await jest.advanceTimersByTimeAsync(30_000);
         expect(callCount).toBe(3);
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
 
     it('does not run concurrent polls when stop+start is called while a poll is in-flight', async () => {
-      await withController(async ({ controller, rootMessenger, messenger }) => {
+      await withController(async ({ rootMessenger, messenger }) => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'race-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
-        controller.addOrder(pendingOrder);
+        rootMessenger.call('RampsController:addOrder', pendingOrder);
 
         const updatedOrder = {
           ...pendingOrder,
@@ -5581,11 +6500,11 @@ describe('RampsController', () => {
           statusChangedListener,
         );
 
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
-        controller.stopOrderPolling();
-        controller.startOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
+        rootMessenger.call('RampsController:startOrderPolling');
         await jest.advanceTimersByTimeAsync(0);
 
         resolveFirst(updatedOrder);
@@ -5593,7 +6512,7 @@ describe('RampsController', () => {
 
         expect(statusChangedListener).toHaveBeenCalledTimes(1);
 
-        controller.stopOrderPolling();
+        rootMessenger.call('RampsController:stopOrderPolling');
       });
     });
   });
@@ -5806,13 +6725,16 @@ describe('RampsController', () => {
   describe('Transak methods', () => {
     describe('transakSetApiKey', () => {
       it('calls messenger with the api key', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest.fn();
           rootMessenger.registerActionHandler(
             'TransakService:setApiKey',
             handler,
           );
-          controller.transakSetApiKey('test-api-key');
+          rootMessenger.call(
+            'RampsController:transakSetApiKey',
+            'test-api-key',
+          );
           expect(handler).toHaveBeenCalledWith('test-api-key');
         });
       });
@@ -5831,7 +6753,7 @@ describe('RampsController', () => {
             ttl: 3600,
             created: new Date('2024-01-01'),
           };
-          controller.transakSetAccessToken(token);
+          rootMessenger.call('RampsController:transakSetAccessToken', token);
           expect(handler).toHaveBeenCalledWith(token);
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             true,
@@ -5851,7 +6773,7 @@ describe('RampsController', () => {
             'TransakService:clearAccessToken',
             jest.fn(),
           );
-          controller.transakSetAccessToken({
+          rootMessenger.call('RampsController:transakSetAccessToken', {
             accessToken: 'tok',
             ttl: 3600,
             created: new Date('2024-01-01'),
@@ -5859,7 +6781,7 @@ describe('RampsController', () => {
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             true,
           );
-          controller.transakClearAccessToken();
+          rootMessenger.call('RampsController:transakClearAccessToken');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
@@ -5869,15 +6791,15 @@ describe('RampsController', () => {
 
     describe('transakSetAuthenticated', () => {
       it('sets isAuthenticated in transak state', async () => {
-        await withController(async ({ controller }) => {
+        await withController(async ({ controller, rootMessenger }) => {
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             true,
           );
-          controller.transakSetAuthenticated(false);
+          rootMessenger.call('RampsController:transakSetAuthenticated', false);
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
@@ -5897,7 +6819,7 @@ describe('RampsController', () => {
             'TransakService:clearAccessToken',
             clearAccessTokenHandler,
           );
-          controller.transakSetAccessToken({
+          rootMessenger.call('RampsController:transakSetAccessToken', {
             accessToken: 'tok',
             ttl: 3600,
             created: new Date('2024-01-01'),
@@ -5906,7 +6828,7 @@ describe('RampsController', () => {
             true,
           );
 
-          controller.transakResetState();
+          rootMessenger.call('RampsController:transakResetState');
 
           expect(clearAccessTokenHandler).toHaveBeenCalled();
           expect(controller.state.nativeProviders.transak)
@@ -5939,7 +6861,7 @@ describe('RampsController', () => {
 
     describe('transakSendUserOtp', () => {
       it('calls messenger with email and returns result', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockResult = {
             isTncAccepted: true,
             stateToken: 'state-token',
@@ -5950,8 +6872,10 @@ describe('RampsController', () => {
             'TransakService:sendUserOtp',
             async () => mockResult,
           );
-          const result =
-            await controller.transakSendUserOtp('test@example.com');
+          const result = await rootMessenger.call(
+            'RampsController:transakSendUserOtp',
+            'test@example.com',
+          );
           expect(result).toStrictEqual(mockResult);
         });
       });
@@ -5969,7 +6893,8 @@ describe('RampsController', () => {
             'TransakService:verifyUserOtp',
             async () => mockToken,
           );
-          const result = await controller.transakVerifyUserOtp(
+          const result = await rootMessenger.call(
+            'RampsController:transakVerifyUserOtp',
             'test@example.com',
             '123456',
             'state-token',
@@ -5998,7 +6923,7 @@ describe('RampsController', () => {
             'TransakService:logout',
             async () => 'logged out',
           );
-          controller.transakSetAccessToken({
+          rootMessenger.call('RampsController:transakSetAccessToken', {
             accessToken: 'tok',
             ttl: 3600,
             created: new Date('2024-01-01'),
@@ -6007,7 +6932,9 @@ describe('RampsController', () => {
             true,
           );
 
-          const result = await controller.transakLogout();
+          const result = await rootMessenger.call(
+            'RampsController:transakLogout',
+          );
 
           expect(result).toBe('logged out');
           expect(clearAccessTokenHandler).toHaveBeenCalled();
@@ -6037,15 +6964,15 @@ describe('RampsController', () => {
               throw new Error('Network error');
             },
           );
-          controller.transakSetAccessToken({
+          rootMessenger.call('RampsController:transakSetAccessToken', {
             accessToken: 'tok',
             ttl: 3600,
             created: new Date('2024-01-01'),
           });
 
-          await expect(controller.transakLogout()).rejects.toThrow(
-            'Network error',
-          );
+          await expect(
+            rootMessenger.call('RampsController:transakLogout'),
+          ).rejects.toThrow('Network error');
           expect(clearAccessTokenHandler).toHaveBeenCalled();
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6095,7 +7022,9 @@ describe('RampsController', () => {
             'TransakService:getUserDetails',
             async () => mockUserDetails,
           );
-          const result = await controller.transakGetUserDetails();
+          const result = await rootMessenger.call(
+            'RampsController:transakGetUserDetails',
+          );
           expect(result).toStrictEqual(mockUserDetails);
           expect(controller.state.nativeProviders.transak.userDetails)
             .toMatchInlineSnapshot(`
@@ -6146,9 +7075,9 @@ describe('RampsController', () => {
               throw new Error('Auth failed');
             },
           );
-          await expect(controller.transakGetUserDetails()).rejects.toThrow(
-            'Auth failed',
-          );
+          await expect(
+            rootMessenger.call('RampsController:transakGetUserDetails'),
+          ).rejects.toThrow('Auth failed');
           expect(
             controller.state.nativeProviders.transak.userDetails.isLoading,
           ).toBe(false);
@@ -6167,7 +7096,9 @@ describe('RampsController', () => {
               throw null;
             },
           );
-          await expect(controller.transakGetUserDetails()).rejects.toBeNull();
+          await expect(
+            rootMessenger.call('RampsController:transakGetUserDetails'),
+          ).rejects.toBeNull();
           expect(
             controller.state.nativeProviders.transak.userDetails.error,
           ).toBe('Unknown error');
@@ -6176,7 +7107,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getUserDetails',
             async () => {
@@ -6185,9 +7116,9 @@ describe('RampsController', () => {
               });
             },
           );
-          await expect(controller.transakGetUserDetails()).rejects.toThrow(
-            'Token expired',
-          );
+          await expect(
+            rootMessenger.call('RampsController:transakGetUserDetails'),
+          ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
@@ -6196,7 +7127,7 @@ describe('RampsController', () => {
 
       it('does not change isAuthenticated for non-401 errors', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getUserDetails',
             async () => {
@@ -6205,9 +7136,9 @@ describe('RampsController', () => {
               });
             },
           );
-          await expect(controller.transakGetUserDetails()).rejects.toThrow(
-            'Server error',
-          );
+          await expect(
+            rootMessenger.call('RampsController:transakGetUserDetails'),
+          ).rejects.toThrow('Server error');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             true,
           );
@@ -6242,7 +7173,8 @@ describe('RampsController', () => {
             'TransakService:getBuyQuote',
             async () => mockBuyQuote,
           );
-          const result = await controller.transakGetBuyQuote(
+          const result = await rootMessenger.call(
+            'RampsController:transakGetBuyQuote',
             'USD',
             'BTC',
             'bitcoin',
@@ -6289,7 +7221,8 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakGetBuyQuote(
+            rootMessenger.call(
+              'RampsController:transakGetBuyQuote',
               'USD',
               'BTC',
               'bitcoin',
@@ -6316,7 +7249,8 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakGetBuyQuote(
+            rootMessenger.call(
+              'RampsController:transakGetBuyQuote',
               'USD',
               'BTC',
               'bitcoin',
@@ -6402,7 +7336,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getKycRequirement',
             async () => {
@@ -6439,7 +7373,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getAdditionalRequirements',
             async () => {
@@ -6460,14 +7394,15 @@ describe('RampsController', () => {
 
     describe('transakCreateOrder', () => {
       it('calls messenger with correct arguments and returns result', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockOrder = createMockDepositOrder();
           const handler = jest.fn().mockResolvedValue(mockOrder);
           rootMessenger.registerActionHandler(
             'TransakService:createOrder',
             handler,
           );
-          const result = await controller.transakCreateOrder(
+          const result = await rootMessenger.call(
+            'RampsController:transakCreateOrder',
             'quote-1',
             '0x123',
             '/payments/debit-credit-card',
@@ -6483,7 +7418,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:createOrder',
             async () => {
@@ -6493,7 +7428,12 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakCreateOrder('quote-1', '0x123', 'card'),
+            rootMessenger.call(
+              'RampsController:transakCreateOrder',
+              'quote-1',
+              '0x123',
+              'card',
+            ),
           ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6504,19 +7444,23 @@ describe('RampsController', () => {
 
     describe('transakGetOrder', () => {
       it('calls messenger with orderId and wallet', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockOrder = createMockDepositOrder();
           rootMessenger.registerActionHandler(
             'TransakService:getOrder',
             async () => mockOrder,
           );
-          const result = await controller.transakGetOrder('order-1', '0x123');
+          const result = await rootMessenger.call(
+            'RampsController:transakGetOrder',
+            'order-1',
+            '0x123',
+          );
           expect(result).toStrictEqual(mockOrder);
         });
       });
 
       it('passes optional paymentDetails to messenger', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockOrder = createMockDepositOrder();
           const paymentDetails: TransakOrderPaymentMethod[] = [
             {
@@ -6530,7 +7474,12 @@ describe('RampsController', () => {
             'TransakService:getOrder',
             handler,
           );
-          await controller.transakGetOrder('order-1', '0x123', paymentDetails);
+          await rootMessenger.call(
+            'RampsController:transakGetOrder',
+            'order-1',
+            '0x123',
+            paymentDetails,
+          );
           expect(handler).toHaveBeenCalledWith(
             'order-1',
             '0x123',
@@ -6565,7 +7514,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getUserLimits',
             async () => {
@@ -6586,20 +7535,22 @@ describe('RampsController', () => {
 
     describe('transakRequestOtt', () => {
       it('calls messenger and returns result', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockResult: TransakOttResponse = { ott: 'ott-token-123' };
           rootMessenger.registerActionHandler(
             'TransakService:requestOtt',
             async () => mockResult,
           );
-          const result = await controller.transakRequestOtt();
+          const result = await rootMessenger.call(
+            'RampsController:transakRequestOtt',
+          );
           expect(result).toStrictEqual(mockResult);
         });
       });
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:requestOtt',
             async () => {
@@ -6608,9 +7559,9 @@ describe('RampsController', () => {
               });
             },
           );
-          await expect(controller.transakRequestOtt()).rejects.toThrow(
-            'Token expired',
-          );
+          await expect(
+            rootMessenger.call('RampsController:transakRequestOtt'),
+          ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
@@ -6640,12 +7591,13 @@ describe('RampsController', () => {
       };
 
       it('calls messenger with correct arguments and returns URL', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:generatePaymentWidgetUrl',
             () => 'https://widget.transak.com?param=value',
           );
-          const result = controller.transakGeneratePaymentWidgetUrl(
+          const result = rootMessenger.call(
+            'RampsController:transakGeneratePaymentWidgetUrl',
             'ott-token',
             mockQuote,
             '0x123',
@@ -6655,7 +7607,7 @@ describe('RampsController', () => {
       });
 
       it('passes optional extraParams to messenger', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest
             .fn()
             .mockReturnValue('https://widget.transak.com');
@@ -6664,7 +7616,8 @@ describe('RampsController', () => {
             handler,
           );
           const extraParams = { themeColor: 'blue' };
-          controller.transakGeneratePaymentWidgetUrl(
+          rootMessenger.call(
+            'RampsController:transakGeneratePaymentWidgetUrl',
             'ott-token',
             mockQuote,
             '0x123',
@@ -6682,23 +7635,23 @@ describe('RampsController', () => {
 
     describe('transakSubmitPurposeOfUsageForm', () => {
       it('calls messenger with purpose array', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest.fn().mockResolvedValue(undefined);
           rootMessenger.registerActionHandler(
             'TransakService:submitPurposeOfUsageForm',
             handler,
           );
-          await controller.transakSubmitPurposeOfUsageForm([
-            'investment',
-            'trading',
-          ]);
+          await rootMessenger.call(
+            'RampsController:transakSubmitPurposeOfUsageForm',
+            ['investment', 'trading'],
+          );
           expect(handler).toHaveBeenCalledWith(['investment', 'trading']);
         });
       });
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:submitPurposeOfUsageForm',
             async () => {
@@ -6708,7 +7661,10 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakSubmitPurposeOfUsageForm(['investment']),
+            rootMessenger.call(
+              'RampsController:transakSubmitPurposeOfUsageForm',
+              ['investment'],
+            ),
           ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6719,7 +7675,7 @@ describe('RampsController', () => {
 
     describe('transakPatchUser', () => {
       it('calls messenger with user data and returns result', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const data: PatchUserRequestBody = {
             personalDetails: { firstName: 'Jane', lastName: 'Doe' },
           };
@@ -6728,7 +7684,10 @@ describe('RampsController', () => {
             'TransakService:patchUser',
             handler,
           );
-          const result = await controller.transakPatchUser(data);
+          const result = await rootMessenger.call(
+            'RampsController:transakPatchUser',
+            data,
+          );
           expect(handler).toHaveBeenCalledWith(data);
           expect(result).toStrictEqual({ success: true });
         });
@@ -6736,7 +7695,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:patchUser',
             async () => {
@@ -6746,7 +7705,7 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakPatchUser({
+            rootMessenger.call('RampsController:transakPatchUser', {
               personalDetails: { firstName: 'Jane' },
             }),
           ).rejects.toThrow('Token expired');
@@ -6759,13 +7718,14 @@ describe('RampsController', () => {
 
     describe('transakSubmitSsnDetails', () => {
       it('calls messenger with ssn and quoteId', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:submitSsnDetails',
             handler,
           );
-          const result = await controller.transakSubmitSsnDetails(
+          const result = await rootMessenger.call(
+            'RampsController:transakSubmitSsnDetails',
             '123-45-6789',
             'quote-1',
           );
@@ -6776,7 +7736,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:submitSsnDetails',
             async () => {
@@ -6786,7 +7746,11 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakSubmitSsnDetails('123-45-6789', 'quote-1'),
+            rootMessenger.call(
+              'RampsController:transakSubmitSsnDetails',
+              '123-45-6789',
+              'quote-1',
+            ),
           ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6797,13 +7761,14 @@ describe('RampsController', () => {
 
     describe('transakConfirmPayment', () => {
       it('calls messenger with orderId and paymentMethodId', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:confirmPayment',
             handler,
           );
-          const result = await controller.transakConfirmPayment(
+          const result = await rootMessenger.call(
+            'RampsController:transakConfirmPayment',
             'order-1',
             '/payments/debit-credit-card',
           );
@@ -6817,7 +7782,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:confirmPayment',
             async () => {
@@ -6827,7 +7792,11 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakConfirmPayment('order-1', 'card'),
+            rootMessenger.call(
+              'RampsController:transakConfirmPayment',
+              'order-1',
+              'card',
+            ),
           ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6838,7 +7807,7 @@ describe('RampsController', () => {
 
     describe('transakGetTranslation', () => {
       it('calls messenger with translation request and returns result', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockTranslation: TransakQuoteTranslation = {
             region: 'US',
             paymentMethod: 'credit_debit_card',
@@ -6856,7 +7825,10 @@ describe('RampsController', () => {
             'TransakService:getTranslation',
             async () => mockTranslation,
           );
-          const result = await controller.transakGetTranslation(request);
+          const result = await rootMessenger.call(
+            'RampsController:transakGetTranslation',
+            request,
+          );
           expect(result).toStrictEqual(mockTranslation);
         });
       });
@@ -6881,7 +7853,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getIdProofStatus',
             async () => {
@@ -6902,13 +7874,14 @@ describe('RampsController', () => {
 
     describe('transakCancelOrder', () => {
       it('calls messenger with depositOrderId', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest.fn().mockResolvedValue(undefined);
           rootMessenger.registerActionHandler(
             'TransakService:cancelOrder',
             handler,
           );
-          await controller.transakCancelOrder(
+          await rootMessenger.call(
+            'RampsController:transakCancelOrder',
             '/providers/transak-native/orders/order-1',
           );
           expect(handler).toHaveBeenCalledWith(
@@ -6919,7 +7892,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:cancelOrder',
             async () => {
@@ -6929,7 +7902,7 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakCancelOrder('order-1'),
+            rootMessenger.call('RampsController:transakCancelOrder', 'order-1'),
           ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6940,13 +7913,15 @@ describe('RampsController', () => {
 
     describe('transakCancelAllActiveOrders', () => {
       it('calls messenger and returns collected errors', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const handler = jest.fn().mockResolvedValue([]);
           rootMessenger.registerActionHandler(
             'TransakService:cancelAllActiveOrders',
             handler,
           );
-          const errors = await controller.transakCancelAllActiveOrders();
+          const errors = await rootMessenger.call(
+            'RampsController:transakCancelAllActiveOrders',
+          );
           expect(handler).toHaveBeenCalled();
           expect(errors).toStrictEqual([]);
         });
@@ -6954,7 +7929,7 @@ describe('RampsController', () => {
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:cancelAllActiveOrders',
             async () => {
@@ -6964,7 +7939,7 @@ describe('RampsController', () => {
             },
           );
           await expect(
-            controller.transakCancelAllActiveOrders(),
+            rootMessenger.call('RampsController:transakCancelAllActiveOrders'),
           ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
@@ -6975,7 +7950,7 @@ describe('RampsController', () => {
 
     describe('transakGetActiveOrders', () => {
       it('calls messenger and returns orders', async () => {
-        await withController(async ({ controller, rootMessenger }) => {
+        await withController(async ({ rootMessenger }) => {
           const mockOrders: TransakOrder[] = [
             {
               orderId: 'order-1',
@@ -7005,14 +7980,16 @@ describe('RampsController', () => {
             'TransakService:getActiveOrders',
             async () => mockOrders,
           );
-          const result = await controller.transakGetActiveOrders();
+          const result = await rootMessenger.call(
+            'RampsController:transakGetActiveOrders',
+          );
           expect(result).toStrictEqual(mockOrders);
         });
       });
 
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          controller.transakSetAuthenticated(true);
+          rootMessenger.call('RampsController:transakSetAuthenticated', true);
           rootMessenger.registerActionHandler(
             'TransakService:getActiveOrders',
             async () => {
@@ -7021,9 +7998,9 @@ describe('RampsController', () => {
               });
             },
           );
-          await expect(controller.transakGetActiveOrders()).rejects.toThrow(
-            'Token expired',
-          );
+          await expect(
+            rootMessenger.call('RampsController:transakGetActiveOrders'),
+          ).rejects.toThrow('Token expired');
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
@@ -7186,14 +8163,24 @@ function createMockDepositOrder(): TransakDepositOrder {
   };
 }
 
+function createMockProvider(overrides: Partial<Provider> = {}): Provider {
+  return {
+    id: '/providers/transak-staging',
+    name: 'Transak (Staging)',
+    environmentType: 'STAGING',
+    description: 'Test provider description',
+    hqAddress: '123 Test St',
+    links: [],
+    logos: { light: '', dark: '', height: 24, width: 77 },
+    ...overrides,
+  };
+}
+
 function createMockOrder(overrides: Partial<RampsOrder> = {}): RampsOrder {
   return {
     id: '/providers/transak-staging/orders/abc-123',
     isOnlyLink: false,
-    provider: {
-      id: '/providers/transak-staging',
-      name: 'Transak (Staging)',
-    },
+    provider: createMockProvider(),
     success: true,
     cryptoAmount: 0.05,
     fiatAmount: 100,
@@ -7306,6 +8293,4 @@ async function withController<ReturnValue>(
     ...options,
   });
   return await testFunction({ controller, rootMessenger, messenger });
-}
-
 }

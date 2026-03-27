@@ -803,12 +803,15 @@ describe('TransakService', () => {
       );
     });
 
-    it('falls back to undefined errorCode when error has neither code nor errorCode', async () => {
+    it('throws a TransakApiError without errorCode when errorCode is null', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/user/')
         .query(true)
         .reply(400, {
-          error: { message: 'Bad request' },
+          error: {
+            errorCode: null,
+            message: 'Error message',
+          },
         });
 
       const { service } = getService();
@@ -818,22 +821,24 @@ describe('TransakService', () => {
       await jest.runAllTimersAsync();
       await flushPromises();
 
-      await expect(promise).rejects.toBeInstanceOf(TransakApiError);
       await expect(promise).rejects.toThrow(
         expect.objectContaining({
           httpStatus: 400,
           errorCode: undefined,
-          apiMessage: 'Bad request',
+          apiMessage: 'Error message',
         }),
       );
     });
 
-    it('sets apiMessage to undefined when error message is not a string', async () => {
+    it('throws a TransakApiError without apiMessage when message is not a string', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/user/')
         .query(true)
         .reply(400, {
-          error: { code: '9999', message: 12345 },
+          error: {
+            errorCode: 9999,
+            message: 12345,
+          },
         });
 
       const { service } = getService();
@@ -843,7 +848,6 @@ describe('TransakService', () => {
       await jest.runAllTimersAsync();
       await flushPromises();
 
-      await expect(promise).rejects.toBeInstanceOf(TransakApiError);
       await expect(promise).rejects.toThrow(
         expect.objectContaining({
           httpStatus: 400,

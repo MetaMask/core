@@ -487,6 +487,83 @@ describe('TokenDetector', () => {
       );
     });
 
+    it('includes detected asset but omits detectedBalances when token list entry has no decimals', async () => {
+      const mockState: TokenListState = {
+        tokensChainsCache: {
+          [MAINNET_CHAIN_ID]: {
+            timestamp: Date.now(),
+            data: {
+              [TEST_TOKEN_1]: {
+                address: TEST_TOKEN_1,
+                symbol: 'USDC',
+                name: 'USD Coin',
+                decimals: undefined as unknown as number,
+              },
+            },
+          },
+        },
+      };
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: () => true },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1,
+              TEST_ACCOUNT,
+              true,
+              '1000000000',
+            ),
+          ]);
+
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+          );
+
+          expect(result.detectedAssets).toHaveLength(1);
+          expect(result.detectedBalances).toHaveLength(0);
+        },
+      );
+    });
+
+    it('includes detectedBalances when token list entry has zero decimals', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'ZERO',
+          name: 'Zero Decimals Token',
+          decimals: 0,
+        },
+      ]);
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: () => true },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '7'),
+          ]);
+
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+          );
+
+          expect(result.detectedAssets).toHaveLength(1);
+          expect(result.detectedBalances).toHaveLength(1);
+          expect(result.detectedBalances[0].decimals).toBe(0);
+        },
+      );
+    });
+
     it('categorizes zero balance tokens correctly', async () => {
       const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
         {
@@ -1241,7 +1318,7 @@ describe('TokenDetector', () => {
       );
     });
 
-    it('uses default decimals (18) when token metadata is missing', async () => {
+    it('omits detectedBalances when token metadata is missing (no decimals fallback)', async () => {
       const unknownToken =
         '0x9999999999999999999999999999999999999999' as Address;
       const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
@@ -1275,7 +1352,7 @@ describe('TokenDetector', () => {
           );
 
           expect(result.detectedAssets).toHaveLength(1);
-          expect(result.detectedBalances[0].decimals).toBe(18);
+          expect(result.detectedBalances).toHaveLength(0);
         },
       );
     });

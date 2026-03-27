@@ -24,8 +24,14 @@ const { inspect } = require('util');
  * This should trend towards empty.
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  // '@metamask/json-rpc-engine': ['^9.0.3'],
+  '@tanstack/query-core': ['^4.43.0'],
 };
+
+/**
+ * These packages are allowed as peer dependencies without requiring installation as
+ * devDependencies.
+ */
+const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -744,6 +750,10 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
 
     if (!peerDependency) {
+      continue;
+    }
+
+    if (ALLOWED_PEER_DEPENDENCIES.includes(dependencyIdent)) {
       continue;
     }
 

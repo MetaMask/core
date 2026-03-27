@@ -1,5 +1,5 @@
 import { getClientHeaders } from '@metamask/bridge-controller';
-import type { Quote } from '@metamask/bridge-controller';
+import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
 import { StructError } from '@metamask/superstruct';
 
 import { validateBridgeStatusResponse } from './validators';
@@ -10,6 +10,7 @@ import type {
   StatusRequestDto,
   FetchFunction,
   BridgeHistoryItem,
+  StatusRequest,
 } from '../types';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
@@ -60,10 +61,8 @@ export const fetchBridgeTxStatus = async (
   } catch (error) {
     // Build validation failure event properties
     if (error instanceof StructError) {
-      error.failures().forEach(({ branch, path }) => {
+      error.failures().forEach(({ path }) => {
         const aggregatorId =
-          branch?.[0]?.quote?.bridgeId ??
-          branch?.[0]?.quote?.bridges?.[0] ??
           (rawTxStatus as StatusResponse)?.bridge ??
           (statusRequest.bridge || statusRequest.bridgeId) ??
           ('unknown' as string);
@@ -111,4 +110,22 @@ export const shouldSkipFetchDueToFetchFailures = (
     }
   }
   return false;
+};
+
+/**
+ * @deprecated Use getStatusRequestWithSrcTxHash instead
+ * @param quoteResponse - The quote response to get the status request parameters from
+ * @returns The status request parameters
+ */
+export const getStatusRequestParams = (
+  quoteResponse: QuoteResponse,
+): StatusRequest => {
+  return {
+    bridgeId: quoteResponse.quote.bridgeId,
+    bridge: quoteResponse.quote.bridges[0],
+    srcChainId: quoteResponse.quote.srcChainId,
+    destChainId: quoteResponse.quote.destChainId,
+    quote: quoteResponse.quote,
+    refuel: Boolean(quoteResponse.quote.refuel),
+  };
 };

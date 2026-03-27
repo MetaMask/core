@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { TransactionPayController } from '.';
+import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { TransactionPayStrategy } from './constants';
 import { getMessengerMock } from './tests/messenger-mock';
@@ -16,6 +17,7 @@ import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
+jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
@@ -28,6 +30,7 @@ const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 
 describe('TransactionPayController', () => {
+  const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
@@ -77,6 +80,50 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('updateFiatPayment', () => {
+    it('calls util', () => {
+      const callback = jest.fn();
+
+      createController().updateFiatPayment({
+        transactionId: TRANSACTION_ID_MOCK,
+        callback,
+      });
+
+      expect(updateFiatPaymentMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          callback,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+
+    it('is callable via messenger action handler', () => {
+      const callback = jest.fn();
+
+      createController();
+
+      messenger.call('TransactionPayController:updateFiatPayment', {
+        transactionId: TRANSACTION_ID_MOCK,
+        callback,
+      });
+
+      expect(updateFiatPaymentMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          callback,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+  });
+
   describe('setTransactionConfig', () => {
     it('updates isMaxAmount in state', () => {
       const controller = createController();
@@ -102,6 +149,19 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates isHyperliquidSource in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isHyperliquidSource = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]
+          .isHyperliquidSource,
+      ).toBe(true);
+    });
+
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
       const controller = createController();
 
@@ -122,18 +182,75 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
+    it('updates refundTo in state', () => {
+      const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = refundTo;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
+      ).toBe(refundTo);
+    });
+
+    it('clears refundTo when set to undefined', () => {
+      const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = refundTo;
+      });
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = undefined;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
+      ).toBeUndefined();
+    });
+
     it('updates multiple config properties at once', () => {
       const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
         config.isMaxAmount = true;
         config.isPostQuote = true;
+        config.refundTo = refundTo;
       });
 
       const transactionData =
         controller.state.transactionData[TRANSACTION_ID_MOCK];
       expect(transactionData.isMaxAmount).toBe(true);
       expect(transactionData.isPostQuote).toBe(true);
+      expect(transactionData.refundTo).toBe(refundTo);
+    });
+  });
+
+  describe('getDelegationTransaction', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = { data: '0x1', to: '0x2', value: '0x3' };
+      const getDelegationTransactionMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: getDelegationTransactionMock,
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getDelegationTransaction',
+        { transaction: TRANSACTION_META_MOCK },
+      );
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: TRANSACTION_META_MOCK,
+      });
+      expect(result).toBe(resultMock);
     });
   });
 
@@ -271,6 +388,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
+        fiatPayment: {},
         isLoading: false,
         sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],

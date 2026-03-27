@@ -7,9 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.0]
+
+### Added
+
+- Expose missing public `PreferencesController` methods through its messenger ([#8193](https://github.com/MetaMask/core/pull/8193))
+  - The following actions are now available:
+    - `PreferencesController:setFeatureFlag`
+    - `PreferencesController:setIpfsGateway`
+    - `PreferencesController:setUseTokenDetection`
+    - `PreferencesController:setUseNftDetection`
+    - `PreferencesController:setDisplayNftMedia`
+    - `PreferencesController:setSecurityAlertsEnabled`
+    - `PreferencesController:setIsMultiAccountBalancesEnabled`
+    - `PreferencesController:setShowTestNetworks`
+    - `PreferencesController:setIsIpfsGatewayEnabled`
+    - `PreferencesController:setEnableNetworkIncomingTransactions`
+    - `PreferencesController:setShowMultiRpcModal`
+    - `PreferencesController:setSmartTransactionsOptInStatus`
+    - `PreferencesController:setUseTransactionSimulations`
+    - `PreferencesController:setTokenSortConfig`
+    - `PreferencesController:setUseSafeChainsListValidation`
+    - `PreferencesController:setPrivacyMode`
+    - `PreferencesController:setDismissSmartAccountSuggestionEnabled`
+    - `PreferencesController:setSmartAccountOptIn`
+    - `PreferencesController:setTokenNetworkFilter`
+  - Corresponding action types (e.g. `PreferencesControllerSetFeatureFlagAction`) are available as well.
+
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [23.0.0]
+
+### Removed
+
+- **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
+  - `identities`, `lostIdentities` and `selectedAddress` along with any associated methods and types were removed.
+  - `setSmartAccountOptInForAccounts` was also removed as it is deprecated and not used in the clients.
+- Removed `@metamask/keyring-controller` and `@metamask/controller-utils` dependencies ([#7995](https://github.com/MetaMask/core/pull/7995)), ([#8115](https://github.com/MetaMask/core/pull/8115))
 
 ## [22.1.0]
 
@@ -497,7 +534,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...@metamask/preferences-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...@metamask/preferences-controller@23.0.0
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0
