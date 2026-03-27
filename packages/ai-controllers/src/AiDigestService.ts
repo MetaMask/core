@@ -113,9 +113,7 @@ const MarketOverviewReportEnvelopeStruct = structType({
   report: MarketOverviewStruct,
 });
 
-const normalizeRelatedAssets = (
-  raw: MarketOverview,
-): MarketOverview => ({
+const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
   ...raw,
   trends: raw.trends.map((trend) => ({
     ...trend,
