@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `RelatedAsset.caip19` is now optional (`string[] | undefined`) to match the live API, which omits the field for perps-only synthetic assets (e.g. ETHFI). `AiDigestService.fetchMarketOverview` normalises absent `caip19` values to `[]` so consumers always receive a `string[]` ([#PLACEHOLDER](https://github.com/MetaMask/core/pull/PLACEHOLDER)).
+- `RelatedAsset.caip19` is now optional (`string[] | undefined`) to match the live API, which omits the field for perps-only synthetic assets (e.g. ETHFI). `AiDigestService.fetchMarketOverview` normalises absent `caip19` values to `[]` so consumers always receive a `string[]` ([#8326](https://github.com/MetaMask/core/pull/8326)).
 
 ## [0.6.2]
 
