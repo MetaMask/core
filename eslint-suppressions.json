@@ -142,11 +142,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 9
-    }
-  },
   "packages/assets-controllers/jest.environment.js": {
     "n/prefer-global/text-decoder": {
       "count": 1

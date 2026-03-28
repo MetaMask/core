@@ -30,7 +30,6 @@ export type {
   AssetsControllerUnhideAssetAction,
   AssetsControllerGetExchangeRatesForBridgeAction,
   AssetsControllerGetStateForTransactionPayAction,
-  AssetsControllerMethodActions,
 } from './AssetsController-method-action-types';
 
 // Core types
