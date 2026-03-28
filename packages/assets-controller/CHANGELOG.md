@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+-`TokenDataSource` constructor now takes `(messenger, options)` instead of `(options)`; `messenger` must be the same `AssetsControllerMessenger` used by `AssetsController` so token metadata enrichment can call `PhishingController:bulkScanTokens` ([#8329](https://github.com/MetaMask/core/pull/8329))
+
+- `TokenDataSource` removes tokens flagged malicious by Blockaid (via `PhishingController:bulkScanTokens`) before merging metadata, instead of filtering non-native tokens by a minimum occurrence count ([#8329](https://github.com/MetaMask/core/pull/8329))
+
 ## [3.2.1]
 
 ### Changed
