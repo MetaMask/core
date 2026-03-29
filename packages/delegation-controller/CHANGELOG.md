@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Removed
 
-- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- **BREAKING:** Remove persisted `delegations` state ([#8330](https://github.com/MetaMask/core/pull/8330))
+  - `store`, `list`, `retrieve`, `chain`, and `delete` methods (and related messenger action types)
+  - `DelegationEntry` type export
+  - Remove dependency on `@metamask/accounts-controller`
 
 ## [2.1.0]
 
