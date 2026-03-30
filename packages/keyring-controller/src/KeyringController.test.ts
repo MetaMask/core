@@ -561,6 +561,48 @@ describe('KeyringController', () => {
       });
     });
 
+    const mockFingerprint = 'mock:fp';
+
+    describe('when the builder provides `getFingerprint`', () => {
+      it('stores the fingerprint in the keyring metadata', async () => {
+        const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+
+        await withController(
+          { keyringBuilders: [fingerprintBuilder] },
+          async ({ controller }) => {
+            const metadata = await controller.addNewKeyring(MockKeyring.type);
+            expect(metadata.fingerprint).toBe(mockFingerprint);
+          },
+        );
+      });
+
+      it('passes the keyring instance to `getFingerprint`', async () => {
+        const getFingerprintSpy = jest.fn().mockReturnValue(mockFingerprint);
+        const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+        fingerprintBuilder.getFingerprint = getFingerprintSpy;
+
+        await withController(
+          { keyringBuilders: [fingerprintBuilder] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            expect(getFingerprintSpy).toHaveBeenCalledWith(
+              expect.any(MockKeyring),
+            );
+          },
+        );
+      });
+    });
+
+    describe('when the builder does not provide `getFingerprint`', () => {
+      it('leaves `fingerprint` undefined in the keyring metadata', async () => {
+        await withController(async ({ controller }) => {
+          const metadata = await controller.addNewKeyring(KeyringTypes.simple);
+          expect(metadata.fingerprint).toBeUndefined();
+        });
+      });
+    });
+
     describe('when there is no builder for the given type', () => {
       it('should throw error', async () => {
         await withController(async ({ controller }) => {
@@ -3018,6 +3060,40 @@ describe('KeyringController', () => {
       );
     });
 
+    it('recomputes fingerprint from builder when restoring keyrings from vault', async () => {
+      const mockFingerprint = 'mock:fp';
+      const getFingerprintSpy = jest.fn().mockReturnValue(mockFingerprint);
+      const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+      fingerprintBuilder.getFingerprint = getFingerprintSpy;
+
+      await withController(
+        {
+          keyringBuilders: [fingerprintBuilder],
+          skipVaultCreation: true,
+          state: {
+            vault: createVault([
+              {
+                type: MockKeyring.type,
+                data: {},
+                metadata: { id: 'existing-id', name: 'existing-name' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+
+          const keyringObject = controller.state.keyrings.find(
+            (k) => k.type === MockKeyring.type,
+          );
+          expect(keyringObject?.metadata.fingerprint).toBe(mockFingerprint);
+          expect(getFingerprintSpy).toHaveBeenCalledWith(
+            expect.any(MockKeyring),
+          );
+        },
+      );
+    });
+
     it('should unlock the wallet discarding existing duplicate accounts', async () => {
       stubKeyringClassWithAccount(MockKeyring, '0x123');
       stubKeyringClassWithAccount(HdKeyring, '0x123');
@@ -3850,6 +3926,82 @@ describe('KeyringController', () => {
               expect(fn).not.toHaveBeenCalled();
             },
           );
+        });
+      });
+    });
+
+    describe('when the keyring is selected by fingerprint', () => {
+      const mockFingerprint = 'mock:fp';
+
+      it('calls the given function with the matching keyring', async () => {
+        const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+
+        await withController(
+          { keyringBuilders: [fingerprintBuilder] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            const fn = jest.fn();
+
+            await controller.withKeyring({ fingerprint: mockFingerprint }, fn);
+
+            expect(fn).toHaveBeenCalledWith({
+              keyring: expect.any(MockKeyring),
+              metadata: expect.objectContaining({ fingerprint: mockFingerprint }),
+            });
+          },
+        );
+      });
+
+      it('returns the result of the function', async () => {
+        const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+
+        await withController(
+          { keyringBuilders: [fingerprintBuilder] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            const result = await controller.withKeyring(
+              { fingerprint: mockFingerprint },
+              async (): Promise<string> => Promise.resolve('hello'),
+            );
+            expect(result).toBe('hello');
+          },
+        );
+      });
+
+      it('throws an error if the callback returns the selected keyring', async () => {
+        const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+
+        await withController(
+          { keyringBuilders: [fingerprintBuilder] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            await expect(
+              controller.withKeyring(
+                { fingerprint: mockFingerprint },
+                async ({ keyring }) => keyring,
+              ),
+            ).rejects.toThrow(
+              KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+            );
+          },
+        );
+      });
+
+      describe('when the keyring is not found', () => {
+        it('throws an error when no keyring matches the fingerprint', async () => {
+          await withController(async ({ controller }) => {
+            await expect(
+              controller.withKeyring(
+                { fingerprint: 'non-existent-fingerprint' },
+                jest.fn(),
+              ),
+            ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+          });
         });
       });
     });

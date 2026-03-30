@@ -309,6 +309,11 @@ export type KeyringMetadata = {
    * Keyring name
    */
   name: string;
+  /**
+   * Keyring fingerprint, computed by the builder's `getFingerprint` function.
+   * Absent if the builder does not provide `getFingerprint`.
+   */
+  fingerprint?: string;
 };
 
 /**
@@ -513,6 +518,9 @@ export type KeyringSelector =
     }
   | {
       id: string;
+    }
+  | {
+      fingerprint: string;
     };
 
 /**
@@ -521,6 +529,14 @@ export type KeyringSelector =
 export type KeyringBuilder = {
   (): Keyring;
   type: string;
+  /**
+   * Compute a deterministic fingerprint for a keyring instance.
+   * Called after the keyring is fully initialized (post `deserialize` and `init`).
+   *
+   * @param keyring - The initialized keyring instance.
+   * @returns An opaque string that uniquely identifies this keyring.
+   */
+  getFingerprint?: (keyring: Keyring) => string;
 };
 
 /**
@@ -1778,6 +1794,10 @@ export class KeyringController<
         }
       } else if ('id' in selector) {
         keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
+      } else if ('fingerprint' in selector) {
+        keyring = this.#getKeyringByFingerprint(
+          selector.fingerprint,
+        ) as SelectedKeyring;
       }
 
       if (!keyring) {
@@ -1924,6 +1944,12 @@ export class KeyringController<
       ?.keyring;
   }
 
+  #getKeyringByFingerprint(fingerprint: string): EthKeyring | undefined {
+    return this.#keyrings.find(
+      ({ metadata }) => metadata.fingerprint === fingerprint,
+    )?.keyring;
+  }
+
   /**
    * Get the keyring by id or return the first keyring if the id is not found.
    *
@@ -1962,9 +1988,7 @@ export class KeyringController<
    * @param type - The type of keyring to get the builder for.
    * @returns The keyring builder, or undefined if none exists.
    */
-  #getKeyringBuilderForType(
-    type: string,
-  ): { (): EthKeyring; type: string } | undefined {
+  #getKeyringBuilderForType(type: string): KeyringBuilder | undefined {
     return this.#keyringBuilders.find(
       (keyringBuilder) => keyringBuilder.type === type,
     );
@@ -2451,8 +2475,12 @@ export class KeyringController<
    */
   async #newKeyring(type: string, data?: unknown): Promise<EthKeyring> {
     const keyring = await this.#createKeyring(type, data);
-
-    this.#keyrings.push({ keyring, metadata: getDefaultKeyringMetadata() });
+    const metadata = getDefaultKeyringMetadata();
+    const builder = this.#getKeyringBuilderForType(type);
+    if (builder?.getFingerprint) {
+      metadata.fingerprint = builder.getFingerprint(keyring);
+    }
+    this.#keyrings.push({ keyring, metadata });
 
     return keyring;
   }
@@ -2554,6 +2582,15 @@ export class KeyringController<
       if (!metadata) {
         newMetadata = true;
         metadata = getDefaultKeyringMetadata();
+      }
+      // Recompute the fingerprint from the builder so it stays current even
+      // when the vault predates fingerprint support or getFingerprint changes.
+      const builder = this.#getKeyringBuilderForType(type);
+      if (builder?.getFingerprint) {
+        metadata = {
+          ...metadata,
+          fingerprint: builder.getFingerprint(keyring),
+        };
       }
       // The keyring is added to the keyrings array only if it's successfully restored
       // and the metadata is successfully added to the controller

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `getFingerprint` to `KeyringBuilder` to associate a deterministic fingerprint with a keyring instance ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `fingerprint` field to `KeyringMetadata`, populated at creation and vault restoration when the builder provides `getFingerprint` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `{ fingerprint: string }` as a new `KeyringSelector` variant for use with `withKeyring` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [25.1.1]
 
 ### Changed
