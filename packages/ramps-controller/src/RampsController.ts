@@ -648,6 +648,7 @@ const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
 
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 const MAX_ERROR_COUNT = 5;
+const swallowRejection = (): undefined => undefined;
 
 type OrderPollingMetadata = {
   lastTimeFetched: number;
@@ -1884,10 +1885,10 @@ export class RampsController extends BaseController<
     }
 
     this.#orderPollingTimer = setInterval(() => {
-      this.#pollPendingOrders().catch(() => undefined);
+      this.#pollPendingOrders().catch(swallowRejection);
     }, DEFAULT_POLLING_INTERVAL_MS);
 
-    this.#pollPendingOrders().catch(() => undefined);
+    this.#pollPendingOrders().catch(swallowRejection);
   }
 
   /**
@@ -2157,7 +2158,7 @@ export class RampsController extends BaseController<
     });
 
     if (order) {
-      this.#refreshOrder(order).catch(() => undefined);
+      this.#refreshOrder(order).catch(swallowRejection);
     }
   }
 
