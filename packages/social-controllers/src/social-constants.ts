@@ -7,8 +7,7 @@ export const SocialServiceErrorMessage = {
   FETCH_TRADER_PROFILE_FAILED: 'SocialService: Trader profile request failed',
   FETCH_TRADER_PROFILE_INVALID_RESPONSE:
     'SocialService: Trader profile returned invalid response',
-  FETCH_OPEN_POSITIONS_FAILED:
-    'SocialService: Open positions request failed',
+  FETCH_OPEN_POSITIONS_FAILED: 'SocialService: Open positions request failed',
   FETCH_OPEN_POSITIONS_INVALID_RESPONSE:
     'SocialService: Open positions returned invalid response',
   FETCH_CLOSED_POSITIONS_FAILED:
@@ -22,8 +21,7 @@ export const SocialServiceErrorMessage = {
   FETCH_FOLLOWING_INVALID_RESPONSE:
     'SocialService: Following returned invalid response',
   FOLLOW_FAILED: 'SocialService: Follow request failed',
-  FOLLOW_INVALID_RESPONSE:
-    'SocialService: Follow returned invalid response',
+  FOLLOW_INVALID_RESPONSE: 'SocialService: Follow returned invalid response',
   UNFOLLOW_FAILED: 'SocialService: Unfollow request failed',
   UNFOLLOW_INVALID_RESPONSE:
     'SocialService: Unfollow returned invalid response',

@@ -276,7 +276,9 @@ export class SocialService implements SocialDataService {
    * @param options.addressOrId - Wallet address or Clicker profile ID.
    * @returns The followers response.
    */
-  async fetchFollowers(options: FetchFollowersOptions): Promise<FollowersResponse> {
+  async fetchFollowers(
+    options: FetchFollowersOptions,
+  ): Promise<FollowersResponse> {
     const { addressOrId } = options;
     const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/followers`;
 
@@ -301,7 +303,9 @@ export class SocialService implements SocialDataService {
    * @param options.addressOrUid - Wallet address or Clicker profile ID.
    * @returns The following response.
    */
-  async fetchFollowing(options: FetchFollowingOptions): Promise<FollowingResponse> {
+  async fetchFollowing(
+    options: FetchFollowingOptions,
+  ): Promise<FollowingResponse> {
     const { addressOrUid } = options;
     const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/following`;
 

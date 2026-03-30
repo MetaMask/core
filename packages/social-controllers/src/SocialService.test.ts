@@ -1,5 +1,5 @@
-import { SocialService } from './SocialService';
 import { SocialServiceErrorMessage } from './social-constants';
+import { SocialService } from './SocialService';
 
 const BASE_URL = 'http://test.com/api/v1';
 
@@ -22,7 +22,8 @@ const mockTrade = {
   tokenAmount: 1.5,
   usdCost: 3000,
   timestamp: 1700000000,
-  transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+  transactionHash:
+    '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
 };
 
 const mockPosition = {
@@ -83,9 +84,7 @@ describe('SocialService', () => {
       const result = await service.fetchLeaderboard();
 
       expect(result).toStrictEqual(mockLeaderboardResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/leaderboard`,
-      );
+      expect(mockFetch).toHaveBeenCalledWith(`${BASE_URL}/leaderboard`);
     });
 
     it('appends sort, chains, and limit query params', async () => {
@@ -468,8 +467,7 @@ describe('SocialService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({ followers: 'not-an-array', count: 1 }),
+        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
       });
 
       const service = new SocialService({ baseUrl: BASE_URL });
@@ -542,8 +540,7 @@ describe('SocialService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({ following: 'not-an-array', count: 1 }),
+        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
       });
 
       const service = new SocialService({ baseUrl: BASE_URL });
@@ -592,9 +589,7 @@ describe('SocialService', () => {
 
       await expect(
         service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(
-        `${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`,
-      );
+      ).rejects.toThrow(`${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`);
     });
 
     it('throws when response schema is invalid', async () => {
@@ -646,9 +641,7 @@ describe('SocialService', () => {
 
       await expect(
         service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(
-        `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`,
-      );
+      ).rejects.toThrow(`${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`);
     });
 
     it('throws when response schema is invalid', async () => {
