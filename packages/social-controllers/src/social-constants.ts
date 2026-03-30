@@ -1,5 +1,7 @@
 export const serviceName = 'SocialService';
 
+export const controllerName = 'SocialController';
+
 export const SocialServiceErrorMessage = {
   FETCH_LEADERBOARD_FAILED: 'SocialService: Leaderboard request failed',
   FETCH_LEADERBOARD_INVALID_RESPONSE:
@@ -25,4 +27,12 @@ export const SocialServiceErrorMessage = {
   UNFOLLOW_FAILED: 'SocialService: Unfollow request failed',
   UNFOLLOW_INVALID_RESPONSE:
     'SocialService: Unfollow returned invalid response',
+} as const;
+
+export const SocialControllerErrorMessage = {
+  FETCH_LEADERBOARD_FAILED:
+    'SocialController: Failed to fetch leaderboard',
+  FOLLOW_TRADER_FAILED: 'SocialController: Failed to follow trader',
+  UNFOLLOW_TRADER_FAILED: 'SocialController: Failed to unfollow trader',
+  FETCH_FOLLOWING_FAILED: 'SocialController: Failed to fetch following',
 } as const;

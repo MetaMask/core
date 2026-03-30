@@ -229,3 +229,21 @@ export type UnfollowOptions = {
   /** Array of wallet addresses or profile IDs to unfollow. */
   targets: string[];
 };
+
+// ---------------------------------------------------------------------------
+// Controller state
+// ---------------------------------------------------------------------------
+
+/**
+ * State managed by the SocialController.
+ *
+ * The controller acts as a simple store — no TTL or eviction logic.
+ * The UI decides when to re-fetch; the social-api's own cache layer
+ * handles upstream rate-limiting.
+ */
+export type SocialControllerState = {
+  /** Cached ranked trader list from the last `updateLeaderboard` call. */
+  leaderboardEntries: LeaderboardEntry[];
+  /** Addresses the current user follows — drives Follow/Following button state. */
+  followingAddresses: string[];
+};
