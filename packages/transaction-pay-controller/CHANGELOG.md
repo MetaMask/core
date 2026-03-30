@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^69.2.3` to `^69.3.0` ([#8339](https://github.com/MetaMask/core/pull/8339))
 - Add route-based `confirmations_pay` strategy resolution ([#8282](https://github.com/MetaMask/core/pull/8282))
 
 ## [19.0.0]
