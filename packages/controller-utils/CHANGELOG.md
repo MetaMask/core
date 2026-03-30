@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
+
 ## [11.19.0]
 
 ### Added
