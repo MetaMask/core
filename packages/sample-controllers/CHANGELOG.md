@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `onRetry`, `onBreak`, and `onDegraded` ([#8343](https://github.com/MetaMask/core/pull/8343))
-  - These methods really should be part of `BaseDataService`; we don't need to recommend that engineers implement them themselves.
+  - You are free to implement these methods in your "real" service class if you need them, but we no longer require you to do so.
 
 ## [4.0.4]
 
