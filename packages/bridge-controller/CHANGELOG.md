@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `quoteStreamComplete` state field to `BridgeControllerState`, populated from the `complete` SSE event emitted by the quote stream ([#8306](https://github.com/MetaMask/core/pull/8306))
+- **BREAKING:** Add `quoteStreamComplete` state field to `BridgeControllerState`, populated from the `complete` SSE event emitted by the quote stream ([#8306](https://github.com/MetaMask/core/pull/8306))
   - Exposes `QuoteStreamCompleteData` type and `validateQuoteStreamComplete` validator
   - `quoteStreamComplete` is cleared at the start of each fetch and on `resetState`
 
