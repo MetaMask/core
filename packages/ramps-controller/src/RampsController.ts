@@ -1228,14 +1228,13 @@ export class RampsController extends BaseController<
     const selectedToken = this.state.tokens.selected;
     const supportedCryptos = provider.supportedCryptoCurrencies;
 
-    // Only fetch payment methods if the selected token is supported by the new
-    // provider. If it isn't, the payment methods request would fail or return
-    // empty for the wrong reason; the UI will show the Token Not Available modal
-    // so the user can change token or pick a different provider.
+    // Only fetch payment methods when a token is selected AND that token is
+    // supported by the new provider. Without a token the API receives an empty
+    // `crypto` param and returns an unfiltered list — payment methods must
+    // always be scoped to a specific token.
     const assetId = selectedToken?.assetId;
-    const tokenSupportedByProvider = !(
-      assetId && supportedCryptos?.[assetId] === false
-    );
+    const shouldFetchPaymentMethods =
+      Boolean(assetId) && !(supportedCryptos?.[assetId as string] === false);
 
     this.update((state) => {
       state.providers.selected = provider;
@@ -1243,7 +1242,7 @@ export class RampsController extends BaseController<
       resetResource(state, 'paymentMethods');
     });
 
-    if (tokenSupportedByProvider) {
+    if (shouldFetchPaymentMethods) {
       this.#fireAndForget(
         this.getPaymentMethods(regionCode, { provider: provider.id }),
       );
