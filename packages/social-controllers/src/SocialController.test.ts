@@ -1,12 +1,12 @@
 import { Messenger } from '@metamask/messenger';
 
+import { controllerName } from './social-constants';
+import type { SocialDataService } from './social-types';
 import type { SocialControllerMessenger } from './SocialController';
 import {
   SocialController,
   getDefaultSocialControllerState,
 } from './SocialController';
-import { controllerName } from './social-constants';
-import type { SocialDataService } from './social-types';
 
 const mockProfileSummary = {
   profileId: '550e8400-e29b-41d4-a716-446655440000',
@@ -78,7 +78,11 @@ function createController(
     socialService?: SocialDataService;
     state?: Partial<ReturnType<typeof getDefaultSocialControllerState>>;
   } = {},
-) {
+): {
+  controller: SocialController;
+  messenger: SocialControllerMessenger;
+  socialService: SocialDataService;
+} {
   const messenger = options.messenger ?? createMessenger();
   const socialService = options.socialService ?? createMockService();
   const controller = new SocialController({
@@ -198,9 +202,7 @@ describe('SocialController', () => {
     it('deduplicates addresses when following someone already followed', async () => {
       const { controller } = createController({
         state: {
-          followingAddresses: [
-            '0x1111111111111111111111111111111111111111',
-          ],
+          followingAddresses: ['0x1111111111111111111111111111111111111111'],
         },
       });
 
@@ -239,10 +241,10 @@ describe('SocialController', () => {
     it('is callable via messenger action', async () => {
       const { messenger } = createController();
 
-      const result = await messenger.call(
-        'SocialController:followTrader',
-        { addressOrUid: '0xuser', targets: ['0xaaaa'] },
-      );
+      const result = await messenger.call('SocialController:followTrader', {
+        addressOrUid: '0xuser',
+        targets: ['0xaaaa'],
+      });
 
       expect(result.followed).toStrictEqual([mockProfileSummary]);
     });
@@ -290,10 +292,10 @@ describe('SocialController', () => {
     it('is callable via messenger action', async () => {
       const { messenger } = createController();
 
-      const result = await messenger.call(
-        'SocialController:unfollowTrader',
-        { addressOrUid: '0xuser', targets: ['0xaaaa'] },
-      );
+      const result = await messenger.call('SocialController:unfollowTrader', {
+        addressOrUid: '0xuser',
+        targets: ['0xaaaa'],
+      });
 
       expect(result.unfollowed).toStrictEqual([mockProfileSummary]);
     });
@@ -340,10 +342,9 @@ describe('SocialController', () => {
     it('is callable via messenger action', async () => {
       const { messenger } = createController();
 
-      const result = await messenger.call(
-        'SocialController:fetchFollowing',
-        { addressOrUid: '0xuser' },
-      );
+      const result = await messenger.call('SocialController:fetchFollowing', {
+        addressOrUid: '0xuser',
+      });
 
       expect(result.following).toStrictEqual([mockProfileSummary]);
     });

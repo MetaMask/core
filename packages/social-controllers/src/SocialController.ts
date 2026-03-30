@@ -8,13 +8,16 @@ import type { Messenger } from '@metamask/messenger';
 
 import { controllerName } from './social-constants';
 import type {
-  FetchLeaderboardOptions,
   FetchFollowingOptions,
+  FetchLeaderboardOptions,
   FollowOptions,
+  FollowResponse,
+  FollowingResponse,
   LeaderboardResponse,
   SocialControllerState,
   SocialDataService,
   UnfollowOptions,
+  UnfollowResponse,
 } from './social-types';
 
 // === ACTION TYPES ===
@@ -165,16 +168,13 @@ export class SocialController extends BaseController<
    * @param options.targets - Addresses or profile IDs to follow.
    * @returns The follow response with confirmed follows.
    */
-  async followTrader(options: FollowOptions) {
+  async followTrader(options: FollowOptions): Promise<FollowResponse> {
     const response = await this.#socialService.follow(options);
 
     const newAddresses = response.followed.map((profile) => profile.address);
 
     this.update((state) => {
-      const combined = new Set([
-        ...state.followingAddresses,
-        ...newAddresses,
-      ]);
+      const combined = new Set([...state.followingAddresses, ...newAddresses]);
       state.followingAddresses = [...combined];
     });
 
@@ -189,7 +189,7 @@ export class SocialController extends BaseController<
    * @param options.targets - Addresses or profile IDs to unfollow.
    * @returns The unfollow response with confirmed unfollows.
    */
-  async unfollowTrader(options: UnfollowOptions) {
+  async unfollowTrader(options: UnfollowOptions): Promise<UnfollowResponse> {
     const response = await this.#socialService.unfollow(options);
 
     const removedAddresses = new Set(
@@ -213,7 +213,9 @@ export class SocialController extends BaseController<
    * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
    * @returns The following response.
    */
-  async fetchFollowing(options: FetchFollowingOptions) {
+  async fetchFollowing(
+    options: FetchFollowingOptions,
+  ): Promise<FollowingResponse> {
     const response = await this.#socialService.fetchFollowing(options);
 
     this.update((state) => {
