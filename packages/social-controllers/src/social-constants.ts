@@ -28,10 +28,3 @@ export const SocialServiceErrorMessage = {
   UNFOLLOW_INVALID_RESPONSE:
     'SocialService: Unfollow returned invalid response',
 } as const;
-
-export const SocialControllerErrorMessage = {
-  FETCH_LEADERBOARD_FAILED: 'SocialController: Failed to fetch leaderboard',
-  FOLLOW_TRADER_FAILED: 'SocialController: Failed to follow trader',
-  UNFOLLOW_TRADER_FAILED: 'SocialController: Failed to unfollow trader',
-  FETCH_FOLLOWING_FAILED: 'SocialController: Failed to fetch following',
-} as const;
