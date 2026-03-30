@@ -20,7 +20,7 @@ import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-se
  * The name of the {@link SampleGasPricesService}, used to namespace the
  * service's actions and events.
  */
-export const SERVICE_NAME = 'SampleGasPricesService';
+export const serviceName = 'SampleGasPricesService';
 
 // === MESSENGER ===
 
@@ -34,7 +34,7 @@ const MESSENGER_EXPOSED_METHODS = ['fetchGasPrices'] as const;
  * Invalidates cached queries for {@link SampleGasPricesService}.
  */
 export type SampleGasPricesServiceInvalidateQueriesAction =
-  DataServiceInvalidateQueriesAction<typeof SERVICE_NAME>;
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
 
 /**
  * Actions that {@link SampleGasPricesService} exposes to other consumers.
@@ -52,14 +52,14 @@ type AllowedActions = never;
  * Published when {@link SampleGasPricesService}'s cache is updated.
  */
 export type SampleGasPricesServiceCacheUpdatedEvent =
-  DataServiceCacheUpdatedEvent<typeof SERVICE_NAME>;
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
 
 /**
  * Published when a key within {@link SampleGasPricesService}'s cache is
  * updated.
  */
 export type SampleGasPricesServiceGranularCacheUpdatedEvent =
-  DataServiceGranularCacheUpdatedEvent<typeof SERVICE_NAME>;
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
 /**
  * Events that {@link SampleGasPricesService} exposes to other consumers.
@@ -79,7 +79,7 @@ type AllowedEvents = never;
  * {@link SampleGasPricesService}.
  */
 export type SampleGasPricesServiceMessenger = Messenger<
-  typeof SERVICE_NAME,
+  typeof serviceName,
   SampleGasPricesServiceActions | AllowedActions,
   SampleGasPricesServiceEvents | AllowedEvents
 >;
@@ -148,7 +148,7 @@ const BASE_URL = 'https://api.example.com';
  * ```
  */
 export class SampleGasPricesService extends BaseDataService<
-  typeof SERVICE_NAME,
+  typeof serviceName,
   SampleGasPricesServiceMessenger
 > {
   /**
@@ -171,7 +171,7 @@ export class SampleGasPricesService extends BaseDataService<
     policyOptions?: CreateServicePolicyOptions;
   }) {
     super({
-      name: SERVICE_NAME,
+      name: serviceName,
       messenger,
       queryClientConfig,
       policyOptions,
