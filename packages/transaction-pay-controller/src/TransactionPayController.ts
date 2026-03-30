@@ -272,8 +272,18 @@ export class TransactionPayController extends BaseController<
         isTransactionPayStrategy(strategy),
     );
 
-    return validStrategies.length
-      ? validStrategies
-      : getStrategyOrder(this.messenger);
+    if (validStrategies.length) {
+      return validStrategies;
+    }
+
+    const paymentToken =
+      this.state.transactionData[transaction.id]?.paymentToken;
+
+    return getStrategyOrder(
+      this.messenger,
+      paymentToken?.chainId,
+      paymentToken?.address,
+      transaction.type,
+    );
   }
 }

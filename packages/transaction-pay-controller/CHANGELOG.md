@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add route-based `confirmations_pay` strategy resolution ([#8282](https://github.com/MetaMask/core/pull/8282))
+
 ## [19.0.0]
 
 ### Added
