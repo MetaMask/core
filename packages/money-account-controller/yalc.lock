@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "packages": {
+    "@metamask/eth-money-keyring": {
+      "signature": "7711355f7c96760a82d3f33ea5cbca1f",
+      "file": true
+    }
+  }
+}
