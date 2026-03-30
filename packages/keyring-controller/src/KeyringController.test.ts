@@ -566,7 +566,7 @@ describe('KeyringController', () => {
     describe('when the builder provides `getFingerprint`', () => {
       it('stores the fingerprint in the keyring metadata', async () => {
         const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
-        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+        fingerprintBuilder.getFingerprint = (): string => mockFingerprint;
 
         await withController(
           { keyringBuilders: [fingerprintBuilder] },
@@ -3935,7 +3935,7 @@ describe('KeyringController', () => {
 
       it('calls the given function with the matching keyring', async () => {
         const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
-        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+        fingerprintBuilder.getFingerprint = (): string => mockFingerprint;
 
         await withController(
           { keyringBuilders: [fingerprintBuilder] },
@@ -3947,7 +3947,9 @@ describe('KeyringController', () => {
 
             expect(fn).toHaveBeenCalledWith({
               keyring: expect.any(MockKeyring),
-              metadata: expect.objectContaining({ fingerprint: mockFingerprint }),
+              metadata: expect.objectContaining({
+                fingerprint: mockFingerprint,
+              }),
             });
           },
         );
@@ -3955,7 +3957,7 @@ describe('KeyringController', () => {
 
       it('returns the result of the function', async () => {
         const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
-        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+        fingerprintBuilder.getFingerprint = (): string => mockFingerprint;
 
         await withController(
           { keyringBuilders: [fingerprintBuilder] },
@@ -3973,7 +3975,7 @@ describe('KeyringController', () => {
 
       it('throws an error if the callback returns the selected keyring', async () => {
         const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
-        fingerprintBuilder.getFingerprint = () => mockFingerprint;
+        fingerprintBuilder.getFingerprint = (): string => mockFingerprint;
 
         await withController(
           { keyringBuilders: [fingerprintBuilder] },
