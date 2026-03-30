@@ -1,7 +1,7 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
-import { query, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import { toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger, add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
@@ -9,6 +9,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
 } from './feature-flags';
+import { rpcRequest } from './provider';
 import { ABI_IERC7821 } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -49,14 +50,21 @@ export function doesChainSupportEIP7702(
  * Retrieve the delegation address for an account.
  *
  * @param address - The address to check.
- * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @param messenger - The TransactionController messenger.
+ * @param networkClientId - The network client ID to use.
  * @returns  The delegation address if it exists.
  */
 export async function getDelegationAddress(
   address: Hex,
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
 ): Promise<Hex | undefined> {
-  const code = await query(ethQuery, 'eth_getCode', [address]);
+  const code = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  })) as string;
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
   const hasDelegation =
@@ -74,7 +82,7 @@ export async function getDelegationAddress(
  * @param chainId - The chain ID.
  * @param publicKey - Public key used to validate EIP-7702 contract signatures in feature flags.
  * @param messenger - The messenger instance.
- * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @param networkClientId - The network client ID to use.
  * @returns An object with the results of the check.
  */
 export async function isAccountUpgradedToEIP7702(
@@ -82,7 +90,7 @@ export async function isAccountUpgradedToEIP7702(
   chainId: Hex,
   publicKey: Hex,
   messenger: TransactionControllerMessenger,
-  ethQuery: EthQuery,
+  networkClientId: NetworkClientId,
 ): Promise<{
   delegationAddress: Hex | undefined;
   isSupported: boolean;
@@ -93,7 +101,11 @@ export async function isAccountUpgradedToEIP7702(
     publicKey,
   );
 
-  const delegationAddress = await getDelegationAddress(address, ethQuery);
+  const delegationAddress = await getDelegationAddress(
+    address,
+    messenger,
+    networkClientId,
+  );
 
   const isSupported = Boolean(
     delegationAddress &&

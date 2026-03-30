@@ -76,9 +76,11 @@ export type MarketInsightsTrend = {
 
 /**
  * AI-generated market insights report for a crypto asset.
- * Returned by `GET /asset-summary?caipAssetType=<caip19Id>` or `GET /asset-summary?hlPerpsMarket=<symbol>`.
+ * Returned by `GET /asset-summary?asset=<identifier>`.
  */
 export type MarketInsightsReport = {
+  /** Unique identifier for this digest, sourced from the API response envelope. */
+  digestId: string;
   /** API version */
   version?: string;
   /** Asset symbol (lowercase, e.g. "btc") */
@@ -125,19 +127,45 @@ export type MarketOverviewEntry = {
 // Market Overview types (non-asset-specific)
 // ---------------------------------------------------------------------------
 
+/**
+ * A crypto asset related to a market overview trend.
+ * Returned by the `/market-overview` API as a rich object.
+ */
+export type RelatedAsset = {
+  /** Human-readable asset name (e.g. "Bitcoin") */
+  name: string;
+  /** Ticker symbol (e.g. "BTC") */
+  symbol: string;
+  /**
+   * CAIP-19 identifiers for this asset across chains. May be absent for
+   * purely synthetic / perps-only assets (e.g. ETHFI). The service
+   * normalises missing values to `[]`.
+   */
+  caip19?: string[];
+  /** Canonical source asset identifier (e.g. "bitcoin") */
+  sourceAssetId: string;
+  /**
+   * Optional HyperLiquid market identifiers for this asset (e.g. `BTC`, `ETH`,
+   * `xyz:TSLA`). Covers both regular crypto tokens that trade on HyperLiquid
+   * and purely synthetic perps assets. Use this to resolve Perps icon URLs via
+   * `getAssetIconUrls` on clients when `caip19` is empty.
+   */
+  hlPerpsMarket?: string[];
+};
+
 export type MarketOverviewTrend = {
   title: string;
   description: string;
-  category:
+  category?:
     | 'geopolitical'
     | 'macro'
     | 'regulatory'
     | 'technical'
     | 'social'
     | 'other';
-  impact: 'positive' | 'negative' | 'neutral';
+  impact?: 'positive' | 'negative' | 'neutral';
   articles: Article[];
-  relatedAssets: string[];
+  relatedAssets: RelatedAsset[];
 };
 
 /**
@@ -150,10 +178,7 @@ export type AIResponseMetadata = {
 export type MarketOverview = {
   version?: string;
   generatedAt: string;
-  headline: string;
-  summary: string;
   trends: MarketOverviewTrend[];
-  sources: Source[];
   metadata?: AIResponseMetadata[];
 };
 
@@ -174,14 +199,13 @@ export type DigestService = {
   /**
    * Search for market insights by asset identifier.
    *
-   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
-   * market symbol (e.g. `ETH`). The implementation is responsible for choosing
-   * the correct query parameter (`caipAssetType` vs `hlPerpsMarket`).
+   * Accepts any identifier the API understands — CAIP-19 asset type
+   * (e.g. `eip155:1/slip44:60`), ticker symbol (e.g. `ETH`), asset name
+   * (e.g. `Bitcoin`), or HyperLiquid perps market id (e.g. `xyz:TSLA`).
    *
-   * Calls `GET /asset-summary?caipAssetType=<assetIdentifier>` for CAIP-19 IDs,
-   * or `GET /asset-summary?hlPerpsMarket=<assetIdentifier>` for perps symbols.
+   * Calls `GET /asset-summary?asset=<assetIdentifier>`.
    *
-   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
+   * @param assetIdentifier - The asset identifier.
    * @returns The market insights report, or `null` if no insights exist (404).
    */
   searchDigest(assetIdentifier: string): Promise<MarketInsightsReport | null>;

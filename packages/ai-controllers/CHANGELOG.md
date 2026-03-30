@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3]
+
+### Fixed
+
+- `RelatedAsset.caip19` is now optional (`string[] | undefined`) to match the live API, which omits the field for perps-only synthetic assets (e.g. ETHFI). `AiDigestService.fetchMarketOverview` normalises absent `caip19` values to `[]` so consumers always receive a `string[]` ([#8326](https://github.com/MetaMask/core/pull/8326)).
+
+## [0.6.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [0.6.1]
+
+### Changed
+
+- `RelatedAsset.hlPerpsMarket` is now `string[]` (optional) instead of `string` to match the `/market-overview` API payload shape. `AiDigestService.fetchMarketOverview` now validates `hlPerpsMarket` as an array of strings and rejects string values ([#8308](https://github.com/MetaMask/core/pull/8308)).
+
+## [0.6.0]
+
+### Added
+
+- `MarketInsightsReport` now includes a required `digestId` field containing the unique UUID returned in the `/asset-summary` API response envelope ([#8283](https://github.com/MetaMask/core/pull/8283)).
+- `AiDigestService` now requires the `{ id, digest }` / `{ id, report }` envelope shape and exposes `id` as `digestId` on the returned report objects; bare (non-enveloped) responses are no longer accepted ([#8283](https://github.com/MetaMask/core/pull/8283)).
+
+## [0.5.0]
+
+### Changed
+
+- `AiDigestService.searchDigest` now uses the universal `asset` query parameter instead of the previous `caipAssetType` / `hlPerpsMarket` branching logic. The public TypeScript API is unchanged; any identifier (CAIP-19, ticker, name, perps market id) can be passed as before ([#8263](https://github.com/MetaMask/core/pull/8263)).
+- `RelatedAsset.hlPerpsMarket` now covers all HyperLiquid market identifiers — both regular crypto tokens (`BTC`, `ETH`) and purely synthetic perps assets (`xyz:TSLA`). No separate field is needed; clients use `caip19` presence to decide the icon resolution strategy ([#8263](https://github.com/MetaMask/core/pull/8263)).
+
+## [0.4.0]
+
+### Added
+
+- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets` ([#8218](https://github.com/MetaMask/core/pull/8218)).
+
+### Changed
+
+- `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `MarketOverview.headline`, `summary`, and `sources` have been removed; they are not part of the `/market-overview` API response ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `MarketOverviewTrend.category` and `impact` are now optional to match the live API response shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
+
 ## [0.3.0]
 
 ### Changed
@@ -50,7 +96,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.3...HEAD
+[0.6.3]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.2...@metamask/ai-controllers@0.6.3
+[0.6.2]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.1...@metamask/ai-controllers@0.6.2
+[0.6.1]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.0...@metamask/ai-controllers@0.6.1
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.5.0...@metamask/ai-controllers@0.6.0
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.4.0...@metamask/ai-controllers@0.5.0
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.3.0...@metamask/ai-controllers@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.2.0...@metamask/ai-controllers@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.1.0...@metamask/ai-controllers@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ai-controllers@0.1.0

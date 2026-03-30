@@ -140,6 +140,18 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  tokenWarnings: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  quoteStreamComplete: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -392,7 +404,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientVersion,
     );
 
-    this.#trackResponseValidationFailures(validationFailures);
+    this.#trackQuoteValidationFailures(validationFailures);
 
     const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
@@ -404,9 +416,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
-  readonly #trackResponseValidationFailures = (
-    validationFailures: string[],
-  ) => {
+  readonly #trackQuoteValidationFailures = (validationFailures: string[]) => {
     if (validationFailures.length === 0) {
       return;
     }
@@ -609,6 +619,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
     });
   };
 
@@ -651,6 +664,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
@@ -794,7 +810,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       jwt,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: this.#trackResponseValidationFailures,
+        onQuoteValidationFailure: this.#trackQuoteValidationFailures,
         onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
@@ -836,6 +852,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Await the promise to ensure errors are caught and handled before continuing
           // The promise is also tracked in pendingFeeAppendPromises for onClose to wait for
           await feeAppendPromise;
+        },
+        onTokenWarning: (warning) => {
+          this.update((state) => {
+            const isDuplicate = state.tokenWarnings.some(
+              (existing) => existing.feature_id === warning.feature_id,
+            );
+            if (!isDuplicate) {
+              state.tokenWarnings = [...state.tokenWarnings, warning];
+            }
+          });
+        },
+        onComplete: (data) => {
+          this.update((state) => {
+            state.quoteStreamComplete = data;
+          });
         },
         onClose: async () => {
           // Wait for all pending appendFeesToQuotes operations to complete

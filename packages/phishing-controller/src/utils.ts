@@ -8,8 +8,12 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import { DEFAULT_CHAIN_ID_TO_NAME } from './types';
-import type { TokenScanCacheData, TokenScanResult } from './types';
+import { APPROVAL_SUPPORTED_CHAINS, DEFAULT_CHAIN_ID_TO_NAME } from './types';
+import type {
+  ApprovalSupportedChain,
+  TokenScanCacheData,
+  TokenScanResult,
+} from './types';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -436,6 +440,17 @@ export const buildCacheKey = (
   const normalizedAddress = caseSensitive ? address : address.toLowerCase();
   return `${chainId.toLowerCase()}:${normalizedAddress}`;
 };
+
+/**
+ * Determines whether a chain name is supported for token approval scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isApprovalSupportedChain = (
+  chain: string,
+): chain is ApprovalSupportedChain =>
+  (APPROVAL_SUPPORTED_CHAINS as readonly string[]).includes(chain);
 
 /**
  * Resolves the chain name from a chain ID.

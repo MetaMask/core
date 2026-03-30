@@ -149,6 +149,19 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates isHyperliquidSource in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isHyperliquidSource = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]
+          .isHyperliquidSource,
+      ).toBe(true);
+    });
+
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
       const controller = createController();
 
@@ -214,6 +227,30 @@ describe('TransactionPayController', () => {
       expect(transactionData.isMaxAmount).toBe(true);
       expect(transactionData.isPostQuote).toBe(true);
       expect(transactionData.refundTo).toBe(refundTo);
+    });
+  });
+
+  describe('getDelegationTransaction', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = { data: '0x1', to: '0x2', value: '0x3' };
+      const getDelegationTransactionMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: getDelegationTransactionMock,
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getDelegationTransaction',
+        { transaction: TRANSACTION_META_MOCK },
+      );
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: TRANSACTION_META_MOCK,
+      });
+      expect(result).toBe(resultMock);
     });
   });
 
@@ -327,6 +364,45 @@ describe('TransactionPayController', () => {
           TRANSACTION_META_MOCK,
         ),
       ).toBe(TransactionPayStrategy.Test);
+    });
+
+    it('passes payment token route args into feature flag fallback', async () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          address: TOKEN_ADDRESS_MOCK,
+          balanceFiat: '1',
+          balanceHuman: '1',
+          balanceRaw: '1',
+          balanceUsd: '1',
+          chainId: CHAIN_ID_MOCK,
+          decimals: 6,
+          symbol: 'USDC',
+        };
+      });
+
+      const transactionMeta = {
+        id: TRANSACTION_ID_MOCK,
+        type: 'perpsDeposit',
+      } as TransactionMeta;
+
+      messenger.call('TransactionPayController:getStrategy', transactionMeta);
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+        'perpsDeposit',
+      );
     });
   });
 

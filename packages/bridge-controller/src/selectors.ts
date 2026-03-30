@@ -565,6 +565,9 @@ export const selectMinimumBalanceForRentExemptionInSOL = (
     .div(10 ** 9)
     .toString();
 
+export const selectTokenWarnings = (state: BridgeAppState) =>
+  state.tokenWarnings;
+
 export const selectDefaultSlippagePercentage = createBridgeSelector(
   [
     (state) => selectBridgeFeatureFlags(state).chains,

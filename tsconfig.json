@@ -96,9 +96,6 @@
       "path": "./packages/ens-controller"
     },
     {
-      "path": "./packages/error-reporting-service"
-    },
-    {
       "path": "./packages/eth-block-tracker"
     },
     {
@@ -189,6 +186,9 @@
       "path": "./packages/rate-limit-controller"
     },
     {
+      "path": "./packages/react-data-query"
+    },
+    {
       "path": "./packages/remote-feature-flag-controller"
     },
     {
@@ -205,6 +205,9 @@
     },
     {
       "path": "./packages/signature-controller"
+    },
+    {
+      "path": "./packages/social-controllers"
     },
     {
       "path": "./packages/subscription-controller"

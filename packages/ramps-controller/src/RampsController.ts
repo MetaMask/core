@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type {
   BuyWidget,
   Country,
@@ -264,6 +265,13 @@ export type RampsControllerState = {
    * and persists them.
    */
   orders: RampsOrder[];
+  /**
+   * Whether the currently selected provider was auto-selected by the system
+   * (no order history, no Transak) rather than chosen by the user or derived
+   * from order history. When true, the UI should silently switch providers on
+   * token conflict instead of showing the "Token Not Available" modal.
+   */
+  providerAutoSelected: boolean;
 };
 
 /**
@@ -283,13 +291,13 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providers: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
   tokens: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -313,6 +321,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  providerAutoSelected: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -378,6 +392,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       },
     },
     orders: [],
+    providerAutoSelected: false,
   };
 }
 
@@ -423,6 +438,7 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
+  state.providerAutoSelected = false;
 }
 
 // === MESSENGER ===
@@ -436,37 +452,11 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Sets selected token in the {@link RampsController}.
- */
-export type RampsControllerSetSelectedTokenAction = {
-  type: 'RampsController:setSelectedToken';
-  handler: RampsController['setSelectedToken'];
-};
-
-/**
- * Fetches quotes via the {@link RampsController}.
- */
-export type RampsControllerGetQuotesAction = {
-  type: 'RampsController:getQuotes';
-  handler: RampsController['getQuotes'];
-};
-
-/**
- * Fetches an order via the {@link RampsController}.
- */
-export type RampsControllerGetOrderAction = {
-  type: 'RampsController:getOrder';
-  handler: RampsController['getOrder'];
-};
-
-/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
-  | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
-  | RampsControllerSetSelectedTokenAction;
+  | RampsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -653,6 +643,56 @@ type OrderPollingMetadata = {
 
 // === CONTROLLER DEFINITION ===
 
+const MESSENGER_EXPOSED_METHODS = [
+  'executeRequest',
+  'abortRequest',
+  'getRequestState',
+  'setUserRegion',
+  'setSelectedProvider',
+  'init',
+  'getCountries',
+  'getTokens',
+  'setSelectedToken',
+  'getProviders',
+  'getPaymentMethods',
+  'setSelectedPaymentMethod',
+  'getQuotes',
+  'addOrder',
+  'removeOrder',
+  'startOrderPolling',
+  'stopOrderPolling',
+  'getBuyWidgetData',
+  'addPrecreatedOrder',
+  'getOrder',
+  'getOrderFromCallback',
+  'transakSetApiKey',
+  'transakSetAccessToken',
+  'transakClearAccessToken',
+  'transakSetAuthenticated',
+  'transakResetState',
+  'transakSendUserOtp',
+  'transakVerifyUserOtp',
+  'transakLogout',
+  'transakGetUserDetails',
+  'transakGetBuyQuote',
+  'transakGetKycRequirement',
+  'transakGetAdditionalRequirements',
+  'transakCreateOrder',
+  'transakGetOrder',
+  'transakGetUserLimits',
+  'transakRequestOtt',
+  'transakGeneratePaymentWidgetUrl',
+  'transakSubmitPurposeOfUsageForm',
+  'transakPatchUser',
+  'transakSubmitSsnDetails',
+  'transakConfirmPayment',
+  'transakGetTranslation',
+  'transakGetIdProofStatus',
+  'transakCancelOrder',
+  'transakCancelAllActiveOrders',
+  'transakGetActiveOrders',
+] as const;
+
 /**
  * Manages cryptocurrency on/off ramps functionality.
  */
@@ -751,21 +791,9 @@ export class RampsController extends BaseController<
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
 
-    this.#registerActionHandlers();
-  }
-
-  #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      'RampsController:getOrder',
-      this.getOrder.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:getQuotes',
-      this.getQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:setSelectedToken',
-      this.setSelectedToken.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -1163,12 +1191,20 @@ export class RampsController extends BaseController<
    * fetches payment methods for that provider.
    *
    * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+   * @param options - Optional settings for the selection.
+   * @param options.autoSelected - When true, marks the provider as system-guessed
+   *   (soft selection). The UI will silently auto-switch on token conflict instead
+   *   of showing the "Token Not Available" modal. Defaults to false.
    * @throws If region is not set, providers are not loaded, or provider is not found.
    */
-  setSelectedProvider(providerId: string | null): void {
+  setSelectedProvider(
+    providerId: string | null,
+    options?: { autoSelected?: boolean },
+  ): void {
     if (providerId === null) {
       this.update((state) => {
         state.providers.selected = null;
+        state.providerAutoSelected = false;
         resetResource(state, 'paymentMethods');
       });
       return;
@@ -1203,6 +1239,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.providers.selected = provider;
+      state.providerAutoSelected = options?.autoSelected ?? false;
       resetResource(state, 'paymentMethods');
     });
 
@@ -1753,12 +1790,11 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const providerCodeSegment = normalizeProviderCode(providerCode);
     const previousStatus = order.status;
 
     try {
       const updatedOrder = await this.getOrder(
-        providerCodeSegment,
+        providerCode,
         order.providerOrderId,
         order.walletAddress,
       );
@@ -1984,25 +2020,28 @@ export class RampsController extends BaseController<
       wallet,
     );
 
+    const healedWalletAddress = order.walletAddress || wallet;
+    const healedOrder = {
+      ...order,
+      walletAddress: healedWalletAddress,
+      providerOrderId: orderCode,
+    };
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === orderCode,
+        (existing: RampsOrder) => existing.providerOrderId === orderCode,
       );
       if (idx === -1) {
-        state.orders.push({
-          ...order,
-          providerOrderId: orderCode,
-        } as Draft<RampsOrder>);
+        state.orders.push(healedOrder as Draft<RampsOrder>);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
-          providerOrderId: orderCode,
+          ...healedOrder,
         } as Draft<RampsOrder>;
       }
     });
 
-    return order;
+    return healedOrder;
   }
 
   /**
@@ -2021,12 +2060,14 @@ export class RampsController extends BaseController<
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
-    return await this.messenger.call(
+    const order = await this.messenger.call(
       'RampsService:getOrderFromCallback',
       providerCode,
       callbackUrl,
       wallet,
     );
+
+    return order;
   }
 
   // === TRANSAK METHODS ===

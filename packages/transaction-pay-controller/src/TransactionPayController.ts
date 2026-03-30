@@ -27,6 +27,14 @@ import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getDelegationTransaction',
+  'getStrategy',
+  'setTransactionConfig',
+  'updateFiatPayment',
+  'updatePaymentToken',
+] as const;
+
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
   transactionData: {
     includeInDebugSnapshot: false,
@@ -73,7 +81,10 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
 
-    this.#registerActionHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     pollTransactionChanges(
       messenger,
@@ -89,6 +100,15 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  /**
+   * Sets the transaction configuration.
+   *
+   * The callback receives the current configuration properties and can mutate
+   * them in place. Updated values are written back to the transaction data.
+   *
+   * @param transactionId - The ID of the transaction to configure.
+   * @param callback - A callback that receives a mutable {@link TransactionConfig} object.
+   */
   setTransactionConfig(
     transactionId: string,
     callback: TransactionConfigCallback,
@@ -97,6 +117,7 @@ export class TransactionPayController extends BaseController<
       const config = {
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
         refundTo: transactionData.refundTo,
       };
 
@@ -104,10 +125,21 @@ export class TransactionPayController extends BaseController<
 
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
+      transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
     });
   }
 
+  /**
+   * Updates the payment token for a transaction.
+   *
+   * Resolves token metadata and balances, then stores the new payment token
+   * in the transaction data. This triggers recalculation of source amounts
+   * and quote retrieval.
+   *
+   * @param request - The payment token update request containing the
+   * transaction ID, token address, and chain ID.
+   */
   updatePaymentToken(request: UpdatePaymentTokenRequest): void {
     updatePaymentToken(request, {
       messenger: this.messenger,
@@ -115,11 +147,53 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  /**
+   * Updates the fiat payment state for a transaction.
+   *
+   * The request callback receives the current fiat payment state and can
+   * mutate it to update properties such as the selected payment method or
+   * fiat amount.
+   *
+   * @param request - The fiat payment update request containing the
+   * transaction ID and a callback to mutate fiat payment state.
+   */
   updateFiatPayment(request: UpdateFiatPaymentRequest): void {
     updateFiatPayment(request, {
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
+  }
+
+  /**
+   * Gets the delegation transaction for a given transaction.
+   *
+   * Converts the provided transaction into a redeem delegation by delegating
+   * to the configured callback. Returns the delegation transaction data
+   * including the encoded call data, target address, value, and an optional
+   * authorization list.
+   *
+   * @param args - The arguments forwarded to the {@link GetDelegationTransactionCallback},
+   * containing the transaction metadata.
+   * @returns A promise resolving to the delegation transaction data.
+   */
+  getDelegationTransaction(
+    ...args: Parameters<GetDelegationTransactionCallback>
+  ): ReturnType<GetDelegationTransactionCallback> {
+    return this.#getDelegationTransaction(...args);
+  }
+
+  /**
+   * Gets the preferred strategy for a transaction.
+   *
+   * Returns the first strategy from the ordered list of strategies applicable
+   * to the given transaction. Falls back to the default strategy order derived
+   * from feature flags when no custom strategy callback is configured.
+   *
+   * @param transaction - The transaction metadata to determine the strategy for.
+   * @returns The preferred {@link TransactionPayStrategy} for the transaction.
+   */
+  getStrategy(transaction: TransactionMeta): TransactionPayStrategy {
+    return this.#getStrategiesWithFallback(transaction)[0];
   }
 
   #removeTransactionData(transactionId: string): void {
@@ -186,34 +260,6 @@ export class TransactionPayController extends BaseController<
     }
   }
 
-  #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      'TransactionPayController:getDelegationTransaction',
-      this.#getDelegationTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'TransactionPayController:getStrategy',
-      (transaction: TransactionMeta): TransactionPayStrategy =>
-        this.#getStrategiesWithFallback(transaction)[0],
-    );
-
-    this.messenger.registerActionHandler(
-      'TransactionPayController:setTransactionConfig',
-      this.setTransactionConfig.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'TransactionPayController:updatePaymentToken',
-      this.updatePaymentToken.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'TransactionPayController:updateFiatPayment',
-      this.updateFiatPayment.bind(this),
-    );
-  }
-
   #getStrategiesWithFallback(
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
@@ -226,8 +272,18 @@ export class TransactionPayController extends BaseController<
         isTransactionPayStrategy(strategy),
     );
 
-    return validStrategies.length
-      ? validStrategies
-      : getStrategyOrder(this.messenger);
+    if (validStrategies.length) {
+      return validStrategies;
+    }
+
+    const paymentToken =
+      this.state.transactionData[transaction.id]?.paymentToken;
+
+    return getStrategyOrder(
+      this.messenger,
+      paymentToken?.chainId,
+      paymentToken?.address,
+      transaction.type,
+    );
   }
 }

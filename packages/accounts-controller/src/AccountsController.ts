@@ -30,7 +30,7 @@ import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
-  SnapStateChange,
+  SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { isCaipChainId } from '@metamask/utils';
@@ -211,8 +211,8 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  */
 export type AllowedEvents =
-  | SnapStateChange
   | KeyringControllerStateChangeEvent
+  | SnapControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
@@ -442,7 +442,7 @@ export class AccountsController extends BaseController<
 
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (selectedAccount === '') {
+    if (!selectedAccount) {
       return EMPTY_ACCOUNT;
     }
 
@@ -481,7 +481,7 @@ export class AccountsController extends BaseController<
 
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (selectedAccount === '') {
+    if (!selectedAccount) {
       return EMPTY_ACCOUNT;
     }
 

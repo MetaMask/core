@@ -1,5 +1,6 @@
 export type {
   Address,
+  AssetFetchEntry,
   AssetsBalanceState,
   ChainId,
   GetProviderFunction,

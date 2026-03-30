@@ -80,7 +80,7 @@ function newMultichainTrackingHelper(
   mockNonceLock: { releaseLock: jest.Mock };
   mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>>;
   mockPendingTransactionTrackers: Record<
-    Hex,
+    NetworkClientId,
     jest.Mocked<PendingTransactionTracker>
   >;
 } {
@@ -178,19 +178,23 @@ function newMultichainTrackingHelper(
     });
 
   const mockPendingTransactionTrackers: Record<
-    Hex,
+    NetworkClientId,
     jest.Mocked<PendingTransactionTracker>
   > = {};
   const mockCreatePendingTransactionTracker = jest
     .fn()
-    .mockImplementation(({ chainId }: { chainId: Hex }) => {
-      const mockPendingTransactionTracker = {
-        start: jest.fn(),
-        stop: jest.fn(),
-      } as unknown as jest.Mocked<PendingTransactionTracker>;
-      mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker;
-      return mockPendingTransactionTracker;
-    });
+    .mockImplementation(
+      ({ networkClientId }: { networkClientId: NetworkClientId }) => {
+        const mockPendingTransactionTracker = {
+          start: jest.fn(),
+          stop: jest.fn(),
+        } as unknown as jest.Mocked<PendingTransactionTracker>;
+
+        mockPendingTransactionTrackers[networkClientId] =
+          mockPendingTransactionTracker;
+        return mockPendingTransactionTracker;
+      },
+    );
 
   const options = {
     isMultichainEnabled: true,
@@ -321,9 +325,7 @@ describe('MultichainTrackingHelper', () => {
 
       expect(options.createPendingTransactionTracker).toHaveBeenCalledTimes(1);
       expect(options.createPendingTransactionTracker).toHaveBeenCalledWith({
-        provider: MOCK_PROVIDERS.mainnet,
         blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
-        chainId: '0x1',
         networkClientId: 'mainnet',
       });
 
@@ -350,10 +352,10 @@ describe('MultichainTrackingHelper', () => {
 
       helper.stopAllTracking();
 
-      expect(mockPendingTransactionTrackers['0x1'].stop).toHaveBeenCalled();
+      expect(mockPendingTransactionTrackers.mainnet.stop).toHaveBeenCalled();
       expect(
         options.removePendingTransactionTrackerListeners,
-      ).toHaveBeenCalledWith(mockPendingTransactionTrackers['0x1']);
+      ).toHaveBeenCalledWith(mockPendingTransactionTrackers.mainnet);
       expect(helper.has('mainnet')).toBe(false);
     });
   });

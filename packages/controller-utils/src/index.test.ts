@@ -51,6 +51,7 @@ describe('@metamask/controller-utils', () => {
         "DAY",
         "DAYS",
         "NETWORKS_BYPASSING_VALIDATION",
+        "CHAIN_IDS_WITH_NO_NATIVE_TOKEN",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",

@@ -15,6 +15,8 @@ export type RelayQuoteRequest = {
   originChainId: number;
   originCurrency: Hex;
   originGasOverhead?: string;
+  /** Required for HyperLiquid withdrawals (value: 'v2'). */
+  protocolVersion?: string;
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
@@ -72,33 +74,93 @@ export type RelayQuote = {
       minimumAmount: string;
     };
   };
-  metamask: {
-    gasLimits: number[];
-    isMaxGasStation?: boolean;
-  };
+  metamask: RelayQuoteMetamask;
   request: RelayQuoteRequest;
-  steps: {
-    id: string;
-    items: {
-      check: {
-        endpoint: string;
-        method: 'GET' | 'POST';
-      };
-      data: {
-        chainId: number;
-        data: Hex;
-        from: Hex;
-        gas?: string;
-        maxFeePerGas: string;
-        maxPriorityFeePerGas: string;
-        to: Hex;
-        value?: string;
-      };
-      status: 'complete' | 'incomplete';
-    }[];
-    kind: 'transaction';
-    requestId: string;
+  steps: (
+    | RelayTransactionStep
+    | RelaySignatureStep
+    | RelayHyperliquidDepositStep
+  )[];
+};
+
+export type RelayTransactionStep = {
+  id: string;
+  items: {
+    check: {
+      endpoint: string;
+      method: 'GET' | 'POST';
+    };
+    data: {
+      chainId: number;
+      data: Hex;
+      from: Hex;
+      gas?: string;
+      maxFeePerGas: string;
+      maxPriorityFeePerGas: string;
+      to: Hex;
+      value?: string;
+    };
+    status: 'complete' | 'incomplete';
   }[];
+  kind: 'transaction';
+  requestId: string;
+};
+
+export type RelaySignatureStep = {
+  id: string;
+  items: {
+    data: {
+      sign: {
+        signatureKind: string;
+        domain: Record<string, unknown>;
+        types: Record<string, unknown>;
+        value: Record<string, unknown>;
+        primaryType: string;
+      };
+      post: {
+        endpoint: string;
+        method: 'POST';
+        body: Record<string, unknown>;
+      };
+    };
+    status: 'complete' | 'incomplete';
+  }[];
+  kind: 'signature';
+  requestId: string;
+};
+
+/** HyperLiquid deposit step (sendAsset to Relay solver). */
+export type RelayHyperliquidDepositStep = {
+  id: string;
+  items: {
+    check: {
+      endpoint: string;
+      method: 'GET' | 'POST';
+    };
+    data: {
+      action: {
+        type: string;
+        parameters: Record<string, unknown>;
+      };
+      nonce: number;
+      eip712Types: Record<string, unknown>;
+      eip712PrimaryType: string;
+    };
+    status: 'complete' | 'incomplete';
+  }[];
+  kind: 'transaction';
+  requestId: string;
+  depositAddress?: string;
+};
+
+type RelayQuoteMetamaskBase = {
+  isExecute?: boolean;
+  isMaxGasStation?: boolean;
+};
+
+export type RelayQuoteMetamask = RelayQuoteMetamaskBase & {
+  gasLimits: number[];
+  is7702: boolean;
 };
 
 export type RelayExecuteRequest = {
@@ -130,14 +192,15 @@ export type RelayExecuteResponse = {
 };
 
 export type RelayStatus =
-  | 'waiting'
+  | 'delayed'
+  | 'depositing'
+  | 'failure'
   | 'pending'
+  | 'refund'
+  | 'refunded'
   | 'submitted'
   | 'success'
-  | 'delayed'
-  | 'refunded'
-  | 'refund'
-  | 'failure';
+  | 'waiting';
 
 export type RelayStatusResponse = {
   status: RelayStatus;

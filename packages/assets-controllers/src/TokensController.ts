@@ -6,7 +6,7 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -145,7 +145,7 @@ export type TokensControllerActions =
  * The external actions available to the {@link TokensController}.
  */
 export type AllowedActions =
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction

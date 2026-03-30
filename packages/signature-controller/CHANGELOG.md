@@ -7,9 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.2]
+
 ### Changed
 
-- Bump `@metamask/gator-permissions-controller` from `^2.0.0` to `^2.1.0` ([#8156](https://github.com/MetaMask/core/pull/8156))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/gator-permissions-controller` from `^2.2.0` to `^3.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+
+## [39.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/approval-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/gator-permissions-controller` from `^2.1.1` to `^2.2.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/logging-controller` from `^8.0.0` to `^8.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [39.1.0]
+
+### Added
+
+- Expose missing public `SignatureController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `SignatureController:resetState`
+    - `SignatureController:rejectUnapproved`
+    - `SignatureController:clearUnapproved`
+    - `SignatureController:newUnsignedPersonalMessage`
+    - `SignatureController:newUnsignedTypedMessage`
+    - `SignatureController:setDeferredSignSuccess`
+    - `SignatureController:setMessageMetadata`
+    - `SignatureController:setDeferredSignError`
+    - `SignatureController:setTypedMessageInProgress`
+    - `SignatureController:setPersonalMessageInProgress`
+  - Corresponding action types (e.g. `SignatureControllerResetStateAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/logging-controller` from `^7.0.1` to `^8.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gator-permissions-controller` from `^2.0.0` to `^2.1.1` ([#8156](https://github.com/MetaMask/core/pull/8156), [#8225](https://github.com/MetaMask/core/pull/8225))
 
 ## [39.0.5]
 
@@ -693,7 +733,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.2...HEAD
+[39.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.1...@metamask/signature-controller@39.1.2
+[39.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...@metamask/signature-controller@39.1.1
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...@metamask/signature-controller@39.1.0
 [39.0.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.4...@metamask/signature-controller@39.0.5
 [39.0.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.3...@metamask/signature-controller@39.0.4
 [39.0.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.2...@metamask/signature-controller@39.0.3

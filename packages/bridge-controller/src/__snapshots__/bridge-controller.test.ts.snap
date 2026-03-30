@@ -20,9 +20,11 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
     "srcTokenAmount": "991250000000000000",
     "walletAddress": "eip:id/id:id/0x123",
   },
+  "quoteStreamComplete": null,
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenWarnings": [],
 }
 `;
 
@@ -46,9 +48,11 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
     "srcTokenAmount": "991250000000000000",
     "walletAddress": "eip:id/id:id/0x123",
   },
+  "quoteStreamComplete": null,
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenWarnings": [],
 }
 `;
 
@@ -807,11 +811,13 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     "srcTokenAmount": "10",
     "walletAddress": "0x123",
   },
+  "quoteStreamComplete": null,
   "quotes": [],
   "quotesInitialLoadTime": null,
   "quotesLastFetched": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenWarnings": [],
 }
 `;
 
@@ -837,9 +843,11 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     "srcTokenAmount": "10",
     "walletAddress": "0x123",
   },
+  "quoteStreamComplete": null,
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenWarnings": [],
 }
 `;
 

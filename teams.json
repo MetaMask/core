@@ -1,6 +1,7 @@
 {
   "metamask/accounts-controller": "team-accounts-framework",
   "metamask/ai-controllers": "team-social-ai",
+  "metamask/social-controllers": "team-social-ai",
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
@@ -44,12 +45,12 @@
   "metamask/connectivity-controller": "team-core-platform",
   "metamask/geolocation-controller": "team-core-platform",
   "metamask/controller-utils": "team-core-platform",
-  "metamask/error-reporting-service": "team-core-platform",
   "metamask/messenger": "team-core-platform",
   "metamask/sample-controllers": "team-core-platform",
   "metamask/polling-controller": "team-core-platform",
   "metamask/preferences-controller": "team-core-platform",
   "metamask/rate-limit-controller": "team-core-platform",
+  "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-core-platform",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
@@ -72,5 +73,5 @@
   "metamask/analytics-data-regulation-controller": "team-extension-platform,team-mobile-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
-  "metamask/config-registry-controller": "team-core-platform"
+  "metamask/config-registry-controller": "team-networks"
 }

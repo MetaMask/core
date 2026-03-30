@@ -1,4 +1,5 @@
 /* eslint-disable jest/unbound-method */
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -13,12 +14,16 @@ import {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 import type {
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import type { Caip19AssetId, AccountId } from './types';
+import type {
+  Caip19AssetId,
+  AccountId,
+  DataResponse,
+  FungibleAssetMetadata,
+} from './types';
 import { formatExchangeRatesForBridge } from './utils';
 
 jest.mock('./utils', () => {
@@ -74,14 +79,12 @@ type WithControllerOptions = {
   isBasicFunctionality?: () => boolean;
   /**
    * When set, registers ClientController:getState so the controller sees this UI state.
-   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   * Required for tests that rely on asset tracking running (e.g. trace on unlock).
    */
   clientControllerState?: { isUiOpen: boolean };
-  /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
+  /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
-    trackMetaMetricsEvent: (
-      payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-    ) => void;
+    trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
     isEnabled: () => boolean;
   }>;
@@ -611,6 +614,114 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('handleAssetsUpdate', () => {
+    it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
+      const richMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'TST',
+        name: 'Test Token',
+        decimals: 4,
+        image: 'https://example.com/tst.png',
+      };
+
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: richMetadata,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const emptyApiResponse: DataResponse = {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: '',
+                name: '',
+                decimals: 18,
+              } as FungibleAssetMetadata,
+            },
+          };
+
+          await controller.handleAssetsUpdate(emptyApiResponse, 'test-source');
+
+          const stored = controller.state.assetsInfo[
+            MOCK_ASSET_ID
+          ] as FungibleAssetMetadata;
+          expect(stored.symbol).toBe('TST');
+          expect(stored.name).toBe('Test Token');
+          expect(stored.decimals).toBe(4);
+          expect(stored.image).toBe('https://example.com/tst.png');
+        },
+      );
+    });
+
+    it('uses API metadata when symbol or name is non-empty', async () => {
+      const initialMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'OLD',
+        name: 'Old Token',
+        decimals: 6,
+      };
+
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: initialMetadata,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const apiResponse: DataResponse = {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: 'NEW',
+                name: 'New Token',
+                decimals: 8,
+              } as FungibleAssetMetadata,
+            },
+          };
+
+          await controller.handleAssetsUpdate(apiResponse, 'test-source');
+
+          const stored = controller.state.assetsInfo[
+            MOCK_ASSET_ID
+          ] as FungibleAssetMetadata;
+          expect(stored.symbol).toBe('NEW');
+          expect(stored.name).toBe('New Token');
+          expect(stored.decimals).toBe(8);
+        },
+      );
+    });
+
+    it('uses API metadata when there is no pre-existing state for the asset', async () => {
+      await withController(async ({ controller }) => {
+        const apiResponse: DataResponse = {
+          assetsInfo: {
+            [MOCK_ASSET_ID]: {
+              type: 'erc20',
+              symbol: '',
+              name: '',
+              decimals: 18,
+            } as FungibleAssetMetadata,
+          },
+        };
+
+        await controller.handleAssetsUpdate(apiResponse, 'test-source');
+
+        const stored = controller.state.assetsInfo[
+          MOCK_ASSET_ID
+        ] as FungibleAssetMetadata;
+        expect(stored.decimals).toBe(18);
+        expect(stored.symbol).toBe('');
+        expect(stored.name).toBe('');
+      });
+    });
+  });
+
   describe('getAssetsBalance', () => {
     it('returns balance data for accounts', async () => {
       await withController(async ({ controller }) => {
@@ -725,7 +836,7 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('handleAssetsUpdate', () => {
+  describe('handleAssetsUpdate - state updates', () => {
     it('updates state with balance data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
@@ -1085,13 +1196,19 @@ describe('AssetsController', () => {
       });
     });
 
-    it('invokes trackMetaMetricsEvent with first init fetch duration on unlock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes trace with first init fetch trace request on unlock', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { trace },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1105,30 +1222,46 @@ describe('AssetsController', () => {
           // Allow #start() -> getAssets() to resolve so the callback runs
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
-          expect(trackMetaMetricsEvent).toHaveBeenCalledWith(
-            expect.objectContaining({
-              durationMs: expect.any(Number),
-              chainIds: expect.any(Array),
-              durationByDataSource: expect.any(Object),
-            }),
+          const firstInitFetchCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name ===
+              'AssetsControllerFirstInitFetch',
           );
-          const payload = trackMetaMetricsEvent.mock
-            .calls[0][0] as AssetsControllerFirstInitFetchMetaMetricsPayload;
-          expect(payload.durationMs).toBeGreaterThanOrEqual(0);
-          expect(Array.isArray(payload.chainIds)).toBe(true);
-          expect(typeof payload.durationByDataSource).toBe('object');
+          expect(firstInitFetchCalls).toHaveLength(1);
+          const [request] = firstInitFetchCalls[0];
+          expect(request).toMatchObject({
+            name: 'AssetsControllerFirstInitFetch',
+            data: expect.objectContaining({
+              duration_ms: expect.any(Number),
+              chain_ids: expect.any(String),
+            }),
+            tags: { controller: 'AssetsController' },
+          });
+          const {
+            duration_ms: durationMs,
+            chain_ids: chainIds,
+            ...durationByDataSource
+          } = request.data ?? {};
+          expect(durationMs).toBeGreaterThanOrEqual(0);
+          expect(typeof chainIds).toBe('string');
+          expect(typeof durationByDataSource).toBe('object');
         },
       );
     });
 
-    it('invokes trackMetaMetricsEvent only once per session until lock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes trace only once per session until lock', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { trace },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1143,7 +1276,12 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+          const firstInitFetchCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name ===
+              'AssetsControllerFirstInitFetch',
+          );
+          expect(firstInitFetchCalls).toHaveLength(1);
         },
       );
     });
