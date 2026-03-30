@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
+
 ## [19.0.3]
 
 ### Changed
@@ -32,10 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` from `^69.2.3` to `^70.0.0` ([#8340](https://github.com/MetaMask/core/pull/8340))
 - Bump `@metamask/bridge-status-controller` from `^70.0.3` to `^70.0.4` ([#8340](https://github.com/MetaMask/core/pull/8340))
 - Add route-based `confirmations_pay` strategy resolution ([#8282](https://github.com/MetaMask/core/pull/8282))
-
-### Fixed
-
-- Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
 
 ## [19.0.0]
 

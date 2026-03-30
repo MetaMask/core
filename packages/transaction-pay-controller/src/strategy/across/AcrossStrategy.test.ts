@@ -130,7 +130,7 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
-  it('returns false for perps across deposits', () => {
+  it('applies generic cross-chain handling to perps across deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({
@@ -140,7 +140,7 @@ describe('AcrossStrategy', () => {
           type: TransactionType.perpsAcrossDeposit,
         } as TransactionMeta,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('returns false for same-chain swaps', () => {
