@@ -1,10 +1,11 @@
 import {
   array,
+  boolean,
   is,
   number,
   optional,
+  record,
   string,
-  boolean,
   type as structType,
 } from '@metamask/superstruct';
 
@@ -82,7 +83,7 @@ const LeaderboardEntryStruct = structType({
   winRate30d: optional(number()),
   roi30d: optional(number()),
   tradeCount: optional(number()),
-  pnlPerChain: structType({}),
+  pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,
 });
@@ -107,9 +108,9 @@ const TraderStatsStruct = structType({
 });
 
 const PerChainBreakdownStruct = structType({
-  perChainPnl: structType({}),
-  perChainRoi: structType({}),
-  perChainVolume: structType({}),
+  perChainPnl: record(string(), number()),
+  perChainRoi: record(string(), number()),
+  perChainVolume: record(string(), number()),
 });
 
 const TraderProfileResponseStruct = structType({
