@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added real-time order status tracking for Transak orders via Pusher WebSockets ([#8075](https://github.com/MetaMask/core/pull/8075))
+  - Added `TransakService:orderUpdate` event to notify when WebSocket events are received
+  - Added `subscribeToOrder()`, `unsubscribeFromOrder()`, and `disconnectWebSocket()` methods to `TransakService`
+  - Added `subscribeToTransakOrderUpdates()` method to `RampsController` for bootstrapping WebSocket subscriptions on app restart
+  - Added `PusherFactory`, `PusherLike`, and `ChannelLike` types for dependency injection
+  - Exported new action types: `TransakServiceSubscribeToOrderAction`, `TransakServiceUnsubscribeFromOrderAction`, `TransakServiceDisconnectWebSocketAction`
+
 ## [12.1.0]
 
 ### Added

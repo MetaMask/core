@@ -69,7 +69,11 @@ import type {
   PatchUserRequestBody,
   TransakOrder,
 } from './TransakService';
-import type { TransakServiceActions } from './TransakService';
+import type {
+  TransakServiceActions,
+  TransakServiceOrderUpdateEvent,
+} from './TransakService';
+import { TransakOrderIdTransformer } from './TransakService';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -95,6 +99,9 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
+  TransakServiceSubscribeToOrderAction,
+  TransakServiceUnsubscribeFromOrderAction,
+  TransakServiceDisconnectWebSocketAction,
 } from './TransakService-method-action-types';
 
 // === GENERAL ===
@@ -148,6 +155,9 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:cancelOrder',
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
+  'TransakService:subscribeToOrder',
+  'TransakService:unsubscribeFromOrder',
+  'TransakService:disconnectWebSocket',
 ];
 
 /**
@@ -494,7 +504,10 @@ type AllowedActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubscribeToOrderAction
+  | TransakServiceUnsubscribeFromOrderAction
+  | TransakServiceDisconnectWebSocketAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -523,7 +536,7 @@ export type RampsControllerEvents =
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = TransakServiceOrderUpdateEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -635,6 +648,7 @@ const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
 
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 const MAX_ERROR_COUNT = 5;
+const swallowRejection = (): undefined => undefined;
 
 type OrderPollingMetadata = {
   lastTimeFetched: number;
@@ -794,6 +808,11 @@ export class RampsController extends BaseController<
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
+    );
+
+    this.messenger.subscribe(
+      'TransakService:orderUpdate',
+      this.#handleTransakOrderUpdate.bind(this),
     );
   }
 
@@ -1761,6 +1780,13 @@ export class RampsController extends BaseController<
         } as Draft<RampsOrder>;
       }
     });
+
+    if (
+      this.#isTransakOrder(order) &&
+      PENDING_ORDER_STATUSES.has(order.status)
+    ) {
+      this.#subscribeTransakOrder(order.providerOrderId);
+    }
   }
 
   /**
@@ -1769,13 +1795,21 @@ export class RampsController extends BaseController<
    * @param providerOrderId - The provider order ID to remove.
    */
   removeOrder(providerOrderId: string): void {
+    const order = this.state.orders.find(
+      (existing) => existing.providerOrderId === providerOrderId,
+    );
+
     this.update((state) => {
       state.orders = state.orders.filter(
-        (order) => order.providerOrderId !== providerOrderId,
+        (existing) => existing.providerOrderId !== providerOrderId,
       );
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+
+    if (order && this.#isTransakOrder(order)) {
+      this.#unsubscribeTransakOrder(providerOrderId);
+    }
   }
 
   /**
@@ -1825,6 +1859,9 @@ export class RampsController extends BaseController<
 
       if (TERMINAL_ORDER_STATUSES.has(updatedOrder.status)) {
         this.#orderPollingMeta.delete(order.providerOrderId);
+        if (this.#isTransakOrder(order)) {
+          this.#unsubscribeTransakOrder(order.providerOrderId);
+        }
       }
     } catch {
       const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
@@ -1848,10 +1885,10 @@ export class RampsController extends BaseController<
     }
 
     this.#orderPollingTimer = setInterval(() => {
-      this.#pollPendingOrders().catch(() => undefined);
+      this.#pollPendingOrders().catch(swallowRejection);
     }, DEFAULT_POLLING_INTERVAL_MS);
 
-    this.#pollPendingOrders().catch(() => undefined);
+    this.#pollPendingOrders().catch(swallowRejection);
   }
 
   /**
@@ -1912,6 +1949,11 @@ export class RampsController extends BaseController<
    */
   override destroy(): void {
     this.stopOrderPolling();
+    try {
+      this.messenger.call('TransakService:disconnectWebSocket');
+    } catch {
+      // TransakService may not be registered yet during tests
+    }
     super.destroy();
   }
 
@@ -2068,6 +2110,71 @@ export class RampsController extends BaseController<
     );
 
     return order;
+  }
+
+  // === TRANSAK WEBSOCKET ===
+
+  #isTransakOrder(order: RampsOrder): boolean {
+    const providerId = order.provider?.id ?? '';
+    return providerId.includes('transak-native');
+  }
+
+  #subscribeTransakOrder(providerOrderId: string): void {
+    const transakOrderId =
+      TransakOrderIdTransformer.extractTransakOrderId(providerOrderId);
+    try {
+      this.messenger.call('TransakService:subscribeToOrder', transakOrderId);
+    } catch {
+      // WebSocket subscription is best-effort; polling is the fallback
+    }
+  }
+
+  #unsubscribeTransakOrder(providerOrderId: string): void {
+    const transakOrderId =
+      TransakOrderIdTransformer.extractTransakOrderId(providerOrderId);
+    try {
+      this.messenger.call(
+        'TransakService:unsubscribeFromOrder',
+        transakOrderId,
+      );
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+
+  #handleTransakOrderUpdate(data: {
+    transakOrderId: string;
+    status: string;
+    eventType: string;
+  }): void {
+    const order = this.state.orders.find((existing) => {
+      if (!this.#isTransakOrder(existing)) {
+        return false;
+      }
+      const orderId = TransakOrderIdTransformer.extractTransakOrderId(
+        existing.providerOrderId,
+      );
+      return orderId === data.transakOrderId;
+    });
+
+    if (order) {
+      this.#refreshOrder(order).catch(swallowRejection);
+    }
+  }
+
+  /**
+   * Subscribes to WebSocket channels for all pending Transak orders.
+   * Called on startup to resume real-time tracking for orders already in state.
+   */
+  subscribeToTransakOrderUpdates(): void {
+    const pendingTransakOrders = this.state.orders.filter(
+      (order) =>
+        this.#isTransakOrder(order) && PENDING_ORDER_STATUSES.has(order.status),
+    );
+
+    for (const order of pendingTransakOrders) {
+      this.#subscribeTransakOrder(order.providerOrderId);
+    }
   }
 
   // === TRANSAK METHODS ===

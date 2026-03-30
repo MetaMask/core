@@ -125,6 +125,32 @@ export type TransakServiceGetActiveOrdersAction = {
   handler: TransakService['getActiveOrders'];
 };
 
+export type TransakServiceSubscribeToOrderAction = {
+  type: `TransakService:subscribeToOrder`;
+  handler: TransakService['subscribeToOrder'];
+};
+
+export type TransakServiceUnsubscribeFromOrderAction = {
+  type: `TransakService:unsubscribeFromOrder`;
+  handler: TransakService['unsubscribeFromOrder'];
+};
+
+export type TransakServiceDisconnectWebSocketAction = {
+  type: `TransakService:disconnectWebSocket`;
+  handler: TransakService['disconnectWebSocket'];
+};
+
+/**
+ * Returns the current WebSocket subscription state for debugging.
+ * Used by the ramps debug dashboard to display live connection status.
+ *
+ * @returns The connection status and list of subscribed order IDs.
+ */
+export type TransakServiceGetWebSocketSubscriptionsAction = {
+  type: `TransakService:getWebSocketSubscriptions`;
+  handler: TransakService['getWebSocketSubscriptions'];
+};
+
 /**
  * Union of all TransakService action types.
  */
@@ -152,4 +178,8 @@ export type TransakServiceMethodActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubscribeToOrderAction
+  | TransakServiceUnsubscribeFromOrderAction
+  | TransakServiceDisconnectWebSocketAction
+  | TransakServiceGetWebSocketSubscriptionsAction;
