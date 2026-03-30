@@ -202,7 +202,7 @@ export class SampleGasPricesService extends BaseDataService<
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Fetching '${url.toString()}' failed with status '${response.status}'`,
+            `Gas prices API failed with status '${response.status}'`,
           );
         }
 

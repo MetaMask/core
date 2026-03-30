@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_RETRIES } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -34,6 +35,19 @@ describe('SampleGasPricesService', () => {
         average: 10,
         high: 15,
       });
+    });
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .get('/gas-prices')
+        .query({ chainId: 'eip155:1' })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
+      ).rejects.toThrow("Gas prices API failed with status '500'");
     });
 
     it.each([
