@@ -1,4 +1,25 @@
 export type {
+  SocialControllerActions,
+  SocialControllerEvents,
+  SocialControllerGetStateAction,
+  SocialControllerMessenger,
+  SocialControllerOptions,
+  SocialControllerStateChangeEvent,
+} from './SocialController';
+export {
+  SocialController,
+  getDefaultSocialControllerState,
+} from './SocialController';
+
+export type {
+  SocialControllerFetchFollowingAction,
+  SocialControllerFollowTraderAction,
+  SocialControllerUnfollowTraderAction,
+  SocialControllerUpdateFollowingAction,
+  SocialControllerUpdateLeaderboardAction,
+} from './SocialController-method-action-types';
+
+export type {
   SocialServiceActions,
   SocialServiceEvents,
   SocialServiceMessenger,
@@ -33,6 +54,7 @@ export type {
   Position,
   PositionsResponse,
   ProfileSummary,
+  SocialControllerState,
   SocialHandles,
   Trade,
   TraderProfile,

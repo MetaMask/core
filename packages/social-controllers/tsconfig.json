@@ -4,6 +4,7 @@
     "baseUrl": "./"
   },
   "references": [
+    { "path": "../base-controller" },
     { "path": "../base-data-service" },
     { "path": "../controller-utils" },
     { "path": "../messenger" }
