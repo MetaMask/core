@@ -1740,12 +1740,14 @@ describe('Messenger', () => {
         namespace: 'Child',
       });
 
-      // @ts-expect-error — 'B:getName' is missing from the actions list
-      source.delegateAll({
-        messenger: child,
-        actions: ['A:getValue'],
-        events: [],
-      });
+      expect(() =>
+        // @ts-expect-error — 'B:getName' is missing from the actions list
+        source.delegateAll({
+          messenger: child,
+          actions: ['A:getValue'],
+          events: [],
+        }),
+      ).not.toThrow();
     });
   });
 
