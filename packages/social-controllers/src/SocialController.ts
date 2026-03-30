@@ -6,7 +6,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { SocialControllerMethodActions } from './SocialController-method-action-types';
 import { controllerName } from './social-constants';
 import type {
   FetchFollowingOptions,
@@ -20,6 +19,7 @@ import type {
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types';
+import type { SocialControllerMethodActions } from './SocialController-method-action-types';
 
 // === MESSENGER ===
 
