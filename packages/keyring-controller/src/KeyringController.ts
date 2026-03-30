@@ -2583,8 +2583,9 @@ export class KeyringController<
         newMetadata = true;
         metadata = getDefaultKeyringMetadata();
       }
-      // Recompute the fingerprint from the builder so it stays current even
-      // when the vault predates fingerprint support or getFingerprint changes.
+      // We recompute the fingerprint for the keyring. This way, if an existing
+      // keyring now supports fingerprinting, we can still get the fingerprint
+      // for keyrings that were created before fingerprinting was supported.
       const builder = this.#getKeyringBuilderForType(type);
       if (builder?.getFingerprint) {
         metadata = {
