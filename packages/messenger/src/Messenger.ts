@@ -112,7 +112,7 @@ export type MessengerNamespace<
  * When all required members are present, evaluates to the input tuple unchanged.
  * When members are missing, evaluates to a branded intersection type that
  * produces a clear compile error showing exactly which items are missing via
- * the `__missing` property.
+ * the `missingDelegations` property.
  *
  * @template Required - The union of all required string types.
  * @template Provided - The readonly tuple of provided string types.
@@ -124,7 +124,7 @@ export type MessengerNamespace<
  *
  * // Error — 'C' is missing
  * type T2 = RequireExhaustive<'A' | 'B' | 'C', readonly ['A', 'B']>;
- * // => readonly ['A', 'B'] & { __missing: 'C' }
+ * // => readonly ['A', 'B'] & { missingDelegations: 'C' }
  * ```
  */
 type RequireExhaustive<
@@ -132,7 +132,7 @@ type RequireExhaustive<
   Provided extends readonly string[],
 > = [Exclude<Required, Provided[number]>] extends [never]
   ? Provided
-  : Provided & { __missing: Exclude<Required, Provided[number]> };
+  : Provided & { missingDelegations: Exclude<Required, Provided[number]> };
 
 /**
  * Messenger namespace checks can be disabled by using this as the `namespace` constructor
