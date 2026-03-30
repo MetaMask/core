@@ -136,8 +136,12 @@ export type RelatedAsset = {
   name: string;
   /** Ticker symbol (e.g. "BTC") */
   symbol: string;
-  /** CAIP-19 identifiers for this asset across chains */
-  caip19: string[];
+  /**
+   * CAIP-19 identifiers for this asset across chains. May be absent for
+   * purely synthetic / perps-only assets (e.g. ETHFI). The service
+   * normalises missing values to `[]`.
+   */
+  caip19?: string[];
   /** Canonical source asset identifier (e.g. "bitcoin") */
   sourceAssetId: string;
   /**

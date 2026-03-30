@@ -676,6 +676,37 @@ describe('AiDigestService', () => {
       );
     });
 
+    it('normalises missing caip19 to [] for perps-only assets', async () => {
+      const perpsOnlyAsset = {
+        name: 'ETHFI',
+        symbol: 'ETHFI',
+        sourceAssetId: '',
+        hlPerpsMarket: ['ETHFI'],
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [perpsOnlyAsset],
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result?.trends[0].relatedAssets[0].caip19).toStrictEqual([]);
+    });
+
     it('accepts response without optional version field', async () => {
       const { version: _version, ...withoutVersion } = mockMarketOverview;
 
