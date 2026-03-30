@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
+import type { SocialControllerMethodActions } from './SocialController-method-action-types';
 import { controllerName } from './social-constants';
 import type {
   FetchFollowingOptions,
@@ -20,27 +21,16 @@ import type {
   UnfollowResponse,
 } from './social-types';
 
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchLeaderboard',
+  'followTrader',
+  'unfollowTrader',
+  'fetchFollowing',
+] as const;
+
 // === ACTION TYPES ===
-
-export type SocialControllerFetchLeaderboardAction = {
-  type: `${typeof controllerName}:fetchLeaderboard`;
-  handler: SocialController['fetchLeaderboard'];
-};
-
-export type SocialControllerFollowTraderAction = {
-  type: `${typeof controllerName}:followTrader`;
-  handler: SocialController['followTrader'];
-};
-
-export type SocialControllerUnfollowTraderAction = {
-  type: `${typeof controllerName}:unfollowTrader`;
-  handler: SocialController['unfollowTrader'];
-};
-
-export type SocialControllerFetchFollowingAction = {
-  type: `${typeof controllerName}:fetchFollowing`;
-  handler: SocialController['fetchFollowing'];
-};
 
 export type SocialControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -48,11 +38,8 @@ export type SocialControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type SocialControllerActions =
-  | SocialControllerFetchLeaderboardAction
-  | SocialControllerFollowTraderAction
-  | SocialControllerUnfollowTraderAction
-  | SocialControllerFetchFollowingAction
-  | SocialControllerGetStateAction;
+  | SocialControllerGetStateAction
+  | SocialControllerMethodActions;
 
 // === EVENT TYPES ===
 
@@ -63,7 +50,7 @@ export type SocialControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type SocialControllerEvents = SocialControllerStateChangeEvent;
 
-// === MESSENGER ===
+// === MESSENGER TYPE ===
 
 export type SocialControllerMessenger = Messenger<
   typeof controllerName,
@@ -98,14 +85,14 @@ export function getDefaultSocialControllerState(): SocialControllerState {
 const socialControllerMetadata: StateMetadata<SocialControllerState> = {
   leaderboardEntries: {
     persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
     usedInUi: true,
   },
   followingAddresses: {
     persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
     usedInUi: true,
   },
 };
@@ -139,7 +126,11 @@ export class SocialController extends BaseController<
     });
 
     this.#socialService = socialService;
-    this.#registerMessageHandlers();
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -225,24 +216,5 @@ export class SocialController extends BaseController<
     });
 
     return response;
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchLeaderboard`,
-      this.fetchLeaderboard.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:followTrader`,
-      this.followTrader.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:unfollowTrader`,
-      this.unfollowTrader.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchFollowing`,
-      this.fetchFollowing.bind(this),
-    );
   }
 }
