@@ -1729,6 +1729,24 @@ describe('Messenger', () => {
       expect(childMessenger.call('Source:getValue')).toBe(42);
     });
 
+    it('produces a type error when an action is missing', () => {
+      type ActionA = { type: 'A:getValue'; handler: () => number };
+      type ActionB = { type: 'B:getName'; handler: () => string };
+
+      const source = new Messenger<'Source', ActionA | ActionB, never>({
+        namespace: 'Source',
+      });
+      const child = new Messenger<'Child', ActionA | ActionB, never>({
+        namespace: 'Child',
+      });
+
+      // @ts-expect-error — 'B:getName' is missing from the actions list
+      source.delegateAll({
+        messenger: child,
+        actions: ['A:getValue'],
+        events: [],
+      });
+    });
   });
 
   describe('revoke', () => {
