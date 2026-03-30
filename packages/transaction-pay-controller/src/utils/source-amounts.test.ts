@@ -1,3 +1,5 @@
+import { TransactionType } from '@metamask/transaction-controller';
+
 import { updateSourceAmounts } from './source-amounts';
 import { getTokenFiatRate } from './token';
 import { getTransaction } from './transaction';
@@ -53,7 +55,9 @@ describe('Source Amounts Utils', () => {
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
     getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
-    getTransactionMock.mockReturnValue({ id: TRANSACTION_ID_MOCK } as never);
+    getTransactionMock.mockReturnValue({
+      id: TRANSACTION_ID_MOCK,
+    } as never);
   });
 
   describe('updateSourceAmounts', () => {
@@ -95,6 +99,34 @@ describe('Source Amounts Utils', () => {
 
     it('does not return empty array if payment token matches but hyperliquid deposit and relay strategy', () => {
       getStrategyMock.mockReturnValue(TransactionPayStrategy.Relay);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but supported perps deposit and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDeposit,
+      } as never);
 
       const transactionData: TransactionData = {
         isLoading: false,

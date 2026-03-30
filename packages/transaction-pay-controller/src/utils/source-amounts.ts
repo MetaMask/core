@@ -1,3 +1,4 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -152,8 +153,15 @@ function calculateSourceAmount(
     return undefined;
   }
 
-  const strategy = getStrategyType(transactionId, messenger);
-  const isAlwaysRequired = isQuoteAlwaysRequired(token, strategy);
+  const { parentTransactionType, strategy } = getStrategyContext(
+    transactionId,
+    messenger,
+  );
+  const isAlwaysRequired = isQuoteAlwaysRequired(
+    token,
+    strategy,
+    parentTransactionType,
+  );
 
   if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
     log('Skipping token as same as payment token');
@@ -195,34 +203,43 @@ function calculateSourceAmount(
  *
  * @param token - Target token.
  * @param strategy - Payment strategy.
+ * @param parentTransactionType - Parent transaction type, if available.
  * @returns True if a quote is always required, false otherwise.
  */
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
+  parentTransactionType?: TransactionType,
 ): boolean {
   const isHyperliquidDeposit =
     token.chainId === CHAIN_ID_ARBITRUM &&
     token.address.toLowerCase() === ARBITRUM_USDC_ADDRESS.toLowerCase();
 
-  return strategy === TransactionPayStrategy.Relay && isHyperliquidDeposit;
+  return (
+    isHyperliquidDeposit &&
+    (strategy === TransactionPayStrategy.Relay ||
+      (strategy === TransactionPayStrategy.Across &&
+        parentTransactionType === TransactionType.perpsDeposit))
+  );
 }
 
-/**
- * Get the strategy type for a transaction.
- *
- * @param transactionId - ID of the transaction.
- * @param messenger - Controller messenger.
- * @returns Payment strategy type.
- */
-function getStrategyType(
+function getStrategyContext(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
-): TransactionPayStrategy {
+): {
+  parentTransactionType?: TransactionType;
+  strategy: TransactionPayStrategy;
+} {
   const transaction = getTransaction(
     transactionId,
     messenger,
   ) as TransactionMeta;
 
-  return messenger.call('TransactionPayController:getStrategy', transaction);
+  return {
+    parentTransactionType: transaction.type,
+    strategy: messenger.call(
+      'TransactionPayController:getStrategy',
+      transaction,
+    ),
+  };
 }
