@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `NetworkController` methods through its messenger
+- Expose missing public `NetworkController` methods through its messenger ([#8350](https://github.com/MetaMask/core/pull/8350))
   - The following actions are now available:
     - `NetworkController:enableRpcFailover`
     - `NetworkController:disableRpcFailover`
@@ -30,8 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-- `NetworkControllerGetNetworkConfigurationByChainId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByChainIdAction`
-- `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction`
+- `NetworkControllerGetNetworkConfigurationByChainId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByChainIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
+- `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 
 ## [30.0.1]
 
