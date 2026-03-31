@@ -1,7 +1,6 @@
-import type { ESLint as ESLintClass } from 'eslint';
+import type { ESLint as eslintClass } from 'eslint';
 
 export type ESLint = {
-  instance: ESLintClass;
-  outputFixes: typeof ESLintClass.outputFixes;
-  getErrorResults: typeof ESLintClass.getErrorResults;
+  instance: eslintClass;
+  eslintClass: typeof eslintClass;
 };

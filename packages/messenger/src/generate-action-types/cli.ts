@@ -78,8 +78,7 @@ async function loadESLint(): Promise<ESLint | null> {
     });
     return {
       instance,
-      outputFixes: ESLintClass.outputFixes.bind(ESLintClass),
-      getErrorResults: ESLintClass.getErrorResults.bind(ESLintClass),
+      eslintClass: ESLintClass,
     };
   } catch {
     return null;

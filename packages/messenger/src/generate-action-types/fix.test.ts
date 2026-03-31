@@ -86,8 +86,10 @@ describe('generateAllActionTypesFiles', () => {
 
       const mockEslint = {
         instance: { lintFiles: jest.fn().mockResolvedValue([]) },
-        outputFixes: jest.fn().mockResolvedValue(undefined),
-        getErrorResults: jest.fn().mockReturnValue([]),
+        eslintClass: {
+          outputFixes: jest.fn().mockResolvedValue(undefined),
+          getErrorResults: jest.fn().mockReturnValue([]),
+        },
       };
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
@@ -97,8 +99,8 @@ describe('generateAllActionTypesFiles', () => {
       expect(mockEslint.instance.lintFiles).toHaveBeenCalledWith([
         path.join(directoryPath, 'TestController-method-action-types.ts'),
       ]);
-      expect(mockEslint.outputFixes).toHaveBeenCalled();
-      expect(mockEslint.getErrorResults).toHaveBeenCalled();
+      expect(mockEslint.eslintClass.outputFixes).toHaveBeenCalled();
+      expect(mockEslint.eslintClass.getErrorResults).toHaveBeenCalled();
     });
   });
 
@@ -116,15 +118,20 @@ describe('generateAllActionTypesFiles', () => {
         instance: {
           lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
         },
-        outputFixes: jest.fn().mockResolvedValue(undefined),
-        getErrorResults: jest
-          .fn()
-          .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
+        eslintClass: {
+          outputFixes: jest.fn().mockResolvedValue(undefined),
+          getErrorResults: jest
+            .fn()
+            .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
+        },
       };
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const result = await generateAllActionTypesFiles([controller], mockEslint);
+      const result = await generateAllActionTypesFiles(
+        [controller],
+        mockEslint,
+      );
 
       expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
