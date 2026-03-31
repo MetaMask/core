@@ -2011,7 +2011,7 @@ describe('AccountTreeController', () => {
         controller.setSelectedAccountGroup(
           'non-existent-group-id' as AccountGroupId,
         );
-      }).toThrow('No accounts found in group: non-existent-group-id');
+      }).toThrow('No accounts found in group');
     });
 
     it('handles AccountsController selectedAccountChange for account not in tree gracefully', () => {
@@ -3009,28 +3009,20 @@ describe('AccountTreeController', () => {
       // Should throw for non-existent group operations
       expect(() => {
         controller.setAccountGroupName(nonExistentGroupId, 'Test Name');
-      }).toThrow(
-        `Account group with ID "${nonExistentGroupId}" not found in tree`,
-      );
+      }).toThrow('Account group not found in tree');
 
       expect(() => {
         controller.setAccountGroupPinned(nonExistentGroupId, true);
-      }).toThrow(
-        `Account group with ID "${nonExistentGroupId}" not found in tree`,
-      );
+      }).toThrow('Account group not found in tree');
 
       expect(() => {
         controller.setAccountGroupHidden(nonExistentGroupId, true);
-      }).toThrow(
-        `Account group with ID "${nonExistentGroupId}" not found in tree`,
-      );
+      }).toThrow('Account group not found in tree');
 
       // Should throw for non-existent wallet operations
       expect(() => {
         controller.setAccountWalletName(nonExistentWalletId, 'Test Wallet');
-      }).toThrow(
-        `Account wallet with ID "${nonExistentWalletId}" not found in tree`,
-      );
+      }).toThrow('Account wallet not found in tree');
 
       // Metadata should NOT be stored since the operations threw
       expect(
@@ -3223,9 +3215,7 @@ describe('AccountTreeController', () => {
           'non-existent-group-id' as AccountGroupId,
           'Some Name',
         );
-      }).toThrow(
-        'Account group with ID "non-existent-group-id" not found in tree',
-      );
+      }).toThrow('Account group not found in tree');
     });
   });
 
@@ -5081,9 +5071,7 @@ describe('AccountTreeController', () => {
           'entropy:non-existent/group-id' as AccountGroupId,
           'Test Name',
         );
-      }).toThrow(
-        'Account group with ID "entropy:non-existent/group-id" not found in tree',
-      );
+      }).toThrow('Account group not found in tree');
     });
 
     it('handles autoHandleConflict with real conflict scenario', () => {

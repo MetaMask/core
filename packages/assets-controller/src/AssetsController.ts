@@ -11,6 +11,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
@@ -1905,6 +1906,11 @@ export class AssetsController extends BaseController<
 
         const assetChainId = extractChainId(typedAssetId);
 
+        // Skip native tokens on Tempo networks
+        if (this.#shouldHideNativeToken(assetChainId, typedAssetId, metadata)) {
+          continue;
+        }
+
         if (!chainIdSet.has(assetChainId)) {
           continue;
         }
@@ -1944,6 +1950,34 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Determines if a native token should be hidden on specific networks.
+   *
+   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:42431").
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:42431/slip44:60").
+   * @param metadata - The asset metadata.
+   * @returns True if the token should be hidden, false otherwise.
+   */
+  #shouldHideNativeToken(
+    chainId: ChainId,
+    assetId: Caip19AssetId,
+    metadata: AssetMetadata,
+  ): boolean {
+    // Check if it's a chain that should skip native tokens
+    if (
+      !CHAIN_IDS_WITH_NO_NATIVE_TOKEN.includes(
+        chainId as (typeof CHAIN_IDS_WITH_NO_NATIVE_TOKEN)[number],
+      )
+    ) {
+      return false;
+    }
+
+    // Check if it's a native token (either by metadata type or assetId format)
+    const isNative = metadata.type === 'native' || assetId.includes('/slip44:');
+
+    return isNative;
   }
 
   /**

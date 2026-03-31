@@ -9,6 +9,7 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
+import { shouldIncludeNativeToken } from '../constants';
 import type { UnprocessedTokens } from '../multi-chain-accounts-service/api-balance-fetcher';
 import { getTokenBalancesForMultipleAddresses } from '../multicall';
 import type { TokensControllerState } from '../TokensController';
@@ -126,13 +127,17 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       const provider = this.#getProvider(chainId);
       await this.#ensureFreshBlockData(chainId);
 
+      // Skip native token fetching for chains that return arbitrary large numbers
+      const includeNative = shouldIncludeNativeToken(chainId);
+
       const balanceResult = await safelyExecuteWithTimeout(
         async () => {
           return await getTokenBalancesForMultipleAddresses(
             accountTokenGroups,
             chainId,
             provider,
-            includeNativeAndStaked,
+            // Skip native for Tempo chains
+            includeNative && includeNativeAndStaked,
             includeNativeAndStaked,
           );
         },
@@ -148,7 +153,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       const { tokenBalances, stakedBalances } = balanceResult;
       const chainResults: ProcessedBalance[] = [];
 
-      if (includeNativeAndStaked) {
+      if (includeNative && includeNativeAndStaked) {
         // Add native token entries for all addresses being processed
         const allAddressesForNative = new Set<string>();
         accountTokenGroups.forEach((group) => {

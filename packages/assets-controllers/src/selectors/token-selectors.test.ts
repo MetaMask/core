@@ -1096,5 +1096,75 @@ describe('token-selectors', () => {
       // Should have undefined fiat since there's no currency rate for 'INK'
       expect(inkNativeToken?.fiat).toBeUndefined();
     });
+
+    it('hides native tokens on Tempo testnet (0xa5bf)', () => {
+      const tempoTestnetChainId = '0xa5bf' as Hex; // 42431 in decimal
+      const stateWithTempoTestnet = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [tempoTestnetChainId]: {
+            nativeCurrency: 'ETH',
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [tempoTestnetChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithTempoTestnet);
+
+      // Native token should be hidden on Tempo testnet
+      const nativeToken = result[tempoTestnetChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
+    });
+
+    it('hides native tokens on Tempo mainnet (0x1079)', () => {
+      const tempoMainnetChainId = '0x1079' as Hex; // 4217 in decimal
+      const stateWithTempoMainnet = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [tempoMainnetChainId]: {
+            nativeCurrency: 'ETH',
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [tempoMainnetChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithTempoMainnet);
+
+      // Native token should be hidden on Tempo mainnet
+      const nativeToken = result[tempoMainnetChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
+    });
+
+    it('does not hide native tokens on non-Tempo networks', () => {
+      const ethereumChainId = '0x1' as Hex;
+      const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
+
+      // Native token should still be visible on Ethereum
+      const nativeToken = result[ethereumChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeDefined();
+      expect(nativeToken?.symbol).toBe('ETH');
+    });
   });
 });

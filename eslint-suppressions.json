@@ -271,19 +271,11 @@
     "id-length": {
       "count": 1
     },
-    "import-x/no-relative-packages": {
-      "count": 1
-    },
     "no-negated-condition": {
       "count": 1
     },
     "no-param-reassign": {
       "count": 2
-    }
-  },
-  "packages/assets-controllers/src/NftDetectionController.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
