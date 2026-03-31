@@ -37,7 +37,7 @@
 /packages/eip-7702-internal-rpc-middleware  @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
-/packages/earn-controller                   @MetaMask/metamask-earn
+/packages/earn-controller                   @MetaMask/earn
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
@@ -142,8 +142,8 @@
 /packages/config-registry-controller/package.json @MetaMask/networks @MetaMask/core-platform
 /packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
-/packages/earn-controller/package.json            @MetaMask/metamask-earn @MetaMask/core-platform
-/packages/earn-controller/CHANGELOG.md            @MetaMask/metamask-earn @MetaMask/core-platform
+/packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
+/packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
 /packages/eip-5792-middleware/package.json        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip-5792-middleware/CHANGELOG.md        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip1193-permission-middleware/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
