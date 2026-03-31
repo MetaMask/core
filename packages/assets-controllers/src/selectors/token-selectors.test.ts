@@ -11,7 +11,11 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import { selectAssetsBySelectedAccountGroup } from './token-selectors';
+import {
+  createSelectAssetsBySelectedAccountGroup,
+  type AssetListRootSelectors,
+  type AssetListState,
+} from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
@@ -573,6 +577,28 @@ const mockedMergedState = {
   ...mockNetworkControllerState,
   ...mockAccountsTrackerControllerState,
 };
+
+const identityRootSelectors: AssetListRootSelectors<AssetListState> = {
+  selectAccountTree: (s) => s.accountTree,
+  selectSelectedAccountGroup: (s) => s.selectedAccountGroup,
+  selectInternalAccounts: (s) => s.internalAccounts,
+  selectAllTokens: (s) => s.allTokens,
+  selectAllIgnoredTokens: (s) => s.allIgnoredTokens,
+  selectTokenBalances: (s) => s.tokenBalances,
+  selectMarketData: (s) => s.marketData,
+  selectCurrencyRates: (s) => s.currencyRates,
+  selectAccountsAssets: (s) => s.accountsAssets,
+  selectAllIgnoredAssets: (s) => s.allIgnoredAssets,
+  selectAssetsMetadata: (s) => s.assetsMetadata,
+  selectBalances: (s) => s.balances,
+  selectConversionRates: (s) => s.conversionRates,
+  selectCurrentCurrency: (s) => s.currentCurrency,
+  selectNetworkConfigurationsByChainId: (s) => s.networkConfigurationsByChainId,
+  selectAccountsByChainId: (s) => s.accountsByChainId,
+};
+
+const selectAssetsBySelectedAccountGroup =
+  createSelectAssetsBySelectedAccountGroup(identityRootSelectors);
 
 const expectedMockResult = {
   '0x1': [

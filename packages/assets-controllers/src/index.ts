@@ -273,10 +273,11 @@ export type {
   AccountGroupAssets,
   Asset,
   AssetListState,
+  AssetListRootSelectors,
 } from './selectors/token-selectors';
 export {
-  selectAssetsBySelectedAccountGroup,
-  selectAllAssets,
+  createSelectAssetsBySelectedAccountGroup,
+  createSelectAllAssets,
 } from './selectors/token-selectors';
 export { createFormatters } from './utils/formatters';
 export type {

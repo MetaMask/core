@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `selectAllAssets` and `selectAssetsBySelectedAccountGroup` have been replaced by builder functions `createSelectAllAssets` and `createSelectAssetsBySelectedAccountGroup` that accept root selectors via `AssetListRootSelectors<RootState>`, allowing clients with different state shapes to inject their own root selectors ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - **BREAKING:** Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
   - The controllers now require `SnapController:getRunnableSnaps` instead of `SnapController:getAll`.
 - Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
