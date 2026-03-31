@@ -2869,10 +2869,20 @@ describe('RampsController', () => {
       );
     });
 
-    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field', async () => {
+    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field and a token is selected', async () => {
       const providerWithoutField: Provider = { ...mockProvider };
       delete (providerWithoutField as Partial<Provider>)
         .supportedCryptoCurrencies;
+
+      const selectedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: '',
+        tokenSupported: true,
+      };
 
       const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
 
@@ -2882,6 +2892,7 @@ describe('RampsController', () => {
             state: {
               userRegion: createMockUserRegion('us-ca'),
               providers: createResourceState([providerWithoutField], null),
+              tokens: createResourceState(null, selectedToken),
             },
           },
         },
@@ -2899,6 +2910,36 @@ describe('RampsController', () => {
           await new Promise((resolve) => setTimeout(resolve, 0));
 
           expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('skips getPaymentMethods when no token is selected', async () => {
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider.id,
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).not.toHaveBeenCalled();
         },
       );
     });
@@ -4417,6 +4458,16 @@ describe('RampsController', () => {
     });
 
     it('does not update paymentMethods when selectedProvider changes during request', async () => {
+      const selectedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
       const providerA: Provider = {
         id: '/providers/provider-a',
         name: 'Provider A',
@@ -4472,7 +4523,7 @@ describe('RampsController', () => {
           options: {
             state: {
               userRegion: createMockUserRegion('us-ca'),
-              tokens: createResourceState(null, null),
+              tokens: createResourceState(null, selectedToken),
               providers: createResourceState([providerA, providerB], providerA),
               paymentMethods: createResourceState([], null),
             },

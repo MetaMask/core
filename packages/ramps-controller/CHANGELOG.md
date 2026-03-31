@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `setSelectedProvider` no longer fetches payment methods when no token is selected ([#8342](https://github.com/MetaMask/core/pull/8342))
+  - Previously, the `tokenSupportedByProvider` guard evaluated to `true` when no token was selected (vacuous truth), causing an unfiltered payment methods fetch with an empty `crypto` parameter. The guard now requires a token to be selected before triggering the fetch.
+
 ## [12.1.0]
 
 ### Added
