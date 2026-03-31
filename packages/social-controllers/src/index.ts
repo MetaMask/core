@@ -1,5 +1,20 @@
-export type { SocialServiceConfig } from './SocialService';
+export type {
+  SocialServiceActions,
+  SocialServiceEvents,
+  SocialServiceMessenger,
+} from './SocialService';
 export { SocialService } from './SocialService';
+
+export type {
+  SocialServiceFetchClosedPositionsAction,
+  SocialServiceFetchFollowersAction,
+  SocialServiceFetchFollowingAction,
+  SocialServiceFetchLeaderboardAction,
+  SocialServiceFetchOpenPositionsAction,
+  SocialServiceFetchTraderProfileAction,
+  SocialServiceFollowAction,
+  SocialServiceUnfollowAction,
+} from './SocialService-method-action-types';
 
 export type {
   FetchFollowersOptions,
@@ -8,8 +23,8 @@ export type {
   FetchPositionsOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
-  FollowOptions,
   FollowingResponse,
+  FollowOptions,
   FollowResponse,
   LeaderboardEntry,
   LeaderboardResponse,
@@ -18,7 +33,6 @@ export type {
   Position,
   PositionsResponse,
   ProfileSummary,
-  SocialDataService,
   SocialHandles,
   Trade,
   TraderProfile,
