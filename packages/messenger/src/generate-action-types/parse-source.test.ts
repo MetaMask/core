@@ -1,25 +1,25 @@
+import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { findSourcesWithExposedMethods, parseSourceFile } from './parse-source';
 
+const { withinSandbox: withinParseSourceSandbox } = createSandbox(
+  'messenger/parse-source',
+);
+const { withinSandbox: withinFindControllersSandbox } = createSandbox(
+  'messenger/find-controllers',
+);
+
 describe('parseSourceFile', () => {
-  let tmpDir: string;
-
-  beforeEach(async () => {
-    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'parse-source-'));
-  });
-
-  afterEach(async () => {
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
-  });
-
   it('extracts controller info from a file with MESSENGER_EXPOSED_METHODS', async () => {
-    const controllerFile = path.join(tmpDir, 'TestController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(1);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(directoryPath, 'TestController.ts');
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
 
 class TestController {
@@ -31,47 +31,55 @@ class TestController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).toStrictEqual({
-      name: 'TestController',
-      filePath: controllerFile,
-      methods: [
-        {
-          name: 'doStuff',
-          jsDoc: '/**\n * Does stuff.\n */',
-        },
-      ],
+      expect(result).toStrictEqual({
+        name: 'TestController',
+        filePath: controllerFile,
+        methods: [
+          {
+            name: 'doStuff',
+            jsDoc: '/**\n * Does stuff.\n */',
+          },
+        ],
+      });
     });
   });
 
   it('returns null for a file without MESSENGER_EXPOSED_METHODS', async () => {
-    const controllerFile = path.join(tmpDir, 'NoExposed.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(1);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(directoryPath, 'NoExposed.ts');
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 class NoExposedController {
   doStuff() {
     return true;
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).toBeNull();
+      expect(result).toBeNull();
+    });
   });
 
   it('returns null for a file with empty MESSENGER_EXPOSED_METHODS', async () => {
-    const controllerFile = path.join(tmpDir, 'EmptyController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(1);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(directoryPath, 'EmptyController.ts');
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = [] as const;
 
 class EmptyController {
@@ -80,19 +88,26 @@ class EmptyController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).toBeNull();
+      expect(result).toBeNull();
+    });
   });
 
   it('handles array literals without as const', async () => {
-    const controllerFile = path.join(tmpDir, 'PlainArrayController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(2);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(
+        directoryPath,
+        'PlainArrayController.ts',
+      );
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'];
 
 class PlainArrayController {
@@ -101,22 +116,26 @@ class PlainArrayController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.methods.map((method) => method.name)).toStrictEqual([
-      'doStuff',
-    ]);
+      expect(result).not.toBeNull();
+      expect(result?.methods.map((method) => method.name)).toStrictEqual([
+        'doStuff',
+      ]);
+    });
   });
 
   it('works with Service class names', async () => {
-    const serviceFile = path.join(tmpDir, 'TestService.ts');
-    await fs.promises.writeFile(
-      serviceFile,
-      `
+    expect.assertions(2);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const serviceFile = path.join(directoryPath, 'TestService.ts');
+      await fs.promises.writeFile(
+        serviceFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['fetchData'] as const;
 
 class TestService {
@@ -125,20 +144,24 @@ class TestService {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(serviceFile);
+      const result = await parseSourceFile(serviceFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.name).toBe('TestService');
+      expect(result).not.toBeNull();
+      expect(result?.name).toBe('TestService');
+    });
   });
 
   it('extracts methods without JSDoc', async () => {
-    const controllerFile = path.join(tmpDir, 'NoDocController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(2);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(directoryPath, 'NoDocController.ts');
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
 
 class NoDocController {
@@ -147,33 +170,37 @@ class NoDocController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.methods[0].jsDoc).toBe('');
+      expect(result).not.toBeNull();
+      expect(result?.methods[0].jsDoc).toBe('');
+    });
   });
 
   it('handles inherited methods via type checker', async () => {
-    // Create a tsconfig.json so the type checker can work
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'tsconfig.json'),
-      JSON.stringify({
-        compilerOptions: {
-          target: 'ES2020',
-          module: 'commonjs',
-          strict: true,
-        },
-        include: ['./*.ts'],
-      }),
-      'utf8',
-    );
+    expect.assertions(5);
 
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'BaseController.ts'),
-      `
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      // Create a tsconfig.json so the type checker can work
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            target: 'ES2020',
+            module: 'commonjs',
+            strict: true,
+          },
+          include: ['./*.ts'],
+        }),
+        'utf8',
+      );
+
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'BaseController.ts'),
+        `
 export class BaseController {
   /**
    * Base method.
@@ -183,13 +210,13 @@ export class BaseController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const controllerFile = path.join(tmpDir, 'ChildController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+      const controllerFile = path.join(directoryPath, 'ChildController.ts');
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 import { BaseController } from './BaseController';
 
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'baseMethod'] as const;
@@ -200,44 +227,55 @@ class ChildController extends BaseController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.methods).toHaveLength(2);
-    expect(result?.methods[0].name).toBe('doStuff');
-    expect(result?.methods[1].name).toBe('baseMethod');
-    expect(result?.methods[1].jsDoc).toContain('Base method.');
+      expect(result).not.toBeNull();
+      expect(result?.methods).toHaveLength(2);
+      expect(result?.methods[0].name).toBe('doStuff');
+      expect(result?.methods[1].name).toBe('baseMethod');
+      expect(result?.methods[1].jsDoc).toContain('Base method.');
+    });
   });
 
   it('handles inherited methods without JSDoc', async () => {
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'tsconfig.json'),
-      JSON.stringify({
-        compilerOptions: { target: 'ES2020', module: 'commonjs', strict: true },
-        include: ['./*.ts'],
-      }),
-      'utf8',
-    );
+    expect.assertions(4);
 
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'BaseNoDoc.ts'),
-      `
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            target: 'ES2020',
+            module: 'commonjs',
+            strict: true,
+          },
+          include: ['./*.ts'],
+        }),
+        'utf8',
+      );
+
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'BaseNoDoc.ts'),
+        `
 export class BaseNoDoc {
   baseMethod() {
     return 'base';
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const controllerFile = path.join(tmpDir, 'ChildNoDocController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+      const controllerFile = path.join(
+        directoryPath,
+        'ChildNoDocController.ts',
+      );
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 import { BaseNoDoc } from './BaseNoDoc';
 
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'baseMethod'] as const;
@@ -248,32 +286,43 @@ class ChildNoDocController extends BaseNoDoc {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.methods).toHaveLength(2);
-    expect(result?.methods[1].name).toBe('baseMethod');
-    // Method without JSDoc should have empty string
-    expect(result?.methods[1].jsDoc).toBe('');
+      expect(result).not.toBeNull();
+      expect(result?.methods).toHaveLength(2);
+      expect(result?.methods[1].name).toBe('baseMethod');
+      // Method without JSDoc should have empty string
+      expect(result?.methods[1].jsDoc).toBe('');
+    });
   });
 
   it('handles exposed method not found in hierarchy', async () => {
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'tsconfig.json'),
-      JSON.stringify({
-        compilerOptions: { target: 'ES2020', module: 'commonjs', strict: true },
-        include: ['./*.ts'],
-      }),
-      'utf8',
-    );
+    expect.assertions(4);
 
-    const controllerFile = path.join(tmpDir, 'MissingMethodController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            target: 'ES2020',
+            module: 'commonjs',
+            strict: true,
+          },
+          include: ['./*.ts'],
+        }),
+        'utf8',
+      );
+
+      const controllerFile = path.join(
+        directoryPath,
+        'MissingMethodController.ts',
+      );
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'nonExistentMethod'] as const;
 
 class MissingMethodController {
@@ -282,22 +331,29 @@ class MissingMethodController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.methods).toHaveLength(2);
-    expect(result?.methods[1].name).toBe('nonExistentMethod');
-    expect(result?.methods[1].jsDoc).toBe('');
+      expect(result).not.toBeNull();
+      expect(result?.methods).toHaveLength(2);
+      expect(result?.methods[1].name).toBe('nonExistentMethod');
+      expect(result?.methods[1].jsDoc).toBe('');
+    });
   });
 
   it('formats JSDoc with empty middle lines', async () => {
-    const controllerFile = path.join(tmpDir, 'EmptyLineDocController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(4);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(
+        directoryPath,
+        'EmptyLineDocController.ts',
+      );
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
 
 class EmptyLineDocController {
@@ -311,59 +367,70 @@ class EmptyLineDocController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await parseSourceFile(controllerFile);
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).not.toBeNull();
-    expect(result?.methods[0].jsDoc).toContain(' *\n');
-    expect(result?.methods[0].jsDoc).toContain(' * First line.');
-    expect(result?.methods[0].jsDoc).toContain(' * After empty line.');
+      expect(result).not.toBeNull();
+      expect(result?.methods[0].jsDoc).toContain(' *\n');
+      expect(result?.methods[0].jsDoc).toContain(' * First line.');
+      expect(result?.methods[0].jsDoc).toContain(' * After empty line.');
+    });
   });
 
   it('extracts JSDoc with non-standard middle lines', async () => {
-    const controllerFile = path.join(tmpDir, 'WeirdDocController.ts');
-    // Write file with a JSDoc containing a line without * prefix and an empty line without * prefix
-    const source = [
-      '',
-      "const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;",
-      '',
-      'class WeirdDocController {',
-      '  /**',
-      '    This line has no asterisk prefix.',
-      '    ',
-      '   */',
-      '  doStuff() {',
-      '    return true;',
-      '  }',
-      '}',
-      '',
-    ].join('\n');
-    await fs.promises.writeFile(controllerFile, source, 'utf8');
+    expect.assertions(3);
 
-    const result = await parseSourceFile(controllerFile);
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(directoryPath, 'WeirdDocController.ts');
+      // Write file with a JSDoc containing a line without * prefix and an empty line without * prefix
+      const source = [
+        '',
+        "const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;",
+        '',
+        'class WeirdDocController {',
+        '  /**',
+        '    This line has no asterisk prefix.',
+        '    ',
+        '   */',
+        '  doStuff() {',
+        '    return true;',
+        '  }',
+        '}',
+        '',
+      ].join('\n');
+      await fs.promises.writeFile(controllerFile, source, 'utf8');
 
-    expect(result).not.toBeNull();
-    expect(result?.methods[0].jsDoc).toContain(
-      ' * This line has no asterisk prefix.',
-    );
-    // The empty line (only whitespace, no *) should become ' *'
-    expect(result?.methods[0].jsDoc).toContain(' *\n');
+      const result = await parseSourceFile(controllerFile);
+
+      expect(result).not.toBeNull();
+      expect(result?.methods[0].jsDoc).toContain(
+        ' * This line has no asterisk prefix.',
+      );
+      // The empty line (only whitespace, no *) should become ' *'
+      expect(result?.methods[0].jsDoc).toContain(' *\n');
+    });
   });
 
   it('handles inherited methods with malformed tsconfig', async () => {
-    // Write an invalid tsconfig to trigger readConfigFile error
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'tsconfig.json'),
-      'this is not valid json',
-      'utf8',
-    );
+    expect.assertions(2);
 
-    const controllerFile = path.join(tmpDir, 'BadTsconfigController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      // Write an invalid tsconfig to trigger readConfigFile error
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'tsconfig.json'),
+        'this is not valid json',
+        'utf8',
+      );
+
+      const controllerFile = path.join(
+        directoryPath,
+        'BadTsconfigController.ts',
+      );
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'inherited'] as const;
 
 class BadTsconfigController {
@@ -372,24 +439,31 @@ class BadTsconfigController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    const result = await parseSourceFile(controllerFile);
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const result = await parseSourceFile(controllerFile);
 
-    expect(result).toBeNull();
-    expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalled();
 
-    consoleErrorSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   it('handles inherited methods when tsconfig is missing', async () => {
-    // No tsconfig.json in tmpDir — createProgramForFile should fail with assert
-    const controllerFile = path.join(tmpDir, 'NoTsconfigController.ts');
-    await fs.promises.writeFile(
-      controllerFile,
-      `
+    expect.assertions(2);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      // No tsconfig.json in directoryPath — createProgramForFile should fail with assert
+      const controllerFile = path.join(
+        directoryPath,
+        'NoTsconfigController.ts',
+      );
+      await fs.promises.writeFile(
+        controllerFile,
+        `
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'inheritedMethod'] as const;
 
 class NoTsconfigController {
@@ -398,20 +472,23 @@ class NoTsconfigController {
   }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    const result = await parseSourceFile(controllerFile);
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const result = await parseSourceFile(controllerFile);
 
-    // Should return null because assert fails when type checker can't be created
-    expect(result).toBeNull();
-    expect(consoleErrorSpy).toHaveBeenCalled();
+      // Should return null because assert fails when type checker can't be created
+      expect(result).toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalled();
 
-    consoleErrorSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   it('returns null and logs error for invalid file', async () => {
+    expect.assertions(2);
+
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
     const result = await parseSourceFile('/nonexistent/file.ts');
@@ -423,82 +500,82 @@ class NoTsconfigController {
 });
 
 describe('findSourcesWithExposedMethods', () => {
-  let tmpDir: string;
-
-  beforeEach(async () => {
-    tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'find-controllers-'),
-    );
-  });
-
-  afterEach(async () => {
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
-  });
-
   it('finds controllers with MESSENGER_EXPOSED_METHODS in a directory', async () => {
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'FooController.ts'),
-      `
+    expect.assertions(2);
+
+    await withinFindControllersSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'FooController.ts'),
+        `
 const MESSENGER_EXPOSED_METHODS = ['doFoo'] as const;
 class FooController {
   doFoo() { return 'foo'; }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'BarController.ts'),
-      `
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'BarController.ts'),
+        `
 class BarController {
   doBar() { return 'bar'; }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await findSourcesWithExposedMethods(tmpDir);
+      const result = await findSourcesWithExposedMethods(directoryPath);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('FooController');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('FooController');
+    });
   });
 
   it('skips test files', async () => {
-    await fs.promises.writeFile(
-      path.join(tmpDir, 'FooController.test.ts'),
-      `
+    expect.assertions(1);
+
+    await withinFindControllersSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'FooController.test.ts'),
+        `
 const MESSENGER_EXPOSED_METHODS = ['doFoo'] as const;
 class FooController {
   doFoo() { return 'foo'; }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await findSourcesWithExposedMethods(tmpDir);
+      const result = await findSourcesWithExposedMethods(directoryPath);
 
-    expect(result).toHaveLength(0);
+      expect(result).toHaveLength(0);
+    });
   });
 
   it('finds sources in nested subdirectories', async () => {
-    const subDir = path.join(tmpDir, 'nested');
-    await fs.promises.mkdir(subDir);
+    expect.assertions(2);
 
-    await fs.promises.writeFile(
-      path.join(subDir, 'NestedController.ts'),
-      `
+    await withinFindControllersSandbox(async ({ directoryPath }) => {
+      const subDir = path.join(directoryPath, 'nested');
+      await fs.promises.mkdir(subDir);
+
+      await fs.promises.writeFile(
+        path.join(subDir, 'NestedController.ts'),
+        `
 const MESSENGER_EXPOSED_METHODS = ['doNested'] as const;
 class NestedController {
   doNested() { return 'nested'; }
 }
 `,
-      'utf8',
-    );
+        'utf8',
+      );
 
-    const result = await findSourcesWithExposedMethods(tmpDir);
+      const result = await findSourcesWithExposedMethods(directoryPath);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('NestedController');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('NestedController');
+    });
   });
 
   it('throws an error when the path is not a directory', async () => {
@@ -514,7 +591,7 @@ class NestedController {
         Object.assign(new Error('EACCES'), { code: 'EACCES' }),
       );
 
-    await expect(findSourcesWithExposedMethods(tmpDir)).rejects.toThrow(
+    await expect(findSourcesWithExposedMethods('/some/path')).rejects.toThrow(
       'EACCES',
     );
 

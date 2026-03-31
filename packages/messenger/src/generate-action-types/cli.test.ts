@@ -1,6 +1,6 @@
+import { createSandbox } from '@metamask/utils/node';
 import execa from 'execa';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..', '..', '..');
@@ -53,26 +53,19 @@ async function listGeneratedFiles(dir: string): Promise<string[]> {
   return results.sort();
 }
 
+const { withinSandbox } = createSandbox('messenger/cli-functional');
+
 jest.setTimeout(30_000);
 
 describe('generate-action-types CLI (functional)', () => {
-  let tmpDir: string;
-
-  beforeEach(async () => {
-    tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'cli-functional-'),
-    );
-  });
-
-  afterEach(async () => {
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
-  });
-
   describe('--fix', () => {
     it('generates FooController-method-action-types.ts for a controller with multiple documented methods', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'FooController.ts'),
-        `
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'FooController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['getState', 'reset'] as const;
 
 class FooController {
@@ -91,22 +84,22 @@ class FooController {
   }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([
-        'FooController-method-action-types.ts',
-      ]);
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'FooController-method-action-types.ts',
+        ]);
 
-      const content = await fs.promises.readFile(
-        path.join(tmpDir, 'FooController-method-action-types.ts'),
-        'utf8',
-      );
-      expect(content).toBe(`/**
+        const content = await fs.promises.readFile(
+          path.join(directoryPath, 'FooController-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toBe(`/**
  * This file is auto generated.
  * Do not edit manually.
  */
@@ -134,12 +127,16 @@ export type FooControllerResetAction = {
  */
 export type FooControllerMethodActions = FooControllerGetStateAction | FooControllerResetAction;
 `);
+      });
     });
 
     it('generates DataService-method-action-types.ts for a service with JSDoc containing @param and @returns', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'DataService.ts'),
-        `
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'DataService.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['fetchItems'] as const;
 
 class DataService {
@@ -153,22 +150,22 @@ class DataService {
   }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([
-        'DataService-method-action-types.ts',
-      ]);
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'DataService-method-action-types.ts',
+        ]);
 
-      const content = await fs.promises.readFile(
-        path.join(tmpDir, 'DataService-method-action-types.ts'),
-        'utf8',
-      );
-      expect(content).toBe(`/**
+        const content = await fs.promises.readFile(
+          path.join(directoryPath, 'DataService-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toBe(`/**
  * This file is auto generated.
  * Do not edit manually.
  */
@@ -190,12 +187,16 @@ export type DataServiceFetchItemsAction = {
  */
 export type DataServiceMethodActions = DataServiceFetchItemsAction;
 `);
+      });
     });
 
     it('generates correct types for a controller with many methods without JSDoc', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'BarController.ts'),
-        `
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'BarController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['enable', 'disable', 'isEnabled'] as const;
 
 class BarController {
@@ -204,22 +205,22 @@ class BarController {
   isEnabled() { return true; }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([
-        'BarController-method-action-types.ts',
-      ]);
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'BarController-method-action-types.ts',
+        ]);
 
-      const content = await fs.promises.readFile(
-        path.join(tmpDir, 'BarController-method-action-types.ts'),
-        'utf8',
-      );
-      expect(content).toBe(`/**
+        const content = await fs.promises.readFile(
+          path.join(directoryPath, 'BarController-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toBe(`/**
  * This file is auto generated.
  * Do not edit manually.
  */
@@ -246,12 +247,16 @@ export type BarControllerIsEnabledAction = {
  */
 export type BarControllerMethodActions = BarControllerEnableAction | BarControllerDisableAction | BarControllerIsEnabledAction;
 `);
+      });
     });
 
     it('generates AuthService-method-action-types.ts for a service with @param and @returns JSDoc', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'AuthService.ts'),
-        `
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'AuthService.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['authenticate'] as const;
 
 class AuthService {
@@ -266,22 +271,22 @@ class AuthService {
   }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([
-        'AuthService-method-action-types.ts',
-      ]);
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'AuthService-method-action-types.ts',
+        ]);
 
-      const content = await fs.promises.readFile(
-        path.join(tmpDir, 'AuthService-method-action-types.ts'),
-        'utf8',
-      );
-      expect(content).toBe(`/**
+        const content = await fs.promises.readFile(
+          path.join(directoryPath, 'AuthService-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toBe(`/**
  * This file is auto generated.
  * Do not edit manually.
  */
@@ -304,168 +309,197 @@ export type AuthServiceAuthenticateAction = {
  */
 export type AuthServiceMethodActions = AuthServiceAuthenticateAction;
 `);
+      });
     });
 
     it('generates separate files for both a controller and service in the same directory', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'MyController.ts'),
-        `
+      expect.assertions(8);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'MyController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['doWork'] as const;
 class MyController {
   doWork() { return true; }
 }
 `,
-        'utf8',
-      );
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'MyService.ts'),
-        `
+          'utf8',
+        );
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'MyService.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['query'] as const;
 class MyService {
   query() { return []; }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([
-        'MyController-method-action-types.ts',
-        'MyService-method-action-types.ts',
-      ]);
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'MyController-method-action-types.ts',
+          'MyService-method-action-types.ts',
+        ]);
 
-      const controllerContent = await fs.promises.readFile(
-        path.join(tmpDir, 'MyController-method-action-types.ts'),
-        'utf8',
-      );
-      expect(controllerContent).toContain('MyControllerDoWorkAction');
-      expect(controllerContent).toContain("handler: MyController['doWork']");
-      expect(controllerContent).toContain('MyControllerMethodActions');
+        const controllerContent = await fs.promises.readFile(
+          path.join(directoryPath, 'MyController-method-action-types.ts'),
+          'utf8',
+        );
+        expect(controllerContent).toContain('MyControllerDoWorkAction');
+        expect(controllerContent).toContain("handler: MyController['doWork']");
+        expect(controllerContent).toContain('MyControllerMethodActions');
 
-      const serviceContent = await fs.promises.readFile(
-        path.join(tmpDir, 'MyService-method-action-types.ts'),
-        'utf8',
-      );
-      expect(serviceContent).toContain('MyServiceQueryAction');
-      expect(serviceContent).toContain("handler: MyService['query']");
-      expect(serviceContent).toContain('MyServiceMethodActions');
+        const serviceContent = await fs.promises.readFile(
+          path.join(directoryPath, 'MyService-method-action-types.ts'),
+          'utf8',
+        );
+        expect(serviceContent).toContain('MyServiceQueryAction');
+        expect(serviceContent).toContain("handler: MyService['query']");
+        expect(serviceContent).toContain('MyServiceMethodActions');
+      });
     });
 
     it('discovers and generates files for sources in nested subdirectories', async () => {
-      const subDir = path.join(tmpDir, 'nested');
-      await fs.promises.mkdir(subDir);
-      await fs.promises.writeFile(
-        path.join(subDir, 'NestedController.ts'),
-        `
+      expect.assertions(4);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        const subDir = path.join(directoryPath, 'nested');
+        await fs.promises.mkdir(subDir);
+        await fs.promises.writeFile(
+          path.join(subDir, 'NestedController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['doNested'] as const;
 class NestedController {
   doNested() { return 'nested'; }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([
-        path.join('nested', 'NestedController-method-action-types.ts'),
-      ]);
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          path.join('nested', 'NestedController-method-action-types.ts'),
+        ]);
 
-      const content = await fs.promises.readFile(
-        path.join(subDir, 'NestedController-method-action-types.ts'),
-        'utf8',
-      );
-      expect(content).toContain('NestedControllerDoNestedAction');
-      expect(content).toContain("handler: NestedController['doNested']");
+        const content = await fs.promises.readFile(
+          path.join(subDir, 'NestedController-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toContain('NestedControllerDoNestedAction');
+        expect(content).toContain("handler: NestedController['doNested']");
+      });
     });
 
     it('warns and generates no files when no sources are found', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'empty.ts'),
-        'export const foo = 1;',
-        'utf8',
-      );
+      expect.assertions(3);
 
-      const result = await runCLI(['--fix', tmpDir]);
-      expect(result.exitCode).toBe(0);
-      expect(result.all).toContain('No controllers/services found');
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'empty.ts'),
+          'export const foo = 1;',
+          'utf8',
+        );
 
-      const generatedFiles = await listGeneratedFiles(tmpDir);
-      expect(generatedFiles).toStrictEqual([]);
+        const result = await runCLI(['--fix', directoryPath]);
+        expect(result.exitCode).toBe(0);
+        expect(result.all).toContain('No controllers/services found');
+
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([]);
+      });
     });
   });
 
   describe('--check', () => {
     it('exits 0 when generated files are up to date', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'TestController.ts'),
-        `
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'TestController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
 class TestController {
   doStuff() { return true; }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      await runCLI(['--fix', tmpDir]);
-      const result = await runCLI(['--check', tmpDir]);
+        await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--check', directoryPath]);
 
-      expect(result.exitCode).toBe(0);
-      expect(result.all).toContain('up to date');
+        expect(result.exitCode).toBe(0);
+        expect(result.all).toContain('up to date');
+      });
     });
 
     it('exits 1 when generated files are out of date', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'TestController.ts'),
-        `
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'TestController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
 class TestController {
   doStuff() { return true; }
 }
 `,
-        'utf8',
-      );
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'TestController-method-action-types.ts'),
-        '// outdated\n',
-        'utf8',
-      );
+          'utf8',
+        );
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'TestController-method-action-types.ts'),
+          '// outdated\n',
+          'utf8',
+        );
 
-      const result = await runCLI(['--check', tmpDir]);
+        const result = await runCLI(['--check', directoryPath]);
 
-      expect(result.exitCode).toBe(1);
-      expect(result.all).toContain('out of date');
+        expect(result.exitCode).toBe(1);
+        expect(result.all).toContain('out of date');
+      });
     });
 
     it('exits 1 when generated files are missing', async () => {
-      await fs.promises.writeFile(
-        path.join(tmpDir, 'TestController.ts'),
-        `
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'TestController.ts'),
+          `
 const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
 class TestController {
   doStuff() { return true; }
 }
 `,
-        'utf8',
-      );
+          'utf8',
+        );
 
-      const result = await runCLI(['--check', tmpDir]);
+        const result = await runCLI(['--check', directoryPath]);
 
-      expect(result.exitCode).toBe(1);
-      expect(result.all).toContain('does not exist');
+        expect(result.exitCode).toBe(1);
+        expect(result.all).toContain('does not exist');
+      });
     });
   });
 
   describe('argument validation', () => {
     it('exits 1 when neither --check nor --fix is provided', async () => {
-      const result = await runCLI([tmpDir]);
-      expect(result.exitCode).toBe(1);
+      expect.assertions(1);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        const result = await runCLI([directoryPath]);
+        expect(result.exitCode).toBe(1);
+      });
     });
   });
 });

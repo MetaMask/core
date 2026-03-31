@@ -1,130 +1,149 @@
+import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { generateAllActionTypesFiles } from './fix';
 import { generateActionTypesContent } from './generate-content';
 import type { SourceInfo } from './parse-source';
 
+const { withinSandbox } = createSandbox('messenger/fix-action-types');
+
 describe('generateAllActionTypesFiles', () => {
-  let tmpDir: string;
   const originalExitCode = globalThis.process.exitCode;
 
-  beforeEach(async () => {
-    tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'fix-action-types-'),
-    );
+  beforeEach(() => {
     globalThis.process.exitCode = undefined;
   });
 
-  afterEach(async () => {
-    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  afterEach(() => {
     globalThis.process.exitCode = originalExitCode;
   });
 
   it('generates files for controllers (no ESLint)', async () => {
-    const controller: SourceInfo = {
-      name: 'TestController',
-      filePath: path.join(tmpDir, 'TestController.ts'),
+    expect.assertions(1);
 
-      methods: [{ name: 'doStuff', jsDoc: '' }],
-    };
+    await withinSandbox(async ({ directoryPath }) => {
+      const controller: SourceInfo = {
+        name: 'TestController',
+        filePath: path.join(directoryPath, 'TestController.ts'),
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await generateAllActionTypesFiles([controller], null);
-    consoleSpy.mockRestore();
+        methods: [{ name: 'doStuff', jsDoc: '' }],
+      };
 
-    const outputFile = path.join(
-      tmpDir,
-      'TestController-method-action-types.ts',
-    );
-    const content = await fs.promises.readFile(outputFile, 'utf8');
-    const expected = generateActionTypesContent(controller);
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      await generateAllActionTypesFiles([controller], null);
+      consoleSpy.mockRestore();
 
-    expect(content).toBe(expected);
+      const outputFile = path.join(
+        directoryPath,
+        'TestController-method-action-types.ts',
+      );
+      const content = await fs.promises.readFile(outputFile, 'utf8');
+      const expected = generateActionTypesContent(controller);
+
+      expect(content).toBe(expected);
+    });
   });
 
   it('generates files for multiple controllers', async () => {
-    const controllers: SourceInfo[] = [
-      {
-        name: 'FooController',
-        filePath: path.join(tmpDir, 'FooController.ts'),
-        methods: [{ name: 'doFoo', jsDoc: '' }],
-      },
-      {
-        name: 'BarService',
-        filePath: path.join(tmpDir, 'BarService.ts'),
-        methods: [{ name: 'doBar', jsDoc: '' }],
-      },
-    ];
+    expect.assertions(2);
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await generateAllActionTypesFiles(controllers, null);
-    consoleSpy.mockRestore();
+    await withinSandbox(async ({ directoryPath }) => {
+      const controllers: SourceInfo[] = [
+        {
+          name: 'FooController',
+          filePath: path.join(directoryPath, 'FooController.ts'),
+          methods: [{ name: 'doFoo', jsDoc: '' }],
+        },
+        {
+          name: 'BarService',
+          filePath: path.join(directoryPath, 'BarService.ts'),
+          methods: [{ name: 'doBar', jsDoc: '' }],
+        },
+      ];
 
-    const fooFile = path.join(tmpDir, 'FooController-method-action-types.ts');
-    const barFile = path.join(tmpDir, 'BarService-method-action-types.ts');
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      await generateAllActionTypesFiles(controllers, null);
+      consoleSpy.mockRestore();
 
-    const fooContent = await fs.promises.readFile(fooFile, 'utf8');
-    const barContent = await fs.promises.readFile(barFile, 'utf8');
+      const fooFile = path.join(
+        directoryPath,
+        'FooController-method-action-types.ts',
+      );
+      const barFile = path.join(
+        directoryPath,
+        'BarService-method-action-types.ts',
+      );
 
-    expect(fooContent).toContain('FooController');
-    expect(barContent).toContain('BarService');
+      const fooContent = await fs.promises.readFile(fooFile, 'utf8');
+      const barContent = await fs.promises.readFile(barFile, 'utf8');
+
+      expect(fooContent).toContain('FooController');
+      expect(barContent).toContain('BarService');
+    });
   });
 
   it('invokes ESLint when provided', async () => {
-    const controller: SourceInfo = {
-      name: 'TestController',
-      filePath: path.join(tmpDir, 'TestController.ts'),
+    expect.assertions(3);
 
-      methods: [{ name: 'doStuff', jsDoc: '' }],
-    };
+    await withinSandbox(async ({ directoryPath }) => {
+      const controller: SourceInfo = {
+        name: 'TestController',
+        filePath: path.join(directoryPath, 'TestController.ts'),
 
-    const mockEslint = {
-      instance: { lintFiles: jest.fn().mockResolvedValue([]) },
-      outputFixes: jest.fn().mockResolvedValue(undefined),
-      getErrorResults: jest.fn().mockReturnValue([]),
-    };
+        methods: [{ name: 'doStuff', jsDoc: '' }],
+      };
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await generateAllActionTypesFiles([controller], mockEslint);
-    consoleSpy.mockRestore();
+      const mockEslint = {
+        instance: { lintFiles: jest.fn().mockResolvedValue([]) },
+        outputFixes: jest.fn().mockResolvedValue(undefined),
+        getErrorResults: jest.fn().mockReturnValue([]),
+      };
 
-    expect(mockEslint.instance.lintFiles).toHaveBeenCalledWith([
-      path.join(tmpDir, 'TestController-method-action-types.ts'),
-    ]);
-    expect(mockEslint.outputFixes).toHaveBeenCalled();
-    expect(mockEslint.getErrorResults).toHaveBeenCalled();
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      await generateAllActionTypesFiles([controller], mockEslint);
+      consoleSpy.mockRestore();
+
+      expect(mockEslint.instance.lintFiles).toHaveBeenCalledWith([
+        path.join(directoryPath, 'TestController-method-action-types.ts'),
+      ]);
+      expect(mockEslint.outputFixes).toHaveBeenCalled();
+      expect(mockEslint.getErrorResults).toHaveBeenCalled();
+    });
   });
 
   it('sets exitCode when ESLint reports errors', async () => {
-    const controller: SourceInfo = {
-      name: 'TestController',
-      filePath: path.join(tmpDir, 'TestController.ts'),
-      methods: [{ name: 'doStuff', jsDoc: '' }],
-    };
+    expect.assertions(2);
 
-    const mockEslint = {
-      instance: {
-        lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
-      },
-      outputFixes: jest.fn().mockResolvedValue(undefined),
-      getErrorResults: jest
-        .fn()
-        .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
-    };
+    await withinSandbox(async ({ directoryPath }) => {
+      const controller: SourceInfo = {
+        name: 'TestController',
+        filePath: path.join(directoryPath, 'TestController.ts'),
+        methods: [{ name: 'doStuff', jsDoc: '' }],
+      };
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    await generateAllActionTypesFiles([controller], mockEslint);
+      const mockEslint = {
+        instance: {
+          lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
+        },
+        outputFixes: jest.fn().mockResolvedValue(undefined),
+        getErrorResults: jest
+          .fn()
+          .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
+      };
 
-    expect(globalThis.process.exitCode).toBe(1);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '❌ ESLint errors:',
-      expect.anything(),
-    );
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      await generateAllActionTypesFiles([controller], mockEslint);
 
-    consoleSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+      expect(globalThis.process.exitCode).toBe(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '❌ ESLint errors:',
+        expect.anything(),
+      );
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
   });
 });
