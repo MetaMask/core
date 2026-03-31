@@ -40,7 +40,8 @@ export async function generateAllActionTypesFiles(
     const errors = eslint.getErrorResults(results);
     if (errors.length > 0) {
       console.error('❌ ESLint errors:', errors);
-      globalThis.process.exitCode = 1;
+      // eslint-disable-next-line no-restricted-globals
+      process.exitCode = 1;
     } else {
       console.log('✅ ESLint formatting applied');
     }

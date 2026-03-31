@@ -4329,7 +4329,6 @@ __metadata:
     typescript: "npm:~5.3.3"
     yargs: "npm:^17.7.2"
   peerDependencies:
-    "@metamask/utils": ^11.9.0
     eslint: ">=8"
     typescript: ~5.3.3
   bin:

@@ -50,6 +50,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/utils": "^11.9.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
@@ -69,7 +70,6 @@
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "@metamask/utils": "^11.9.0",
     "eslint": ">=8",
     "typescript": "~5.3.3"
   },
