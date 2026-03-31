@@ -4,25 +4,6 @@ import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
 /**
- * Extract the selector entries from all `no-restricted-syntax` rule
- * configurations in a flat ESLint config array.
- *
- * This is needed because ESLint flat config replaces rule definitions from
- * earlier configs rather than merging them. Any config block that defines
- * `no-restricted-syntax` must include all entries it wants to enforce — it
- * cannot just append to what a previous config defined.
- *
- * @param {import('eslint').Linter.Config[]} flatConfigs - A flat ESLint config array.
- * @returns {object[]} The selector entries.
- */
-function getNoRestrictedSyntaxEntries(flatConfigs) {
-  return flatConfigs.flatMap((config) => {
-    const rule = config.rules?.['no-restricted-syntax'] ?? [];
-    return rule.filter((entry) => typeof entry === 'object');
-  });
-}
-
-/**
  * ESLint rule entries that flag use of the deprecated `:stateChange` event.
  */
 const DEPRECATED_STATE_CHANGE_ENTRIES = [
@@ -151,7 +132,7 @@ const config = createConfig([
       // replaces the rule entirely rather than merging arrays.
       'no-restricted-syntax': [
         'error',
-        ...getNoRestrictedSyntaxEntries(typescript),
+        ...collectExistingRuleOptions('no-restricted-syntax', [typescript]),
         ...DEPRECATED_STATE_CHANGE_ENTRIES,
       ],
     },
