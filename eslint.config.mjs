@@ -109,12 +109,13 @@ const config = createConfig([
       'jsdoc/require-jsdoc': 'off',
 
       // Add custom rule for deprecating `${Controller}:stateChange` in favor of
-      // `:stateChanged`. We must re-include the existing entries from
-      // `@metamask/eslint-config-typescript` here because ESLint flat config
-      // replaces the rule entirely rather than merging arrays.
+      // `:stateChanged`.
       'no-restricted-syntax': [
         'error',
-        ...collectExistingRuleOptions('no-restricted-syntax', [typescript]),
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
         {
           selector:
             'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
