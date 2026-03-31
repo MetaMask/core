@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.20.0]
+
 ### Added
 
 - Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
@@ -651,7 +653,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...HEAD
+[11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
 [11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
 [11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
