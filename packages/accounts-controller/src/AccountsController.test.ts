@@ -3693,7 +3693,7 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockNonEvmAccount.id);
 
-      expect(messengerSpy).not.toHaveBeenLastCalledWith(
+      expect(messengerSpy).not.toHaveBeenCalledWith(
         'AccountsController:selectedEvmAccountChange',
         mockNonEvmAccount,
       );
