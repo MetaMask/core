@@ -63,7 +63,7 @@ export function getAccountTreeControllerMessenger(
       'AuthenticationController:getSessionProfile',
       'MultichainAccountService:createMultichainAccountGroup',
       'KeyringController:getState',
-      'SnapController:get',
+      'SnapController:getSnap',
     ],
   });
   return accountTreeControllerMessenger;

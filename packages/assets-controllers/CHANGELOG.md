@@ -7,11 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [103.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+  - The controllers now require `SnapController:getRunnableSnaps` instead of `SnapController:getAll`.
+- Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/account-tree-controller` from `^6.0.0` to `^7.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/multichain-account-service` from `^8.0.0` to `^8.0.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+
+### Fixed
+
+- `TokenBalancesController` batches rapid `updateBalances` calls: multiple requests within a short timeframe are coalesced and processed once, reducing redundant balance fetches ([#8246](https://github.com/MetaMask/core/pull/8246))
+
 ## [102.0.0]
 
 ### Added
 
 - Add Tempo Mainnet (`4217`/`0x1079`) and Tempo Moderato Testnet (`42431`/`0xa5bf`) support ([#8258](https://github.com/MetaMask/core/pull/8258))
+
   - Add `0x1079` and `0xa5bf` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
   - Add `0x1079` and `0xa5bf` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
   - Add `0xa5bf` (only Tempo Testnet) to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`
@@ -2876,7 +2898,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...HEAD
+[103.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...@metamask/assets-controllers@103.0.0
 [102.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.1...@metamask/assets-controllers@102.0.0
 [101.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.0...@metamask/assets-controllers@101.0.1
 [101.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.1...@metamask/assets-controllers@101.0.0

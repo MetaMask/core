@@ -36,9 +36,7 @@ export type MultichainTrackingHelperOptions = {
     chainId: Hex;
   }) => NonceTracker;
   createPendingTransactionTracker: (opts: {
-    provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
     networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
@@ -66,9 +64,7 @@ export class MultichainTrackingHelper {
   }) => NonceTracker;
 
   readonly #createPendingTransactionTracker: (opts: {
-    provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
     networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
 
@@ -318,9 +314,7 @@ export class MultichainTrackingHelper {
     });
 
     const pendingTransactionTracker = this.#createPendingTransactionTracker({
-      provider,
       blockTracker,
-      chainId,
       networkClientId,
     });
 
