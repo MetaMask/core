@@ -20,7 +20,10 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
-import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
+import type {
+  RampsControllerGetOrderAction,
+  RampsControllerGetQuotesAction,
+} from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -55,6 +58,7 @@ export type AllowedActions =
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
@@ -238,6 +242,9 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
+
+  /** Order identifier - `orderCode` specifically used as RampsService:getOrder parameter in normalized format (/providers/{provider}/orders/{id}). */
+  orderCode?: string;
 
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId?: string;

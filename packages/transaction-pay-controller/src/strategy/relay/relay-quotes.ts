@@ -78,13 +78,15 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests (which have both target=0 and source=0)
-      // but keep post-quote requests (identified by isPostQuote flag)
-      .filter(
-        (singleRequest) =>
-          singleRequest.targetAmountMinimum !== '0' ||
-          singleRequest.isPostQuote,
-      )
+      .filter((singleRequest) => {
+        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+        const isPostQuote = Boolean(singleRequest.isPostQuote);
+        const isExactInputRequest =
+          Boolean(singleRequest.isMaxAmount) &&
+          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+
+        return hasTargetMinimum || isPostQuote || isExactInputRequest;
+      })
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);
