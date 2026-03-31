@@ -30,8 +30,8 @@ import type {
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import type {
-  GetAllSnaps,
-  HandleSnapRequest,
+  SnapControllerGetRunnableSnapsAction,
+  SnapControllerHandleRequestAction,
 } from '@metamask/snaps-controllers';
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -125,8 +125,8 @@ type MutuallyExclusiveCallback<Result> = ({
  * Actions that this controller is allowed to call.
  */
 type AllowedActions =
-  | HandleSnapRequest
-  | GetAllSnaps
+  | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | GetPermissions
   | AccountsControllerListMultichainAccountsAction
   | PhishingControllerBulkScanTokensAction;
@@ -631,10 +631,7 @@ export class MultichainAssetsController extends BaseController<
    * @returns All the asset snaps
    */
   #getAllSnaps(): Snap[] {
-    // TODO: Use dedicated SnapController's action once available for this:
-    return this.messenger
-      .call('SnapController:getAll')
-      .filter((snap) => snap.enabled && !snap.blocked);
+    return this.messenger.call('SnapController:getRunnableSnaps');
   }
 
   /**

@@ -298,3 +298,14 @@ export const DAY = HOURS * 24;
  * The number of milliseconds in a day.
  */
 export const DAYS = DAY;
+
+/**
+ * Special "EVM-ish" chains with no native tokens.
+ * Created for Tempo, but can be extended to others.
+ * - For hidding the native token from the token list and Send list.
+ * - For excluding the native token from the total wallet value calculation.
+ */
+export const CHAIN_IDS_WITH_NO_NATIVE_TOKEN = [
+  'eip155:42431', // Tempo Testnet
+  'eip155:4217', // Tempo Mainnet
+] as const;

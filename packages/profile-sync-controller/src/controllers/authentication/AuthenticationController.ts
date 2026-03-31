@@ -10,7 +10,7 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
 import {
@@ -111,7 +111,9 @@ export type AuthenticationControllerStateChangeEvent =
 export type Events = AuthenticationControllerStateChangeEvent;
 
 // Allowed Actions
-type AllowedActions = HandleSnapRequest | KeyringControllerGetStateAction;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | SnapControllerHandleRequestAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 

@@ -14,7 +14,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
+import type {
+  SnapControllerHandleRequestAction,
+  SnapControllerHasSnapAction,
+} from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
@@ -1875,22 +1878,25 @@ type RootMessenger = Messenger<
  * @param args.snapControllerHandleRequestActionHandler - Used to mock the
  * `SnapController:handleRequest` action on the messenger.
  * @param args.snapControllerHasActionHandler - Used to mock the
- * `SnapController:has` action on the messenger.
+ * `SnapController:hasSnap` action on the messenger.
  * @returns The unrestricted messenger suited for GatorPermissionsController.
  */
 function getRootMessenger({
   snapControllerHandleRequestActionHandler = jest
     .fn<
-      ReturnType<HandleSnapRequest['handler']>,
-      Parameters<HandleSnapRequest['handler']>
+      ReturnType<SnapControllerHandleRequestAction['handler']>,
+      Parameters<SnapControllerHandleRequestAction['handler']>
     >()
     .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES),
   snapControllerHasActionHandler = jest
-    .fn<ReturnType<HasSnap['handler']>, Parameters<HasSnap['handler']>>()
+    .fn<
+      ReturnType<SnapControllerHasSnapAction['handler']>,
+      Parameters<SnapControllerHasSnapAction['handler']>
+    >()
     .mockResolvedValue(true as never),
 }: {
-  snapControllerHandleRequestActionHandler?: HandleSnapRequest['handler'];
-  snapControllerHasActionHandler?: HasSnap['handler'];
+  snapControllerHandleRequestActionHandler?: SnapControllerHandleRequestAction['handler'];
+  snapControllerHasActionHandler?: SnapControllerHasSnapAction['handler'];
 } = {}): RootMessenger {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -1901,7 +1907,7 @@ function getRootMessenger({
     snapControllerHandleRequestActionHandler,
   );
   rootMessenger.registerActionHandler(
-    'SnapController:has',
+    'SnapController:hasSnap',
     snapControllerHasActionHandler,
   );
   return rootMessenger;
@@ -1928,7 +1934,7 @@ function getGatorPermissionsControllerMessenger(
   });
   rootMessenger.delegate({
     messenger: gatorPermissionsControllerMessenger,
-    actions: ['SnapController:handleRequest', 'SnapController:has'],
+    actions: ['SnapController:handleRequest', 'SnapController:hasSnap'],
     events: [
       'TransactionController:transactionApproved',
       'TransactionController:transactionRejected',

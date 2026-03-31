@@ -1646,6 +1646,62 @@ describe('AccountTrackerController', () => {
       );
     });
 
+    it('should return zero-balance entries if network is Tempo Mainnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-mainnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0x1079',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-mainnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Testnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-testnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0xa5bf',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-testnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
     it('should sync staked balance with addresses', async () => {
       await withController(
         {

@@ -8,8 +8,8 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 import type {
-  GetRunnableSnaps,
-  HandleSnapRequest,
+  SnapControllerGetRunnableSnapsAction,
+  SnapControllerHandleRequestAction,
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
@@ -147,8 +147,8 @@ export type SnapDataSourceAllowedEvents =
   | PermissionControllerStateChange;
 
 export type SnapDataSourceAllowedActions =
-  | GetRunnableSnaps
-  | HandleSnapRequest
+  | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | GetPermissions;
 
 // ============================================================================
