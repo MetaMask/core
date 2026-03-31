@@ -10,11 +10,12 @@ import type { ESLint } from './types';
  *
  * @param sources - Array of source information objects.
  * @param eslint - Optional ESLint instance and static methods for formatting.
+ * @returns Whether all files are up to date.
  */
 export async function checkActionTypesFiles(
   sources: SourceInfo[],
   eslint: ESLint | null,
-): Promise<void> {
+): Promise<boolean> {
   let hasErrors = false;
 
   const fileComparisonJobs: {
@@ -108,9 +109,9 @@ export async function checkActionTypesFiles(
     console.error(
       'Run `yarn generate-method-action-types --fix` to update them.',
     );
-    // eslint-disable-next-line no-restricted-globals
-    process.exitCode = 1;
-  } else {
-    console.log('\n🎉 All action type files are up to date!');
+    return false;
   }
+
+  console.log('\n🎉 All action type files are up to date!');
+  return true;
 }

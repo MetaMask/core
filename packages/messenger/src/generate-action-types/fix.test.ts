@@ -9,16 +9,6 @@ import type { SourceInfo } from './parse-source';
 const { withinSandbox } = createSandbox('messenger/fix-action-types');
 
 describe('generateAllActionTypesFiles', () => {
-  const originalExitCode = globalThis.process.exitCode;
-
-  beforeEach(() => {
-    globalThis.process.exitCode = undefined;
-  });
-
-  afterEach(() => {
-    globalThis.process.exitCode = originalExitCode;
-  });
-
   it('generates files for controllers (no ESLint)', async () => {
     expect.assertions(1);
 
@@ -112,7 +102,7 @@ describe('generateAllActionTypesFiles', () => {
     });
   });
 
-  it('sets exitCode when ESLint reports errors', async () => {
+  it('returns false when ESLint reports errors', async () => {
     expect.assertions(2);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -134,9 +124,9 @@ describe('generateAllActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      await generateAllActionTypesFiles([controller], mockEslint);
+      const result = await generateAllActionTypesFiles([controller], mockEslint);
 
-      expect(globalThis.process.exitCode).toBe(1);
+      expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '❌ ESLint errors:',
         expect.anything(),

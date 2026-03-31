@@ -114,10 +114,19 @@ async function main(): Promise<void> {
   const eslint = await loadESLint();
 
   if (fix) {
-    await generateAllActionTypesFiles(sources, eslint);
-    console.log('\n🎉 All action types generated successfully!');
+    const success = await generateAllActionTypesFiles(sources, eslint);
+    if (success) {
+      console.log('\n🎉 All action types generated successfully!');
+    } else {
+      // eslint-disable-next-line no-restricted-globals
+      process.exitCode = 1;
+    }
   } else {
-    await checkActionTypesFiles(sources, eslint);
+    const success = await checkActionTypesFiles(sources, eslint);
+    if (!success) {
+      // eslint-disable-next-line no-restricted-globals
+      process.exitCode = 1;
+    }
   }
 }
 

@@ -10,11 +10,12 @@ import type { ESLint } from './types';
  *
  * @param sources - Array of source information objects.
  * @param eslint - Optional ESLint instance and static methods for formatting.
+ * @returns Whether all files were generated successfully.
  */
 export async function generateAllActionTypesFiles(
   sources: SourceInfo[],
   eslint: ESLint | null,
-): Promise<void> {
+): Promise<boolean> {
   const outputFiles: string[] = [];
 
   for (const source of sources) {
@@ -40,10 +41,10 @@ export async function generateAllActionTypesFiles(
     const errors = eslint.getErrorResults(results);
     if (errors.length > 0) {
       console.error('❌ ESLint errors:', errors);
-      // eslint-disable-next-line no-restricted-globals
-      process.exitCode = 1;
-    } else {
-      console.log('✅ ESLint formatting applied');
+      return false;
     }
+    console.log('✅ ESLint formatting applied');
   }
+
+  return true;
 }

@@ -9,16 +9,6 @@ import type { SourceInfo } from './parse-source';
 const { withinSandbox } = createSandbox('messenger/check-action-types');
 
 describe('checkActionTypesFiles', () => {
-  const originalExitCode = globalThis.process.exitCode;
-
-  beforeEach(() => {
-    globalThis.process.exitCode = undefined;
-  });
-
-  afterEach(() => {
-    globalThis.process.exitCode = originalExitCode;
-  });
-
   it('reports up to date when files match (no ESLint)', async () => {
     expect.assertions(1);
 
@@ -38,10 +28,10 @@ describe('checkActionTypesFiles', () => {
       );
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], null);
       consoleSpy.mockRestore();
 
-      expect(globalThis.process.exitCode).toBeUndefined();
+      expect(result).toBe(true);
     });
   });
 
@@ -64,11 +54,11 @@ describe('checkActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], null);
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
 
-      expect(globalThis.process.exitCode).toBe(1);
+      expect(result).toBe(false);
     });
   });
 
@@ -85,11 +75,11 @@ describe('checkActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], null);
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
 
-      expect(globalThis.process.exitCode).toBe(1);
+      expect(result).toBe(false);
     });
   });
 
@@ -113,13 +103,13 @@ describe('checkActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], null);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error reading'),
         expect.anything(),
       );
-      expect(globalThis.process.exitCode).toBe(1);
+      expect(result).toBe(false);
 
       accessSpy.mockRestore();
       consoleSpy.mockRestore();
@@ -152,12 +142,12 @@ describe('checkActionTypesFiles', () => {
       };
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await checkActionTypesFiles([controller], mockEslint);
+      const result = await checkActionTypesFiles([controller], mockEslint);
       consoleSpy.mockRestore();
 
       expect(mockEslint.instance.lintFiles).toHaveBeenCalled();
       expect(mockEslint.outputFixes).toHaveBeenCalled();
-      expect(globalThis.process.exitCode).toBeUndefined();
+      expect(result).toBe(true);
     });
   });
 });
