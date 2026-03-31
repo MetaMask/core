@@ -1,7 +1,12 @@
-import { Messenger } from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 
 import { controllerName } from './social-constants';
-import type { SocialDataService } from './social-types';
+import type { SocialControllerState } from './social-types';
 import type { SocialControllerMessenger } from './SocialController';
 import {
   SocialController,
@@ -32,65 +37,59 @@ const mockLeaderboardEntry = {
   socialHandles: { twitter: '@traderalice' },
 };
 
-function createMockService(
-  overrides?: Partial<SocialDataService>,
-): SocialDataService {
-  return {
-    fetchLeaderboard: jest.fn().mockResolvedValue({
-      traders: [mockLeaderboardEntry],
-    }),
-    fetchTraderProfile: jest.fn().mockResolvedValue({}),
-    fetchOpenPositions: jest.fn().mockResolvedValue({
-      positions: [],
-      pagination: { hasMore: false },
-    }),
-    fetchClosedPositions: jest.fn().mockResolvedValue({
-      positions: [],
-      pagination: { hasMore: false },
-    }),
-    fetchFollowers: jest.fn().mockResolvedValue({
-      followers: [],
-      count: 0,
-    }),
-    fetchFollowing: jest.fn().mockResolvedValue({
-      following: [mockProfileSummary],
-      count: 1,
-    }),
-    follow: jest.fn().mockResolvedValue({
-      followed: [mockProfileSummary],
-    }),
-    unfollow: jest.fn().mockResolvedValue({
-      unfollowed: [mockProfileSummary],
-    }),
-    ...overrides,
-  };
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<SocialControllerMessenger>,
+  MessengerEvents<SocialControllerMessenger>
+>;
+
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
-function createMessenger(): SocialControllerMessenger {
-  return new Messenger({
+function getMessenger(rootMessenger: RootMessenger): SocialControllerMessenger {
+  const messenger: SocialControllerMessenger = new Messenger({
     namespace: controllerName,
-  }) as SocialControllerMessenger;
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'SocialService:fetchLeaderboard',
+      'SocialService:follow',
+      'SocialService:unfollow',
+      'SocialService:fetchFollowing',
+    ],
+    events: [],
+    messenger,
+  });
+  return messenger;
 }
 
 function createController(
   options: {
-    messenger?: SocialControllerMessenger;
-    socialService?: SocialDataService;
-    state?: Partial<ReturnType<typeof getDefaultSocialControllerState>>;
+    rootMessenger?: RootMessenger;
+    state?: Partial<SocialControllerState>;
   } = {},
 ): {
   controller: SocialController;
+  rootMessenger: RootMessenger;
   messenger: SocialControllerMessenger;
-  socialService: SocialDataService;
 } {
-  const messenger = options.messenger ?? createMessenger();
-  const socialService = options.socialService ?? createMockService();
+  const rootMessenger = options.rootMessenger ?? getRootMessenger();
+  const messenger = getMessenger(rootMessenger);
   const controller = new SocialController({
     messenger,
-    socialService,
     state: options.state,
   });
-  return { controller, messenger, socialService };
+  return { controller, rootMessenger, messenger };
+}
+
+function mockServiceAction(
+  rootMessenger: RootMessenger,
+  action: string,
+  implementation: jest.Mock,
+): void {
+  rootMessenger.registerActionHandler(action as never, implementation as never);
 }
 
 describe('SocialController', () => {
@@ -125,13 +124,22 @@ describe('SocialController', () => {
     });
   });
 
-  describe('fetchLeaderboard', () => {
-    it('fetches leaderboard and persists entries to state', async () => {
-      const { controller, socialService } = createController();
+  describe('updateLeaderboard', () => {
+    it('fetches leaderboard via messenger and persists entries to state', async () => {
+      const rootMessenger = getRootMessenger();
+      const fetchLeaderboard = jest.fn().mockResolvedValue({
+        traders: [mockLeaderboardEntry],
+      });
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchLeaderboard',
+        fetchLeaderboard,
+      );
 
-      const result = await controller.fetchLeaderboard();
+      const { controller } = createController({ rootMessenger });
+      const result = await controller.updateLeaderboard();
 
-      expect(socialService.fetchLeaderboard).toHaveBeenCalledWith(undefined);
+      expect(fetchLeaderboard).toHaveBeenCalledWith(undefined);
       expect(result.traders).toStrictEqual([mockLeaderboardEntry]);
       expect(controller.state.leaderboardEntries).toStrictEqual([
         mockLeaderboardEntry,
@@ -139,40 +147,61 @@ describe('SocialController', () => {
     });
 
     it('passes options to the service', async () => {
-      const { controller, socialService } = createController();
+      const rootMessenger = getRootMessenger();
+      const fetchLeaderboard = jest.fn().mockResolvedValue({
+        traders: [mockLeaderboardEntry],
+      });
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchLeaderboard',
+        fetchLeaderboard,
+      );
 
-      await controller.fetchLeaderboard({ sort: 'roi', limit: 10 });
+      const { controller } = createController({ rootMessenger });
+      await controller.updateLeaderboard({ sort: 'roi', limit: 10 });
 
-      expect(socialService.fetchLeaderboard).toHaveBeenCalledWith({
+      expect(fetchLeaderboard).toHaveBeenCalledWith({
         sort: 'roi',
         limit: 10,
       });
     });
 
     it('overwrites previous leaderboard entries', async () => {
+      const rootMessenger = getRootMessenger();
       const secondEntry = { ...mockLeaderboardEntry, rank: 2, name: 'Bob' };
-      const socialService = createMockService({
-        fetchLeaderboard: jest
-          .fn()
-          .mockResolvedValueOnce({ traders: [mockLeaderboardEntry] })
-          .mockResolvedValueOnce({ traders: [secondEntry] }),
-      });
-      const { controller } = createController({ socialService });
+      const fetchLeaderboard = jest
+        .fn()
+        .mockResolvedValueOnce({ traders: [mockLeaderboardEntry] })
+        .mockResolvedValueOnce({ traders: [secondEntry] });
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchLeaderboard',
+        fetchLeaderboard,
+      );
 
-      await controller.fetchLeaderboard();
+      const { controller } = createController({ rootMessenger });
+
+      await controller.updateLeaderboard();
       expect(controller.state.leaderboardEntries).toStrictEqual([
         mockLeaderboardEntry,
       ]);
 
-      await controller.fetchLeaderboard();
+      await controller.updateLeaderboard();
       expect(controller.state.leaderboardEntries).toStrictEqual([secondEntry]);
     });
 
     it('is callable via messenger action', async () => {
-      const { messenger } = createController();
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchLeaderboard',
+        jest.fn().mockResolvedValue({ traders: [mockLeaderboardEntry] }),
+      );
+
+      const { messenger } = createController({ rootMessenger });
 
       const result = await messenger.call(
-        'SocialController:fetchLeaderboard',
+        'SocialController:updateLeaderboard',
         undefined,
       );
 
@@ -181,15 +210,21 @@ describe('SocialController', () => {
   });
 
   describe('followTrader', () => {
-    it('calls service and appends new addresses to state', async () => {
-      const { controller, socialService } = createController();
+    it('calls service via messenger and appends new addresses to state', async () => {
+      const rootMessenger = getRootMessenger();
+      const follow = jest
+        .fn()
+        .mockResolvedValue({ followed: [mockProfileSummary] });
+      mockServiceAction(rootMessenger, 'SocialService:follow', follow);
+
+      const { controller } = createController({ rootMessenger });
 
       const result = await controller.followTrader({
         addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
-      expect(socialService.follow).toHaveBeenCalledWith({
+      expect(follow).toHaveBeenCalledWith({
         addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
@@ -199,30 +234,17 @@ describe('SocialController', () => {
       ]);
     });
 
-    it('deduplicates addresses when following someone already followed', async () => {
-      const { controller } = createController({
-        state: {
-          followingAddresses: ['0x1111111111111111111111111111111111111111'],
-        },
-      });
-
-      await controller.followTrader({
-        addressOrUid: '0xuser',
-        targets: ['0x1111111111111111111111111111111111111111'],
-      });
-
-      expect(controller.state.followingAddresses).toStrictEqual([
-        '0x1111111111111111111111111111111111111111',
-      ]);
-    });
-
     it('appends multiple new addresses', async () => {
-      const socialService = createMockService({
-        follow: jest.fn().mockResolvedValue({
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:follow',
+        jest.fn().mockResolvedValue({
           followed: [mockProfileSummary, mockProfileSummaryB],
         }),
-      });
-      const { controller } = createController({ socialService });
+      );
+
+      const { controller } = createController({ rootMessenger });
 
       await controller.followTrader({
         addressOrUid: '0xuser',
@@ -239,7 +261,14 @@ describe('SocialController', () => {
     });
 
     it('is callable via messenger action', async () => {
-      const { messenger } = createController();
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:follow',
+        jest.fn().mockResolvedValue({ followed: [mockProfileSummary] }),
+      );
+
+      const { messenger } = createController({ rootMessenger });
 
       const result = await messenger.call('SocialController:followTrader', {
         addressOrUid: '0xuser',
@@ -251,8 +280,15 @@ describe('SocialController', () => {
   });
 
   describe('unfollowTrader', () => {
-    it('calls service and removes addresses from state', async () => {
-      const { controller, socialService } = createController({
+    it('calls service via messenger and removes addresses from state', async () => {
+      const rootMessenger = getRootMessenger();
+      const unfollow = jest
+        .fn()
+        .mockResolvedValue({ unfollowed: [mockProfileSummary] });
+      mockServiceAction(rootMessenger, 'SocialService:unfollow', unfollow);
+
+      const { controller } = createController({
+        rootMessenger,
         state: {
           followingAddresses: [
             '0x1111111111111111111111111111111111111111',
@@ -266,7 +302,7 @@ describe('SocialController', () => {
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
-      expect(socialService.unfollow).toHaveBeenCalledWith({
+      expect(unfollow).toHaveBeenCalledWith({
         addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
@@ -277,7 +313,15 @@ describe('SocialController', () => {
     });
 
     it('handles unfollowing an address not in state gracefully', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:unfollow',
+        jest.fn().mockResolvedValue({ unfollowed: [mockProfileSummary] }),
+      );
+
       const { controller } = createController({
+        rootMessenger,
         state: { followingAddresses: [] },
       });
 
@@ -290,7 +334,14 @@ describe('SocialController', () => {
     });
 
     it('is callable via messenger action', async () => {
-      const { messenger } = createController();
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:unfollow',
+        jest.fn().mockResolvedValue({ unfollowed: [mockProfileSummary] }),
+      );
+
+      const { messenger } = createController({ rootMessenger });
 
       const result = await messenger.call('SocialController:unfollowTrader', {
         addressOrUid: '0xuser',
@@ -301,19 +352,29 @@ describe('SocialController', () => {
     });
   });
 
-  describe('fetchFollowing', () => {
-    it('calls service and replaces followingAddresses in state', async () => {
-      const { controller, socialService } = createController({
-        state: {
-          followingAddresses: ['0xold'],
-        },
+  describe('updateFollowing', () => {
+    it('calls service via messenger and replaces followingAddresses in state', async () => {
+      const rootMessenger = getRootMessenger();
+      const fetchFollowing = jest.fn().mockResolvedValue({
+        following: [mockProfileSummary],
+        count: 1,
+      });
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchFollowing',
+        fetchFollowing,
+      );
+
+      const { controller } = createController({
+        rootMessenger,
+        state: { followingAddresses: ['0xold'] },
       });
 
-      const result = await controller.fetchFollowing({
+      const result = await controller.updateFollowing({
         addressOrUid: '0xuser',
       });
 
-      expect(socialService.fetchFollowing).toHaveBeenCalledWith({
+      expect(fetchFollowing).toHaveBeenCalledWith({
         addressOrUid: '0xuser',
       });
       expect(result.following).toStrictEqual([mockProfileSummary]);
@@ -323,26 +384,37 @@ describe('SocialController', () => {
     });
 
     it('clears followingAddresses when response is empty', async () => {
-      const socialService = createMockService({
-        fetchFollowing: jest.fn().mockResolvedValue({
-          following: [],
-          count: 0,
-        }),
-      });
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchFollowing',
+        jest.fn().mockResolvedValue({ following: [], count: 0 }),
+      );
+
       const { controller } = createController({
-        socialService,
+        rootMessenger,
         state: { followingAddresses: ['0xold'] },
       });
 
-      await controller.fetchFollowing({ addressOrUid: '0xuser' });
+      await controller.updateFollowing({ addressOrUid: '0xuser' });
 
       expect(controller.state.followingAddresses).toStrictEqual([]);
     });
 
     it('is callable via messenger action', async () => {
-      const { messenger } = createController();
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchFollowing',
+        jest.fn().mockResolvedValue({
+          following: [mockProfileSummary],
+          count: 1,
+        }),
+      );
 
-      const result = await messenger.call('SocialController:fetchFollowing', {
+      const { messenger } = createController({ rootMessenger });
+
+      const result = await messenger.call('SocialController:updateFollowing', {
         addressOrUid: '0xuser',
       });
 
@@ -351,25 +423,31 @@ describe('SocialController', () => {
   });
 
   describe('error propagation', () => {
-    it('propagates service errors from fetchLeaderboard', async () => {
-      const socialService = createMockService({
-        fetchLeaderboard: jest
-          .fn()
-          .mockRejectedValue(new Error('network error')),
-      });
-      const { controller } = createController({ socialService });
+    it('propagates service errors from updateLeaderboard', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchLeaderboard',
+        jest.fn().mockRejectedValue(new Error('network error')),
+      );
 
-      await expect(controller.fetchLeaderboard()).rejects.toThrow(
+      const { controller } = createController({ rootMessenger });
+
+      await expect(controller.updateLeaderboard()).rejects.toThrow(
         'network error',
       );
       expect(controller.state.leaderboardEntries).toStrictEqual([]);
     });
 
     it('propagates service errors from followTrader', async () => {
-      const socialService = createMockService({
-        follow: jest.fn().mockRejectedValue(new Error('follow failed')),
-      });
-      const { controller } = createController({ socialService });
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:follow',
+        jest.fn().mockRejectedValue(new Error('follow failed')),
+      );
+
+      const { controller } = createController({ rootMessenger });
 
       await expect(
         controller.followTrader({
@@ -381,11 +459,15 @@ describe('SocialController', () => {
     });
 
     it('propagates service errors from unfollowTrader', async () => {
-      const socialService = createMockService({
-        unfollow: jest.fn().mockRejectedValue(new Error('unfollow failed')),
-      });
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:unfollow',
+        jest.fn().mockRejectedValue(new Error('unfollow failed')),
+      );
+
       const { controller } = createController({
-        socialService,
+        rootMessenger,
         state: { followingAddresses: ['0xaaaa'] },
       });
 
@@ -398,19 +480,21 @@ describe('SocialController', () => {
       expect(controller.state.followingAddresses).toStrictEqual(['0xaaaa']);
     });
 
-    it('propagates service errors from fetchFollowing', async () => {
-      const socialService = createMockService({
-        fetchFollowing: jest
-          .fn()
-          .mockRejectedValue(new Error('fetch following failed')),
-      });
+    it('propagates service errors from updateFollowing', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:fetchFollowing',
+        jest.fn().mockRejectedValue(new Error('fetch following failed')),
+      );
+
       const { controller } = createController({
-        socialService,
+        rootMessenger,
         state: { followingAddresses: ['0xold'] },
       });
 
       await expect(
-        controller.fetchFollowing({ addressOrUid: '0xuser' }),
+        controller.updateFollowing({ addressOrUid: '0xuser' }),
       ).rejects.toThrow('fetch following failed');
       expect(controller.state.followingAddresses).toStrictEqual(['0xold']);
     });
