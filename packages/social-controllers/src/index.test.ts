@@ -1,9 +1,4 @@
-import {
-  SocialController,
-  SocialService,
-  socialControllerName,
-  socialServiceName,
-} from '.';
+import { SocialController, SocialService, socialServiceName } from '.';
 
 describe('social-controllers exports', () => {
   it('exports SocialController class', () => {
@@ -12,10 +7,6 @@ describe('social-controllers exports', () => {
 
   it('exports SocialService class', () => {
     expect(SocialService).toBeDefined();
-  });
-
-  it('exports controllerName', () => {
-    expect(socialControllerName).toBe('SocialController');
   });
 
   it('exports serviceName', () => {
