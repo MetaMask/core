@@ -108,7 +108,8 @@ export async function checkActionTypesFiles(
     console.error(
       'Run `yarn generate-method-action-types --fix` to update them.',
     );
-    globalThis.process.exitCode = 1;
+    // eslint-disable-next-line no-restricted-globals
+    process.exitCode = 1;
   } else {
     console.log('\n🎉 All action type files are up to date!');
   }

@@ -123,5 +123,6 @@ async function main(): Promise<void> {
 
 main().catch((error) => {
   console.error('❌ Script failed:', error);
-  globalThis.process.exitCode = 1;
+  // eslint-disable-next-line no-restricted-globals
+  process.exitCode = 1;
 });
