@@ -3,24 +3,6 @@ import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
-/**
- * ESLint rule entries that flag use of the deprecated `:stateChange` event.
- */
-const DEPRECATED_STATE_CHANGE_ENTRIES = [
-  {
-    selector:
-      'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-  {
-    selector:
-      'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-];
-
 const NODE_LTS_VERSION = 22;
 
 /**
@@ -133,7 +115,18 @@ const config = createConfig([
       'no-restricted-syntax': [
         'error',
         ...collectExistingRuleOptions('no-restricted-syntax', [typescript]),
-        ...DEPRECATED_STATE_CHANGE_ENTRIES,
+        {
+          selector:
+            'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
+          message:
+            "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
+        },
+        {
+          selector:
+            'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
+          message:
+            "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
+        },
       ],
     },
   },
