@@ -1810,9 +1810,6 @@ export type TransactionBatchSingleRequest = {
 export type TransactionBatchRequest = {
   batchId?: Hex;
 
-  /** Added for tx to appear in Activity tab */
-  actionId?: string;
-
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
   disable7702?: boolean;
 

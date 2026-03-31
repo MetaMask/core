@@ -291,7 +291,6 @@ async function addTransactionBatchWith7702(
     gasLimit7702,
     networkClientId,
     origin,
-    actionId,
     overwriteUpgrade,
     requestId,
     requiredAssets,
@@ -299,6 +298,9 @@ async function addTransactionBatchWith7702(
     securityAlertId,
     skipInitialGasEstimate,
     transactions,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
     validateSecurity,
   } = userRequest;
 
@@ -418,12 +420,11 @@ async function addTransactionBatchWith7702(
   }
 
   const { result } = await addTransaction(txParams, {
-    actionId,
     batchId,
     gasFeeToken,
-    excludeNativeTokenForFee: userRequest.excludeNativeTokenForFee,
-    isGasFeeIncluded: userRequest.isGasFeeIncluded,
-    isGasFeeSponsored: userRequest.isGasFeeSponsored,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
     nestedTransactions,
     networkClientId,
     origin,
