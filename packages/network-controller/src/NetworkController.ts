@@ -50,7 +50,6 @@ import { createAutoManagedNetworkClient } from './create-auto-managed-network-cl
 import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import type {
-  NetworkControllerGetNetworkConfigurationByChainIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
   NetworkControllerMethodActions,
 } from './NetworkController-method-action-types';
