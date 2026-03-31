@@ -513,6 +513,25 @@ export type KeyringSelector =
     }
   | {
       id: string;
+    }
+  | {
+      /**
+       * A predicate function used to select a keyring. The first keyring for
+       * which this function returns `true` will be selected.
+       *
+       * NOTE: The caller must not mutate the keyring instance passed to this
+       * function. Mutations bypass the controller's state management
+       * safeguards and will lead to inconsistent state. The instance is not
+       * frozen for performance reasons, but treating it as read-only is a
+       * firm requirement — any mutation is a bug in the caller.
+       */
+      filter: ({
+        keyring,
+        metadata,
+      }: {
+        keyring: EthKeyring;
+        metadata: KeyringMetadata;
+      }) => boolean;
     };
 
 /**
@@ -1778,6 +1797,11 @@ export class KeyringController<
         }
       } else if ('id' in selector) {
         keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
+      } else if ('filter' in selector) {
+        keyring = this.#keyrings.find(
+          ({ keyring: filteredKeyring, metadata }) =>
+            selector.filter({ keyring: filteredKeyring, metadata }),
+        )?.keyring as SelectedKeyring | undefined;
       }
 
       if (!keyring) {

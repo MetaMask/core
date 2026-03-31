@@ -3854,6 +3854,122 @@ describe('KeyringController', () => {
       });
     });
 
+    describe('when the keyring is selected by filter', () => {
+      it('calls the given function with the matching keyring', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const { metadata } = controller.state.keyrings[0];
+          const selector = {
+            filter: ({
+              keyring: k,
+            }: {
+              keyring: EthKeyring;
+              metadata: KeyringMetadata;
+            }): boolean => k.type === KeyringTypes.hd,
+          };
+
+          await controller.withKeyring(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
+        });
+      });
+
+      it('returns the result of the function', async () => {
+        await withController(async ({ controller }) => {
+          const fn = async (): Promise<string> => Promise.resolve('hello');
+          const selector = {
+            filter: (): boolean => true,
+          };
+
+          expect(await controller.withKeyring(selector, fn)).toBe('hello');
+        });
+      });
+
+      it('passes both keyring and metadata to the filter', async () => {
+        await withController(async ({ controller }) => {
+          const filterFn = jest.fn(
+            ({
+              keyring: k,
+            }: {
+              keyring: EthKeyring;
+              metadata: KeyringMetadata;
+            }): boolean => k.type === KeyringTypes.hd,
+          );
+          const selector = { filter: filterFn };
+
+          await controller.withKeyring(selector, jest.fn());
+
+          expect(filterFn).toHaveBeenCalledWith(
+            expect.objectContaining({
+              keyring: expect.any(Object),
+              metadata: expect.objectContaining({ id: expect.any(String) }),
+            }),
+          );
+        });
+      });
+
+      it('selects the first keyring matching the filter when multiple keyrings exist', async () => {
+        const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
+        stubKeyringClassWithAccount(MockKeyring, mockAddress);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            const fn = jest.fn();
+            const selector = {
+              filter: ({
+                keyring: k,
+              }: {
+                keyring: EthKeyring;
+                metadata: KeyringMetadata;
+              }): boolean => k.type === MockKeyring.type,
+            };
+
+            await controller.withKeyring(selector, fn);
+
+            expect(fn).toHaveBeenCalledWith(
+              expect.objectContaining({
+                keyring: expect.objectContaining({ type: MockKeyring.type }),
+              }),
+            );
+          },
+        );
+      });
+
+      it('throws KeyringNotFound if no keyring matches the filter', async () => {
+        await withController(async ({ controller }) => {
+          const selector = {
+            filter: (): boolean => false,
+          };
+          const fn = jest.fn();
+
+          await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
+            KeyringControllerErrorMessage.KeyringNotFound,
+          );
+          expect(fn).not.toHaveBeenCalled();
+        });
+      });
+
+      it('throws UnsafeDirectKeyringAccess if the callback returns the selected keyring', async () => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.withKeyring(
+              { filter: (): boolean => true },
+              async ({
+                keyring,
+              }: {
+                keyring: EthKeyring;
+                metadata: KeyringMetadata;
+              }) => keyring,
+            ),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+          );
+        });
+      });
+    });
+
     it('should throw KeyringNotFound if keyring metadata is not found (internal consistency check)', async () => {
       // This test verifies the defensive #getKeyringMetadata guard that ensures
       // internal state consistency. In normal operation, this should never occur,
