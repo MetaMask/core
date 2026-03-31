@@ -183,7 +183,11 @@ export class SocialController extends BaseController<
     );
 
     this.update((state) => {
-      state.followingAddresses.push(...newAddresses);
+      const existing = new Set(state.followingAddresses);
+      const uniqueNewAddresses = newAddresses.filter(
+        (address) => !existing.has(address),
+      );
+      state.followingAddresses.push(...uniqueNewAddresses);
     });
 
     return followResponse;

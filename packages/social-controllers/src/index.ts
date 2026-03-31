@@ -12,7 +12,6 @@ export {
 } from './SocialController';
 
 export type {
-  SocialControllerFetchFollowingAction,
   SocialControllerFollowTraderAction,
   SocialControllerUnfollowTraderAction,
   SocialControllerUpdateFollowingAction,
