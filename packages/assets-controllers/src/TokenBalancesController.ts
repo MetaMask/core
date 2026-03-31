@@ -54,7 +54,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { produce } from 'immer';
-import { isEqual } from 'lodash';
+import { isEqual, union } from 'lodash';
 
 import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController';
 import type {
@@ -80,6 +80,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+import { createBatchedHandler } from './utils/create-batch-handler';
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -88,6 +89,39 @@ const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 const DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS = 300_000; // 5 minutes
 
+/** Debounce wait (ms) for coalescing rapid updateBalances calls before flush */
+export const UPDATE_BALANCES_BATCH_MS = 200;
+
+export type UpdateBalancesOptions = {
+  chainIds?: ChainIdHex[];
+  tokenAddresses?: string[];
+  queryAllAccounts?: boolean;
+};
+
+/**
+ * Merges two UpdateBalancesOptions per queue-and-merge rules:
+ * - chainIds: union of both lists when each option includes `chainIds`; if either omits `chainIds`, the merged field is undefined (all chains).
+ * - tokenAddresses: union of both lists when each option includes `tokenAddresses`; if either omits `tokenAddresses`, the merged field is undefined (all tokens).
+ * - queryAllAccounts: true if either is true.
+ * Exported for tests.
+ *
+ * @param a - First options (e.g. accumulated).
+ * @param b - Second options to merge in.
+ * @returns New merged options.
+ */
+export function mergeUpdateBalancesOptions(
+  a: UpdateBalancesOptions,
+  b: UpdateBalancesOptions,
+): UpdateBalancesOptions {
+  const chainIds = a.chainIds && b.chainIds && union(a.chainIds, b.chainIds);
+  const tokenAddresses =
+    a.tokenAddresses &&
+    b.tokenAddresses &&
+    union(a.tokenAddresses, b.tokenAddresses);
+  const queryAllAccounts =
+    Boolean(a.queryAllAccounts) || Boolean(b.queryAllAccounts);
+  return { chainIds, tokenAddresses, queryAllAccounts };
+}
 const metadata: StateMetadata<TokenBalancesControllerState> = {
   tokenBalances: {
     includeInStateLogs: false,
@@ -312,6 +346,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     pendingChanges: new Map(),
   };
 
+  readonly #batchedUpdateBalances: (
+    options: UpdateBalancesOptions,
+  ) => Promise<void>;
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -371,6 +409,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
+
+    this.#batchedUpdateBalances = createBatchedHandler(
+      (buffer) =>
+        buffer.length === 0
+          ? {}
+          : buffer
+              .slice(1)
+              .reduce<UpdateBalancesOptions>(
+                (acc, opts) => mergeUpdateBalancesOptions(acc, opts),
+                buffer[0],
+              ),
+      UPDATE_BALANCES_BATCH_MS,
+      (merged: UpdateBalancesOptions): Promise<void> =>
+        this.#executeUpdateBalances(merged),
+    );
 
     this.#subscribeToControllers();
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
@@ -668,7 +721,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: ChainIdHex[];
     queryAllAccounts?: boolean;
   }): Promise<void> {
-    await this.updateBalances({ chainIds, queryAllAccounts });
+    await this.#executeUpdateBalances({ chainIds, queryAllAccounts });
   }
 
   updateChainPollingConfigs(
@@ -685,15 +738,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({
+  async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
+    if (!this.isActive) {
+      return;
+    }
+    await this.#batchedUpdateBalances(options);
+  }
+
+  async #executeUpdateBalances({
     chainIds,
     tokenAddresses,
     queryAllAccounts = false,
-  }: {
-    chainIds?: ChainIdHex[];
-    tokenAddresses?: string[];
-    queryAllAccounts?: boolean;
-  } = {}): Promise<void> {
+  }: UpdateBalancesOptions = {}): Promise<void> {
     if (!this.isActive) {
       return;
     }

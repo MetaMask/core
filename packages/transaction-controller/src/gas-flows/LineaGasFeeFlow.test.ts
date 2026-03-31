@@ -1,5 +1,5 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
+import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './LineaGasFeeFlow';
@@ -16,10 +16,10 @@ import {
   GasFeeEstimateType,
   TransactionStatus,
 } from '../types';
+import { rpcRequest } from '../utils/provider';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('../utils/provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
@@ -37,6 +37,11 @@ const LINEA_RESPONSE_MOCK = {
   baseFeePerGas: '0x111111111',
   priorityFeePerGas: '0x222222222',
 };
+
+const GAS_FEE_CONTROLLER_DATA_MOCK = {
+  gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
+  gasFeeEstimates: {},
+} as GasFeeState;
 
 const DEFAULT_RESPONSE_MOCK: GasFeeFlowResponse = {
   estimates: {
@@ -57,17 +62,18 @@ const DEFAULT_RESPONSE_MOCK: GasFeeFlowResponse = {
 };
 
 describe('LineaGasFeeFlow', () => {
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
 
   let request: GasFeeFlowRequest;
 
   beforeEach(() => {
     request = {
-      ethQuery: {} as EthQuery,
+      gasFeeControllerData: GAS_FEE_CONTROLLER_DATA_MOCK,
+      messenger: {} as TransactionControllerMessenger,
       transactionMeta: TRANSACTION_META_MOCK,
     } as GasFeeFlowRequest;
 
-    queryMock.mockResolvedValue(LINEA_RESPONSE_MOCK);
+    rpcRequestMock.mockResolvedValue(LINEA_RESPONSE_MOCK);
   });
 
   describe('matchesTransaction', () => {
@@ -107,6 +113,18 @@ describe('LineaGasFeeFlow', () => {
         '0x23a3d70a3',
         '0x25658bf25',
       ]);
+
+      expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+      expect(rpcRequestMock).toHaveBeenCalledWith({
+        messenger: request.messenger,
+        networkClientId: request.transactionMeta.networkClientId,
+        method: 'linea_estimateGas',
+        params: [
+          {
+            from: request.transactionMeta.txParams.from,
+          },
+        ],
+      });
     });
 
     it('returns max fees using custom RPC method and static base fee multipliers', async () => {
@@ -134,7 +152,7 @@ describe('LineaGasFeeFlow', () => {
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
-      queryMock.mockRejectedValue(new Error('TestError'));
+      rpcRequestMock.mockRejectedValue(new Error('TestError'));
 
       const flow = new LineaGasFeeFlow();
       const response = await flow.getGasFees(request);
@@ -154,7 +172,7 @@ describe('LineaGasFeeFlow', () => {
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
-      queryMock.mockRejectedValue(new Error('error'));
+      rpcRequestMock.mockRejectedValue(new Error('error'));
 
       const flow = new LineaGasFeeFlow();
       const response = flow.getGasFees(request);

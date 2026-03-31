@@ -14,6 +14,7 @@ import {
   validateQuoteResponse,
   validateSwapsTokenObject,
   validateTokenFeature,
+  validateQuoteStreamComplete,
 } from './validators';
 import type {
   QuoteResponse,
@@ -22,6 +23,7 @@ import type {
   QuoteRequest,
   BridgeAsset,
   TokenFeature,
+  QuoteStreamCompleteData,
 } from '../types';
 
 export const getClientHeaders = ({
@@ -300,6 +302,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers.onQuoteValidationFailure - The function to handle quote validation failures
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
  * @param serverEventHandlers.onTokenWarning - The function to handle token warning events
+ * @param serverEventHandlers.onComplete - The function to handle the complete event emitted when the stream finishes
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quote promises
@@ -316,6 +319,7 @@ export async function fetchBridgeQuoteStream(
     onQuoteValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
     onTokenWarning: (warning: TokenFeature) => void;
+    onComplete: (data: QuoteStreamCompleteData) => void;
   },
   clientVersion?: string,
 ): Promise<void> {
@@ -374,6 +378,16 @@ export async function fetchBridgeQuoteStream(
     }
   };
 
+  const onCompleteReceived = (data: unknown): void => {
+    try {
+      if (validateQuoteStreamComplete(data)) {
+        serverEventHandlers.onComplete(data);
+      }
+    } catch (error) {
+      console.warn('Quote stream complete validation failed', error);
+    }
+  };
+
   const onMessage = async (
     data: Record<string, unknown>,
     eventName?: string,
@@ -383,6 +397,8 @@ export async function fetchBridgeQuoteStream(
         return await onQuoteReceived(data);
       case 'token_warning':
         return onTokenWarningReceived(data);
+      case 'complete':
+        return onCompleteReceived(data);
       default:
         return undefined;
     }

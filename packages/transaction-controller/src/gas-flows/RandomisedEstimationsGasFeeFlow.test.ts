@@ -1,5 +1,4 @@
 import { toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 
@@ -39,8 +38,6 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
     from: '0x123',
   },
 };
-
-const ETH_QUERY_MOCK = {} as EthQuery;
 
 const DEFAULT_FEE_MARKET_RESPONSE: FeeMarketGasFeeEstimates = {
   type: GasFeeEstimateType.FeeMarket,
@@ -148,7 +145,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         const flow = new RandomisedEstimationsGasFeeFlow();
 
         const request = {
-          ethQuery: ETH_QUERY_MOCK,
+          networkClientId: 'testNetworkClientId',
           transactionMeta: TRANSACTION_META_MOCK,
           gasFeeControllerData: {
             gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
@@ -232,7 +229,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         const flow = new RandomisedEstimationsGasFeeFlow();
 
         const request = {
-          ethQuery: ETH_QUERY_MOCK,
+          networkClientId: 'testNetworkClientId',
           transactionMeta: TRANSACTION_META_MOCK,
           gasFeeControllerData: {
             gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
@@ -266,7 +263,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const request = {
-        ethQuery: ETH_QUERY_MOCK,
+        networkClientId: 'testNetworkClientId',
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
@@ -291,7 +288,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       });
 
       const request = {
-        ethQuery: ETH_QUERY_MOCK,
+        networkClientId: 'testNetworkClientId',
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
@@ -327,7 +324,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const request = {
-        ethQuery: ETH_QUERY_MOCK,
+        networkClientId: 'testNetworkClientId',
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: 'UNSUPPORTED_TYPE',

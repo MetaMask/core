@@ -18,7 +18,7 @@ import type { KeyringControllerGetStateAction } from '@metamask/keyring-controll
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
@@ -121,9 +121,9 @@ export type MultichainTransactionsControllerMessenger = Messenger<
  * Actions that this controller is allowed to call.
  */
 type AllowedActions =
-  | HandleSnapRequest
+  | AccountsControllerListMultichainAccountsAction
   | KeyringControllerGetStateAction
-  | AccountsControllerListMultichainAccountsAction;
+  | SnapControllerHandleRequestAction;
 
 /**
  * Events that this controller is allowed to subscribe.

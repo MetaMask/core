@@ -69,6 +69,7 @@ export {
   BridgeUserAction,
   BridgeBackgroundAction,
   type TokenFeature,
+  type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
 } from './types';
@@ -79,6 +80,8 @@ export {
   BridgeAssetSchema,
   FeatureId,
   TokenFeatureType,
+  validateQuoteStreamComplete,
+  QuoteStreamCompleteReason,
 } from './utils/validators';
 
 export {
