@@ -1,3 +1,12 @@
+import type {
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { BaseDataService } from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import {
   array,
   boolean,
@@ -9,7 +18,8 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 
-import { SocialServiceErrorMessage } from './social-constants';
+import type { SocialServiceMethodActions } from './SocialService-method-action-types';
+import { serviceName, SocialServiceErrorMessage } from './social-constants';
 import type {
   FetchFollowersOptions,
   FetchFollowingOptions,
@@ -22,7 +32,6 @@ import type {
   FollowResponse,
   LeaderboardResponse,
   PositionsResponse,
-  SocialDataService,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
@@ -146,24 +155,75 @@ const UnfollowResponseStruct = structType({
 });
 
 // ---------------------------------------------------------------------------
+// Messenger types
+// ---------------------------------------------------------------------------
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchLeaderboard',
+  'fetchTraderProfile',
+  'fetchOpenPositions',
+  'fetchClosedPositions',
+  'fetchFollowers',
+  'fetchFollowing',
+  'follow',
+  'unfollow',
+] as const;
+
+export type SocialServiceActions =
+  | SocialServiceMethodActions
+  | DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+export type SocialServiceEvents =
+  | DataServiceCacheUpdatedEvent<typeof serviceName>
+  | DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+export type SocialServiceMessenger = Messenger<
+  typeof serviceName,
+  SocialServiceActions,
+  SocialServiceEvents
+>;
+
+// ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
-export type SocialServiceConfig = {
-  baseUrl: string;
-};
-
 /**
- * Stateless data service that wraps fetch calls to the social-api.
- *
- * Follows the `AiDigestService` pattern: plain class with `baseUrl` config,
- * direct `fetch()` calls, and superstruct response validation.
+ * Data service wrapping social-api endpoints.
  */
-export class SocialService implements SocialDataService {
+export class SocialService extends BaseDataService<
+  typeof serviceName,
+  SocialServiceMessenger
+> {
   readonly #baseUrl: string;
 
-  constructor(config: SocialServiceConfig) {
-    this.#baseUrl = config.baseUrl;
+  constructor({
+    messenger,
+    baseUrl,
+    policyOptions,
+  }: {
+    messenger: SocialServiceMessenger;
+    baseUrl: string;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    super({ name: serviceName, messenger, policyOptions });
+    this.#baseUrl = baseUrl;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Throws an HttpError if the response is not ok.
+   *
+   * @param response - The fetch response to check.
+   * @param message - The error message prefix from SocialServiceErrorMessage.
+   */
+  static #throwIfNotOk(response: Response, message: string): void {
+    if (!response.ok) {
+      throw new HttpError(response.status, `${message}: ${response.status}`);
+    }
   }
 
   /**
@@ -175,26 +235,34 @@ export class SocialService implements SocialDataService {
    * @returns The leaderboard response with ranked traders.
    */
   async fetchLeaderboard(
-    options: FetchLeaderboardOptions = {},
+    options?: FetchLeaderboardOptions,
   ): Promise<LeaderboardResponse> {
-    const { sort, chains, limit } = options;
-    const url = new URL(`${this.#baseUrl}/leaderboard`);
-    if (sort) {
-      url.searchParams.append('sort', sort);
-    }
-    if (chains) {
-      for (const chain of chains) {
-        url.searchParams.append('chains', chain);
-      }
-    }
-    if (limit !== undefined) {
-      url.searchParams.append('limit', String(limit));
-    }
+    const leaderboardResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchLeaderboard`, options],
+      queryFn: async () => {
+        const { sort, chains, limit } = options ?? {};
+        const url = new URL(`${this.#baseUrl}/leaderboard`);
+        if (sort) {
+          url.searchParams.append('sort', sort);
+        }
+        if (chains) {
+          for (const chain of chains) {
+            url.searchParams.append('chains', chain);
+          }
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
 
-    const leaderboardResponse = await this.#fetchJson(
-      url.toString(),
-      SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
-    );
+        const response = await fetch(url.toString());
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
+        );
+        return response.json();
+      },
+    });
+
     if (!is(leaderboardResponse, LeaderboardResponseStruct)) {
       throw new Error(
         SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
@@ -216,12 +284,20 @@ export class SocialService implements SocialDataService {
     options: FetchTraderProfileOptions,
   ): Promise<TraderProfileResponse> {
     const { addressOrId } = options;
-    const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/profile`;
 
-    const traderProfileResponse = await this.#fetchJson(
-      url,
-      SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
-    );
+    const traderProfileResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchTraderProfile`, addressOrId],
+      queryFn: async () => {
+        const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/profile`;
+        const response = await fetch(url);
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
+        );
+        return response.json();
+      },
+    });
+
     if (!is(traderProfileResponse, TraderProfileResponseStruct)) {
       throw new Error(
         SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
@@ -281,12 +357,20 @@ export class SocialService implements SocialDataService {
     options: FetchFollowersOptions,
   ): Promise<FollowersResponse> {
     const { addressOrId } = options;
-    const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/followers`;
 
-    const followersResponse = await this.#fetchJson(
-      url,
-      SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
-    );
+    const followersResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchFollowers`, addressOrId],
+      queryFn: async () => {
+        const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/followers`;
+        const response = await fetch(url);
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
+        );
+        return response.json();
+      },
+    });
+
     if (!is(followersResponse, FollowersResponseStruct)) {
       throw new Error(
         SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
@@ -308,12 +392,20 @@ export class SocialService implements SocialDataService {
     options: FetchFollowingOptions,
   ): Promise<FollowingResponse> {
     const { addressOrUid } = options;
-    const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/following`;
 
-    const followingResponse = await this.#fetchJson(
-      url,
-      SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
-    );
+    const followingResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchFollowing`, addressOrUid],
+      queryFn: async () => {
+        const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/following`;
+        const response = await fetch(url);
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
+        );
+        return response.json();
+      },
+    });
+
     if (!is(followingResponse, FollowingResponseStruct)) {
       throw new Error(
         SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
@@ -334,21 +426,24 @@ export class SocialService implements SocialDataService {
    */
   async follow(options: FollowOptions): Promise<FollowResponse> {
     const { addressOrUid, targets } = options;
-    const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`;
 
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targets }),
+    const followResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:follow`, addressOrUid, targets],
+      queryFn: async () => {
+        const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`;
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targets }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FOLLOW_FAILED,
+        );
+        return response.json();
+      },
     });
 
-    if (!response.ok) {
-      throw new Error(
-        `${SocialServiceErrorMessage.FOLLOW_FAILED}: ${response.status}`,
-      );
-    }
-
-    const followResponse: unknown = await response.json();
     if (!is(followResponse, FollowResponseStruct)) {
       throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
     }
@@ -369,22 +464,25 @@ export class SocialService implements SocialDataService {
    */
   async unfollow(options: UnfollowOptions): Promise<UnfollowResponse> {
     const { addressOrUid, targets } = options;
-    const url = new URL(
-      `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`,
-    );
-    for (const target of targets) {
-      url.searchParams.append('targets', target);
-    }
 
-    const response = await fetch(url.toString(), { method: 'DELETE' });
+    const unfollowResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:unfollow`, addressOrUid, targets],
+      queryFn: async () => {
+        const url = new URL(
+          `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`,
+        );
+        for (const target of targets) {
+          url.searchParams.append('targets', target);
+        }
+        const response = await fetch(url.toString(), { method: 'DELETE' });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.UNFOLLOW_FAILED,
+        );
+        return response.json();
+      },
+    });
 
-    if (!response.ok) {
-      throw new Error(
-        `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: ${response.status}`,
-      );
-    }
-
-    const unfollowResponse: unknown = await response.json();
     if (!is(unfollowResponse, UnfollowResponseStruct)) {
       throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
     }
@@ -413,46 +511,38 @@ export class SocialService implements SocialDataService {
         ? SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE
         : SocialServiceErrorMessage.FETCH_CLOSED_POSITIONS_INVALID_RESPONSE;
 
-    const url = new URL(
-      `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
-    );
-    if (chain) {
-      url.searchParams.append('chain', chain);
-    }
-    if (sort) {
-      url.searchParams.append('sort', sort);
-    }
-    if (limit !== undefined) {
-      url.searchParams.append('limit', String(limit));
-    }
-    if (page !== undefined) {
-      url.searchParams.append('page', String(page));
-    }
+    const positionsResponse = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetch${status === 'open' ? 'Open' : 'Closed'}Positions`,
+        addressOrId,
+        { chain, sort, limit, page },
+      ],
+      queryFn: async () => {
+        const url = new URL(
+          `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
+        );
+        if (chain) {
+          url.searchParams.append('chain', chain);
+        }
+        if (sort) {
+          url.searchParams.append('sort', sort);
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (page !== undefined) {
+          url.searchParams.append('page', String(page));
+        }
 
-    const positionsResponse = await this.#fetchJson(
-      url.toString(),
-      failedMessage,
-    );
+        const response = await fetch(url.toString());
+        SocialService.#throwIfNotOk(response, failedMessage);
+        return response.json();
+      },
+    });
+
     if (!is(positionsResponse, PositionsResponseStruct)) {
       throw new Error(invalidMessage);
     }
     return positionsResponse as PositionsResponse;
-  }
-
-  /**
-   * Shared helper for GET requests that return JSON.
-   *
-   * @param url - The URL to fetch.
-   * @param failedMessage - Error message to use if the request fails.
-   * @returns The parsed JSON response.
-   */
-  async #fetchJson(url: string, failedMessage: string): Promise<unknown> {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`${failedMessage}: ${response.status}`);
-    }
-
-    return response.json();
   }
 }
