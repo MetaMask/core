@@ -429,6 +429,7 @@ export class SocialService extends BaseDataService<
 
     const followResponse = await this.fetchQuery({
       queryKey: [`${this.name}:follow`, addressOrUid, targets],
+      staleTime: 0,
       queryFn: async () => {
         const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`;
         const response = await fetch(url, {
@@ -467,6 +468,7 @@ export class SocialService extends BaseDataService<
 
     const unfollowResponse = await this.fetchQuery({
       queryKey: [`${this.name}:unfollow`, addressOrUid, targets],
+      staleTime: 0,
       queryFn: async () => {
         const url = new URL(
           `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`,
