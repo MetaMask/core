@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkController:rollbackToPreviousProvider`
     - `NetworkController:loadBackup`
   - Corresponding action types are available as well.
+- Add `getEthQuery` method to `NetworkController` ([#8350](https://github.com/MetaMask/core/pull/8350))
 
 ### Changed
 
