@@ -91,6 +91,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   assetExchangeRates: {},
   minimumBalanceForRentExemptionInLamports: '0',
   tokenWarnings: [],
+  quoteStreamComplete: null,
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {
