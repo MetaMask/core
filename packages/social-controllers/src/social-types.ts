@@ -230,28 +230,3 @@ export type UnfollowOptions = {
   targets: string[];
 };
 
-// ---------------------------------------------------------------------------
-// Service interface
-// ---------------------------------------------------------------------------
-
-/**
- * Stateless data-fetching interface consumed by a future SocialController.
- */
-export type SocialDataService = {
-  fetchLeaderboard(
-    options?: FetchLeaderboardOptions,
-  ): Promise<LeaderboardResponse>;
-  fetchTraderProfile(
-    options: FetchTraderProfileOptions,
-  ): Promise<TraderProfileResponse>;
-  fetchOpenPositions(
-    options: FetchPositionsOptions,
-  ): Promise<PositionsResponse>;
-  fetchClosedPositions(
-    options: FetchPositionsOptions,
-  ): Promise<PositionsResponse>;
-  fetchFollowers(options: FetchFollowersOptions): Promise<FollowersResponse>;
-  fetchFollowing(options: FetchFollowingOptions): Promise<FollowingResponse>;
-  follow(options: FollowOptions): Promise<FollowResponse>;
-  unfollow(options: UnfollowOptions): Promise<UnfollowResponse>;
-};
