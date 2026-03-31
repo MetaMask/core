@@ -81,6 +81,9 @@ async function loadESLint(): Promise<ESLint | null> {
       eslintClass: ESLintClass,
     };
   } catch {
+    console.warn(
+      '⚠️  ESLint could not be loaded. Generated files will not be formatted.',
+    );
     return null;
   }
 }

@@ -377,12 +377,24 @@ export async function parseSourceFile(
  * @param directory - The directory to search.
  * @returns An array of file paths.
  */
+const EXCLUDED_DIRECTORIES = new Set([
+  'node_modules',
+  'dist',
+  '.git',
+  'coverage',
+]);
+
 async function getFiles(directory: string): Promise<string[]> {
   const entries = await fs.promises.readdir(directory, { withFileTypes: true });
   const files = await Promise.all(
     entries.map(async (entry) => {
       const fullPath = path.join(directory, entry.name);
-      return entry.isDirectory() ? await getFiles(fullPath) : fullPath;
+      if (entry.isDirectory()) {
+        return EXCLUDED_DIRECTORIES.has(entry.name)
+          ? []
+          : await getFiles(fullPath);
+      }
+      return fullPath;
     }),
   );
 

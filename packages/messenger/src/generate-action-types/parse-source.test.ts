@@ -578,6 +578,30 @@ class NestedController {
     });
   });
 
+  it('skips excluded directories like node_modules', async () => {
+    expect.assertions(1);
+
+    await withinFindControllersSandbox(async ({ directoryPath }) => {
+      const nodeModulesDir = path.join(directoryPath, 'node_modules');
+      await fs.promises.mkdir(nodeModulesDir);
+
+      await fs.promises.writeFile(
+        path.join(nodeModulesDir, 'HiddenController.ts'),
+        `
+const MESSENGER_EXPOSED_METHODS = ['doHidden'] as const;
+class HiddenController {
+  doHidden() { return 'hidden'; }
+}
+`,
+        'utf8',
+      );
+
+      const result = await findSourcesWithExposedMethods(directoryPath);
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
   it('throws an error when the path is not a directory', async () => {
     await expect(
       findSourcesWithExposedMethods('/nonexistent/path'),
