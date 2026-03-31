@@ -259,16 +259,17 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
         );
-        return response.json();
+        const leaderboardData = await response.json();
+        if (!is(leaderboardData, LeaderboardResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
+          );
+        }
+        return leaderboardData as LeaderboardResponse;
       },
     });
 
-    if (!is(leaderboardResponse, LeaderboardResponseStruct)) {
-      throw new Error(
-        SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
-      );
-    }
-    return leaderboardResponse as LeaderboardResponse;
+    return leaderboardResponse;
   }
 
   /**
@@ -294,16 +295,17 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
         );
-        return response.json();
+        const traderProfileData = await response.json();
+        if (!is(traderProfileData, TraderProfileResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
+          );
+        }
+        return traderProfileData as TraderProfileResponse;
       },
     });
 
-    if (!is(traderProfileResponse, TraderProfileResponseStruct)) {
-      throw new Error(
-        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
-      );
-    }
-    return traderProfileResponse as TraderProfileResponse;
+    return traderProfileResponse;
   }
 
   /**
@@ -367,16 +369,17 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
         );
-        return response.json();
+        const followersData = await response.json();
+        if (!is(followersData, FollowersResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
+          );
+        }
+        return followersData as FollowersResponse;
       },
     });
 
-    if (!is(followersResponse, FollowersResponseStruct)) {
-      throw new Error(
-        SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
-      );
-    }
-    return followersResponse as FollowersResponse;
+    return followersResponse;
   }
 
   /**
@@ -402,16 +405,17 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
         );
-        return response.json();
+        const followingData = await response.json();
+        if (!is(followingData, FollowingResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
+          );
+        }
+        return followingData as FollowingResponse;
       },
     });
 
-    if (!is(followingResponse, FollowingResponseStruct)) {
-      throw new Error(
-        SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
-      );
-    }
-    return followingResponse as FollowingResponse;
+    return followingResponse;
   }
 
   /**
@@ -441,14 +445,15 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.FOLLOW_FAILED,
         );
-        return response.json();
+        const followData = await response.json();
+        if (!is(followData, FollowResponseStruct)) {
+          throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
+        }
+        return followData as FollowResponse;
       },
     });
 
-    if (!is(followResponse, FollowResponseStruct)) {
-      throw new Error(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
-    }
-    return followResponse as FollowResponse;
+    return followResponse;
   }
 
   /**
@@ -481,14 +486,15 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.UNFOLLOW_FAILED,
         );
-        return response.json();
+        const unfollowData = await response.json();
+        if (!is(unfollowData, UnfollowResponseStruct)) {
+          throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
+        }
+        return unfollowData as UnfollowResponse;
       },
     });
 
-    if (!is(unfollowResponse, UnfollowResponseStruct)) {
-      throw new Error(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
-    }
-    return unfollowResponse as UnfollowResponse;
+    return unfollowResponse;
   }
 
   /**
@@ -541,13 +547,14 @@ export class SocialService extends BaseDataService<
 
         const response = await fetch(url.toString());
         SocialService.#throwIfNotOk(response, failedMessage);
-        return response.json();
+        const positionsData = await response.json();
+        if (!is(positionsData, PositionsResponseStruct)) {
+          throw new Error(invalidMessage);
+        }
+        return positionsData as PositionsResponse;
       },
     });
 
-    if (!is(positionsResponse, PositionsResponseStruct)) {
-      throw new Error(invalidMessage);
-    }
-    return positionsResponse as PositionsResponse;
+    return positionsResponse;
   }
 }
