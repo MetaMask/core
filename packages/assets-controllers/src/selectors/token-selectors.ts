@@ -47,22 +47,6 @@ export const TRON_RESOURCE_SYMBOLS = Object.values(
 export const TRON_RESOURCE_SYMBOLS_SET: ReadonlySet<TronResourceSymbol> =
   new Set(TRON_RESOURCE_SYMBOLS);
 
-/**
- * Determines if a native token should be hidden.
- * Returns true if the token is native and should be excluded for the given chain.
- *
- * @param chainId - The chain ID in hex format (e.g., "0xa5bf") or CAIP-2 format (e.g., "eip155:42431").
- * @param isNative - Whether the token is a native token.
- * @returns True if the token should be hidden, false otherwise.
- */
-function shouldHideNativeToken(
-  chainId: Hex | string,
-  isNative: boolean,
-): boolean {
-  // Only hide native tokens on chains that should skip native token fetching
-  return isNative && !shouldIncludeNativeToken(chainId);
-}
-
 export type AssetsByAccountGroup = {
   [accountGroupId: AccountGroupId]: AccountGroupAssets;
 };
@@ -194,7 +178,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
       // Skip native tokens on Tempo networks
-      if (shouldHideNativeToken(chainId, true)) {
+      if (!shouldIncludeNativeToken(chainId)) {
         continue;
       }
       for (const [accountAddress, accountBalance] of Object.entries(
@@ -406,12 +390,6 @@ const selectAllMultichainAssets = createAssetListSelector(
         const { accountGroupId, type } = account;
 
         if (ignoredMultichainAssets?.[accountId]?.includes(assetId)) {
-          continue;
-        }
-
-        // Skip native tokens on Tempo networks
-        const isNative = caipAsset.assetNamespace === 'slip44';
-        if (shouldHideNativeToken(chainId, isNative)) {
           continue;
         }
 
