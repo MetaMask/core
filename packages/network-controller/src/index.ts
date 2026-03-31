@@ -21,7 +21,6 @@ export type {
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerEvents,
   NetworkControllerGetStateAction,
-  NetworkControllerGetNetworkConfigurationByChainId,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,

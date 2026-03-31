@@ -30,7 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-- `NetworkControllerGetNetworkConfigurationByChainId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByChainIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 - `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 
 ## [30.0.1]
