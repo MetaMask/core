@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.1",
-    "@metamask/controller-utils": "^11.19.0",
+    "@metamask/controller-utils": "^11.20.0",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/messenger": "^1.0.0",
     "@metamask/utils": "^11.9.0",
