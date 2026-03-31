@@ -211,6 +211,26 @@ const config = createConfig([
       'import-x/no-relative-packages': 'error',
     },
   },
+  // Prevent calling messenger actions in controller/service constructors
+  {
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        {
+          selector:
+            'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="MemberExpression"][callee.object.object.type="ThisExpression"][callee.object.property.name="messenger"]',
+          message:
+            'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: ...',
+        },
+      ],
+    },
+  },
   {
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {
