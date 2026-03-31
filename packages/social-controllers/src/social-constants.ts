@@ -1,5 +1,7 @@
 export const serviceName = 'SocialService';
 
+export const controllerName = 'SocialController';
+
 export const SocialServiceErrorMessage = {
   FETCH_LEADERBOARD_FAILED: 'SocialService: Leaderboard request failed',
   FETCH_LEADERBOARD_INVALID_RESPONSE:
