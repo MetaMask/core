@@ -503,7 +503,7 @@ export type Encryptor<
 /**
  * Keyring selector used for `withKeyring`.
  */
-export type KeyringSelector =
+export type KeyringSelector<SelectedKeyring extends EthKeyring = EthKeyring> =
   | {
       type: string;
       index?: number;
@@ -525,13 +525,15 @@ export type KeyringSelector =
        * frozen for performance reasons, but treating it as read-only is a
        * firm requirement — any mutation is a bug in the caller.
        */
-      filter: ({
-        keyring,
-        metadata,
-      }: {
-        keyring: EthKeyring;
-        metadata: KeyringMetadata;
-      }) => boolean;
+      filter:
+        | ((keyring: EthKeyring, metadata: KeyringMetadata) => boolean)
+        // Variant of the `filter` function that also acts as a type
+        // guard, allowing callers to narrow the keyring type within the
+        // callback.
+        | ((
+            keyring: EthKeyring,
+            metadata: KeyringMetadata,
+          ) => keyring is SelectedKeyring);
     };
 
 /**
@@ -1714,7 +1716,7 @@ export class KeyringController<
     SelectedKeyring extends EthKeyring = EthKeyring,
     CallbackResult = void,
   >(
-    selector: KeyringSelector,
+    selector: KeyringSelector<SelectedKeyring>,
     operation: ({
       keyring,
       metadata,
@@ -1747,7 +1749,7 @@ export class KeyringController<
     SelectedKeyring extends EthKeyring = EthKeyring,
     CallbackResult = void,
   >(
-    selector: KeyringSelector,
+    selector: KeyringSelector<SelectedKeyring>,
     operation: ({
       keyring,
       metadata,
@@ -1800,7 +1802,7 @@ export class KeyringController<
       } else if ('filter' in selector) {
         keyring = this.#keyrings.find(
           ({ keyring: filteredKeyring, metadata }) =>
-            selector.filter({ keyring: filteredKeyring, metadata }),
+            selector.filter(filteredKeyring, metadata),
         )?.keyring as SelectedKeyring | undefined;
       }
 

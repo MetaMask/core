@@ -34,6 +34,7 @@ import type {
   KeyringControllerActions,
   KeyringMetadata,
   SerializedKeyring,
+  KeyringSelector,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -3860,13 +3861,8 @@ describe('KeyringController', () => {
           const fn = jest.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const { metadata } = controller.state.keyrings[0];
-          const selector = {
-            filter: ({
-              keyring: k,
-            }: {
-              keyring: EthKeyring;
-              metadata: KeyringMetadata;
-            }): boolean => k.type === KeyringTypes.hd,
+          const selector: KeyringSelector = {
+            filter: (k): boolean => k.type === KeyringTypes.hd,
           };
 
           await controller.withKeyring(selector, fn);
@@ -3878,7 +3874,7 @@ describe('KeyringController', () => {
       it('returns the result of the function', async () => {
         await withController(async ({ controller }) => {
           const fn = async (): Promise<string> => Promise.resolve('hello');
-          const selector = {
+          const selector: KeyringSelector = {
             filter: (): boolean => true,
           };
 
@@ -3889,22 +3885,15 @@ describe('KeyringController', () => {
       it('passes both keyring and metadata to the filter', async () => {
         await withController(async ({ controller }) => {
           const filterFn = jest.fn(
-            ({
-              keyring: k,
-            }: {
-              keyring: EthKeyring;
-              metadata: KeyringMetadata;
-            }): boolean => k.type === KeyringTypes.hd,
+            (k: EthKeyring): boolean => k.type === KeyringTypes.hd,
           );
-          const selector = { filter: filterFn };
+          const selector: KeyringSelector = { filter: filterFn };
 
           await controller.withKeyring(selector, jest.fn());
 
           expect(filterFn).toHaveBeenCalledWith(
-            expect.objectContaining({
-              keyring: expect.any(Object),
-              metadata: expect.objectContaining({ id: expect.any(String) }),
-            }),
+            expect.any(Object),
+            expect.objectContaining({ id: expect.any(String) }),
           );
         });
       });
@@ -3917,13 +3906,8 @@ describe('KeyringController', () => {
           async ({ controller }) => {
             await controller.addNewKeyring(MockKeyring.type);
             const fn = jest.fn();
-            const selector = {
-              filter: ({
-                keyring: k,
-              }: {
-                keyring: EthKeyring;
-                metadata: KeyringMetadata;
-              }): boolean => k.type === MockKeyring.type,
+            const selector: KeyringSelector = {
+              filter: (k): boolean => k.type === MockKeyring.type,
             };
 
             await controller.withKeyring(selector, fn);
@@ -3939,7 +3923,7 @@ describe('KeyringController', () => {
 
       it('throws KeyringNotFound if no keyring matches the filter', async () => {
         await withController(async ({ controller }) => {
-          const selector = {
+          const selector: KeyringSelector = {
             filter: (): boolean => false,
           };
           const fn = jest.fn();
@@ -3967,6 +3951,29 @@ describe('KeyringController', () => {
             KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
           );
         });
+      });
+
+      it('narrows down to a proper keyring type in the callback', async () => {
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockErc4337Keyring.type);
+
+            await controller.withKeyring(
+              {
+                filter: (k): k is MockErc4337Keyring =>
+                  k.type === MockErc4337Keyring.type,
+              },
+              async ({ keyring }) => {
+                // eslint-disable-next-line prefer-destructuring
+                const type: MockErc4337Keyring['type'] = keyring.type; // Should be able to access type without type assertion;
+
+                expect(type).toBe(MockErc4337Keyring.type);
+                expect(keyring).toBeInstanceOf(MockErc4337Keyring);
+              },
+            );
+          },
+        );
       });
     });
 
