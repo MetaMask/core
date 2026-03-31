@@ -592,6 +592,27 @@ describe('KeyringController', () => {
           },
         );
       });
+
+      it('leaves `fingerprint` undefined and logs the error if `getFingerprint` throws', async () => {
+        const fingerprintError = new Error('getFingerprint failed');
+        const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+        fingerprintBuilder.getFingerprint = (): string => {
+          throw fingerprintError;
+        };
+        const consoleErrorSpy = jest.spyOn(console, 'error');
+
+        await withController(
+          { keyringBuilders: [fingerprintBuilder] },
+          async ({ controller }) => {
+            const metadata = await controller.addNewKeyring(MockKeyring.type);
+            expect(metadata.fingerprint).toBeUndefined();
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+              'Unable to compute fingerprint (skipping):',
+              fingerprintError,
+            );
+          },
+        );
+      });
     });
 
     describe('when the builder does not provide `getFingerprint`', () => {
@@ -3056,6 +3077,44 @@ describe('KeyringController', () => {
           await controller.submitPassword(password);
 
           expect(controller.state.isUnlocked).toBe(true);
+        },
+      );
+    });
+
+    it('keeps the keyring and leaves `fingerprint` undefined if `getFingerprint` throws during restore', async () => {
+      const fingerprintError = new Error('getFingerprint failed');
+      const fingerprintBuilder = keyringBuilderFactory(MockKeyring);
+      fingerprintBuilder.getFingerprint = (): string => {
+        throw fingerprintError;
+      };
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      await withController(
+        {
+          keyringBuilders: [fingerprintBuilder],
+          skipVaultCreation: true,
+          state: {
+            vault: createVault([
+              {
+                type: MockKeyring.type,
+                data: {},
+                metadata: { id: 'existing-id', name: 'existing-name' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+
+          const keyringObject = controller.state.keyrings.find(
+            (k) => k.type === MockKeyring.type,
+          );
+          expect(keyringObject).toBeDefined();
+          expect(keyringObject?.metadata.fingerprint).toBeUndefined();
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Unable to compute fingerprint (skipping):',
+            fingerprintError,
+          );
         },
       );
     });

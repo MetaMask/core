@@ -1951,6 +1951,30 @@ export class KeyringController<
   }
 
   /**
+   * Safely compute the fingerprint for a keyring using the given builder.
+   * Returns `undefined` if the builder has no `getFingerprint`, or if
+   * `getFingerprint` throws — in which case the error is logged.
+   *
+   * @param builder - The keyring builder, or undefined if none is registered.
+   * @param keyring - The initialized keyring instance.
+   * @returns The fingerprint string, or `undefined`.
+   */
+  #getSafeFingerprint(
+    builder: KeyringBuilder | undefined,
+    keyring: EthKeyring,
+  ): string | undefined {
+    if (!builder?.getFingerprint) {
+      return undefined;
+    }
+    try {
+      return builder.getFingerprint(keyring);
+    } catch (error) {
+      console.error('Unable to compute fingerprint (skipping):', error);
+      return undefined;
+    }
+  }
+
+  /**
    * Get the keyring by id or return the first keyring if the id is not found.
    *
    * @param keyringId - The id of the keyring.
@@ -2477,8 +2501,9 @@ export class KeyringController<
     const keyring = await this.#createKeyring(type, data);
     const metadata = getDefaultKeyringMetadata();
     const builder = this.#getKeyringBuilderForType(type);
-    if (builder?.getFingerprint) {
-      metadata.fingerprint = builder.getFingerprint(keyring);
+    const fingerprint = this.#getSafeFingerprint(builder, keyring);
+    if (fingerprint !== undefined) {
+      metadata.fingerprint = fingerprint;
     }
     this.#keyrings.push({ keyring, metadata });
 
@@ -2587,11 +2612,9 @@ export class KeyringController<
       // keyring now supports fingerprinting, we can still get the fingerprint
       // for keyrings that were created before fingerprinting was supported.
       const builder = this.#getKeyringBuilderForType(type);
-      if (builder?.getFingerprint) {
-        metadata = {
-          ...metadata,
-          fingerprint: builder.getFingerprint(keyring),
-        };
+      const fingerprint = this.#getSafeFingerprint(builder, keyring);
+      if (fingerprint !== undefined) {
+        metadata = { ...metadata, fingerprint };
       }
       // The keyring is added to the keyrings array only if it's successfully restored
       // and the metadata is successfully added to the controller
