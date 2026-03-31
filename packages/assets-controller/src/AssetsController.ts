@@ -11,10 +11,8 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import {
-  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
-  type TraceCallback,
-} from '@metamask/controller-utils';
+import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,

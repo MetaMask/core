@@ -11,10 +11,7 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import {
-  AssetListState,
-  selectAssetsBySelectedAccountGroup,
-} from './token-selectors';
+import { selectAssetsBySelectedAccountGroup } from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
