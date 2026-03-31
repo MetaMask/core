@@ -95,6 +95,11 @@
       "count": 1
     }
   },
+  "packages/accounts-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/address-book-controller/src/AddressBookController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -109,6 +114,11 @@
     },
     "no-param-reassign": {
       "count": 2
+    }
+  },
+  "packages/analytics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
@@ -155,6 +165,11 @@
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
     "no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "packages/assets-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 9
     }
   },
   "packages/assets-controller/src/selectors/balance.ts": {
@@ -770,6 +785,11 @@
       "count": 3
     }
   },
+  "packages/config-registry-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/controller-utils/src/create-service-policy.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -793,6 +813,11 @@
   "packages/core-backend/src/api/shared-types.ts": {
     "no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "packages/core-backend/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/delegation-controller/src/DelegationController.test.ts": {
@@ -1562,6 +1587,11 @@
       "count": 1
     }
   },
+  "packages/profile-metrics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
@@ -1882,6 +1912,16 @@
       "count": 1
     }
   },
+  "packages/ramps-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -1992,6 +2032,11 @@
   "packages/subscription-controller/src/errors.ts": {
     "no-restricted-syntax": {
       "count": 1
+    }
+  },
+  "packages/subscription-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/transaction-controller/src/TransactionController.ts": {
