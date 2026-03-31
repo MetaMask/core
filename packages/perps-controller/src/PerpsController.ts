@@ -623,10 +623,19 @@ export type PerpsControllerEvents = ControllerStateChangeEvent<
 >;
 
 /**
+ * The action which can be used to retrieve the state of the
+ * {@link PerpsController}.
+ */
+export type PerpsControllerGetStateAction = ControllerGetStateAction<
+  'PerpsController',
+  PerpsControllerState
+>;
+
+/**
  * PerpsController actions
  */
 export type PerpsControllerActions =
-  | ControllerGetStateAction<'PerpsController', PerpsControllerState>
+  | PerpsControllerGetStateAction
   | PerpsControllerMethodActions;
 
 /**
