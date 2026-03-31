@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 
+### Fixed
+
+- Fix `NftControllerMessenger` actions union type resolving to `any` for consumers ([#8350](https://github.com/MetaMask/core/pull/8350))
+- Fix `NftDetectionControllerMessenger` actions union type resolving to `any` for consumers ([#8350](https://github.com/MetaMask/core/pull/8350))
+
 ## [103.0.0]
 
 ### Changed
