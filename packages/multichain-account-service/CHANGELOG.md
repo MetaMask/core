@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+
 ### Changed
 
 - Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
 - Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
 - Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
 
 ## [8.0.0]
 
@@ -445,7 +448,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.0...@metamask/multichain-account-service@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.1.0...@metamask/multichain-account-service@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.0...@metamask/multichain-account-service@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@6.0.0...@metamask/multichain-account-service@7.0.0

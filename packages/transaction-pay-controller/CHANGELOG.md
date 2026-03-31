@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [18.2.0]
+## [19.0.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^69.2.3` to `^70.0.0` ([#8340](https://github.com/MetaMask/core/pull/8340))
+- Bump `@metamask/bridge-status-controller` from `^70.0.3` to `^70.0.4` ([#8340](https://github.com/MetaMask/core/pull/8340))
+- Add route-based `confirmations_pay` strategy resolution ([#8282](https://github.com/MetaMask/core/pull/8282))
+
+## [19.0.0]
 
 ### Added
 
+- **BREAKING:** Add `KeyringControllerSignTypedMessageAction` to `AllowedActions` for HyperLiquid EIP-712 signing ([#8314](https://github.com/MetaMask/core/pull/8314))
+  - Clients must now provide `KeyringController:signTypedMessage` permission when constructing the controller messenger
+- Add HyperLiquid withdrawal submission via Relay ([#8314](https://github.com/MetaMask/core/pull/8314))
 - Add HyperLiquid source quote support for Relay strategy ([#8285](https://github.com/MetaMask/core/pull/8285))
+- Bump `@metamask/assets-controller` from `^3.2.0` to `^3.2.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/assets-controllers` from `^102.0.0` to `^103.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/bridge-controller` from `^69.2.2` to `^69.2.3` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/bridge-status-controller` from `^70.0.2` to `^70.0.3` ([#8325](https://github.com/MetaMask/core/pull/8325))
+
+## [18.2.0]
 
 ### Changed
 
@@ -584,7 +601,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.1...HEAD
+[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.0...@metamask/transaction-pay-controller@19.0.1
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.2.0...@metamask/transaction-pay-controller@19.0.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.1.0...@metamask/transaction-pay-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.0.0...@metamask/transaction-pay-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.1.0...@metamask/transaction-pay-controller@18.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [103.0.0]
+
 ### Changed
 
 - **BREAKING:** `selectAllAssets` and `selectAssetsBySelectedAccountGroup` have been replaced by builder functions `createSelectAllAssets` and `createSelectAssetsBySelectedAccountGroup` that accept root selectors via `AssetListRootSelectors<RootState>`, allowing clients with different state shapes to inject their own root selectors ([#TBD](https://github.com/MetaMask/core/pull/TBD))
@@ -14,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The controllers now require `SnapController:getRunnableSnaps` instead of `SnapController:getAll`.
 - Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
 - Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/account-tree-controller` from `^6.0.0` to `^7.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/multichain-account-service` from `^8.0.0` to `^8.0.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
 
 ### Fixed
 
@@ -2889,7 +2895,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...HEAD
+[103.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...@metamask/assets-controllers@103.0.0
 [102.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.1...@metamask/assets-controllers@102.0.0
 [101.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.0...@metamask/assets-controllers@101.0.1
 [101.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.1...@metamask/assets-controllers@101.0.0

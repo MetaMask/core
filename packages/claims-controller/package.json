@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/keyring-controller": "^25.1.1",
     "@metamask/messenger": "^1.0.0",
-    "@metamask/profile-sync-controller": "^28.0.1",
+    "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

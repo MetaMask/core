@@ -1,6 +1,4 @@
 /* eslint-disable no-new */
-import EthQuery from '@metamask/eth-query';
-import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -124,7 +122,6 @@ describe('GasFeePoller', () => {
   // As we mock implementation of updateTransactionLayer1GasFee, it does not matter if we pass matching flow here
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
   const getGasFeeControllerEstimatesMock = jest.fn();
-  const findNetworkClientIdByChainIdMock = jest.fn();
   let messengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
@@ -155,7 +152,6 @@ describe('GasFeePoller', () => {
     } as unknown as TransactionControllerMessenger;
 
     constructorOptions = {
-      findNetworkClientIdByChainId: findNetworkClientIdByChainIdMock,
       gasFeeFlows: [gasFeeFlowMock],
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       getTransactions: getTransactionsMock,
@@ -165,7 +161,6 @@ describe('GasFeePoller', () => {
       onStateChange: (listener: () => void): void => {
         triggerOnStateChange = listener;
       },
-      getProvider: (): jest.Mocked<Provider> => ({}) as jest.Mocked<Provider>,
     };
   });
 
@@ -199,7 +194,6 @@ describe('GasFeePoller', () => {
 
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
-          ethQuery: expect.any(Object),
           gasFeeControllerData: {},
           messenger: messengerMock,
           transactionMeta: TRANSACTION_META_MOCK,
@@ -214,7 +208,6 @@ describe('GasFeePoller', () => {
 
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledTimes(1);
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
-          provider: expect.any(Object),
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
           messenger: messengerMock,
           transactionMeta: TRANSACTION_META_MOCK,
@@ -350,15 +343,14 @@ describe('GasFeePoller', () => {
 
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
-          ethQuery: expect.any(EthQuery),
-          gasFeeControllerData: expect.any(Object),
+          gasFeeControllerData: {},
           messenger: messengerMock,
           transactionMeta: {
             id: '1',
             chainId: TRANSACTION_BATCH_META_MOCK.chainId,
             networkClientId: TRANSACTION_BATCH_META_MOCK.networkClientId,
             status: TRANSACTION_BATCH_META_MOCK.status,
-            time: expect.any(Number),
+            time: 0,
             txParams: {
               from: TRANSACTION_BATCH_META_MOCK.from,
               type: TransactionEnvelopeType.feeMarket,

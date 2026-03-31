@@ -7,11 +7,11 @@ import {
   ORIGIN_METAMASK,
   toHex,
 } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
@@ -30,12 +30,10 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
+import { getChainId } from './provider';
+import { determineTransactionType } from './transaction-type';
 import { validateBatchRequest } from './validation';
-import {
-  determineTransactionType,
-  GasFeeEstimateLevel,
-  TransactionStatus,
-} from '..';
+import { GasFeeEstimateLevel, TransactionStatus } from '..';
 import type {
   BatchTransactionParams,
   GetSimulationConfig,
@@ -76,8 +74,6 @@ type UpdateStateCallback = (
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   estimateGas: TransactionController['estimateGas'];
-  getChainId: (networkClientId: string) => Hex;
-  getEthQuery: (networkClientId: string) => EthQuery;
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
@@ -90,10 +86,7 @@ type AddTransactionBatchRequest = {
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
-  publishTransaction: (
-    _ethQuery: EthQuery,
-    transactionMeta: TransactionMeta,
-  ) => Promise<Hex>;
+  publishTransaction: (transactionMeta: TransactionMeta) => Promise<Hex>;
   publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
   requestId?: string;
@@ -110,7 +103,6 @@ type AddTransactionBatchRequest = {
 type IsAtomicBatchSupportedRequestInternal = {
   address: Hex;
   chainIds?: Hex[];
-  getEthQuery: (chainId: Hex) => EthQuery;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
 };
@@ -170,13 +162,7 @@ export async function addTransactionBatch(
 export async function isAtomicBatchSupported(
   request: IsAtomicBatchSupportedRequestInternal,
 ): Promise<IsAtomicBatchSupportedResult> {
-  const {
-    address,
-    chainIds,
-    getEthQuery,
-    messenger,
-    publicKeyEIP7702: publicKey,
-  } = request;
+  const { address, chainIds, messenger, publicKeyEIP7702: publicKey } = request;
 
   if (!publicKey) {
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
@@ -192,7 +178,10 @@ export async function isAtomicBatchSupported(
     await Promise.all(
       filteredChainIds.map(async (chainId) => {
         try {
-          const ethQuery = getEthQuery(chainId);
+          const networkClientId = messenger.call(
+            'NetworkController:findNetworkClientIdByChainId',
+            chainId,
+          );
 
           const { isSupported, delegationAddress } =
             await isAccountUpgradedToEIP7702(
@@ -200,7 +189,7 @@ export async function isAtomicBatchSupported(
               chainId,
               publicKey,
               messenger,
-              ethQuery,
+              networkClientId,
             );
 
           const upgradeContractAddress = getEIP7702UpgradeContractAddress(
@@ -247,13 +236,15 @@ function generateBatchId(): Hex {
  *
  * @param request - The batch request.
  * @param singleRequest - The request for a single transaction.
- * @param ethQuery - The EthQuery instance used to interact with the Ethereum blockchain.
+ * @param messenger - The transaction controller messenger.
+ * @param networkClientId - The network client ID.
  * @returns The metadata for the nested transaction.
  */
 async function getNestedTransactionMeta(
   request: TransactionBatchRequest,
   singleRequest: TransactionBatchSingleRequest,
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
 ): Promise<NestedTransactionMetadata> {
   const { from } = request;
   const { params, type: requestedType } = singleRequest;
@@ -267,7 +258,7 @@ async function getNestedTransactionMeta(
 
   const { type: determinedType } = await determineTransactionType(
     { from, ...params },
-    ethQuery,
+    { messenger, networkClientId },
   );
 
   return {
@@ -287,7 +278,6 @@ async function addTransactionBatchWith7702(
 ): Promise<TransactionBatchResult> {
   const {
     addTransaction,
-    getChainId,
     messenger,
     publicKeyEIP7702,
     request: userRequest,
@@ -311,8 +301,7 @@ async function addTransactionBatchWith7702(
     validateSecurity,
   } = userRequest;
 
-  const chainId = getChainId(networkClientId);
-  const ethQuery = request.getEthQuery(networkClientId);
+  const chainId = getChainId({ messenger, networkClientId });
   const isChainSupported = doesChainSupportEIP7702(chainId, messenger);
 
   if (!isChainSupported) {
@@ -332,7 +321,7 @@ async function addTransactionBatchWith7702(
       chainId,
       publicKeyEIP7702,
       messenger,
-      ethQuery,
+      networkClientId,
     );
 
     log('Account', { delegationAddress, isSupported });
@@ -353,7 +342,7 @@ async function addTransactionBatchWith7702(
 
   const nestedTransactions = await Promise.all(
     transactions.map((tx) =>
-      getNestedTransactionMeta(userRequest, tx, ethQuery),
+      getNestedTransactionMeta(userRequest, tx, messenger, networkClientId),
     ),
   );
 
@@ -485,7 +474,6 @@ async function addTransactionBatchWithHook(
   const sequentialPublishBatchHook = new SequentialPublishBatchHook({
     publishTransaction: request.publishTransaction,
     getTransaction: request.getTransaction,
-    getEthQuery: request.getEthQuery,
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
@@ -850,8 +838,6 @@ async function prepareApprovalData({
     messenger,
     request: userRequest,
     isSimulationEnabled,
-    getChainId,
-    getEthQuery,
     getGasFeeEstimates,
     getSimulationConfig,
     update,
@@ -864,15 +850,13 @@ async function prepareApprovalData({
     transactions: nestedTransactions,
   } = userRequest;
 
-  const ethQuery = getEthQuery(networkClientId);
-
   if (!isSimulationEnabled()) {
     throw new Error(
       'Cannot create transaction batch as simulation not supported',
     );
   }
   log('Preparing approval data for batch');
-  const chainId = getChainId(networkClientId);
+  const chainId = getChainId({ messenger, networkClientId });
 
   const { totalGasLimit: gasLimit } = await simulateGasBatch({
     chainId,
@@ -897,7 +881,6 @@ async function prepareApprovalData({
   });
 
   const gasFeeResponse = await defaultGasFeeFlow.getGasFees({
-    ethQuery,
     gasFeeControllerData,
     messenger,
     transactionMeta: {

@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.4]
+
 ### Changed
 
 - Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
 - Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
 - Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
 
 ## [7.0.3]
 
@@ -262,7 +265,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.4...HEAD
+[7.0.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.3...@metamask/multichain-transactions-controller@7.0.4
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.2...@metamask/multichain-transactions-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.1...@metamask/multichain-transactions-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.0...@metamask/multichain-transactions-controller@7.0.1

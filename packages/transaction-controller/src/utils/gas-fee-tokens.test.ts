@@ -1,4 +1,3 @@
-import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -400,7 +399,8 @@ describe('Gas Fee Tokens Utils', () => {
 
     beforeEach(() => {
       request = {
-        ethQuery: {} as EthQuery,
+        messenger: {} as TransactionControllerMessenger,
+        networkClientId: 'testNetworkClientId',
         fetchGasFeeTokens: jest.fn(),
         transaction: cloneDeep(TRANSACTION_META_MOCK),
         updateTransaction: jest.fn(),

@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
   - The controller now requires `SnapController:getSnap` instead of `SnapController:get`.
 - Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
 - Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/multichain-account-service` from `^8.0.0` to `^8.0.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
 
 ## [6.0.0]
 
@@ -506,7 +511,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@6.0.0...@metamask/account-tree-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.1...@metamask/account-tree-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.0...@metamask/account-tree-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.1.1...@metamask/account-tree-controller@5.0.0
