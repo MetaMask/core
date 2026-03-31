@@ -1,7 +1,7 @@
 import type {
-  StateMetadata,
-  ControllerStateChangeEvent,
   ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -15,19 +15,24 @@ import type {
   FollowingResponse,
   LeaderboardResponse,
   SocialControllerState,
-  SocialDataService,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types';
 import type { SocialControllerMethodActions } from './SocialController-method-action-types';
+import type {
+  SocialServiceFetchFollowingAction,
+  SocialServiceFetchLeaderboardAction,
+  SocialServiceFollowAction,
+  SocialServiceUnfollowAction,
+} from './SocialService-method-action-types';
 
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
-  'fetchLeaderboard',
+  'updateLeaderboard',
   'followTrader',
   'unfollowTrader',
-  'fetchFollowing',
+  'updateFollowing',
 ] as const;
 
 // === ACTION TYPES ===
@@ -50,12 +55,22 @@ export type SocialControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type SocialControllerEvents = SocialControllerStateChangeEvent;
 
+// === ALLOWED ACTIONS/EVENTS ===
+
+type AllowedActions =
+  | SocialServiceFetchLeaderboardAction
+  | SocialServiceFollowAction
+  | SocialServiceUnfollowAction
+  | SocialServiceFetchFollowingAction;
+
+type AllowedEvents = never;
+
 // === MESSENGER TYPE ===
 
 export type SocialControllerMessenger = Messenger<
   typeof controllerName,
-  SocialControllerActions,
-  SocialControllerEvents
+  SocialControllerActions | AllowedActions,
+  SocialControllerEvents | AllowedEvents
 >;
 
 // === OPTIONS ===
@@ -63,7 +78,6 @@ export type SocialControllerMessenger = Messenger<
 export type SocialControllerOptions = {
   messenger: SocialControllerMessenger;
   state?: Partial<SocialControllerState>;
-  socialService: SocialDataService;
 };
 
 // === DEFAULT STATE ===
@@ -112,9 +126,7 @@ export class SocialController extends BaseController<
   SocialControllerState,
   SocialControllerMessenger
 > {
-  readonly #socialService: SocialDataService;
-
-  constructor({ messenger, state, socialService }: SocialControllerOptions) {
+  constructor({ messenger, state }: SocialControllerOptions) {
     super({
       name: controllerName,
       metadata: socialControllerMetadata,
@@ -124,8 +136,6 @@ export class SocialController extends BaseController<
       },
       messenger,
     });
-
-    this.#socialService = socialService;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -139,16 +149,19 @@ export class SocialController extends BaseController<
    * @param options - Optional leaderboard query parameters.
    * @returns The leaderboard response from the social-api.
    */
-  async fetchLeaderboard(
+  async updateLeaderboard(
     options?: FetchLeaderboardOptions,
   ): Promise<LeaderboardResponse> {
-    const response = await this.#socialService.fetchLeaderboard(options);
+    const leaderboardResponse = await this.messenger.call(
+      'SocialService:fetchLeaderboard',
+      options,
+    );
 
     this.update((state) => {
-      state.leaderboardEntries = response.traders;
+      state.leaderboardEntries = leaderboardResponse.traders;
     });
 
-    return response;
+    return leaderboardResponse;
   }
 
   /**
@@ -160,16 +173,20 @@ export class SocialController extends BaseController<
    * @returns The follow response with confirmed follows.
    */
   async followTrader(options: FollowOptions): Promise<FollowResponse> {
-    const response = await this.#socialService.follow(options);
+    const followResponse = await this.messenger.call(
+      'SocialService:follow',
+      options,
+    );
 
-    const newAddresses = response.followed.map((profile) => profile.address);
+    const newAddresses = followResponse.followed.map(
+      (profile) => profile.address,
+    );
 
     this.update((state) => {
-      const combined = new Set([...state.followingAddresses, ...newAddresses]);
-      state.followingAddresses = [...combined];
+      state.followingAddresses.push(...newAddresses);
     });
 
-    return response;
+    return followResponse;
   }
 
   /**
@@ -181,10 +198,13 @@ export class SocialController extends BaseController<
    * @returns The unfollow response with confirmed unfollows.
    */
   async unfollowTrader(options: UnfollowOptions): Promise<UnfollowResponse> {
-    const response = await this.#socialService.unfollow(options);
+    const unfollowResponse = await this.messenger.call(
+      'SocialService:unfollow',
+      options,
+    );
 
     const removedAddresses = new Set(
-      response.unfollowed.map((profile) => profile.address),
+      unfollowResponse.unfollowed.map((profile) => profile.address),
     );
 
     this.update((state) => {
@@ -193,7 +213,7 @@ export class SocialController extends BaseController<
       );
     });
 
-    return response;
+    return unfollowResponse;
   }
 
   /**
@@ -204,17 +224,20 @@ export class SocialController extends BaseController<
    * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
    * @returns The following response.
    */
-  async fetchFollowing(
+  async updateFollowing(
     options: FetchFollowingOptions,
   ): Promise<FollowingResponse> {
-    const response = await this.#socialService.fetchFollowing(options);
+    const followingResponse = await this.messenger.call(
+      'SocialService:fetchFollowing',
+      options,
+    );
 
     this.update((state) => {
-      state.followingAddresses = response.following.map(
+      state.followingAddresses = followingResponse.following.map(
         (profile) => profile.address,
       );
     });
 
-    return response;
+    return followingResponse;
   }
 }

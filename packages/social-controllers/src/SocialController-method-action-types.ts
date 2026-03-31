@@ -7,20 +7,14 @@ import type { SocialController } from './SocialController';
 
 /**
  * Fetches the leaderboard and persists the entries to state.
- *
- * @param args - The arguments to the function.
- * @param args.options - Optional leaderboard query parameters.
  */
-export type SocialControllerFetchLeaderboardAction = {
-  type: `SocialController:fetchLeaderboard`;
-  handler: SocialController['fetchLeaderboard'];
+export type SocialControllerUpdateLeaderboardAction = {
+  type: `SocialController:updateLeaderboard`;
+  handler: SocialController['updateLeaderboard'];
 };
 
 /**
  * Follows one or more traders and updates the following list in state.
- *
- * @param args - The arguments to the function.
- * @param args.options - Options bag with addressOrUid and targets.
  */
 export type SocialControllerFollowTraderAction = {
   type: `SocialController:followTrader`;
@@ -29,9 +23,6 @@ export type SocialControllerFollowTraderAction = {
 
 /**
  * Unfollows one or more traders and updates the following list in state.
- *
- * @param args - The arguments to the function.
- * @param args.options - Options bag with addressOrUid and targets.
  */
 export type SocialControllerUnfollowTraderAction = {
   type: `SocialController:unfollowTrader`;
@@ -39,22 +30,18 @@ export type SocialControllerUnfollowTraderAction = {
 };
 
 /**
- * Fetches the list of traders the current user follows and replaces
- * the following addresses in state.
- *
- * @param args - The arguments to the function.
- * @param args.options - Options bag with addressOrUid.
+ * Fetches the following list and replaces addresses in state.
  */
-export type SocialControllerFetchFollowingAction = {
-  type: `SocialController:fetchFollowing`;
-  handler: SocialController['fetchFollowing'];
+export type SocialControllerUpdateFollowingAction = {
+  type: `SocialController:updateFollowing`;
+  handler: SocialController['updateFollowing'];
 };
 
 /**
- * Union of all SocialController action types.
+ * Union of all SocialController method action types.
  */
 export type SocialControllerMethodActions =
-  | SocialControllerFetchLeaderboardAction
+  | SocialControllerUpdateLeaderboardAction
   | SocialControllerFollowTraderAction
   | SocialControllerUnfollowTraderAction
-  | SocialControllerFetchFollowingAction;
+  | SocialControllerUpdateFollowingAction;
