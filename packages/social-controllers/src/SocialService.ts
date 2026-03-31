@@ -238,7 +238,7 @@ export class SocialService extends BaseDataService<
     options?: FetchLeaderboardOptions,
   ): Promise<LeaderboardResponse> {
     const leaderboardResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchLeaderboard`, options],
+      queryKey: [`${this.name}:fetchLeaderboard`, options ?? null],
       queryFn: async () => {
         const { sort, chains, limit } = options ?? {};
         const url = new URL(`${this.#baseUrl}/leaderboard`);
@@ -515,7 +515,10 @@ export class SocialService extends BaseDataService<
       queryKey: [
         `${this.name}:fetch${status === 'open' ? 'Open' : 'Closed'}Positions`,
         addressOrId,
-        { chain, sort, limit, page },
+        chain ?? null,
+        sort ?? null,
+        limit ?? null,
+        page ?? null,
       ],
       queryFn: async () => {
         const url = new URL(
