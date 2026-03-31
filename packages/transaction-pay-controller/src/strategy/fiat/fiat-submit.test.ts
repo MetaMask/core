@@ -328,6 +328,16 @@ describe('submitFiatQuotes', () => {
     );
   });
 
+  it('throws if fiat order status is id_expired', async () => {
+    const { request } = getRequest({
+      order: getFiatOrderMock({ status: RampsOrderStatus.IdExpired }),
+    });
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Fiat order id_expired',
+    );
+  });
+
   it('polls pending orders until completed', async () => {
     jest.useFakeTimers();
 

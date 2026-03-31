@@ -28,8 +28,9 @@ const ORDER_POLL_INTERVAL_MS = 1000;
 const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
-  RampsOrderStatus.Failed,
   RampsOrderStatus.Cancelled,
+  RampsOrderStatus.Failed,
+  RampsOrderStatus.IdExpired,
 ];
 
 /**
