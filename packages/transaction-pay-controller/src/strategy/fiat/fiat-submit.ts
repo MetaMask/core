@@ -234,8 +234,9 @@ async function waitForOrderCompletion({
     }
 
     if (Date.now() - startTime >= ORDER_POLL_TIMEOUT_MS) {
-      const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
-      throw new Error(`Fiat order polling timed out${statusDetail}`);
+      throw new Error(
+        `Fiat order polling timed out (last status: ${lastStatus})`,
+      );
     }
 
     await new Promise((resolve) => setTimeout(resolve, ORDER_POLL_INTERVAL_MS));
