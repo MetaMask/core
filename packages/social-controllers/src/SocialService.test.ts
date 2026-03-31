@@ -502,8 +502,7 @@ describe('SocialService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({ followers: 'not-an-array', count: 1 }),
+        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
       });
 
       const service = createService();
@@ -576,8 +575,7 @@ describe('SocialService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({ following: 'not-an-array', count: 1 }),
+        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
       });
 
       const service = createService();
@@ -678,9 +676,7 @@ describe('SocialService', () => {
 
       await expect(
         service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(
-        `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`,
-      );
+      ).rejects.toThrow(`${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`);
     });
 
     it('throws when response schema is invalid', async () => {
@@ -694,9 +690,7 @@ describe('SocialService', () => {
 
       await expect(
         service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
-      );
+      ).rejects.toThrow(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
     });
   });
 });

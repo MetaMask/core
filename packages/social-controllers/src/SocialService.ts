@@ -18,7 +18,6 @@ import {
   type as structType,
 } from '@metamask/superstruct';
 
-import type { SocialServiceMethodActions } from './SocialService-method-action-types';
 import { serviceName, SocialServiceErrorMessage } from './social-constants';
 import type {
   FetchFollowersOptions,
@@ -36,6 +35,7 @@ import type {
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types';
+import type { SocialServiceMethodActions } from './SocialService-method-action-types';
 
 // ---------------------------------------------------------------------------
 // Superstruct validation schemas

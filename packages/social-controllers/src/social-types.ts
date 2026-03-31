@@ -229,4 +229,3 @@ export type UnfollowOptions = {
   /** Array of wallet addresses or profile IDs to unfollow. */
   targets: string[];
 };
-
