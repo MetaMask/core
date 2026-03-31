@@ -1,4 +1,7 @@
-import { SocialServiceErrorMessage } from './social-constants';
+import { Messenger } from '@metamask/messenger';
+
+import { SocialServiceErrorMessage, serviceName } from './social-constants';
+import type { SocialServiceMessenger } from './SocialService';
 import { SocialService } from './SocialService';
 
 const BASE_URL = 'http://test.com/api/v1';
@@ -40,6 +43,19 @@ const mockPosition = {
   lastTradeAt: 1700000000,
 };
 
+function createMessenger(): SocialServiceMessenger {
+  return new Messenger({
+    namespace: serviceName,
+  }) as SocialServiceMessenger;
+}
+
+function createService(
+  options: { messenger?: SocialServiceMessenger } = {},
+): SocialService {
+  const messenger = options.messenger ?? createMessenger();
+  return new SocialService({ messenger, baseUrl: BASE_URL });
+}
+
 describe('SocialService', () => {
   const mockFetch = jest.fn();
   const originalFetch = global.fetch;
@@ -80,7 +96,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockLeaderboardResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchLeaderboard();
 
       expect(result).toStrictEqual(mockLeaderboardResponse);
@@ -94,7 +110,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockLeaderboardResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       await service.fetchLeaderboard({
         sort: 'roi',
         chains: ['base', 'solana'],
@@ -108,10 +124,10 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('limit=10');
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(service.fetchLeaderboard()).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED}: 500`,
@@ -125,7 +141,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve({ traders: 'not-an-array' }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(service.fetchLeaderboard()).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
@@ -147,7 +163,7 @@ describe('SocialService', () => {
           }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(service.fetchLeaderboard()).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
@@ -172,10 +188,29 @@ describe('SocialService', () => {
         json: () => Promise.resolve({ traders: [minimalTrader] }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchLeaderboard();
 
       expect(result.traders[0].name).toBe('TraderAlice');
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockLeaderboardResponse),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call(
+        'SocialService:fetchLeaderboard',
+        undefined,
+      );
+
+      expect(result).toStrictEqual(mockLeaderboardResponse);
     });
   });
 
@@ -211,7 +246,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockProfileResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchTraderProfile({
         addressOrId: '0x1234',
       });
@@ -229,7 +264,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockProfileResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       await service.fetchTraderProfile({
         addressOrId: 'addr/with/slashes',
       });
@@ -239,10 +274,10 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 404 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchTraderProfile({ addressOrId: '0x1234' }),
@@ -258,7 +293,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve({ profile: 'not-an-object' }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchTraderProfile({ addressOrId: '0x1234' }),
@@ -279,7 +314,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(withMinimalStats),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchTraderProfile({
         addressOrId: '0x1234',
       });
@@ -301,7 +336,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockPositionsResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchOpenPositions({
         addressOrId: '0x1234',
       });
@@ -319,7 +354,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockPositionsResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       await service.fetchOpenPositions({
         addressOrId: '0x1234',
         chain: 'base',
@@ -335,10 +370,10 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('page=2');
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchOpenPositions({ addressOrId: '0x1234' }),
@@ -355,7 +390,7 @@ describe('SocialService', () => {
           Promise.resolve({ positions: 'not-an-array', pagination: {} }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchOpenPositions({ addressOrId: '0x1234' }),
@@ -380,7 +415,7 @@ describe('SocialService', () => {
           }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchOpenPositions({ addressOrId: '0x1234' }),
@@ -403,7 +438,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockPositionsResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchClosedPositions({
         addressOrId: '0x1234',
       });
@@ -414,10 +449,10 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 503 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchClosedPositions({ addressOrId: '0x1234' }),
@@ -440,7 +475,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockFollowersResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchFollowers({
         addressOrId: '0x1234',
       });
@@ -451,10 +486,10 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchFollowers({ addressOrId: '0x1234' }),
@@ -467,10 +502,11 @@ describe('SocialService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
+        json: () =>
+          Promise.resolve({ followers: 'not-an-array', count: 1 }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchFollowers({ addressOrId: '0x1234' }),
@@ -490,7 +526,7 @@ describe('SocialService', () => {
           }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchFollowers({ addressOrId: '0x1234' }),
@@ -513,7 +549,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockFollowingResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.fetchFollowing({
         addressOrUid: '0x1234',
       });
@@ -524,10 +560,10 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchFollowing({ addressOrUid: '0x1234' }),
@@ -540,10 +576,11 @@ describe('SocialService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
+        json: () =>
+          Promise.resolve({ following: 'not-an-array', count: 1 }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.fetchFollowing({ addressOrUid: '0x1234' }),
@@ -565,7 +602,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockFollowResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.follow({
         addressOrUid: '0x1234',
         targets: ['0xaaaa', '0xbbbb'],
@@ -582,10 +619,10 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 400 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
@@ -599,7 +636,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve({ followed: 'not-an-array' }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
@@ -619,7 +656,7 @@ describe('SocialService', () => {
         json: () => Promise.resolve(mockUnfollowResponse),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
       const result = await service.unfollow({
         addressOrUid: '0x1234',
         targets: ['0xaaaa', '0xbbbb'],
@@ -634,14 +671,16 @@ describe('SocialService', () => {
       });
     });
 
-    it('throws on non-ok response', async () => {
+    it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 400 });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(`${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`);
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`,
+      );
     });
 
     it('throws when response schema is invalid', async () => {
@@ -651,11 +690,13 @@ describe('SocialService', () => {
         json: () => Promise.resolve({ unfollowed: 'not-an-array' }),
       });
 
-      const service = new SocialService({ baseUrl: BASE_URL });
+      const service = createService();
 
       await expect(
         service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
+      );
     });
   });
 });
