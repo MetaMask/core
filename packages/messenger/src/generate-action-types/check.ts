@@ -106,7 +106,7 @@ export async function checkActionTypesFiles(
   if (hasErrors) {
     console.error('\n💥 Some action type files are out of date or missing.');
     console.error(
-      'Run `yarn messenger-generate-action-types --fix` to update them.',
+      'Run `yarn generate-method-action-types --fix` to update them.',
     );
     // eslint-disable-next-line no-restricted-globals
     process.exitCode = 1;
