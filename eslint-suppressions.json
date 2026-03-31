@@ -137,11 +137,6 @@
       "count": 6
     }
   },
-  "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/index.ts": {
     "no-restricted-syntax": {
       "count": 9
@@ -271,19 +266,11 @@
     "id-length": {
       "count": 1
     },
-    "import-x/no-relative-packages": {
-      "count": 1
-    },
     "no-negated-condition": {
       "count": 1
     },
     "no-param-reassign": {
       "count": 2
-    }
-  },
-  "packages/assets-controllers/src/NftDetectionController.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
@@ -1713,11 +1700,6 @@
   "packages/subscription-controller/src/index.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
