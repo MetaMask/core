@@ -347,10 +347,13 @@ export class BackupAndSyncService {
             }
           } catch (error) {
             const errorMessage = toErrorMessage(error);
-            const errorString = `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`;
 
-            backupAndSyncLogger(errorString);
-            throw new Error(errorString);
+            backupAndSyncLogger(
+              `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`,
+            );
+            throw new Error(
+              `Legacy syncing failed for wallet: ${errorMessage}`,
+            );
           }
 
           // 3. Execute multichain account syncing

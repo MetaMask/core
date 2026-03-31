@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Hardcode user operation transaction type to `contractInteraction` instead of calling `determineTransactionType` ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 
 ## [41.1.1]
 
