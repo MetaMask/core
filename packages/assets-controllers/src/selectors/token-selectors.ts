@@ -239,7 +239,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           assetId:
             SPOT_PRICES_SUPPORT_INFO[
               chainId as keyof typeof SPOT_PRICES_SUPPORT_INFO
-            ] ?? SPOT_PRICES_SUPPORT_INFO['0x1'],
+            ] ?? `eip155:${hexToNumber(chainId)}/slip44:60`,
           isNative: true,
           address: nativeToken.address,
           image: nativeToken.image,

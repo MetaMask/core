@@ -580,7 +580,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
+      assetId: 'eip155:1/erc20:0x40d16fc0246ad3160ccc09B8d0d3a2cd28ae6c2f',
       address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
@@ -600,7 +600,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
+      assetId: 'eip155:1/erc20:0x6b3595068778dd592e39a122f4f5a5cf09c90fe2',
       address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b3595068778dd592e39a122f4f5a5cf09c90fe2.png',
@@ -620,7 +620,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: '0x0000000000000000000000000000000000000000',
+      assetId: 'eip155:1/slip44:60',
       address: '0x0000000000000000000000000000000000000000',
       image: '',
       name: 'Ethereum',
@@ -641,7 +641,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+      assetId: 'eip155:1/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
@@ -661,7 +661,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: '0x0000000000000000000000000000000000000000',
+      assetId: 'eip155:1/slip44:60',
       address: '0x0000000000000000000000000000000000000000',
       image: '',
       name: 'Ethereum',
@@ -683,6 +683,7 @@ const expectedMockResult = {
       accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      address: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       image:
         'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44/501.png',
       name: 'Solana',
@@ -702,6 +703,8 @@ const expectedMockResult = {
       accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId:
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+      address:
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
       image:
         'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN.png',
@@ -756,7 +759,7 @@ describe('token-selectors', () => {
       expect(tokenWithNoFiatBalance).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
-        assetId: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+        assetId: 'eip155:1/erc20:0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
         rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
@@ -786,7 +789,7 @@ describe('token-selectors', () => {
       expect(tokenWithNoFiatBalance).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        assetId: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        assetId: 'eip155:1/erc20:0x514910771af9ca656af840dff83e8264ecf986ca',
         rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
@@ -832,6 +835,8 @@ describe('token-selectors', () => {
         accountId: '40fe5e20-525a-4434-bb83-c51ce5560a8c',
         assetId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
+        address:
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
         rawBalance: '0x5f5e100',
         balance: '100',
         chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -856,7 +861,7 @@ describe('token-selectors', () => {
 
       expect(nativeToken).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
-        assetId: '0x0000000000000000000000000000000000001010',
+        assetId: 'eip155:137/slip44:966',
         address: '0x0000000000000000000000000000000000001010',
         rawBalance: '0x8AC7230489E80000',
         chainId: '0x89',
@@ -1047,7 +1052,7 @@ describe('token-selectors', () => {
         accountType: 'eip155:eoa',
         accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
         chainId: inkChainId,
-        assetId: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${inkChainId}/slip44:60`,
         address: '0x0000000000000000000000000000000000000000',
         image: '',
         name: 'Ethereum',
