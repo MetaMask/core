@@ -1028,6 +1028,56 @@ describe('Batch Utils', () => {
       );
     });
 
+    /*
+     * This ensures that Tempo-related additions keep things unchanged
+     * as long as input parameters are unchanged.
+     */
+    it('defaults to no excludeNativeTokenForFee in transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.not.objectContaining({
+          excludeNativeTokenForFee: expect.anything(),
+        }),
+      );
+    });
+
+    it('adds excludeNativeTokenForFee to transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      request.request.excludeNativeTokenForFee = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
+        }),
+      );
+    });
+
     it.each([true, false])(
       'passes isGasFeeIncluded flag (%s) through to addTransaction when provided (EIP-7702 path)',
       async (isGasFeeIncluded) => {

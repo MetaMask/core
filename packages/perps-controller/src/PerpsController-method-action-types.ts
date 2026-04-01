@@ -1,185 +1,429 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
 import type { PerpsController } from './PerpsController';
 
+/**
+ * Place a new order
+ * Thin delegation to TradingService
+ *
+ * @param params - The operation parameters.
+ * @returns The order result with order ID and status.
+ */
 export type PerpsControllerPlaceOrderAction = {
-  type: 'PerpsController:placeOrder';
+  type: `PerpsController:placeOrder`;
   handler: PerpsController['placeOrder'];
 };
 
+/**
+ * Edit an existing order
+ * Thin delegation to TradingService
+ *
+ * @param params - The operation parameters.
+ * @returns The updated order result with order ID and status.
+ */
 export type PerpsControllerEditOrderAction = {
-  type: 'PerpsController:editOrder';
+  type: `PerpsController:editOrder`;
   handler: PerpsController['editOrder'];
 };
 
+/**
+ * Cancel an existing order
+ *
+ * @param params - The operation parameters.
+ * @returns The cancellation result with status.
+ */
 export type PerpsControllerCancelOrderAction = {
-  type: 'PerpsController:cancelOrder';
+  type: `PerpsController:cancelOrder`;
   handler: PerpsController['cancelOrder'];
 };
 
+/**
+ * Cancel multiple orders in parallel
+ * Batch version of cancelOrder() that cancels multiple orders simultaneously
+ *
+ * @param params - The operation parameters.
+ * @returns The batch cancellation results for each order.
+ */
 export type PerpsControllerCancelOrdersAction = {
-  type: 'PerpsController:cancelOrders';
+  type: `PerpsController:cancelOrders`;
   handler: PerpsController['cancelOrders'];
 };
 
+/**
+ * Close a position (partial or full)
+ * Thin delegation to TradingService
+ *
+ * @param params - The operation parameters.
+ * @returns The order result from the close position request.
+ */
 export type PerpsControllerClosePositionAction = {
-  type: 'PerpsController:closePosition';
+  type: `PerpsController:closePosition`;
   handler: PerpsController['closePosition'];
 };
 
+/**
+ * Close multiple positions in parallel
+ * Batch version of closePosition() that closes multiple positions simultaneously
+ *
+ * @param params - The operation parameters.
+ * @returns The batch close results for each position.
+ */
 export type PerpsControllerClosePositionsAction = {
-  type: 'PerpsController:closePositions';
+  type: `PerpsController:closePositions`;
   handler: PerpsController['closePositions'];
 };
 
+/**
+ * Withdraw funds from trading account
+ *
+ * The withdrawal process varies by provider and may involve:
+ * - Direct on-chain transfers
+ * - Bridge operations
+ * - Multi-step validation processes
+ *
+ * Check the specific provider documentation for detailed withdrawal flows.
+ *
+ * @param params Withdrawal parameters
+ * @returns WithdrawResult with withdrawal ID and tracking info
+ */
 export type PerpsControllerWithdrawAction = {
-  type: 'PerpsController:withdraw';
+  type: `PerpsController:withdraw`;
   handler: PerpsController['withdraw'];
 };
 
+/**
+ * Get current positions
+ * Thin delegation to MarketDataService
+ *
+ * For standalone mode, bypasses getActiveProvider() to allow position queries
+ * without full perps initialization (e.g., for showing positions on token details page)
+ *
+ * @param params - The operation parameters.
+ * @returns Array of open positions for the active provider.
+ */
 export type PerpsControllerGetPositionsAction = {
-  type: 'PerpsController:getPositions';
+  type: `PerpsController:getPositions`;
   handler: PerpsController['getPositions'];
 };
 
+/**
+ * Get historical user fills (trade executions)
+ * Thin delegation to MarketDataService
+ *
+ * @param params - The operation parameters.
+ * @returns Array of historical trade executions (fills).
+ */
 export type PerpsControllerGetOrderFillsAction = {
-  type: 'PerpsController:getOrderFills';
+  type: `PerpsController:getOrderFills`;
   handler: PerpsController['getOrderFills'];
 };
 
+/**
+ * Get historical user orders (order lifecycle)
+ * Thin delegation to MarketDataService
+ *
+ * @param params - The operation parameters.
+ * @returns Array of historical orders.
+ */
 export type PerpsControllerGetOrdersAction = {
-  type: 'PerpsController:getOrders';
+  type: `PerpsController:getOrders`;
   handler: PerpsController['getOrders'];
 };
 
+/**
+ * Get currently open orders (real-time status)
+ * Thin delegation to MarketDataService
+ *
+ * For standalone mode, bypasses getActiveProvider() to allow open order queries
+ * without full perps initialization (e.g., for background preloading)
+ *
+ * @param params - The operation parameters.
+ * @returns A promise that resolves to the result.
+ */
 export type PerpsControllerGetOpenOrdersAction = {
-  type: 'PerpsController:getOpenOrders';
+  type: `PerpsController:getOpenOrders`;
   handler: PerpsController['getOpenOrders'];
 };
 
+/**
+ * Get historical user funding history (funding payments)
+ * Thin delegation to MarketDataService
+ *
+ * @param params - The operation parameters.
+ * @returns Array of historical funding payments.
+ */
 export type PerpsControllerGetFundingAction = {
-  type: 'PerpsController:getFunding';
+  type: `PerpsController:getFunding`;
   handler: PerpsController['getFunding'];
 };
 
+/**
+ * Get account state (balances, etc.)
+ * Thin delegation to MarketDataService
+ *
+ * For standalone mode, bypasses getActiveProvider() to allow account state queries
+ * without full perps initialization (e.g., for checking if user has perps funds)
+ *
+ * @param params - The operation parameters.
+ * @returns A promise that resolves to the result.
+ */
 export type PerpsControllerGetAccountStateAction = {
-  type: 'PerpsController:getAccountState';
+  type: `PerpsController:getAccountState`;
   handler: PerpsController['getAccountState'];
 };
 
+/**
+ * Get historical portfolio data
+ * Thin delegation to MarketDataService
+ *
+ * @param params - The operation parameters.
+ * @returns The historical portfolio data points.
+ */
+export type PerpsControllerGetHistoricalPortfolioAction = {
+  type: `PerpsController:getHistoricalPortfolio`;
+  handler: PerpsController['getHistoricalPortfolio'];
+};
+
+/**
+ * Get available markets with optional filtering
+ * Thin delegation to MarketDataService
+ *
+ * For standalone mode, bypasses getActiveProvider() to allow market discovery
+ * without full perps initialization (e.g., for discovery banners on spot screens)
+ *
+ * @param params - The operation parameters.
+ * @returns Array of available markets matching the filter criteria.
+ */
 export type PerpsControllerGetMarketsAction = {
-  type: 'PerpsController:getMarkets';
+  type: `PerpsController:getMarkets`;
   handler: PerpsController['getMarkets'];
 };
 
-export type PerpsControllerRefreshEligibilityAction = {
-  type: 'PerpsController:refreshEligibility';
-  handler: PerpsController['refreshEligibility'];
-};
-
+/**
+ * Toggle between testnet and mainnet
+ *
+ * @returns The toggle result with success status and current network mode.
+ */
 export type PerpsControllerToggleTestnetAction = {
-  type: 'PerpsController:toggleTestnet';
+  type: `PerpsController:toggleTestnet`;
   handler: PerpsController['toggleTestnet'];
 };
 
-export type PerpsControllerDisconnectAction = {
-  type: 'PerpsController:disconnect';
-  handler: PerpsController['disconnect'];
-};
-
+/**
+ * Calculate trading fees for the active provider
+ * Each provider implements its own fee structure
+ *
+ * @param params - The operation parameters.
+ * @returns The fee calculation result for the trade.
+ */
 export type PerpsControllerCalculateFeesAction = {
-  type: 'PerpsController:calculateFees';
+  type: `PerpsController:calculateFees`;
   handler: PerpsController['calculateFees'];
 };
 
+/**
+ * Disconnect provider and cleanup subscriptions
+ * Call this when navigating away from Perps screens to prevent battery drain
+ */
+export type PerpsControllerDisconnectAction = {
+  type: `PerpsController:disconnect`;
+  handler: PerpsController['disconnect'];
+};
+
+/**
+ * Resume eligibility monitoring after onboarding completes.
+ * Clears the deferred flag and triggers an immediate eligibility check
+ * using the current remote feature flag state.
+ */
+export type PerpsControllerStartEligibilityMonitoringAction = {
+  type: `PerpsController:startEligibilityMonitoring`;
+  handler: PerpsController['startEligibilityMonitoring'];
+};
+
+/**
+ * Stops geo-blocking eligibility monitoring.
+ * Call this when the user disables basic functionality (e.g. useExternalServices becomes false).
+ * Prevents geolocation calls until startEligibilityMonitoring() is called again.
+ * Safe to call multiple times.
+ */
+export type PerpsControllerStopEligibilityMonitoringAction = {
+  type: `PerpsController:stopEligibilityMonitoring`;
+  handler: PerpsController['stopEligibilityMonitoring'];
+};
+
+export type PerpsControllerRefreshEligibilityAction = {
+  type: `PerpsController:refreshEligibility`;
+  handler: PerpsController['refreshEligibility'];
+};
+
+/**
+ * Mark that the user has completed the tutorial/onboarding
+ * This prevents the tutorial from showing again
+ */
 export type PerpsControllerMarkTutorialCompletedAction = {
-  type: 'PerpsController:markTutorialCompleted';
+  type: `PerpsController:markTutorialCompleted`;
   handler: PerpsController['markTutorialCompleted'];
 };
 
 export type PerpsControllerMarkFirstOrderCompletedAction = {
-  type: 'PerpsController:markFirstOrderCompleted';
+  type: `PerpsController:markFirstOrderCompleted`;
   handler: PerpsController['markFirstOrderCompleted'];
 };
 
-export type PerpsControllerGetHistoricalPortfolioAction = {
-  type: 'PerpsController:getHistoricalPortfolio';
-  handler: PerpsController['getHistoricalPortfolio'];
-};
-
+/**
+ * Reset first-time user state for both networks
+ * This is useful for testing the tutorial flow
+ * Called by Reset Account feature in settings
+ */
 export type PerpsControllerResetFirstTimeUserStateAction = {
-  type: 'PerpsController:resetFirstTimeUserState';
+  type: `PerpsController:resetFirstTimeUserState`;
   handler: PerpsController['resetFirstTimeUserState'];
 };
 
+/**
+ * Clear pending/bridging withdrawal and deposit requests
+ * This is useful when users want to clear stuck pending indicators
+ * Called by Reset Account feature in settings
+ */
 export type PerpsControllerClearPendingTransactionRequestsAction = {
-  type: 'PerpsController:clearPendingTransactionRequests';
+  type: `PerpsController:clearPendingTransactionRequests`;
   handler: PerpsController['clearPendingTransactionRequests'];
 };
 
-export type PerpsControllerSaveTradeConfigurationAction = {
-  type: 'PerpsController:saveTradeConfiguration';
-  handler: PerpsController['saveTradeConfiguration'];
-};
-
+/**
+ * Get saved trade configuration for a market
+ *
+ * @param symbol - The trading pair symbol.
+ * @returns The resulting string value.
+ */
 export type PerpsControllerGetTradeConfigurationAction = {
-  type: 'PerpsController:getTradeConfiguration';
+  type: `PerpsController:getTradeConfiguration`;
   handler: PerpsController['getTradeConfiguration'];
 };
 
-export type PerpsControllerSaveMarketFilterPreferencesAction = {
-  type: 'PerpsController:saveMarketFilterPreferences';
-  handler: PerpsController['saveMarketFilterPreferences'];
+/**
+ * Save trade configuration for a market
+ *
+ * @param symbol - Market symbol
+ * @param leverage - Leverage value
+ */
+export type PerpsControllerSaveTradeConfigurationAction = {
+  type: `PerpsController:saveTradeConfiguration`;
+  handler: PerpsController['saveTradeConfiguration'];
 };
 
-export type PerpsControllerGetMarketFilterPreferencesAction = {
-  type: 'PerpsController:getMarketFilterPreferences';
-  handler: PerpsController['getMarketFilterPreferences'];
-};
-
+/**
+ * Save pending trade configuration for a market
+ * This is a temporary configuration that expires after 5 minutes
+ *
+ * @param symbol - Market symbol
+ * @param config - Pending trade configuration (includes optional selected payment token from Pay row)
+ * @param config.amount - The amount value.
+ * @param config.leverage - The leverage multiplier.
+ * @param config.takeProfitPrice - The take profit price.
+ * @param config.stopLossPrice - The stop loss price.
+ * @param config.limitPrice - The limit price.
+ * @param config.orderType - The order type.
+ * @param config.selectedPaymentToken - The selected payment token.
+ */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
-  type: 'PerpsController:savePendingTradeConfiguration';
+  type: `PerpsController:savePendingTradeConfiguration`;
   handler: PerpsController['savePendingTradeConfiguration'];
 };
 
+/**
+ * Get pending trade configuration for a market
+ * Returns undefined if config doesn't exist or has expired (more than 5 minutes old)
+ *
+ * @param symbol - Market symbol
+ * @returns Pending trade configuration or undefined
+ */
 export type PerpsControllerGetPendingTradeConfigurationAction = {
-  type: 'PerpsController:getPendingTradeConfiguration';
+  type: `PerpsController:getPendingTradeConfiguration`;
   handler: PerpsController['getPendingTradeConfiguration'];
 };
 
+/**
+ * Clear pending trade configuration for a market
+ *
+ * @param symbol - Market symbol
+ */
 export type PerpsControllerClearPendingTradeConfigurationAction = {
-  type: 'PerpsController:clearPendingTradeConfiguration';
+  type: `PerpsController:clearPendingTradeConfiguration`;
   handler: PerpsController['clearPendingTradeConfiguration'];
 };
 
-export type PerpsControllerGetOrderBookGroupingAction = {
-  type: 'PerpsController:getOrderBookGrouping';
-  handler: PerpsController['getOrderBookGrouping'];
+/**
+ * Get saved market filter preferences
+ * Handles backward compatibility with legacy string format
+ *
+ * @returns The saved sort option ID and direction.
+ */
+export type PerpsControllerGetMarketFilterPreferencesAction = {
+  type: `PerpsController:getMarketFilterPreferences`;
+  handler: PerpsController['getMarketFilterPreferences'];
 };
 
-export type PerpsControllerSaveOrderBookGroupingAction = {
-  type: 'PerpsController:saveOrderBookGrouping';
-  handler: PerpsController['saveOrderBookGrouping'];
+/**
+ * Save market filter preferences
+ *
+ * @param optionId - Sort/filter option ID
+ * @param direction - Sort direction ('asc' or 'desc')
+ */
+export type PerpsControllerSaveMarketFilterPreferencesAction = {
+  type: `PerpsController:saveMarketFilterPreferences`;
+  handler: PerpsController['saveMarketFilterPreferences'];
 };
 
+/**
+ * Set the selected payment token for the Perps order/deposit flow.
+ * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
+ * Only required fields (address, chainId) are stored in state; description and symbol are optional.
+ *
+ * @param token - The token identifier.
+ */
 export type PerpsControllerSetSelectedPaymentTokenAction = {
-  type: 'PerpsController:setSelectedPaymentToken';
+  type: `PerpsController:setSelectedPaymentToken`;
   handler: PerpsController['setSelectedPaymentToken'];
 };
 
+/**
+ * Reset the selected payment token to Perps balance (null).
+ * Call when leaving the Perps order view so the next visit defaults to Perps balance.
+ */
 export type PerpsControllerResetSelectedPaymentTokenAction = {
-  type: 'PerpsController:resetSelectedPaymentToken';
+  type: `PerpsController:resetSelectedPaymentToken`;
   handler: PerpsController['resetSelectedPaymentToken'];
 };
 
-export type PerpsControllerStartEligibilityMonitoringAction = {
-  type: 'PerpsController:startEligibilityMonitoring';
-  handler: PerpsController['startEligibilityMonitoring'];
+/**
+ * Get saved order book grouping for a market
+ *
+ * @param symbol - Market symbol
+ * @returns The saved grouping value or undefined if not set
+ */
+export type PerpsControllerGetOrderBookGroupingAction = {
+  type: `PerpsController:getOrderBookGrouping`;
+  handler: PerpsController['getOrderBookGrouping'];
 };
 
-export type PerpsControllerStopEligibilityMonitoringAction = {
-  type: 'PerpsController:stopEligibilityMonitoring';
-  handler: PerpsController['stopEligibilityMonitoring'];
+/**
+ * Save order book grouping for a market
+ *
+ * @param symbol - Market symbol
+ * @param grouping - Price grouping value
+ */
+export type PerpsControllerSaveOrderBookGroupingAction = {
+  type: `PerpsController:saveOrderBookGrouping`;
+  handler: PerpsController['saveOrderBookGrouping'];
 };
 
+/**
+ * Union of all PerpsController action types.
+ */
 export type PerpsControllerMethodActions =
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
@@ -194,26 +438,26 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetOpenOrdersAction
   | PerpsControllerGetFundingAction
   | PerpsControllerGetAccountStateAction
+  | PerpsControllerGetHistoricalPortfolioAction
   | PerpsControllerGetMarketsAction
-  | PerpsControllerRefreshEligibilityAction
   | PerpsControllerToggleTestnetAction
-  | PerpsControllerDisconnectAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerDisconnectAction
+  | PerpsControllerStartEligibilityMonitoringAction
+  | PerpsControllerStopEligibilityMonitoringAction
+  | PerpsControllerRefreshEligibilityAction
   | PerpsControllerMarkTutorialCompletedAction
   | PerpsControllerMarkFirstOrderCompletedAction
-  | PerpsControllerGetHistoricalPortfolioAction
   | PerpsControllerResetFirstTimeUserStateAction
   | PerpsControllerClearPendingTransactionRequestsAction
-  | PerpsControllerSaveTradeConfigurationAction
   | PerpsControllerGetTradeConfigurationAction
-  | PerpsControllerSaveMarketFilterPreferencesAction
-  | PerpsControllerGetMarketFilterPreferencesAction
+  | PerpsControllerSaveTradeConfigurationAction
   | PerpsControllerSavePendingTradeConfigurationAction
   | PerpsControllerGetPendingTradeConfigurationAction
   | PerpsControllerClearPendingTradeConfigurationAction
-  | PerpsControllerGetOrderBookGroupingAction
-  | PerpsControllerSaveOrderBookGroupingAction
+  | PerpsControllerGetMarketFilterPreferencesAction
+  | PerpsControllerSaveMarketFilterPreferencesAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
-  | PerpsControllerStartEligibilityMonitoringAction
-  | PerpsControllerStopEligibilityMonitoringAction;
+  | PerpsControllerGetOrderBookGroupingAction
+  | PerpsControllerSaveOrderBookGroupingAction;

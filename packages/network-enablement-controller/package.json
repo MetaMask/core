@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-enablement-controller",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/network-enablement-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-enablement-controller",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -55,7 +55,7 @@
     "@metamask/multichain-network-controller": "^3.0.6",
     "@metamask/network-controller": "^30.0.1",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^63.3.1",
+    "@metamask/transaction-controller": "^64.0.0",
     "@metamask/utils": "^11.9.0",
     "reselect": "^5.1.1"
   },

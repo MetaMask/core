@@ -170,7 +170,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 6
+      "count": 7
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
@@ -193,7 +193,7 @@
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
     "no-restricted-syntax": {
-      "count": 1
+      "count": 3
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
@@ -204,11 +204,6 @@
   "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/assets-controller/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 9
     }
   },
   "packages/assets-controller/src/selectors/balance.ts": {
@@ -234,6 +229,11 @@
   },
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/AccountTrackerController.ts": {
+    "no-restricted-syntax": {
       "count": 3
     }
   },
@@ -313,7 +313,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
@@ -372,7 +372,7 @@
       "count": 2
     },
     "no-restricted-syntax": {
-      "count": 6
+      "count": 7
     }
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
@@ -447,7 +447,7 @@
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 4
     }
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
@@ -457,7 +457,7 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 6
     }
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
@@ -896,6 +896,11 @@
       "count": 2
     }
   },
+  "packages/core-backend/src/AccountActivityService.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/core-backend/src/BackendWebSocketService.test.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -1168,7 +1173,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 14
+      "count": 16
     }
   },
   "packages/gas-fee-controller/src/gas-util.ts": {
@@ -1216,7 +1221,7 @@
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "no-restricted-syntax": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/logging-controller/src/LoggingController.test.ts": {
@@ -1609,9 +1614,14 @@
       "count": 1
     }
   },
+  "packages/permission-controller/src/SubjectMetadataController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/src/PerpsController.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/perps-controller/src/providers/HyperLiquidProvider.ts": {
@@ -1815,6 +1825,9 @@
     },
     "id-length": {
       "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
@@ -2154,7 +2167,7 @@
       "count": 4
     },
     "no-restricted-syntax": {
-      "count": 2
+      "count": 5
     }
   },
   "packages/selected-network-controller/src/SelectedNetworkMiddleware.ts": {
@@ -2266,7 +2279,7 @@
   },
   "packages/transaction-controller/src/TransactionController.ts": {
     "no-restricted-syntax": {
-      "count": 5
+      "count": 7
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {

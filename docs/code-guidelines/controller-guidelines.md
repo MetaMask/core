@@ -954,6 +954,51 @@ A messenger that allows no actions or events (whether internal or external) look
 export type FooServiceMessenger = Messenger<'FooService', never, never>;
 ```
 
+## Do not call messenger actions in the constructor
+
+One of the responsibilities of the messenger is to act as a liaison between controllers and services. A controller should not require direct access to another controller or service in order to communicate with it. This decouples controllers and services from each other and allows clients to initialize controllers and services in any order.
+
+Calling `this.messenger.call(...)` inside a controller's constructor, however, prevents this goal from being achieved. The action's handler must already be registered by the time the constructor runs, which means the controller that owns that handler must have been instantiated first.
+
+Instead of accessing actions in controller constructors, move any calls to an `init()` method (which clients are free to call after instantiating all controllers and services).
+
+🚫 **A messenger action is called during construction**
+
+```typescript
+class TokensController extends BaseController</* ... */> {
+  #selectedAccountId: string;
+
+  constructor({ messenger }: { messenger: TokensControllerMessenger }) {
+    super({ messenger /* ... */ });
+
+    // This requires AccountsController to have already been initialized
+    const { id } = this.messenger.call('AccountsController:getSelectedAccount');
+    this.#selectedAccountId = id;
+
+    // ...
+  }
+}
+```
+
+✅ **The call is deferred to an `init()` method**
+
+```typescript
+class TokensController extends BaseController</* ... */> {
+  #selectedAccountId: string | null = null;
+
+  constructor({ messenger }: { messenger: TokensControllerMessenger }) {
+    super({ messenger /* ... */ });
+
+    // ...
+  }
+
+  init() {
+    const { id } = this.messenger.call('AccountsController:getSelectedAccount');
+    this.#selectedAccountId = id;
+  }
+}
+```
+
 ## Define and export a type for the controller's state
 
 The name of this type should be `${ControllerName}State`. It should be exported.

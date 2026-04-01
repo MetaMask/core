@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [70.0.5]
+
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^70.0.0` to `^70.0.1` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
 - Add missing `@metamask/messenger` dependency ([#8318](https://github.com/MetaMask/core/pull/8318))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 
@@ -1094,7 +1098,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...HEAD
+[70.0.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.4...@metamask/bridge-status-controller@70.0.5
 [70.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.3...@metamask/bridge-status-controller@70.0.4
 [70.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.2...@metamask/bridge-status-controller@70.0.3
 [70.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.1...@metamask/bridge-status-controller@70.0.2
