@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0]
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Hide native tokens on Tempo networks (testnet and mainnet) in `getAssets` method ([#7882](https://github.com/MetaMask/core/pull/7882))
+- Bump `@metamask/assets-controllers` from `^103.0.0` to `^103.1.0` ([#8355](https://github.com/MetaMask/core/pull/8355))
 
 ## [3.2.1]
 
@@ -252,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.3.0...HEAD
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.2.1...@metamask/assets-controller@3.3.0
 [3.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.2.0...@metamask/assets-controller@3.2.1
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.1.1...@metamask/assets-controller@3.2.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.1.0...@metamask/assets-controller@3.1.1
