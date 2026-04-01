@@ -9,7 +9,7 @@ const NODE_LTS_VERSION = 22;
  * Arguments to the `no-restricted` syntax rule that advises use of
  * `${Controller}:stateChanged` instead of `:stateChange`.
  */
-const CONTROLLER_STATE_CHANGED_RULES = [
+const NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS = [
   {
     selector:
       'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
@@ -28,7 +28,7 @@ const CONTROLLER_STATE_CHANGED_RULES = [
  * Arguments to the `no-restricted-syntax` rule that prevents messsenger actions
  * from being called in constructors.
  */
-const NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES = [
+const NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS = [
   {
     selector:
       'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="MemberExpression"][callee.object.object.type="ThisExpression"][callee.object.property.name="messenger"]',
@@ -154,7 +154,7 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...CONTROLLER_STATE_CHANGED_RULES,
+        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
       ],
     },
   },
@@ -238,8 +238,8 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...CONTROLLER_STATE_CHANGED_RULES,
-        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES,
+        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
+        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
       ],
     },
   },
@@ -254,8 +254,8 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...CONTROLLER_STATE_CHANGED_RULES,
-        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES,
+        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
+        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
         {
           selector:
             'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedActions$/]',
