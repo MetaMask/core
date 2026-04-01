@@ -243,8 +243,8 @@ export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
 
-  /** Order identifier - `orderCode` specifically used as RampsService:getOrder parameter in normalized format (/providers/{provider}/orders/{id}). */
-  orderCode?: string;
+  /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
+  orderId?: string;
 
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId?: string;

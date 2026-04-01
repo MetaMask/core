@@ -31,7 +31,7 @@ jest.mock('../relay/relay-submit');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
-const ORDER_CODE_MOCK = '/providers/transak/orders/order-123';
+const ORDER_ID_MOCK = '/providers/transak/orders/order-123';
 
 const TRANSACTION_MOCK = {
   id: TRANSACTION_ID_MOCK,
@@ -93,7 +93,11 @@ const RELAY_QUOTE_RESULT_MOCK = {
       usd: '0',
     },
   },
-  original: {} as RelayQuote,
+  original: {
+    details: {
+      currencyOut: { amount: '12000000' },
+    },
+  } as unknown as RelayQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
   sourceAmount: {
     fiat: '0',
@@ -156,7 +160,11 @@ function getFiatQuoteMock({
     },
     original: {
       rampsQuote: RAMPS_QUOTE_MOCK,
-      relayQuote: {} as RelayQuote,
+      relayQuote: {
+        details: {
+          currencyOut: { amount: '12000000' },
+        },
+      } as unknown as RelayQuote,
     },
     request,
     sourceAmount: {
@@ -174,12 +182,12 @@ function getFiatQuoteMock({
 }
 
 function getRequest({
-  orderCode = ORDER_CODE_MOCK,
+  orderId = ORDER_ID_MOCK,
   order = getFiatOrderMock(),
   quotes = [getFiatQuoteMock()],
   transaction = TRANSACTION_MOCK,
 }: {
-  orderCode?: string;
+  orderId?: string;
   order?: RampsOrder;
   quotes?: TransactionPayQuote<FiatQuote>[];
   transaction?: TransactionMeta;
@@ -193,7 +201,7 @@ function getRequest({
         transactionData: {
           [transaction.id]: {
             fiatPayment: {
-              orderCode,
+              orderId,
             },
             isLoading: false,
             tokens: [],
@@ -290,21 +298,21 @@ describe('submitFiatQuotes', () => {
     );
   });
 
-  it('throws if order code is missing', async () => {
-    const { request } = getRequest({ orderCode: '' });
+  it('throws if order ID is missing', async () => {
+    const { request } = getRequest({ orderId: '' });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing order code for fiat submission',
+      'Missing order ID for fiat submission',
     );
   });
 
-  it('throws if order code format is invalid', async () => {
+  it('throws if order ID format is invalid', async () => {
     const { request } = getRequest({
-      orderCode: '/providers/transak/oops',
+      orderId: '/providers/transak/oops',
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Invalid order code format: /providers/transak/oops',
+      'Invalid order ID format: /providers/transak/oops',
     );
   });
 
@@ -353,7 +361,7 @@ describe('submitFiatQuotes', () => {
         return {
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              fiatPayment: { orderCode: ORDER_CODE_MOCK },
+              fiatPayment: { orderId: ORDER_ID_MOCK },
               isLoading: false,
               tokens: [],
             },
@@ -481,6 +489,35 @@ describe('submitFiatQuotes', () => {
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Computed fiat order source amount is not positive',
+    );
+  });
+
+  it('skips slippage check when original relay target amount is zero', async () => {
+    const { request } = getRequest();
+    request.quotes[0].original.relayQuote = {
+      details: { currencyOut: { amount: '0' } },
+    } as unknown as RelayQuote;
+
+    const result = await submitFiatQuotes(request);
+
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('throws if relay re-quote slippage exceeds threshold', async () => {
+    getRelayQuotesMock.mockResolvedValue([
+      {
+        ...RELAY_QUOTE_RESULT_MOCK,
+        original: {
+          details: {
+            currencyOut: { amount: '10000000' },
+          },
+        } as unknown as RelayQuote,
+      },
+    ]);
+    const { request } = getRequest();
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      /Relay re-quote slippage too high/u,
     );
   });
 

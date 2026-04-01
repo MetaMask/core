@@ -26,6 +26,7 @@ const log = createModuleLogger(projectLogger, 'fiat-submit');
 
 const ORDER_POLL_INTERVAL_MS = 1000;
 const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+const MAX_SLIPPAGE_PERCENT = 5;
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -56,36 +57,35 @@ export async function submitFiatQuotes(
   }
 
   const state = messenger.call('TransactionPayController:getState');
-  const orderCode =
-    state.transactionData[transactionId]?.fiatPayment?.orderCode;
+  const orderId = state.transactionData[transactionId]?.fiatPayment?.orderId;
 
-  if (!orderCode) {
-    throw new Error('Missing order code for fiat submission');
+  if (!orderId) {
+    throw new Error('Missing order ID for fiat submission');
   }
 
-  const parsedOrderCode = parseOrderCode(orderCode);
+  const parsedOrder = parseOrderId(orderId);
 
-  if (!parsedOrderCode) {
-    throw new Error(`Invalid order code format: ${orderCode}`);
+  if (!parsedOrder) {
+    throw new Error(`Invalid order ID format: ${orderId}`);
   }
 
   log('Starting fiat order polling', {
-    orderCode,
-    providerCode: parsedOrderCode.providerCode,
+    orderId,
+    providerCode: parsedOrder.providerCode,
     transactionId,
   });
 
   const order = await waitForOrderCompletion({
     messenger,
-    orderCode: parsedOrderCode.orderCode,
-    providerCode: parsedOrderCode.providerCode,
+    orderCode: parsedOrder.orderCode,
+    providerCode: parsedOrder.providerCode,
     transactionId,
     walletAddress,
   });
 
   log('Fiat order completed', {
     cryptoAmount: order.cryptoAmount,
-    orderCode,
+    orderId,
     transactionId,
   });
 
@@ -93,15 +93,15 @@ export async function submitFiatQuotes(
 }
 
 /**
- * Parses a normalized order code string into its provider and order components.
+ * Parses a normalized order ID string into its provider and order components.
  *
- * @param orderCode - Order code in `/providers/{providerCode}/orders/{orderCode}` format.
+ * @param orderId - Order ID in `/providers/{providerCode}/orders/{orderCode}` format.
  * @returns The parsed provider and order codes, or `null` if the format is invalid.
  */
-function parseOrderCode(
-  orderCode: string,
+function parseOrderId(
+  orderId: string,
 ): { orderCode: string; providerCode: string } | null {
-  const parts = orderCode.split('/').filter(Boolean);
+  const parts = orderId.split('/').filter(Boolean);
 
   if (parts.length < 4 || parts[0] !== 'providers' || parts[2] !== 'orders') {
     return null;
@@ -178,6 +178,51 @@ function validateOrderAsset({
     throw new Error(
       `Fiat order chain mismatch for transaction ${transactionId}: ` +
         `expected ${expectedChainId}, got ${orderChainId}`,
+    );
+  }
+}
+
+/**
+ * Validates that the re-quoted relay target output hasn't drifted beyond the
+ * acceptable slippage threshold compared to the original quote shown to the user.
+ *
+ * @param options - The validation options.
+ * @param options.originalTargetRaw - Raw target amount from the original relay quote.
+ * @param options.reQuotedTargetRaw - Raw target amount from the re-quoted relay.
+ * @param options.transactionId - Transaction ID for error reporting.
+ */
+function validateRelaySlippage({
+  originalTargetRaw,
+  reQuotedTargetRaw,
+  transactionId,
+}: {
+  originalTargetRaw: string;
+  reQuotedTargetRaw: string;
+  transactionId: string;
+}): void {
+  const original = new BigNumber(originalTargetRaw);
+  const reQuoted = new BigNumber(reQuotedTargetRaw);
+
+  if (!original.gt(0) || !reQuoted.gt(0)) {
+    return;
+  }
+
+  const slippagePercent = original
+    .minus(reQuoted)
+    .dividedBy(original)
+    .multipliedBy(100);
+
+  log('Relay slippage check', {
+    originalTargetRaw,
+    reQuotedTargetRaw,
+    slippagePercent: slippagePercent.toFixed(2),
+    transactionId,
+  });
+
+  if (slippagePercent.gt(MAX_SLIPPAGE_PERCENT)) {
+    throw new Error(
+      `Relay re-quote slippage too high for transaction ${transactionId}: ` +
+        `${slippagePercent.toFixed(2)}% exceeds ${MAX_SLIPPAGE_PERCENT}% max`,
     );
   }
 }
@@ -312,6 +357,13 @@ async function submitRelayAfterFiatCompletion({
   if (!relayQuotes.length) {
     throw new Error('No relay quotes returned for completed fiat order');
   }
+
+  const originalRelayQuote = quotes[0].original.relayQuote;
+  validateRelaySlippage({
+    originalTargetRaw: originalRelayQuote.details.currencyOut.amount,
+    reQuotedTargetRaw: relayQuotes[0].original.details.currencyOut.amount,
+    transactionId,
+  });
 
   log('Received relay quotes for completed fiat order', {
     relayQuoteCount: relayQuotes.length,
