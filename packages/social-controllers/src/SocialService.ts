@@ -11,6 +11,7 @@ import {
   array,
   boolean,
   is,
+  nullable,
   number,
   optional,
   record,
@@ -42,17 +43,17 @@ import type { SocialServiceMethodActions } from './SocialService-method-action-t
 // ---------------------------------------------------------------------------
 
 const SocialHandlesStruct = structType({
-  twitter: optional(string()),
-  farcaster: optional(string()),
-  ens: optional(string()),
-  lens: optional(string()),
+  twitter: optional(nullable(string())),
+  farcaster: optional(nullable(string())),
+  ens: optional(nullable(string())),
+  lens: optional(nullable(string())),
 });
 
 const ProfileSummaryStruct = structType({
   profileId: string(),
   address: string(),
   name: string(),
-  imageUrl: optional(string()),
+  imageUrl: optional(nullable(string())),
 });
 
 const TradeStruct = structType({
@@ -87,11 +88,11 @@ const LeaderboardEntryStruct = structType({
   addresses: array(string()),
   profileId: string(),
   name: string(),
-  imageUrl: optional(string()),
+  imageUrl: optional(nullable(string())),
   pnl30d: number(),
-  winRate30d: optional(number()),
-  roi30d: optional(number()),
-  tradeCount: optional(number()),
+  winRate30d: optional(nullable(number())),
+  roi30d: optional(nullable(number())),
+  tradeCount: optional(nullable(number())),
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,
@@ -106,14 +107,14 @@ const TraderProfileStruct = structType({
   address: string(),
   allAddresses: array(string()),
   name: string(),
-  imageUrl: optional(string()),
+  imageUrl: optional(nullable(string())),
 });
 
 const TraderStatsStruct = structType({
-  pnl30d: optional(number()),
-  winRate30d: optional(number()),
-  roi30d: optional(number()),
-  tradeCount: optional(number()),
+  pnl30d: optional(nullable(number())),
+  winRate30d: optional(nullable(number())),
+  roi30d: optional(nullable(number())),
+  tradeCount: optional(nullable(number())),
 });
 
 const PerChainBreakdownStruct = structType({

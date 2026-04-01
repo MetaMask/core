@@ -13,17 +13,17 @@ export type ProfileSummary = {
   /** Display name or truncated address. */
   name: string;
   /** Profile avatar URL. */
-  imageUrl?: string;
+  imageUrl?: string | null;
 };
 
 /**
  * Social media handles attached to a trader profile.
  */
 export type SocialHandles = {
-  twitter?: string;
-  farcaster?: string;
-  ens?: string;
-  lens?: string;
+  twitter?: string | null;
+  farcaster?: string | null;
+  ens?: string | null;
+  lens?: string | null;
 };
 
 /**
@@ -54,11 +54,11 @@ export type LeaderboardEntry = {
   addresses: string[];
   profileId: string;
   name: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   pnl30d: number;
-  winRate30d?: number;
-  roi30d?: number;
-  tradeCount?: number;
+  winRate30d?: number | null;
+  roi30d?: number | null;
+  tradeCount?: number | null;
   pnlPerChain: Record<string, number>;
   followerCount: number;
   socialHandles: SocialHandles;
@@ -80,14 +80,14 @@ export type TraderProfile = {
   address: string;
   allAddresses: string[];
   name: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
 };
 
 export type TraderStats = {
-  pnl30d?: number;
-  winRate30d?: number;
-  roi30d?: number;
-  tradeCount?: number;
+  pnl30d?: number | null;
+  winRate30d?: number | null;
+  roi30d?: number | null;
+  tradeCount?: number | null;
 };
 
 export type PerChainBreakdown = {
