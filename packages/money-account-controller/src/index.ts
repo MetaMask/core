@@ -14,6 +14,7 @@ export type {
   MoneyAccountControllerMessenger,
 } from './MoneyAccountController';
 export type {
+  MoneyAccountControllerClearStateAction,
   MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
 } from './money-account-controller-method-action-types';
