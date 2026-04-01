@@ -201,6 +201,14 @@ export class SocialService extends BaseDataService<
 > {
   readonly #baseUrl: string;
 
+  get #v1Url(): string {
+    return `${this.#baseUrl}/api/v1`;
+  }
+
+  get #v2Url(): string {
+    return `${this.#baseUrl}/api/v2`;
+  }
+
   constructor({
     messenger,
     baseUrl,
@@ -246,7 +254,7 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchLeaderboard`, options ?? null],
       queryFn: async () => {
         const { sort, chains, limit } = options ?? {};
-        const url = new URL(`${this.#baseUrl}/leaderboard`);
+        const url = new URL(`${this.#v1Url}/leaderboard`);
         if (sort) {
           url.searchParams.append('sort', sort);
         }
@@ -294,7 +302,7 @@ export class SocialService extends BaseDataService<
     const traderProfileResponse = await this.fetchQuery({
       queryKey: [`${this.name}:fetchTraderProfile`, addressOrId],
       queryFn: async () => {
-        const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/profile`;
+        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/profile`;
         const response = await fetch(url);
         SocialService.#throwIfNotOk(
           response,
@@ -368,7 +376,7 @@ export class SocialService extends BaseDataService<
     const followersResponse = await this.fetchQuery({
       queryKey: [`${this.name}:fetchFollowers`, addressOrId],
       queryFn: async () => {
-        const url = `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/followers`;
+        const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`;
         const response = await fetch(url);
         SocialService.#throwIfNotOk(
           response,
@@ -405,7 +413,7 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFollowing`, addressOrUid],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/following`;
+        const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/following`;
         const response = await fetch(url);
         SocialService.#throwIfNotOk(
           response,
@@ -441,7 +449,7 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:follow`, addressOrUid, targets],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`;
+        const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`;
         const response = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -482,7 +490,7 @@ export class SocialService extends BaseDataService<
       staleTime: 0,
       queryFn: async () => {
         const url = new URL(
-          `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/follows`,
+          `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`,
         );
         for (const target of targets) {
           url.searchParams.append('targets', target);
@@ -536,7 +544,7 @@ export class SocialService extends BaseDataService<
       ],
       queryFn: async () => {
         const url = new URL(
-          `${this.#baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
+          `${this.#v2Url}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
         );
         if (chain) {
           url.searchParams.append('chain', chain);

@@ -4,7 +4,9 @@ import { SocialServiceErrorMessage, serviceName } from './social-constants';
 import type { SocialServiceMessenger } from './SocialService';
 import { SocialService } from './SocialService';
 
-const BASE_URL = 'http://test.com/api/v1';
+const BASE_URL = 'http://test.com';
+const V1_URL = `${BASE_URL}/api/v1`;
+const V2_URL = `${BASE_URL}/api/v2`;
 
 const mockProfileSummary = {
   profileId: '550e8400-e29b-41d4-a716-446655440000',
@@ -100,7 +102,7 @@ describe('SocialService', () => {
       const result = await service.fetchLeaderboard();
 
       expect(result).toStrictEqual(mockLeaderboardResponse);
-      expect(mockFetch).toHaveBeenCalledWith(`${BASE_URL}/leaderboard`);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`);
     });
 
     it('appends sort, chains, and limit query params', async () => {
@@ -253,7 +255,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockProfileResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/traders/0x1234/profile`,
+        `${V1_URL}/traders/0x1234/profile`,
       );
     });
 
@@ -270,7 +272,7 @@ describe('SocialService', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/traders/addr%2Fwith%2Fslashes/profile`,
+        `${V1_URL}/traders/addr%2Fwith%2Fslashes/profile`,
       );
     });
 
@@ -343,7 +345,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/traders/0x1234/positions/open`,
+        `${V2_URL}/traders/0x1234/positions/open`,
       );
     });
 
@@ -445,7 +447,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/traders/0x1234/positions/closed`,
+        `${V2_URL}/traders/0x1234/positions/closed`,
       );
     });
 
@@ -482,7 +484,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockFollowersResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/traders/0x1234/followers`,
+        `${V1_URL}/traders/0x1234/followers`,
       );
     });
 
@@ -555,7 +557,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockFollowingResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/users/0x1234/following`,
+        `${V1_URL}/users/0x1234/following`,
       );
     });
 
@@ -588,10 +590,6 @@ describe('SocialService', () => {
     });
 
     it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
-      const mockFollowingResponse = {
-        following: [mockProfileSummary],
-        count: 1,
-      };
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -626,7 +624,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockFollowResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/users/0x1234/follows`,
+        `${V1_URL}/users/0x1234/follows`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
