@@ -1700,6 +1700,31 @@ export class KeyringController<
   }
 
   /**
+   * Asserts a value is not a specific keyring instance, and throws an error if it is.
+   *
+   * @param value The value to check.
+   * @param keyring The keyring instance to check against.
+   * @throws If the value is the same instance as the keyring.
+   * @returns The original value if the check passes.
+   */
+  #assertNoUnsafeDirectKeyringAccess<
+    Value,
+    SelectedKeyring extends EthKeyring = EthKeyring,
+  >(value: Value, keyring: SelectedKeyring): Value {
+    if (Object.is(value, keyring)) {
+      // Access to a keyring instance outside of controller safeguards
+      // should be discouraged, as it can lead to unexpected behavior.
+      // This error is thrown to prevent consumers using `withKeyring`
+      // as a way to get a reference to a keyring instance.
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+      );
+    }
+
+    return value;
+  }
+
+  /**
    * Select a keyring and execute the given operation with
    * the selected keyring, as a mutually exclusive atomic
    * operation.
@@ -1802,22 +1827,13 @@ export class KeyringController<
         );
       }
 
-      const result = await operation({
+      return this.#assertNoUnsafeDirectKeyringAccess(
+        await operation({
+          keyring,
+          metadata: this.#getKeyringMetadata(keyring),
+        }),
         keyring,
-        metadata: this.#getKeyringMetadata(keyring),
-      });
-
-      if (Object.is(result, keyring)) {
-        // Access to a keyring instance outside of controller safeguards
-        // should be discouraged, as it can lead to unexpected behavior.
-        // This error is thrown to prevent consumers using `withKeyring`
-        // as a way to get a reference to a keyring instance.
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
-        );
-      }
-
-      return result;
+      );
     });
   }
 
@@ -1878,22 +1894,15 @@ export class KeyringController<
       );
     }
 
-    const result = await operation({
+    // Even if this method is "unsafe", we still want to prevent returning
+    // the keyring directly.
+    return this.#assertNoUnsafeDirectKeyringAccess(
+      await operation({
+        keyring,
+        metadata: this.#getKeyringMetadata(keyring),
+      }),
       keyring,
-      metadata: this.#getKeyringMetadata(keyring),
-    });
-
-    if (Object.is(result, keyring)) {
-      // Access to a keyring instance outside of controller safeguards
-      // should be discouraged, as it can lead to unexpected behavior.
-      // This error is thrown to prevent consumers using `withKeyringUnsafe`
-      // as a way to get a reference to a keyring instance.
-      throw new KeyringControllerError(
-        KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
-      );
-    }
-
-    return result;
+    );
   }
 
   async getAccountKeyringType(account: string): Promise<string> {
