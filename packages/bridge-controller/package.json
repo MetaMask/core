@@ -52,7 +52,7 @@
     "@ethersproject/constants": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/accounts-controller": "^37.1.1",
+    "@metamask/accounts-controller": "^37.2.0",
     "@metamask/assets-controller": "^4.0.0",
     "@metamask/assets-controllers": "^103.1.1",
     "@metamask/base-controller": "^9.0.1",

@@ -65,7 +65,7 @@
     "@metamask/account-tree-controller": "^7.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/geolocation-controller": "^0.1.2",
-    "@metamask/keyring-controller": "^25.1.1",
+    "@metamask/keyring-controller": "^25.2.0",
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/network-controller": "^30.0.1",
     "@metamask/profile-sync-controller": "^28.0.2",
