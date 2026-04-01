@@ -4330,7 +4330,7 @@ __metadata:
     yargs: "npm:^17.7.2"
   peerDependencies:
     eslint: ">=8"
-    typescript: ~5.3.3
+    typescript: ">=5.0.0"
   bin:
     messenger-generate-action-types: ./dist/generate-action-types/cli.mjs
   languageName: unknown
