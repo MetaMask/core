@@ -5,8 +5,14 @@ import { convertHexToDecimal } from '@metamask/controller-utils';
 import { TrxScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
-import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import {
+  KnownCaipNamespace,
+  hexToBigInt,
+  hexToNumber,
+  parseCaipAssetType,
+  toCaipAssetType,
+} from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 import { TokenRwaData } from 'src/token-service';
 
@@ -19,7 +25,10 @@ import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
 import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
-import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
+import {
+  SPOT_PRICES_SUPPORT_INFO,
+  getNativeTokenAddress,
+} from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
@@ -64,14 +73,15 @@ type MultichainAccountType = Exclude<
 export type Asset = (
   | {
       accountType: EvmAccountType;
-      assetId: Hex; // This is also the address for EVM tokens
+      assetId: CaipAssetType;
       address: Hex;
       chainId: Hex;
     }
   | {
       accountType: MultichainAccountType;
-      assetId: `${string}:${string}/${string}:${string}`;
-      chainId: `${string}:${string}`;
+      assetId: CaipAssetType;
+      address: CaipAssetType;
+      chainId: CaipChainId;
     }
 ) & {
   accountId: string;
@@ -125,7 +135,10 @@ export type AssetListState = {
 const createAssetListSelector = createSelector.withTypes<AssetListState>();
 
 const selectAccountsToGroupIdMap = createAssetListSelector(
-  [(state) => state.accountTree, (state) => state.internalAccounts],
+  [
+    (state): AssetListState['accountTree'] => state.accountTree,
+    (state): AssetListState['internalAccounts'] => state.internalAccounts,
+  ],
   (accountTree, internalAccounts) => {
     const accountsMap: Record<
       string,
@@ -158,11 +171,12 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
 const selectAllEvmAccountNativeBalances = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
-    (state) => state.accountsByChainId,
-    (state) => state.marketData,
-    (state) => state.currencyRates,
-    (state) => state.currentCurrency,
-    (state) => state.networkConfigurationsByChainId,
+    (state): AssetListState['accountsByChainId'] => state.accountsByChainId,
+    (state): AssetListState['marketData'] => state.marketData,
+    (state): AssetListState['currencyRates'] => state.currencyRates,
+    (state): AssetListState['currentCurrency'] => state.currentCurrency,
+    (state): AssetListState['networkConfigurationsByChainId'] =>
+      state.networkConfigurationsByChainId,
   ],
   (
     accountsMap,
@@ -196,7 +210,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         const groupChainAssets = groupAssets[accountGroupId][chainId];
 
         // If a native balance is missing, we still want to show it as 0
-        const rawBalance = accountBalance.balance || '0x0';
+        const rawBalance = accountBalance.balance ?? '0x0';
 
         const nativeCurrency =
           networkConfigurationsByChainId[chainId]?.nativeCurrency || 'NATIVE';
@@ -222,7 +236,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
 
         groupChainAssets.push({
           accountType: type as EvmAccountType,
-          assetId: nativeToken.address,
+          assetId:
+            SPOT_PRICES_SUPPORT_INFO[
+              chainId as keyof typeof SPOT_PRICES_SUPPORT_INFO
+            ] ?? SPOT_PRICES_SUPPORT_INFO['0x1'],
           isNative: true,
           address: nativeToken.address,
           image: nativeToken.image,
@@ -254,12 +271,12 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
 const selectAllEvmAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
-    (state) => state.allTokens,
-    (state) => state.allIgnoredTokens,
-    (state) => state.tokenBalances,
-    (state) => state.marketData,
-    (state) => state.currencyRates,
-    (state) => state.currentCurrency,
+    (state): AssetListState['allTokens'] => state.allTokens,
+    (state): AssetListState['allIgnoredTokens'] => state.allIgnoredTokens,
+    (state): AssetListState['tokenBalances'] => state.tokenBalances,
+    (state): AssetListState['marketData'] => state.marketData,
+    (state): AssetListState['currencyRates'] => state.currencyRates,
+    (state): AssetListState['currentCurrency'] => state.currentCurrency,
   ],
   (
     accountsMap,
@@ -316,7 +333,12 @@ const selectAllEvmAssets = createAssetListSelector(
 
           groupChainAssets.push({
             accountType: type as EvmAccountType,
-            assetId: tokenAddress,
+            assetId: toCaipAssetType(
+              KnownCaipNamespace.Eip155,
+              hexToNumber(chainId).toString(),
+              'erc20',
+              tokenAddress.toLowerCase(),
+            ),
             isNative: false,
             address: tokenAddress,
             image: token.image ?? '',
@@ -350,12 +372,12 @@ const selectAllEvmAssets = createAssetListSelector(
 const selectAllMultichainAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
-    (state) => state.accountsAssets,
-    (state) => state.allIgnoredAssets,
-    (state) => state.assetsMetadata,
-    (state) => state.balances,
-    (state) => state.conversionRates,
-    (state) => state.currentCurrency,
+    (state): AssetListState['accountsAssets'] => state.accountsAssets,
+    (state): AssetListState['allIgnoredAssets'] => state.allIgnoredAssets,
+    (state): AssetListState['assetsMetadata'] => state.assetsMetadata,
+    (state): AssetListState['balances'] => state.balances,
+    (state): AssetListState['conversionRates'] => state.conversionRates,
+    (state): AssetListState['currentCurrency'] => state.currentCurrency,
   ],
   (
     accountsMap,
@@ -431,6 +453,7 @@ const selectAllMultichainAssets = createAssetListSelector(
           accountType: type as MultichainAccountType,
           assetId,
           isNative: caipAsset.assetNamespace === 'slip44',
+          address: assetId,
           image: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
@@ -454,24 +477,25 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-export const selectAllAssets = createAssetListSelector(
-  [
-    selectAllEvmAssets,
-    selectAllMultichainAssets,
-    selectAllEvmAccountNativeBalances,
-  ],
-  (evmAssets, multichainAssets, evmAccountNativeBalances) => {
-    const groupAssets: AssetsByAccountGroup = {};
+export const selectAllAssets: (state: AssetListState) => AssetsByAccountGroup =
+  createAssetListSelector(
+    [
+      selectAllEvmAssets,
+      selectAllMultichainAssets,
+      selectAllEvmAccountNativeBalances,
+    ],
+    (evmAssets, multichainAssets, evmAccountNativeBalances) => {
+      const groupAssets: AssetsByAccountGroup = {};
 
-    mergeAssets(groupAssets, evmAssets);
+      mergeAssets(groupAssets, evmAssets);
 
-    mergeAssets(groupAssets, multichainAssets);
+      mergeAssets(groupAssets, multichainAssets);
 
-    mergeAssets(groupAssets, evmAccountNativeBalances);
+      mergeAssets(groupAssets, evmAccountNativeBalances);
 
-    return groupAssets;
-  },
-);
+      return groupAssets;
+    },
+  );
 
 export type SelectAccountGroupAssetOpts = {
   filterTronStakedTokens: boolean;
@@ -481,7 +505,9 @@ const defaultSelectAccountGroupAssetOpts: SelectAccountGroupAssetOpts = {
   filterTronStakedTokens: true,
 };
 
-const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
+const filterTronStakedTokens = (
+  assetsByAccountGroup: AccountGroupAssets,
+): AccountGroupAssets => {
   const newAssetsByAccountGroup = { ...assetsByAccountGroup };
 
   Object.values(TrxScope).forEach((tronChainId) => {
@@ -510,11 +536,12 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
     selectAllAssets,
-    (state) => state.selectedAccountGroup,
+    (state): AssetListState['selectedAccountGroup'] =>
+      state.selectedAccountGroup,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
-    ) => opts,
+    ): SelectAccountGroupAssetOpts => opts,
   ],
   (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
@@ -545,22 +572,22 @@ export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
 function mergeAssets(
   existingAssets: AssetsByAccountGroup,
   newAssets: AssetsByAccountGroup,
-) {
+): void {
   for (const [accountGroupId, accountAssets] of Object.entries(newAssets) as [
     AccountGroupId,
     AccountGroupAssets,
   ][]) {
     const existingAccountGroupAssets = existingAssets[accountGroupId];
 
-    if (!existingAccountGroupAssets) {
-      existingAssets[accountGroupId] = {};
-      for (const [network, chainAssets] of Object.entries(accountAssets)) {
-        existingAssets[accountGroupId][network] = [...chainAssets];
-      }
-    } else {
+    if (existingAccountGroupAssets) {
       for (const [network, chainAssets] of Object.entries(accountAssets)) {
         existingAccountGroupAssets[network] ??= [];
         existingAccountGroupAssets[network].push(...chainAssets);
+      }
+    } else {
+      existingAssets[accountGroupId] = {};
+      for (const [network, chainAssets] of Object.entries(accountAssets)) {
+        existingAssets[accountGroupId][network] = [...chainAssets];
       }
     }
   }
@@ -584,7 +611,7 @@ function getFiatBalanceForEvmToken(
   chainId: Hex,
   tokenAddress: Hex,
   nativeCurrencySymbol?: string,
-) {
+): { balance: number; conversionRate: number } | undefined {
   const tokenMarketData = marketData[chainId]?.[tokenAddress];
 
   // For native tokens: if no market data exists, use price=1 and look up currency rate directly
@@ -639,7 +666,7 @@ function getFiatBalanceForMultichainAsset(
   balance: { amount: string; unit: string },
   multichainConversionRates: MultichainAssetsRatesControllerState['conversionRates'],
   assetId: `${string}:${string}/${string}:${string}`,
-) {
+): { balance: number; conversionRate: number } | undefined {
   const assetMarketData = multichainConversionRates[assetId];
 
   if (!assetMarketData?.rate) {
