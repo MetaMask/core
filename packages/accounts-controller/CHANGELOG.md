@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.2.0]
+
 ### Added
 
 - Now supports `KeyringTypes.money` in `keyringTypeToName` ([#8362](https://github.com/MetaMask/core/pull/8362))
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Filter out Money accounts when replicating `KeyringController` state ([#8362](https://github.com/MetaMask/core/pull/8362))
   - Those accounts are treated differently with their own "account-like" controller.
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 
 ## [37.1.1]
 
@@ -758,7 +761,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.2.0...HEAD
+[37.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.1...@metamask/accounts-controller@37.2.0
 [37.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.0...@metamask/accounts-controller@37.1.1
 [37.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...@metamask/accounts-controller@37.1.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...@metamask/accounts-controller@37.0.0
