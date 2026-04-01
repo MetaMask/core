@@ -2911,7 +2911,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field', async () => {
+    it('does not fetch getPaymentMethods on provider selection (React Query owns fetching)', async () => {
       const providerWithoutField: Provider = { ...mockProvider };
       delete (providerWithoutField as Partial<Provider>)
         .supportedCryptoCurrencies;
@@ -2940,55 +2940,7 @@ describe('RampsController', () => {
 
           await new Promise((resolve) => setTimeout(resolve, 0));
 
-          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('fetches getPaymentMethods when selected token is explicitly supported by the new provider', async () => {
-      const supportedToken: RampsToken = {
-        assetId: 'eip155:1/slip44:60',
-        chainId: 'eip155:1',
-        name: 'Ether',
-        symbol: 'ETH',
-        decimals: 18,
-        iconUrl: '',
-        tokenSupported: true,
-      };
-
-      const providerWithSupport: Provider = {
-        ...mockProvider,
-        supportedCryptoCurrencies: {
-          [supportedToken.assetId]: true,
-        },
-      };
-
-      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
-
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us-ca'),
-              providers: createResourceState([providerWithSupport], null),
-              tokens: createResourceState(null, supportedToken),
-            },
-          },
-        },
-        async ({ rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            getPaymentMethodsMock,
-          );
-
-          rootMessenger.call(
-            'RampsController:setSelectedProvider',
-            providerWithSupport.id,
-          );
-
-          await new Promise((resolve) => setTimeout(resolve, 0));
-
-          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+          expect(getPaymentMethodsMock).not.toHaveBeenCalled();
         },
       );
     });
@@ -4427,6 +4379,7 @@ describe('RampsController', () => {
             },
           );
 
+          // Start a payment methods request for token A
           const tokenAPaymentMethodsPromise = rootMessenger.call(
             'RampsController:getPaymentMethods',
             'us-ca',
@@ -4435,18 +4388,33 @@ describe('RampsController', () => {
             },
           );
 
+          // Change selected token to B (simulating user action)
           rootMessenger.call(
             'RampsController:setSelectedToken',
             tokenB.assetId,
           );
 
+          // Start a second request for token B (simulating React Query)
+          const tokenBPaymentMethodsPromise = rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: tokenB.assetId,
+            },
+          );
+
+          // Token A's request resolves after token B is selected
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
+          await tokenBPaymentMethodsPromise;
           await new Promise((resolve) => setTimeout(resolve, 10));
 
+          // Token A's results should be discarded since token B is now selected
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(callCount).toBe(1);
+          expect(controller.state.paymentMethods.data).toStrictEqual(
+            paymentMethodsForTokenB,
+          );
+          expect(callCount).toBe(2);
         },
       );
     });
@@ -4537,6 +4505,7 @@ describe('RampsController', () => {
             },
           );
 
+          // Start a payment methods request for provider A
           const providerAPaymentMethodsPromise = rootMessenger.call(
             'RampsController:getPaymentMethods',
             'us-ca',
@@ -4545,15 +4514,28 @@ describe('RampsController', () => {
             },
           );
 
+          // Change selected provider to B (simulating user action)
           rootMessenger.call(
             'RampsController:setSelectedProvider',
             providerB.id,
           );
 
+          // Start a second request for provider B (simulating React Query)
+          const providerBPaymentMethodsPromise = rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              provider: providerB.id,
+            },
+          );
+
+          // Provider A's request resolves after provider B is selected
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
+          await providerBPaymentMethodsPromise;
           await new Promise((resolve) => setTimeout(resolve, 10));
 
+          // Provider A's results should be discarded since provider B is now selected
           expect(controller.state.providers.selected).toStrictEqual(providerB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
             paymentMethodsForProviderB,

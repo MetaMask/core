@@ -1210,7 +1210,7 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
     const providers = this.state.providers.data;
     if (!providers || providers.length === 0) {
       throw new Error(
@@ -1225,29 +1225,11 @@ export class RampsController extends BaseController<
       );
     }
 
-    const selectedToken = this.state.tokens.selected;
-    const supportedCryptos = provider.supportedCryptoCurrencies;
-
-    // Only fetch payment methods if the selected token is supported by the new
-    // provider. If it isn't, the payment methods request would fail or return
-    // empty for the wrong reason; the UI will show the Token Not Available modal
-    // so the user can change token or pick a different provider.
-    const assetId = selectedToken?.assetId;
-    const tokenSupportedByProvider = !(
-      assetId && supportedCryptos?.[assetId] === false
-    );
-
     this.update((state) => {
       state.providers.selected = provider;
       state.providerAutoSelected = options?.autoSelected ?? false;
       resetResource(state, 'paymentMethods');
     });
-
-    if (tokenSupportedByProvider) {
-      this.#fireAndForget(
-        this.getPaymentMethods(regionCode, { provider: provider.id }),
-      );
-    }
   }
 
   /**

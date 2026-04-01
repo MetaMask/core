@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- `setSelectedToken` no longer triggers `getPaymentMethods`; payment method fetching is now driven solely by the client (React Query) when the selected provider changes ([#8354](https://github.com/MetaMask/core/pull/8354))
+- `setSelectedProvider` no longer triggers `getPaymentMethods` via `fireAndForget`; the client is responsible for fetching payment methods when the provider changes ([#8354](https://github.com/MetaMask/core/pull/8354))
+
+### Fixed
+
+- `init` no longer overrides a persisted `userRegion` with the geolocation endpoint response when `forceRefresh` is true; geolocation is only used to seed the initial region ([#8354](https://github.com/MetaMask/core/pull/8354))
 
 ## [12.1.0]
 
