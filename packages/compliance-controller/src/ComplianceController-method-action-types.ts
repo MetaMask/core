@@ -6,16 +6,6 @@
 import type { ComplianceController } from './ComplianceController';
 
 /**
- * Initializes the controller by fetching the blocked wallets list if it
- * is missing or stale. Call once after construction to ensure the blocklist
- * is ready for `selectIsWalletBlocked` lookups.
- */
-export type ComplianceControllerInitAction = {
-  type: `ComplianceController:init`;
-  handler: ComplianceController['init'];
-};
-
-/**
  * Checks compliance status for a single wallet address via the API and
  * persists the result to state.
  *
@@ -40,17 +30,6 @@ export type ComplianceControllerCheckWalletsComplianceAction = {
 };
 
 /**
- * Fetches the full list of blocked wallets from the API and persists the
- * data to state. This also updates the `blockedWalletsLastFetched` timestamp.
- *
- * @returns The blocked wallets information.
- */
-export type ComplianceControllerUpdateBlockedWalletsAction = {
-  type: `ComplianceController:updateBlockedWallets`;
-  handler: ComplianceController['updateBlockedWallets'];
-};
-
-/**
  * Clears all compliance data from state.
  */
 export type ComplianceControllerClearComplianceStateAction = {
@@ -62,8 +41,6 @@ export type ComplianceControllerClearComplianceStateAction = {
  * Union of all ComplianceController action types.
  */
 export type ComplianceControllerMethodActions =
-  | ComplianceControllerInitAction
   | ComplianceControllerCheckWalletComplianceAction
   | ComplianceControllerCheckWalletsComplianceAction
-  | ComplianceControllerUpdateBlockedWalletsAction
   | ComplianceControllerClearComplianceStateAction;
