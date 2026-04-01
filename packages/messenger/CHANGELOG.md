@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `generate-action-types` CLI tool ([#8264](https://github.com/MetaMask/core/pull/8264))
+  - Generates TypeScript action type files for controllers and services that define `MESSENGER_EXPOSED_METHODS`.
+  - Available as a CLI binary (`messenger-generate-action-types`).
+    - `typescript` and `eslint` are peer dependencies.
+
 ## [1.0.0]
 
 ### Changed

@@ -7,9 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `NetworkController` methods through its messenger ([#8350](https://github.com/MetaMask/core/pull/8350))
+  - The following actions are now available:
+    - `NetworkController:enableRpcFailover`
+    - `NetworkController:disableRpcFailover`
+    - `NetworkController:getProviderAndBlockTracker`
+    - `NetworkController:getNetworkClientRegistry`
+    - `NetworkController:initializeProvider`
+    - `NetworkController:lookupNetwork`
+    - `NetworkController:lookupNetworkByClientId`
+    - `NetworkController:get1559CompatibilityWithNetworkClientId`
+    - `NetworkController:resetConnection`
+    - `NetworkController:rollbackToPreviousProvider`
+    - `NetworkController:loadBackup`
+  - Corresponding action types are available as well.
+- Add `getEthQuery` method to `NetworkController` ([#8350](https://github.com/MetaMask/core/pull/8350))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+### Deprecated
+
+- `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 
 ## [30.0.1]
 

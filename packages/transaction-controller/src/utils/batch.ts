@@ -298,6 +298,9 @@ async function addTransactionBatchWith7702(
     securityAlertId,
     skipInitialGasEstimate,
     transactions,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
     validateSecurity,
   } = userRequest;
 
@@ -419,8 +422,9 @@ async function addTransactionBatchWith7702(
   const { result } = await addTransaction(txParams, {
     batchId,
     gasFeeToken,
-    isGasFeeIncluded: userRequest.isGasFeeIncluded,
-    isGasFeeSponsored: userRequest.isGasFeeSponsored,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
     nestedTransactions,
     networkClientId,
     origin,
