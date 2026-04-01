@@ -1145,11 +1145,6 @@ export class RampsController extends BaseController<
       const regionChanged =
         normalizedRegion !== this.state.userRegion?.regionCode;
 
-      const needsRefetch =
-        regionChanged ||
-        !this.state.tokens.data ||
-        this.state.providers.data.length === 0;
-
       if (regionChanged) {
         this.#abortDependentRequests();
         this.#clearPendingResourceCountForDependentResources();
@@ -1161,21 +1156,15 @@ export class RampsController extends BaseController<
         state.userRegion = userRegion;
       });
 
-      if (needsRefetch) {
-        const refetchPromises: Promise<unknown>[] = [];
-        if (regionChanged || !this.state.tokens.data) {
-          refetchPromises.push(
-            this.getTokens(userRegion.regionCode, 'buy', options),
-          );
-        }
-        if (regionChanged || this.state.providers.data.length === 0) {
-          refetchPromises.push(
-            this.getProviders(userRegion.regionCode, options),
-          );
-        }
-        if (refetchPromises.length > 0) {
-          this.#fireAndForget(Promise.all(refetchPromises));
-        }
+      // Tokens and providers are fetched by React Query when the ramp UI
+      // mounts (useRampsProviders / useRampsTokens). We no longer fire them
+      // here to avoid dual-path fetching.
+      // Tokens still need to be loaded for setSelectedToken validation, so
+      // we fetch them here if missing.
+      if (regionChanged || !this.state.tokens.data) {
+        this.#fireAndForget(
+          this.getTokens(userRegion.regionCode, 'buy', options),
+        );
       }
 
       return userRegion;
@@ -1205,7 +1194,6 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.providers.selected = null;
         state.providerAutoSelected = false;
-        resetResource(state, 'paymentMethods');
       });
       return;
     }
@@ -1228,7 +1216,6 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.providers.selected = provider;
       state.providerAutoSelected = options?.autoSelected ?? false;
-      resetResource(state, 'paymentMethods');
     });
   }
 
@@ -1382,7 +1369,6 @@ export class RampsController extends BaseController<
     if (!assetId) {
       this.update((state) => {
         state.tokens.selected = null;
-        resetResource(state, 'paymentMethods');
       });
       return;
     }
@@ -1407,7 +1393,6 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      resetResource(state, 'paymentMethods');
     });
   }
 

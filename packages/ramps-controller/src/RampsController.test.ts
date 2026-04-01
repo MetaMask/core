@@ -1653,7 +1653,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('refetches providers and tokens when init() is called with same region but empty resource data', async () => {
+    it('refetches tokens (but not providers) when init() is called with same region but empty resource data', async () => {
       const getTokensSpy = jest.fn(async () => ({
         topTokens: [],
         allTokens: [],
@@ -1689,7 +1689,8 @@ describe('RampsController', () => {
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
           expect(getTokensSpy).toHaveBeenCalled();
-          expect(getProvidersSpy).toHaveBeenCalled();
+          // Providers are fetched by React Query on the client side, not by the controller
+          expect(getProvidersSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -2015,6 +2016,9 @@ describe('RampsController', () => {
 
           await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
           await new Promise((resolve) => setTimeout(resolve, 50));
+
+          // Manually load providers (simulating React Query doing this)
+          await rootMessenger.call('RampsController:getProviders', 'us-ca');
           await rootMessenger.call(
             'RampsController:getPaymentMethods',
             'us-ca',
@@ -2036,6 +2040,7 @@ describe('RampsController', () => {
           providersToReturn = [];
           await rootMessenger.call('RampsController:setUserRegion', 'FR');
           await new Promise((resolve) => setTimeout(resolve, 50));
+          // Region change resets dependent resources (providers, payment methods)
           expect(controller.state.tokens.data).toStrictEqual(mockTokens);
           expect(controller.state.providers.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
@@ -2692,7 +2697,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('clears selected provider, paymentMethods, and selectedPaymentMethod when null is provided', async () => {
+    it('clears selected provider but preserves paymentMethods when null is provided', async () => {
       const mockPaymentMethod: PaymentMethod = {
         id: '/payments/test-card',
         paymentType: 'debit-credit-card',
@@ -2718,20 +2723,17 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toStrictEqual(
             mockProvider,
           );
+
+          rootMessenger.call('RampsController:setSelectedProvider', null);
+
+          expect(controller.state.providers.selected).toBeNull();
+          // Payment methods are managed by React Query — not cleared on provider change
           expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
-
-          rootMessenger.call('RampsController:setSelectedProvider', null);
-
-          expect(controller.state.providers.selected).toBeNull();
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
-          expect(controller.state.paymentMethods.isLoading).toBe(false);
-          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2803,7 +2805,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('updates selected provider and clears payment methods when a new provider is set', async () => {
+    it('updates selected provider and preserves payment methods when a new provider is set', async () => {
       const newProvider: Provider = {
         ...mockProvider,
         id: '/providers/ramp-network-staging',
@@ -2835,11 +2837,6 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => ({ payments: [] }),
-          );
-
           expect(controller.state.paymentMethods.data).toStrictEqual([
             existingPaymentMethod,
           ]);
@@ -2858,8 +2855,13 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected?.id).toBe(
             '/providers/ramp-network-staging',
           );
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
+          // Payment methods persist until React Query fetches for the new provider
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            existingPaymentMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            existingPaymentMethod,
+          );
         },
       );
     });
@@ -3113,10 +3115,13 @@ describe('RampsController', () => {
           rootMessenger.call('RampsController:setSelectedToken', undefined);
 
           expect(controller.state.tokens.selected).toBeNull();
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
-          expect(controller.state.paymentMethods.isLoading).toBe(false);
-          expect(controller.state.paymentMethods.error).toBeNull();
+          // Payment methods are provider-scoped — not cleared on token change
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            mockPaymentMethod,
+          );
         },
       );
     });
@@ -3219,7 +3224,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('updates selected token and clears payment methods when a new token is set', async () => {
+    it('preserves payment methods when a new token is set', async () => {
       const newToken: RampsToken = {
         ...mockToken,
         assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
@@ -3246,11 +3251,6 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => ({ payments: [] }),
-          );
-
           expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
@@ -3263,9 +3263,15 @@ describe('RampsController', () => {
             newToken.assetId,
           );
 
+          // Payment methods are provider-scoped, not token-scoped.
+          // Token change should NOT reset them.
           expect(controller.state.tokens.selected).toStrictEqual(newToken);
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            mockPaymentMethod,
+          );
         },
       );
     });
