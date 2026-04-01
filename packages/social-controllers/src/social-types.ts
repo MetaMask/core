@@ -86,13 +86,20 @@ export type TraderProfile = {
 export type TraderStats = {
   pnl30d?: number | null;
   winRate30d?: number | null;
-  roi30d?: number | null;
-  tradeCount?: number | null;
+  /** Renamed from roi30d. */
+  roiPercent30d?: number | null;
+  /** Renamed from tradeCount. */
+  tradeCount30d?: number | null;
+  pnl7d?: number | null;
+  winRate7d?: number | null;
+  roiPercent7d?: number | null;
+  tradeCount7d?: number | null;
 };
 
 export type PerChainBreakdown = {
   perChainPnl: Record<string, number>;
-  perChainRoi: Record<string, number>;
+  /** ROI can be null for chains with no trading activity (zero cost-basis). */
+  perChainRoi: Record<string, number | null>;
   perChainVolume: Record<string, number>;
 };
 

@@ -116,13 +116,17 @@ const TraderProfileStruct = structType({
 const TraderStatsStruct = structType({
   pnl30d: optional(nullable(number())),
   winRate30d: optional(nullable(number())),
-  roi30d: optional(nullable(number())),
-  tradeCount: optional(nullable(number())),
+  roiPercent30d: optional(nullable(number())),
+  tradeCount30d: optional(nullable(number())),
+  pnl7d: optional(nullable(number())),
+  winRate7d: optional(nullable(number())),
+  roiPercent7d: optional(nullable(number())),
+  tradeCount7d: optional(nullable(number())),
 });
 
 const PerChainBreakdownStruct = structType({
   perChainPnl: record(string(), number()),
-  perChainRoi: record(string(), number()),
+  perChainRoi: record(string(), nullable(number())),
   perChainVolume: record(string(), number()),
 });
 
@@ -549,7 +553,8 @@ export class SocialService extends BaseDataService<
         if (chain) {
           url.searchParams.append('chain', chain);
         }
-        if (sort) {
+        // sort is not supported on the v2 open-positions endpoint
+        if (sort && status === 'closed') {
           url.searchParams.append('sort', sort);
         }
         if (limit !== undefined) {

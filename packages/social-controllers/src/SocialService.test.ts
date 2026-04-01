@@ -228,8 +228,12 @@ describe('SocialService', () => {
       stats: {
         pnl30d: 50000,
         winRate30d: 0.75,
-        roi30d: 2.5,
-        tradeCount: 42,
+        roiPercent30d: 2.5,
+        tradeCount30d: 42,
+        pnl7d: 10000,
+        winRate7d: 0.7,
+        roiPercent7d: 1.2,
+        tradeCount7d: 15,
       },
       perChainBreakdown: {
         perChainPnl: { base: 30000 },
@@ -349,7 +353,7 @@ describe('SocialService', () => {
       );
     });
 
-    it('appends chain, sort, limit, and page query params', async () => {
+    it('appends chain, limit, and page query params (sort is ignored for v2 open positions)', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -367,7 +371,7 @@ describe('SocialService', () => {
 
       const calledUrl = mockFetch.mock.calls[0][0] as string;
       expect(calledUrl).toContain('chain=base');
-      expect(calledUrl).toContain('sort=value');
+      expect(calledUrl).not.toContain('sort=');
       expect(calledUrl).toContain('limit=10');
       expect(calledUrl).toContain('page=2');
     });
