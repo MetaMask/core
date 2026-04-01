@@ -7,15 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.0.0]
+
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
-- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Add extra parameters in types and change `addTransaction` behavior ([#8052](https://github.com/MetaMask/core/pull/8052))
   - Add optional `excludeNativeTokenForFee` in `TransactionMeta` type.
   - Add optional `excludeNativeTokenForFee` in `TransactionBatchRequest` type.
   - Add optional `excludeNativeTokenForFee` to `AddTransactionOptions` type.
   - Changed `isGasFeeTokenIgnoredIfBalance` to be false if `excludeNativeTokenForFee` is passed in `addTransaction`.
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 
 ### Removed
 
@@ -2305,7 +2307,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.0.0...HEAD
+[64.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.3.1...@metamask/transaction-controller@64.0.0
 [63.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.3.0...@metamask/transaction-controller@63.3.1
 [63.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.2.0...@metamask/transaction-controller@63.3.0
 [63.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.1.0...@metamask/transaction-controller@63.2.0

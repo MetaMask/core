@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [103.1.1]
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.0.1` to `^5.0.2` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/phishing-controller` from `^17.1.0` to `^17.1.1` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+
 ## [103.1.0]
 
 ### Changed
@@ -2907,7 +2915,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...HEAD
+[103.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...@metamask/assets-controllers@103.1.1
 [103.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...@metamask/assets-controllers@103.1.0
 [103.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...@metamask/assets-controllers@103.0.0
 [102.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.1...@metamask/assets-controllers@102.0.0
