@@ -627,14 +627,11 @@ describe('SocialService', () => {
       });
 
       expect(result).toStrictEqual(mockFollowResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/users/0x1234/follows`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targets: ['0xaaaa', '0xbbbb'] }),
-        },
-      );
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/0x1234/follows`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets: ['0xaaaa', '0xbbbb'] }),
+      });
     });
 
     it('throws HttpError on non-ok response', async () => {
