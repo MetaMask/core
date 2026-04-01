@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-pay-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-pay-controller",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
