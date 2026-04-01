@@ -4377,7 +4377,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:
-    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.1"
     "@metamask/eth-money-keyring": "npm:^2.0.0"
