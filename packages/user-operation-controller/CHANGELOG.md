@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+
 ### Changed
 
 - Hardcode user operation transaction type to `contractInteraction` instead of calling `determineTransactionType` ([#8273](https://github.com/MetaMask/core/pull/8273))
