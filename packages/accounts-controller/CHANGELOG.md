@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [37.2.0]
 
-### Uncategorized
-
-- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
-- Release/893.0.0 ([#8344](https://github.com/MetaMask/core/pull/8344))
-
 ### Added
 
 - Now supports `KeyringTypes.money` in `keyringTypeToName` ([#8362](https://github.com/MetaMask/core/pull/8362))
