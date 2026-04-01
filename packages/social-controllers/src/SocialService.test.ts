@@ -586,6 +586,24 @@ describe('SocialService', () => {
         SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
       );
     });
+
+    it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
+      const mockFollowingResponse = {
+        following: [mockProfileSummary],
+        count: 1,
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFollowingResponse),
+      });
+
+      const service = createService();
+      await service.fetchFollowing({ addressOrUid: '0x1234' });
+      await service.fetchFollowing({ addressOrUid: '0x1234' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('follow', () => {

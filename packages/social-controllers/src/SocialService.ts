@@ -403,6 +403,7 @@ export class SocialService extends BaseDataService<
 
     const followingResponse = await this.fetchQuery({
       queryKey: [`${this.name}:fetchFollowing`, addressOrUid],
+      staleTime: 0,
       queryFn: async () => {
         const url = `${this.#baseUrl}/users/${encodeURIComponent(addressOrUid)}/following`;
         const response = await fetch(url);
