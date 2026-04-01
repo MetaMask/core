@@ -2036,22 +2036,27 @@ export class KeyringController<
   async #selectKeyring<SelectedKeyring extends EthKeyring = EthKeyring>(
     selector: KeyringSelector<SelectedKeyring>,
   ): Promise<SelectedKeyring | undefined> {
+    let keyring: SelectedKeyring | undefined;
+
     if ('address' in selector) {
-      return (await this.#getKeyringForAccount(selector.address)) as
+      keyring = (await this.#getKeyringForAccount(selector.address)) as
         | SelectedKeyring
         | undefined;
     } else if ('type' in selector) {
-      return this.getKeyringsByType(selector.type)[selector.index ?? 0] as
+      keyring = this.getKeyringsByType(selector.type)[selector.index ?? 0] as
         | SelectedKeyring
         | undefined;
     } else if ('id' in selector) {
-      return this.#getKeyringById(selector.id) as SelectedKeyring | undefined;
+      keyring = this.#getKeyringById(selector.id) as
+        | SelectedKeyring
+        | undefined;
     } else if ('filter' in selector) {
-      return this.#keyrings.find(({ keyring: filteredKeyring, metadata }) =>
+      keyring = this.#keyrings.find(({ keyring: filteredKeyring, metadata }) =>
         selector.filter(filteredKeyring, metadata),
       )?.keyring as SelectedKeyring | undefined;
     }
-    return undefined;
+
+    return keyring;
   }
 
   /**
