@@ -1,3 +1,4 @@
+import { Mutex } from 'async-mutex';
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
@@ -4012,6 +4013,7 @@ describe('KeyringController', () => {
   describe('withKeyringUnsafe', () => {
     it('calls the given function without acquiring the lock', async () => {
       await withController(async ({ controller }) => {
+        const acquireSpy = jest.spyOn(Mutex.prototype, 'acquire');
         const fn = jest.fn().mockResolvedValue('result');
         const selector = { type: KeyringTypes.hd };
         const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
@@ -4019,6 +4021,7 @@ describe('KeyringController', () => {
 
         const result = await controller.withKeyringUnsafe(selector, fn);
 
+        expect(acquireSpy).not.toHaveBeenCalled();
         expect(fn).toHaveBeenCalledWith({ keyring, metadata });
         expect(result).toBe('result');
       });
