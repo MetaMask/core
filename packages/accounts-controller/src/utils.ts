@@ -44,7 +44,7 @@ export function keyringTypeToName(keyringType: string): string {
     }
     case KeyringTypes.money: {
       // NOTE: We don't use Money keyring/accounts within this controller. However, since this
-      // functins only use the keyring type to return a name, we still support it here in case
+      // function only use the keyring type to return a name, we still support it here in case
       // clients need it.
       // FIXME: This should probably live in the `KeyringController` package instead.
       return 'Money';
