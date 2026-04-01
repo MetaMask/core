@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+
 ## [3.0.0]
 
 ### Changed
@@ -202,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.0...@metamask/gator-permissions-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.2.0...@metamask/gator-permissions-controller@3.0.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.1...@metamask/gator-permissions-controller@2.2.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.0...@metamask/gator-permissions-controller@2.1.1

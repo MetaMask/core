@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/gator-permissions-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/gator-permissions-controller",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -56,7 +56,7 @@
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^63.3.1",
+    "@metamask/transaction-controller": "^64.0.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

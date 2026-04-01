@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.2.0]
+
 ### Changed
 
 - Hardcode user operation transaction type to `contractInteraction` instead of calling `determineTransactionType` ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 
 ## [41.1.1]
@@ -573,7 +576,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.0...HEAD
+[41.2.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.1.1...@metamask/user-operation-controller@41.2.0
 [41.1.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.1.0...@metamask/user-operation-controller@41.1.1
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.3...@metamask/user-operation-controller@41.1.0
 [41.0.3]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.2...@metamask/user-operation-controller@41.0.3

@@ -61,6 +61,7 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
+  money = 'Money Keyring',
   /* eslint-enable @typescript-eslint/naming-convention */
 }
 
@@ -189,6 +190,11 @@ export type KeyringControllerWithKeyringAction = {
   handler: KeyringController['withKeyring'];
 };
 
+export type KeyringControllerWithKeyringUnsafeAction = {
+  type: `${typeof name}:withKeyringUnsafe`;
+  handler: KeyringController['withKeyringUnsafe'];
+};
+
 export type KeyringControllerCreateNewVaultAndKeychainAction = {
   type: `${typeof name}:createNewVaultAndKeychain`;
   handler: KeyringController['createNewVaultAndKeychain'];
@@ -246,6 +252,7 @@ export type KeyringControllerActions =
   | KeyringControllerSignUserOperationAction
   | KeyringControllerAddNewAccountAction
   | KeyringControllerWithKeyringAction
+  | KeyringControllerWithKeyringUnsafeAction
   | KeyringControllerAddNewKeyringAction
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerCreateNewVaultAndRestoreAction
@@ -1115,21 +1122,29 @@ export class KeyringController<
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
     this.#assertIsUnlocked();
+    const keyring = await this.#getKeyringForAccount(account);
+    if (keyring) {
+      return keyring;
+    }
+
+    if (this.#keyrings.length === 0) {
+      throw new KeyringControllerError(KeyringControllerErrorMessage.NoKeyring);
+    }
+
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.KeyringNotFound,
+    );
+  }
+
+  async #getKeyringForAccount(
+    account: string,
+  ): Promise<EthKeyring | undefined> {
+    this.#assertIsUnlocked();
     const keyringIndex = await this.#findKeyringIndexForAccount(account);
     if (keyringIndex > -1) {
       return this.#keyrings[keyringIndex].keyring;
     }
-
-    // Adding more info to the error
-    let errorInfo = '';
-    if (this.#keyrings.length === 0) {
-      errorInfo = 'There are no keyrings';
-    } else {
-      errorInfo = 'There are keyrings, but none match the address';
-    }
-    throw new KeyringControllerError(
-      `${KeyringControllerErrorMessage.NoKeyring}. Error info: ${errorInfo}`,
-    );
+    return undefined;
   }
 
   async #findKeyringIndexForAccount(account: string): Promise<number> {
@@ -1694,6 +1709,31 @@ export class KeyringController<
   }
 
   /**
+   * Asserts a value is not a specific keyring instance, and throws an error if it is.
+   *
+   * @param value The value to check.
+   * @param keyring The keyring instance to check against.
+   * @throws If the value is the same instance as the keyring.
+   * @returns The original value if the check passes.
+   */
+  #assertNoUnsafeDirectKeyringAccess<
+    Value,
+    SelectedKeyring extends EthKeyring = EthKeyring,
+  >(value: Value, keyring: SelectedKeyring): Value {
+    if (Object.is(value, keyring)) {
+      // Access to a keyring instance outside of controller safeguards
+      // should be discouraged, as it can lead to unexpected behavior.
+      // This error is thrown to prevent consumers using `withKeyring`
+      // as a way to get a reference to a keyring instance.
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+      );
+    }
+
+    return value;
+  }
+
+  /**
    * Select a keyring and execute the given operation with
    * the selected keyring, as a mutually exclusive atomic
    * operation.
@@ -1763,7 +1803,7 @@ export class KeyringController<
     SelectedKeyring extends EthKeyring = EthKeyring,
     CallbackResult = void,
   >(
-    selector: KeyringSelector,
+    selector: KeyringSelector<SelectedKeyring>,
     operation: ({
       keyring,
       metadata,
@@ -1780,30 +1820,14 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#persistOrRollback(async () => {
-      let keyring: SelectedKeyring | undefined;
+      let keyring: SelectedKeyring | undefined =
+        await this.#selectKeyring<SelectedKeyring>(selector);
 
-      if ('address' in selector) {
-        keyring = (await this.getKeyringForAccount(selector.address)) as
-          | SelectedKeyring
-          | undefined;
-      } else if ('type' in selector) {
-        keyring = this.getKeyringsByType(selector.type)[selector.index ?? 0] as
-          | SelectedKeyring
-          | undefined;
-
-        if (!keyring && options.createIfMissing) {
-          keyring = (await this.#newKeyring(
-            selector.type,
-            options.createWithData,
-          )) as SelectedKeyring;
-        }
-      } else if ('id' in selector) {
-        keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
-      } else if ('filter' in selector) {
-        keyring = this.#keyrings.find(
-          ({ keyring: filteredKeyring, metadata }) =>
-            selector.filter(filteredKeyring, metadata),
-        )?.keyring as SelectedKeyring | undefined;
+      if (!keyring && 'type' in selector && options.createIfMissing) {
+        keyring = (await this.#newKeyring(
+          selector.type,
+          options.createWithData,
+        )) as SelectedKeyring;
       }
 
       if (!keyring) {
@@ -1812,23 +1836,82 @@ export class KeyringController<
         );
       }
 
-      const result = await operation({
+      return this.#assertNoUnsafeDirectKeyringAccess(
+        await operation({
+          keyring,
+          metadata: this.#getKeyringMetadata(keyring),
+        }),
+        keyring,
+      );
+    });
+  }
+
+  /**
+   * Select a keyring and execute the given operation with the selected
+   * keyring, **without** acquiring the controller's mutual exclusion lock.
+   *
+   * ## When to use this method
+   *
+   * This method is an escape hatch for read-only access to keyring data that
+   * is immutable once the keyring is initialized. A typical safe use case is
+   * reading the `mnemonic` from an `HdKeyring`: the mnemonic is set during
+   * `deserialize()` and never mutated afterwards, so it can safely be read
+   * without holding the lock.
+   *
+   * ## Why it is "unsafe"
+   *
+   * The "unsafe" designation mirrors the semantics of `unsafe { }` blocks in
+   * Rust: the method itself does not enforce thread-safety guarantees. By
+   * calling this method the **caller** explicitly takes responsibility for
+   * ensuring that:
+   *
+   * - The operation is **read-only** — no state is mutated.
+   * - The data being read is **immutable** after the keyring is initialized,
+   *   so concurrent locked operations cannot alter it while this callback
+   *   runs.
+   *
+   * Do **not** use this method to:
+   * - Mutate keyring state (add accounts, sign, etc.) — use `withKeyring`.
+   * - Read mutable fields that could change during concurrent operations.
+   *
+   * @param selector - Keyring selector object.
+   * @param operation - Read-only function to execute with the selected keyring.
+   * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async withKeyringUnsafe<
+    SelectedKeyring extends EthKeyring = EthKeyring,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector<SelectedKeyring>,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    this.#assertIsUnlocked();
+
+    const keyring = await this.#selectKeyring<SelectedKeyring>(selector);
+
+    if (!keyring) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringNotFound,
+      );
+    }
+
+    // Even if this method is "unsafe", we still want to prevent returning
+    // the keyring directly.
+    return this.#assertNoUnsafeDirectKeyringAccess(
+      await operation({
         keyring,
         metadata: this.#getKeyringMetadata(keyring),
-      });
-
-      if (Object.is(result, keyring)) {
-        // Access to a keyring instance outside of controller safeguards
-        // should be discouraged, as it can lead to unexpected behavior.
-        // This error is thrown to prevent consumers using `withKeyring`
-        // as a way to get a reference to a keyring instance.
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
-        );
-      }
-
-      return result;
-    });
+      }),
+      keyring,
+    );
   }
 
   async getAccountKeyringType(account: string): Promise<string> {
@@ -1919,6 +2002,11 @@ export class KeyringController<
     );
 
     this.messenger.registerActionHandler(
+      `${name}:withKeyringUnsafe`,
+      this.withKeyringUnsafe.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
       `${name}:addNewKeyring`,
       this.addNewKeyring.bind(this),
     );
@@ -1937,6 +2025,39 @@ export class KeyringController<
       `${name}:removeAccount`,
       this.removeAccount.bind(this),
     );
+  }
+
+  /**
+   * Select a keyring using a selector without acquiring the controller lock.
+   *
+   * @param selector - Keyring selector object.
+   * @returns The selected keyring, or `undefined` if no match is found.
+   * @template SelectedKeyring - The expected type of the selected keyring.
+   */
+  async #selectKeyring<SelectedKeyring extends EthKeyring = EthKeyring>(
+    selector: KeyringSelector<SelectedKeyring>,
+  ): Promise<SelectedKeyring | undefined> {
+    let keyring: SelectedKeyring | undefined;
+
+    if ('address' in selector) {
+      keyring = (await this.#getKeyringForAccount(selector.address)) as
+        | SelectedKeyring
+        | undefined;
+    } else if ('type' in selector) {
+      keyring = this.getKeyringsByType(selector.type)[selector.index ?? 0] as
+        | SelectedKeyring
+        | undefined;
+    } else if ('id' in selector) {
+      keyring = this.#getKeyringById(selector.id) as
+        | SelectedKeyring
+        | undefined;
+    } else if ('filter' in selector) {
+      keyring = this.#keyrings.find(({ keyring: filteredKeyring, metadata }) =>
+        selector.filter(filteredKeyring, metadata),
+      )?.keyring as SelectedKeyring | undefined;
+    }
+
+    return keyring;
   }
 
   /**

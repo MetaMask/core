@@ -1,3 +1,5 @@
+import { KeyringControllerErrorMessage } from './constants';
+
 /**
  * Options for creating a KeyringControllerError.
  */
@@ -129,4 +131,21 @@ export class KeyringControllerError extends Error {
 
     return result;
   }
+}
+
+/**
+ * Returns `true` if the error is a `KeyringNotFound` error thrown by
+ * `KeyringController:withKeyring`. Use this to distinguish a missing keyring
+ * from other failures and apply fallback logic.
+ *
+ * @param error - The value to check.
+ * @returns Whether the error is a `KeyringNotFound` error.
+ */
+export function isKeyringNotFoundError(
+  error: unknown,
+): error is KeyringControllerError {
+  return (
+    error instanceof KeyringControllerError &&
+    error.message === KeyringControllerErrorMessage.KeyringNotFound
+  );
 }

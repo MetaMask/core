@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-metrics-controller",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-metrics-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-metrics-controller",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -55,7 +55,7 @@
     "@metamask/messenger": "^1.0.0",
     "@metamask/polling-controller": "^16.0.4",
     "@metamask/profile-sync-controller": "^28.0.2",
-    "@metamask/transaction-controller": "^63.3.1",
+    "@metamask/transaction-controller": "^64.0.0",
     "@metamask/utils": "^11.9.0",
     "async-mutex": "^0.5.0"
   },

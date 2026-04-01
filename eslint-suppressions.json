@@ -167,11 +167,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 9
-    }
-  },
   "packages/assets-controller/src/selectors/balance.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -1089,7 +1084,7 @@
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "no-restricted-syntax": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/logging-controller/src/LoggingController.test.ts": {
