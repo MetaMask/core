@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Now supports `KeyringTypes.money` in `keyringTypeToName` ([#8361](https://github.com/MetaMask/core/pull/8361))
+- Now supports `KeyringTypes.money` in `keyringTypeToName` ([#8362](https://github.com/MetaMask/core/pull/8362))
   - Even though this controller does not support Money accounts, this helper might be used with this new keyring type (added for completeness).
 
 ### Changed
 
-- Filter out Money accounts when replicating `KeyringController` state ([#8361](https://github.com/MetaMask/core/pull/8361))
+- Filter out Money accounts when replicating `KeyringController` state ([#8362](https://github.com/MetaMask/core/pull/8362))
   - Those accounts are treated differently with their own "account-like" controller.
 
 ## [37.1.1]
