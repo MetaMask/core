@@ -1291,13 +1291,11 @@ export class RampsController extends BaseController<
       await this.getCountries(options);
     }
 
-    let regionCode: string | undefined;
-    if (forceRefresh) {
-      regionCode = await this.messenger.call('RampsService:getGeolocation');
-    } else {
-      regionCode = this.state.userRegion?.regionCode;
-      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
-    }
+    // Always prefer the user's persisted region. Geolocation is only used to
+    // seed the initial value; once the user (or a prior init) has set a region
+    // we must respect that choice — even on forceRefresh.
+    let regionCode: string | undefined = this.state.userRegion?.regionCode;
+    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
 
     if (!regionCode) {
       throw new Error(
@@ -1407,7 +1405,7 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
     const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
@@ -1429,10 +1427,6 @@ export class RampsController extends BaseController<
       state.tokens.selected = token;
       resetResource(state, 'paymentMethods');
     });
-
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
-    );
   }
 
   /**

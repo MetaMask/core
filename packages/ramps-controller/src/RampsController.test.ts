@@ -1887,6 +1887,48 @@ describe('RampsController', () => {
         expect(getCountriesCallCount).toBe(2);
       });
     });
+
+    it('forceRefresh does not override persisted userRegion with geolocation', async () => {
+      let getGeolocationCalled = false;
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ny';
+            },
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          await rootMessenger.call('RampsController:init', {
+            forceRefresh: true,
+          });
+
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
   });
 
   describe('setUserRegion', () => {
@@ -3194,7 +3236,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('triggers getPaymentMethods with token assetId', async () => {
+    it('does not trigger getPaymentMethods on token selection', async () => {
       await withController(
         {
           options: {
@@ -3205,16 +3247,11 @@ describe('RampsController', () => {
           },
         },
         async ({ rootMessenger }) => {
-          let receivedAssetId: string | undefined;
+          let getPaymentMethodsCalled = false;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
-            async (options: {
-              region: string;
-              fiat: string;
-              assetId: string;
-              provider: string;
-            }) => {
-              receivedAssetId = options.assetId;
+            async () => {
+              getPaymentMethodsCalled = true;
               return { payments: [] };
             },
           );
@@ -3225,7 +3262,7 @@ describe('RampsController', () => {
           );
           await new Promise((resolve) => setTimeout(resolve, 10));
 
-          expect(receivedAssetId).toBe(mockToken.assetId);
+          expect(getPaymentMethodsCalled).toBe(false);
         },
       );
     });
@@ -4408,10 +4445,8 @@ describe('RampsController', () => {
           await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
-          expect(controller.state.paymentMethods.data).toStrictEqual(
-            paymentMethodsForTokenB,
-          );
-          expect(callCount).toBe(2);
+          expect(controller.state.paymentMethods.data).toStrictEqual([]);
+          expect(callCount).toBe(1);
         },
       );
     });
