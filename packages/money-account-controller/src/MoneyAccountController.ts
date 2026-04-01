@@ -137,12 +137,11 @@ export class MoneyAccountController extends BaseController<
 
     const primaryEntropySource = this.#getPrimaryEntropySource();
     if (primaryEntropySource) {
+      const { id, address } =
+        await this.createMoneyAccount(primaryEntropySource);
       log(
-        'Initializing money account for primary entropy source: %s',
-        primaryEntropySource,
+        `Money keyring (entropy:${primaryEntropySource} - primary) account is: ${address} (${id})`,
       );
-      await this.createMoneyAccount(primaryEntropySource);
-      log('Money account initialized');
     }
   }
 
@@ -161,9 +160,6 @@ export class MoneyAccountController extends BaseController<
     // Idempotent: return existing account if already in state.
     const existingAccount = this.getMoneyAccount({ entropySource });
     if (existingAccount) {
-      log(
-        `Money account already exists for entropy source: ${entropySource}, address: ${existingAccount.address}`,
-      );
       return existingAccount;
     }
 
@@ -180,7 +176,7 @@ export class MoneyAccountController extends BaseController<
       }
 
       log(
-        `No money keyring found for entropy source: ${entropySource}, creating one`,
+        `Money keyring (entropy:${entropySource}) not found, creating one...`,
       );
       // Create the keyring right away by providing a `numberOfAccounts` of 1, which will create
       // the first account and allow us to get the address without having to use `withKeyring` again.
@@ -190,7 +186,6 @@ export class MoneyAccountController extends BaseController<
       address = await this.#getOrCreateMoneyAccountFromKeyring(entropySource);
     }
 
-    log(`Creating money account for address: ${address}`);
     const account: MoneyAccount = {
       id: uuid(),
       type: EthAccountType.Eoa,
@@ -220,7 +215,9 @@ export class MoneyAccountController extends BaseController<
       state.moneyAccounts[account.id] = account;
     });
 
-    log(`Money account created: ${account.address} (${account.id})`);
+    log(
+      `Money keyring (entropy:${account.options.entropy.id}) account created: ${account.address} (${account.id})`,
+    );
     return account;
   }
 
@@ -290,6 +287,9 @@ export class MoneyAccountController extends BaseController<
         // If there are no accounts, we'll add one and then get the address.
         const accounts = await keyring.getAccounts();
         if (accounts.length === 0) {
+          log(
+            `Money keyring (entropy:${entropySource}) has no accounts, creating one...`,
+          );
           await keyring.addAccounts(1);
         }
 
