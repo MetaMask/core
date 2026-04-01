@@ -7,6 +7,9 @@ import type { SocialController } from './SocialController';
 
 /**
  * Fetches the leaderboard and persists the entries to state.
+ *
+ * @param options - Optional leaderboard query parameters.
+ * @returns The leaderboard response from the social-api.
  */
 export type SocialControllerUpdateLeaderboardAction = {
   type: `SocialController:updateLeaderboard`;
@@ -15,6 +18,11 @@ export type SocialControllerUpdateLeaderboardAction = {
 
 /**
  * Follows one or more traders and updates the following list in state.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
+ * @param options.targets - Addresses or profile IDs to follow.
+ * @returns The follow response with confirmed follows.
  */
 export type SocialControllerFollowTraderAction = {
   type: `SocialController:followTrader`;
@@ -23,6 +31,11 @@ export type SocialControllerFollowTraderAction = {
 
 /**
  * Unfollows one or more traders and updates the following list in state.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
+ * @param options.targets - Addresses or profile IDs to unfollow.
+ * @returns The unfollow response with confirmed unfollows.
  */
 export type SocialControllerUnfollowTraderAction = {
   type: `SocialController:unfollowTrader`;
@@ -30,7 +43,12 @@ export type SocialControllerUnfollowTraderAction = {
 };
 
 /**
- * Fetches the following list and replaces addresses in state.
+ * Fetches the list of traders the current user follows and replaces
+ * the following addresses in state.
+ *
+ * @param options - Options bag.
+ * @param options.addressOrUid - Wallet address or Clicker profile ID of the current user.
+ * @returns The following response.
  */
 export type SocialControllerUpdateFollowingAction = {
   type: `SocialController:updateFollowing`;
@@ -38,7 +56,7 @@ export type SocialControllerUpdateFollowingAction = {
 };
 
 /**
- * Union of all SocialController method action types.
+ * Union of all SocialController action types.
  */
 export type SocialControllerMethodActions =
   | SocialControllerUpdateLeaderboardAction
