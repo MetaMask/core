@@ -134,9 +134,7 @@ describe('ComplianceController', () => {
             checkedAt: '2026-02-01T00:00:00.000Z',
           },
         });
-        expect(controller.state.lastCheckedAt).toBe(
-          '2026-02-01T00:00:00.000Z',
-        );
+        expect(controller.state.lastCheckedAt).toBe('2026-02-01T00:00:00.000Z');
       });
     });
 
@@ -148,7 +146,11 @@ describe('ComplianceController', () => {
       };
 
       await withController(
-        { options: { state: { walletComplianceStatusMap: { '0xABC123': cached } } } },
+        {
+          options: {
+            state: { walletComplianceStatusMap: { '0xABC123': cached } },
+          },
+        },
         async ({ rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'ComplianceService:checkWalletCompliance',
@@ -333,10 +335,10 @@ describe('ComplianceController', () => {
           );
 
           await expect(
-            rootMessenger.call(
-              'ComplianceController:checkWalletsCompliance',
-              ['0xSAFE', '0xNEW'],
-            ),
+            rootMessenger.call('ComplianceController:checkWalletsCompliance', [
+              '0xSAFE',
+              '0xNEW',
+            ]),
           ).rejects.toThrow('API unavailable');
         },
       );
