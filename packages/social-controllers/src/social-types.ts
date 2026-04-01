@@ -124,6 +124,12 @@ export type Position = {
   costBasis: number;
   trades: Trade[];
   lastTradeAt: number;
+  /** Current USD value of the remaining position (open positions only). */
+  currentValueUSD?: number | null;
+  /** Unrealized + realized PnL in USD. */
+  pnlValueUsd?: number | null;
+  /** PnL as a percentage of cost basis. */
+  pnlPercent?: number | null;
 };
 
 export type Pagination = {
@@ -138,6 +144,8 @@ export type Pagination = {
 export type PositionsResponse = {
   positions: Position[];
   pagination: Pagination;
+  /** ISO 8601 timestamp indicating when the response was computed server-side. */
+  computedAt?: string | null;
 };
 
 // ---------------------------------------------------------------------------

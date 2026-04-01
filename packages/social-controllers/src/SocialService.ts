@@ -76,6 +76,9 @@ const PositionStruct = structType({
   costBasis: number(),
   trades: array(TradeStruct),
   lastTradeAt: number(),
+  currentValueUSD: optional(nullable(number())),
+  pnlValueUsd: optional(nullable(number())),
+  pnlPercent: optional(nullable(number())),
 });
 
 const PaginationStruct = structType({
@@ -135,6 +138,7 @@ const TraderProfileResponseStruct = structType({
 const PositionsResponseStruct = structType({
   positions: array(PositionStruct),
   pagination: PaginationStruct,
+  computedAt: optional(nullable(string())),
 });
 
 const FollowersResponseStruct = structType({
