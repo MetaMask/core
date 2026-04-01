@@ -332,7 +332,7 @@ export class MoneyAccountController extends BaseController<
   #getPrimaryEntropySource(): EntropySourceId | undefined {
     const { keyrings } = this.messenger.call('KeyringController:getState');
     const primaryHdKeyring = keyrings.find(
-      (keyring) => keyring.type === 'HD Key Tree',
+      (keyring) => keyring.type === KeyringTypes.hd,
     );
     return primaryHdKeyring?.metadata.id;
   }
