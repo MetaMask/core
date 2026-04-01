@@ -384,8 +384,14 @@ describe('SocialService', () => {
       });
 
       const service = createService();
-      await service.fetchOpenPositions({ addressOrId: '0x1234', sort: 'value' });
-      await service.fetchOpenPositions({ addressOrId: '0x1234', sort: 'latest' });
+      await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+        sort: 'value',
+      });
+      await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+        sort: 'latest',
+      });
 
       // Both calls resolve to the same cache key, so the network is hit only once
       expect(mockFetch).toHaveBeenCalledTimes(1);
