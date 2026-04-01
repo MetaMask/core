@@ -16,6 +16,12 @@ const NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES = [
     message:
       'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#do-not-call-messenger-actions-in-the-constructor',
   },
+  {
+    selector:
+      'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="Identifier"][callee.object.name="messenger"]',
+    message:
+      'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#do-not-call-messenger-actions-in-the-constructor',
+  },
 ];
 
 /**

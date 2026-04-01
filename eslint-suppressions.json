@@ -200,7 +200,7 @@
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
     "no-restricted-syntax": {
-      "count": 1
+      "count": 3
     }
   },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
@@ -1432,6 +1432,11 @@
     },
     "no-restricted-syntax": {
       "count": 2
+    }
+  },
+  "packages/permission-controller/src/SubjectMetadataController.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/perps-controller/src/PerpsController.ts": {
