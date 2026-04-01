@@ -3469,6 +3469,7 @@ describe('BridgeController', function () {
           "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
+          "quoteStreamComplete": null,
           "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
@@ -3504,6 +3505,7 @@ describe('BridgeController', function () {
           "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
+          "quoteStreamComplete": null,
           "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
