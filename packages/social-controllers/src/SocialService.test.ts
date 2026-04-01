@@ -376,6 +376,21 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('page=2');
     });
 
+    it('uses the same cache entry for different sort values on open positions', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPositionsResponse),
+      });
+
+      const service = createService();
+      await service.fetchOpenPositions({ addressOrId: '0x1234', sort: 'value' });
+      await service.fetchOpenPositions({ addressOrId: '0x1234', sort: 'latest' });
+
+      // Both calls resolve to the same cache key, so the network is hit only once
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 

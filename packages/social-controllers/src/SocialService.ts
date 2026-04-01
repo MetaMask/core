@@ -542,7 +542,9 @@ export class SocialService extends BaseDataService<
         `${this.name}:fetch${status === 'open' ? 'Open' : 'Closed'}Positions`,
         addressOrId,
         chain ?? null,
-        sort ?? null,
+        // sort is not used for open positions (v2 endpoint dropped it),
+        // so exclude it from the key to avoid redundant cache entries
+        status === 'closed' ? (sort ?? null) : null,
         limit ?? null,
         page ?? null,
       ],
