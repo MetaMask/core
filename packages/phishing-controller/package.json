@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "17.1.0",
+  "version": "17.1.1",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -51,7 +51,7 @@
     "@metamask/base-controller": "^9.0.1",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/messenger": "^1.0.0",
-    "@metamask/transaction-controller": "^63.3.1",
+    "@metamask/transaction-controller": "^64.0.0",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.0",
     "ethereum-cryptography": "^2.1.2",
