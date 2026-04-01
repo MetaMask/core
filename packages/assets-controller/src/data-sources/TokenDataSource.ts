@@ -5,7 +5,11 @@ import type {
   PhishingControllerBulkScanTokensAction,
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
-import { numberToHex, parseCaipAssetType } from '@metamask/utils';
+import {
+  KnownCaipNamespace,
+  numberToHex,
+  parseCaipAssetType,
+} from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
 import { isStakingContractAssetId } from './evm-rpc-services';
@@ -29,6 +33,16 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 /** Max tokens per PhishingController:bulkScanTokens request (see PhishingController). */
 const BULK_SCAN_BATCH_SIZE = 100;
+
+/**
+ * CAIP-19 `assetNamespace` segments used for Blockaid bulk scanning
+ * (`slip44` skipped; `erc20` + eip155 and `token` namespaces are scanned).
+ */
+enum CaipAssetNamespace {
+  Slip44 = 'slip44',
+  Erc20 = 'erc20',
+  Token = 'token',
+}
 
 // ============================================================================
 // OPTIONS
@@ -215,17 +229,20 @@ export class TokenDataSource {
           asset as CaipAssetType,
         );
 
-        if (assetNamespace === 'slip44') {
+        if (assetNamespace === CaipAssetNamespace.Slip44) {
           continue;
         }
 
-        if (assetNamespace === 'erc20' && chain.namespace === 'eip155') {
+        if (
+          assetNamespace === CaipAssetNamespace.Erc20 &&
+          chain.namespace === KnownCaipNamespace.Eip155
+        ) {
           const chainIdHex = numberToHex(parseInt(chain.reference, 10));
           if (!tokensByChain[chainIdHex]) {
             tokensByChain[chainIdHex] = [];
           }
           tokensByChain[chainIdHex].push({ asset, address: assetReference });
-        } else if (assetNamespace === 'token') {
+        } else if (assetNamespace === CaipAssetNamespace.Token) {
           const chainName = chain.namespace;
           if (!tokensByChain[chainName]) {
             tokensByChain[chainName] = [];
