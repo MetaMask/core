@@ -7,6 +7,7 @@ import type {
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { TrxScope } from '@metamask/keyring-api';
 import type { NetworkState } from '@metamask/network-controller';
+import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -580,7 +581,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: 'eip155:1/erc20:0x40d16fc0246ad3160ccc09B8d0d3a2cd28ae6c2f',
+      assetId: 'eip155:1/erc20:0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f',
       address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
@@ -641,7 +642,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: 'eip155:1/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+      assetId: 'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
@@ -661,7 +662,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: 'eip155:1/slip44:60',
+      assetId: 'eip155:10/slip44:60',
       address: '0x0000000000000000000000000000000000000000',
       image: '',
       name: 'Ethereum',
@@ -1017,7 +1018,7 @@ describe('token-selectors', () => {
 
     it('calculates fiat for native token using currency rate fallback when market data is missing', () => {
       // Setup: Add a new chain (Ink chain 0xdef1) with native balance but NO market data
-      const inkChainId = '0xdef1' as Hex;
+      const inkChainId: Hex = '0xdef1';
       const stateWithInkChain = {
         ...mockedMergedState,
         // Add Ink chain to network configuration
@@ -1052,7 +1053,7 @@ describe('token-selectors', () => {
         accountType: 'eip155:eoa',
         accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
         chainId: inkChainId,
-        assetId: `eip155:${inkChainId}/slip44:60`,
+        assetId: `eip155:${hexToNumber(inkChainId)}/slip44:60`,
         address: '0x0000000000000000000000000000000000000000',
         image: '',
         name: 'Ethereum',
@@ -1070,7 +1071,7 @@ describe('token-selectors', () => {
     });
 
     it('returns undefined fiat for native token when both market data and currency rate are missing', () => {
-      const inkChainId = '0xdef1' as Hex;
+      const inkChainId: Hex = '0xdef1';
       const stateWithMissingCurrencyRate = {
         ...mockedMergedState,
         networkConfigurationsByChainId: {
@@ -1103,7 +1104,7 @@ describe('token-selectors', () => {
     });
 
     it('hides native tokens on Tempo testnet (0xa5bf)', () => {
-      const tempoTestnetChainId = '0xa5bf' as Hex; // 42431 in decimal
+      const tempoTestnetChainId: Hex = '0xa5bf'; // 42431 in decimal
       const stateWithTempoTestnet = {
         ...mockedMergedState,
         networkConfigurationsByChainId: {
@@ -1132,7 +1133,7 @@ describe('token-selectors', () => {
     });
 
     it('hides native tokens on Tempo mainnet (0x1079)', () => {
-      const tempoMainnetChainId = '0x1079' as Hex; // 4217 in decimal
+      const tempoMainnetChainId: Hex = '0x1079'; // 4217 in decimal
       const stateWithTempoMainnet = {
         ...mockedMergedState,
         networkConfigurationsByChainId: {
@@ -1161,7 +1162,7 @@ describe('token-selectors', () => {
     });
 
     it('does not hide native tokens on non-Tempo networks', () => {
-      const ethereumChainId = '0x1' as Hex;
+      const ethereumChainId: Hex = '0x1';
       const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
 
       // Native token should still be visible on Ethereum
