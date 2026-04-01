@@ -40,5 +40,4 @@ export {
   getUUIDOptionsFromAddressOfNormalAccount,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
-  isMoneyKeyringType,
 } from './utils';
