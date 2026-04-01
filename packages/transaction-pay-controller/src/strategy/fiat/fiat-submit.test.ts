@@ -277,6 +277,12 @@ describe('submitFiatQuotes', () => {
         sourceTokenAmount: '1234500000000000000',
       }),
     ]);
+    expect(getRelayQuotesMock.mock.calls[0][0].transaction.txParams.data).toBe(
+      undefined,
+    );
+    expect(
+      getRelayQuotesMock.mock.calls[0][0].transaction.nestedTransactions,
+    ).toBe(undefined);
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         quotes: [RELAY_QUOTE_RESULT_MOCK],
@@ -372,6 +378,56 @@ describe('submitFiatQuotes', () => {
       if (action === 'RampsController:getOrder') {
         getOrderCallCount += 1;
         return getOrderCallCount === 1 ? pendingOrder : completedOrder;
+      }
+
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
+
+    const promise = submitFiatQuotes(request);
+    await jest.advanceTimersByTimeAsync(1000);
+    const result = await promise;
+
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+    expect(getOrderCallCount).toBe(2);
+  });
+
+  it('continues polling after transient getOrder error', async () => {
+    jest.useFakeTimers();
+
+    const completedOrder = getFiatOrderMock({
+      cryptoAmount: '1',
+      status: RampsOrderStatus.Completed,
+    });
+
+    let getOrderCallCount = 0;
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: { orderId: ORDER_ID_MOCK },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+
+      if (action === 'RampsController:getOrder') {
+        getOrderCallCount += 1;
+        if (getOrderCallCount === 1) {
+          throw new Error('Network error');
+        }
+        return completedOrder;
       }
 
       throw new Error(`Unexpected action: ${action}`);

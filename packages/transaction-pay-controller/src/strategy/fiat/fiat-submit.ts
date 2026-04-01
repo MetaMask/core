@@ -255,27 +255,35 @@ async function waitForOrderCompletion({
   let lastStatus: string | undefined;
 
   while (true) {
-    const order = await messenger.call(
-      'RampsController:getOrder',
-      providerCode,
-      orderCode,
-      walletAddress,
-    );
+    let order: RampsOrder | undefined;
 
-    lastStatus = order.status;
-
-    log('Polled fiat order', {
-      orderStatus: order.status,
-      providerCode,
-      transactionId,
-    });
-
-    if (order.status === RampsOrderStatus.Completed) {
-      return order;
+    try {
+      order = await messenger.call(
+        'RampsController:getOrder',
+        providerCode,
+        orderCode,
+        walletAddress,
+      );
+    } catch (error) {
+      log('Order polling network error', error);
     }
 
-    if (TERMINAL_FAILURE_STATUSES.includes(order.status)) {
-      throw new Error(`Fiat order ${order.status.toLowerCase()}`);
+    if (order) {
+      lastStatus = order.status;
+
+      log('Polled fiat order', {
+        orderStatus: order.status,
+        providerCode,
+        transactionId,
+      });
+
+      if (order.status === RampsOrderStatus.Completed) {
+        return order;
+      }
+
+      if (TERMINAL_FAILURE_STATUSES.includes(order.status)) {
+        throw new Error(`Fiat order ${order.status.toLowerCase()}`);
+      }
     }
 
     if (Date.now() - startTime >= ORDER_POLL_TIMEOUT_MS) {
