@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `TokenDataSource` constructor now takes `(messenger, options)` instead of `(options)`; `messenger` must be the same `AssetsControllerMessenger` used by `AssetsController` so token metadata enrichment can call `PhishingController:bulkScanTokens` ([#8329](https://github.com/MetaMask/core/pull/8329))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.0` ([#8364](https://github.com/MetaMask/core/pull/8364))
 
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** `TokenDataSource` constructor now takes `(messenger, options)` instead of `(options)`; `messenger` must be the same `AssetsControllerMessenger` used by `AssetsController` so token metadata enrichment can call `PhishingController:bulkScanTokens` ([#8329](https://github.com/MetaMask/core/pull/8329))
+  - Clients must now provide `PhishingController:bulkScanTokens` permission when constructing the controller messenger
 - `TokenDataSource` removes tokens flagged malicious by Blockaid (via `PhishingController:bulkScanTokens`) before merging metadata, instead of filtering non-native tokens by a minimum occurrence count ([#8329](https://github.com/MetaMask/core/pull/8329))
+- Bump `@metamask/assets-controllers` from `^103.1.0` to `^103.1.1` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/network-enablement-controller` from `^5.0.1` to `^5.0.2` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/phishing-controller` from `^17.1.0` to `^17.1.1` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
 
 ## [3.3.0]
 
@@ -261,7 +272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.3.0...@metamask/assets-controller@4.0.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.2.1...@metamask/assets-controller@3.3.0
 [3.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.2.0...@metamask/assets-controller@3.2.1
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.1.1...@metamask/assets-controller@3.2.0

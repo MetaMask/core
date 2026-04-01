@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Added
 
 - Add `generate-action-types` CLI tool ([#8264](https://github.com/MetaMask/core/pull/8264))
@@ -71,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.0.0...@metamask/messenger@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.3.0...@metamask/messenger@1.0.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.2.0...@metamask/messenger@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@0.1.0...@metamask/messenger@0.2.0
