@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "MetaMask",
@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/messenger": "^1.0.0",
     "@metamask/signature-controller": "^39.1.2",
-    "@metamask/transaction-controller": "^63.3.1",
+    "@metamask/transaction-controller": "^64.0.0",
     "@metamask/utils": "^11.9.0",
     "cockatiel": "^3.1.2"
   },

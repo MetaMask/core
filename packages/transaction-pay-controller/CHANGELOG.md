@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.2]
+
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^70.0.0` to `^70.0.1` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/bridge-status-controller` from `^70.0.4` to `^70.0.5` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
-- Bump `@metamask/assets-controller` from `^3.2.1` to `^3.3.0` ([#8355](https://github.com/MetaMask/core/pull/8355))
-- Bump `@metamask/assets-controllers` from `^103.0.0` to `^103.1.0` ([#8355](https://github.com/MetaMask/core/pull/8355))
+- Bump `@metamask/assets-controller` from `^3.2.1` to `^4.0.0` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/assets-controllers` from `^103.0.0` to `^103.1.1` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
 
 ## [19.0.1]
 
@@ -607,7 +612,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.2...HEAD
+[19.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.1...@metamask/transaction-pay-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.0...@metamask/transaction-pay-controller@19.0.1
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.2.0...@metamask/transaction-pay-controller@19.0.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.1.0...@metamask/transaction-pay-controller@18.2.0

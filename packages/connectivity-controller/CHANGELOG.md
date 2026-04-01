@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `connectivityControllerSelectors` with `selectConnectivityStatus` and `selectIsOffline` selectors ([#7701](https://github.com/MetaMask/core/pull/7701))
+  - `selectConnectivityStatus` returns the current connectivity status from the controller state
+  - `selectIsOffline` is a memoized selector that returns `true` when the device is offline
+
 ## [0.2.0]
 
 ### Added
