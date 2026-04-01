@@ -277,12 +277,12 @@ describe('submitFiatQuotes', () => {
         sourceTokenAmount: '1234500000000000000',
       }),
     ]);
-    expect(getRelayQuotesMock.mock.calls[0][0].transaction.txParams.data).toBe(
-      undefined,
-    );
+    expect(
+      getRelayQuotesMock.mock.calls[0][0].transaction.txParams.data,
+    ).toBeUndefined();
     expect(
       getRelayQuotesMock.mock.calls[0][0].transaction.nestedTransactions,
-    ).toBe(undefined);
+    ).toBeUndefined();
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         quotes: [RELAY_QUOTE_RESULT_MOCK],
