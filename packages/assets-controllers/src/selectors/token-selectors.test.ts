@@ -310,7 +310,7 @@ const mockAccountTreeControllerState = {
   selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0',
 } as unknown as AccountTreeControllerState;
 
-const mockAccountControllerState: AccountsControllerState = {
+const mockAccountControllerState = {
   internalAccounts: {
     accounts: {
       'd7f11451-9d79-4df4-a012-afd253443639': {
@@ -467,7 +467,7 @@ const mockAccountControllerState: AccountsControllerState = {
     },
     selectedAccount: 'd7f11451-9d79-4df4-a012-afd253443639',
   },
-};
+} as unknown as AccountsControllerState;
 
 const mockMultichainBalancesControllerState = {
   balances: {
@@ -728,7 +728,7 @@ describe('token-selectors', () => {
       const ignoredTokenAddress = '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee';
 
       expect(
-        result['0x1'].find((asset) => asset.assetId === ignoredTokenAddress),
+        result['0x1'].find((asset) => asset.address === ignoredTokenAddress),
       ).toBeUndefined();
     });
 
@@ -738,7 +738,7 @@ describe('token-selectors', () => {
       const tokenWithNoBalance = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       expect(
-        result['0x1'].find((asset) => asset.assetId === tokenWithNoBalance),
+        result['0x1'].find((asset) => asset.address === tokenWithNoBalance),
       ).toBeUndefined();
     });
 
@@ -750,7 +750,7 @@ describe('token-selectors', () => {
 
       const tokenWithNoFiatBalance = result['0x1'].find(
         (asset) =>
-          asset.assetId === '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+          asset.address === '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
@@ -780,7 +780,7 @@ describe('token-selectors', () => {
 
       const tokenWithNoFiatBalance = result['0x1'].find(
         (asset) =>
-          asset.assetId === '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+          asset.address === '0x514910771AF9Ca656af840dff83E8264EcF986CA',
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
@@ -907,7 +907,7 @@ describe('token-selectors', () => {
       expect(result).toStrictEqual(expectedMockResult);
     });
 
-    const arrangeTronState = () => {
+    const arrangeTronState = (): typeof mockedMergedState => {
       const state = cloneDeep(mockedMergedState);
 
       // Add Tron account to the selected account group
