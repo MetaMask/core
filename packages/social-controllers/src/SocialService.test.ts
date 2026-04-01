@@ -476,6 +476,23 @@ describe('SocialService', () => {
       );
     });
 
+    it('appends sort query param for closed positions', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPositionsResponse),
+      });
+
+      const service = createService();
+      await service.fetchClosedPositions({
+        addressOrId: '0x1234',
+        sort: 'value',
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain('sort=value');
+    });
+
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 503 });
 
