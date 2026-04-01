@@ -3977,7 +3977,7 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw KeyringNotFound if keyring metadata is not found (internal consistency check)', async () => {
+    it('throws KeyringNotFound if keyring metadata is not found (internal consistency check)', async () => {
       // This test verifies the defensive #getKeyringMetadata guard that ensures
       // internal state consistency. In normal operation, this should never occur,
       // but the guard exists to catch potential data corruption scenarios where
@@ -4010,7 +4010,7 @@ describe('KeyringController', () => {
   });
 
   describe('withKeyringUnsafe', () => {
-    it('should call the given function without acquiring the lock', async () => {
+    it('calls the given function without acquiring the lock', async () => {
       await withController(async ({ controller }) => {
         const fn = jest.fn().mockResolvedValue('result');
         const selector = { type: KeyringTypes.hd };
@@ -4024,7 +4024,7 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw if the controller is locked', async () => {
+    it('throws if the controller is locked', async () => {
       await withController(
         { skipVaultCreation: true },
         async ({ controller }) => {
@@ -4035,7 +4035,7 @@ describe('KeyringController', () => {
       );
     });
 
-    it('should throw KeyringNotFound if no keyring matches the selector', async () => {
+    it('throws KeyringNotFound if no keyring matches the selector', async () => {
       await withController(async ({ controller }) => {
         const fn = jest.fn();
 
@@ -4046,7 +4046,7 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw UnsafeDirectKeyringAccess if the callback returns the selected keyring', async () => {
+    it('throws UnsafeDirectKeyringAccess if the callback returns the selected keyring', async () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.withKeyringUnsafe(
@@ -4060,7 +4060,7 @@ describe('KeyringController', () => {
     });
 
     describe('when the keyring is selected by address', () => {
-      it('should call the given function with the selected keyring', async () => {
+      it('calls the given function with the selected keyring', async () => {
         await withController(async ({ controller, initialState }) => {
           const fn = jest.fn();
           const selector = {
@@ -4077,7 +4077,7 @@ describe('KeyringController', () => {
     });
 
     describe('when the keyring is selected by id', () => {
-      it('should call the given function with the selected keyring', async () => {
+      it('calls the given function with the selected keyring', async () => {
         await withController(async ({ controller }) => {
           const fn = jest.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
@@ -4090,7 +4090,7 @@ describe('KeyringController', () => {
         });
       });
 
-      it('should throw KeyringNotFound if no keyring has the given id', async () => {
+      it('throws KeyringNotFound if no keyring has the given id', async () => {
         await withController(async ({ controller }) => {
           const fn = jest.fn();
 
@@ -4103,7 +4103,7 @@ describe('KeyringController', () => {
     });
 
     describe('when the keyring is selected by filter', () => {
-      it('should call the given function with the matching keyring', async () => {
+      it('calls the given function with the matching keyring', async () => {
         await withController(async ({ controller }) => {
           const fn = jest.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
@@ -4118,7 +4118,7 @@ describe('KeyringController', () => {
         });
       });
 
-      it('should throw KeyringNotFound if no keyring matches the filter', async () => {
+      it('throws KeyringNotFound if no keyring matches the filter', async () => {
         await withController(async ({ controller }) => {
           const fn = jest.fn();
 
@@ -4130,7 +4130,7 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should not roll back state if an error is thrown', async () => {
+    it('does not roll back state if an error is thrown', async () => {
       await withController(async ({ controller, initialState }) => {
         // Mutate state directly via withKeyring first to have a known state
         await controller.withKeyring(
