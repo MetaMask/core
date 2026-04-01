@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `filter` selector variant to `withKeyring` ([#8348](https://github.com/MetaMask/core/pull/8348))
   - `KeyringSelector` now accepts `{ filter: ({ keyring, metadata }) => boolean }`, which selects the first keyring for which the predicate returns `true`.
+- Add `isKeyringNotFoundError` ([#8351](https://github.com/MetaMask/core/pull/8351))
+  - This function can be used when trying to access a non-existing keyring using `withKeyring`.
 
 ## [25.1.1]
 

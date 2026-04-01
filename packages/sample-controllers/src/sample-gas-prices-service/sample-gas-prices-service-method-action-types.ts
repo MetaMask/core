@@ -6,11 +6,11 @@
 import type { SampleGasPricesService } from './sample-gas-prices-service';
 
 /**
- * Fetches the latest gas prices for the given chain and persists them to
- * state.
+ * Makes a request to the API in order to retrieve gas prices for a particular
+ * chain.
  *
- * @param args - The arguments to the function.
- * @param args.chainId - The chain ID for which to fetch gas prices.
+ * @param chainId - The chain ID for which you want to fetch gas prices.
+ * @returns The gas prices for the given chain.
  */
 export type SampleGasPricesServiceFetchGasPricesAction = {
   type: `SampleGasPricesService:fetchGasPrices`;

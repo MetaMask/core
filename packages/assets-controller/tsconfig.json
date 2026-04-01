@@ -12,6 +12,7 @@
     { "path": "../keyring-controller" },
     { "path": "../messenger" },
     { "path": "../network-enablement-controller" },
+    { "path": "../phishing-controller" },
     { "path": "../preferences-controller" }
   ],
   "include": ["../../types", "./src"]

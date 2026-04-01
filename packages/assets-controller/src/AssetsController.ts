@@ -39,6 +39,7 @@ import type {
   GetPermissions,
   PermissionControllerStateChange,
 } from '@metamask/permission-controller';
+import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -276,7 +277,9 @@ type AllowedActions =
   | SnapControllerHandleRequestAction
   | GetPermissions
   // BackendWebsocketDataSource
-  | BackendWebSocketServiceActions;
+  | BackendWebSocketServiceActions
+  // PhishingController
+  | PhishingControllerBulkScanTokensAction;
 
 type AllowedEvents =
   // AssetsController
@@ -738,7 +741,7 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...stakedBalanceDataSourceConfig,
     });
-    this.#tokenDataSource = new TokenDataSource({
+    this.#tokenDataSource = new TokenDataSource(this.messenger, {
       queryApiClient,
       getNativeAssetIds: (): string[] => {
         const { nativeAssetIdentifiers } = this.messenger.call(

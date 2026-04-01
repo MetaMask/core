@@ -1,9 +1,19 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import { parseCaipAssetType } from '@metamask/utils';
+import type {
+  BulkTokenScanResponse,
+  PhishingControllerBulkScanTokensAction,
+} from '@metamask/phishing-controller';
+import { TokenScanResultType } from '@metamask/phishing-controller';
+import {
+  KnownCaipNamespace,
+  numberToHex,
+  parseCaipAssetType,
+} from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
 import { isStakingContractAssetId } from './evm-rpc-services';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
@@ -19,19 +29,20 @@ import type {
 
 const CONTROLLER_NAME = 'TokenDataSource';
 
-const MIN_TOKEN_OCCURRENCES = 3;
-
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// ============================================================================
-// MESSENGER TYPES
-// ============================================================================
+/** Max tokens per PhishingController:bulkScanTokens request (see PhishingController). */
+const BULK_SCAN_BATCH_SIZE = 100;
 
 /**
- * TokenDataSource does not call external messenger actions.
- * It uses ApiPlatformClient directly.
+ * CAIP-19 `assetNamespace` segments used for Blockaid bulk scanning
+ * (`slip44` skipped; `erc20` + eip155 and `token` namespaces are scanned).
  */
-export type TokenDataSourceAllowedActions = never;
+enum CaipAssetNamespace {
+  Slip44 = 'slip44',
+  Erc20 = 'erc20',
+  Token = 'token',
+}
 
 // ============================================================================
 // OPTIONS
@@ -43,6 +54,14 @@ export type TokenDataSourceOptions = {
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   getNativeAssetIds: () => string[];
 };
+
+/**
+ * Messenger actions `TokenDataSource` may invoke (via {@link AssetsControllerMessenger}).
+ * Not re-exported from the package public `index` (repo ESLint); import from this module when
+ * typing a messenger in the same package or tests.
+ */
+export type TokenDataSourceAllowedActions =
+  PhishingControllerBulkScanTokensAction;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -109,7 +128,8 @@ function transformV3AssetResponseToMetadata(
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
  * - Merges fetched metadata into the response
  *
- * Usage: Create with queryApiClient and use assetsMiddleware; no messenger required.
+ * Pass the same {@link AssetsControllerMessenger} as other data sources for Blockaid
+ * token scans.
  */
 export class TokenDataSource {
   readonly name = CONTROLLER_NAME;
@@ -124,7 +144,14 @@ export class TokenDataSource {
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   readonly #getNativeAssetIds: () => string[];
 
-  constructor(options: TokenDataSourceOptions) {
+  /** Shared controller messenger — used for `PhishingController:bulkScanTokens`. */
+  readonly #messenger: AssetsControllerMessenger;
+
+  constructor(
+    messenger: AssetsControllerMessenger,
+    options: TokenDataSourceOptions,
+  ) {
+    this.#messenger = messenger;
     this.#apiClient = options.queryApiClient;
     this.#getNativeAssetIds = options.getNativeAssetIds;
   }
@@ -175,6 +202,105 @@ export class TokenDataSource {
         return false;
       }
     });
+  }
+
+  /**
+   * Filters out tokens flagged as malicious by Blockaid via
+   * `PhishingController:bulkScanTokens`. EVM ERC-20 assets (`erc20` + `eip155`)
+   * are scanned with a hex chain ID; non-EVM fungible `token` assets use
+   * `chain.namespace` (same pattern as MultichainAssetsController). Native
+   * (`slip44`) and other namespaces are not scanned. If the scan fails, all
+   * tokens are kept (fail open).
+   *
+   * @param assets - CAIP-19 asset IDs to filter.
+   * @returns Asset IDs with malicious tokens removed.
+   */
+  async #filterBlockaidSpamTokens(assets: string[]): Promise<string[]> {
+    if (assets.length === 0) {
+      return assets;
+    }
+
+    const tokensByChain: Record<string, { asset: string; address: string }[]> =
+      {};
+
+    for (const asset of assets) {
+      try {
+        const { assetNamespace, assetReference, chain } = parseCaipAssetType(
+          asset as CaipAssetType,
+        );
+
+        if (assetNamespace === CaipAssetNamespace.Slip44) {
+          continue;
+        }
+
+        if (
+          assetNamespace === CaipAssetNamespace.Erc20 &&
+          chain.namespace === KnownCaipNamespace.Eip155
+        ) {
+          const chainIdHex = numberToHex(parseInt(chain.reference, 10));
+          if (!tokensByChain[chainIdHex]) {
+            tokensByChain[chainIdHex] = [];
+          }
+          tokensByChain[chainIdHex].push({ asset, address: assetReference });
+        } else if (assetNamespace === CaipAssetNamespace.Token) {
+          const chainName = chain.namespace;
+          if (!tokensByChain[chainName]) {
+            tokensByChain[chainName] = [];
+          }
+          tokensByChain[chainName].push({ asset, address: assetReference });
+        }
+      } catch {
+        // Malformed or unsupported for bulk scan — keep asset (fail open)
+      }
+    }
+
+    if (Object.keys(tokensByChain).length === 0) {
+      return assets;
+    }
+
+    const rejectedAssets = new Set<string>();
+
+    try {
+      for (const [chainId, tokenEntries] of Object.entries(tokensByChain)) {
+        const addresses = tokenEntries.map((entry) => entry.address);
+        const batches: string[][] = [];
+        for (let i = 0; i < addresses.length; i += BULK_SCAN_BATCH_SIZE) {
+          batches.push(addresses.slice(i, i + BULK_SCAN_BATCH_SIZE));
+        }
+
+        const batchResults = await Promise.allSettled(
+          batches.map((batch) =>
+            this.#messenger.call('PhishingController:bulkScanTokens', {
+              chainId,
+              tokens: batch,
+            }),
+          ),
+        );
+
+        const scanResponse: BulkTokenScanResponse = {};
+        for (const result of batchResults) {
+          if (result.status === 'fulfilled') {
+            Object.assign(scanResponse, result.value);
+          }
+        }
+
+        for (const entry of tokenEntries) {
+          const addressKey = chainId.startsWith('0x')
+            ? entry.address.toLowerCase()
+            : entry.address;
+          const result =
+            scanResponse[addressKey] ?? scanResponse[entry.address];
+          if (result?.result_type === TokenScanResultType.Malicious) {
+            rejectedAssets.add(entry.asset);
+          }
+        }
+      }
+    } catch (error) {
+      log('Blockaid bulk token scan failed; keeping all tokens', { error });
+      return assets;
+    }
+
+    return assets.filter((asset) => !rejectedAssets.has(asset));
   }
 
   /**
@@ -258,18 +384,17 @@ export class TokenDataSource {
           },
         );
 
+        const assetIdsFromApi = metadataResponse.map((a) => a.assetId);
+        const allowedAssetIds = new Set(
+          await this.#filterBlockaidSpamTokens(assetIdsFromApi),
+        );
+
         response.assetsInfo ??= {};
 
         const filteredOutAssets = new Set<string>();
 
         for (const assetData of metadataResponse) {
-          const parsed = parseCaipAssetType(assetData.assetId as CaipAssetType);
-          const isNative = parsed.assetNamespace === 'slip44';
-
-          if (
-            !isNative &&
-            (assetData.occurrences ?? 0) < MIN_TOKEN_OCCURRENCES
-          ) {
+          if (!allowedAssetIds.has(assetData.assetId)) {
             filteredOutAssets.add(assetData.assetId);
             continue;
           }
