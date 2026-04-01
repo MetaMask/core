@@ -1,4 +1,5 @@
 export type { MoneyAccount } from './types';
+export { isMoneyKeyring } from './utils';
 export {
   MoneyAccountController,
   controllerName,
@@ -13,6 +14,6 @@ export type {
   MoneyAccountControllerMessenger,
 } from './MoneyAccountController';
 export type {
+  MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
-  MoneyAccountControllerMethodActions,
 } from './money-account-controller-method-action-types';

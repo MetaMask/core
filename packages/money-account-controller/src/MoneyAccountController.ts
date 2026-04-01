@@ -4,12 +4,32 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  MoneyKeyring,
+  MoneyKeyringSerializedState,
+} from '@metamask/eth-money-keyring';
+import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
+import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
-import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerAddNewKeyringAction,
+  KeyringControllerGetStateAction,
+  KeyringControllerWithKeyringAction,
+  KeyringMetadata,
+} from '@metamask/keyring-controller';
+import {
+  isKeyringNotFoundError,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
+import { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
+import { Hex } from '@metamask/utils';
+import { v4 as uuid } from 'uuid';
 
+import { projectLogger as log } from './logger';
 import type { MoneyAccountControllerMethodActions } from './money-account-controller-method-action-types';
 import type { MoneyAccount } from './types';
+import { isMoneyKeyring } from './utils';
 
 export const controllerName = 'MoneyAccountController';
 
@@ -34,7 +54,10 @@ export function getDefaultMoneyAccountControllerState(): MoneyAccountControllerS
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['getMoneyAccount'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'createMoneyAccount',
+  'getMoneyAccount',
+] as const;
 
 export type MoneyAccountControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -45,7 +68,10 @@ export type MoneyAccountControllerActions =
   | MoneyAccountControllerGetStateAction
   | MoneyAccountControllerMethodActions;
 
-type AllowedActions = KeyringControllerGetStateAction;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | KeyringControllerAddNewKeyringAction
+  | KeyringControllerWithKeyringAction;
 
 export type MoneyAccountControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -63,8 +89,9 @@ export type MoneyAccountControllerMessenger = Messenger<
   MoneyAccountControllerEvents | AllowedEvents
 >;
 
-// === CONTROLLER DEFINITION ===
-
+/**
+ * Controller for managing money accounts.
+ */
 export class MoneyAccountController extends BaseController<
   typeof controllerName,
   MoneyAccountControllerState,
@@ -101,17 +128,106 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Initializes the controller.
+   * Initializes the controller by creating a money account for the primary
+   * entropy source if one does not already exist.
    */
   async init(): Promise<void> {
-    // TODO: implement
+    this.#assertIsUnlocked();
+
+    const primaryEntropySource = this.#getPrimaryEntropySource();
+    if (primaryEntropySource) {
+      log(
+        'Initializing money account for primary entropy source: %s',
+        primaryEntropySource,
+      );
+      await this.createMoneyAccount(primaryEntropySource);
+      log('Money account initialized');
+    }
+  }
+
+  /**
+   * Creates a money account for the given entropy source. If an account
+   * already exists for that entropy source, it is returned as-is (idempotent).
+   *
+   * @param entropySource - The entropy source ID to create the money account for.
+   * @returns The money account.
+   */
+  async createMoneyAccount(
+    entropySource: EntropySourceId,
+  ): Promise<MoneyAccount> {
+    this.#assertIsUnlocked();
+
+    // Idempotent: return existing account if already in state.
+    const existingAccount = this.getMoneyAccount({ entropySource });
+    if (existingAccount) {
+      log(
+        `Money account already exists for entropy source: ${entropySource}, address: ${existingAccount.address}`,
+      );
+      return existingAccount;
+    }
+
+    // Try to find an existing `MoneyKeyring` for this entropy source and get its address.
+    // If no such keyring exists, create one and add an account to get the address.
+    let address: Hex;
+    try {
+      address = await this.#getOrCreateMoneyAccountFromKeyring(entropySource);
+    } catch (error) {
+      // Forward any unexpected errors, but if the error is that
+      // the keyring wasn't found, we'll create it below.
+      if (!isKeyringNotFoundError(error)) {
+        throw error;
+      }
+
+      log(
+        `No money keyring found for entropy source: ${entropySource}, creating one`,
+      );
+      // Create the keyring right away by providing a `numberOfAccounts` of 1, which will create
+      // the first account and allow us to get the address without having to use `withKeyring` again.
+      await this.#createMoneyKeyring(entropySource);
+
+      // Now we can get the address from the newly created keyring.
+      address = await this.#getOrCreateMoneyAccountFromKeyring(entropySource);
+    }
+
+    log(`Creating money account for address: ${address}`);
+    const account: MoneyAccount = {
+      id: uuid(),
+      type: EthAccountType.Eoa,
+      address,
+      scopes: [EthScope.Eoa],
+      options: {
+        entropy: {
+          type: 'mnemonic',
+          id: entropySource,
+          groupIndex: 0,
+          derivationPath: MONEY_DERIVATION_PATH,
+        },
+        exportable: false,
+      },
+      methods: [
+        EthMethod.SignTransaction,
+        EthMethod.PersonalSign,
+        EthMethod.Sign,
+        EthMethod.SignTypedDataV1,
+        EthMethod.SignTypedDataV3,
+        EthMethod.SignTypedDataV4,
+      ],
+    };
+
+    // Store the account in state.
+    this.update((state) => {
+      state.moneyAccounts[account.id] = account;
+    });
+
+    log(`Money account created: ${account.address} (${account.id})`);
+    return account;
   }
 
   /**
    * Gets a money account by its associated entropy source ID. If no ID is
    * provided, the primary entropy source will be used.
    *
-   * @param selector Selector options for getting the money account.
+   * @param selector - Selector options for getting the money account.
    * @param selector.entropySource - The entropy source ID to get the money account for. If not provided, the primary entropy source will be used.
    * @returns The money account, or `undefined` if no account exists for the given entropy source.
    */
@@ -132,6 +248,69 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
+   * Gets or creates a money account with its associated entropy source ID. It relies on
+   * the `MoneyKeyring` keyring instance to get the address, so if no account exists
+   * on the keyring yet, it will be created and then the address will be returned.
+   *
+   * @param entropySource - The entropy source ID to get the money account address for.
+   * @returns The money account address.
+   */
+  async #getOrCreateMoneyAccountFromKeyring(
+    entropySource: EntropySourceId,
+  ): Promise<Hex> {
+    // Filter to find a specific `MoneyKeyring` for the given entropy source.
+    const isMoneyKeyringForEntropySource = (
+      keyring: EthKeyring,
+    ): keyring is MoneyKeyring =>
+      isMoneyKeyring(keyring) && keyring.entropySource === entropySource;
+
+    const result = await this.messenger.call(
+      'KeyringController:withKeyring',
+      {
+        filter: isMoneyKeyringForEntropySource,
+      },
+      async ({ keyring }) => {
+        // We're adding this logic to be defensive against the possibility of a money keyring
+        // existing without any accounts, which shouldn't normally happen but we want to be
+        // sure we can handle it if it does.
+        // If there are no accounts, we'll add one and then get the address.
+        const accounts = await keyring.getAccounts();
+        if (accounts.length === 0) {
+          await keyring.addAccounts(1);
+        }
+
+        // We have the guarantee that there is at least one account after the above code, so
+        // we can safely destructure the first address.
+        const [moneyAddress] = await keyring.getAccounts();
+        return moneyAddress;
+      },
+    );
+
+    return result as Hex;
+  }
+
+  /**
+   * Adds a new money keyring for the given entropy source and returns its metadata.
+   *
+   * NOTE: This function won't check if a money keyring for the given entropy source already
+   * exists!
+   *
+   * @param entropySource - The entropy source ID to create the money keyring for.
+   * @returns The metadata of the newly created money keyring.
+   */
+  #createMoneyKeyring(
+    entropySource: EntropySourceId,
+  ): Promise<KeyringMetadata> {
+    return this.messenger.call(
+      'KeyringController:addNewKeyring',
+      KeyringTypes.money,
+      {
+        entropySource,
+      } as MoneyKeyringSerializedState,
+    );
+  }
+
+  /**
    * Gets the primary entropy source ID.
    *
    * @returns The primary entropy source ID, or `undefined` if no HD keyring exists.
@@ -142,5 +321,17 @@ export class MoneyAccountController extends BaseController<
       (keyring) => keyring.type === 'HD Key Tree',
     );
     return primaryHdKeyring?.metadata.id;
+  }
+
+  /**
+   * Throws if the keyring is currently locked.
+   */
+  #assertIsUnlocked(): void {
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    if (!isUnlocked) {
+      throw new Error(
+        'Cannot create a money account while the keyring is locked',
+      );
+    }
   }
 }

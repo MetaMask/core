@@ -48,6 +48,8 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-utils": "^3.2.0",
+    "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
@@ -70,6 +72,7 @@
     "@metamask/eth-money-keyring": "^2.0.0",
     "@metamask/keyring-api": "^21.6.0",
     "@metamask/keyring-controller": "^25.1.1",
-    "@metamask/messenger": "^1.0.0"
+    "@metamask/messenger": "^1.0.0",
+    "uuid": "^8.3.2"
   }
 }
