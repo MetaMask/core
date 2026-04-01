@@ -10,6 +10,12 @@ export type MoneyAccountControllerGetMoneyAccountAction = {
   handler: MoneyAccountController['getMoneyAccount'];
 };
 
+export type MoneyAccountControllerClearStateAction = {
+  type: `MoneyAccountController:clearState`;
+  handler: MoneyAccountController['clearState'];
+};
+
 export type MoneyAccountControllerMethodActions =
   | MoneyAccountControllerCreateMoneyAccountAction
-  | MoneyAccountControllerGetMoneyAccountAction;
+  | MoneyAccountControllerGetMoneyAccountAction
+  | MoneyAccountControllerClearStateAction;

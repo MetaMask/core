@@ -292,6 +292,38 @@ describe('MoneyAccountController', () => {
       ).toStrictEqual(MOCK_MONEY_ACCOUNT);
     });
   });
+
+  describe('clearState', () => {
+    it('resets moneyAccounts to an empty object', () => {
+      const { controller } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT, MOCK_MONEY_ACCOUNT_2],
+      });
+
+      expect(Object.keys(controller.state.moneyAccounts)).toHaveLength(2);
+
+      controller.clearState();
+
+      expect(controller.state.moneyAccounts).toStrictEqual({});
+    });
+
+    it('is a no-op when state is already empty', () => {
+      const { controller } = setup();
+
+      controller.clearState();
+
+      expect(controller.state.moneyAccounts).toStrictEqual({});
+    });
+
+    it('is callable via the messenger', () => {
+      const { controller, rootMessenger } = setup({
+        accounts: [MOCK_MONEY_ACCOUNT],
+      });
+
+      rootMessenger.call('MoneyAccountController:clearState');
+
+      expect(controller.state.moneyAccounts).toStrictEqual({});
+    });
+  });
 });
 
 type RootMessenger = Messenger<

@@ -57,6 +57,7 @@ export function getDefaultMoneyAccountControllerState(): MoneyAccountControllerS
 const MESSENGER_EXPOSED_METHODS = [
   'createMoneyAccount',
   'getMoneyAccount',
+  'clearState',
 ] as const;
 
 export type MoneyAccountControllerGetStateAction = ControllerGetStateAction<
@@ -245,6 +246,19 @@ export class MoneyAccountController extends BaseController<
     return Object.values(this.state.moneyAccounts).find(
       (account) => account.options.entropy.id === entropySource,
     );
+  }
+
+  /**
+   * Resets the controller state to its default, removing all money accounts.
+   *
+   * Intended for use during a full app reset (e.g. when the user wipes all
+   * wallet data). Does not interact with the keyring — the caller is
+   * responsible for ensuring the associated keyring state is also cleared.
+   */
+  clearState(): void {
+    this.update((state) => {
+      state.moneyAccounts = {};
+    });
   }
 
   /**
