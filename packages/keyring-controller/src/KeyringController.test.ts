@@ -959,9 +959,7 @@ describe('KeyringController', () => {
             await withController(async ({ controller }) => {
               await expect(
                 controller.exportAccount(password, ''),
-              ).rejects.toThrow(
-                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-              );
+              ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
             });
           });
         });
@@ -1032,7 +1030,7 @@ describe('KeyringController', () => {
     it('should throw error if no keyring is found for the given account', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.getAccountKeyringType('0x')).rejects.toThrow(
-          'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
+          KeyringControllerErrorMessage.KeyringNotFound,
         );
       });
     });
@@ -1134,9 +1132,7 @@ describe('KeyringController', () => {
 
           await expect(
             controller.decryptMessage(messageParams),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
@@ -1212,9 +1208,7 @@ describe('KeyringController', () => {
             controller.getKeyringForAccount(
               '0x0000000000000000000000000000000000000000',
             ),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
 
@@ -1231,9 +1225,7 @@ describe('KeyringController', () => {
               controller.getKeyringForAccount(
                 '0x0000000000000000000000000000000000000000',
               ),
-            ).rejects.toThrow(
-              'KeyringController - No keyring found. Error info: There are no keyrings',
-            );
+            ).rejects.toThrow(KeyringControllerErrorMessage.NoKeyring);
           },
         );
       });
@@ -1801,9 +1793,7 @@ describe('KeyringController', () => {
               data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
               from: '',
             }),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
@@ -1885,9 +1875,7 @@ describe('KeyringController', () => {
               data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
               from: '',
             }),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
@@ -1967,9 +1955,7 @@ describe('KeyringController', () => {
               nonce,
               from: '',
             }),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
 
@@ -2347,9 +2333,7 @@ describe('KeyringController', () => {
             });
             expect(unsignedEthTx.v).toBeUndefined();
             await controller.signTransaction(unsignedEthTx, '');
-          }).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          }).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
 
@@ -3778,9 +3762,7 @@ describe('KeyringController', () => {
 
               await expect(
                 controller.withKeyring(selector, fn),
-              ).rejects.toThrow(
-                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-              );
+              ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
               expect(fn).not.toHaveBeenCalled();
             });
           }),
@@ -4637,9 +4619,7 @@ describe('KeyringController', () => {
             expect(controller.state).toStrictEqual(initialState);
             await expect(
               controller.exportAccount(password, mockAddress),
-            ).rejects.toThrow(
-              'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-            );
+            ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
           },
         );
       });

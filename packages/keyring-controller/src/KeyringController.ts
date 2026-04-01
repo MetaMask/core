@@ -1121,21 +1121,29 @@ export class KeyringController<
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
     this.#assertIsUnlocked();
+    const keyring = await this.#getKeyringForAccount(account);
+    if (keyring) {
+      return keyring;
+    }
+
+    if (this.#keyrings.length === 0) {
+      throw new KeyringControllerError(KeyringControllerErrorMessage.NoKeyring);
+    }
+
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.KeyringNotFound,
+    );
+  }
+
+  async #getKeyringForAccount(
+    account: string,
+  ): Promise<EthKeyring | undefined> {
+    this.#assertIsUnlocked();
     const keyringIndex = await this.#findKeyringIndexForAccount(account);
     if (keyringIndex > -1) {
       return this.#keyrings[keyringIndex].keyring;
     }
-
-    // Adding more info to the error
-    let errorInfo = '';
-    if (this.#keyrings.length === 0) {
-      errorInfo = 'There are no keyrings';
-    } else {
-      errorInfo = 'There are keyrings, but none match the address';
-    }
-    throw new KeyringControllerError(
-      `${KeyringControllerErrorMessage.NoKeyring}. Error info: ${errorInfo}`,
-    );
+    return undefined;
   }
 
   async #findKeyringIndexForAccount(account: string): Promise<number> {
@@ -2029,7 +2037,7 @@ export class KeyringController<
     selector: KeyringSelector<SelectedKeyring>,
   ): Promise<SelectedKeyring | undefined> {
     if ('address' in selector) {
-      return (await this.getKeyringForAccount(selector.address)) as
+      return (await this.#getKeyringForAccount(selector.address)) as
         | SelectedKeyring
         | undefined;
     } else if ('type' in selector) {
