@@ -6,6 +6,25 @@ import typescript from '@metamask/eslint-config-typescript';
 const NODE_LTS_VERSION = 22;
 
 /**
+ * Arguments to the `no-restricted-syntax` rule that prevents messsenger actions
+ * from being called in constructors.
+ */
+const NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES = [
+  {
+    selector:
+      'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="MemberExpression"][callee.object.object.type="ThisExpression"][callee.object.property.name="messenger"]',
+    message:
+      'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#do-not-call-messenger-actions-in-the-constructor',
+  },
+  {
+    selector:
+      'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="Identifier"][callee.object.name="messenger"]',
+    message:
+      'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#do-not-call-messenger-actions-in-the-constructor',
+  },
+];
+
+/**
  * Collects all options for a given array-valued rule across one or more flat
  * config arrays, excluding the leading severity element.
  *
@@ -110,39 +129,6 @@ const config = createConfig([
     },
   },
   {
-    // Prohibit exporting certain types from package index files.
-    // Extends the upstream no-restricted-syntax selectors from base and
-    // typescript configs with additional selectors specific to this monorepo.
-    files: ['packages/*/src/index.ts'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        ...collectExistingRuleOptions('no-restricted-syntax', [
-          base,
-          typescript,
-        ]),
-        {
-          selector:
-            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedActions$/]',
-          message:
-            'Do not export AllowedActions types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-action-types',
-        },
-        {
-          selector:
-            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedEvents$/]',
-          message:
-            'Do not export AllowedEvents types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-event-types',
-        },
-        {
-          selector:
-            'ExportNamedDeclaration > ExportSpecifier[local.name=/MethodActions$/]',
-          message:
-            'Do not export *MethodActions types from package index files. Internal messenger actions are already available via the *Actions type. Export the individual action types (along with *Actions) instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#expose-controller-methods-through-messenger-in-bulk',
-        },
-      ],
-    },
-  },
-  {
     files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
     extends: [jest],
     rules: {
@@ -209,6 +195,54 @@ const config = createConfig([
     ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
     rules: {
       'import-x/no-relative-packages': 'error',
+    },
+  },
+  // Prevent calling messenger actions in controller/service constructors
+  {
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES,
+      ],
+    },
+  },
+  {
+    // Prohibit exporting *AllowedActions, *AllowedEvents, and *MethodActions
+    // from package index files
+    files: ['packages/*/src/index.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_RULES,
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedActions$/]',
+          message:
+            'Do not export AllowedActions types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-action-types',
+        },
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedEvents$/]',
+          message:
+            'Do not export AllowedEvents types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-event-types',
+        },
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/MethodActions$/]',
+          message:
+            'Do not export *MethodActions types from package index files. Internal messenger actions are already available via the *Actions type. Export the individual action types (along with *Actions) instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#expose-controller-methods-through-messenger-in-bulk',
+        },
+      ],
     },
   },
   {
