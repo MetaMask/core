@@ -61,7 +61,7 @@
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/core-backend": "^6.2.1",
     "@metamask/gas-fee-controller": "^26.1.1",
-    "@metamask/messenger": "^1.0.0",
+    "@metamask/messenger": "^1.1.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^30.0.1",
     "@metamask/nonce-tracker": "^6.0.0",
