@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This new variant of `withKeyring` allows to fetch a keyring instance the same way.
   - Mutations are not allowed and won't be replicated in the vault.
   - Can be used to read immutable data safely.
+- Add `KeyringTypes.money` enum value ([#8361](https://github.com/MetaMask/core/pull/8361))
 
 ## [25.1.1]
 
