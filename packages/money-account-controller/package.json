@@ -52,7 +52,7 @@
     "@metamask/eth-money-keyring": "^2.0.0",
     "@metamask/keyring-api": "^21.6.0",
     "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.0.0",
+    "@metamask/messenger": "^1.1.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
