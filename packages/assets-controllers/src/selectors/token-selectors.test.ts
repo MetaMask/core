@@ -581,7 +581,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: 'eip155:1/erc20:0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f',
+      assetId: 'eip155:1/erc20:0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
@@ -601,7 +601,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: 'eip155:1/erc20:0x6b3595068778dd592e39a122f4f5a5cf09c90fe2',
+      assetId: 'eip155:1/erc20:0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
       address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b3595068778dd592e39a122f4f5a5cf09c90fe2.png',
@@ -642,7 +642,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: 'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+      assetId: 'eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
@@ -790,7 +790,7 @@ describe('token-selectors', () => {
       expect(tokenWithNoFiatBalance).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        assetId: 'eip155:1/erc20:0x514910771af9ca656af840dff83e8264ecf986ca',
+        assetId: 'eip155:1/erc20:0x514910771AF9Ca656af840dff83E8264EcF986CA',
         rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
