@@ -9,6 +9,7 @@ import type {
   CaipChainId,
   SolScope,
   TrxScope,
+  XlmScope,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
@@ -43,7 +44,9 @@ export type SupportedCaipChainId =
   | SolScope.Devnet
   | TrxScope.Mainnet
   | TrxScope.Nile
-  | TrxScope.Shasta;
+  | TrxScope.Shasta
+  | XlmScope.Mainnet
+  | XlmScope.Testnet;
 
 export type CommonNetworkConfiguration = {
   /**

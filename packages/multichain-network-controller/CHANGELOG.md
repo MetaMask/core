@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar mainnet and testnet to multichain network configuration and supported CAIP chain IDs ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))

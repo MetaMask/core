@@ -28,6 +28,7 @@ import {
 } from './SnapAccountProvider';
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
+import { XlmAccountProvider } from './XlmAccountProvider';
 import { TimeoutError } from './utils';
 import { traceFallback } from '../analytics';
 import type { DeepPartial, RootMessenger } from '../tests';
@@ -345,6 +346,21 @@ describe('SnapAccountProvider', () => {
 
       expect(trxProvider).toBeDefined();
       expect(isSnapAccountProvider(trxProvider)).toBe(true);
+    });
+
+    it('creates XlmAccountProvider with custom trace', () => {
+      const { messenger } = setup();
+
+      const customTrace = jest.fn();
+
+      const xlmProvider = new XlmAccountProvider(
+        getMultichainAccountServiceMessenger(messenger),
+        undefined,
+        customTrace,
+      );
+
+      expect(xlmProvider).toBeDefined();
+      expect(isSnapAccountProvider(xlmProvider)).toBe(true);
     });
 
     it('creates provider without trace parameter', () => {

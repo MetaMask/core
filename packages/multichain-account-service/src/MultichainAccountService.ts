@@ -25,10 +25,13 @@ import {
   EVM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProviderConfig,
   TrxAccountProviderConfig,
+  XlmAccountProviderConfig,
   BTC_ACCOUNT_PROVIDER_NAME,
   TRX_ACCOUNT_PROVIDER_NAME,
+  XLM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
   TrxAccountProvider,
+  XlmAccountProvider,
 } from './providers';
 import {
   AccountProviderWrapper,
@@ -59,6 +62,7 @@ export type MultichainAccountServiceOptions = {
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
     [BTC_ACCOUNT_PROVIDER_NAME]?: BtcAccountProviderConfig;
     [TRX_ACCOUNT_PROVIDER_NAME]?: TrxAccountProviderConfig;
+    [XLM_ACCOUNT_PROVIDER_NAME]?: XlmAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
   /**
@@ -205,6 +209,14 @@ export class MultichainAccountService {
         new TrxAccountProvider(
           this.#messenger,
           providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
+          trace,
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new XlmAccountProvider(
+          this.#messenger,
+          providerConfigs?.[XLM_ACCOUNT_PROVIDER_NAME],
           trace,
         ),
       ),

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add default `XlmAccountProvider` for the Stellar wallet Snap ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ## [8.0.1]
 
 ### Changed

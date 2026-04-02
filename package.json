@@ -48,7 +48,11 @@
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
-    "ws@7.4.6": "^7.5.10"
+    "ws@7.4.6": "^7.5.10",
+    "@metamask/utils": "file:.yalc/@metamask/utils",
+    "@metamask/keyring-api": "file:.yalc/@metamask/keyring-api",
+    "@metamask/keyring-internal-api": "file:.yalc/@metamask/keyring-internal-api",
+    "@metamask/eth-snap-keyring": "file:.yalc/@metamask/eth-snap-keyring"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -62,7 +66,7 @@
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/json-rpc-engine": "^10.2.4",
     "@metamask/network-controller": "^30.0.1",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "file:.yalc/@metamask/utils",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.14.191",
@@ -113,5 +117,10 @@
       "tsx>esbuild": false,
       "eslint-plugin-import-x>unrs-resolver": false
     }
+  },
+  "dependencies": {
+    "@metamask/eth-snap-keyring": "file:.yalc/@metamask/eth-snap-keyring",
+    "@metamask/keyring-api": "file:.yalc/@metamask/keyring-api",
+    "@metamask/keyring-internal-api": "file:.yalc/@metamask/keyring-internal-api"
   }
 }

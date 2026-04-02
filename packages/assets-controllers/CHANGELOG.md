@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Document Stellar CAIP-19 mapping for `xlm` in `MAP_CAIP_CURRENCIES` (no additional hardcoded chain lists required) ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ## [103.0.0]
 
 ### Changed

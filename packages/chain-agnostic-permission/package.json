@@ -51,12 +51,12 @@
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/permission-controller": "^12.3.0",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "file:.yalc/@metamask/utils",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-internal-api": "^10.0.0",
+    "@metamask/keyring-internal-api": "file:.yalc/@metamask/keyring-internal-api",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

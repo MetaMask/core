@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Wire Stellar into default network enablement, popular network helpers, and related tests ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ## [5.0.1]
 
 ### Changed

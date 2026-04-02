@@ -1,6 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -83,6 +83,7 @@ const defaultMultichainGetState = (): MultichainGetStateReturn => ({
     [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
     [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
     [TrxScope.Mainnet]: { chainId: TrxScope.Mainnet, name: 'Tron' },
+    [XlmScope.Mainnet]: { chainId: XlmScope.Mainnet, name: 'Stellar' },
   },
   selectedMultichainNetworkChainId: 'eip155:1',
   isEvmSelected: true,
@@ -211,6 +212,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
         },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Mainnet]: true,
+          [XlmScope.Testnet]: false,
+        },
       },
       nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
     });
@@ -266,6 +271,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Mainnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: {
@@ -329,6 +338,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Mainnet]: true,
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
+        },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Mainnet]: true,
+          [XlmScope.Testnet]: false,
         },
       },
       nativeAssetIdentifiers: expectedNativeAssetIdentifiers,
@@ -471,6 +484,10 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Nile]: false,
           [TrxScope.Shasta]: false,
         },
+        [KnownCaipNamespace.Stellar]: {
+          [XlmScope.Mainnet]: true,
+          [XlmScope.Testnet]: false,
+        },
       },
       nativeAssetIdentifiers: expectedNativeAssetIdentifiersForFallback,
     });
@@ -570,6 +587,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         // init() populates nativeAssetIdentifiers from NetworkController (EVM networks only)
@@ -1172,6 +1193,10 @@ describe('NetworkEnablementController', () => {
                   chainId: TrxScope.Mainnet,
                   name: 'Tron Mainnet',
                 },
+                [XlmScope.Mainnet]: {
+                  chainId: XlmScope.Mainnet,
+                  name: 'Stellar Mainnet',
+                },
               },
               selectedMultichainNetworkChainId:
                 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -1213,6 +1238,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: true,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
@@ -1246,6 +1275,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1328,6 +1361,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1510,6 +1547,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: true,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
@@ -1543,6 +1584,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1598,6 +1643,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
@@ -1636,6 +1685,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
@@ -1673,6 +1726,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: {
@@ -1723,6 +1780,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
       });
@@ -1763,6 +1824,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: false,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1818,6 +1883,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
           },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: false,
+            [XlmScope.Testnet]: false,
+          },
         },
         nativeAssetIdentifiers: {
           ...getDefaultNativeAssetIdentifiers(),
@@ -1863,6 +1932,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -1911,6 +1984,10 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Mainnet]: true,
             [TrxScope.Nile]: false,
             [TrxScope.Shasta]: false,
+          },
+          [KnownCaipNamespace.Stellar]: {
+            [XlmScope.Mainnet]: true,
+            [XlmScope.Testnet]: false,
           },
         },
         nativeAssetIdentifiers: getDefaultNativeAssetIdentifiers(),
@@ -2148,14 +2225,15 @@ describe('NetworkEnablementController', () => {
       const { controller } = setupController();
       const result = controller.listPopularNetworks();
 
-      // Default setup: 3 EVM (0x1, 0xe708, 0x2105) + 3 multichain (Btc, Sol, Trx)
+      // Default setup: 3 EVM (0x1, 0xe708, 0x2105) + 4 multichain (Btc, Sol, Trx, Stellar)
       expect(result).toContain('eip155:1');
       expect(result).toContain('eip155:59144');
       expect(result).toContain('eip155:8453');
       expect(result).toContain(BtcScope.Mainnet);
       expect(result).toContain(SolScope.Mainnet);
       expect(result).toContain(TrxScope.Mainnet);
-      expect(result).toHaveLength(6);
+      expect(result).toContain(XlmScope.Mainnet);
+      expect(result).toHaveLength(7);
     });
 
     it('excludes multichain mainnets when not in MultichainNetworkController state', () => {
@@ -2175,6 +2253,7 @@ describe('NetworkEnablementController', () => {
       expect(result).not.toContain(BtcScope.Mainnet);
       expect(result).not.toContain(SolScope.Mainnet);
       expect(result).not.toContain(TrxScope.Mainnet);
+      expect(result).not.toContain(XlmScope.Mainnet);
       expect(result).toHaveLength(3);
     });
 
@@ -2222,14 +2301,15 @@ describe('NetworkEnablementController', () => {
   });
 
   describe('listPopularMultichainNetworks', () => {
-    it('returns only Bitcoin, Solana, Tron mainnets that exist in MultichainNetworkController state', () => {
+    it('returns only Bitcoin, Solana, Tron, Stellar mainnets that exist in MultichainNetworkController state', () => {
       const { controller } = setupController();
       const result = controller.listPopularMultichainNetworks();
 
       expect(result).toContain(BtcScope.Mainnet);
       expect(result).toContain(SolScope.Mainnet);
       expect(result).toContain(TrxScope.Mainnet);
-      expect(result).toHaveLength(3);
+      expect(result).toContain(XlmScope.Mainnet);
+      expect(result).toHaveLength(4);
     });
 
     it('returns empty when none of the multichain mainnets are configured', () => {
