@@ -20,6 +20,7 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
@@ -187,6 +188,7 @@ export type SmartTransactionsControllerActions =
   | SmartTransactionsControllerMethodActions;
 
 type AllowedActions =
+  | AuthenticationControllerGetBearerTokenAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
@@ -256,14 +258,6 @@ type SmartTransactionsControllerOptions = {
    * removed in a future version.
    */
   getFeatureFlags?: () => FeatureFlags;
-  /**
-   * Optional callback to obtain a bearer token for authenticating requests to
-   * the Transaction API. When provided, the token is sent in the
-   * Authorization header for all Transaction API calls. Can be used with
-   * the authentication flow from @metamask/core-backend (e.g. from
-   * AuthenticationController.getBearerToken).
-   */
-  getBearerToken?: () => Promise<string | undefined> | string | undefined;
   trace?: TraceCallback;
 };
 
@@ -291,11 +285,6 @@ export class SmartTransactionsController extends StaticIntervalPollingController
   readonly #trackMetaMetricsEvent: SmartTransactionsControllerOptions['trackMetaMetricsEvent'];
 
   readonly #getMetaMetricsProps: () => Promise<MetaMetricsProps>;
-
-  readonly #getBearerToken?: () =>
-    | Promise<string | undefined>
-    | string
-    | undefined;
 
   #trace: TraceCallback;
 
@@ -340,8 +329,12 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       Object.values(SENTINEL_API_BASE_URL_MAP).some((baseUrl) =>
         request.startsWith(baseUrl),
       );
-    if (this.#getBearerToken && urlMatches) {
-      const token = await Promise.resolve(this.#getBearerToken());
+
+    if (urlMatches) {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
@@ -367,7 +360,6 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     state = {},
     messenger,
     getMetaMetricsProps,
-    getBearerToken,
     trace,
   }: SmartTransactionsControllerOptions) {
     super({
@@ -388,7 +380,6 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     this.#ethQuery = undefined;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.#getMetaMetricsProps = getMetaMetricsProps;
-    this.#getBearerToken = getBearerToken;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.initializeSmartTransactionsForChainId();

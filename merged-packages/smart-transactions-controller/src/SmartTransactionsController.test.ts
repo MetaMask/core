@@ -865,10 +865,10 @@ describe('SmartTransactionsController', () => {
 
   describe('onNetworkChange', () => {
     it('calls poll', async () => {
-      await withController(({ controller, triggerNetworStateChange }) => {
+      await withController(({ controller, triggerNetworkStateChange }) => {
         const checkPollSpy = jest.spyOn(controller, 'checkPoll');
 
-        triggerNetworStateChange({
+        triggerNetworkStateChange({
           selectedNetworkClientId: NetworkType.sepolia,
           networkConfigurationsByChainId: {},
           networksMetadata: {},
@@ -930,7 +930,7 @@ describe('SmartTransactionsController', () => {
             supportedChainIds: [ChainId.mainnet],
           },
         },
-        ({ controller, triggerNetworStateChange }) => {
+        ({ controller, triggerNetworkStateChange }) => {
           const updateSmartTransactionsSpy = jest.spyOn(
             controller,
             'updateSmartTransactions',
@@ -938,7 +938,7 @@ describe('SmartTransactionsController', () => {
 
           expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
 
-          triggerNetworStateChange({
+          triggerNetworkStateChange({
             selectedNetworkClientId: NetworkType.sepolia,
             networkConfigurationsByChainId: {},
             networksMetadata: {},
@@ -2179,9 +2179,7 @@ describe('SmartTransactionsController', () => {
       const bearerToken = 'test-bearer-token-123';
       await withController(
         {
-          options: {
-            getBearerToken: async () => Promise.resolve(bearerToken),
-          },
+          bearerToken,
         },
         async ({ controller }) => {
           const apiCall = nock(API_BASE_URL)
@@ -2200,9 +2198,7 @@ describe('SmartTransactionsController', () => {
       const bearerToken = 'test-bearer-token-456';
       await withController(
         {
-          options: {
-            getBearerToken: async () => Promise.resolve(bearerToken),
-          },
+          bearerToken,
         },
         async ({ controller }) => {
           const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
@@ -3191,10 +3187,10 @@ describe('SmartTransactionsController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
-  triggerNetworStateChange,
+  triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
-  triggerNetworStateChange: (state: NetworkState) => void;
+  triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -3207,6 +3203,7 @@ type WithControllerOptions = {
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
+  bearerToken?: string;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -3235,6 +3232,7 @@ async function withController<ReturnValue>(
     getTransactions = jest.fn(),
     updateTransaction = jest.fn(),
     remoteFeatureFlags = {},
+    bearerToken,
   } = rest;
 
   const rootMessenger: RootMessenger = new Messenger({
@@ -3321,6 +3319,11 @@ async function withController<ReturnValue>(
     }),
   );
 
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    jest.fn().mockResolvedValue(bearerToken),
+  );
+
   const messenger = new Messenger<
     'SmartTransactionsController',
     AllActions,
@@ -3333,6 +3336,7 @@ async function withController<ReturnValue>(
   rootMessenger.delegate({
     messenger,
     actions: [
+      'AuthenticationController:getBearerToken',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'RemoteFeatureFlagController:getState',
@@ -3360,11 +3364,11 @@ async function withController<ReturnValue>(
     ...options,
   });
 
-  function triggerNetworStateChange(state: NetworkState) {
+  function triggerNetworkStateChange(state: NetworkState) {
     rootMessenger.publish('NetworkController:stateChange', state, []);
   }
 
-  triggerNetworStateChange({
+  triggerNetworkStateChange({
     selectedNetworkClientId: NetworkType.mainnet,
     networkConfigurationsByChainId: {
       [ChainId.mainnet]: {
@@ -3395,7 +3399,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
-      triggerNetworStateChange,
+      triggerNetworkStateChange,
     });
   } finally {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises

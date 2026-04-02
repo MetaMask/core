@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Upgrade TypeScript from `~4.8.4` to `~5.3.3` ([#574](https://github.com/MetaMask/smart-transactions-controller/pull/574))
   - Consumers on TypeScript 4.x may experience type errors and should upgrade to TypeScript 5.x.
+- **BREAKING:** Replace `getBearerToken` constructor parameter with direct `AuthenticationController:getBearerToken` call ([#578](https://github.com/MetaMask/smart-transactions-controller/pull/578))
+  - Consumers must add `AuthenticationController:getBearerToken` to the allowed actions in the controller messenger, and remove any usage of the `getBearerToken` constructor parameter.
 
 ## [23.0.0]
 
