@@ -27,7 +27,7 @@ import type { Messenger } from '@metamask/messenger';
 import { Hex } from '@metamask/utils';
 
 import { projectLogger as log } from './logger';
-import type { MoneyAccountControllerMethodActions } from './money-account-controller-method-action-types';
+import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types';
 import type { MoneyAccount } from './types';
 import { isMoneyKeyring } from './utils';
 
