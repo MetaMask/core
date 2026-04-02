@@ -51,7 +51,7 @@
     "@metamask/accounts-controller": "^37.2.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.1.0",
+    "@metamask/messenger": "^1.1.1",
     "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^5.62.16",

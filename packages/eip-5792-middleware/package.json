@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/messenger": "^1.1.0",
+    "@metamask/messenger": "^1.1.1",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/transaction-controller": "^64.0.0",
     "@metamask/utils": "^11.9.0",

@@ -51,7 +51,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.1",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.0",
+    "@metamask/messenger": "^1.1.1",
     "@metamask/utils": "^11.9.0",
     "async-mutex": "^0.5.0"
   },
