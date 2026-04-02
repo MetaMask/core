@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add actions and events for accessing and interacting with the new query cache for `SampleGasPricesService` ([#8343](https://github.com/MetaMask/core/pull/8343))
+  - New actions and events are:
+    - `SampleGasPricesServiceInvalidateQueriesAction`
+    - `SampleGasPricesServiceCacheUpdatedEvent`
+    - `SampleGasPricesServiceGranularCacheUpdatedEvent`
+  - Additionally, the actions are available within `SampleGasPricesServiceActions` and the events are available within `SampleGasPricesServiceEvents`
+- Add optional `queryClientConfig` constructor argument which can be used to configure the underlying TanStack Query client ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Add `destroy` method to `BaseDataService` ([#8343](https://github.com/MetaMask/core/pull/8343))
+
+### Changed
+
+- **BREAKING:** `SampleGasPricesService` now inherits from `BaseDataService` from `@metamask/base-data-service` ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Update `SampleGasPricesService.fetchGasPrices` (and messenger action) so requests to API will be cached and/or deduplicated ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Add new dependencies ([#8343](https://github.com/MetaMask/core/pull/8343))
+  - Add `@metamask/base-data-service` ^0.1.1
+  - Add `@tanstack/query-core` ^4.43.0
+  - Add `@metamask/superstruct` ^3.2.1
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.0` ([#8364](https://github.com/MetaMask/core/pull/8364))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak`, and `onDegraded` ([#8343](https://github.com/MetaMask/core/pull/8343))
+  - You are free to implement these methods in your "real" service class if you need them, but we no longer require you to do so.
+
 ## [4.0.4]
 
 ### Changed

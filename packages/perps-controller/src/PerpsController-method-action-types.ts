@@ -6,6 +6,66 @@
 import type { PerpsController } from './PerpsController';
 
 /**
+ * Read cached market data for the currently active provider (or aggregated).
+ * Returns null when no valid cache exists or when cache has expired.
+ *
+ * @returns The cached market data array, or null if no valid cache.
+ */
+export type PerpsControllerGetCachedMarketDataForActiveProviderAction = {
+  type: `PerpsController:getCachedMarketDataForActiveProvider`;
+  handler: PerpsController['getCachedMarketDataForActiveProvider'];
+};
+
+/**
+ * Read cached user data for the currently active provider (or aggregated).
+ * Returns null when no valid cache exists, cache has expired, or address
+ * does not match the currently selected EVM account.
+ *
+ * @returns The cached user data, or null if no valid cache.
+ */
+export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
+  type: `PerpsController:getCachedUserDataForActiveProvider`;
+  handler: PerpsController['getCachedUserDataForActiveProvider'];
+};
+
+/**
+ * Initialize the PerpsController providers
+ * Must be called before using any other methods
+ * Prevents double initialization with promise caching
+ *
+ * @returns A promise that resolves when the operation completes.
+ */
+export type PerpsControllerInitAction = {
+  type: `PerpsController:init`;
+  handler: PerpsController['init'];
+};
+
+/**
+ * Get the currently active provider.
+ * In aggregated mode, returns AggregatedPerpsProvider which routes to underlying providers.
+ * In single provider mode, returns HyperLiquidProvider directly.
+ *
+ * @returns The active provider (aggregated wrapper or direct provider based on mode)
+ * @throws Error if provider is not initialized or reinitializing
+ */
+export type PerpsControllerGetActiveProviderAction = {
+  type: `PerpsController:getActiveProvider`;
+  handler: PerpsController['getActiveProvider'];
+};
+
+/**
+ * Get the currently active provider, returning null if not available
+ * Use this method when the caller can gracefully handle a missing provider
+ * (e.g., UI components during initialization or reconnection)
+ *
+ * @returns The active provider, or null if not initialized/reinitializing
+ */
+export type PerpsControllerGetActiveProviderOrNullAction = {
+  type: `PerpsController:getActiveProviderOrNull`;
+  handler: PerpsController['getActiveProviderOrNull'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -74,6 +134,130 @@ export type PerpsControllerClosePositionAction = {
 export type PerpsControllerClosePositionsAction = {
   type: `PerpsController:closePositions`;
   handler: PerpsController['closePositions'];
+};
+
+/**
+ * Update TP/SL for an existing position
+ *
+ * @param params - The operation parameters.
+ * @returns The order result from the TP/SL update.
+ */
+export type PerpsControllerUpdatePositionTPSLAction = {
+  type: `PerpsController:updatePositionTPSL`;
+  handler: PerpsController['updatePositionTPSL'];
+};
+
+/**
+ * Update margin for an existing position (add or remove)
+ *
+ * @param params - The operation parameters.
+ * @returns The margin update result.
+ */
+export type PerpsControllerUpdateMarginAction = {
+  type: `PerpsController:updateMargin`;
+  handler: PerpsController['updateMargin'];
+};
+
+/**
+ * Flip position (reverse direction while keeping size and leverage)
+ *
+ * @param params - The operation parameters.
+ * @returns The order result from the position flip.
+ */
+export type PerpsControllerFlipPositionAction = {
+  type: `PerpsController:flipPosition`;
+  handler: PerpsController['flipPosition'];
+};
+
+/**
+ * Simplified deposit method that prepares transaction for confirmation screen
+ * No complex state tracking - just sets a loading flag
+ *
+ * @param params - Parameters for the deposit flow
+ * @param params.amount - Optional deposit amount
+ * @param params.placeOrder - If true, uses addTransaction instead of submit to avoid navigation
+ * @returns An object containing a promise that resolves to the transaction hash.
+ */
+export type PerpsControllerDepositWithConfirmationAction = {
+  type: `PerpsController:depositWithConfirmation`;
+  handler: PerpsController['depositWithConfirmation'];
+};
+
+/**
+ * Same as depositWithConfirmation - prepares transaction for confirmation screen.
+ *
+ * @returns A promise that resolves to the string result.
+ */
+export type PerpsControllerDepositWithOrderAction = {
+  type: `PerpsController:depositWithOrder`;
+  handler: PerpsController['depositWithOrder'];
+};
+
+/**
+ * Clear the last deposit result after it has been shown to the user
+ */
+export type PerpsControllerClearDepositResultAction = {
+  type: `PerpsController:clearDepositResult`;
+  handler: PerpsController['clearDepositResult'];
+};
+
+export type PerpsControllerClearWithdrawResultAction = {
+  type: `PerpsController:clearWithdrawResult`;
+  handler: PerpsController['clearWithdrawResult'];
+};
+
+/**
+ * Update withdrawal request status when it completes, or remove it on failure.
+ * This is called when a withdrawal is matched with a completed withdrawal from the API.
+ * When status is `failed`, the request is removed from the queue (not retained).
+ *
+ * @param withdrawalId - The withdrawal transaction ID.
+ * @param status - The current status.
+ * @param txHash - The transaction hash.
+ */
+export type PerpsControllerUpdateWithdrawalStatusAction = {
+  type: `PerpsController:updateWithdrawalStatus`;
+  handler: PerpsController['updateWithdrawalStatus'];
+};
+
+/**
+ * Complete a specific withdrawal detected via transaction history polling (FIFO queue).
+ * Called when a completed withdrawal appears in the transaction history matching a pending request.
+ *
+ * Uses FIFO matching: oldest pending withdrawal is matched with first completed withdrawal
+ * in history that happened after its submission time.
+ *
+ * @param withdrawalRequestId - The ID of the pending withdrawal request to mark as complete.
+ * @param completedWithdrawal - The completed withdrawal data from the history API.
+ * @param completedWithdrawal.txHash - The on-chain transaction hash.
+ * @param completedWithdrawal.amount - The withdrawal amount.
+ * @param completedWithdrawal.timestamp - The completion timestamp from the history API.
+ * @param completedWithdrawal.asset - The asset symbol (e.g. USDC).
+ */
+export type PerpsControllerCompleteWithdrawalFromHistoryAction = {
+  type: `PerpsController:completeWithdrawalFromHistory`;
+  handler: PerpsController['completeWithdrawalFromHistory'];
+};
+
+/**
+ * Update withdrawal progress (persistent across navigation)
+ *
+ * @param progress - The progress indicator.
+ * @param activeWithdrawalId - The active withdrawal ID.
+ */
+export type PerpsControllerUpdateWithdrawalProgressAction = {
+  type: `PerpsController:updateWithdrawalProgress`;
+  handler: PerpsController['updateWithdrawalProgress'];
+};
+
+/**
+ * Get current withdrawal progress
+ *
+ * @returns The withdrawal progress, last update timestamp, and active withdrawal ID.
+ */
+export type PerpsControllerGetWithdrawalProgressAction = {
+  type: `PerpsController:getWithdrawalProgress`;
+  handler: PerpsController['getWithdrawalProgress'];
 };
 
 /**
@@ -203,6 +387,144 @@ export type PerpsControllerGetMarketsAction = {
 };
 
 /**
+ * Get market data with prices (includes price, volume, 24h change)
+ *
+ * For standalone mode, bypasses getActiveProvider() to allow market data queries
+ * without full perps initialization (e.g., for background preloading on app start)
+ *
+ * @param params - The operation parameters.
+ * @param params.standalone - Whether to use standalone mode.
+ * @returns A promise that resolves to the market data.
+ */
+export type PerpsControllerGetMarketDataWithPricesAction = {
+  type: `PerpsController:getMarketDataWithPrices`;
+  handler: PerpsController['getMarketDataWithPrices'];
+};
+
+/**
+ * Start background market data preloading.
+ * Fetches market data immediately and refreshes every 5 minutes.
+ * Watches for isTestnet and hip3ConfigVersion changes to re-preload.
+ */
+export type PerpsControllerStartMarketDataPreloadAction = {
+  type: `PerpsController:startMarketDataPreload`;
+  handler: PerpsController['startMarketDataPreload'];
+};
+
+/**
+ * Stop background market data preloading.
+ */
+export type PerpsControllerStopMarketDataPreloadAction = {
+  type: `PerpsController:stopMarketDataPreload`;
+  handler: PerpsController['stopMarketDataPreload'];
+};
+
+/**
+ * Get list of available HIP-3 builder-deployed DEXs
+ *
+ * @param params - Optional parameters for filtering
+ * @returns Array of DEX names
+ */
+export type PerpsControllerGetAvailableDexsAction = {
+  type: `PerpsController:getAvailableDexs`;
+  handler: PerpsController['getAvailableDexs'];
+};
+
+/**
+ * Fetch historical candle data
+ * Thin delegation to MarketDataService
+ *
+ * @param options - The configuration options.
+ * @param options.symbol - The trading pair symbol.
+ * @param options.interval - The candle interval period.
+ * @param options.limit - Maximum number of items to fetch.
+ * @param options.endTime - End timestamp in milliseconds.
+ * @returns The historical candle data for the requested symbol and interval.
+ */
+export type PerpsControllerFetchHistoricalCandlesAction = {
+  type: `PerpsController:fetchHistoricalCandles`;
+  handler: PerpsController['fetchHistoricalCandles'];
+};
+
+/**
+ * Calculate liquidation price for a position
+ * Uses provider-specific formulas based on protocol rules
+ *
+ * @param params - The operation parameters.
+ * @returns A promise that resolves to the string result.
+ */
+export type PerpsControllerCalculateLiquidationPriceAction = {
+  type: `PerpsController:calculateLiquidationPrice`;
+  handler: PerpsController['calculateLiquidationPrice'];
+};
+
+/**
+ * Calculate maintenance margin for a specific asset
+ * Returns a percentage (e.g., 0.0125 for 1.25%)
+ *
+ * @param params - The operation parameters.
+ * @returns A promise that resolves to the numeric result.
+ */
+export type PerpsControllerCalculateMaintenanceMarginAction = {
+  type: `PerpsController:calculateMaintenanceMargin`;
+  handler: PerpsController['calculateMaintenanceMargin'];
+};
+
+/**
+ * Get maximum leverage allowed for an asset
+ *
+ * @param asset - The asset identifier.
+ * @returns A promise that resolves to the numeric result.
+ */
+export type PerpsControllerGetMaxLeverageAction = {
+  type: `PerpsController:getMaxLeverage`;
+  handler: PerpsController['getMaxLeverage'];
+};
+
+/**
+ * Validate order parameters according to protocol-specific rules
+ *
+ * @param params - The operation parameters.
+ * @returns True if the condition is met.
+ */
+export type PerpsControllerValidateOrderAction = {
+  type: `PerpsController:validateOrder`;
+  handler: PerpsController['validateOrder'];
+};
+
+/**
+ * Validate close position parameters according to protocol-specific rules
+ *
+ * @param params - The operation parameters.
+ * @returns A promise that resolves to the result.
+ */
+export type PerpsControllerValidateClosePositionAction = {
+  type: `PerpsController:validateClosePosition`;
+  handler: PerpsController['validateClosePosition'];
+};
+
+/**
+ * Validate withdrawal parameters according to protocol-specific rules
+ *
+ * @param params - The operation parameters.
+ * @returns True if the condition is met.
+ */
+export type PerpsControllerValidateWithdrawalAction = {
+  type: `PerpsController:validateWithdrawal`;
+  handler: PerpsController['validateWithdrawal'];
+};
+
+/**
+ * Get supported withdrawal routes - returns complete asset and routing information
+ *
+ * @returns Array of supported asset routes for withdrawals.
+ */
+export type PerpsControllerGetWithdrawalRoutesAction = {
+  type: `PerpsController:getWithdrawalRoutes`;
+  handler: PerpsController['getWithdrawalRoutes'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -210,6 +532,163 @@ export type PerpsControllerGetMarketsAction = {
 export type PerpsControllerToggleTestnetAction = {
   type: `PerpsController:toggleTestnet`;
   handler: PerpsController['toggleTestnet'];
+};
+
+/**
+ * Switch to a different provider
+ * Uses a full reinit approach: disconnect() → update state → init()
+ * This ensures complete state reset including WebSocket connections and caches.
+ *
+ * @param providerId - The provider identifier.
+ * @returns The switch result with success status and active provider.
+ */
+export type PerpsControllerSwitchProviderAction = {
+  type: `PerpsController:switchProvider`;
+  handler: PerpsController['switchProvider'];
+};
+
+/**
+ * Get current network (mainnet/testnet)
+ *
+ * @returns Either 'mainnet' or 'testnet' based on the current configuration.
+ */
+export type PerpsControllerGetCurrentNetworkAction = {
+  type: `PerpsController:getCurrentNetwork`;
+  handler: PerpsController['getCurrentNetwork'];
+};
+
+/**
+ * Get the current WebSocket connection state from the active provider.
+ * Used by the UI to monitor connection health and show notifications.
+ *
+ * @returns The current WebSocket connection state, or DISCONNECTED if not supported
+ */
+export type PerpsControllerGetWebSocketConnectionStateAction = {
+  type: `PerpsController:getWebSocketConnectionState`;
+  handler: PerpsController['getWebSocketConnectionState'];
+};
+
+/**
+ * Subscribe to WebSocket connection state changes from the active provider.
+ * The listener will be called immediately with the current state and whenever the state changes.
+ *
+ * @param listener - Callback function that receives the new connection state and reconnection attempt
+ * @returns Unsubscribe function to remove the listener, or no-op if not supported
+ */
+export type PerpsControllerSubscribeToConnectionStateAction = {
+  type: `PerpsController:subscribeToConnectionState`;
+  handler: PerpsController['subscribeToConnectionState'];
+};
+
+/**
+ * Manually trigger a WebSocket reconnection attempt.
+ * Used by the UI retry button when connection is lost.
+ */
+export type PerpsControllerReconnectAction = {
+  type: `PerpsController:reconnect`;
+  handler: PerpsController['reconnect'];
+};
+
+/**
+ * Subscribe to live price updates
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToPricesAction = {
+  type: `PerpsController:subscribeToPrices`;
+  handler: PerpsController['subscribeToPrices'];
+};
+
+/**
+ * Subscribe to live position updates
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToPositionsAction = {
+  type: `PerpsController:subscribeToPositions`;
+  handler: PerpsController['subscribeToPositions'];
+};
+
+/**
+ * Subscribe to live order fill updates
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToOrderFillsAction = {
+  type: `PerpsController:subscribeToOrderFills`;
+  handler: PerpsController['subscribeToOrderFills'];
+};
+
+/**
+ * Subscribe to live order updates
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToOrdersAction = {
+  type: `PerpsController:subscribeToOrders`;
+  handler: PerpsController['subscribeToOrders'];
+};
+
+/**
+ * Subscribe to live account updates.
+ * Updates controller state (Redux) when new account data arrives so consumers
+ * like usePerpsBalanceTokenFilter (PayWithModal) see the latest balance.
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToAccountAction = {
+  type: `PerpsController:subscribeToAccount`;
+  handler: PerpsController['subscribeToAccount'];
+};
+
+/**
+ * Subscribe to full order book updates with multiple depth levels
+ * Creates a dedicated L2Book subscription for real-time order book data
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToOrderBookAction = {
+  type: `PerpsController:subscribeToOrderBook`;
+  handler: PerpsController['subscribeToOrderBook'];
+};
+
+/**
+ * Subscribe to live candle updates
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToCandlesAction = {
+  type: `PerpsController:subscribeToCandles`;
+  handler: PerpsController['subscribeToCandles'];
+};
+
+/**
+ * Subscribe to open interest cap updates
+ * Zero additional network overhead - data comes from existing webData3 subscription
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToOICapsAction = {
+  type: `PerpsController:subscribeToOICaps`;
+  handler: PerpsController['subscribeToOICaps'];
+};
+
+/**
+ * Configure live data throttling
+ *
+ * @param config - The configuration object.
+ */
+export type PerpsControllerSetLiveDataConfigAction = {
+  type: `PerpsController:setLiveDataConfig`;
+  handler: PerpsController['setLiveDataConfig'];
 };
 
 /**
@@ -257,6 +736,27 @@ export type PerpsControllerStopEligibilityMonitoringAction = {
 export type PerpsControllerRefreshEligibilityAction = {
   type: `PerpsController:refreshEligibility`;
   handler: PerpsController['refreshEligibility'];
+};
+
+/**
+ * Get block explorer URL for an address or just the base URL
+ *
+ * @param address - Optional address to append to the base URL
+ * @returns Block explorer URL
+ */
+export type PerpsControllerGetBlockExplorerUrlAction = {
+  type: `PerpsController:getBlockExplorerUrl`;
+  handler: PerpsController['getBlockExplorerUrl'];
+};
+
+/**
+ * Check if user is first-time for the current network
+ *
+ * @returns True if the condition is met.
+ */
+export type PerpsControllerIsFirstTimeUserOnCurrentNetworkAction = {
+  type: `PerpsController:isFirstTimeUserOnCurrentNetwork`;
+  handler: PerpsController['isFirstTimeUserOnCurrentNetwork'];
 };
 
 /**
@@ -422,15 +922,73 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
+ * Toggle watchlist status for a market
+ * Watchlist markets are stored per network (testnet/mainnet)
+ *
+ * @param symbol - The trading pair symbol.
+ */
+export type PerpsControllerToggleWatchlistMarketAction = {
+  type: `PerpsController:toggleWatchlistMarket`;
+  handler: PerpsController['toggleWatchlistMarket'];
+};
+
+/**
+ * Check if a market is in the watchlist on the current network
+ *
+ * @param symbol - The trading pair symbol.
+ * @returns True if the condition is met.
+ */
+export type PerpsControllerIsWatchlistMarketAction = {
+  type: `PerpsController:isWatchlistMarket`;
+  handler: PerpsController['isWatchlistMarket'];
+};
+
+/**
+ * Get all watchlist markets for the current network
+ *
+ * @returns The resulting string value.
+ */
+export type PerpsControllerGetWatchlistMarketsAction = {
+  type: `PerpsController:getWatchlistMarkets`;
+  handler: PerpsController['getWatchlistMarkets'];
+};
+
+/**
+ * Check if the controller is currently reinitializing
+ *
+ * @returns true if providers are being reinitialized
+ */
+export type PerpsControllerIsCurrentlyReinitializingAction = {
+  type: `PerpsController:isCurrentlyReinitializing`;
+  handler: PerpsController['isCurrentlyReinitializing'];
+};
+
+/**
  * Union of all PerpsController action types.
  */
 export type PerpsControllerMethodActions =
+  | PerpsControllerGetCachedMarketDataForActiveProviderAction
+  | PerpsControllerGetCachedUserDataForActiveProviderAction
+  | PerpsControllerInitAction
+  | PerpsControllerGetActiveProviderAction
+  | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction
+  | PerpsControllerUpdatePositionTPSLAction
+  | PerpsControllerUpdateMarginAction
+  | PerpsControllerFlipPositionAction
+  | PerpsControllerDepositWithConfirmationAction
+  | PerpsControllerDepositWithOrderAction
+  | PerpsControllerClearDepositResultAction
+  | PerpsControllerClearWithdrawResultAction
+  | PerpsControllerUpdateWithdrawalStatusAction
+  | PerpsControllerCompleteWithdrawalFromHistoryAction
+  | PerpsControllerUpdateWithdrawalProgressAction
+  | PerpsControllerGetWithdrawalProgressAction
   | PerpsControllerWithdrawAction
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
@@ -440,12 +998,40 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAccountStateAction
   | PerpsControllerGetHistoricalPortfolioAction
   | PerpsControllerGetMarketsAction
+  | PerpsControllerGetMarketDataWithPricesAction
+  | PerpsControllerStartMarketDataPreloadAction
+  | PerpsControllerStopMarketDataPreloadAction
+  | PerpsControllerGetAvailableDexsAction
+  | PerpsControllerFetchHistoricalCandlesAction
+  | PerpsControllerCalculateLiquidationPriceAction
+  | PerpsControllerCalculateMaintenanceMarginAction
+  | PerpsControllerGetMaxLeverageAction
+  | PerpsControllerValidateOrderAction
+  | PerpsControllerValidateClosePositionAction
+  | PerpsControllerValidateWithdrawalAction
+  | PerpsControllerGetWithdrawalRoutesAction
   | PerpsControllerToggleTestnetAction
+  | PerpsControllerSwitchProviderAction
+  | PerpsControllerGetCurrentNetworkAction
+  | PerpsControllerGetWebSocketConnectionStateAction
+  | PerpsControllerSubscribeToConnectionStateAction
+  | PerpsControllerReconnectAction
+  | PerpsControllerSubscribeToPricesAction
+  | PerpsControllerSubscribeToPositionsAction
+  | PerpsControllerSubscribeToOrderFillsAction
+  | PerpsControllerSubscribeToOrdersAction
+  | PerpsControllerSubscribeToAccountAction
+  | PerpsControllerSubscribeToOrderBookAction
+  | PerpsControllerSubscribeToCandlesAction
+  | PerpsControllerSubscribeToOICapsAction
+  | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction
   | PerpsControllerStopEligibilityMonitoringAction
   | PerpsControllerRefreshEligibilityAction
+  | PerpsControllerGetBlockExplorerUrlAction
+  | PerpsControllerIsFirstTimeUserOnCurrentNetworkAction
   | PerpsControllerMarkTutorialCompletedAction
   | PerpsControllerMarkFirstOrderCompletedAction
   | PerpsControllerResetFirstTimeUserStateAction
@@ -460,4 +1046,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
-  | PerpsControllerSaveOrderBookGroupingAction;
+  | PerpsControllerSaveOrderBookGroupingAction
+  | PerpsControllerToggleWatchlistMarketAction
+  | PerpsControllerIsWatchlistMarketAction
+  | PerpsControllerGetWatchlistMarketsAction
+  | PerpsControllerIsCurrentlyReinitializingAction;

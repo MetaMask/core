@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `selectConnectivityStatus` returns the current connectivity status from the controller state
   - `selectIsOffline` is a memoized selector that returns `true` when the device is offline
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.0` ([#8364](https://github.com/MetaMask/core/pull/8364))
+
 ## [0.2.0]
 
 ### Added
