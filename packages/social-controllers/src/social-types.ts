@@ -57,8 +57,14 @@ export type LeaderboardEntry = {
   imageUrl?: string | null;
   pnl30d: number;
   winRate30d?: number | null;
-  roi30d?: number | null;
-  tradeCount?: number | null;
+  /** Renamed from roi30d. */
+  roiPercent30d?: number | null;
+  /** Renamed from tradeCount. */
+  tradeCount30d?: number | null;
+  pnl7d?: number | null;
+  winRate7d?: number | null;
+  roiPercent7d?: number | null;
+  tradeCount7d?: number | null;
   pnlPerChain: Record<string, number>;
   followerCount: number;
   socialHandles: SocialHandles;
