@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: remove `@metamask/error-reporting-service` package ([#8323](https://github.com/MetaMask/core/pull/8323))
-
 ## [23.1.1]
 
 ### Changed
