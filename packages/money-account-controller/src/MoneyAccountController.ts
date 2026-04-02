@@ -17,6 +17,7 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerWithKeyringAction,
   KeyringMetadata,
+  KeyringSelector,
 } from '@metamask/keyring-controller';
 import {
   isKeyringNotFoundError,
@@ -24,7 +25,6 @@ import {
 } from '@metamask/keyring-controller';
 import { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
-import { Hex } from '@metamask/utils';
 
 import { projectLogger as log } from './logger';
 import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types';
@@ -169,28 +169,23 @@ export class MoneyAccountController extends BaseController<
       return existingAccount;
     }
 
-    // Try to find an existing `MoneyKeyring` for this entropy source and get its address.
-    // If no such keyring exists, create one and add an account to get the address.
-    let address: Hex;
-    try {
-      address = await this.#getOrCreateMoneyAccountFromKeyring(entropySource);
-    } catch (error) {
-      // Forward any unexpected errors, but if the error is that
-      // the keyring wasn't found, we'll create it below.
-      if (!isKeyringNotFoundError(error)) {
-        throw error;
+    const address = await this.#withKeyring(entropySource, async (keyring) => {
+      // We're adding this logic to be defensive against the possibility of a money keyring
+      // existing without any accounts, which shouldn't normally happen but we want to be
+      // sure we can handle it if it does.
+      // If there are no accounts, we'll add one and then get the address.
+      const accounts = await keyring.getAccounts();
+      if (accounts.length > 0) {
+        const [moneyAddress] = accounts;
+        return moneyAddress;
       }
 
-      // We need to create the keyring first, then we can create the account and get
-      // the address.
       log(
-        `Money keyring (entropy:${entropySource}) not found, creating one...`,
+        `Money keyring (entropy:${entropySource}) has no accounts, creating one...`,
       );
-      await this.#createMoneyKeyring(entropySource);
-
-      // Now we can get the address from the newly created keyring.
-      address = await this.#getOrCreateMoneyAccountFromKeyring(entropySource);
-    }
+      const [moneyAddress] = await keyring.addAccounts(1);
+      return moneyAddress;
+    });
 
     const account: MoneyAccount = {
       // This is an EVM account, so let's re-use the deterministic ID generation logic of
@@ -267,48 +262,60 @@ export class MoneyAccountController extends BaseController<
   }
 
   /**
-   * Gets or creates a money account with its associated entropy source ID. It relies on
-   * the `MoneyKeyring` keyring instance to get the address, so if no account exists
-   * on the keyring yet, it will be created and then the address will be returned.
+   * Calls `KeyringController:withKeyring` for the `MoneyKeyring` associated with the
+   * given entropy source, creating one first if it does not yet exist.
    *
-   * @param entropySource - The entropy source ID to get the money account address for.
-   * @returns The money account address.
+   * @param entropySource - The entropy source ID identifying the target keyring.
+   * @param operation - Callback invoked with the resolved `MoneyKeyring`.
+   * @returns The value returned by `operation`.
    */
-  async #getOrCreateMoneyAccountFromKeyring(
+  async #withKeyring<Result>(
     entropySource: EntropySourceId,
-  ): Promise<Hex> {
+    operation: (keyring: MoneyKeyring) => Promise<Result>,
+  ): Promise<Result> {
     // Filter to find a specific `MoneyKeyring` for the given entropy source.
     const isMoneyKeyringForEntropySource = (
       keyring: EthKeyring,
     ): keyring is MoneyKeyring =>
       isMoneyKeyring(keyring) && keyring.entropySource === entropySource;
 
-    const result = await this.messenger.call(
-      'KeyringController:withKeyring',
-      {
-        filter: isMoneyKeyringForEntropySource,
-      },
-      async ({ keyring }) => {
-        // We're adding this logic to be defensive against the possibility of a money keyring
-        // existing without any accounts, which shouldn't normally happen but we want to be
-        // sure we can handle it if it does.
-        // If there are no accounts, we'll add one and then get the address.
-        const accounts = await keyring.getAccounts();
-        if (accounts.length === 0) {
-          log(
-            `Money keyring (entropy:${entropySource}) has no accounts, creating one...`,
-          );
-          await keyring.addAccounts(1);
-        }
+    // We cannot proper generic-type inference using the messenger here, so
+    // we have to use a type casts for `keyring` and the return type.
+    const withKeyring = async (
+      selector: KeyringSelector<MoneyKeyring>,
+      callback: (keyring: MoneyKeyring) => Promise<Result>,
+    ): Promise<Result> =>
+      this.messenger.call(
+        'KeyringController:withKeyring',
+        selector,
+        async ({ keyring }) => callback(keyring as MoneyKeyring),
+      ) as Promise<Result>;
 
-        // We have the guarantee that there is at least one account after the above code, so
-        // we can safely destructure the first address.
-        const [moneyAddress] = await keyring.getAccounts();
-        return moneyAddress;
-      },
-    );
+    try {
+      return await withKeyring(
+        {
+          filter: isMoneyKeyringForEntropySource,
+        },
+        operation,
+      );
+    } catch (error) {
+      // Forward any unexpected errors, but if the error is that
+      // the keyring wasn't found, we'll create it below.
+      if (!isKeyringNotFoundError(error)) {
+        throw error;
+      }
 
-    return result as Hex;
+      // Create the keyring so we can use `withKeyring` to operate on it in the
+      // retry below.
+      log(
+        `Money keyring (entropy:${entropySource}) not found, creating one...`,
+      );
+      const { id } = await this.#createMoneyKeyring(entropySource);
+
+      // Use the ID directly on the retry (we just created this keyring so we
+      // know exactly which one to target).
+      return withKeyring({ id }, operation);
+    }
   }
 
   /**

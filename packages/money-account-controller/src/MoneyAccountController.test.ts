@@ -384,6 +384,9 @@ describe('MoneyAccountController', () => {
 
     it('passes only the matching MoneyKeyring to the withKeyring callback', async () => {
       const { controller, mocks } = setup();
+      // Reset clears the "once" reject queue from setup() so the first (and only)
+      // call goes through this implementation directly (no create-keyring retry).
+      mocks.KeyringController.withKeyring.mockReset();
       mocks.KeyringController.withKeyring.mockImplementation(
         async (
           selector: { filter: (k: EthKeyring) => boolean },
