@@ -177,11 +177,14 @@ export type RampsControllerGetPaymentMethodsAction = {
 };
 
 /**
- * Sets the user's selected payment method by ID.
- * Looks up the payment method from the current payment methods in state.
+ * Sets the user's selected payment method.
  *
- * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
- * @throws If payment methods are not loaded or payment method is not found.
+ * Accepts either a payment method ID (looked up from state) or a full
+ * PaymentMethod object (stored directly). The object form is preferred
+ * when the caller already has the full data (e.g. from React Query cache),
+ * as it avoids depending on controller state being populated.
+ *
+ * @param paymentMethodOrId - A PaymentMethod object, a payment method ID string, or undefined/null to clear.
  */
 export type RampsControllerSetSelectedPaymentMethodAction = {
   type: `RampsController:setSelectedPaymentMethod`;

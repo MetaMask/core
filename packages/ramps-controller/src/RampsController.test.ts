@@ -2697,6 +2697,54 @@ describe('RampsController', () => {
       );
     });
 
+    it('sets selected provider from a full Provider object without state lookup', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              // providers.data is empty — full object bypasses lookup
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider,
+            { autoSelected: true },
+          );
+          expect(controller.state.providers.selected).toStrictEqual(
+            mockProvider,
+          );
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('defaults providerAutoSelected to false when setting full Provider object without options', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider,
+          );
+          expect(controller.state.providers.selected).toStrictEqual(
+            mockProvider,
+          );
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
     it('clears selected provider but preserves paymentMethods when null is provided', async () => {
       const mockPaymentMethod: PaymentMethod = {
         id: '/payments/test-card',
@@ -4675,6 +4723,19 @@ describe('RampsController', () => {
           expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
+    });
+
+    it('sets selected payment method from a full PaymentMethod object without state lookup', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        // paymentMethods.data is empty — full object bypasses lookup
+        rootMessenger.call(
+          'RampsController:setSelectedPaymentMethod',
+          mockPaymentMethod,
+        );
+        expect(controller.state.paymentMethods.selected).toStrictEqual(
+          mockPaymentMethod,
+        );
+      });
     });
 
     it('sets selected to null when payment methods are not loaded and ID is passed', async () => {

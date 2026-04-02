@@ -409,14 +409,13 @@ const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
 function resetResource(
   state: Draft<RampsControllerState>,
   resourceType: DependentResourceKey,
-  defaultResource?: RampsControllerState[DependentResourceKey],
+  defaultResource: RampsControllerState[DependentResourceKey],
 ): void {
-  const def = defaultResource ?? getDefaultRampsControllerState()[resourceType];
   const resource = state[resourceType];
-  resource.data = def.data;
-  resource.selected = def.selected;
-  resource.isLoading = def.isLoading;
-  resource.error = def.error;
+  resource.data = defaultResource.data;
+  resource.selected = defaultResource.selected;
+  resource.isLoading = defaultResource.isLoading;
+  resource.error = defaultResource.error;
 }
 
 /**
