@@ -722,6 +722,12 @@ export class RampsController extends BaseController<
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
+  /**
+   * Monotonic generation per resource type used to invalidate stale in-flight
+   * requests after region/token/provider dependent-resource resets.
+   */
+  readonly #pendingResourceGeneration: Map<ResourceType, number> = new Map();
+
   readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
 
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -743,6 +749,8 @@ export class RampsController extends BaseController<
   #clearPendingResourceCountForDependentResources(): void {
     for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+      const generation = this.#pendingResourceGeneration.get(resourceType) ?? 0;
+      this.#pendingResourceGeneration.set(resourceType, generation + 1);
     }
   }
 
@@ -850,6 +858,9 @@ export class RampsController extends BaseController<
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
     const { resourceType } = options ?? {};
+    const resourceGeneration = resourceType
+      ? (this.#pendingResourceGeneration.get(resourceType) ?? 0)
+      : undefined;
 
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
@@ -914,13 +925,17 @@ export class RampsController extends BaseController<
 
         // Clear resource-level loading state only when no requests for this resource remain
         if (resourceType && !abortController.signal.aborted) {
-          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
-          const next = Math.max(0, count - 1);
-          if (next === 0) {
-            this.#pendingResourceCount.delete(resourceType);
-            this.#setResourceLoading(resourceType, false);
-          } else {
-            this.#pendingResourceCount.set(resourceType, next);
+          const currentGeneration =
+            this.#pendingResourceGeneration.get(resourceType) ?? 0;
+          if (currentGeneration === resourceGeneration) {
+            const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+            const next = Math.max(0, count - 1);
+            if (next === 0) {
+              this.#pendingResourceCount.delete(resourceType);
+              this.#setResourceLoading(resourceType, false);
+            } else {
+              this.#pendingResourceCount.set(resourceType, next);
+            }
           }
         }
       }
@@ -981,16 +996,6 @@ export class RampsController extends BaseController<
     this.update((state) =>
       resetDependentResources(state, { clearUserRegionData: true }),
     );
-  }
-
-  /**
-   * Executes a promise without awaiting, swallowing errors.
-   * Errors are stored in state via executeRequest.
-   *
-   * @param promise - The promise to execute.
-   */
-  #fireAndForget<Result>(promise: Promise<Result>): void {
-    promise.catch((_error: unknown) => undefined);
   }
 
   #requireRegion(): string {
@@ -1142,10 +1147,15 @@ export class RampsController extends BaseController<
       }
 
       const regionChanged =
+        Boolean(options?.forceRefresh) ||
         normalizedRegion !== this.state.userRegion?.regionCode;
 
       if (regionChanged) {
-        this.#abortDependentRequests();
+        // Note: we intentionally do NOT abort in-flight requests here.
+        // Aborting causes data loss during rapid region switching (e.g.
+        // user taps France → Finland → France quickly). Instead we let
+        // old requests complete naturally; isResultCurrent guards in
+        // getProviders/getPaymentMethods discard stale results.
         this.#clearPendingResourceCountForDependentResources();
       }
       this.update((state) => {
@@ -1155,17 +1165,6 @@ export class RampsController extends BaseController<
         state.userRegion = userRegion;
       });
 
-      // Tokens and providers are fetched by React Query when the ramp UI
-      // mounts (useRampsProviders / useRampsTokens). We no longer fire them
-      // here to avoid dual-path fetching.
-      // Tokens still need to be loaded for setSelectedToken validation, so
-      // we fetch them here if missing.
-      if (regionChanged || !this.state.tokens.data) {
-        this.#fireAndForget(
-          this.getTokens(userRegion.regionCode, 'buy', options),
-        );
-      }
-
       return userRegion;
     } catch (error) {
       this.#cleanupState();
@@ -1174,16 +1173,17 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected provider by ID, or clears the selection.
-   * Looks up the provider from the current providers in state and automatically
-   * fetches payment methods for that provider.
+   * Sets the user's selected provider.
    *
-   * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+   * Accepts either a Provider object (stored directly) or a provider ID
+   * string (looked up from state). The object form is preferred when the
+   * caller already has the full data (e.g. from React Query cache).
+   *
+   * @param providerOrId - A Provider object, a provider ID string (e.g., "/providers/moonpay"), or null to clear.
    * @param options - Optional settings for the selection.
    * @param options.autoSelected - When true, marks the provider as system-guessed
    *   (soft selection). The UI will silently auto-switch on token conflict instead
    *   of showing the "Token Not Available" modal. Defaults to false.
-   * @throws If region is not set, providers are not loaded, or provider is not found.
    */
   setSelectedProvider(
     providerOrId: string | Provider | null,

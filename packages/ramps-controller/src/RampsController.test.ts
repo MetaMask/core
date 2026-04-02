@@ -1050,6 +1050,27 @@ describe('RampsController', () => {
       });
     });
 
+    it('evaluates isResultCurrent on resource request errors', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const isResultCurrent = jest.fn(() => true);
+        const fetcher = async (): Promise<string> => {
+          throw new Error('network failed');
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-resource',
+            fetcher,
+            { resourceType: 'providers', isResultCurrent },
+          ),
+        ).rejects.toThrow('network failed');
+
+        expect(isResultCurrent).toHaveBeenCalledTimes(1);
+        expect(controller.state.providers.error).toBe('network failed');
+      });
+    });
+
     it('sets loading state while request is in progress', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let resolvePromise: (value: string) => void;
@@ -1121,6 +1142,57 @@ describe('RampsController', () => {
 
         expect(controller.state.providers.isLoading).toBe(false);
       });
+    });
+
+    it('keeps loading true when stale request finishes after region reset and a new request starts', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let resolveFirst: (value: string) => void = () => undefined;
+          let resolveSecond: (value: string) => void = () => undefined;
+          const firstFetcher = async (): Promise<string> =>
+            new Promise<string>((resolve) => {
+              resolveFirst = resolve;
+            });
+          const secondFetcher = async (): Promise<string> =>
+            new Promise<string>((resolve) => {
+              resolveSecond = resolve;
+            });
+
+          const firstRequest = rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-key-before-region-change',
+            firstFetcher,
+            { resourceType: 'providers' },
+          );
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          await rootMessenger.call('RampsController:setUserRegion', 'FR');
+
+          const secondRequest = rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-key-after-region-change',
+            secondFetcher,
+            { resourceType: 'providers' },
+          );
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          resolveFirst('first-result');
+          await firstRequest;
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          resolveSecond('second-result');
+          await secondRequest;
+          expect(controller.state.providers.isLoading).toBe(false);
+        },
+      );
     });
 
     it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
@@ -1653,7 +1725,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('refetches tokens (but not providers) when init() is called with same region but empty resource data', async () => {
+    it('does not fetch tokens or providers when init() is called (client owns fetching)', async () => {
       const getTokensSpy = jest.fn(async () => ({
         topTokens: [],
         allTokens: [],
@@ -1688,8 +1760,8 @@ describe('RampsController', () => {
           await rootMessenger.call('RampsController:init');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(getTokensSpy).toHaveBeenCalled();
-          // Providers are fetched by React Query on the client side, not by the controller
+          // Tokens and providers are fetched by the client (RampsBootstrap), not the controller
+          expect(getTokensSpy).not.toHaveBeenCalled();
           expect(getProvidersSpy).not.toHaveBeenCalled();
         },
       );
@@ -2017,7 +2089,8 @@ describe('RampsController', () => {
           await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
           await new Promise((resolve) => setTimeout(resolve, 50));
 
-          // Manually load providers (simulating React Query doing this)
+          // Manually load tokens, providers, payment methods (simulating RampsBootstrap / React Query)
+          await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy');
           await rootMessenger.call('RampsController:getProviders', 'us-ca');
           await rootMessenger.call(
             'RampsController:getPaymentMethods',
@@ -2040,8 +2113,8 @@ describe('RampsController', () => {
           providersToReturn = [];
           await rootMessenger.call('RampsController:setUserRegion', 'FR');
           await new Promise((resolve) => setTimeout(resolve, 50));
-          // Region change resets dependent resources (providers, payment methods)
-          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
+          // Region change resets dependent resources
+          expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.providers.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
@@ -2099,6 +2172,45 @@ describe('RampsController', () => {
           );
 
           expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('aborts in-flight dependent requests during cleanup when setUserRegion fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let wasAborted = false;
+          const fetcher = async (signal: AbortSignal): Promise<string> =>
+            new Promise<string>((_resolve, reject) => {
+              signal.addEventListener('abort', () => {
+                wasAborted = true;
+                reject(new Error('Aborted'));
+              });
+            });
+
+          const requestPromise = rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-cleanup-key',
+            fetcher,
+            { resourceType: 'providers' },
+          );
+
+          await expect(
+            rootMessenger.call('RampsController:setUserRegion', 'ZZ'),
+          ).rejects.toThrow('Region "zz" not found');
+
+          expect(
+            controller.getRequestState('providers-cleanup-key'),
+          ).toBeUndefined();
+          await expect(requestPromise).rejects.toThrow('Aborted');
+          expect(wasAborted).toBe(true);
         },
       );
     });

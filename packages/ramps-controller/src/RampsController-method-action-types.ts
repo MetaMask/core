@@ -70,16 +70,17 @@ export type RampsControllerSetUserRegionAction = {
 };
 
 /**
- * Sets the user's selected provider by ID, or clears the selection.
- * Looks up the provider from the current providers in state and automatically
- * fetches payment methods for that provider.
+ * Sets the user's selected provider.
  *
- * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+ * Accepts either a Provider object (stored directly) or a provider ID
+ * string (looked up from state). The object form is preferred when the
+ * caller already has the full data (e.g. from React Query cache).
+ *
+ * @param providerOrId - A Provider object, a provider ID string (e.g., "/providers/moonpay"), or null to clear.
  * @param options - Optional settings for the selection.
  * @param options.autoSelected - When true, marks the provider as system-guessed
  * (soft selection). The UI will silently auto-switch on token conflict instead
  * of showing the "Token Not Available" modal. Defaults to false.
- * @throws If region is not set, providers are not loaded, or provider is not found.
  */
 export type RampsControllerSetSelectedProviderAction = {
   type: `RampsController:setSelectedProvider`;
