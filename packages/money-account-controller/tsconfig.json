@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../accounts-controller" },
     { "path": "../keyring-controller" },
     { "path": "../messenger" }
   ],

@@ -4377,6 +4377,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:
+    "@metamask/accounts-controller": "npm:^37.2.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.1"
     "@metamask/eth-money-keyring": "npm:^2.0.0"
@@ -4393,7 +4394,6 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 

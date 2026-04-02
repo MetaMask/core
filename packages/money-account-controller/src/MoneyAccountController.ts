@@ -1,3 +1,4 @@
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -24,7 +25,6 @@ import {
 import { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import { Hex } from '@metamask/utils';
-import { v4 as uuid } from 'uuid';
 
 import { projectLogger as log } from './logger';
 import type { MoneyAccountControllerMethodActions } from './money-account-controller-method-action-types';
@@ -187,7 +187,9 @@ export class MoneyAccountController extends BaseController<
     }
 
     const account: MoneyAccount = {
-      id: uuid(),
+      // This is an EVM account, so let's re-use the deterministic ID generation logic of
+      // EVM accounts.
+      id: getUUIDFromAddressOfNormalAccount(address),
       type: EthAccountType.Eoa,
       address,
       scopes: [EthScope.Eoa],
