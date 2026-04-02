@@ -9,16 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose all public `BridgeController` methods through its messenger
-  - The following actions are now available:
-    - `BridgeController:updateBridgeQuoteRequestParams`
-    - `BridgeController:fetchQuotes`
-    - `BridgeController:stopPollingForQuotes`
-    - `BridgeController:setLocation`
-    - `BridgeController:resetState`
-    - `BridgeController:setChainIntervalLength`
-    - `BridgeController:trackUnifiedSwapBridgeEvent`
-  - Corresponding action types are now exported (e.g. `BridgeControllerResetStateAction`)
+- Add action types for all public `BridgeController` methods ([#8367](https://github.com/MetaMask/core/pull/8367))
+  - The following types are now available:
+    - `BridgeControllerUpdateBridgeQuoteRequestParamsAction`
+    - `BridgeControllerFetchQuotesAction`
+    - `BridgeControllerStopPollingForQuotesAction`
+    - `BridgeControllerSetLocationAction`
+    - `BridgeControllerResetStateAction`
+    - `BridgeControllerSetChainIntervalLengthAction`
+    - `BridgeControllerTrackUnifiedSwapBridgeEventAction`
 
 ### Changed
 
@@ -33,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/assets-controller` from `^3.2.1` to `^4.0.0` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
 - Bump `@metamask/assets-controllers` from `^103.0.0` to `^103.1.1` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
+
+### Deprecated
+
+- Deprecate `BridgeControllerAction`, `BridgeUserAction` and `BridgeBackgroundAction` in favor of separate action types ([#8367](https://github.com/MetaMask/core/pull/8367))
 
 ## [70.0.0]
 

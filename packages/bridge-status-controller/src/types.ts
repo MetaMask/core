@@ -165,6 +165,10 @@ export type BridgeHistoryItem = {
   };
 };
 
+/**
+ * @deprecated Use the separate action types instead (e.g.
+ * `BridgeStatusControllerStartPollingForBridgeTxStatusAction`).
+ */
 export enum BridgeStatusAction {
   StartPollingForBridgeTxStatus = 'StartPollingForBridgeTxStatus',
   WipeBridgeStatus = 'WipeBridgeStatus',

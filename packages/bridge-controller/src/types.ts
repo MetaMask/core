@@ -335,10 +335,20 @@ export enum RequestStatus {
   FETCHED,
   ERROR,
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeUserAction {
   SELECT_DEST_NETWORK = 'selectDestNetwork',
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeBackgroundAction {
   SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
@@ -396,6 +406,10 @@ export type BridgeControllerState = {
   quoteStreamComplete: QuoteStreamCompleteData | null;
 };
 
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,
 > = {
