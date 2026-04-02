@@ -279,8 +279,8 @@ export class MoneyAccountController extends BaseController<
     ): keyring is MoneyKeyring =>
       isMoneyKeyring(keyring) && keyring.entropySource === entropySource;
 
-    // We cannot proper generic-type inference using the messenger here, so
-    // we have to use a type casts for `keyring` and the return type.
+    // We cannot use proper generic-type inference using the messenger
+    // here, so we have to use a type casts for `keyring` and the return type.
     const withKeyring = async (
       selector: KeyringSelector<MoneyKeyring>,
       callback: (keyring: MoneyKeyring) => Promise<Result>,
