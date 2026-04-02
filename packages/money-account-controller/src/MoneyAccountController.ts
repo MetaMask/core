@@ -142,6 +142,12 @@ export class MoneyAccountController extends BaseController<
       log(
         `Money keyring (entropy:${primaryEntropySource} - primary) account is: ${address} (${id})`,
       );
+    } else {
+      const message =
+        'No primary HD keyring found, skipping default Money account creation!';
+
+      console.warn(message);
+      log(`WARNING -- ${message}`);
     }
   }
 
