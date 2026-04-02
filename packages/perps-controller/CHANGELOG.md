@@ -9,6 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `PerpsControllerGetStateAction` type ([#8352](https://github.com/MetaMask/core/pull/8352))
+- Expose missing public `PerpsController` methods through its messenger ([#8352](https://github.com/MetaMask/core/pull/8352))
+  - The following actions are now available:
+    - `PerpsController:calculateLiquidationPrice`
+    - `PerpsController:calculateMaintenanceMargin`
+    - `PerpsController:clearDepositResult`
+    - `PerpsController:clearWithdrawResult`
+    - `PerpsController:completeWithdrawalFromHistory`
+    - `PerpsController:depositWithConfirmation`
+    - `PerpsController:depositWithOrder`
+    - `PerpsController:fetchHistoricalCandles`
+    - `PerpsController:flipPosition`
+    - `PerpsController:getActiveProvider`
+    - `PerpsController:getActiveProviderOrNull`
+    - `PerpsController:getAvailableDexs`
+    - `PerpsController:getBlockExplorerUrl`
+    - `PerpsController:getCachedMarketDataForActiveProvider`
+    - `PerpsController:getCachedUserDataForActiveProvider`
+    - `PerpsController:getCurrentNetwork`
+    - `PerpsController:getMarketDataWithPrices`
+    - `PerpsController:getMaxLeverage`
+    - `PerpsController:getWatchlistMarkets`
+    - `PerpsController:getWebSocketConnectionState`
+    - `PerpsController:getWithdrawalProgress`
+    - `PerpsController:getWithdrawalRoutes`
+    - `PerpsController:init`
+    - `PerpsController:isCurrentlyReinitializing`
+    - `PerpsController:isFirstTimeUserOnCurrentNetwork`
+    - `PerpsController:isWatchlistMarket`
+    - `PerpsController:reconnect`
+    - `PerpsController:setLiveDataConfig`
+    - `PerpsController:startMarketDataPreload`
+    - `PerpsController:stopMarketDataPreload`
+    - `PerpsController:subscribeToAccount`
+    - `PerpsController:subscribeToCandles`
+    - `PerpsController:subscribeToConnectionState`
+    - `PerpsController:subscribeToOICaps`
+    - `PerpsController:subscribeToOrderBook`
+    - `PerpsController:subscribeToOrderFills`
+    - `PerpsController:subscribeToOrders`
+    - `PerpsController:subscribeToPositions`
+    - `PerpsController:subscribeToPrices`
+    - `PerpsController:switchProvider`
+    - `PerpsController:toggleWatchlistMarket`
+    - `PerpsController:updateMargin`
+    - `PerpsController:updatePositionTPSL`
+    - `PerpsController:updateWithdrawalProgress`
+    - `PerpsController:updateWithdrawalStatus`
+    - `PerpsController:validateClosePosition`
+    - `PerpsController:validateOrder`
+    - `PerpsController:validateWithdrawal`
+  - Corresponding action types are available as well.
 - Refactor pending withdraw/deposit tracking to FIFO queue design ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Add `completeWithdrawalFromHistory` method for FIFO-based withdrawal completion matching ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Add `lastCompletedWithdrawalTimestamp` and `lastCompletedWithdrawalTxHashes` state fields ([#8333](https://github.com/MetaMask/core/pull/8333))
