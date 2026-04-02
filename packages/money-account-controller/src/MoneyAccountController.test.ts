@@ -43,7 +43,6 @@ const MOCK_MONEY_ACCOUNT: MoneyAccount = {
   methods: [
     'eth_signTransaction',
     'personal_sign',
-    'eth_sign',
     'eth_signTypedData_v1',
     'eth_signTypedData_v3',
     'eth_signTypedData_v4',
@@ -67,7 +66,6 @@ const MOCK_MONEY_ACCOUNT_2: MoneyAccount = {
   methods: [
     'eth_signTransaction',
     'personal_sign',
-    'eth_sign',
     'eth_signTypedData_v1',
     'eth_signTypedData_v3',
     'eth_signTypedData_v4',
