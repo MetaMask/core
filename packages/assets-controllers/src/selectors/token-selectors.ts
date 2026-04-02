@@ -337,7 +337,7 @@ const selectAllEvmAssets = createAssetListSelector(
               KnownCaipNamespace.Eip155,
               hexToNumber(chainId).toString(),
               'erc20',
-              tokenAddress.toLowerCase(),
+              tokenAddress,
             ),
             isNative: false,
             address: tokenAddress,
