@@ -38,4 +38,5 @@ export enum KeyringControllerErrorMessage {
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
   LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
   EncryptionKeyNotSet = 'KeyringController - Encryption key not set',
+  KeyringV2NotSupported = 'KeyringController - The selected keyring does not support the KeyringV2 API.',
 }

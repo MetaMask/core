@@ -2,15 +2,16 @@ import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptorUtils from '@metamask/browser-passworder';
-import { HdKeyring } from '@metamask/eth-hd-keyring';
+import { HdKeyring, HdKeyringV2 } from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
-import SimpleKeyring from '@metamask/eth-simple-keyring';
+import SimpleKeyring, { SimpleKeyringV2 } from '@metamask/eth-simple-keyring';
 import type {
   KeyringExecutionContext,
   EthBaseTransaction,
   EthBaseUserOperation,
   EthUserOperation,
   EthUserOperationPatch,
+  KeyringV2,
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
@@ -183,6 +184,7 @@ export type KeyringControllerOptions<
     EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > = {
   keyringBuilders?: { (): EthKeyring; type: string }[];
+  keyringV2Builders?: KeyringV2Builder[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
   encryptor: Encryptor<
@@ -458,6 +460,17 @@ export type KeyringBuilder = {
 };
 
 /**
+ * A builder that wraps a legacy `Keyring` into a `KeyringV2` adapter.
+ *
+ * The controller calls the builder every time `withKeyringV2` is
+ * invoked; the resulting wrapper is not cached.
+ */
+export type KeyringV2Builder = {
+  (keyring: Keyring, metadata: KeyringMetadata): KeyringV2;
+  type: string;
+};
+
+/**
  * A function executed within a mutually exclusive lock, with
  * a mutex releaser in its option bag.
  *
@@ -492,6 +505,28 @@ const defaultKeyringBuilders = [
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
   keyringBuilderFactory(HdKeyring),
+];
+
+const hdKeyringV2Builder: KeyringV2Builder = Object.assign(
+  (keyring: Keyring, metadata: KeyringMetadata): KeyringV2 =>
+    new HdKeyringV2({
+      legacyKeyring: keyring as HdKeyring,
+      entropySource: metadata.id,
+    }),
+  { type: KeyringTypes.hd as string },
+);
+
+const simpleKeyringV2Builder: KeyringV2Builder = Object.assign(
+  (keyring: Keyring): KeyringV2 =>
+    new SimpleKeyringV2({
+      legacyKeyring: keyring as SimpleKeyring,
+    }),
+  { type: KeyringTypes.simple as string },
+);
+
+const defaultKeyringV2Builders: KeyringV2Builder[] = [
+  simpleKeyringV2Builder,
+  hdKeyringV2Builder,
 ];
 
 export const getDefaultKeyringState = (): KeyringControllerState => {
@@ -657,6 +692,8 @@ export class KeyringController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
+  readonly #keyringV2Builders: KeyringV2Builder[];
+
   readonly #encryptor: Encryptor<
     EncryptionKey,
     SupportedKeyDerivationOptions,
@@ -686,7 +723,8 @@ export class KeyringController<
       EncryptionResult
     >,
   ) {
-    const { encryptor, keyringBuilders, messenger, state } = options;
+    const { encryptor, keyringBuilders, keyringV2Builders, messenger, state } =
+      options;
 
     super({
       name,
@@ -732,6 +770,10 @@ export class KeyringController<
     this.#keyringBuilders = keyringBuilders
       ? keyringBuilders.concat(defaultKeyringBuilders)
       : defaultKeyringBuilders;
+
+    this.#keyringV2Builders = keyringV2Builders
+      ? keyringV2Builders.concat(defaultKeyringV2Builders)
+      : defaultKeyringV2Builders;
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
@@ -1656,7 +1698,7 @@ export class KeyringController<
    * @returns Promise resolving to the result of the function execution.
    * @template SelectedKeyring - The type of the selected keyring.
    * @template CallbackResult - The type of the value resolved by the callback function.
-   * @deprecated This method overload is deprecated. Use `withKeyring` without options instead.
+   * @deprecated Use `withKeyringV2` instead, which supports the KeyringV2 API.
    */
   async withKeyring<
     SelectedKeyring extends EthKeyring = EthKeyring,
@@ -1690,6 +1732,7 @@ export class KeyringController<
    * @returns Promise resolving to the result of the function execution.
    * @template SelectedKeyring - The type of the selected keyring.
    * @template CallbackResult - The type of the value resolved by the callback function.
+   * @deprecated Use `withKeyringV2` instead, which supports the KeyringV2 API.
    */
   async withKeyring<
     SelectedKeyring extends EthKeyring = EthKeyring,
@@ -1820,6 +1863,77 @@ export class KeyringController<
     );
   }
 
+  /**
+   * Select a keyring, wrap it in a `KeyringV2` adapter, and execute
+   * the given operation with the wrapped keyring as a mutually
+   * exclusive atomic operation.
+   *
+   * We re-wrap the keyring in a `KeyringV2` adapter on each invocation,
+   * since V2 wrappers are ephemeral adapters created on-the-fly, and cheap to create.
+   *
+   * The method automatically persists changes at the end of the
+   * function execution, or rolls back the changes if an error
+   * is thrown.
+   *
+   * A `KeyringV2Builder` for the selected keyring's type must exist
+   * (either as a default or registered via the `keyringV2Builders`
+   * constructor option); otherwise an error is thrown.
+   *
+   * Selection is performed against the V1 keyrings in `#keyrings`, since
+   * V2 wrappers are ephemeral adapters created on-the-fly.
+   *
+   * @param selector - Keyring selector object.
+   * @param operation - Function to execute with the wrapped V2 keyring.
+   * @returns Promise resolving to the result of the function execution.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async withKeyringV2<CallbackResult = void>(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: KeyringV2;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    this.#assertIsUnlocked();
+
+    return this.#persistOrRollback(async () => {
+      const v1Keyring = await this.#selectKeyring(selector);
+
+      if (!v1Keyring) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
+      }
+
+      const metadata = this.#getKeyringMetadata(v1Keyring);
+      const builder = this.#getKeyringV2BuilderForType(v1Keyring.type);
+
+      if (!builder) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringV2NotSupported,
+        );
+      }
+
+      const wrappedKeyring = builder(v1Keyring, metadata);
+
+      const result = await operation({
+        keyring: wrappedKeyring,
+        metadata,
+      });
+
+      if (Object.is(result, wrappedKeyring)) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+        );
+      }
+
+      return result;
+    });
+  }
+
   async getAccountKeyringType(account: string): Promise<string> {
     this.#assertIsUnlocked();
 
@@ -1926,6 +2040,16 @@ export class KeyringController<
     return this.#keyringBuilders.find(
       (keyringBuilder) => keyringBuilder.type === type,
     );
+  }
+
+  /**
+   * Get the V2 keyring builder for the given `type`.
+   *
+   * @param type - The type of keyring to get the builder for.
+   * @returns The V2 keyring builder, or undefined if none exists.
+   */
+  #getKeyringV2BuilderForType(type: string): KeyringV2Builder | undefined {
+    return this.#keyringV2Builders.find((builder) => builder.type === type);
   }
 
   /**
