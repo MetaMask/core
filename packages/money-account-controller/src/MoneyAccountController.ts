@@ -214,6 +214,7 @@ export class MoneyAccountController extends BaseController<
         EthMethod.SignTypedDataV1,
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
+        // TODO: Update this once the `keyring-api` package supports `SignEip7702Authorization` method.
       ],
     };
 
