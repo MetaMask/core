@@ -61,9 +61,6 @@
     "reselect": "^5.1.1",
     "uuid": "^8.3.2"
   },
-  "optionalDependencies": {
-    "@myx-trade/sdk": "^0.1.265"
-  },
   "devDependencies": {
     "@metamask/account-tree-controller": "^7.0.0",
     "@metamask/auto-changelog": "^3.4.4",
@@ -84,6 +81,9 @@
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
+  },
+  "optionalDependencies": {
+    "@myx-trade/sdk": "^0.1.265"
   },
   "engines": {
     "node": "^18.18 || >=20"
