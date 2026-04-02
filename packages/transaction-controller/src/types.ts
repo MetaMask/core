@@ -574,6 +574,11 @@ export type TransactionMeta = {
     error: string;
     message: string;
   };
+
+  /**
+   * The method used to submit the transaction to the network.
+   */
+  submissionMethod?: TransactionSubmissionMethod;
 };
 
 /**
@@ -639,6 +644,14 @@ export type SendFlowHistoryEntry = {
    */
   timestamp: number;
 };
+
+/**
+ * The method used to submit a transaction to the network.
+ */
+export enum TransactionSubmissionMethod {
+  SentinelStx = 'sentinel_stx',
+  SentinelRelay = 'sentinel_relay',
+}
 
 /**
  * Represents the status of a transaction within the wallet.

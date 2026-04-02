@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `submissionMethod` property and `TransactionSubmissionMethod` enum to `TransactionMeta` ([#8375](https://github.com/MetaMask/core/pull/8375))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
