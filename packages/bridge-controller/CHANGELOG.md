@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.0` ([#8364](https://github.com/MetaMask/core/pull/8364))
 
+### Deprecated
+
+- Deprecate `BridgeControllerAction`, `BridgeUserAction` and `BridgeBackgroundAction` in favor of separate action types ([#8367](https://github.com/MetaMask/core/pull/8367))
+
 ## [70.0.1]
 
 ### Changed
@@ -32,10 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/assets-controller` from `^3.2.1` to `^4.0.0` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
 - Bump `@metamask/assets-controllers` from `^103.0.0` to `^103.1.1` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
-
-### Deprecated
-
-- Deprecate `BridgeControllerAction`, `BridgeUserAction` and `BridgeBackgroundAction` in favor of separate action types ([#8367](https://github.com/MetaMask/core/pull/8367))
 
 ## [70.0.0]
 
