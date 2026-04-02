@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+  - Selects a V1 keyring, wraps it in an ephemeral `KeyringV2` adapter via a registered `KeyringV2Builder`, and passes it to the callback.
+  - Accepts a `KeyringSelectorV2` (alias for `KeyringSelector`) to select keyrings by `type`, `address`, `id`, or `filter`.
+  - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
 - Added `filter` selector variant to `withKeyring` ([#8348](https://github.com/MetaMask/core/pull/8348))
   - `KeyringSelector` now accepts `{ filter: ({ keyring, metadata }) => boolean }`, which selects the first keyring for which the predicate returns `true`.
 - Add `isKeyringNotFoundError` ([#8351](https://github.com/MetaMask/core/pull/8351))
@@ -24,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mutations are not allowed and won't be replicated in the vault.
   - Can be used to read immutable data safely.
 - Add `KeyringTypes.money` enum value ([#8360](https://github.com/MetaMask/core/pull/8360))
+
+### Changed
+
+- Deprecated `withKeyring` in favor of `withKeyringV2`, which supports the `KeyringV2` API.
 
 ## [25.1.1]
 
