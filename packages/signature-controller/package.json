@@ -56,7 +56,7 @@
     "@metamask/gator-permissions-controller": "^3.0.1",
     "@metamask/keyring-controller": "^25.2.0",
     "@metamask/logging-controller": "^8.0.1",
-    "@metamask/messenger": "^1.0.0",
+    "@metamask/messenger": "^1.1.0",
     "@metamask/network-controller": "^30.0.1",
     "@metamask/utils": "^11.9.0",
     "jsonschema": "^1.4.1",
