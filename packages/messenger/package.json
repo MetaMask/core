@@ -69,7 +69,6 @@
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "eslint": ">=8",
     "typescript": ">=5.0.0"
   },
   "engines": {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Drop peer dependency on `eslint` to prevent audit failures on consumers using ESLint 8.x ([#8371](https://github.com/MetaMask/core/pull/8371))
+
 ## [1.1.0]
 
 ### Added
