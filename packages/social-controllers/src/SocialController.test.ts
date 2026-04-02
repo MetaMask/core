@@ -260,6 +260,28 @@ describe('SocialController', () => {
       ]);
     });
 
+    it('deduplicates addresses within the same batch', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:follow',
+        jest.fn().mockResolvedValue({
+          followed: [mockProfileSummary, mockProfileSummary],
+        }),
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await controller.followTrader({
+        addressOrUid: '0xuser',
+        targets: ['0x1111111111111111111111111111111111111111'],
+      });
+
+      expect(controller.state.followingAddresses).toStrictEqual([
+        '0x1111111111111111111111111111111111111111',
+      ]);
+    });
+
     it('is callable via messenger action', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(

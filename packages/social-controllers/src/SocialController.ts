@@ -178,9 +178,9 @@ export class SocialController extends BaseController<
       options,
     );
 
-    const newAddresses = followResponse.followed.map(
-      (profile) => profile.address,
-    );
+    const newAddresses = [
+      ...new Set(followResponse.followed.map((profile) => profile.address)),
+    ];
 
     this.update((state) => {
       const existing = new Set(state.followingAddresses);
