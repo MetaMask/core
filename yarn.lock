@@ -3798,16 +3798,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-simple-keyring@npm:^11.0.0":
-  version: 11.0.0
-  resolution: "@metamask/eth-simple-keyring@npm:11.0.0"
+"@metamask/eth-simple-keyring@npm:^11.1.1":
+  version: 11.1.1
+  resolution: "@metamask/eth-simple-keyring@npm:11.1.1"
   dependencies:
     "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/keyring-api": "npm:^22.0.0"
+    "@metamask/keyring-sdk": "npm:^1.1.0"
+    "@metamask/utils": "npm:^11.10.0"
     ethereum-cryptography: "npm:^2.1.2"
     randombytes: "npm:^2.1.0"
-  checksum: 10/fba27f2db11ad7ee3aceea6746e32f2875a692bd12a31a18ed63f6c637a9ecd990ed1b55423d6c010380a8539b39d627c72ffedbdc44b88512778426df71d26d
+  checksum: 10/de23af73a97b4c5f28e8203deadfc61d4736e9d267f3d022acd9c6eff29ac3685d2110cfcccff65d7a7fd66c47986cd41b6b2591da9803091c87d12280393f12
   languageName: node
   linkType: hard
 
@@ -4192,9 +4194,9 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.1"
     "@metamask/browser-passworder": "npm:^6.0.0"
-    "@metamask/eth-hd-keyring": "npm:^13.0.0"
+    "@metamask/eth-hd-keyring": "npm:^13.1.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
-    "@metamask/eth-simple-keyring": "npm:^11.0.0"
+    "@metamask/eth-simple-keyring": "npm:^11.1.1"
     "@metamask/keyring-api": "npm:^21.6.0"
     "@metamask/keyring-internal-api": "npm:^10.0.0"
     "@metamask/keyring-utils": "npm:^3.1.0"
@@ -4240,6 +4242,23 @@ __metadata:
     "@metamask/keyring-utils": "npm:^3.2.0"
     "@metamask/messenger": "npm:^0.3.0"
   checksum: 10/d3a63d0a1aff343af013c5bc872f782eec80d048a76b169a17034fd004c61a42fe07d703c8227a1341569b62fb1fe091f66494c4658419a3e2827d864487e608
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-sdk@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@metamask/keyring-sdk@npm:1.1.0"
+  dependencies:
+    "@ethereumjs/tx": "npm:^5.4.0"
+    "@metamask/eth-sig-util": "npm:^8.2.0"
+    "@metamask/keyring-api": "npm:^22.0.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
+    "@metamask/scure-bip39": "npm:^2.1.1"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.10.0"
+    async-mutex: "npm:^0.5.0"
+    uuid: "npm:^9.0.1"
+  checksum: 10/1c5f686e76ba65e7b164bae7e9a086648edbe485350f8fbb0c8e82b242464663be0489f11be9e2cc3ed13db2ae57dff8e41b853fbf72ecb50be380c4d212ce1a
   languageName: node
   linkType: hard
 
