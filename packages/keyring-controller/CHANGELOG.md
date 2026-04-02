@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#8372](https://github.com/MetaMask/core/pull/8372))
   - Selects a V1 keyring, wraps it in an ephemeral `KeyringV2` adapter via a registered `KeyringV2Builder`, and passes it to the callback.
   - Accepts a `KeyringSelectorV2` (alias for `KeyringSelector`) to select keyrings by `type`, `address`, `id`, or `filter`.
   - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
