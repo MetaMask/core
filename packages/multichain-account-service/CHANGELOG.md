@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- Release/893.0.0 ([#8344](https://github.com/MetaMask/core/pull/8344))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
