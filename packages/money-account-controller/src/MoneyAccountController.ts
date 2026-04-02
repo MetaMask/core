@@ -181,11 +181,11 @@ export class MoneyAccountController extends BaseController<
         throw error;
       }
 
+      // We need to create the keyring first, then we can create the account and get
+      // the address.
       log(
         `Money keyring (entropy:${entropySource}) not found, creating one...`,
       );
-      // Create the keyring right away by providing a `numberOfAccounts` of 1, which will create
-      // the first account and allow us to get the address without having to use `withKeyring` again.
       await this.#createMoneyKeyring(entropySource);
 
       // Now we can get the address from the newly created keyring.
