@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Added
-
-- Add `generate-action-types` CLI tool as subpath export via `@metamask/messenger` ([#8264](https://github.com/MetaMask/core/pull/8264))
-
 ### Changed
 
 - **BREAKING:** Remove proactive bulk-fetch pattern from `ComplianceController` and `ComplianceService` ([#8365](https://github.com/MetaMask/core/pull/8365))
