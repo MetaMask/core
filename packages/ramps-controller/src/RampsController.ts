@@ -1187,10 +1187,10 @@ export class RampsController extends BaseController<
    * @throws If region is not set, providers are not loaded, or provider is not found.
    */
   setSelectedProvider(
-    providerId: string | null,
+    providerOrId: string | Provider | null,
     options?: { autoSelected?: boolean },
   ): void {
-    if (providerId === null) {
+    if (providerOrId === null) {
       this.update((state) => {
         state.providers.selected = null;
         state.providerAutoSelected = false;
@@ -1199,24 +1199,27 @@ export class RampsController extends BaseController<
     }
 
     this.#requireRegion();
+
+    // If a full Provider object is passed, store it directly (avoids
+    // depending on state.providers.data being populated).
+    if (typeof providerOrId !== 'string') {
+      this.update((state) => {
+        state.providers.selected = providerOrId;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
+      return;
+    }
+
+    // ID string: look up from state
     const providers = this.state.providers.data;
-    if (!providers || providers.length === 0) {
-      throw new Error(
-        'Providers not loaded. Cannot set selected provider before providers are fetched.',
-      );
-    }
+    const provider = providers?.find((prov) => prov.id === providerOrId);
 
-    const provider = providers.find((prov) => prov.id === providerId);
-    if (!provider) {
-      throw new Error(
-        `Provider with ID "${providerId}" not found in available providers.`,
-      );
+    if (provider) {
+      this.update((state) => {
+        state.providers.selected = provider;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
     }
-
-    this.update((state) => {
-      state.providers.selected = provider;
-      state.providerAutoSelected = options?.autoSelected ?? false;
-    });
   }
 
   /**
@@ -1551,38 +1554,42 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected payment method by ID.
-   * Looks up the payment method from the current payment methods in state.
+   * Sets the user's selected payment method.
    *
-   * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
-   * @throws If payment methods are not loaded or payment method is not found.
+   * Accepts either a payment method ID (looked up from state) or a full
+   * PaymentMethod object (stored directly). The object form is preferred
+   * when the caller already has the full data (e.g. from React Query cache),
+   * as it avoids depending on controller state being populated.
+   *
+   * @param paymentMethodOrId - A PaymentMethod object, a payment method ID string, or undefined/null to clear.
    */
-  setSelectedPaymentMethod(paymentMethodId?: string): void {
-    if (!paymentMethodId) {
+  setSelectedPaymentMethod(
+    paymentMethodOrId?: string | PaymentMethod | null,
+  ): void {
+    if (!paymentMethodOrId) {
       this.update((state) => {
         state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const paymentMethods = this.state.paymentMethods.data;
-    if (!paymentMethods || paymentMethods.length === 0) {
-      throw new Error(
-        'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
-      );
+    // If a full object is passed, store it directly
+    if (typeof paymentMethodOrId !== 'string') {
+      this.update((state) => {
+        state.paymentMethods.selected = paymentMethodOrId;
+      });
+      return;
     }
 
-    const paymentMethod = paymentMethods.find(
+    // ID string: look up from state
+    const paymentMethodId = paymentMethodOrId;
+    const paymentMethods = this.state.paymentMethods.data;
+    const paymentMethod = paymentMethods?.find(
       (pm) => pm.id === paymentMethodId,
     );
-    if (!paymentMethod) {
-      throw new Error(
-        `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,
-      );
-    }
 
     this.update((state) => {
-      state.paymentMethods.selected = paymentMethod;
+      state.paymentMethods.selected = paymentMethod ?? null;
     });
   }
 

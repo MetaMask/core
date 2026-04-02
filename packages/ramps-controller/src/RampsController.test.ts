@@ -2760,7 +2760,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when providers are not loaded', async () => {
+    it('silently ignores when providers are not loaded', async () => {
       await withController(
         {
           options: {
@@ -2769,20 +2769,17 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ rootMessenger }) => {
-          expect(() => {
-            rootMessenger.call(
-              'RampsController:setSelectedProvider',
-              mockProvider.id,
-            );
-          }).toThrow(
-            'Providers not loaded. Cannot set selected provider before providers are fetched.',
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider.id,
           );
+          expect(controller.state.providers.selected).toBeNull();
         },
       );
     });
 
-    it('throws error when provider is not found', async () => {
+    it('silently ignores when provider is not found', async () => {
       await withController(
         {
           options: {
@@ -2792,15 +2789,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ rootMessenger }) => {
-          expect(() => {
-            rootMessenger.call(
-              'RampsController:setSelectedProvider',
-              '/providers/nonexistent',
-            );
-          }).toThrow(
-            'Provider with ID "/providers/nonexistent" not found in available providers.',
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            '/providers/nonexistent',
           );
+          expect(controller.state.providers.selected).toBeNull();
         },
       );
     });
@@ -4683,20 +4677,17 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when payment methods are not loaded', async () => {
-      await withController(({ rootMessenger }) => {
-        expect(() => {
-          rootMessenger.call(
-            'RampsController:setSelectedPaymentMethod',
-            mockPaymentMethod.id,
-          );
-        }).toThrow(
-          'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
+    it('sets selected to null when payment methods are not loaded and ID is passed', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call(
+          'RampsController:setSelectedPaymentMethod',
+          mockPaymentMethod.id,
         );
+        expect(controller.state.paymentMethods.selected).toBeNull();
       });
     });
 
-    it('throws error when payment method is not found', async () => {
+    it('sets selected to null when payment method ID is not found', async () => {
       await withController(
         {
           options: {
@@ -4705,15 +4696,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ rootMessenger }) => {
-          expect(() => {
-            rootMessenger.call(
-              'RampsController:setSelectedPaymentMethod',
-              '/payments/nonexistent',
-            );
-          }).toThrow(
-            'Payment method with ID "/payments/nonexistent" not found in available payment methods.',
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedPaymentMethod',
+            '/payments/nonexistent',
           );
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });
