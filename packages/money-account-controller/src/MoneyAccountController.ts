@@ -314,7 +314,7 @@ export class MoneyAccountController extends BaseController<
 
       // Use the ID directly on the retry (we just created this keyring so we
       // know exactly which one to target).
-      return withKeyring({ id }, operation);
+      return await withKeyring({ id }, operation);
     }
   }
 
