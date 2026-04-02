@@ -56,11 +56,13 @@
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/messenger": "^1.1.0",
     "@metamask/utils": "^11.9.0",
-    "@myx-trade/sdk": "^0.1.265",
     "@nktkas/hyperliquid": "^0.30.2",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
     "uuid": "^8.3.2"
+  },
+  "optionalDependencies": {
+    "@myx-trade/sdk": "^0.1.265"
   },
   "devDependencies": {
     "@metamask/account-tree-controller": "^7.0.0",

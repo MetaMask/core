@@ -464,16 +464,6 @@ export {
 } from './utils';
 export type { HyperLiquidMarketData } from './utils';
 export {
-  adaptMarketFromMYX,
-  adaptPriceFromMYX,
-  adaptMarketDataFromMYX,
-  filterMYXExclusiveMarkets,
-  isOverlappingMarket,
-  buildPoolSymbolMap,
-  buildSymbolPoolsMap,
-  extractSymbolFromPoolId,
-} from './utils';
-export {
   MAX_MARKET_PATTERN_LENGTH,
   escapeRegex,
   validateMarketPattern,
