@@ -25,6 +25,7 @@ import {
 } from '@metamask/keyring-controller';
 import { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
+import { Mutex } from 'async-mutex';
 
 import { projectLogger as log } from './logger';
 import type { MoneyAccountControllerMethodActions } from './MoneyAccountController-method-action-types';
@@ -98,6 +99,8 @@ export class MoneyAccountController extends BaseController<
   MoneyAccountControllerState,
   MoneyAccountControllerMessenger
 > {
+  readonly #lock: Mutex;
+
   /**
    * Constructor for the MoneyAccountController.
    *
@@ -126,6 +129,8 @@ export class MoneyAccountController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    this.#lock = new Mutex();
   }
 
   /**
@@ -291,31 +296,40 @@ export class MoneyAccountController extends BaseController<
         async ({ keyring }) => callback(keyring as MoneyKeyring),
       ) as Promise<Result>;
 
-    try {
-      return await withKeyring(
-        {
-          filter: isMoneyKeyringForEntropySource,
-        },
-        operation,
-      );
-    } catch (error) {
-      // Forward any unexpected errors, but if the error is that
-      // the keyring wasn't found, we'll create it below.
-      if (!isKeyringNotFoundError(error)) {
-        throw error;
+    // We have an extra lock here to avoid a race-condition where 2 calls to
+    // `#withKeyring` for the same entropy source happen at the same time, and
+    // both don't find an existing keyring, so they both try to create a new
+    // one, which creates multiple keyrings for the same entropy source.
+    // NOTE: We cannot use `createIfMissing` here either, since it's only supported
+    // for selectors by type (and we want to deprecate this option).
+    // TODO: Move this new pattern in the `KeyringController`.
+    return await this.#lock.runExclusive(async () => {
+      try {
+        return await withKeyring(
+          {
+            filter: isMoneyKeyringForEntropySource,
+          },
+          operation,
+        );
+      } catch (error) {
+        // Forward any unexpected errors, but if the error is that
+        // the keyring wasn't found, we'll create it below.
+        if (!isKeyringNotFoundError(error)) {
+          throw error;
+        }
+
+        // Create the keyring so we can use `withKeyring` to operate on it in the
+        // retry below.
+        log(
+          `Money keyring (entropy:${entropySource}) not found, creating one...`,
+        );
+        const { id } = await this.#createMoneyKeyring(entropySource);
+
+        // Use the ID directly on the retry (we just created this keyring so we
+        // know exactly which one to target).
+        return await withKeyring({ id }, operation);
       }
-
-      // Create the keyring so we can use `withKeyring` to operate on it in the
-      // retry below.
-      log(
-        `Money keyring (entropy:${entropySource}) not found, creating one...`,
-      );
-      const { id } = await this.#createMoneyKeyring(entropySource);
-
-      // Use the ID directly on the retry (we just created this keyring so we
-      // know exactly which one to target).
-      return await withKeyring({ id }, operation);
-    }
+    });
   }
 
   /**
