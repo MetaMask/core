@@ -358,6 +358,45 @@ describe('MoneyAccountController', () => {
       expect(account.address).toBe(MOCK_ADDRESS);
     });
 
+    it('does not create duplicate keyrings when called concurrently for the same entropy source', async () => {
+      const { controller, mocks } = setup();
+
+      let keyringCreated = false;
+
+      mocks.KeyringController.withKeyring.mockReset();
+      mocks.KeyringController.withKeyring.mockImplementation(
+        async (_selector, callback) => {
+          // Yield to the event loop so concurrent calls can interleave at this
+          // point — simulating real async I/O latency.
+          await Promise.resolve();
+          if (!keyringCreated) {
+            throw new KeyringControllerError(
+              KeyringControllerErrorMessage.KeyringNotFound,
+            );
+          }
+          return callback({
+            keyring: asKeyring(new MockMoneyKeyring()),
+            metadata: MOCK_HD_KEYRING.metadata,
+          });
+        },
+      );
+
+      mocks.KeyringController.addNewKeyring.mockReset();
+      mocks.KeyringController.addNewKeyring.mockImplementation(async () => {
+        keyringCreated = true;
+        return { id: 'mock-keyring-id', name: 'Money Keyring' };
+      });
+
+      await Promise.all([
+        controller.createMoneyAccount(MOCK_ENTROPY_SOURCE_ID),
+        controller.createMoneyAccount(MOCK_ENTROPY_SOURCE_ID),
+      ]);
+
+      // The mutex in #withKeyring serializes the two calls, so only the first
+      // one creates the keyring; the second finds it already created.
+      expect(mocks.KeyringController.addNewKeyring).toHaveBeenCalledTimes(1);
+    });
+
     it('rethrows unexpected errors from withKeyring', async () => {
       const { controller, mocks } = setup();
 
