@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Tue Mar 31 02:24:17 2026 CDT
+- gpg: Signature made Fri Mar 27 08:43:58 2026 CDT
+- gpg: Signature made Thu Mar 26 13:48:21 2026 CDT
+
 ### Changed
 
 - Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))

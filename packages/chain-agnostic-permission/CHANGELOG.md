@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Tue Mar 31 02:24:17 2026 CDT
+- gpg: Signature made Thu Mar 26 13:48:21 2026 CDT
+
 ### Changed
 
 - Bump `@metamask/permission-controller` from `^12.2.1` to `^12.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317))

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Fri Apr 3 01:53:04 2026 CDT
+- gpg: Signature made Wed Apr 1 15:20:14 2026 CDT
+- gpg: Signature made Wed Apr 1 11:58:40 2026 CDT
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))

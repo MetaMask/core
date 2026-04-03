@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Mon Feb 23 14:58:09 2026 CST
+- gpg: Signature made Wed Feb 11 07:30:36 2026 CST
+- gpg: Signature made Tue Feb 10 19:37:44 2026 CST
+- gpg: Signature made Fri Jan 30 09:44:43 2026 CST
+- gpg: Signature made Fri Dec 19 15:45:15 2025 CST
+- gpg: Signature made Fri Dec 12 07:05:24 2025 CST
+- gpg: Signature made Wed Dec 3 08:46:52 2025 CST
+- gpg: Signature made Mon Nov 10 12:48:55 2025 CST
+- gpg: Signature made Fri Nov 7 07:50:00 2025 CST
+- gpg: Signature made Mon Nov 3 08:16:58 2025 CST
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))

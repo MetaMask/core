@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Tue Mar 31 02:24:17 2026 CDT
+- gpg: Signature made Thu Mar 26 13:48:21 2026 CDT
+- gpg: Signature made Tue Mar 24 16:11:46 2026 CDT
+- gpg: Signature made Tue Mar 17 14:42:17 2026 CDT
+- gpg: Signature made Mon Mar 2 05:22:43 2026 CST
+- gpg: Signature made Mon Feb 23 14:58:09 2026 CST
+- gpg: Signature made Thu Feb 19 12:50:28 2026 CST
+- gpg: Signature made Wed Feb 11 07:30:36 2026 CST
+- gpg: Signature made Tue Feb 10 19:37:44 2026 CST
+- gpg: Signature made Fri Feb 6 07:16:37 2026 CST
+- gpg: Signature made Fri Jan 30 09:44:43 2026 CST
+- gpg: Signature made Thu Jan 15 13:13:38 2026 CST
+- gpg: Signature made Thu Jan 8 03:09:57 2026 CST
+- gpg: Signature made Wed Jan 7 03:09:37 2026 CST
+- gpg: Signature made Tue Jan 6 05:56:21 2026 CST
+- gpg: Signature made Fri Dec 19 15:45:15 2025 CST
+- gpg: Signature made Wed Dec 17 16:42:20 2025 CST
+
 ### Changed
 
 - Bump `@metamask/chain-agnostic-permission` from `^1.4.0` to `^1.5.0` ([#8290](https://github.com/MetaMask/core/pull/8290))

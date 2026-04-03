@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Fri Apr 3 02:02:09 2026 CDT
+- gpg: Signature made Fri Apr 3 01:53:04 2026 CDT
+- gpg: Signature made Wed Apr 1 15:20:14 2026 CDT
+
 ### Added
 
 - Add `${ControllerName}:stateChanged` as alternative to `${ControllerName}:stateChange` ([#8187](https://github.com/MetaMask/core/pull/8187))
