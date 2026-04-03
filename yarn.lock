@@ -4322,8 +4322,6 @@ __metadata:
     execa: "npm:^5.0.0"
     jest: "npm:^29.7.0"
     ts-jest: "npm:^29.2.5"
-    typedoc: "npm:^0.25.13"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
     yargs: "npm:^17.7.2"
   peerDependencies:
     eslint: ">=8"
