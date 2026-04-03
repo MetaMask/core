@@ -44,8 +44,8 @@
 /packages/ai-controllers                    @MetaMask/social-ai
 /packages/social-controllers                @MetaMask/social-ai
 
-## Ramp Team
-/packages/ramps-controller                  @MetaMask/ramp
+## Money Movement Team
+/packages/ramps-controller                  @MetaMask/money-movement
 
 ## Networks Team
 /packages/config-registry-controller        @MetaMask/networks
