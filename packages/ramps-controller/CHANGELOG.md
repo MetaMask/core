@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
-- Removed controller-side data fetching (`fireAndForget`) from `setSelectedToken`, `setSelectedProvider`, and `setUserRegion`; all ramp data fetching is now driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
+- **BREAKING:** Removed controller-side data fetching (`fireAndForget`) from `setSelectedToken`, `setSelectedProvider`, and `setUserRegion`; ramp data fetching is now fully driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
+  - Client migration: trigger `getTokens`, `getProviders`, and `getPaymentMethods` from the client layer (for example, React Query hooks/effects) when region/provider/token changes.
+  - `setSelectedProvider`/`setSelectedToken`/`setUserRegion` now focus on selection/state updates and no longer implicitly fetch dependent resources.
 - `setSelectedProvider` and `setSelectedPaymentMethod` accept a full object in addition to an ID string; no longer throw when data is not loaded ([#8354](https://github.com/MetaMask/core/pull/8354))
 
 ### Fixed
