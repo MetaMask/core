@@ -53,6 +53,11 @@
     "eslint": ">=8",
     "typescript": ">=5.0.0"
   },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
