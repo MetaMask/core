@@ -11,16 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
-- `setSelectedToken` no longer triggers `getPaymentMethods` or resets payment methods state; payment methods are provider-scoped and fetching is driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
-- `setSelectedProvider` no longer triggers `getPaymentMethods` or resets payment methods state; accepts a full `Provider` object in addition to an ID string ([#8354](https://github.com/MetaMask/core/pull/8354))
-- `setSelectedPaymentMethod` accepts a full `PaymentMethod` object in addition to an ID string; no longer throws when payment methods data is empty ([#8354](https://github.com/MetaMask/core/pull/8354))
-- `setUserRegion` no longer triggers `getTokens` or `getProviders` via `fireAndForget`; all data fetching is driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
-- `getPaymentMethods` always selects the first (highest-scored) payment method when new data arrives, preventing dead-end selections after provider switch ([#8354](https://github.com/MetaMask/core/pull/8354))
-- Removed `#fireAndForget` private method (no remaining callers) ([#8354](https://github.com/MetaMask/core/pull/8354))
+- Removed controller-side data fetching (`fireAndForget`) from `setSelectedToken`, `setSelectedProvider`, and `setUserRegion`; all ramp data fetching is now driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
+- `setSelectedProvider` and `setSelectedPaymentMethod` accept a full object in addition to an ID string; no longer throw when data is not loaded ([#8354](https://github.com/MetaMask/core/pull/8354))
 
 ### Fixed
 
-- `init` no longer overrides a persisted `userRegion` with the geolocation endpoint response when `forceRefresh` is true; geolocation is only used to seed the initial region ([#8354](https://github.com/MetaMask/core/pull/8354))
+- `init` no longer overrides a persisted `userRegion` with the geolocation endpoint response ([#8354](https://github.com/MetaMask/core/pull/8354))
 
 ## [12.1.0]
 
