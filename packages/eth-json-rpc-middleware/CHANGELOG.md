@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Mar 27 10:17:17 2026 CDT
-
 ## [23.1.1]
 
 ### Changed

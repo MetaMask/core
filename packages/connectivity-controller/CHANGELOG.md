@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Apr 3 01:53:04 2026 CDT
-- gpg: Signature made Wed Apr 1 15:20:14 2026 CDT
-- gpg: Signature made Wed Apr 1 10:34:02 2026 CDT
-- gpg: Signature made Wed Apr 1 04:50:01 2026 CDT
-
 ### Added
 
 - Add `connectivityControllerSelectors` with `selectConnectivityStatus` and `selectIsOffline` selectors ([#7701](https://github.com/MetaMask/core/pull/7701))

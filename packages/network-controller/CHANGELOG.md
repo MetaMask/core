@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Apr 3 01:53:04 2026 CDT
-- gpg: Signature made Wed Apr 1 15:20:14 2026 CDT
-- gpg: Signature made Wed Apr 1 04:50:01 2026 CDT
-- gpg: Signature made Tue Mar 31 13:43:09 2026 CDT
-- gpg: Signature made Tue Mar 31 02:24:17 2026 CDT
-- gpg: Signature made Fri Mar 27 10:17:17 2026 CDT
-
 ### Added
 
 - Expose missing public `NetworkController` methods through its messenger ([#8350](https://github.com/MetaMask/core/pull/8350))

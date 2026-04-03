@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Thu Mar 26 13:48:21 2026 CDT
-- gpg: Signature made Mon Mar 2 05:22:43 2026 CST
-- gpg: Signature made Mon Feb 23 14:58:09 2026 CST
-- gpg: Signature made Wed Feb 11 07:30:36 2026 CST
-- gpg: Signature made Tue Feb 10 19:37:44 2026 CST
-- gpg: Signature made Fri Feb 6 07:16:37 2026 CST
-- gpg: Signature made Fri Jan 30 09:44:43 2026 CST
-
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-provider` from `^6.0.0` to `^6.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))

@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Thu Mar 26 13:48:21 2026 CDT
-
 ### Changed
 
 - Bump `@metamask/base-data-service` from `^0.1.0` to `^0.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))

@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Apr 3 01:53:04 2026 CDT
-- gpg: Signature made Wed Apr 1 15:20:14 2026 CDT
-- gpg: Signature made Wed Apr 1 11:58:40 2026 CDT
-- gpg: Signature made Wed Apr 1 04:50:01 2026 CDT
-- gpg: Signature made Tue Mar 31 05:44:01 2026 CDT
-
 ### Changed
 
 - Remove dynamic identifiers (wallet IDs, group IDs) from backup and sync thrown error messages to improve Sentry error grouping ([#8349](https://github.com/MetaMask/core/pull/8349))

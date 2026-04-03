@@ -7,18 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Apr 3 01:53:04 2026 CDT
-- gpg: Signature made Wed Apr 1 16:00:22 2026 CDT
-- gpg: Signature made Wed Apr 1 15:20:14 2026 CDT
-- gpg: Signature made Wed Apr 1 11:58:40 2026 CDT
-- gpg: Signature made Wed Apr 1 08:55:26 2026 CDT
-- gpg: Signature made Wed Apr 1 04:50:01 2026 CDT
-- gpg: Signature made Tue Mar 31 02:24:17 2026 CDT
-- gpg: Signature made Mon Mar 30 09:01:20 2026 CDT
-- gpg: Signature made Fri Mar 27 08:43:58 2026 CDT
-
 ### Added
 
 - Export `PerpsControllerGetStateAction` type ([#8352](https://github.com/MetaMask/core/pull/8352))
