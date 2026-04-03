@@ -57,7 +57,8 @@
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "~5.3.3",
+    "tsx": "^4.20.5"
   },
   "engines": {
     "node": "NODE_VERSIONS"
