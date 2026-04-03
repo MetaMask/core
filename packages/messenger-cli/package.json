@@ -17,7 +17,7 @@
   "license": "MIT",
   "sideEffects": false,
   "bin": {
-    "messenger-action-types-codegen": "./dist/cli.mjs"
+    "messenger-action-types": "./dist/cli.mjs"
   },
   "files": [
     "dist/"

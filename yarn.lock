@@ -4329,7 +4329,7 @@ __metadata:
     eslint: ">=8"
     typescript: ">=5.0.0"
   bin:
-    messenger-action-types-codegen: ./dist/cli.mjs
+    messenger-action-types: ./dist/cli.mjs
   languageName: unknown
   linkType: soft
 

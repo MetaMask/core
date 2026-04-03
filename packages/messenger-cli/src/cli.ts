@@ -9,7 +9,7 @@ import type { ESLint } from './types';
 
 type CommandLineArguments = {
   check: boolean;
-  fix: boolean;
+  generate: boolean;
   sourcePath: string;
 };
 
@@ -24,7 +24,7 @@ async function parseCommandLineArguments(
 ): Promise<CommandLineArguments> {
   const {
     check,
-    fix,
+    generate,
     path: sourcePath,
   } = await yargs(args)
     .command(
@@ -44,22 +44,24 @@ async function parseCommandLineArguments(
       description: 'Check if generated action type files are up to date',
       default: false,
     })
-    .option('fix', {
+    .option('generate', {
       type: 'boolean',
       description: 'Generate/update action type files',
       default: false,
     })
     .help()
     .check((argv) => {
-      if (!argv.check && !argv.fix) {
-        throw new Error('Either --check or --fix must be provided.\n');
+      if (!argv.check && !argv.generate) {
+        throw new Error(
+          'Either --check or --generate must be provided.\n',
+        );
       }
       return true;
     }).argv;
 
   return {
     check,
-    fix,
+    generate,
     sourcePath: sourcePath as string,
   };
 }
@@ -92,7 +94,7 @@ async function loadESLint(): Promise<ESLint | null> {
  * Main entry point for the CLI.
  */
 async function main(): Promise<void> {
-  const { fix, sourcePath } = await parseCommandLineArguments(
+  const { generate, sourcePath } = await parseCommandLineArguments(
     globalThis.process.argv.slice(2),
   );
 
@@ -115,7 +117,7 @@ async function main(): Promise<void> {
 
   const eslint = await loadESLint();
 
-  if (fix) {
+  if (generate) {
     const success = await generateAllActionTypesFiles(sources, eslint);
     if (success) {
       console.log('\n🎉 All action types generated successfully!');

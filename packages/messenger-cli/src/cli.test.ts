@@ -57,7 +57,7 @@ const { withinSandbox } = createSandbox('messenger/cli-functional');
 jest.setTimeout(30_000);
 
 describe('generate-action-types CLI (functional)', () => {
-  describe('--fix', () => {
+  describe('--generate', () => {
     it('generates FooController-method-action-types.ts for a controller with multiple documented methods', async () => {
       expect.assertions(3);
 
@@ -86,7 +86,7 @@ class FooController {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
@@ -152,7 +152,7 @@ class DataService {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
@@ -207,7 +207,7 @@ class BarController {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
@@ -273,7 +273,7 @@ class AuthService {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
@@ -336,7 +336,7 @@ class MyService {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
@@ -380,7 +380,7 @@ class NestedController {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
 
         const generatedFiles = await listGeneratedFiles(directoryPath);
@@ -407,7 +407,7 @@ class NestedController {
           'utf8',
         );
 
-        const result = await runCLI(['--fix', directoryPath]);
+        const result = await runCLI(['--generate', directoryPath]);
         expect(result.exitCode).toBe(0);
         expect(result.all).toContain('No controllers/services found');
 
@@ -433,7 +433,7 @@ class TestController {
           'utf8',
         );
 
-        await runCLI(['--fix', directoryPath]);
+        await runCLI(['--generate', directoryPath]);
         const result = await runCLI(['--check', directoryPath]);
 
         expect(result.exitCode).toBe(0);

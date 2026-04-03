@@ -106,7 +106,7 @@ export async function checkActionTypesFiles(
 
   if (hasErrors) {
     console.error('\n💥 Some action type files are out of date or missing.');
-    console.error('Run `messenger-action-types-codegen --fix` to update them.');
+    console.error('Run `messenger-action-types --generate` to update them.');
     return false;
   }
 
