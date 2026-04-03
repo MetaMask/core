@@ -36,8 +36,6 @@
   },
   "dependencies": {
     "@metamask/utils": "^11.9.0",
-    "eslint": "^9.39.1",
-    "typescript": "~5.3.3",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
@@ -51,6 +49,10 @@
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=8",
+    "typescript": ">=5.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
