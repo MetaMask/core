@@ -93,7 +93,7 @@ async function loadESLint(): Promise<ESLint | null> {
  */
 async function main(): Promise<void> {
   console.warn(
-    '⚠️  messenger-generate-action-types from @metamask/messenger is deprecated. Install @metamask/messenger-cli instead.',
+    '⚠️  `messenger-generate-action-types` from @metamask/messenger is deprecated. Use `messenger-action-types` from @metamask/messenger-cli instead.',
   );
 
   const { fix, sourcePath } = await parseCommandLineArguments(
