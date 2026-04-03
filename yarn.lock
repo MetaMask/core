@@ -4351,6 +4351,9 @@ __metadata:
   peerDependencies:
     eslint: ">=8"
     typescript: ">=5.0.0"
+  peerDependenciesMeta:
+    eslint:
+      optional: true
   bin:
     messenger-action-types: ./dist/cli.mjs
   languageName: unknown
