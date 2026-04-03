@@ -52,9 +52,7 @@ async function parseCommandLineArguments(
     .help()
     .check((argv) => {
       if (!argv.check && !argv.generate) {
-        throw new Error(
-          'Either --check or --generate must be provided.\n',
-        );
+        throw new Error('Either --check or --generate must be provided.\n');
       }
       return true;
     }).argv;
