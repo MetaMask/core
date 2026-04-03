@@ -117,7 +117,10 @@ module.exports = defineConfig({
 
         // All non-root packages must set up ESM- and CommonJS-compatible
         // exports correctly.
-        if (workspace.ident !== '@metamask/foundryup') {
+        if (
+          workspace.ident !== '@metamask/foundryup' &&
+          workspace.ident !== '@metamask/messenger-cli'
+        ) {
           expectCorrectWorkspaceExports(workspace);
         }
 
