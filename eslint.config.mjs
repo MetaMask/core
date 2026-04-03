@@ -228,6 +228,12 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/messenger-cli/src/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+    },
+  },
+  {
     files: [
       'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
       'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',

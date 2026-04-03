@@ -64,6 +64,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
+- [`@metamask/messenger-cli`](packages/messenger-cli)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
@@ -148,6 +149,7 @@ linkStyle default opacity:0.5
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
+  messenger_cli(["@metamask/messenger-cli"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
@@ -262,6 +264,7 @@ linkStyle default opacity:0.5
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> gas_fee_controller;
   bridge_status_controller --> keyring_controller;
+  bridge_status_controller --> messenger;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> profile_sync_controller;
@@ -327,6 +330,7 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
+  gas_fee_controller --> messenger;
   gas_fee_controller --> network_controller;
   gas_fee_controller --> polling_controller;
   gator_permissions_controller --> base_controller;
@@ -413,6 +417,7 @@ linkStyle default opacity:0.5
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
   polling_controller --> network_controller;
+  polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
   profile_metrics_controller --> accounts_controller;
@@ -478,6 +483,7 @@ linkStyle default opacity:0.5
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
   transaction_pay_controller --> assets_controller;
