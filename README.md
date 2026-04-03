@@ -219,6 +219,7 @@ linkStyle default opacity:0.5
   assets_controller --> network_controller;
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
+  assets_controller --> phishing_controller;
   assets_controller --> polling_controller;
   assets_controller --> preferences_controller;
   assets_controller --> transaction_controller;
@@ -264,6 +265,7 @@ linkStyle default opacity:0.5
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> gas_fee_controller;
   bridge_status_controller --> keyring_controller;
+  bridge_status_controller --> messenger;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> profile_sync_controller;
@@ -329,6 +331,7 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
+  gas_fee_controller --> messenger;
   gas_fee_controller --> network_controller;
   gas_fee_controller --> polling_controller;
   gator_permissions_controller --> base_controller;
@@ -346,6 +349,10 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   message_manager --> messenger;
+  money_account_controller --> accounts_controller;
+  money_account_controller --> base_controller;
+  money_account_controller --> keyring_controller;
+  money_account_controller --> messenger;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
@@ -415,6 +422,7 @@ linkStyle default opacity:0.5
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
   polling_controller --> network_controller;
+  polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
   profile_metrics_controller --> accounts_controller;
@@ -439,6 +447,7 @@ linkStyle default opacity:0.5
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
   sample_controllers --> base_controller;
+  sample_controllers --> base_data_service;
   sample_controllers --> messenger;
   sample_controllers --> network_controller;
   sample_controllers --> controller_utils;
@@ -464,6 +473,10 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  social_controllers --> base_controller;
+  social_controllers --> base_data_service;
+  social_controllers --> controller_utils;
+  social_controllers --> messenger;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
@@ -480,6 +493,7 @@ linkStyle default opacity:0.5
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
   transaction_pay_controller --> assets_controller;
