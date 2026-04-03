@@ -6,7 +6,7 @@
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
   "metamask/profile-sync-controller": "team-accounts-framework",
-  "metamask/ramps-controller": "team-ramp",
+  "metamask/ramps-controller": "team-money-movement",
   "metamask/assets-controller": "team-assets",
   "metamask/assets-controllers": "team-assets",
   "metamask/network-enablement-controller": "team-assets",
