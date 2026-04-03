@@ -38,7 +38,7 @@ jobs:
           - constraints
           - lint:dependencies
           - lint:teams
-          - generate-method-action-types:check
+          - messenger-action-types-codegen:check
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
