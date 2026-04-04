@@ -269,7 +269,18 @@ function extractJsDocText(node: TsNode, sourceFile: SourceFile): string {
   // Handle single-line JSDoc: /** Gets the current state. */
   const singleLineMatch = raw.match(/^\/\*\*\s*(.*?)\s*\*\/$/u);
   if (singleLineMatch) {
-    const text = singleLineMatch[1].replace(/^\*\s*/u, '');
+    let text = singleLineMatch[1].replace(/^\*\s*/u, '');
+    // Apply same escaping as multi-line path
+    text = text.replace(/\{@link\s+([^}]+)\}/gu, '`$1`');
+    text = text.replace(/`[^`]*`|(\{)|(\})/gu, (match, open, close) => {
+      if (open) {
+        return '\\{';
+      }
+      if (close) {
+        return '\\}';
+      }
+      return match;
+    });
     return text || '';
   }
 
