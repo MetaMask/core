@@ -5,37 +5,7 @@
 
 /* ── Fonts ──────────────────────────────────────────────────────────── */
 
-@font-face {
-  font-family: 'Euclid Circular B';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/EuclidCircularB/EuclidCircularB-Regular-WebXL.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Euclid Circular B';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/EuclidCircularB/EuclidCircularB-Medium.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Euclid Circular B';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/EuclidCircularB/EuclidCircularB-Bold-WebXL.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Euclid Circular B';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/EuclidCircularB/EuclidCircularB-RegularItalic-WebXL.ttf') format('truetype');
-}
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&display=swap');
 
 @font-face {
   font-family: 'MM Sans Mono';
@@ -101,7 +71,7 @@
   --ifm-heading-color: var(--general-black);
   --ifm-font-family-monospace: 'MM Sans Mono', 'Andale Mono', AndaleMono, monospace;
   --ifm-heading-font-family: var(--ifm-font-family-monospace);
-  --ifm-font-family-base: 'Euclid Circular B', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --ifm-font-family-base: 'Geist', Arial, 'Helvetica Neue', Helvetica, sans-serif;
   --ifm-code-font-size: 90%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 
