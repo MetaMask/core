@@ -30,7 +30,6 @@ function deduplicationScore(item: MessengerItemDoc): number {
   return jsDocScore + homeScore;
 }
 
-
 const execFileAsync = promisify(execFile);
 
 /**
