@@ -138,11 +138,32 @@ async function main(): Promise<void> {
     outputDir ?? path.join(resolvedProjectPath, '.messenger-docs'),
   );
 
+  // Resolve scanDirs: CLI flag → package.json config → default ["src"]
+  let resolvedScanDirs = scanDirs.length > 0 ? scanDirs : undefined;
+  if (!resolvedScanDirs) {
+    try {
+      const pkgRaw = await fs.readFile(
+        path.join(resolvedProjectPath, 'package.json'),
+        'utf8',
+      );
+      const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
+      const config = pkg['messenger-docs'] as
+        | { scanDirs?: string[] }
+        | undefined;
+      if (Array.isArray(config?.scanDirs)) {
+        resolvedScanDirs = config.scanDirs;
+      }
+    } catch {
+      // No package.json or invalid — use default.
+    }
+    resolvedScanDirs ??= ['src'];
+  }
+
   // Step 1: Generate docs
   await generate({
     projectPath: resolvedProjectPath,
     outputDir: resolvedOutputDir,
-    ...(scanDirs.length > 0 ? { scanDirs } : {}),
+    scanDirs: resolvedScanDirs,
   });
 
   // Step 2: If --build, --serve, or --dev, set up and run Docusaurus

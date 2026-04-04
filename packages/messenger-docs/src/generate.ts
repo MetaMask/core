@@ -72,12 +72,8 @@ export type GenerateOptions = {
   projectPath: string;
   /** Absolute path to the output directory for generated docs. */
   outputDir: string;
-  /**
-   * Extra directories (relative to projectPath) to scan for .ts source files.
-   * When omitted, falls back to `"messenger-docs".scanDirs` in the project's
-   * package.json, then to `["src"]`.
-   */
-  scanDirs?: string[];
+  /** Directories (relative to projectPath) to scan for .ts source files. */
+  scanDirs: string[];
 };
 
 /**
@@ -98,28 +94,7 @@ export type GenerateResult = {
 export async function generate(
   options: GenerateOptions,
 ): Promise<GenerateResult> {
-  const { projectPath, outputDir, scanDirs: scanDirsOption } = options;
-
-  // Resolve scanDirs: CLI flag → package.json config → default ["src"]
-  let scanDirs = scanDirsOption;
-  if (!scanDirs) {
-    try {
-      const pkgRaw = await fs.readFile(
-        path.join(projectPath, 'package.json'),
-        'utf8',
-      );
-      const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
-      const config = pkg['messenger-docs'] as
-        | { scanDirs?: string[] }
-        | undefined;
-      if (Array.isArray(config?.scanDirs)) {
-        scanDirs = config.scanDirs;
-      }
-    } catch {
-      // No package.json or invalid — use default.
-    }
-    scanDirs ??= ['src'];
-  }
+  const { projectPath, outputDir, scanDirs } = options;
 
   const allItems: MessengerItemDoc[] = [];
 
