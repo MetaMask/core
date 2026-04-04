@@ -229,7 +229,7 @@ export async function generate(
       const ns = item.typeString.split(':')[0];
       const group = byNamespace.get(ns);
       if (group) {
-        const list = item.kind === 'action' ? group.actions : group.events;
+        const list = existing.kind === 'action' ? group.actions : group.events;
         const idx = list.indexOf(existing);
         if (idx !== -1) {
           list[idx] = item;
