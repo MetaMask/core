@@ -1,3 +1,4 @@
+import { fileExists } from '@metamask/utils/node';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
@@ -39,20 +40,6 @@ import type {
 
 import type { MessengerItemDoc, MethodInfo } from './types';
 
-/**
- * Check whether a file exists.
- *
- * @param filePath - The path to check.
- * @returns A promise that resolves to true if the file exists.
- */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Extract string constants from top-level variable declarations in a source file.
