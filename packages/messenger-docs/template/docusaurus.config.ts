@@ -112,15 +112,6 @@ const config: Config = {
         autoCollapseCategories: false,
       },
     },
-    footer: {
-      logo: {
-        alt: 'MetaMask logo',
-        src: 'img/metamask-logo.svg',
-        srcDark: 'img/metamask-logo-dark.svg',
-        href: 'https://metamask.io/',
-      },
-      copyright: `\u00a9 ${new Date().getFullYear()} MetaMask \u2022 A Consensys Formation`,
-    },
     prism: {
       theme: codeTheme,
       defaultLanguage: 'typescript',
