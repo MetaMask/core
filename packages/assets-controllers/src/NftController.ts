@@ -30,6 +30,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
@@ -65,7 +66,6 @@ import type {
   LastSale,
   TopBid,
 } from './NftDetectionController';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 

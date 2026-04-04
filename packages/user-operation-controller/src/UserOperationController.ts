@@ -9,7 +9,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerPrepareUserOperationAction,
@@ -22,11 +21,10 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import { determineTransactionType } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionParams,
-  TransactionType,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -509,7 +507,6 @@ export class UserOperationController extends BaseController<
 
     const transactionType = await this.#getTransactionType(
       transaction,
-      provider,
       options,
     );
 
@@ -764,7 +761,6 @@ export class UserOperationController extends BaseController<
 
   async #getTransactionType(
     transaction: TransactionParams | undefined,
-    provider: Provider,
     options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
@@ -775,10 +771,7 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
-
-    return (await result).type;
+    return TransactionType.contractInteraction;
   }
 
   async #getProvider(

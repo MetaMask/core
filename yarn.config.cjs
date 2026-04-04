@@ -24,8 +24,14 @@ const { inspect } = require('util');
  * This should trend towards empty.
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  // '@metamask/json-rpc-engine': ['^9.0.3'],
+  '@tanstack/query-core': ['^4.43.0'],
 };
+
+/**
+ * These packages are allowed as peer dependencies without requiring installation as
+ * devDependencies.
+ */
+const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -113,6 +119,7 @@ module.exports = defineConfig({
         // exports correctly.
         if (
           workspace.ident !== '@metamask/foundryup' &&
+          workspace.ident !== '@metamask/messenger-cli' &&
           workspace.ident !== '@metamask/messenger-docs'
         ) {
           expectCorrectWorkspaceExports(workspace);
@@ -133,7 +140,10 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "build:docs" script.
-        if (workspace.ident !== '@metamask/messenger-docs') {
+        if (
+          workspace.ident !== '@metamask/messenger-cli' &&
+          workspace.ident !== '@metamask/messenger-docs'
+        ) {
           expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }
 
@@ -749,6 +759,10 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
 
     if (!peerDependency) {
+      continue;
+    }
+
+    if (ALLOWED_PEER_DEPENDENCIES.includes(dependencyIdent)) {
       continue;
     }
 

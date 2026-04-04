@@ -2,6 +2,8 @@ import {
   BridgeClientId,
   ChainId,
   getClientHeaders,
+  Intent,
+  QuoteResponse,
   StatusTypes,
 } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
@@ -23,10 +25,6 @@ export type IntentSubmissionParams = {
 };
 
 export type IntentApi = {
-  submitIntent(
-    params: IntentSubmissionParams,
-    clientId: BridgeClientId,
-  ): Promise<IntentStatusResponse>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
@@ -48,33 +46,6 @@ export class IntentApiImpl implements IntentApi {
     this.#baseUrl = baseUrl;
     this.#fetchFn = fetchFn;
     this.#getJwt = getJwt;
-  }
-
-  async submitIntent(
-    params: IntentSubmissionParams,
-    clientId: BridgeClientId,
-  ): Promise<IntentStatusResponse> {
-    const endpoint = `${this.#baseUrl}/submitOrder`;
-    try {
-      const jwt = await this.#getJwt();
-      const response = await this.#fetchFn(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getClientHeaders({ clientId, jwt }),
-        },
-        body: JSON.stringify(params),
-      });
-      if (!validateIntentStatusResponse(response)) {
-        throw new Error('Invalid submitOrder response');
-      }
-      return response;
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to submit intent: ${error.message}`);
-      }
-      throw new Error('Failed to submit intent');
-    }
   }
 
   async getOrderStatus(
@@ -135,7 +106,7 @@ export const translateIntentOrderToBridgeStatus = (
       statusType = StatusTypes.UNKNOWN;
   }
 
-  const txHash = intentOrder.txHash ?? fallbackTxHash ?? '';
+  const txHash = intentOrder.txHash ?? fallbackTxHash;
   const status: StatusResponse = {
     status: statusType,
     srcChain: {
@@ -171,3 +142,53 @@ export function mapIntentOrderStatusToTransactionStatus(
       return TransactionStatus.submitted;
   }
 }
+
+/**
+ * Extracts and validates the intent data from a quote response.
+ *
+ * @param quoteResponse - The quote response that may contain intent data
+ * @returns The intent data from the quote
+ * @throws Error if the quote does not contain intent data
+ */
+export function getIntentFromQuote(quoteResponse: QuoteResponse): Intent {
+  const { intent } = quoteResponse.quote;
+  if (!intent) {
+    throw new Error('submitIntent: missing intent data');
+  }
+  return intent;
+}
+
+export const postSubmitOrder = async ({
+  params,
+  clientId,
+  jwt,
+  fetchFn,
+  bridgeApiBaseUrl,
+}: {
+  params: IntentSubmissionParams;
+  clientId: BridgeClientId;
+  jwt: string | undefined;
+  fetchFn: FetchFunction;
+  bridgeApiBaseUrl: string;
+}): Promise<IntentStatusResponse> => {
+  const endpoint = `${bridgeApiBaseUrl}/submitOrder`;
+  try {
+    const response = await fetchFn(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getClientHeaders({ clientId, jwt }),
+      },
+      body: JSON.stringify(params),
+    });
+    if (!validateIntentStatusResponse(response)) {
+      throw new Error('Invalid submitOrder response');
+    }
+    return response;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to submit intent: ${error.message}`);
+    }
+    throw new Error('Failed to submit intent');
+  }
+};

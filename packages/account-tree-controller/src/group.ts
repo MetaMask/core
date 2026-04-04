@@ -27,6 +27,8 @@ export type AccountTreeGroupPersistedMetadata = {
   pinned?: UpdatableField<boolean>;
   /** Whether this group is hidden in the UI */
   hidden?: UpdatableField<boolean>;
+  /** Timestamp of the last time this group was selected (local-only, not synced) */
+  lastSelected?: number;
 };
 
 export const MAX_SORT_ORDER = 9999;
@@ -160,5 +162,5 @@ export function isAccountGroupNameUnique(
     }
   }
 
-  throw new Error(`Account group with ID "${groupId}" not found in tree`);
+  throw new Error('Account group not found in tree');
 }

@@ -1,4 +1,4 @@
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
@@ -7,16 +7,20 @@ import { MethodRegistry } from 'eth-method-registry';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
-import type { MethodData } from '../TransactionController';
+import type {
+  MethodData,
+  TransactionControllerMessenger,
+} from '../TransactionController';
+import { getProvider } from '../utils/provider';
 
 const log = createModuleLogger(projectLogger, 'method-data');
 
 export class MethodDataHelper {
   hub: EventEmitter;
 
-  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
-
   readonly #getState: () => Record<string, MethodData>;
+
+  readonly #messenger: TransactionControllerMessenger;
 
   readonly #methodRegistryByNetworkClientId: Map<
     NetworkClientId,
@@ -26,15 +30,15 @@ export class MethodDataHelper {
   readonly #mutex = new Mutex();
 
   constructor({
-    getProvider,
+    messenger,
     getState,
   }: {
-    getProvider: (networkClientId: NetworkClientId) => Provider;
+    messenger: TransactionControllerMessenger;
     getState: () => Record<string, MethodData>;
   }) {
     this.hub = new EventEmitter();
 
-    this.#getProvider = getProvider;
+    this.#messenger = messenger;
     this.#getState = getState;
     this.#methodRegistryByNetworkClientId = new Map();
   }
@@ -58,7 +62,10 @@ export class MethodDataHelper {
       let registry = this.#methodRegistryByNetworkClientId.get(networkClientId);
 
       if (!registry) {
-        const provider = this.#getProvider(networkClientId);
+        const provider = getProvider({
+          messenger: this.#messenger,
+          networkClientId,
+        });
 
         // @ts-expect-error Type in eth-method-registry is inappropriate and should be changed
         registry = new MethodRegistry({ provider });

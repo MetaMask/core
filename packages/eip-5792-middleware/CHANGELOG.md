@@ -9,7 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.22.0` ([#8104](https://github.com/MetaMask/core/pull/8104)), ([#8140](https://github.com/MetaMask/core/pull/8140)), ([#8217](https://github.com/MetaMask/core/pull/8217))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [3.0.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^63.0.0` ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
 
 ## [3.0.0]
 
@@ -90,7 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6458](https://github.com/MetaMask/core/pull/6458))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.3...HEAD
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.2...@metamask/eip-5792-middleware@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.1...@metamask/eip-5792-middleware@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@3.0.0...@metamask/eip-5792-middleware@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@2.1.0...@metamask/eip-5792-middleware@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@2.0.0...@metamask/eip-5792-middleware@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-5792-middleware@1.2.4...@metamask/eip-5792-middleware@2.0.0

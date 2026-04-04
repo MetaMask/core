@@ -10,7 +10,6 @@ export type {
   AssetsControllerState,
   AssetsControllerMessenger,
   AssetsControllerOptions,
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerGetStateAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
@@ -31,7 +30,6 @@ export type {
   AssetsControllerUnhideAssetAction,
   AssetsControllerGetExchangeRatesForBridgeAction,
   AssetsControllerGetStateForTransactionPayAction,
-  AssetsControllerMethodActions,
 } from './AssetsController-method-action-types';
 
 // Core types
@@ -74,6 +72,7 @@ export type {
   Context,
   NextFunction,
   Middleware,
+  AssetsDataSource,
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
@@ -99,7 +98,6 @@ export type {
   AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
-  AccountsApiDataSourceAllowedActions,
 } from './data-sources';
 
 // Data sources - BackendWebsocket
@@ -111,8 +109,6 @@ export {
 export type {
   BackendWebsocketDataSourceOptions,
   BackendWebsocketDataSourceState,
-  BackendWebsocketDataSourceAllowedActions,
-  BackendWebsocketDataSourceAllowedEvents,
 } from './data-sources';
 
 // Data sources - RPC
@@ -122,8 +118,6 @@ export type {
   RpcDataSourceConfig,
   RpcDataSourceOptions,
   RpcDataSourceState,
-  RpcDataSourceAllowedActions,
-  RpcDataSourceAllowedEvents,
   ChainStatus,
 } from './data-sources';
 
@@ -142,8 +136,6 @@ export {
 export type {
   SnapDataSourceState,
   SnapDataSourceOptions,
-  SnapDataSourceAllowedActions,
-  SnapDataSourceAllowedEvents,
 } from './data-sources';
 
 // Enrichment data sources
@@ -151,7 +143,6 @@ export { TokenDataSource, PriceDataSource } from './data-sources';
 
 export type {
   TokenDataSourceOptions,
-  TokenDataSourceAllowedActions,
   PriceDataSourceConfig,
   PriceDataSourceOptions,
 } from './data-sources';

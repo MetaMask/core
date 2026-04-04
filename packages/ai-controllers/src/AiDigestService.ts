@@ -6,7 +6,6 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
-import { isCaipAssetType } from '@metamask/utils';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type {
@@ -80,6 +79,7 @@ const MarketInsightsReportStruct = structType({
 });
 
 const MarketInsightsDigestEnvelopeStruct = structType({
+  id: string(),
   digest: MarketInsightsReportStruct,
 });
 
@@ -88,9 +88,9 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 const RelatedAssetStruct = structType({
   name: string(),
   symbol: string(),
-  caip19: array(string()),
+  caip19: optional(array(string())),
   sourceAssetId: string(),
-  hlPerpsMarket: optional(string()),
+  hlPerpsMarket: optional(array(string())),
 });
 
 const MarketOverviewTrendStruct = structType({
@@ -113,13 +113,24 @@ const MarketOverviewReportEnvelopeStruct = structType({
   report: MarketOverviewStruct,
 });
 
+const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
+  ...raw,
+  trends: raw.trends.map((trend) => ({
+    ...trend,
+    relatedAssets: trend.relatedAssets.map((asset) => ({
+      ...asset,
+      caip19: asset.caip19 ?? [],
+    })),
+  })),
+});
+
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
   if (is(value, MarketOverviewStruct)) {
-    return value;
+    return normalizeRelatedAssets(value);
   }
 
   if (is(value, MarketOverviewReportEnvelopeStruct)) {
-    return value.report;
+    return normalizeRelatedAssets(value.report);
   }
 
   return null;
@@ -128,12 +139,8 @@ const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
 const getNormalizedMarketInsightsReport = (
   value: unknown,
 ): MarketInsightsReport | null => {
-  if (is(value, MarketInsightsReportStruct)) {
-    return value;
-  }
-
   if (is(value, MarketInsightsDigestEnvelopeStruct)) {
-    return value.digest;
+    return { ...value.digest, digestId: value.id };
   }
 
   return null;
@@ -178,23 +185,21 @@ export class AiDigestService implements DigestService {
   /**
    * Search for market insights by asset identifier.
    *
-   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
-   * market symbol (e.g. `ETH`). The query parameter is chosen automatically:
-   * - CAIP-19 identifiers use `caipAssetType`
-   * - Perps market symbols use `hlPerpsMarket`
+   * Accepts any identifier the API understands (CAIP-19 asset type, ticker
+   * symbol, asset name, HyperLiquid perps market id, etc.) and forwards it
+   * unchanged via the universal `asset` query parameter.
    *
-   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
+   * Calls `GET ${baseUrl}/asset-summary?asset=<assetIdentifier>`.
+   *
+   * @param assetIdentifier - The asset identifier (e.g. `eip155:1/slip44:60`,
+   *   `ETH`, `Bitcoin`, `xyz:TSLA`).
    * @returns The market insights report, or `null` if none exists (404).
    */
   async searchDigest(
     assetIdentifier: string,
   ): Promise<MarketInsightsReport | null> {
-    const queryParam = isCaipAssetType(assetIdentifier)
-      ? `caipAssetType=${encodeURIComponent(assetIdentifier)}`
-      : `hlPerpsMarket=${encodeURIComponent(assetIdentifier)}`;
-
     const response = await fetch(
-      `${this.#baseUrl}/asset-summary?${queryParam}`,
+      `${this.#baseUrl}/asset-summary?asset=${encodeURIComponent(assetIdentifier)}`,
     );
 
     if (response.status === 404) {

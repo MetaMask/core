@@ -30,7 +30,7 @@ import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
-  SnapStateChange,
+  SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { isCaipChainId } from '@metamask/utils';
@@ -50,6 +50,7 @@ import {
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
+  isMoneyKeyringType,
   isSnapKeyringType,
   keyringTypeToName,
 } from './utils';
@@ -211,8 +212,8 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  */
 export type AllowedEvents =
-  | SnapStateChange
   | KeyringControllerStateChangeEvent
+  | SnapControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
@@ -442,7 +443,7 @@ export class AccountsController extends BaseController<
 
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (selectedAccount === '') {
+    if (!selectedAccount) {
       return EMPTY_ACCOUNT;
     }
 
@@ -481,7 +482,7 @@ export class AccountsController extends BaseController<
 
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (selectedAccount === '') {
+    if (!selectedAccount) {
       return EMPTY_ACCOUNT;
     }
 
@@ -666,6 +667,12 @@ export class AccountsController extends BaseController<
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
+      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
+      // we need to filter them out here.
+      if (isMoneyKeyringType(keyring.type)) {
+        continue;
+      }
+
       const keyringTypeName = keyringTypeToName(keyring.type);
 
       for (const address of keyring.accounts) {
@@ -913,6 +920,12 @@ export class AccountsController extends BaseController<
     // Go over all keyring changes and create patches out of it.
     const addresses = new Set<string>();
     for (const keyring of keyrings) {
+      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
+      // we need to filter them out here.
+      if (isMoneyKeyringType(keyring.type)) {
+        continue;
+      }
+
       const patch = patchOf(keyring.type);
 
       for (const accountAddress of keyring.accounts) {

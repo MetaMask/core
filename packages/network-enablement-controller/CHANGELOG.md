@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [5.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [5.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/multichain-network-controller` from `^3.0.5` to `^3.0.6` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [5.0.0]
+
 ### Added
 
 - Expose missing public `NetworkEnablementController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
@@ -24,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `NetworkEnablementController` action `NetworkEnablementControllerSetEnabledNetworksAction` has been renamed to `NetworkEnablementControllerEnableNetworkAction` so it matches the method name.
   - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NetworkEnablementController` messengers.
 - Bump `@metamask/multichain-network-controller` from `^3.0.4` to `^3.0.5` ([#8140](https://github.com/MetaMask/core/pull/8140))
-- Bump `@metamask/transaction-controller` from `^62.20.0` to `^62.22.0` ([#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217))
+- Bump `@metamask/transaction-controller` from `^62.20.0` to `^63.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
 
 ## [4.2.0]
 
@@ -244,7 +268,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.2...HEAD
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.1...@metamask/network-enablement-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.0...@metamask/network-enablement-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...@metamask/network-enablement-controller@5.0.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...@metamask/network-enablement-controller@4.2.0
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.1...@metamask/network-enablement-controller@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.0...@metamask/network-enablement-controller@4.1.1

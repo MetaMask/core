@@ -1,4 +1,5 @@
 /* eslint-disable jest/unbound-method */
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -13,7 +14,6 @@ import {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 import type {
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
@@ -79,14 +79,12 @@ type WithControllerOptions = {
   isBasicFunctionality?: () => boolean;
   /**
    * When set, registers ClientController:getState so the controller sees this UI state.
-   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   * Required for tests that rely on asset tracking running (e.g. trace on unlock).
    */
   clientControllerState?: { isUiOpen: boolean };
-  /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
+  /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
-    trackMetaMetricsEvent: (
-      payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-    ) => void;
+    trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
     isEnabled: () => boolean;
   }>;
@@ -613,6 +611,181 @@ describe('AssetsController', () => {
 
         expect(assets).toBeDefined();
       });
+    });
+
+    it('hides native tokens on Tempo testnet (eip155:42431)', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:42431/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+              'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
+                type: 'erc20',
+                symbol: 'USDC',
+                name: 'USD Coin',
+                decimals: 6,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:42431/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+                'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48':
+                  {
+                    amount: '100',
+                    unit: 'USDC',
+                  },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:42431'],
+          });
+
+          // Native token should be hidden
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:42431/slip44:60'],
+          ).toBeUndefined();
+
+          // ERC20 token should still be visible
+          expect(
+            assets[MOCK_ACCOUNT_ID][
+              'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+            ],
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('hides native tokens on Tempo mainnet (eip155:4217)', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:4217/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:4217/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:4217'],
+          });
+
+          // Native token should be hidden
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:4217/slip44:60'],
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('does not hide native tokens on non-Tempo networks', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:1/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:1/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:1'],
+          });
+
+          // Native token should still be visible on Ethereum
+          expect(assets[MOCK_ACCOUNT_ID]['eip155:1/slip44:60']).toBeDefined();
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:1/slip44:60'].metadata.symbol,
+          ).toBe('ETH');
+        },
+      );
+    });
+
+    it('hides native tokens identified by metadata type', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:42431/some:other': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:42431/some:other': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:42431'],
+          });
+
+          // Native token should be hidden even if assetId doesn't have slip44
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:42431/some:other'],
+          ).toBeUndefined();
+        },
+      );
     });
   });
 
@@ -1198,13 +1371,19 @@ describe('AssetsController', () => {
       });
     });
 
-    it('invokes trackMetaMetricsEvent with first init fetch duration on unlock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes trace with first init fetch trace request on unlock', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { trace },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1218,30 +1397,46 @@ describe('AssetsController', () => {
           // Allow #start() -> getAssets() to resolve so the callback runs
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
-          expect(trackMetaMetricsEvent).toHaveBeenCalledWith(
-            expect.objectContaining({
-              durationMs: expect.any(Number),
-              chainIds: expect.any(Array),
-              durationByDataSource: expect.any(Object),
-            }),
+          const firstInitFetchCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name ===
+              'AssetsControllerFirstInitFetch',
           );
-          const payload = trackMetaMetricsEvent.mock
-            .calls[0][0] as AssetsControllerFirstInitFetchMetaMetricsPayload;
-          expect(payload.durationMs).toBeGreaterThanOrEqual(0);
-          expect(Array.isArray(payload.chainIds)).toBe(true);
-          expect(typeof payload.durationByDataSource).toBe('object');
+          expect(firstInitFetchCalls).toHaveLength(1);
+          const [request] = firstInitFetchCalls[0];
+          expect(request).toMatchObject({
+            name: 'AssetsControllerFirstInitFetch',
+            data: expect.objectContaining({
+              duration_ms: expect.any(Number),
+              chain_ids: expect.any(String),
+            }),
+            tags: { controller: 'AssetsController' },
+          });
+          const {
+            duration_ms: durationMs,
+            chain_ids: chainIds,
+            ...durationByDataSource
+          } = request.data ?? {};
+          expect(durationMs).toBeGreaterThanOrEqual(0);
+          expect(typeof chainIds).toBe('string');
+          expect(typeof durationByDataSource).toBe('object');
         },
       );
     });
 
-    it('invokes trackMetaMetricsEvent only once per session until lock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes trace only once per session until lock', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { trace },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1256,7 +1451,12 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+          const firstInitFetchCalls = traceMock.mock.calls.filter(
+            (call) =>
+              (call[0] as TraceRequest).name ===
+              'AssetsControllerFirstInitFetch',
+          );
+          expect(firstInitFetchCalls).toHaveLength(1);
         },
       );
     });

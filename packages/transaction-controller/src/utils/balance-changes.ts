@@ -1,8 +1,8 @@
 import type { Fragment, LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
@@ -27,6 +27,7 @@ import {
   SimulationRevertedError,
 } from '../errors';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   SimulationBalanceChange,
   SimulationData,
@@ -53,7 +54,8 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
-  ethQuery: EthQuery;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
   getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
@@ -728,8 +730,14 @@ async function baseRequest({
   before?: SimulationRequestTransaction[];
   after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, chainId, ethQuery, getSimulationConfig, txParams } =
-    request;
+  const {
+    blockTime,
+    chainId,
+    messenger,
+    networkClientId,
+    getSimulationConfig,
+    txParams,
+  } = request;
   const { authorizationList } = txParams;
   const from = txParams.from as Hex;
 
@@ -756,7 +764,11 @@ async function baseRequest({
 
   log('Required balance', requiredBalanceHex);
 
-  const { balanceRaw } = await getNativeBalance(from, ethQuery);
+  const { balanceRaw } = await getNativeBalance(
+    from,
+    messenger,
+    networkClientId,
+  );
   const currentBalanceHex = toHex(balanceRaw);
   const currentBalanceBN = hexToBN(currentBalanceHex);
 

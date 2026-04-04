@@ -5,7 +5,6 @@ import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import type {
   GasFeeEstimates,
   TransactionMeta,
-  TransactionParams,
 } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
@@ -16,13 +15,11 @@ import { BridgeStatusController } from './bridge-status-controller';
 import { MAX_ATTEMPTS } from './constants';
 import type { BridgeStatusControllerState } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
+import * as historyUtils from './utils/history';
 import * as intentApi from './utils/intent-api';
-import * as transactionUtils from './utils/transaction';
 import { IntentOrderStatus } from './utils/validators';
 
-jest
-  .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
-  .mockImplementation(jest.fn());
+jest.spyOn(intentApi, 'postSubmitOrder').mockImplementation(jest.fn());
 jest
   .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
   .mockImplementation(jest.fn());
@@ -74,7 +71,14 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
     featureId: undefined,
     approval: undefined,
     resetApproval: undefined,
-    trade: '0xdeadbeef',
+    trade: {
+      chainId: 1,
+      from: '0x9008D19f58AAbd9eD0D60971565AA8510560ab4a',
+      to: '0x0000000000000000000000000000000000000001',
+      data: '0x',
+      value: '0x0',
+      gasLimit: 21000,
+    },
     ...overrides,
   };
 };
@@ -134,6 +138,7 @@ const createMessengerHarness = (
   accountAddress: string,
   selectedChainId: string = '0x1',
   keyringType: string = 'HD Key Tree',
+  approvalStatus?: TransactionStatus,
 ): any => {
   const transactions: TransactionMeta[] = [];
 
@@ -158,6 +163,55 @@ const createMessengerHarness = (
         }
         case 'TransactionController:getState':
           return { transactions };
+        case 'TransactionController:estimateGasFee':
+          return { estimates: {} as GasFeeEstimates };
+        case 'TransactionController:addTransaction': {
+          // Approval TX path (submitIntent -> #handleApprovalTx -> #handleEvmTransaction)
+          if (
+            args[1]?.type === TransactionType.bridgeApproval ||
+            args[1]?.type === TransactionType.swapApproval
+          ) {
+            const hash = '0xapprovalhash1';
+
+            const approvalTx = {
+              id: 'approvalTxId1',
+              type: args[1]?.type,
+              status: approvalStatus ?? TransactionStatus.failed,
+              chainId: args[0]?.chainId ?? '0x1',
+              hash,
+              networkClientId: 'network-client-id-1',
+              time: Date.now(),
+              txParams: args[0],
+            };
+            transactions.push(approvalTx);
+
+            return {
+              result: Promise.resolve(hash),
+              transactionMeta: approvalTx,
+            };
+          }
+
+          // Intent “display tx” path
+          const intentTx = {
+            id: 'intentDisplayTxId1',
+            type: args[1]?.type,
+            status: TransactionStatus.submitted,
+            chainId: args[0]?.chainId ?? '0x1',
+            hash: undefined,
+            networkClientId: 'network-client-id-1',
+            time: Date.now(),
+            txParams: args[0],
+          };
+          transactions.push(intentTx);
+
+          return {
+            result: Promise.resolve('0xunused'),
+            transactionMeta: intentTx,
+          };
+        }
+        case 'AuthenticationController:getBearerToken': {
+          return '0xjwt';
+        }
         case 'NetworkController:findNetworkClientIdByChainId':
           return 'network-client-id-1';
         case 'NetworkController:getState':
@@ -191,53 +245,7 @@ const setup = (options?: {
     accountAddress,
     options?.selectedChainId ?? '0x1',
     options?.keyringType,
-  );
-
-  const addTransactionFn = jest.fn(
-    async (txParams: TransactionParams, reqOpts: any) => {
-      // Approval TX path (submitIntent -> #handleApprovalTx -> #handleEvmTransaction)
-      if (
-        reqOpts?.type === TransactionType.bridgeApproval ||
-        reqOpts?.type === TransactionType.swapApproval
-      ) {
-        const hash = '0xapprovalhash1';
-
-        const approvalTx = {
-          id: 'approvalTxId1',
-          type: reqOpts.type,
-          status: options?.approvalStatus ?? TransactionStatus.failed,
-          chainId: txParams.chainId ?? '0x1',
-          hash,
-          networkClientId: 'network-client-id-1',
-          time: Date.now(),
-          txParams,
-        };
-        transactions.push(approvalTx);
-
-        return {
-          result: Promise.resolve(hash),
-          transactionMeta: approvalTx,
-        };
-      }
-
-      // Intent “display tx” path
-      const intentTx = {
-        id: 'intentDisplayTxId1',
-        type: reqOpts?.type,
-        status: TransactionStatus.submitted,
-        chainId: txParams.chainId ?? '0x1',
-        hash: undefined,
-        networkClientId: 'network-client-id-1',
-        time: Date.now(),
-        txParams,
-      };
-      transactions.push(intentTx);
-
-      return {
-        result: Promise.resolve('0xunused'),
-        transactionMeta: intentTx,
-      };
-    },
+    options?.approvalStatus,
   );
 
   const mockFetchFn = jest.fn();
@@ -246,14 +254,9 @@ const setup = (options?: {
     state: {
       txHistory: options?.mockTxHistory ?? {},
     },
+    addTransactionBatchFn: jest.fn(),
     clientId: options?.clientId ?? BridgeClientId.EXTENSION,
     fetchFn: (...args: any[]) => mockFetchFn(...args),
-    addTransactionFn,
-    addTransactionBatchFn: jest.fn(),
-    updateTransactionFn: jest.fn(),
-    estimateGasFeeFn: jest.fn(async () => ({
-      estimates: {} as GasFeeEstimates,
-    })),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
   });
@@ -269,7 +272,6 @@ const setup = (options?: {
     controller,
     messenger,
     transactions,
-    addTransactionFn,
     startPollingSpy,
     stopPollingSpy,
     accountAddress,
@@ -296,7 +298,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse({
@@ -332,6 +334,7 @@ describe('BridgeStatusController (intent swaps)', () => {
   });
 
   it('submitIntent: completes when approval tx confirms', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1773879217428);
     const { controller, accountAddress } = setup({
       approvalStatus: TransactionStatus.confirmed,
     });
@@ -343,7 +346,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse({
@@ -362,7 +365,28 @@ describe('BridgeStatusController (intent swaps)', () => {
         quoteResponse,
         accountAddress,
       }),
-    ).resolves.toBeDefined();
+    ).resolves.toMatchInlineSnapshot(`
+      {
+        "chainId": "0x1",
+        "hash": undefined,
+        "id": "intentDisplayTxId1",
+        "isIntentTx": true,
+        "networkClientId": "network-client-id-1",
+        "orderUid": "order-uid-approve-1",
+        "status": "submitted",
+        "time": 1773879217428,
+        "txParams": {
+          "chainId": "0x1",
+          "data": "0xpprove-1",
+          "from": "0xAccount1",
+          "gas": "0x5208",
+          "gasPrice": "0x3b9aca00",
+          "to": "0x9008D19f58AAbd9eD0D60971565AA8510560ab41",
+          "value": "0x0",
+        },
+        "type": "swap",
+      }
+    `);
 
     expect(submitIntentSpy).toHaveBeenCalled();
   });
@@ -382,7 +406,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse({
@@ -419,14 +443,12 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
-    jest
-      .spyOn(transactionUtils, 'getStatusRequestParams')
-      .mockImplementation(() => {
-        throw new Error('boom');
-      });
+    jest.spyOn(historyUtils, 'getInitialHistoryItem').mockImplementation(() => {
+      throw new Error('boom');
+    });
 
     const quoteResponse = minimalIntentQuoteResponse();
     const consoleSpy = jest
@@ -459,7 +481,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -500,7 +522,24 @@ describe('BridgeStatusController (intent swaps)', () => {
       ]),
     );
 
-    expect(submitIntentSpy.mock.calls[0]?.[0]?.signature).toBe('0xautosigned');
+    expect(submitIntentSpy.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "bridgeApiBaseUrl": "http://localhost",
+        "clientId": "extension",
+        "fetchFn": [Function],
+        "jwt": "0xjwt",
+        "params": {
+          "aggregatorId": "cowswap",
+          "order": {
+            "some": "order",
+          },
+          "quoteId": "req-1",
+          "signature": "0xautosigned",
+          "srcChainId": 1,
+          "userAddress": "0xAccount1",
+        },
+      }
+    `);
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
@@ -515,7 +554,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -559,7 +598,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -606,7 +645,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -661,14 +700,12 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
-      .mockResolvedValue({
-        id: orderUid,
-        status: IntentOrderStatus.SUBMITTED,
-        txHash: undefined,
-        metadata: { txHashes: [] },
-      });
+    jest.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
 
     const historyKey = orderUid;
 
@@ -956,14 +993,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     // Use deprecated method to create history and start polling (so token exists in controller)
     controller.startPollingForBridgeTxStatus({
       accountAddress,
-      bridgeTxMeta: { id: 'bridgeToWipe1' } as TransactionMeta,
-      statusRequest: {
-        srcChainId: 1,
-        srcTxHash: '0xsrc',
-        destChainId: 10,
-        bridgeId: 'across',
-        bridge: 'socket',
-      },
+      bridgeTxMeta: { id: 'bridgeToWipe1', hash: '0xsrc' } as TransactionMeta,
       quoteResponse,
       slippagePercentage: 0,
       startTime: Date.now(),
@@ -1059,10 +1089,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       state,
       clientId: BridgeClientId.EXTENSION,
       fetchFn: jest.fn(),
-      addTransactionFn: jest.fn(),
       addTransactionBatchFn: jest.fn(),
-      updateTransactionFn: jest.fn(),
-      estimateGasFeeFn: jest.fn(),
       config: { customBridgeApiBaseUrl: 'http://localhost' },
       traceFn: (_r: any, fn?: any): any => fn?.(),
     });

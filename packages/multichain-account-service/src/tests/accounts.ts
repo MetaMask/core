@@ -72,6 +72,13 @@ export const MOCK_HD_KEYRING_2 = {
   accounts: ['0x456'],
 };
 
+/** Used when tests need ensureCanUseSnapPlatform to resolve (SnapPlatformWatcher waits for Snap keyring). */
+export const MOCK_SNAP_KEYRING = {
+  type: KeyringTypes.snap,
+  metadata: { id: 'snap-keyring', name: 'Snap Keyring' },
+  accounts: [],
+};
+
 export const MOCK_HD_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-id-1',
   address: '0x123',

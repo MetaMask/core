@@ -1,15 +1,17 @@
-import { query, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import { toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
 
 import { getNativeBalance, isNativeBalanceSufficientForGas } from './balance';
+import { rpcRequest } from './provider';
 import type { TransactionMeta } from '..';
+import type { TransactionControllerMessenger } from '../TransactionController';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
-const ETH_QUERY_MOCK = {} as EthQuery;
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
 const BALANCE_MOCK = '21000000000000';
 
 const TRANSACTION_META_MOCK = {
@@ -21,17 +23,21 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 describe('Balance Utils', () => {
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    queryMock.mockResolvedValue(toHex(BALANCE_MOCK));
+    rpcRequestMock.mockResolvedValue(toHex(BALANCE_MOCK));
   });
 
   describe('getNativeBalance', () => {
     it('returns native balance', async () => {
-      const result = await getNativeBalance('0x1234', ETH_QUERY_MOCK);
+      const result = await getNativeBalance(
+        '0x1234',
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
+      );
 
       expect(result).toStrictEqual({
         balanceRaw: BALANCE_MOCK,
@@ -44,7 +50,8 @@ describe('Balance Utils', () => {
     it('returns true if balance is sufficient for gas', async () => {
       const result = await isNativeBalanceSufficientForGas(
         TRANSACTION_META_MOCK,
-        ETH_QUERY_MOCK,
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
       );
 
       expect(result).toBe(true);
@@ -59,7 +66,8 @@ describe('Balance Utils', () => {
             gas: toHex(21001),
           },
         },
-        ETH_QUERY_MOCK,
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
       );
 
       expect(result).toBe(false);

@@ -3469,11 +3469,13 @@ describe('BridgeController', function () {
           "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
+          "quoteStreamComplete": null,
           "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,
           "quotesRefreshCount": 0,
+          "tokenWarnings": [],
         }
       `);
     });
@@ -3503,11 +3505,13 @@ describe('BridgeController', function () {
           "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
+          "quoteStreamComplete": null,
           "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,
           "quotesRefreshCount": 0,
+          "tokenWarnings": [],
         }
       `);
     });

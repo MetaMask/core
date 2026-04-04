@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [11.2.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^6.0.0` to `^7.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+
+## [11.2.0]
+
 ### Added
 
 - Expose public `EarnController` methods through its messenger ([#8173](https://github.com/MetaMask/core/pull/8173))
@@ -35,7 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^6.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
 
 ## [11.1.2]
 
@@ -390,7 +408,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...HEAD
+[11.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.0...@metamask/earn-controller@11.2.1
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.2...@metamask/earn-controller@11.2.0
 [11.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...@metamask/earn-controller@11.1.2
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.0...@metamask/earn-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.0.0...@metamask/earn-controller@11.1.0

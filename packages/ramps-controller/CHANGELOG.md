@@ -7,6 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- **BREAKING:** Removed controller-side data fetching (`fireAndForget`) from `setSelectedToken`, `setSelectedProvider`, and `setUserRegion`; ramp data fetching is now fully driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
+  - Client migration: trigger `getTokens`, `getProviders`, and `getPaymentMethods` from the client layer (for example, React Query hooks/effects) when region/provider/token changes.
+  - `setSelectedProvider`/`setSelectedToken`/`setUserRegion` now focus on selection/state updates and no longer implicitly fetch dependent resources.
+- `setSelectedProvider` and `setSelectedPaymentMethod` accept a full object in addition to an ID string; no longer throw when data is not loaded ([#8354](https://github.com/MetaMask/core/pull/8354))
+
+### Fixed
+
+- `init` no longer overrides a persisted `userRegion` with the geolocation endpoint response ([#8354](https://github.com/MetaMask/core/pull/8354))
+
+## [12.1.0]
+
+### Added
+
+- Add `providerAutoSelected` boolean to `RampsControllerState` to track whether the selected provider was system-guessed (soft selection) or user-chosen ([#8305](https://github.com/MetaMask/core/pull/8305))
+- Add optional `options` parameter to `setSelectedProvider` accepting `{ autoSelected?: boolean }` to control the `providerAutoSelected` flag ([#8305](https://github.com/MetaMask/core/pull/8305))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Stop persisting `providers` and `tokens` state across sessions to prevent stale data when API availability changes ([#8307](https://github.com/MetaMask/core/pull/8307))
+- `RampsService.getOrder` and `getOrderFromCallback` accept provider codes with or without a `/providers/` prefix; API paths use the short provider segment. `RampsController` forwards provider ids from order polling to the service without stripping the prefix. ([#8278](https://github.com/MetaMask/core/pull/8278))
+
+### Fixed
+
+- `addPrecreatedOrder` normalizes `providerCode` (stripping a leading `/providers/` when present) and sets stub `provider.id` to `/providers/{code}` so precreated stubs match the resource id shape used elsewhere for polling. ([#8289](https://github.com/MetaMask/core/pull/8289))
+
+## [12.0.1]
+
+### Added
+
+- Expose all public `RampsController` methods through its messenger ([#8221](https://github.com/MetaMask/core/pull/8221))
+  - The following actions are now available:
+    - `RampsController:executeRequest`
+    - `RampsController:abortRequest`
+    - `RampsController:getRequestState`
+    - `RampsController:setUserRegion`
+    - `RampsController:setSelectedProvider`
+    - `RampsController:init`
+    - `RampsController:getCountries`
+    - `RampsController:getTokens`
+    - `RampsController:getProviders`
+    - `RampsController:getPaymentMethods`
+    - `RampsController:setSelectedPaymentMethod`
+    - `RampsController:addOrder`
+    - `RampsController:removeOrder`
+    - `RampsController:startOrderPolling`
+    - `RampsController:stopOrderPolling`
+    - `RampsController:getBuyWidgetData`
+    - `RampsController:addPrecreatedOrder`
+    - `RampsController:getOrderFromCallback`
+    - `RampsController:transakSetApiKey`
+    - `RampsController:transakSetAccessToken`
+    - `RampsController:transakClearAccessToken`
+    - `RampsController:transakSetAuthenticated`
+    - `RampsController:transakResetState`
+    - `RampsController:transakSendUserOtp`
+    - `RampsController:transakVerifyUserOtp`
+    - `RampsController:transakLogout`
+    - `RampsController:transakGetUserDetails`
+    - `RampsController:transakGetBuyQuote`
+    - `RampsController:transakGetKycRequirement`
+    - `RampsController:transakGetAdditionalRequirements`
+    - `RampsController:transakCreateOrder`
+    - `RampsController:transakGetOrder`
+    - `RampsController:transakGetUserLimits`
+    - `RampsController:transakRequestOtt`
+    - `RampsController:transakGeneratePaymentWidgetUrl`
+    - `RampsController:transakSubmitPurposeOfUsageForm`
+    - `RampsController:transakPatchUser`
+    - `RampsController:transakSubmitSsnDetails`
+    - `RampsController:transakConfirmPayment`
+    - `RampsController:transakGetTranslation`
+    - `RampsController:transakGetIdProofStatus`
+    - `RampsController:transakCancelOrder`
+    - `RampsController:transakCancelAllActiveOrders`
+    - `RampsController:transakGetActiveOrders`
+  - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`)
+
+### Fixed
+
+- Fix `getOrder` wallet handling so API requests and event payloads stay valid and consistent ([#8251](https://github.com/MetaMask/core/pull/8251))
+  - `RampsService.getOrder` no longer sends an empty `wallet` query parameter, avoiding invalid API responses (e.g. 400).
+  - `RampsController.getOrder` persists and returns a healed order (`walletAddress` and `providerOrderId`) so controller state matches the return value and `RampsController:orderStatusChanged` listeners.
+
 ## [12.0.0]
 
 ### Changed
@@ -214,7 +305,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...@metamask/ramps-controller@12.1.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...@metamask/ramps-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.2.0...@metamask/ramps-controller@11.0.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.1.0...@metamask/ramps-controller@10.2.0

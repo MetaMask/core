@@ -5,6 +5,70 @@ import typescript from '@metamask/eslint-config-typescript';
 
 const NODE_LTS_VERSION = 22;
 
+/**
+ * Arguments to the `no-restricted` syntax rule that advises use of
+ * `${Controller}:stateChanged` instead of `:stateChange`.
+ */
+const NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS = [
+  {
+    selector:
+      'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
+    message:
+      "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
+  },
+  {
+    selector:
+      'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
+    message:
+      "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
+  },
+];
+
+/**
+ * Arguments to the `no-restricted-syntax` rule that prevents messsenger actions
+ * from being called in constructors.
+ */
+const NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS = [
+  {
+    selector:
+      'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="MemberExpression"][callee.object.object.type="ThisExpression"][callee.object.property.name="messenger"]',
+    message:
+      'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#do-not-call-messenger-actions-in-the-constructor',
+  },
+  {
+    selector:
+      'MethodDefinition[kind="constructor"] CallExpression[callee.type="MemberExpression"][callee.property.name="call"][callee.object.type="Identifier"][callee.object.name="messenger"]',
+    message:
+      'Do not call messenger actions in the constructor, as this forces clients to instantiate controllers or services in a specific order. Move this call to an init() method instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#do-not-call-messenger-actions-in-the-constructor',
+  },
+];
+
+/**
+ * Collects all options for a given array-valued rule across one or more flat
+ * config arrays, excluding the leading severity element.
+ *
+ * ESLint flat config does not merge array-valued rules across config objects —
+ * a later config silently replaces earlier ones. This helper makes it possible
+ * to extend an upstream rule configuration rather than copy-pasting its options.
+ *
+ * @param {string} ruleName - The rule to collect options for.
+ * @param {import('eslint').Linter.Config[][]} configs - Flat config arrays to
+ * collect options from.
+ * @returns {unknown[]} The options from all matching rule entries, with the
+ * leading severity element omitted.
+ */
+function collectExistingRuleOptions(ruleName, configs) {
+  return configs.flat().flatMap((config) => {
+    const rule = config.rules?.[ruleName];
+    if (!Array.isArray(rule)) {
+      return [];
+    }
+    // Rule entries are ['error' | 'warn' | number, ...options].
+    // Skip the first element (severity) and collect the rest.
+    return rule.slice(1);
+  });
+}
+
 const config = createConfig([
   ...base,
   {
@@ -92,6 +156,17 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
+
+      // Add custom rule for deprecating `${Controller}:stateChange` in favor of
+      // `:stateChanged`.
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
+      ],
     },
   },
   {
@@ -155,6 +230,64 @@ const config = createConfig([
       sourceType: 'module',
     },
   },
+  // Prevent cross-package relative imports
+  {
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    rules: {
+      'import-x/no-relative-packages': 'error',
+    },
+  },
+  // Prevent calling messenger actions in controller/service constructors
+  {
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
+        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
+      ],
+    },
+  },
+  {
+    // Prohibit exporting *AllowedActions, *AllowedEvents, and *MethodActions
+    // from package index files
+    files: ['packages/*/src/index.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
+        ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedActions$/]',
+          message:
+            'Do not export AllowedActions types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-action-types',
+        },
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedEvents$/]',
+          message:
+            'Do not export AllowedEvents types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-event-types',
+        },
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/MethodActions$/]',
+          message:
+            'Do not export *MethodActions types from package index files. Internal messenger actions are already available via the *Actions type. Export the individual action types (along with *Actions) instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#expose-controller-methods-through-messenger-in-bulk',
+        },
+      ],
+    },
+  },
   {
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {
@@ -163,6 +296,18 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
+    },
+  },
+  {
+    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+    },
+  },
+  {
+    files: ['packages/messenger-cli/src/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
     },
   },
   {

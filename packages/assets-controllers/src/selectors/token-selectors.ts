@@ -14,6 +14,7 @@ import {
   parseBalanceWithDecimals,
   stringifyBalanceWithDecimals,
 } from './stringify-balance';
+import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -93,6 +94,7 @@ export type Asset = (
 
 export type AssetListState = {
   accountTree: AccountTreeControllerState['accountTree'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   internalAccounts: AccountsControllerState['internalAccounts'];
   allTokens: TokensControllerState['allTokens'];
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
@@ -175,6 +177,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (!shouldIncludeNativeToken(chainId)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
@@ -504,14 +510,13 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
     selectAllAssets,
-    (state) => state.accountTree,
+    (state) => state.selectedAccountGroup,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
-  (groupAssets, accountTree, opts) => {
-    const { selectedAccountGroup } = accountTree;
+  (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
       return {};
     }

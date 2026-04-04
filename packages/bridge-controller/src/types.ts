@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
@@ -16,7 +17,7 @@ import type {
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
   CaipAccountId,
@@ -41,6 +42,8 @@ import type {
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TokenFeatureSchema,
+  QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -322,6 +325,10 @@ export enum ChainId {
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
+export type TokenFeature = Infer<typeof TokenFeatureSchema>;
+
+export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
+
 export enum RequestStatus {
   LOADING,
   FETCHED,
@@ -376,6 +383,16 @@ export type BridgeControllerState = {
    * the max amount that can be sent.
    */
   minimumBalanceForRentExemptionInLamports: string | null;
+  /**
+   * Security alerts for the destination token in the current quote request,
+   * populated from `token_warning` SSE events.
+   */
+  tokenWarnings: TokenFeature[];
+  /**
+   * Metadata about the completed quote stream, populated from the `complete` SSE event.
+   * Set to null at the start of each fetch and updated when the complete event is received.
+   */
+  quoteStreamComplete: QuoteStreamCompleteData | null;
 };
 
 export type BridgeControllerAction<
@@ -413,7 +430,7 @@ export type AllowedActions =
   | GetCurrencyRateState
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction

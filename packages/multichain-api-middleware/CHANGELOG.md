@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/permission-controller` from `^12.2.1` to `^12.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/multichain-transactions-controller` from `^7.0.3` to `^7.0.4` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [2.0.0]
+
+### Added
+
+- **BREAKING:** Add required `sortAccountIdsByLastSelected` hook to `wallet_getSession`, `wallet_createSession`, and `wallet_invokeMethod` handlers to enable custom account ordering in session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.4.0` to `^1.5.0` ([#8290](https://github.com/MetaMask/core/pull/8290))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.3` ([#8078](https://github.com/MetaMask/core/pull/8078))
 
 ## [1.2.7]
@@ -164,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.7...@metamask/multichain-api-middleware@2.0.0
 [1.2.7]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.6...@metamask/multichain-api-middleware@1.2.7
 [1.2.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.5...@metamask/multichain-api-middleware@1.2.6
 [1.2.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.4...@metamask/multichain-api-middleware@1.2.5

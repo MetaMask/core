@@ -11,6 +11,8 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
@@ -37,10 +39,11 @@ import type {
   GetPermissions,
   PermissionControllerStateChange,
 } from '@metamask/permission-controller';
+import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type {
-  GetRunnableSnaps,
-  HandleSnapRequest,
+  SnapControllerGetRunnableSnapsAction,
+  SnapControllerHandleRequestAction,
 } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
@@ -83,6 +86,8 @@ import {
 import type {
   AccountId,
   AssetPreferences,
+  AssetsControllerStateInternal,
+  AssetsDataSource,
   AssetsUpdateMode,
   ChainId,
   Caip19AssetId,
@@ -101,7 +106,6 @@ import type {
   Middleware,
   SubscriptionResponse,
   Asset,
-  AssetsControllerStateInternal,
 } from './types';
 import {
   normalizeAssetId,
@@ -156,6 +160,17 @@ const MESSENGER_EXPOSED_METHODS = [
 
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
+
+// ============================================================================
+// TRACE NAMES — used in Sentry spans (search these strings in Discover)
+// ============================================================================
+const TRACE_FIRST_INIT_FETCH = 'AssetsControllerFirstInitFetch';
+const TRACE_FULL_FETCH = 'AssetsFullFetch';
+const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
+const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
+const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
+const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
+const TRACE_STATE_SIZE = 'AssetsStateSize';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -258,11 +273,13 @@ type AllowedActions =
   // RpcDataSource, StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
   // SnapDataSource
-  | GetRunnableSnaps
-  | HandleSnapRequest
+  | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | GetPermissions
   // BackendWebsocketDataSource
-  | BackendWebSocketServiceActions;
+  | BackendWebSocketServiceActions
+  // PhishingController
+  | PhishingControllerBulkScanTokensAction;
 
 type AllowedEvents =
   // AssetsController
@@ -292,23 +309,6 @@ export type AssetsControllerMessenger = Messenger<
 // ============================================================================
 // CONTROLLER OPTIONS
 // ============================================================================
-
-/**
- * Payload for the first init/fetch MetaMetrics event.
- * Passed to the optional trackMetaMetricsEvent callback when the initial
- * asset fetch completes after unlock or app open.
- */
-export type AssetsControllerFirstInitFetchMetaMetricsPayload = {
-  /** Duration of the first init fetch in milliseconds (wall-clock). */
-  durationMs: number;
-  /** Chain IDs requested in the fetch (e.g. ['eip155:1', 'eip155:137']). */
-  chainIds: string[];
-  /**
-   * Exclusive latency in ms per data source (time spent in that source only).
-   * Sum of values approximates durationMs. Order: same as middleware chain.
-   */
-  durationByDataSource: Record<string, number>;
-};
 
 export type AssetsControllerOptions = {
   messenger: AssetsControllerMessenger;
@@ -344,12 +344,11 @@ export type AssetsControllerOptions = {
   /** Optional configuration for RpcDataSource. */
   rpcDataSourceConfig?: RpcDataSourceConfig;
   /**
-   * Optional callback invoked when the first init/fetch completes (e.g. after unlock).
-   * Use this to track first init fetch duration in MetaMetrics.
+   * Optional trace callback. When provided, the controller invokes it with a
+   * trace request when the first init/fetch completes (e.g. after unlock).
+   * Use this to report first init fetch duration to Sentry (e.g. via addBreadcrumb or setMeasurement).
    */
-  trackMetaMetricsEvent?: (
-    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-  ) => void;
+  trace?: TraceCallback;
   /** Optional configuration for AccountsApiDataSource. */
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
   /** Optional configuration for PriceDataSource. */
@@ -519,13 +518,88 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
-  /** Optional callback for first init/fetch MetaMetrics (duration). */
-  readonly #trackMetaMetricsEvent?: (
-    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-  ) => void;
+  /** Optional trace callback for first init/fetch measurement (duration). */
+  readonly #trace?: TraceCallback;
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
+
+  /** Whether we have already reported state size for this session (reset on #stop). */
+  #stateSizeReported = false;
+
+  /**
+   * Fire-and-forget trace helper. Swallows errors so telemetry never breaks the controller.
+   *
+   * @param name - Trace / span name visible in Sentry.
+   * @param data - Key-value pairs attached as span data.
+   * @param tags - Key-value pairs used for Sentry filtering.
+   */
+  #emitTrace(
+    name: string,
+    data: Record<string, number | string | boolean>,
+    tags: Record<string, number | string | boolean> = {
+      controller: 'AssetsController',
+    },
+  ): void {
+    if (!this.#trace) {
+      return;
+    }
+    this.#trace({ name, data, tags }, () => undefined).catch(() => {
+      // Telemetry failure must not break.
+    });
+  }
+
+  /**
+   * Emit a state-size trace once on app start (first state update after unlock).
+   */
+  #emitStateSizeTrace(): void {
+    if (!this.#trace || this.#stateSizeReported) {
+      return;
+    }
+    this.#stateSizeReported = true;
+
+    const {
+      assetsBalance: balances,
+      customAssets,
+      assetsInfo,
+      assetsPrice,
+    } = this.state;
+
+    // Count balance entries and collect unique asset IDs / chain IDs in one pass.
+    let balanceEntries = 0;
+    const uniqueAssets = new Set<string>();
+    const uniqueNetworks = new Set<string>();
+
+    for (const acct of Object.values(balances)) {
+      const assetIds = Object.keys(acct);
+      balanceEntries += assetIds.length;
+      for (const assetId of assetIds) {
+        uniqueAssets.add(assetId);
+        // CAIP-19 format: "eip155:1/slip44:60" — chainId is everything before "/"
+        const slash = assetId.indexOf('/');
+        if (slash > 0) {
+          uniqueNetworks.add(assetId.slice(0, slash));
+        }
+      }
+    }
+
+    let customAssetEntries = 0;
+    for (const ids of Object.values(customAssets)) {
+      if (Array.isArray(ids)) {
+        customAssetEntries += ids.length;
+      }
+    }
+
+    this.#emitTrace(TRACE_STATE_SIZE, {
+      balance_entries: balanceEntries,
+      balance_accounts: Object.keys(balances).length,
+      unique_asset_count: uniqueAssets.size,
+      network_count: uniqueNetworks.size,
+      metadata_entries: Object.keys(assetsInfo).length,
+      price_entries: Object.keys(assetsPrice).length,
+      custom_asset_entries: customAssetEntries,
+    });
+  }
 
   /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
   #uiOpen = false;
@@ -614,7 +688,7 @@ export class AssetsController extends BaseController<
     subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
-    trackMetaMetricsEvent,
+    trace,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
@@ -632,7 +706,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
-    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
+    this.#trace = trace;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     this.#onActiveChainsUpdated = (
@@ -667,8 +741,14 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...stakedBalanceDataSourceConfig,
     });
-    this.#tokenDataSource = new TokenDataSource({
+    this.#tokenDataSource = new TokenDataSource(this.messenger, {
       queryApiClient,
+      getNativeAssetIds: (): string[] => {
+        const { nativeAssetIdentifiers } = this.messenger.call(
+          'NetworkEnablementController:getState',
+        );
+        return Object.values(nativeAssetIdentifiers);
+      },
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
@@ -917,7 +997,7 @@ export class AssetsController extends BaseController<
    * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
-    sources: { getName(): string; assetsMiddleware: Middleware }[],
+    sources: AssetsDataSource[],
     request: DataRequest,
     initialResponse: DataResponse = {},
   ): Promise<{
@@ -937,17 +1017,18 @@ export class AssetsController extends BaseController<
           response: DataResponse;
           getAssetsState: () => AssetsControllerStateInternal;
         }> => {
-          const start = Date.now();
+          const start = performance.now();
           try {
             return await middleware(ctx, next);
           } finally {
-            inclusive[i] = Date.now() - start;
+            inclusive[i] = performance.now() - start;
           }
         }) as Middleware,
     );
 
+    const middlewareErrors: string[] = [];
     const chain = wrapped.reduceRight<NextFunction>(
-      (next, middleware) =>
+      (next, middleware, index) =>
         async (
           ctx,
         ): Promise<{
@@ -958,6 +1039,8 @@ export class AssetsController extends BaseController<
           try {
             return await middleware(ctx, next);
           } catch (error) {
+            const sourceName = names[index] ?? `middleware_${index}`;
+            middlewareErrors.push(sourceName);
             console.error('[AssetsController] Middleware failed:', error);
             return next(ctx);
           }
@@ -980,6 +1063,33 @@ export class AssetsController extends BaseController<
         durationByDataSource[name] = exclusive;
       }
     }
+    if (result.durationByDataSource) {
+      for (const [key, ms] of Object.entries(result.durationByDataSource)) {
+        durationByDataSource[key] = ms;
+      }
+    }
+
+    // Emit per-source timing traces for the Assets Health dashboard
+    for (const [sourceName, durationMs] of Object.entries(
+      durationByDataSource,
+    )) {
+      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
+        source: sourceName,
+        duration_ms: durationMs,
+        chain_count: request.chainIds.length,
+        account_count: request.accountsWithSupportedChains.length,
+      });
+    }
+
+    // Emit error traces for failed middlewares
+    if (middlewareErrors.length > 0) {
+      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
+        failed_sources: middlewareErrors.join(','),
+        error_count: middlewareErrors.length,
+        chain_count: request.chainIds.length,
+      });
+    }
+
     return { response: result.response, durationByDataSource };
   }
 
@@ -1015,7 +1125,7 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
-      const startTime = Date.now();
+      const startTime = performance.now();
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
@@ -1054,13 +1164,33 @@ export class AssetsController extends BaseController<
       const updateMode =
         options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
       await this.#updateState({ ...response, updateMode });
-      if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
+
+      const durationMs = performance.now() - startTime;
+
+      // Emit trace for every full fetch (Assets Health dashboard)
+      this.#emitTrace(TRACE_FULL_FETCH, {
+        duration_ms: durationMs,
+        chain_count: chainIds.length,
+        account_count: accounts.length,
+        basic_functionality: this.#isBasicFunctionality(),
+        asset_count: response.assetsBalance
+          ? Object.values(response.assetsBalance).reduce(
+              (sum, acct) => sum + Object.keys(acct).length,
+              0,
+            )
+          : 0,
+        price_count: response.assetsPrice
+          ? Object.keys(response.assetsPrice).length
+          : 0,
+        ...durationByDataSource,
+      });
+
+      if (!this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
-        const durationMs = Date.now() - startTime;
-        this.#trackMetaMetricsEvent({
-          durationMs,
-          chainIds,
-          durationByDataSource,
+        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
+          duration_ms: durationMs,
+          chain_ids: JSON.stringify(chainIds),
+          ...durationByDataSource,
         });
       }
     }
@@ -1665,6 +1795,9 @@ export class AssetsController extends BaseController<
         }
       });
 
+      // Emit state size trace (throttled to avoid JSON.stringify on every update)
+      this.#emitStateSizeTrace();
+
       // Calculate changed prices
       const changedPriceAssets: string[] = normalizedResponse.assetsPrice
         ? Object.keys(normalizedResponse.assetsPrice).filter(
@@ -1776,6 +1909,11 @@ export class AssetsController extends BaseController<
 
         const assetChainId = extractChainId(typedAssetId);
 
+        // Skip native tokens on Tempo networks
+        if (this.#shouldHideNativeToken(assetChainId, typedAssetId, metadata)) {
+          continue;
+        }
+
         if (!chainIdSet.has(assetChainId)) {
           continue;
         }
@@ -1815,6 +1953,34 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Determines if a native token should be hidden on specific networks.
+   *
+   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:42431").
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:42431/slip44:60").
+   * @param metadata - The asset metadata.
+   * @returns True if the token should be hidden, false otherwise.
+   */
+  #shouldHideNativeToken(
+    chainId: ChainId,
+    assetId: Caip19AssetId,
+    metadata: AssetMetadata,
+  ): boolean {
+    // Check if it's a chain that should skip native tokens
+    if (
+      !CHAIN_IDS_WITH_NO_NATIVE_TOKEN.includes(
+        chainId as (typeof CHAIN_IDS_WITH_NO_NATIVE_TOKEN)[number],
+      )
+    ) {
+      return false;
+    }
+
+    // Check if it's a native token (either by metadata type or assetId format)
+    const isNative = metadata.type === 'native' || assetId.includes('/slip44:');
+
+    return isNative;
   }
 
   /**
@@ -1875,6 +2041,7 @@ export class AssetsController extends BaseController<
     });
 
     this.#firstInitFetchReported = false;
+    this.#stateSizeReported = false;
 
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
@@ -2095,6 +2262,10 @@ export class AssetsController extends BaseController<
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
       );
+      this.#emitTrace(TRACE_SUBSCRIPTION_ERROR, {
+        source: sourceId,
+        error_message: String(error),
+      });
     });
 
     // Track subscription
@@ -2289,6 +2460,7 @@ export class AssetsController extends BaseController<
     sourceId: string,
     request?: DataRequest,
   ): Promise<void> {
+    const updateStart = performance.now();
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
@@ -2314,6 +2486,17 @@ export class AssetsController extends BaseController<
     );
 
     await this.#updateState(enrichedResponse);
+
+    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
+      source: sourceId,
+      duration_ms: performance.now() - updateStart,
+      has_balance: Boolean(response.assetsBalance),
+      has_price: Boolean(response.assetsPrice),
+      has_metadata: Boolean(enrichedResponse.assetsInfo),
+      balance_account_count: response.assetsBalance
+        ? Object.keys(response.assetsBalance).length
+        : 0,
+    });
   }
 
   // ============================================================================

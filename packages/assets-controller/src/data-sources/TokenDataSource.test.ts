@@ -1,14 +1,19 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import type {
+  BulkTokenScanResponse,
+  PhishingControllerBulkScanTokensAction,
+} from '@metamask/phishing-controller';
+import { TokenScanResultType } from '@metamask/phishing-controller';
 
 import type { TokenDataSourceOptions } from './TokenDataSource';
 import { TokenDataSource } from './TokenDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types';
 
-type AllActions = never;
+type AllActions = PhishingControllerBulkScanTokensAction;
 type AllEvents = never;
-type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
@@ -27,9 +32,22 @@ type MockApiClient = {
 
 type SetupResult = {
   controller: TokenDataSource;
-  messenger: RootMessenger;
+  messenger: AssetsControllerMessenger;
   apiClient: MockApiClient;
 };
+
+function createTestMessenger(
+  bulkScanTokens: PhishingControllerBulkScanTokensAction['handler'] = async (): Promise<BulkTokenScanResponse> => ({}),
+): AssetsControllerMessenger {
+  const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  rootMessenger.registerActionHandler(
+    'PhishingController:bulkScanTokens',
+    bulkScanTokens,
+  );
+  return rootMessenger as unknown as AssetsControllerMessenger;
+}
 
 function createMockApiClient(
   supportedNetworks: string[] = ['eip155:1'],
@@ -103,28 +121,30 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   };
 }
 
-function setupController(
-  options: {
-    supportedNetworks?: string[];
-    assetsResponse?: V3AssetResponse[];
-  } = {},
-): SetupResult {
-  const { supportedNetworks = ['eip155:1'], assetsResponse = [] } = options;
-
-  const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
-    namespace: MOCK_ANY_NAMESPACE,
-  });
+function setupController(options: {
+  messenger: AssetsControllerMessenger;
+  supportedNetworks?: string[];
+  assetsResponse?: V3AssetResponse[];
+  nativeAssetIds?: string[];
+}): SetupResult {
+  const {
+    messenger,
+    supportedNetworks = ['eip155:1'],
+    assetsResponse = [],
+    nativeAssetIds = [],
+  } = options;
 
   const apiClient = createMockApiClient(supportedNetworks, assetsResponse);
 
-  const controller = new TokenDataSource({
+  const controller = new TokenDataSource(messenger, {
     queryApiClient:
       apiClient as unknown as TokenDataSourceOptions['queryApiClient'],
+    getNativeAssetIds: (): string[] => nativeAssetIds,
   });
 
   return {
     controller,
-    messenger: rootMessenger,
+    messenger,
     apiClient,
   };
 }
@@ -135,12 +155,16 @@ describe('TokenDataSource', () => {
   });
 
   it('initializes with correct name', () => {
-    const { controller } = setupController();
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+    });
     expect(controller.name).toBe('TokenDataSource');
   });
 
   it('exposes assetsMiddleware on instance', () => {
-    const { controller } = setupController();
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+    });
 
     const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
@@ -148,7 +172,9 @@ describe('TokenDataSource', () => {
   });
 
   it('middleware passes to next when no detected assets', async () => {
-    const { controller } = setupController();
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+    });
 
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
@@ -161,7 +187,9 @@ describe('TokenDataSource', () => {
   });
 
   it('middleware passes to next when detected assets is empty', async () => {
-    const { controller } = setupController();
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+    });
 
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
@@ -175,6 +203,7 @@ describe('TokenDataSource', () => {
 
   it('middleware fetches metadata for detected assets', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
@@ -199,6 +228,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toStrictEqual({
@@ -223,6 +253,7 @@ describe('TokenDataSource', () => {
 
   it('middleware skips assets with existing metadata containing image in response', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
     });
 
@@ -252,6 +283,7 @@ describe('TokenDataSource', () => {
 
   it('middleware skips assets with existing metadata containing image in state', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
     });
 
@@ -283,6 +315,7 @@ describe('TokenDataSource', () => {
 
   it('middleware fetches metadata for assets without image in existing metadata', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
@@ -315,6 +348,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
@@ -324,6 +358,7 @@ describe('TokenDataSource', () => {
       'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
 
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
@@ -348,6 +383,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
@@ -357,6 +393,7 @@ describe('TokenDataSource', () => {
       'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
 
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
     });
 
@@ -376,7 +413,9 @@ describe('TokenDataSource', () => {
   });
 
   it('middleware handles getSupportedNetworks error gracefully', async () => {
-    const { controller, apiClient } = setupController();
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+    });
 
     apiClient.tokens.fetchTokenV2SupportedNetworks.mockRejectedValueOnce(
       new Error('Network Error'),
@@ -399,6 +438,7 @@ describe('TokenDataSource', () => {
 
   it('middleware handles fetchV3Assets error gracefully', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
     });
 
@@ -422,6 +462,7 @@ describe('TokenDataSource', () => {
 
   it('middleware transforms native asset type correctly', async () => {
     const { controller } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [
         createMockAssetResponse(MOCK_NATIVE_ASSET, {
@@ -449,6 +490,7 @@ describe('TokenDataSource', () => {
 
   it('middleware transforms SPL token type correctly', async () => {
     const { controller } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
       assetsResponse: [
         createMockAssetResponse(MOCK_SPL_ASSET, {
@@ -478,6 +520,7 @@ describe('TokenDataSource', () => {
       'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f' as Caip19AssetId;
 
     const { controller } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
@@ -511,6 +554,7 @@ describe('TokenDataSource', () => {
       'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f' as Caip19AssetId;
 
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [
         createMockAssetResponse(MOCK_TOKEN_ASSET),
@@ -542,6 +586,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
@@ -550,6 +595,7 @@ describe('TokenDataSource', () => {
 
   it('middleware deduplicates assets across accounts', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
@@ -575,12 +621,15 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
 
   it('middleware includes partial support networks', async () => {
-    const { controller, apiClient } = setupController();
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+    });
 
     apiClient.tokens.fetchTokenV2SupportedNetworks.mockResolvedValueOnce({
       fullSupport: [],
@@ -610,12 +659,14 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
 
   it('middleware filters out invalid CAIP asset IDs', async () => {
     const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
@@ -643,7 +694,303 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
+    );
+  });
+
+  it('middleware filters out erc20 assets flagged malicious by Blockaid', async () => {
+    const maliciousAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(async ({ chainId, tokens }) => {
+        expect(chainId).toBe('0x1');
+        const out: BulkTokenScanResponse = {};
+        for (const addr of tokens) {
+          const lower = addr.toLowerCase();
+          out[lower] =
+            lower === '0x1111111111111111111111111111111111111111'
+              ? {
+                  result_type: TokenScanResultType.Malicious,
+                  chain: chainId,
+                  address: lower,
+                }
+              : {
+                  result_type: TokenScanResultType.Benign,
+                  chain: chainId,
+                  address: lower,
+                };
+        }
+        return out;
+      }),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 5 }),
+        createMockAssetResponse(maliciousAsset, { occurrences: 99 }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET, maliciousAsset],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+            [maliciousAsset]: { amount: '50' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[maliciousAsset]).toBeUndefined();
+
+    const accountBalances = context.response.assetsBalance?.[
+      'mock-account-id'
+    ] as Record<string, unknown> | undefined;
+    expect(accountBalances?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(accountBalances?.[maliciousAsset]).toBeUndefined();
+
+    expect(context.response.detectedAssets?.['mock-account-id']).toContain(
+      MOCK_TOKEN_ASSET,
+    );
+    expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
+      maliciousAsset,
+    );
+  });
+
+  it('middleware keeps non-native assets with undefined occurrences when Blockaid reports benign', async () => {
+    const noOccurrenceAsset =
+      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(async ({ tokens }) => {
+        const out: BulkTokenScanResponse = {};
+        for (const addr of tokens) {
+          const lower = addr.toLowerCase();
+          out[lower] = {
+            result_type: TokenScanResultType.Benign,
+            chain: '0x1',
+            address: lower,
+          };
+        }
+        return out;
+      }),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(noOccurrenceAsset, { occurrences: undefined }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [noOccurrenceAsset],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[noOccurrenceAsset]).toBeDefined();
+  });
+
+  it('middleware keeps native assets regardless of occurrences', async () => {
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+          occurrences: 0,
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]?.type).toBe(
+      'native',
+    );
+  });
+
+  it('middleware always includes native asset IDs in the fetch', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET),
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      expect.arrayContaining([MOCK_TOKEN_ASSET, MOCK_NATIVE_ASSET]),
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]?.type).toBe(
+      'native',
+    );
+  });
+
+  it('middleware fetches native asset IDs even when detectedAssets is undefined', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    // detectedAssets is intentionally omitted (undefined) to mirror the real-world
+    // case where DetectionMiddleware finds zero balances and zero custom assets
+    const context = createMiddlewareContext({
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+  });
+
+  it('middleware fetches native asset IDs when detectedAssets is an empty object', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+  });
+
+  it('middleware deduplicates native asset IDs with detected assets', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_NATIVE_ASSET],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+  });
+
+  it('middleware includes multiple native asset IDs across chains', async () => {
+    const polygonNativeAsset = 'eip155:137/slip44:966' as Caip19AssetId;
+
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1', 'eip155:137'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET, polygonNativeAsset],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+        createMockAssetResponse(polygonNativeAsset, {
+          name: 'Polygon',
+          symbol: 'POL',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        MOCK_TOKEN_ASSET,
+        MOCK_NATIVE_ASSET,
+        polygonNativeAsset,
+      ]),
+      expect.objectContaining({ includeIconUrl: true }),
     );
   });
 });

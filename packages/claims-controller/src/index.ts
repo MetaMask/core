@@ -11,6 +11,18 @@ export type {
 } from './ClaimsController';
 
 export type {
+  ClaimsControllerFetchClaimsConfigurationsAction,
+  ClaimsControllerGetSubmitClaimConfigAction,
+  ClaimsControllerGenerateClaimSignatureAction,
+  ClaimsControllerGetClaimsAction,
+  ClaimsControllerSaveOrUpdateClaimDraftAction,
+  ClaimsControllerGetClaimDraftsAction,
+  ClaimsControllerDeleteClaimDraftAction,
+  ClaimsControllerDeleteAllClaimDraftsAction,
+  ClaimsControllerClearStateAction,
+} from './ClaimsController-method-action-types';
+
+export type {
   Claim,
   ClaimsControllerState,
   Attachment,

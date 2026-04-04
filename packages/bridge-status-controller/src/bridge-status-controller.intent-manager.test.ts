@@ -4,6 +4,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import type { BridgeHistoryItem } from './types';
+import { postSubmitOrder } from './utils/intent-api';
 import { IntentOrderStatus } from './utils/validators';
 
 const makeHistoryItem = (
@@ -36,13 +37,15 @@ const createManagerOptions = (overrides?: {
   fetchFn?: ReturnType<typeof jest.fn>;
 }): IntentManagerConstructorOptions => ({
   messenger: overrides?.messenger ?? { call: jest.fn() },
-  updateTransactionFn: overrides?.updateTransactionFn ?? jest.fn(),
   customBridgeApiBaseUrl: 'https://example.com',
   fetchFn: overrides?.fetchFn ?? jest.fn(),
-  getJwt: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('IntentManager', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('returns early when no original tx id is present', () => {
     const options = createManagerOptions();
     const manager = new IntentManager(options);
@@ -55,7 +58,6 @@ describe('IntentManager', () => {
       }),
     );
 
-    expect(options.updateTransactionFn).not.toHaveBeenCalled();
     expect(options.messenger.call).not.toHaveBeenCalled();
   });
 
@@ -111,19 +113,24 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       txReceipt: { status: '0x0' },
     };
-    const updateTransactionFn = jest.fn();
     const completedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.COMPLETED,
       txHash: '0xhash',
       metadata: {},
     };
+    const mockCall = jest.fn((...args: unknown[]) => {
+      const [method] = args;
+      if (method === 'TransactionController:updateTransaction') {
+        return { transactions: [existingTxMeta] };
+      }
+      return { transactions: [existingTxMeta] };
+    });
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+          call: (...args: unknown[]) => mockCall(...args),
         },
-        updateTransactionFn,
         fetchFn: jest.fn().mockResolvedValue(completedOrder),
       }),
     );
@@ -144,18 +151,29 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(updateTransactionFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'tx-2',
-        status: TransactionStatus.confirmed,
-        hash: '0xhash',
-        txReceipt: expect.objectContaining({
-          transactionHash: '0xhash',
-          status: '0x1',
-        }),
-      }),
-      expect.stringContaining('Intent order status updated'),
-    );
+    expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+      [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
+        [
+          "TransactionController:getState",
+        ],
+        [
+          "TransactionController:updateTransaction",
+          {
+            "hash": "0xhash",
+            "id": "tx-2",
+            "status": "confirmed",
+            "txReceipt": {
+              "status": "0x1",
+              "transactionHash": "0xhash",
+            },
+          },
+          "BridgeStatusController - Intent order status updated: completed",
+        ],
+      ]
+    `);
   });
 
   it('getIntentTransactionStatus returns undefined when getOrderStatus rejects with non-Error', async () => {
@@ -242,7 +260,7 @@ describe('IntentManager', () => {
     expect(result?.bridgeStatus).toBeDefined();
   });
 
-  it('getIntentTransactionStatus passes empty txHash fallback when srcChain is missing', async () => {
+  it('getIntentTransactionStatus passes undefined txHash when srcChain is missing', async () => {
     const order = {
       id: 'order-1',
       status: IntentOrderStatus.SUBMITTED,
@@ -269,7 +287,7 @@ describe('IntentManager', () => {
     );
 
     expect(result).toBeDefined();
-    expect(result?.bridgeStatus?.status.srcChain.txHash).toBe('');
+    expect(result?.bridgeStatus?.status.srcChain.txHash).toBeUndefined();
   });
 
   it('syncTransactionFromIntentStatus cleans up intent statuses map when order is complete', async () => {
@@ -278,19 +296,25 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       txReceipt: { status: '0x0' },
     };
-    const updateTransactionFn = jest.fn();
     const completedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.COMPLETED,
-      txHash: '0xhash',
+      txHash:
+        '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
+    const mockCall = jest.fn((...args: unknown[]) => {
+      const [method] = args;
+      if (method === 'TransactionController:updateTransaction') {
+        return undefined;
+      }
+      return { transactions: [existingTxMeta] };
+    });
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+          call: (...args: unknown[]) => mockCall(...args),
         },
-        updateTransactionFn,
         fetchFn: jest.fn().mockResolvedValue(completedOrder),
       }),
     );
@@ -299,7 +323,11 @@ describe('IntentManager', () => {
       originalTransactionId: 'tx-2',
       status: {
         status: StatusTypes.PENDING,
-        srcChain: { chainId: 1, txHash: '0xhash' },
+        srcChain: {
+          chainId: 1,
+          txHash:
+            '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
+        },
       },
     });
     await manager.getIntentTransactionStatus(
@@ -311,11 +339,33 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+    expect(mockCall).toHaveBeenCalledTimes(3);
 
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+    expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+      [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
+        [
+          "TransactionController:getState",
+        ],
+        [
+          "TransactionController:updateTransaction",
+          {
+            "hash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
+            "id": "tx-2",
+            "status": "confirmed",
+            "txReceipt": {
+              "status": "0x1",
+              "transactionHash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
+            },
+          },
+          "BridgeStatusController - Intent order status updated: completed",
+        ],
+      ]
+    `);
   });
 
   it('syncTransactionFromIntentStatus cleans up intent statuses map when order has failed', async () => {
@@ -324,19 +374,25 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       txReceipt: { status: '0x0' },
     };
-    const updateTransactionFn = jest.fn();
     const failedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.FAILED,
-      txHash: '0xhash',
+      txHash:
+        '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
+    const mockCall = jest.fn((...args: unknown[]) => {
+      const [method] = args;
+      if (method === 'TransactionController:updateTransaction') {
+        return undefined;
+      }
+      return { transactions: [existingTxMeta] };
+    });
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+          call: (...args: unknown[]) => mockCall(...args),
         },
-        updateTransactionFn,
         fetchFn: jest.fn().mockResolvedValue(failedOrder),
       }),
     );
@@ -357,11 +413,33 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+    expect(mockCall).toHaveBeenCalledTimes(3);
 
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+    expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+      [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
+        [
+          "TransactionController:getState",
+        ],
+        [
+          "TransactionController:updateTransaction",
+          {
+            "hash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
+            "id": "tx-2",
+            "status": "failed",
+            "txReceipt": {
+              "status": "0x0",
+              "transactionHash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
+            },
+          },
+          "BridgeStatusController - Intent order status updated: failed",
+        ],
+      ]
+    `);
   });
 
   it('syncTransactionFromIntentStatus logs warn when transaction is not found', async () => {
@@ -406,19 +484,28 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       txReceipt: { status: '0x0' },
     };
-    const updateTransactionFn = jest.fn();
     const submittedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.SUBMITTED,
-      txHash: '0xhash',
+      txHash:
+        '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
+    const mockCall = jest.fn((...args: unknown[]) => {
+      const [method] = args;
+      if (method === 'TransactionController:updateTransaction') {
+        return { transactions: [existingTxMeta] };
+      }
+      if (method === 'AuthenticationController:getBearerToken') {
+        return 'token';
+      }
+      return { transactions: [existingTxMeta] };
+    });
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+          call: (...args: unknown[]) => mockCall(...args),
         },
-        updateTransactionFn,
         fetchFn: jest.fn().mockResolvedValue(submittedOrder),
       }),
     );
@@ -439,11 +526,13 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(updateTransactionFn).toHaveBeenCalledWith(
+    expect(mockCall).toHaveBeenCalledWith(
+      'TransactionController:updateTransaction',
       expect.objectContaining({
         id: 'tx-2',
         txReceipt: expect.objectContaining({
-          transactionHash: '0xhash',
+          transactionHash:
+            '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
           status: '0x0',
         }),
       }),
@@ -457,18 +546,23 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       hash: undefined,
     };
-    const updateTransactionFn = jest.fn();
     const orderWithoutTxHash = {
       id: 'order-3',
       status: IntentOrderStatus.SUBMITTED,
       metadata: {},
     };
+    const mockCall = jest.fn((...args: unknown[]) => {
+      const [method] = args;
+      if (method === 'TransactionController:updateTransaction') {
+        return { transactions: [existingTxMeta] };
+      }
+      return { transactions: [existingTxMeta] };
+    });
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+          call: (...args: unknown[]) => mockCall(...args),
         },
-        updateTransactionFn,
         fetchFn: jest.fn().mockResolvedValue(orderWithoutTxHash),
       }),
     );
@@ -488,8 +582,25 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    const call = updateTransactionFn.mock.calls[0][0];
-    expect(call.hash).toBeUndefined();
+    expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+      [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
+        [
+          "TransactionController:getState",
+        ],
+        [
+          "TransactionController:updateTransaction",
+          {
+            "hash": undefined,
+            "id": "tx-2",
+            "status": "submitted",
+          },
+          "BridgeStatusController - Intent order status updated: submitted",
+        ],
+      ]
+    `);
   });
 
   it('syncTransactionFromIntentStatus logs error when updateTransactionFn throws', async () => {
@@ -498,18 +609,19 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       txReceipt: {},
     };
-    const updateTransactionFn = jest.fn().mockImplementation(() => {
-      throw new Error('update failed');
-    });
     const errorSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+          call: jest.fn((method) => {
+            if (method === 'TransactionController:updateTransaction') {
+              throw new Error('update failed');
+            }
+            return { transactions: [existingTxMeta] };
+          }),
         },
-        updateTransactionFn,
         fetchFn: jest.fn().mockResolvedValue({
           id: 'order-3',
           status: IntentOrderStatus.COMPLETED,
@@ -552,8 +664,9 @@ describe('IntentManager', () => {
       status: IntentOrderStatus.SUBMITTED,
       metadata: {},
     };
-    const fetchFn = jest.fn().mockResolvedValue(expectedOrder);
-    const manager = new IntentManager(createManagerOptions({ fetchFn }));
+    const { customBridgeApiBaseUrl, fetchFn } = createManagerOptions({
+      fetchFn: jest.fn().mockResolvedValue(expectedOrder),
+    });
 
     const params = {
       srcChainId: 1,
@@ -564,7 +677,13 @@ describe('IntentManager', () => {
       aggregatorId: 'cowswap',
     };
 
-    const result = await manager.submitIntent(params, BridgeClientId.EXTENSION);
+    const result = await postSubmitOrder({
+      params,
+      clientId: BridgeClientId.EXTENSION,
+      jwt: undefined,
+      fetchFn,
+      bridgeApiBaseUrl: customBridgeApiBaseUrl,
+    });
 
     expect(result).toStrictEqual(expectedOrder);
   });
