@@ -119,8 +119,7 @@ module.exports = defineConfig({
         // exports correctly.
         if (
           workspace.ident !== '@metamask/foundryup' &&
-          workspace.ident !== '@metamask/messenger-cli' &&
-          workspace.ident !== '@metamask/messenger-docs'
+          workspace.ident !== '@metamask/messenger-cli'
         ) {
           expectCorrectWorkspaceExports(workspace);
         }
@@ -141,8 +140,7 @@ module.exports = defineConfig({
 
         // All non-root packages must have the same "build:docs" script.
         if (
-          workspace.ident !== '@metamask/messenger-cli' &&
-          workspace.ident !== '@metamask/messenger-docs'
+          workspace.ident !== '@metamask/messenger-cli'
         ) {
           expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }

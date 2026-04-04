@@ -7203,15 +7203,27 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/messenger-cli@workspace:packages/messenger-cli"
   dependencies:
+    "@docusaurus/core": "npm:^3.9.0"
+    "@docusaurus/preset-classic": "npm:^3.9.0"
+    "@docusaurus/theme-common": "npm:^3.9.0"
+    "@docusaurus/types": "npm:^3.9.0"
+    "@easyops-cn/docusaurus-search-local": "npm:^0.55.0"
+    "@mdx-js/react": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
+    "@types/node": "npm:^16.18.54"
+    "@types/react": "npm:^18.3.0"
     "@types/yargs": "npm:^17.0.32"
     deepmerge: "npm:^4.2.2"
     eslint: "npm:^9.39.1"
     execa: "npm:^5.0.0"
+    glob: "npm:^10.0.0"
     jest: "npm:^29.7.0"
+    prism-react-renderer: "npm:^2.4.1"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
     ts-jest: "npm:^29.2.5"
     typescript: "npm:~5.3.3"
     yargs: "npm:^17.7.2"
@@ -7223,37 +7235,7 @@ __metadata:
       optional: true
   bin:
     messenger-action-types: ./dist/cli.mjs
-  languageName: unknown
-  linkType: soft
-
-"@metamask/messenger-docs@workspace:packages/messenger-docs":
-  version: 0.0.0-use.local
-  resolution: "@metamask/messenger-docs@workspace:packages/messenger-docs"
-  dependencies:
-    "@docusaurus/core": "npm:^3.9.0"
-    "@docusaurus/preset-classic": "npm:^3.9.0"
-    "@docusaurus/theme-common": "npm:^3.9.0"
-    "@docusaurus/types": "npm:^3.9.0"
-    "@easyops-cn/docusaurus-search-local": "npm:^0.55.0"
-    "@mdx-js/react": "npm:^3.0.0"
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/utils": "npm:^11.9.0"
-    "@ts-bridge/cli": "npm:^0.6.4"
-    "@types/node": "npm:^16.18.54"
-    "@types/react": "npm:^18.3.0"
-    "@types/yargs": "npm:^17.0.32"
-    deepmerge: "npm:^4.2.2"
-    execa: "npm:^5.0.0"
-    glob: "npm:^10.0.0"
-    jest: "npm:^29.7.0"
-    prism-react-renderer: "npm:^2.4.1"
-    react: "npm:^18.3.1"
-    react-dom: "npm:^18.3.1"
-    ts-jest: "npm:^29.2.5"
-    typescript: "npm:~5.3.3"
-    yargs: "npm:^17.7.2"
-  bin:
-    messenger-docs: ./dist/cli.mjs
+    messenger-docs: ./dist/docs/cli.mjs
   languageName: unknown
   linkType: soft
 
