@@ -279,6 +279,13 @@ function extractJsDocText(node: TsNode, sourceFile: SourceFile): string {
   const fullText = sourceFile.getFullText();
   const raw = fullText.substring(jsDoc.getFullStart(), jsDoc.getEnd()).trim();
 
+  // Handle single-line JSDoc: /** Gets the current state. */
+  const singleLineMatch = raw.match(/^\/\*\*\s*(.*?)\s*\*\/$/u);
+  if (singleLineMatch) {
+    const text = singleLineMatch[1].replace(/^\*\s*/u, '');
+    return text || '';
+  }
+
   // Strip comment delimiters, leading asterisks, and @param/@returns/@see tags
   const lines = raw.split('\n');
   const cleaned: string[] = [];
