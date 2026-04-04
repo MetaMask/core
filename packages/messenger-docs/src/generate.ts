@@ -1,3 +1,4 @@
+import { directoryExists } from '@metamask/utils/node';
 import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -29,20 +30,6 @@ function deduplicationScore(item: MessengerItemDoc): number {
   return jsDocScore + homeScore;
 }
 
-/**
- * Check whether a path exists.
- *
- * @param targetPath - The path to check.
- * @returns A promise that resolves to true if the path exists.
- */
-async function pathExists(targetPath: string): Promise<boolean> {
-  try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 const execFileAsync = promisify(execFile);
 
@@ -140,14 +127,14 @@ export async function generate(
   const existingScanDirs: string[] = [];
   for (const dir of scanDirs) {
     const abs = path.join(projectPath, dir);
-    if (await pathExists(abs)) {
+    if (await directoryExists(abs)) {
       existingScanDirs.push(dir);
     }
   }
   const packagesDir = path.join(projectPath, 'packages');
-  const hasPackages = await pathExists(packagesDir);
+  const hasPackages = await directoryExists(packagesDir);
   const nmDir = path.join(projectPath, 'node_modules', '@metamask');
-  const hasNodeModules = await pathExists(nmDir);
+  const hasNodeModules = await directoryExists(nmDir);
 
   const sources: string[] = [];
   for (const dir of existingScanDirs) {
@@ -190,7 +177,7 @@ export async function generate(
       .map((dirent) => path.join(packagesDir, dirent.name, 'src'));
 
     for (const srcDir of packageDirs) {
-      if (!(await pathExists(srcDir))) {
+      if (!(await directoryExists(srcDir))) {
         continue;
       }
 
@@ -219,7 +206,7 @@ export async function generate(
       .map((dirent) => path.join(nmDir, dirent.name, 'dist'));
 
     for (const distDir of pkgDirs) {
-      if (!(await pathExists(distDir))) {
+      if (!(await directoryExists(distDir))) {
         continue;
       }
 
@@ -310,7 +297,7 @@ export async function generate(
   const docsDir = path.join(outputDir, 'docs');
 
   // Clean existing generated docs
-  if (await pathExists(docsDir)) {
+  if (await directoryExists(docsDir)) {
     await fs.rm(docsDir, { recursive: true });
   }
   await fs.mkdir(docsDir, { recursive: true });
