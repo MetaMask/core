@@ -9,7 +9,7 @@
 
 @font-face {
   font-family: 'MM Sans Mono';
-  src: url('/fonts/MM-Sans/MM_Sans_Mono-Regular.woff2') format('woff2');
+  src: url('../../static/fonts/MM-Sans/MM_Sans_Mono-Regular.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
