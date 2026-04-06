@@ -395,14 +395,6 @@ function mergeReferences(
 }
 
 /**
- * Checks whether two arrays are shallowly equal.
- *
- * @param a - The first array.
- * @param b - The second array.
- * @returns `true` if both arrays have the same length and equal values at
- * every index.
- */
-/**
  * Updates the `references` field with a tsconfig file. May update the
  * formatting of the file.
  *
