@@ -340,9 +340,28 @@ export async function lintTsconfigs({
 }
 
 /**
+ * Normalises a tsconfig reference path to a bare directory path for
+ * comparison purposes, by stripping a trailing `/tsconfig.json` suffix if
+ * present. This allows existing references that use explicit file paths (e.g.
+ * `../foo/tsconfig.json`) to be matched against canonical bare-directory paths
+ * (e.g. `../foo`).
+ *
+ * @param refPath - The reference path to normalise.
+ * @returns The normalised path.
+ */
+function normaliseReferencePath(refPath: string): string {
+  return refPath.replace(/\/tsconfig\.json$/u, '');
+}
+
+/**
  * Produces an updated `references` list within a tsconfig file that preserves
  * the order of existing references, removes extras, and adds missing ones in
  * the order they appear in `newReferences`.
+ *
+ * Paths are compared after normalisation via `normaliseReferencePath`, so
+ * existing references with non-standard formats (e.g. `../foo/tsconfig.json`)
+ * are correctly matched against canonical bare-directory paths (e.g. `../foo`)
+ * and replaced with the canonical form in the output.
  *
  * @param currentReferences - The references currently in the tsconfig file.
  * @param newReferences - The complete desired set of references.
@@ -352,16 +371,24 @@ function mergeReferences(
   currentReferences: readonly TsconfigReference[],
   newReferences: readonly TsconfigReference[],
 ): TsconfigReference[] {
-  const newReferencePaths = new Set(newReferences.map((ref) => ref.path));
-  const currentReferencePaths = new Set(
-    currentReferences.map((ref) => ref.path),
+  const newReferencesByNormalisedPath = new Map(
+    newReferences.map((ref) => [normaliseReferencePath(ref.path), ref]),
+  );
+  const currentNormalisedPaths = new Set(
+    currentReferences.map((ref) => normaliseReferencePath(ref.path)),
   );
 
-  const keptReferences = currentReferences.filter((ref) =>
-    newReferencePaths.has(ref.path),
-  );
+  // Keep existing references that are still valid, replacing them with the
+  // canonical form from newReferences.
+  const keptReferences = currentReferences
+    .map((ref) =>
+      newReferencesByNormalisedPath.get(normaliseReferencePath(ref.path)),
+    )
+    .filter((ref): ref is TsconfigReference => ref !== undefined);
+
+  // Append new references that aren't already present.
   const addedReferences = newReferences.filter(
-    (ref) => !currentReferencePaths.has(ref.path),
+    (ref) => !currentNormalisedPaths.has(normaliseReferencePath(ref.path)),
   );
 
   return [...keptReferences, ...addedReferences];

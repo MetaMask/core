@@ -8,16 +8,16 @@
       "path": "../base-controller"
     },
     {
-      "path": "../controller-utils"
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
     },
     {
       "path": "../keyring-controller"
     },
     {
-      "path": "../messenger"
-    },
-    {
-      "path": "../profile-sync-controller"
+      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]
