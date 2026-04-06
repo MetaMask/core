@@ -197,6 +197,9 @@ async function getReferencedPackageNamesFromTsconfigFile({
 /**
  * Computes the expected reference path for a workspace within a tsconfig file.
  *
+ * Note if the file is `tsconfig.json`, we drop the trailing `/tsconfig.json`
+ * from the reference path.
+ *
  * @param args - The arguments to this function.
  * @param args.workspace - The workspace to compute the path for.
  * @param args.tsconfig - The tsconfig file to compute the path relative to.
@@ -331,12 +334,12 @@ export async function lintTsconfigs({
     }),
   );
   const byTsconfig = new Map(results);
-  const passed = results.every(
+  const didPass = results.every(
     ([, report]) =>
       report.missingReferencePaths.length === 0 &&
       report.extraReferencePaths.length === 0,
   );
-  return { didPass: passed, didApplyFixes: false, byTsconfig };
+  return { didPass, didApplyFixes: false, byTsconfig };
 }
 
 /**
@@ -358,11 +361,6 @@ function normalizeReferencePath(refPath: string): string {
  * the order of existing references, removes extras, and adds missing ones in
  * the order they appear in `newReferences`.
  *
- * Paths are compared after normalization via `normalizeReferencePath`, so
- * existing references with non-standard formats (e.g. `../foo/tsconfig.json`)
- * are correctly matched against canonical bare-directory paths (e.g. `../foo`)
- * and replaced with the canonical form in the output.
- *
  * @param currentReferences - The references currently in the tsconfig file.
  * @param newReferences - The complete desired set of references.
  * @returns The merged references list.
@@ -371,11 +369,11 @@ function mergeReferences(
   currentReferences: readonly TsconfigReference[],
   newReferences: readonly TsconfigReference[],
 ): TsconfigReference[] {
-  const newReferencesByNormalizedPath = new Map(
-    newReferences.map((ref) => [normalizeReferencePath(ref.path), ref]),
-  );
   const currentNormalizedPaths = new Set(
     currentReferences.map((ref) => normalizeReferencePath(ref.path)),
+  );
+  const newReferencesByNormalizedPath = new Map(
+    newReferences.map((ref) => [normalizeReferencePath(ref.path), ref]),
   );
 
   // Keep existing references that are still valid, replacing them with the
@@ -395,8 +393,8 @@ function mergeReferences(
 }
 
 /**
- * Updates the `references` field with a tsconfig file. May update the
- * formatting of the file.
+ * Updates the `references` field with a tsconfig file, updating the formatting
+ * of the file to appease Prettier if necessary.
  *
  * @param tsconfig - Parsed tsconfig.
  * @param newReferences - Desired references to write to the file.
