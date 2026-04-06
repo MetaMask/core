@@ -26,9 +26,11 @@ function deduplicationScore(item: MessengerItemDoc): number {
     .split(':')[0]
     .replace(/Controller|Service/u, '')
     .toLowerCase();
-  const homeScore = item.sourceFile.toLowerCase().includes(namespacePrefix)
-    ? 1
-    : 0;
+  const homeScore =
+    namespacePrefix.length > 0 &&
+    item.sourceFile.toLowerCase().includes(namespacePrefix)
+      ? 1
+      : 0;
   return jsDocScore + homeScore;
 }
 
