@@ -12,6 +12,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../preferences-controller"
+    }
+    {
       "path": "../keyring-controller"
     }
   ],
