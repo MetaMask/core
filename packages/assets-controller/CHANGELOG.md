@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Background pipeline: Snap + RPC run in parallel → Detection → Token + Price when basic functionality is enabled; when disabled (RPC-only mode), Token + Price are omitted (fire-and-forget merge)
   - `handleAssetsUpdate` skips token/price enrichment and strips `metadata` / `price` from the effective request when basic functionality is disabled (RPC-only mode)
   - `setSelectedCurrency` no longer triggers a price refresh via `getAssets` when basic functionality is disabled
+  - Background pipeline: Snap + RPC run in parallel → Detection → Token + Price (fire-and-forget, merged into state)
 - `PriceDataSource` now batches spot-price API requests in chunks of 50 using `reduceInBatchesSerially` to avoid DynamoDB batch-limit errors ([#8383](https://github.com/MetaMask/core/pull/8383))
 - `TokenDataSource` now batches token metadata API requests in chunks of 50 using `reduceInBatchesSerially` to avoid DynamoDB batch-limit errors ([#8383](https://github.com/MetaMask/core/pull/8383))
 - `PriceDataSource` filters out all synthetic `slip44:NUMBER-*` staking-position asset IDs before calling the Price API ([#8383](https://github.com/MetaMask/core/pull/8383))
