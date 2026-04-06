@@ -125,7 +125,7 @@ async function resolveControllerName(
           path.join(dir, `${bareSpec}.d.ts`),
           path.join(dir, bareSpec, 'index.d.ts'),
         ]
-      : [path.join(dir, `${spec}.ts`), path.join(dir, spec, 'index.ts')];
+      : [path.join(dir, `${bareSpec}.ts`), path.join(dir, bareSpec, 'index.ts')];
 
     for (const candidate of candidates) {
       if (!(await fileExists(candidate))) {
