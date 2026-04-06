@@ -15,7 +15,7 @@ module.exports = merge(baseConfig, {
   displayName,
 
   // cli.ts is tested via execa subprocess in cli.test.ts; Jest can't instrument it
-  coveragePathIgnorePatterns: ['./src/cli.ts', './src/docs/'],
+  coveragePathIgnorePatterns: ['./src/cli.ts', './src/docs/cli.ts'],
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
