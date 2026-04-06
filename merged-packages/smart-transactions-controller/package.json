@@ -29,12 +29,13 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --clean",
-    "generate-method-action-types": "tsx ./scripts/generate-method-action-types.ts ./src",
-    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:changelog && yarn generate-method-action-types --check",
+    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:changelog && yarn messenger-action-types:check",
     "lint:changelog": "auto-changelog validate --prettier",
     "lint:eslint": "eslint . --cache --ext js,ts",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:changelog && yarn generate-method-action-types --fix",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:changelog && yarn messenger-action-types:generate",
     "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "messenger-action-types:check": "messenger-action-types --check",
+    "messenger-action-types:generate": "messenger-action-types --generate",
     "prepack": "./scripts/prepack.sh",
     "test": "jest && attw --pack",
     "test:watch": "jest --watchAll"
@@ -74,6 +75,7 @@
     "@metamask/eslint-config-typescript": "^12.1.0",
     "@metamask/gas-fee-controller": "^26.0.0",
     "@metamask/json-rpc-engine": "^10.0.1",
+    "@metamask/messenger-cli": "^0.1.0",
     "@ts-bridge/cli": "^0.6.3",
     "@types/eslint": "^9.6.1",
     "@types/jest": "^26.0.24",
@@ -97,9 +99,7 @@
     "prettier-plugin-packagejson": "^2.4.3",
     "sinon": "^9.2.4",
     "ts-jest": "^29.1.4",
-    "tsx": "^4.20.5",
-    "typescript": "~5.3.3",
-    "yargs": "^17.7.2"
+    "typescript": "~5.3.3"
   },
   "peerDependenciesMeta": {
     "@metamask/accounts-controller": {
@@ -131,7 +131,6 @@
       "@metamask/controller-utils>babel-runtime>core-js": false,
       "@metamask/transaction-controller>@metamask/core-backend>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
       "@metamask/transaction-controller>@metamask/core-backend>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false,
-      "tsx>esbuild": false,
       "@metamask/profile-sync-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
       "@metamask/profile-sync-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
