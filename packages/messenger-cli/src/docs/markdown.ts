@@ -27,9 +27,9 @@ function linkifyReferences(
     if (linkFull) {
       return `[\`${name}\`](${linkFull})`;
     }
-    // Check if the anchor exists anywhere in known names values
+    // Check if the anchor matches exactly in known names values
     for (const [, href] of knownNames) {
-      if (href.includes(anchor)) {
+      if (href.endsWith(`#${anchor}`)) {
         return `[\`${name}\`](${href})`;
       }
     }
