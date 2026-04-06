@@ -186,11 +186,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/data-sources/PriceDataSource.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
     "no-restricted-syntax": {
       "count": 3
