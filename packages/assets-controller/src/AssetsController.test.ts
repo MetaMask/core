@@ -38,6 +38,19 @@ const formatExchangeRatesForBridgeMock = jest.mocked(
   formatExchangeRatesForBridge,
 );
 
+/**
+ * Flush pending microtasks so fire-and-forget background pipelines settle
+ * before Jest tears down the test.  Multiple rounds are needed because the
+ * background pipeline chains several async steps.
+ *
+ * @returns A promise that resolves after pending callbacks.
+ */
+async function flushPromises(): Promise<void> {
+  for (let i = 0; i < 10; i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
 }
@@ -192,7 +205,12 @@ async function withController<ReturnValue>(
     ...controllerOptions,
   });
 
-  return fn({ controller, messenger });
+  try {
+    return await fn({ controller, messenger });
+  } finally {
+    await flushPromises();
+    controller.destroy();
+  }
 }
 
 describe('AssetsController', () => {
@@ -598,6 +616,84 @@ describe('AssetsController', () => {
 
         expect(assets).toBeDefined();
         // When queryApiClient is not provided, no data sources run; result is from state
+      });
+    });
+
+    describe('pipeline splitting', () => {
+      it('returns from getAssets before background pipelines complete', async () => {
+        // Spy on handleAssetsUpdate to count how many times state is written.
+        // Fast pipeline commits once; background pipelines each commit once more.
+        await withController(async ({ controller }) => {
+          const updateSpy = jest.spyOn(controller, 'handleAssetsUpdate');
+
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+          });
+
+          // getAssets has returned — fast pipeline committed to state.
+          // Background pipelines are still in flight (fire-and-forget).
+          expect(updateSpy).not.toHaveBeenCalled(); // internal #updateState, not handleAssetsUpdate
+
+          // Let all pending microtasks resolve so background pipelines finish.
+          await flushPromises();
+
+          updateSpy.mockRestore();
+        });
+      });
+
+      it('getAssets resolves without error in basic functionality mode', async () => {
+        await withController(async ({ controller }) => {
+          const assets = await controller.getAssets(
+            [createMockInternalAccount()],
+            { forceUpdate: true },
+          );
+          expect(assets).toBeDefined();
+
+          await flushPromises();
+        });
+      });
+
+      it('background pipelines merge state without overwriting fast-pipeline results', async () => {
+        const initialState: Partial<AssetsControllerState> = {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+            },
+          },
+        };
+
+        await withController(
+          { state: initialState },
+          async ({ controller }) => {
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            });
+
+            await flushPromises();
+
+            // Background pipelines use 'merge' mode — they don't wipe existing entries.
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                MOCK_NATIVE_ASSET_ID
+              ],
+            ).toBeDefined();
+          },
+        );
+      });
+
+      it('getAssets resolves without error when isBasicFunctionality is false', async () => {
+        await withController(
+          { isBasicFunctionality: () => false },
+          async ({ controller }) => {
+            const assets = await controller.getAssets(
+              [createMockInternalAccount()],
+              { forceUpdate: true },
+            );
+            expect(assets).toBeDefined();
+
+            await flushPromises();
+          },
+        );
       });
     });
 

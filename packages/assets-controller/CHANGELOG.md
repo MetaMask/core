@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Split `getAssets` fetch pipeline into a fast awaited path and a parallel fire-and-forget background path to reduce perceived latency on unlock and onboarding ([#8329](https://github.com/MetaMask/core/pull/8329))
+  - Fast pipeline: AccountsApi + StakedBalance → Detection → Token + Price (awaited, committed to state immediately)
+  - Background pipeline: Snap + RPC run in parallel → Detection → Token + Price (fire-and-forget, merged into state)
+- `PriceDataSource` now batches spot-price API requests in chunks of 50 using `reduceInBatchesSerially` to avoid DynamoDB batch-limit errors ([#8329](https://github.com/MetaMask/core/pull/8329))
+- `TokenDataSource` now batches token metadata API requests in chunks of 50 using `reduceInBatchesSerially` to avoid DynamoDB batch-limit errors ([#8329](https://github.com/MetaMask/core/pull/8329))
+- `PriceDataSource` filters out all synthetic `slip44:NUMBER-*` staking-position asset IDs before calling the Price API ([#8329](https://github.com/MetaMask/core/pull/8329))
+- `TokenDataSource` filters EVM ERC-20 tokens by `occurrences >= 3` and treats missing occurrences as 0 ([#8329](https://github.com/MetaMask/core/pull/8329))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 

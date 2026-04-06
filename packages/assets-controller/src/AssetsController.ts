@@ -1133,12 +1133,22 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
-      const sources = this.#isBasicFunctionality()
+      // Default to 'merge' when fetching a subset of chains so we don't wipe
+      // balances from chains that weren't included in this fetch.
+      const isPartialChainFetch =
+        options?.chainIds !== undefined &&
+        options.chainIds.length < this.#enabledChains.size;
+      const updateMode =
+        options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
+
+      // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
+      // Snap and RPC are excluded here due to their latency (snap triggers account
+      // creation, RPC is slow on many chains). Results are committed to state
+      // immediately so the UI can display balances without waiting for them.
+      const fastSources = this.#isBasicFunctionality()
         ? [
             createParallelBalanceMiddleware([
               this.#accountsApiDataSource,
-              this.#snapDataSource,
-              this.#rpcDataSource,
               this.#stakedBalanceDataSource,
             ]),
             this.#detectionMiddleware,
@@ -1147,23 +1157,35 @@ export class AssetsController extends BaseController<
               this.#priceDataSource,
             ]),
           ]
-        : [
-            this.#rpcDataSource,
-            this.#stakedBalanceDataSource,
-            this.#detectionMiddleware,
-          ];
+        : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
       const { response, durationByDataSource } = await this.#executeMiddlewares(
-        sources,
+        fastSources,
         request,
       );
-      // Default to 'merge' when fetching a subset of chains so we don't wipe
-      // balances from chains that weren't included in this fetch.
-      const isPartialChainFetch =
-        options?.chainIds !== undefined &&
-        options.chainIds.length < this.#enabledChains.size;
-      const updateMode =
-        options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
       await this.#updateState({ ...response, updateMode });
+
+      // Background pipeline: snap and RPC run in parallel after the fast path
+      // commits to state. Their balances are merged together before detection
+      // and metadata/price enrichment, then merged into state.
+      const slowSources = this.#isBasicFunctionality()
+        ? [this.#snapDataSource, this.#rpcDataSource]
+        : [this.#rpcDataSource];
+
+      this.#executeMiddlewares(
+        [
+          createParallelBalanceMiddleware(slowSources),
+          this.#detectionMiddleware,
+          createParallelMiddleware([
+            this.#tokenDataSource,
+            this.#priceDataSource,
+          ]),
+        ],
+        request,
+      )
+        .then(({ response: slowResponse }) =>
+          this.#updateState({ ...slowResponse, updateMode: 'merge' }),
+        )
+        .catch((error) => log('Background pipeline failed', { error }));
 
       const durationMs = performance.now() - startTime;
 

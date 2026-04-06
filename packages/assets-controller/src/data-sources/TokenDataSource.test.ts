@@ -626,6 +626,39 @@ describe('TokenDataSource', () => {
     );
   });
 
+  it('middleware splits large asset lists into batches of 50', async () => {
+    // Generate 120 distinct ERC-20 asset IDs to exceed the 50-item batch limit.
+    const assetIds = Array.from(
+      { length: 120 },
+      (_, i) =>
+        `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
+    );
+    const assetsResponse = assetIds.map((id) => createMockAssetResponse(id));
+
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse,
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': assetIds,
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    // With 120 assets and a batch size of 50, the API should be called three times.
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledTimes(3);
+    expect(apiClient.tokens.fetchV3Assets.mock.calls[0][0]).toHaveLength(50);
+    expect(apiClient.tokens.fetchV3Assets.mock.calls[1][0]).toHaveLength(50);
+    expect(apiClient.tokens.fetchV3Assets.mock.calls[2][0]).toHaveLength(20);
+  });
+
   it('middleware includes partial support networks', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
@@ -699,35 +732,16 @@ describe('TokenDataSource', () => {
     );
   });
 
-  it('middleware filters out erc20 assets flagged malicious by Blockaid', async () => {
-    const maliciousAsset =
+  it('middleware filters out erc20 assets with insufficient occurrences', async () => {
+    const spamAsset =
       'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
 
     const { controller } = setupController({
-      messenger: createTestMessenger(async ({ chainId, tokens }) => {
-        expect(chainId).toBe('0x1');
-        const out: BulkTokenScanResponse = {};
-        for (const addr of tokens) {
-          const lower = addr.toLowerCase();
-          out[lower] =
-            lower === '0x1111111111111111111111111111111111111111'
-              ? {
-                  result_type: TokenScanResultType.Malicious,
-                  chain: chainId,
-                  address: lower,
-                }
-              : {
-                  result_type: TokenScanResultType.Benign,
-                  chain: chainId,
-                  address: lower,
-                };
-        }
-        return out;
-      }),
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [
         createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 5 }),
-        createMockAssetResponse(maliciousAsset, { occurrences: 99 }),
+        createMockAssetResponse(spamAsset, { occurrences: 1 }),
       ],
     });
 
@@ -735,12 +749,12 @@ describe('TokenDataSource', () => {
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
-          'mock-account-id': [MOCK_TOKEN_ASSET, maliciousAsset],
+          'mock-account-id': [MOCK_TOKEN_ASSET, spamAsset],
         },
         assetsBalance: {
           'mock-account-id': {
             [MOCK_TOKEN_ASSET]: { amount: '100' },
-            [maliciousAsset]: { amount: '50' },
+            [spamAsset]: { amount: '50' },
           },
         },
       },
@@ -749,39 +763,28 @@ describe('TokenDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    expect(context.response.assetsInfo?.[maliciousAsset]).toBeUndefined();
+    expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
 
     const accountBalances = context.response.assetsBalance?.[
       'mock-account-id'
     ] as Record<string, unknown> | undefined;
     expect(accountBalances?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    expect(accountBalances?.[maliciousAsset]).toBeUndefined();
+    expect(accountBalances?.[spamAsset]).toBeUndefined();
 
     expect(context.response.detectedAssets?.['mock-account-id']).toContain(
       MOCK_TOKEN_ASSET,
     );
     expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
-      maliciousAsset,
+      spamAsset,
     );
   });
 
-  it('middleware keeps non-native assets with undefined occurrences when Blockaid reports benign', async () => {
+  it('middleware filters out erc20 assets with missing occurrences', async () => {
     const noOccurrenceAsset =
       'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
 
     const { controller } = setupController({
-      messenger: createTestMessenger(async ({ tokens }) => {
-        const out: BulkTokenScanResponse = {};
-        for (const addr of tokens) {
-          const lower = addr.toLowerCase();
-          out[lower] = {
-            result_type: TokenScanResultType.Benign,
-            chain: '0x1',
-            address: lower,
-          };
-        }
-        return out;
-      }),
+      messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [
         createMockAssetResponse(noOccurrenceAsset, { occurrences: undefined }),
@@ -799,7 +802,55 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsInfo?.[noOccurrenceAsset]).toBeDefined();
+    // EVM tokens without occurrence data (treated as 0) are filtered out.
+    expect(context.response.assetsInfo?.[noOccurrenceAsset]).toBeUndefined();
+  });
+
+  it('middleware filters out non-evm token assets flagged malicious by Blockaid', async () => {
+    const maliciousSolanaToken =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+    const benignSolanaToken =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:So11111111111111111111111111111111111111112' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(async ({ tokens }) => {
+        const out: BulkTokenScanResponse = {};
+        for (const addr of tokens) {
+          out[addr] =
+            addr === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+              ? {
+                  result_type: TokenScanResultType.Malicious,
+                  chain: 'solana',
+                  address: addr,
+                }
+              : {
+                  result_type: TokenScanResultType.Benign,
+                  chain: 'solana',
+                  address: addr,
+                };
+        }
+        return out;
+      }),
+      supportedNetworks: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+      assetsResponse: [
+        createMockAssetResponse(maliciousSolanaToken),
+        createMockAssetResponse(benignSolanaToken),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [maliciousSolanaToken, benignSolanaToken],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[benignSolanaToken]).toBeDefined();
+    expect(context.response.assetsInfo?.[maliciousSolanaToken]).toBeUndefined();
   });
 
   it('middleware keeps native assets regardless of occurrences', async () => {
