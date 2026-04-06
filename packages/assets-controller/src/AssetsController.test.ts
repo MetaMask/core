@@ -178,13 +178,6 @@ async function withController<ReturnValue>(
   ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
     provider: {},
   }));
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('TokenListController:getState', () => ({
-    tokensChainsCache: {},
-  }));
 
   if (clientControllerState !== undefined) {
     (
@@ -292,13 +285,6 @@ describe('AssetsController', () => {
       ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
         provider: {},
       }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('TokenListController:getState', () => ({
-        tokensChainsCache: {},
-      }));
 
       const controller = new AssetsController({
         messenger: messenger as unknown as AssetsControllerMessenger,
@@ -392,13 +378,6 @@ describe('AssetsController', () => {
         }
       ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
         provider: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('TokenListController:getState', () => ({
-        tokensChainsCache: {},
       }));
 
       expect(

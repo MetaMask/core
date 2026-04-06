@@ -2,7 +2,6 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
-import type { GetTokenListState } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -267,7 +266,6 @@ type AllowedActions =
   // AssetsController
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
   // RpcDataSource
-  | GetTokenListState
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   // RpcDataSource, StakedBalanceDataSource

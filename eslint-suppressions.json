@@ -188,7 +188,7 @@
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {

@@ -53,7 +53,6 @@ export function createMockAssetControllerMessenger(): {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
       'AssetsController:getState',
       // RpcDataSource
-      'TokenListController:getState',
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       // RpcDataSource, StakedBalanceDataSource
@@ -172,10 +171,6 @@ export function registerRpcDataSourceActions(
   rootMessenger.registerActionHandler('AssetsController:getState', () =>
     getDefaultAssetsControllerState(),
   );
-
-  rootMessenger.registerActionHandler('TokenListController:getState', () => ({
-    tokensChainsCache: {},
-  }));
 
   rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',
