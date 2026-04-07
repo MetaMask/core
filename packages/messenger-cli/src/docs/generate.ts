@@ -212,7 +212,9 @@ export async function generate(
     );
   }
 
-  console.log(`Found ${allItems.length} messenger items total.`);
+  console.log(
+    `Found ${allItems.length} messenger ${allItems.length === 1 ? 'item' : 'items'} total.`,
+  );
 
   // Group by namespace (part before the colon), deduplicating by typeString.
   // When duplicates exist, prefer the one with JSDoc, or from the package
@@ -318,7 +320,9 @@ export async function generate(
   );
   const totalEvents = namespaces.reduce((sum, ns) => sum + ns.events.length, 0);
 
-  console.log(`Generated docs for ${namespaces.length} namespaces.`);
+  console.log(
+    `Generated docs for ${namespaces.length} ${namespaces.length === 1 ? 'namespace' : 'namespaces'}.`,
+  );
   console.log(`  Actions: ${totalActions}`);
   console.log(`  Events: ${totalEvents}`);
   console.log(`Output: ${docsDir}/`);

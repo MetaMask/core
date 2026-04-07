@@ -52,8 +52,8 @@ export type FooControllerGetAction = {
       const result = await runCLI([directoryPath]);
 
       expect(result.exitCode).toBe(0);
-      expect(result.all).toContain('Found 1 messenger items');
-      expect(result.all).toContain('Generated docs for 1 namespaces');
+      expect(result.all).toContain('Found 1 messenger item');
+      expect(result.all).toContain('Generated docs for 1 namespace');
     });
   });
 
@@ -80,7 +80,7 @@ export type BarDoAction = {
       ]);
 
       expect(result.exitCode).toBe(0);
-      expect(result.all).toContain('Found 1 messenger items');
+      expect(result.all).toContain('Found 1 messenger item');
     });
   });
 
@@ -143,7 +143,7 @@ export type QuxAction = {
       const result = await runCLI([directoryPath]);
 
       expect(result.exitCode).toBe(0);
-      expect(result.all).toContain('Found 1 messenger items');
+      expect(result.all).toContain('Found 1 messenger item');
     });
   });
 
