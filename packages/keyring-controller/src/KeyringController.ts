@@ -38,6 +38,7 @@ import { ulid } from 'ulid';
 
 import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
+import type { KeyringControllerMethodActions } from './KeyringController-method-action-types';
 import type {
   Eip7702AuthorizationParams,
   PersonalMessageParams,
@@ -45,6 +46,29 @@ import type {
 } from './types';
 
 const name = 'KeyringController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'signMessage',
+  'signEip7702Authorization',
+  'signPersonalMessage',
+  'signTypedMessage',
+  'decryptMessage',
+  'getEncryptionPublicKey',
+  'getAccounts',
+  'getKeyringsByType',
+  'getKeyringForAccount',
+  'persistAllKeyrings',
+  'prepareUserOperation',
+  'patchUserOperation',
+  'signUserOperation',
+  'addNewAccount',
+  'withKeyring',
+  'withKeyringUnsafe',
+  'addNewKeyring',
+  'createNewVaultAndKeychain',
+  'createNewVaultAndRestore',
+  'removeAccount',
+] as const;
 
 /**
  * Available keyring types
@@ -115,106 +139,6 @@ export type KeyringControllerGetStateAction = {
   handler: () => KeyringControllerState;
 };
 
-export type KeyringControllerSignMessageAction = {
-  type: `${typeof name}:signMessage`;
-  handler: KeyringController['signMessage'];
-};
-
-export type KeyringControllerSignEip7702AuthorizationAction = {
-  type: `${typeof name}:signEip7702Authorization`;
-  handler: KeyringController['signEip7702Authorization'];
-};
-
-export type KeyringControllerSignPersonalMessageAction = {
-  type: `${typeof name}:signPersonalMessage`;
-  handler: KeyringController['signPersonalMessage'];
-};
-
-export type KeyringControllerSignTypedMessageAction = {
-  type: `${typeof name}:signTypedMessage`;
-  handler: KeyringController['signTypedMessage'];
-};
-
-export type KeyringControllerDecryptMessageAction = {
-  type: `${typeof name}:decryptMessage`;
-  handler: KeyringController['decryptMessage'];
-};
-
-export type KeyringControllerGetEncryptionPublicKeyAction = {
-  type: `${typeof name}:getEncryptionPublicKey`;
-  handler: KeyringController['getEncryptionPublicKey'];
-};
-
-export type KeyringControllerGetKeyringsByTypeAction = {
-  type: `${typeof name}:getKeyringsByType`;
-  handler: KeyringController['getKeyringsByType'];
-};
-
-export type KeyringControllerGetKeyringForAccountAction = {
-  type: `${typeof name}:getKeyringForAccount`;
-  handler: KeyringController['getKeyringForAccount'];
-};
-
-export type KeyringControllerGetAccountsAction = {
-  type: `${typeof name}:getAccounts`;
-  handler: KeyringController['getAccounts'];
-};
-
-export type KeyringControllerPersistAllKeyringsAction = {
-  type: `${typeof name}:persistAllKeyrings`;
-  handler: KeyringController['persistAllKeyrings'];
-};
-
-export type KeyringControllerPrepareUserOperationAction = {
-  type: `${typeof name}:prepareUserOperation`;
-  handler: KeyringController['prepareUserOperation'];
-};
-
-export type KeyringControllerPatchUserOperationAction = {
-  type: `${typeof name}:patchUserOperation`;
-  handler: KeyringController['patchUserOperation'];
-};
-
-export type KeyringControllerSignUserOperationAction = {
-  type: `${typeof name}:signUserOperation`;
-  handler: KeyringController['signUserOperation'];
-};
-
-export type KeyringControllerAddNewAccountAction = {
-  type: `${typeof name}:addNewAccount`;
-  handler: KeyringController['addNewAccount'];
-};
-
-export type KeyringControllerWithKeyringAction = {
-  type: `${typeof name}:withKeyring`;
-  handler: KeyringController['withKeyring'];
-};
-
-export type KeyringControllerWithKeyringUnsafeAction = {
-  type: `${typeof name}:withKeyringUnsafe`;
-  handler: KeyringController['withKeyringUnsafe'];
-};
-
-export type KeyringControllerCreateNewVaultAndKeychainAction = {
-  type: `${typeof name}:createNewVaultAndKeychain`;
-  handler: KeyringController['createNewVaultAndKeychain'];
-};
-
-export type KeyringControllerCreateNewVaultAndRestoreAction = {
-  type: `${typeof name}:createNewVaultAndRestore`;
-  handler: KeyringController['createNewVaultAndRestore'];
-};
-
-export type KeyringControllerAddNewKeyringAction = {
-  type: `${typeof name}:addNewKeyring`;
-  handler: KeyringController['addNewKeyring'];
-};
-
-export type KeyringControllerRemoveAccountAction = {
-  type: `${typeof name}:removeAccount`;
-  handler: KeyringController['removeAccount'];
-};
-
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -237,26 +161,7 @@ export type KeyringControllerUnlockEvent = {
 
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
-  | KeyringControllerSignMessageAction
-  | KeyringControllerSignEip7702AuthorizationAction
-  | KeyringControllerSignPersonalMessageAction
-  | KeyringControllerSignTypedMessageAction
-  | KeyringControllerDecryptMessageAction
-  | KeyringControllerGetEncryptionPublicKeyAction
-  | KeyringControllerGetAccountsAction
-  | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetKeyringForAccountAction
-  | KeyringControllerPersistAllKeyringsAction
-  | KeyringControllerPrepareUserOperationAction
-  | KeyringControllerPatchUserOperationAction
-  | KeyringControllerSignUserOperationAction
-  | KeyringControllerAddNewAccountAction
-  | KeyringControllerWithKeyringAction
-  | KeyringControllerWithKeyringUnsafeAction
-  | KeyringControllerAddNewKeyringAction
-  | KeyringControllerCreateNewVaultAndKeychainAction
-  | KeyringControllerCreateNewVaultAndRestoreAction
-  | KeyringControllerRemoveAccountAction;
+  | KeyringControllerMethodActions;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1926,104 +1831,9 @@ export class KeyringController<
    * actions.
    */
   #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${name}:signMessage`,
-      this.signMessage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:signEip7702Authorization`,
-      this.signEip7702Authorization.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:signPersonalMessage`,
-      this.signPersonalMessage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:signTypedMessage`,
-      this.signTypedMessage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:decryptMessage`,
-      this.decryptMessage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:getEncryptionPublicKey`,
-      this.getEncryptionPublicKey.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:getAccounts`,
-      this.getAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:getKeyringsByType`,
-      this.getKeyringsByType.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:getKeyringForAccount`,
-      this.getKeyringForAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:persistAllKeyrings`,
-      this.persistAllKeyrings.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:prepareUserOperation`,
-      this.prepareUserOperation.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:patchUserOperation`,
-      this.patchUserOperation.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:signUserOperation`,
-      this.signUserOperation.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:addNewAccount`,
-      this.addNewAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:withKeyring`,
-      this.withKeyring.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:withKeyringUnsafe`,
-      this.withKeyringUnsafe.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:addNewKeyring`,
-      this.addNewKeyring.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:createNewVaultAndKeychain`,
-      this.createNewVaultAndKeychain.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:createNewVaultAndRestore`,
-      this.createNewVaultAndRestore.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:removeAccount`,
-      this.removeAccount.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
