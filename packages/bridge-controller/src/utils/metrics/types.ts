@@ -40,6 +40,7 @@ export type QuoteFetchData = {
   initial_load_time_all_quotes: number;
   price_impact: number;
   has_gas_included_quote: boolean;
+  security_warnings: string[];
 };
 
 export type TradeData = {

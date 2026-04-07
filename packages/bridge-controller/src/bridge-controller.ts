@@ -958,7 +958,23 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       has_gas_included_quote: this.state.quotes.some(
         ({ quote }) => quote.gasIncluded,
       ),
+      security_warnings: this.state.tokenWarnings.map(
+        (warning) => warning.description,
+      ),
     };
+  };
+
+  // The client-provided `warnings` field comes from the Blockaid `/message/scan/`
+  // endpoint, currently used for Solana only. This has not been migrated to the
+  // backend yet, so it is merged here with controller-derived token warnings.
+  readonly #mergeSecurityWarnings = (
+    clientProps: Record<string, unknown>,
+  ): string[] => {
+    const clientWarnings = (clientProps.warnings as string[]) ?? [];
+    const controllerWarnings = this.state.tokenWarnings.map(
+      (warning) => warning.description,
+    );
+    return [...new Set([...clientWarnings, ...controllerWarnings])];
   };
 
   readonly #getEventProperties = <
@@ -1000,6 +1016,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
+          security_warnings: this.#mergeSecurityWarnings(clientProps),
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
         return {

@@ -26,6 +26,7 @@ import * as selectors from './selectors';
 import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
 import type {
   BridgeControllerMessenger,
+  BridgeControllerState,
   QuoteResponse,
   GenericQuoteRequest,
 } from './types';
@@ -41,7 +42,7 @@ import {
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
-import { FeatureId } from './utils/validators';
+import { FeatureId, TokenFeatureType } from './utils/validators';
 import { flushPromises } from '../../../tests/helpers';
 import { handleFetch } from '../../controller-utils/src';
 import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json';
@@ -3231,8 +3232,64 @@ describe('BridgeController', function () {
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+      });
+    });
+
+    it('should include controller-derived security_warnings in QuotesReceived', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          {
+            walletAddress: '0x123',
+          },
+          {
+            stx_enabled: false,
+            security_warnings: [],
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            usd_amount_source: 100,
+          },
+        );
+        (
+          controller as unknown as {
+            update: (updater: (s: BridgeControllerState) => void) => void;
+          }
+        ).update((state: BridgeControllerState) => {
+          state.tokenWarnings = [
+            {
+              feature_id: 'token_flagged_malicious',
+              type: TokenFeatureType.MALICIOUS,
+              description: 'Token is flagged',
+            },
+          ];
+        });
+        jest.clearAllMocks();
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          UnifiedSwapBridgeEventName.QuotesReceived,
+          {
+            warnings: ['insufficient_balance'],
+            usd_quoted_gas: 0,
+            gas_included: false,
+            gas_included_7702: false,
+            quoted_time_minutes: 10,
+            usd_quoted_return: 100,
+            price_impact: 0,
+            provider: 'provider_bridge',
+            best_quote_provider: 'provider_bridge2',
+            can_submit: true,
+            usd_balance_source: 0,
+          },
+        );
+        expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+        expect(trackMetaMetricsFn).toHaveBeenCalledWith(
+          UnifiedSwapBridgeEventName.QuotesReceived,
+          expect.objectContaining({
+            security_warnings: ['insufficient_balance', 'Token is flagged'],
+          }),
+        );
       });
     });
   });
@@ -3494,7 +3551,7 @@ describe('BridgeController', function () {
 
     it('should not track the event if the account keyring type is not set', async () => {
       await withController(async ({ rootMessenger }) => {
-        rootMessenger.call(
+        await rootMessenger.call(
           'BridgeController:setLocation',
           MetaMetricsSwapsEventSource.TrendingExplore,
         );
