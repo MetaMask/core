@@ -42,6 +42,13 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    case KeyringTypes.money: {
+      // NOTE: We don't use Money keyring/accounts within this controller. However, since this
+      // function only use the keyring type to return a name, we still support it here in case
+      // clients need it.
+      // FIXME: This should probably live in the `KeyringController` package instead.
+      return 'Money';
+    }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
     }
@@ -83,9 +90,7 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
 export function isNormalKeyringType(
   keyringType: KeyringTypes | string,
 ): boolean {
-  // Right now, we only have to "exclude" Snap accounts, but this might need to be
-  // adapted later on if we have new kind of keyrings!
-  return keyringType !== (KeyringTypes.snap as string);
+  return !isSnapKeyringType(keyringType) && !isMoneyKeyringType(keyringType);
 }
 
 /**
@@ -118,6 +123,18 @@ export function isSimpleKeyringType(
  */
 export function isHdKeyringType(keyringType: KeyringTypes | string): boolean {
   return keyringType === (KeyringTypes.hd as string);
+}
+
+/**
+ * Check if a keyring type is a Money keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is a Money keyring, false otherwise.
+ */
+export function isMoneyKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return keyringType === (KeyringTypes.money as string);
 }
 
 /**

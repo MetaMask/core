@@ -12,6 +12,7 @@
 /packages/multichain-account-service         @MetaMask/accounts-engineers
 /packages/account-tree-controller            @MetaMask/accounts-engineers
 /packages/profile-sync-controller            @MetaMask/accounts-engineers
+/packages/money-account-controller           @MetaMask/accounts-engineers
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
@@ -37,14 +38,14 @@
 /packages/eip-7702-internal-rpc-middleware  @MetaMask/delegation @MetaMask/core-platform
 
 ## Earn Team
-/packages/earn-controller                   @MetaMask/metamask-earn
+/packages/earn-controller                   @MetaMask/earn
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
 /packages/social-controllers                @MetaMask/social-ai
 
-## Ramp Team
-/packages/ramps-controller                  @MetaMask/ramp
+## Money Movement Team
+/packages/ramps-controller                  @MetaMask/money-movement
 
 ## Networks Team
 /packages/config-registry-controller        @MetaMask/networks
@@ -85,6 +86,7 @@
 /packages/controller-utils             @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
+/packages/messenger-cli                @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
@@ -142,8 +144,8 @@
 /packages/config-registry-controller/package.json @MetaMask/networks @MetaMask/core-platform
 /packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
-/packages/earn-controller/package.json            @MetaMask/metamask-earn @MetaMask/core-platform
-/packages/earn-controller/CHANGELOG.md            @MetaMask/metamask-earn @MetaMask/core-platform
+/packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
+/packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
 /packages/eip-5792-middleware/package.json        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip-5792-middleware/CHANGELOG.md        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip1193-permission-middleware/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
@@ -176,8 +178,8 @@
 /packages/perps-controller/CHANGELOG.md       @MetaMask/perps @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/core-platform
-/packages/ramps-controller/package.json       @MetaMask/ramp @MetaMask/core-platform
-/packages/ramps-controller/CHANGELOG.md       @MetaMask/ramp @MetaMask/core-platform
+/packages/ramps-controller/package.json       @MetaMask/money-movement @MetaMask/core-platform
+/packages/ramps-controller/CHANGELOG.md       @MetaMask/money-movement @MetaMask/core-platform
 /packages/profile-sync-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
@@ -222,3 +224,5 @@
 /packages/client-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/social-controllers/package.json @MetaMask/social-ai @MetaMask/core-platform
 /packages/social-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
+/packages/money-account-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/money-account-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform

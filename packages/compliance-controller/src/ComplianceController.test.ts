@@ -10,12 +10,6 @@ import { ComplianceController } from './ComplianceController';
 import type { ComplianceControllerMessenger } from './ComplianceController';
 import { selectIsWalletBlocked } from './selectors';
 
-const MOCK_BLOCKED_WALLETS_RESPONSE = {
-  addresses: ['0xBLOCKED_A', '0xBLOCKED_B'],
-  sources: { ofac: 100, remote: 5 },
-  lastUpdated: '2026-01-15T00:00:00.000Z',
-};
-
 describe('ComplianceController', () => {
   describe('constructor', () => {
     it('accepts initial state', async () => {
@@ -27,8 +21,6 @@ describe('ComplianceController', () => {
             checkedAt: '2026-01-01T00:00:00.000Z',
           },
         },
-        blockedWallets: null,
-        blockedWalletsLastFetched: 0,
         lastCheckedAt: '2026-01-01T00:00:00.000Z',
       };
 
@@ -44,8 +36,6 @@ describe('ComplianceController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
-            "blockedWallets": null,
-            "blockedWalletsLastFetched": 0,
             "lastCheckedAt": null,
             "walletComplianceStatusMap": {},
           }
@@ -54,165 +44,15 @@ describe('ComplianceController', () => {
     });
   });
 
-  describe('init', () => {
-    beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('fetches the blocked wallets list when it has never been fetched', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const updateBlockedWallets = jest.fn(
-          async () => MOCK_BLOCKED_WALLETS_RESPONSE,
-        );
-        rootMessenger.registerActionHandler(
-          'ComplianceService:updateBlockedWallets',
-          updateBlockedWallets,
-        );
-
-        await controller.init();
-
-        expect(updateBlockedWallets).toHaveBeenCalledTimes(1);
-        expect(controller.state.blockedWallets).toStrictEqual({
-          ...MOCK_BLOCKED_WALLETS_RESPONSE,
-          fetchedAt: '2026-02-01T00:00:00.000Z',
-        });
-      });
-    });
-
-    it('fetches the blocked wallets list when the cache is stale', async () => {
-      const oneHourAgo = Date.now() - 60 * 60 * 1000 - 1;
-      await withController(
-        {
-          options: {
-            state: { blockedWalletsLastFetched: oneHourAgo },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          const updateBlockedWallets = jest.fn(
-            async () => MOCK_BLOCKED_WALLETS_RESPONSE,
-          );
-          rootMessenger.registerActionHandler(
-            'ComplianceService:updateBlockedWallets',
-            updateBlockedWallets,
-          );
-
-          await controller.init();
-
-          expect(updateBlockedWallets).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('does not fetch when the cache is fresh', async () => {
-      await withController(
-        {
-          options: {
-            state: { blockedWalletsLastFetched: Date.now() },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          const updateBlockedWallets = jest.fn(
-            async () => MOCK_BLOCKED_WALLETS_RESPONSE,
-          );
-          rootMessenger.registerActionHandler(
-            'ComplianceService:updateBlockedWallets',
-            updateBlockedWallets,
-          );
-
-          await controller.init();
-
-          expect(updateBlockedWallets).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('respects a custom blockedWalletsRefreshInterval', async () => {
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000 - 1;
-      await withController(
-        {
-          options: {
-            state: { blockedWalletsLastFetched: fiveMinutesAgo },
-            blockedWalletsRefreshInterval: 5 * 60 * 1000,
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          const updateBlockedWallets = jest.fn(
-            async () => MOCK_BLOCKED_WALLETS_RESPONSE,
-          );
-          rootMessenger.registerActionHandler(
-            'ComplianceService:updateBlockedWallets',
-            updateBlockedWallets,
-          );
-
-          await controller.init();
-
-          expect(updateBlockedWallets).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-  });
-
-  describe('ComplianceController:init', () => {
-    beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('does the same thing as the direct method', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'ComplianceService:updateBlockedWallets',
-          async () => MOCK_BLOCKED_WALLETS_RESPONSE,
-        );
-
-        await rootMessenger.call('ComplianceController:init');
-
-        expect(controller.state.blockedWallets).toStrictEqual({
-          ...MOCK_BLOCKED_WALLETS_RESPONSE,
-          fetchedAt: '2026-02-01T00:00:00.000Z',
-        });
-      });
-    });
-  });
-
   describe('selectIsWalletBlocked', () => {
-    it('returns true if the wallet is in the cached blocklist', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              blockedWallets: {
-                addresses: ['0xBLOCKED_A', '0xBLOCKED_B'],
-                sources: { ofac: 2, remote: 0 },
-                lastUpdated: '2026-01-01T00:00:00.000Z',
-                fetchedAt: '2026-01-01T00:00:00.000Z',
-              },
-            },
-          },
-        },
-        ({ controller }) => {
-          expect(selectIsWalletBlocked('0xBLOCKED_A')(controller.state)).toBe(
-            true,
-          );
-        },
-      );
-    });
-
-    it('returns true if the wallet was checked on-demand and found blocked', async () => {
+    it('returns true if the wallet was checked and found blocked', async () => {
       await withController(
         {
           options: {
             state: {
               walletComplianceStatusMap: {
-                '0xON_DEMAND': {
-                  address: '0xON_DEMAND',
+                '0xBLOCKED': {
+                  address: '0xBLOCKED',
                   blocked: true,
                   checkedAt: '2026-01-01T00:00:00.000Z',
                 },
@@ -221,14 +61,14 @@ describe('ComplianceController', () => {
           },
         },
         ({ controller }) => {
-          expect(selectIsWalletBlocked('0xON_DEMAND')(controller.state)).toBe(
+          expect(selectIsWalletBlocked('0xBLOCKED')(controller.state)).toBe(
             true,
           );
         },
       );
     });
 
-    it('returns false if the wallet is not in the blocklist or status map', async () => {
+    it('returns false if the wallet is not in the status map', async () => {
       await withController(({ controller }) => {
         expect(selectIsWalletBlocked('0xUNKNOWN')(controller.state)).toBe(
           false,
@@ -253,34 +93,6 @@ describe('ComplianceController', () => {
         },
         ({ controller }) => {
           expect(selectIsWalletBlocked('0xSAFE')(controller.state)).toBe(false);
-        },
-      );
-    });
-
-    it('returns false if the blocklist is null and the address is unknown', async () => {
-      await withController(({ controller }) => {
-        expect(selectIsWalletBlocked('0xANYTHING')(controller.state)).toBe(
-          false,
-        );
-      });
-    });
-
-    it('performs case-sensitive lookup', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              blockedWallets: {
-                addresses: ['0xABC'],
-                sources: { ofac: 1, remote: 0 },
-                lastUpdated: '2026-01-01T00:00:00.000Z',
-                fetchedAt: '2026-01-01T00:00:00.000Z',
-              },
-            },
-          },
-        },
-        ({ controller }) => {
-          expect(selectIsWalletBlocked('0xAbC')(controller.state)).toBe(false);
         },
       );
     });
@@ -323,6 +135,85 @@ describe('ComplianceController', () => {
           },
         });
         expect(controller.state.lastCheckedAt).toBe('2026-02-01T00:00:00.000Z');
+      });
+    });
+
+    it('returns the cached result if the API call fails and a cached entry exists', async () => {
+      const cached = {
+        address: '0xABC123',
+        blocked: true,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      await withController(
+        {
+          options: {
+            state: { walletComplianceStatusMap: { '0xABC123': cached } },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletCompliance',
+            async () => {
+              throw new Error('API unavailable');
+            },
+          );
+
+          const result = await rootMessenger.call(
+            'ComplianceController:checkWalletCompliance',
+            '0xABC123',
+          );
+
+          expect(result).toStrictEqual(cached);
+        },
+      );
+    });
+
+    it('re-throws the error if the API call fails and no cached entry exists', async () => {
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'ComplianceService:checkWalletCompliance',
+          async () => {
+            throw new Error('API unavailable');
+          },
+        );
+
+        await expect(
+          rootMessenger.call(
+            'ComplianceController:checkWalletCompliance',
+            '0xNEW',
+          ),
+        ).rejects.toThrow('API unavailable');
+      });
+    });
+  });
+
+  describe('checkWalletCompliance', () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('does the same thing as the messenger action', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'ComplianceService:checkWalletCompliance',
+          async (address) => ({
+            address,
+            blocked: false,
+          }),
+        );
+
+        const result = await controller.checkWalletCompliance('0xABC123');
+
+        expect(result).toStrictEqual({
+          address: '0xABC123',
+          blocked: false,
+          checkedAt: '2026-02-01T00:00:00.000Z',
+        });
       });
     });
   });
@@ -378,39 +269,79 @@ describe('ComplianceController', () => {
         });
       });
     });
-  });
 
-  describe('ComplianceController:updateBlockedWallets', () => {
-    beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+    it('returns cached results for all addresses if the API call fails and all are cached', async () => {
+      const cachedSafe = {
+        address: '0xSAFE',
+        blocked: false,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      };
+      const cachedBlocked = {
+        address: '0xBLOCKED',
+        blocked: true,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                '0xSAFE': cachedSafe,
+                '0xBLOCKED': cachedBlocked,
+              },
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletsCompliance',
+            async () => {
+              throw new Error('API unavailable');
+            },
+          );
+
+          const result = await rootMessenger.call(
+            'ComplianceController:checkWalletsCompliance',
+            ['0xSAFE', '0xBLOCKED'],
+          );
+
+          expect(result).toStrictEqual([cachedSafe, cachedBlocked]);
+        },
+      );
     });
 
-    afterEach(() => {
-      jest.useRealTimers();
-    });
+    it('re-throws the error if the API call fails and any address has no cached entry', async () => {
+      const cached = {
+        address: '0xSAFE',
+        blocked: false,
+        checkedAt: '2026-01-01T00:00:00.000Z',
+      };
 
-    it('calls the service, persists data to state, and updates the lastFetched timestamp', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        rootMessenger.registerActionHandler(
-          'ComplianceService:updateBlockedWallets',
-          async () => MOCK_BLOCKED_WALLETS_RESPONSE,
-        );
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: { '0xSAFE': cached },
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'ComplianceService:checkWalletsCompliance',
+            async () => {
+              throw new Error('API unavailable');
+            },
+          );
 
-        const result = await rootMessenger.call(
-          'ComplianceController:updateBlockedWallets',
-        );
-
-        expect(result).toStrictEqual({
-          ...MOCK_BLOCKED_WALLETS_RESPONSE,
-          fetchedAt: '2026-02-01T00:00:00.000Z',
-        });
-        expect(controller.state.blockedWallets).toStrictEqual({
-          ...MOCK_BLOCKED_WALLETS_RESPONSE,
-          fetchedAt: '2026-02-01T00:00:00.000Z',
-        });
-        expect(controller.state.blockedWalletsLastFetched).toBeGreaterThan(0);
-        expect(controller.state.lastCheckedAt).toBe('2026-02-01T00:00:00.000Z');
-      });
+          await expect(
+            rootMessenger.call('ComplianceController:checkWalletsCompliance', [
+              '0xSAFE',
+              '0xNEW',
+            ]),
+          ).rejects.toThrow('API unavailable');
+        },
+      );
     });
   });
 
@@ -424,13 +355,6 @@ describe('ComplianceController', () => {
             checkedAt: '2026-01-01T00:00:00.000Z',
           },
         },
-        blockedWallets: {
-          addresses: ['0xABC'],
-          sources: { ofac: 10, remote: 1 },
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-          fetchedAt: '2026-01-01T00:00:00.000Z',
-        },
-        blockedWalletsLastFetched: 1000,
         lastCheckedAt: '2026-01-01T00:00:00.000Z',
       };
 
@@ -441,8 +365,6 @@ describe('ComplianceController', () => {
 
           expect(controller.state).toStrictEqual({
             walletComplianceStatusMap: {},
-            blockedWallets: null,
-            blockedWalletsLastFetched: 0,
             lastCheckedAt: null,
           });
         },
@@ -460,7 +382,6 @@ describe('ComplianceController', () => {
             checkedAt: '2026-01-01T00:00:00.000Z',
           },
         },
-        blockedWalletsLastFetched: 1000,
         lastCheckedAt: '2026-01-01T00:00:00.000Z',
       };
 
@@ -471,8 +392,6 @@ describe('ComplianceController', () => {
 
           expect(controller.state).toStrictEqual({
             walletComplianceStatusMap: {},
-            blockedWallets: null,
-            blockedWalletsLastFetched: 0,
             lastCheckedAt: null,
           });
         },
@@ -503,7 +422,6 @@ describe('ComplianceController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "blockedWalletsLastFetched": 0,
             "lastCheckedAt": null,
           }
         `);
@@ -520,8 +438,6 @@ describe('ComplianceController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "blockedWallets": null,
-            "blockedWalletsLastFetched": 0,
             "lastCheckedAt": null,
             "walletComplianceStatusMap": {},
           }
@@ -604,7 +520,6 @@ function getMessenger(
     actions: [
       'ComplianceService:checkWalletCompliance',
       'ComplianceService:checkWalletsCompliance',
-      'ComplianceService:updateBlockedWallets',
     ],
     events: [],
     messenger,

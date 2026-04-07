@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [25.2.0]
+
+### Added
+
+- Added `filter` selector variant to `withKeyring` ([#8348](https://github.com/MetaMask/core/pull/8348))
+  - `KeyringSelector` now accepts `{ filter: ({ keyring, metadata }) => boolean }`, which selects the first keyring for which the predicate returns `true`.
+- Add `isKeyringNotFoundError` ([#8351](https://github.com/MetaMask/core/pull/8351))
+  - This function can be used when trying to access a non-existing keyring using `withKeyring`.
+- Added `withKeyringUnsafe` action ([#8358](https://github.com/MetaMask/core/pull/8358))
+  - This new variant of `withKeyring` allows to fetch a keyring instance the same way.
+  - Mutations are not allowed and won't be replicated in the vault.
+  - Can be used to read immutable data safely.
+- Add `KeyringTypes.money` enum value ([#8360](https://github.com/MetaMask/core/pull/8360))
+
 ## [25.1.1]
 
 ### Changed
@@ -938,7 +956,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...HEAD
+[25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...@metamask/keyring-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.0.0...@metamask/keyring-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...@metamask/keyring-controller@25.0.0

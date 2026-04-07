@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- **BREAKING:** Removed controller-side data fetching (`fireAndForget`) from `setSelectedToken`, `setSelectedProvider`, and `setUserRegion`; ramp data fetching is now fully driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
+  - Client migration: trigger `getTokens`, `getProviders`, and `getPaymentMethods` from the client layer (for example, React Query hooks/effects) when region/provider/token changes.
+  - `setSelectedProvider`/`setSelectedToken`/`setUserRegion` now focus on selection/state updates and no longer implicitly fetch dependent resources.
+- `setSelectedProvider` and `setSelectedPaymentMethod` accept a full object in addition to an ID string; no longer throw when data is not loaded ([#8354](https://github.com/MetaMask/core/pull/8354))
+
+### Fixed
+
+- `init` no longer overrides a persisted `userRegion` with the geolocation endpoint response ([#8354](https://github.com/MetaMask/core/pull/8354))
+
 ## [12.1.0]
 
 ### Added
@@ -290,7 +305,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...@metamask/ramps-controller@12.1.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...@metamask/ramps-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0

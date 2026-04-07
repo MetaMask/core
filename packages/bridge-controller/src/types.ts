@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
@@ -42,6 +43,7 @@ import type {
   QuoteSchema,
   StepSchema,
   TokenFeatureSchema,
+  QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -325,6 +327,8 @@ export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
 export type TokenFeature = Infer<typeof TokenFeatureSchema>;
 
+export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
+
 export enum RequestStatus {
   LOADING,
   FETCHED,
@@ -384,6 +388,11 @@ export type BridgeControllerState = {
    * populated from `token_warning` SSE events.
    */
   tokenWarnings: TokenFeature[];
+  /**
+   * Metadata about the completed quote stream, populated from the `complete` SSE event.
+   * Set to null at the start of each fetch and updated when the complete event is received.
+   */
+  quoteStreamComplete: QuoteStreamCompleteData | null;
 };
 
 export type BridgeControllerAction<
