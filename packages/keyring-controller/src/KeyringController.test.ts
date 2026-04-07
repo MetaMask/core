@@ -12,6 +12,7 @@ import {
   recoverEIP7702Authorization,
 } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
+import { KeyringType } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
@@ -4267,10 +4268,7 @@ describe('KeyringController', () => {
 
           const fn = jest.fn();
           await expect(
-            controller.withKeyringV2(
-              { type: MockShallowKeyring.type },
-              fn,
-            ),
+            controller.withKeyringV2({ type: MockShallowKeyring.type }, fn),
           ).rejects.toThrow(
             KeyringControllerErrorMessage.KeyringV2NotSupported,
           );
@@ -4298,10 +4296,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(
-          controller.withKeyringV2(
-            { type: KeyringTypes.hd },
-            jest.fn(),
-          ),
+          controller.withKeyringV2({ type: KeyringTypes.hd }, jest.fn()),
         ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
       });
     });
@@ -4343,21 +4338,21 @@ describe('KeyringController', () => {
       it('should throw KeyringNotFound if no keyring has the id', async () => {
         await withController(async ({ controller }) => {
           await expect(
-            controller.withKeyringV2(
-              { id: 'non-existent-id' },
-              jest.fn(),
-            ),
+            controller.withKeyringV2({ id: 'non-existent-id' }, jest.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
 
     describe('when the keyring is selected by filter', () => {
-      it('should wrap the V1 keyring that matches the filter', async () => {
+      it('should use the V2 keyring instance that matches the filter', async () => {
         await withController(async ({ controller }) => {
           const fn = jest.fn();
           await controller.withKeyringV2(
-            { filter: (k): boolean => k.type === KeyringTypes.hd },
+            {
+              filter: (k): boolean =>
+                k.type === KeyringType.Hd /* New V2 enum */,
+            },
             fn,
           );
 
@@ -4368,6 +4363,29 @@ describe('KeyringController', () => {
             }),
           );
         });
+      });
+
+      it('should skip instances that do not support v2', async () => {
+        await withController(
+          {
+            keyringBuilders: [
+              keyringBuilderFactory(MockKeyring),
+            ] /* No V2 support for this type */,
+          },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            // 1. The HD keyring that supports V2, so we explicitly skip it.
+            // 2. The mock keyring that we want to filter, but that will get implicitly skipped because it doesn't support V2.
+            const filter = jest
+              .fn()
+              .mockReturnValueOnce(false)
+              .mockReturnValueOnce(true);
+
+            const fn = jest.fn();
+            await expect(controller.withKeyringV2({ filter }, fn)).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+          },
+        );
       });
 
       it('should throw KeyringNotFound if no keyring matches the filter', async () => {
@@ -4386,12 +4404,9 @@ describe('KeyringController', () => {
       it('should rollback the underlying V1 keyring if the operation throws', async () => {
         await withController(async ({ controller, initialState }) => {
           await expect(
-            controller.withKeyringV2(
-              { type: KeyringTypes.hd },
-              async () => {
-                throw new Error('Rollback test');
-              },
-            ),
+            controller.withKeyringV2({ type: KeyringTypes.hd }, async () => {
+              throw new Error('Rollback test');
+            }),
           ).rejects.toThrow('Rollback test');
 
           expect(controller.state.keyrings[0].accounts).toStrictEqual(
