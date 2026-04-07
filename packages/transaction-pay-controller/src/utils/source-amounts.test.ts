@@ -353,6 +353,63 @@ describe('Source Amounts Utils', () => {
         expect(transactionData.sourceAmounts).toStrictEqual([]);
       });
 
+      it('does not filter out same token when isHyperliquidSource is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isHyperliquidSource: true,
+          paymentToken: {
+            ...DESTINATION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+            decimals: 6,
+            symbol: 'USDC',
+          },
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: ARBITRUM_USDC_ADDRESS,
+              chainId: CHAIN_ID_ARBITRUM,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ]);
+      });
+
+      it('still filters out same token when isHyperliquidSource is false in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isHyperliquidSource: false,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
       it('uses token balance when isMaxAmount is true in post-quote flow', () => {
         const transactionData: TransactionData = {
           isLoading: false,
