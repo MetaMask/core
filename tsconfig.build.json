@@ -188,6 +188,9 @@
       "path": "./packages/preferences-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/price-api/tsconfig.build.json"
+    },
+    {
       "path": "./packages/profile-metrics-controller/tsconfig.build.json"
     },
     {

@@ -180,6 +180,9 @@
       "path": "./packages/preferences-controller"
     },
     {
+      "path": "./packages/price-api"
+    },
+    {
       "path": "./packages/profile-metrics-controller"
     },
     {
