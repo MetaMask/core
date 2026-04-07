@@ -33,6 +33,15 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
   txParams: TRANSACTION_PARAMS_MOCK,
 };
 
+const TRANSACTION_META_TESTNET_MOCK: TransactionMeta = {
+  id: '2',
+  chainId: CHAIN_IDS.MANTLE_SEPOLIA,
+  networkClientId: 'testNetworkClientId',
+  status: TransactionStatus.unapproved,
+  time: 0,
+  txParams: TRANSACTION_PARAMS_MOCK,
+};
+
 const SERIALIZED_TRANSACTION_MOCK = '0x1234';
 // L1 fee in ETH (returned by oracle)
 const L1_FEE_MOCK = '0x0de0b6b3a7640000'; // 1e18 (1 ETH in wei)
@@ -102,6 +111,17 @@ describe('MantleLayer1GasFeeFlow', () => {
       expect(
         await flow.matchesTransaction({
           transactionMeta: TRANSACTION_META_MOCK,
+          messenger,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns true if chain ID is Mantle Sepolia', async () => {
+      const flow = new MantleLayer1GasFeeFlow();
+
+      expect(
+        await flow.matchesTransaction({
+          transactionMeta: TRANSACTION_META_TESTNET_MOCK,
           messenger,
         }),
       ).toBe(true);
@@ -228,7 +248,7 @@ describe('MantleLayer1GasFeeFlow', () => {
       );
     });
 
-    it('uses default OP Stack oracle address', () => {
+    it('uses default OP Stack oracle address for mainnet', () => {
       class TestableMantleLayer1GasFeeFlow extends MantleLayer1GasFeeFlow {
         exposeOracleAddress(chainId: Hex): Hex {
           return super.getOracleAddressForChain(chainId);
@@ -239,6 +259,56 @@ describe('MantleLayer1GasFeeFlow', () => {
       expect(flow.exposeOracleAddress(CHAIN_IDS.MANTLE)).toBe(
         '0x420000000000000000000000000000000000000F',
       );
+    });
+
+    it('uses default OP Stack oracle address for Mantle Sepolia', () => {
+      class TestableMantleLayer1GasFeeFlow extends MantleLayer1GasFeeFlow {
+        exposeOracleAddress(chainId: Hex): Hex {
+          return super.getOracleAddressForChain(chainId);
+        }
+      }
+
+      const flow = new TestableMantleLayer1GasFeeFlow();
+      expect(flow.exposeOracleAddress(CHAIN_IDS.MANTLE_SEPOLIA)).toBe(
+        '0x420000000000000000000000000000000000000F',
+      );
+    });
+
+    it('computes correct fee for Mantle Sepolia transactions', async () => {
+      const gasUsed = '0x5208';
+      request = {
+        ...request,
+        transactionMeta: {
+          ...TRANSACTION_META_TESTNET_MOCK,
+          gasUsed,
+        },
+      };
+
+      contractGetOperatorFeeMock.mockResolvedValueOnce(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      jest
+        .spyOn(TransactionFactory, 'fromTxData')
+        .mockReturnValueOnce(
+          createMockTypedTransaction(
+            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+          ),
+        );
+
+      const flow = new MantleLayer1GasFeeFlow();
+      const response = await flow.getLayer1Fee(request);
+
+      const expectedL1FeeInMnt = bnFromHex(L1_FEE_MOCK).mul(TOKEN_RATIO_MOCK);
+      const expectedTotal = expectedL1FeeInMnt.add(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      expect(contractTokenRatioMock).toHaveBeenCalledTimes(1);
+      expect(contractGetOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(response).toStrictEqual({
+        layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
+      });
     });
   });
 });

@@ -10,7 +10,7 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
 import { toBN } from '../utils/utils';
 
-const MANTLE_CHAIN_IDS: Hex[] = [CHAIN_IDS.MANTLE];
+const MANTLE_CHAIN_IDS: Hex[] = [CHAIN_IDS.MANTLE, CHAIN_IDS.MANTLE_SEPOLIA];
 
 const TOKEN_RATIO_ABI = [
   {
