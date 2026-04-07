@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fix perps withdraw to Arbitrum USDC showing inflated transaction fee by bypassing same-token filter when `isHyperliquidSource` is set ([#8387](https://github.com/MetaMask/core/pull/8387))
-
 ### Added
 
 - Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
+
+### Fixed
+
+- Fix perps withdraw to Arbitrum USDC showing inflated transaction fee by bypassing same-token filter when `isHyperliquidSource` is set ([#8387](https://github.com/MetaMask/core/pull/8387))
 
 ## [19.0.3]
 
