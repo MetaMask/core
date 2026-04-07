@@ -1133,18 +1133,14 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
-      // Default to 'merge' when fetching a subset of chains so we don't wipe
-      // balances from chains that weren't included in this fetch.
-      const isPartialChainFetch =
-        options?.chainIds !== undefined &&
-        options.chainIds.length < this.#enabledChains.size;
-      const updateMode =
-        options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
-
       // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
       // Snap and RPC are excluded here due to their latency (snap triggers account
       // creation, RPC is slow on many chains). Results are committed to state
       // immediately so the UI can display balances without waiting for them.
+      //
+      // Both the fast and background pipelines use 'merge' mode because neither
+      // alone represents the full set of data sources. Using 'full' in either
+      // would wipe balances from the sources handled by the other pipeline.
       const fastSources = this.#isBasicFunctionality()
         ? [
             createParallelBalanceMiddleware([
@@ -1162,7 +1158,10 @@ export class AssetsController extends BaseController<
         fastSources,
         request,
       );
-      await this.#updateState({ ...response, updateMode });
+      // The fast pipeline only contains a subset of data sources (AccountsApi +
+      // StakedBalance), so it must always merge to avoid wiping Snap/RPC
+      // balances that the background pipeline hasn't yet replaced.
+      await this.#updateState({ ...response, updateMode: 'merge' });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
       // commits to state. Their balances are merged together before detection.
