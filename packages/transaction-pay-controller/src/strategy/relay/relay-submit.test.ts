@@ -141,6 +141,7 @@ describe('Relay Submit Utils', () => {
   const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
 
   const {
+    accountSupports7702Mock,
     addTransactionMock,
     addTransactionBatchMock,
     getDelegationTransactionMock,
@@ -157,6 +158,7 @@ describe('Relay Submit Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    accountSupports7702Mock.mockResolvedValue(true);
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
 
@@ -436,6 +438,33 @@ describe('Relay Submit Utils', () => {
     it('does not add authorization list if same chain but no authorization list', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {} as never;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          authorizationList: expect.anything(),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not add authorization list when account does not support 7702', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.request = {
+        authorizationList: [
+          {
+            address: '0xabc' as Hex,
+            chainId: 1,
+            nonce: 2,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: 1,
+          },
+        ],
+      } as never;
 
       await submitRelayQuotes(request);
 
@@ -1050,6 +1079,29 @@ describe('Relay Submit Utils', () => {
               }),
             }),
           ],
+        }),
+      );
+    });
+
+    it('disables 7702 batch when account does not support 7702', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [42000];
+      request.quotes[0].original.metamask.is7702 = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: true,
+          disableHook: false,
+          disableSequential: false,
+          gasLimit7702: undefined,
         }),
       );
     });

@@ -101,6 +101,7 @@ describe('Across Submit', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
 
   const {
+    accountSupports7702Mock,
     addTransactionBatchMock,
     addTransactionMock,
     estimateGasMock,
@@ -126,6 +127,7 @@ describe('Across Submit', () => {
       },
     });
 
+    accountSupports7702Mock.mockResolvedValue(true);
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
       simulationFails: undefined,
@@ -255,6 +257,40 @@ describe('Across Submit', () => {
               type: TransactionType.perpsAcrossDeposit,
             }),
           ],
+        }),
+      );
+    });
+
+    it('disables 7702 batch when account does not support 7702', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      const batchGasQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 21000, max: 21000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: true,
+          },
+        },
+      } as unknown as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [batchGasQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: true,
+          disableHook: false,
+          disableSequential: false,
+          gasLimit7702: undefined,
         }),
       );
     });

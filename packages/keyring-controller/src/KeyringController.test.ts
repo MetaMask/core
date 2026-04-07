@@ -1037,6 +1037,52 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('accountSupports7702', () => {
+    it('should return true for HD keyring accounts', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const account = initialState.keyrings[0].accounts[0];
+        const result = await controller.accountSupports7702(account);
+        expect(result).toBe(true);
+      });
+    });
+
+    it('should return true for simple keyring accounts', async () => {
+      await withController(async ({ controller }) => {
+        const importedAccountAddress =
+          await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+
+        const result =
+          await controller.accountSupports7702(importedAccountAddress);
+        expect(result).toBe(true);
+      });
+    });
+
+    it('should return false for non-HD and non-simple keyring accounts', async () => {
+      const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
+      stubKeyringClassWithAccount(MockKeyring, address);
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+        async ({ controller }) => {
+          await controller.addNewKeyring(MockKeyring.type);
+
+          const result = await controller.accountSupports7702(address);
+          expect(result).toBe(false);
+        },
+      );
+    });
+
+    it('should throw error if no keyring is found for the given account', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.accountSupports7702('0x')).rejects.toThrow(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
+      });
+    });
+  });
+
   describe('getEncryptionPublicKey', () => {
     describe('when the keyring for the given address supports getEncryptionPublicKey', () => {
       it('should return the correct encryption public key', async () => {

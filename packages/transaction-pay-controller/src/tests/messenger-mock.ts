@@ -14,6 +14,7 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type { KeyringControllerAccountSupports7702Action } from '@metamask/keyring-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   TransactionControllerAddTransactionAction,
@@ -127,6 +128,10 @@ export function getMessengerMock({
 
   const estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
+  > = jest.fn();
+
+  const accountSupports7702Mock: jest.MockedFn<
+    KeyringControllerAccountSupports7702Action['handler']
   > = jest.fn();
 
   const getAssetsControllerStateMock = jest.fn();
@@ -250,11 +255,17 @@ export function getMessengerMock({
       'AssetsController:getStateForTransactionPay',
       getAssetsControllerStateMock,
     );
+
+    messenger.registerActionHandler(
+      'KeyringController:accountSupports7702',
+      accountSupports7702Mock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
+    accountSupports7702Mock,
     addTransactionMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
