@@ -23,6 +23,7 @@ import type {
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 
 import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
@@ -34,6 +35,7 @@ import type {
   KeyringControllerActions,
   KeyringMetadata,
   SerializedKeyring,
+  KeyringSelector,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -957,9 +959,7 @@ describe('KeyringController', () => {
             await withController(async ({ controller }) => {
               await expect(
                 controller.exportAccount(password, ''),
-              ).rejects.toThrow(
-                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-              );
+              ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
             });
           });
         });
@@ -1030,7 +1030,7 @@ describe('KeyringController', () => {
     it('should throw error if no keyring is found for the given account', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.getAccountKeyringType('0x')).rejects.toThrow(
-          'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
+          KeyringControllerErrorMessage.KeyringNotFound,
         );
       });
     });
@@ -1132,9 +1132,7 @@ describe('KeyringController', () => {
 
           await expect(
             controller.decryptMessage(messageParams),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
@@ -1210,9 +1208,7 @@ describe('KeyringController', () => {
             controller.getKeyringForAccount(
               '0x0000000000000000000000000000000000000000',
             ),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
 
@@ -1229,9 +1225,7 @@ describe('KeyringController', () => {
               controller.getKeyringForAccount(
                 '0x0000000000000000000000000000000000000000',
               ),
-            ).rejects.toThrow(
-              'KeyringController - No keyring found. Error info: There are no keyrings',
-            );
+            ).rejects.toThrow(KeyringControllerErrorMessage.NoKeyring);
           },
         );
       });
@@ -1799,9 +1793,7 @@ describe('KeyringController', () => {
               data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
               from: '',
             }),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
@@ -1883,9 +1875,7 @@ describe('KeyringController', () => {
               data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
               from: '',
             }),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
     });
@@ -1965,9 +1955,7 @@ describe('KeyringController', () => {
               nonce,
               from: '',
             }),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
 
@@ -2345,9 +2333,7 @@ describe('KeyringController', () => {
             });
             expect(unsignedEthTx.v).toBeUndefined();
             await controller.signTransaction(unsignedEthTx, '');
-          }).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          }).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
         });
       });
 
@@ -3776,9 +3762,7 @@ describe('KeyringController', () => {
 
               await expect(
                 controller.withKeyring(selector, fn),
-              ).rejects.toThrow(
-                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-              );
+              ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
               expect(fn).not.toHaveBeenCalled();
             });
           }),
@@ -3854,7 +3838,129 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw KeyringNotFound if keyring metadata is not found (internal consistency check)', async () => {
+    describe('when the keyring is selected by filter', () => {
+      it('calls the given function with the matching keyring', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const { metadata } = controller.state.keyrings[0];
+          const selector: KeyringSelector = {
+            filter: (k): boolean => k.type === KeyringTypes.hd,
+          };
+
+          await controller.withKeyring(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
+        });
+      });
+
+      it('returns the result of the function', async () => {
+        await withController(async ({ controller }) => {
+          const fn = async (): Promise<string> => Promise.resolve('hello');
+          const selector: KeyringSelector = {
+            filter: (): boolean => true,
+          };
+
+          expect(await controller.withKeyring(selector, fn)).toBe('hello');
+        });
+      });
+
+      it('passes both keyring and metadata to the filter', async () => {
+        await withController(async ({ controller }) => {
+          const filterFn = jest.fn(
+            (k: EthKeyring): boolean => k.type === KeyringTypes.hd,
+          );
+          const selector: KeyringSelector = { filter: filterFn };
+
+          await controller.withKeyring(selector, jest.fn());
+
+          expect(filterFn).toHaveBeenCalledWith(
+            expect.any(Object),
+            expect.objectContaining({ id: expect.any(String) }),
+          );
+        });
+      });
+
+      it('selects the first keyring matching the filter when multiple keyrings exist', async () => {
+        const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
+        stubKeyringClassWithAccount(MockKeyring, mockAddress);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            const fn = jest.fn();
+            const selector: KeyringSelector = {
+              filter: (k): boolean => k.type === MockKeyring.type,
+            };
+
+            await controller.withKeyring(selector, fn);
+
+            expect(fn).toHaveBeenCalledWith(
+              expect.objectContaining({
+                keyring: expect.objectContaining({ type: MockKeyring.type }),
+              }),
+            );
+          },
+        );
+      });
+
+      it('throws KeyringNotFound if no keyring matches the filter', async () => {
+        await withController(async ({ controller }) => {
+          const selector: KeyringSelector = {
+            filter: (): boolean => false,
+          };
+          const fn = jest.fn();
+
+          await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
+            KeyringControllerErrorMessage.KeyringNotFound,
+          );
+          expect(fn).not.toHaveBeenCalled();
+        });
+      });
+
+      it('throws UnsafeDirectKeyringAccess if the callback returns the selected keyring', async () => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.withKeyring(
+              { filter: (): boolean => true },
+              async ({
+                keyring,
+              }: {
+                keyring: EthKeyring;
+                metadata: KeyringMetadata;
+              }) => keyring,
+            ),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+          );
+        });
+      });
+
+      it('narrows down to a proper keyring type in the callback', async () => {
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockErc4337Keyring.type);
+
+            await controller.withKeyring(
+              {
+                filter: (k): k is MockErc4337Keyring =>
+                  k.type === MockErc4337Keyring.type,
+              },
+              async ({ keyring }) => {
+                // eslint-disable-next-line prefer-destructuring
+                const type: MockErc4337Keyring['type'] = keyring.type; // Should be able to access type without type assertion;
+
+                expect(type).toBe(MockErc4337Keyring.type);
+                expect(keyring).toBeInstanceOf(MockErc4337Keyring);
+              },
+            );
+          },
+        );
+      });
+    });
+
+    it('throws KeyringNotFound if keyring metadata is not found (internal consistency check)', async () => {
       // This test verifies the defensive #getKeyringMetadata guard that ensures
       // internal state consistency. In normal operation, this should never occur,
       // but the guard exists to catch potential data corruption scenarios where
@@ -3882,6 +3988,157 @@ describe('KeyringController', () => {
           KeyringControllerErrorMessage.KeyringNotFound,
         );
         expect(fn).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('withKeyringUnsafe', () => {
+    it('calls the given function without acquiring the lock', async () => {
+      await withController(async ({ controller }) => {
+        const acquireSpy = jest.spyOn(Mutex.prototype, 'acquire');
+        const fn = jest.fn().mockResolvedValue('result');
+        const selector = { type: KeyringTypes.hd };
+        const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+        const { metadata } = controller.state.keyrings[0];
+
+        const result = await controller.withKeyringUnsafe(selector, fn);
+
+        expect(acquireSpy).not.toHaveBeenCalled();
+        expect(fn).toHaveBeenCalledWith({ keyring, metadata });
+        expect(result).toBe('result');
+      });
+    });
+
+    it('throws if the controller is locked', async () => {
+      await withController(
+        { skipVaultCreation: true },
+        async ({ controller }) => {
+          await expect(
+            controller.withKeyringUnsafe({ type: KeyringTypes.hd }, jest.fn()),
+          ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
+        },
+      );
+    });
+
+    it('throws KeyringNotFound if no keyring matches the selector', async () => {
+      await withController(async ({ controller }) => {
+        const fn = jest.fn();
+
+        await expect(
+          controller.withKeyringUnsafe({ type: 'NonExistentType' }, fn),
+        ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+        expect(fn).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws UnsafeDirectKeyringAccess if the callback returns the selected keyring', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.withKeyringUnsafe(
+            { type: KeyringTypes.hd },
+            async ({ keyring }) => keyring,
+          ),
+        ).rejects.toThrow(
+          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+        );
+      });
+    });
+
+    describe('when the keyring is selected by address', () => {
+      it('calls the given function with the selected keyring', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const fn = jest.fn();
+          const selector = {
+            address: initialState.keyrings[0].accounts[0] as Hex,
+          };
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const { metadata } = controller.state.keyrings[0];
+
+          await controller.withKeyringUnsafe(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
+        });
+      });
+    });
+
+    describe('when the keyring is selected by id', () => {
+      it('calls the given function with the selected keyring', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const { metadata } = controller.state.keyrings[0];
+          const selector = { id: metadata.id };
+
+          await controller.withKeyringUnsafe(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
+        });
+      });
+
+      it('throws KeyringNotFound if no keyring has the given id', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+
+          await expect(
+            controller.withKeyringUnsafe({ id: 'non-existent-id' }, fn),
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+          expect(fn).not.toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('when the keyring is selected by filter', () => {
+      it('calls the given function with the matching keyring', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const { metadata } = controller.state.keyrings[0];
+          const selector: KeyringSelector = {
+            filter: (k): boolean => k.type === KeyringTypes.hd,
+          };
+
+          await controller.withKeyringUnsafe(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
+        });
+      });
+
+      it('throws KeyringNotFound if no keyring matches the filter', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+
+          await expect(
+            controller.withKeyringUnsafe({ filter: (): boolean => false }, fn),
+          ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+          expect(fn).not.toHaveBeenCalled();
+        });
+      });
+    });
+
+    it('does not roll back state if an error is thrown', async () => {
+      await withController(async ({ controller, initialState }) => {
+        // Mutate state directly via withKeyring first to have a known state
+        await controller.withKeyring(
+          { type: KeyringTypes.hd },
+          async ({ keyring }) => keyring.addAccounts(1),
+        );
+
+        const accountsBefore = controller.state.keyrings[0].accounts;
+
+        // withKeyringUnsafe does not roll back — errors just propagate
+        await expect(
+          controller.withKeyringUnsafe({ type: KeyringTypes.hd }, async () => {
+            throw new Error('Oops');
+          }),
+        ).rejects.toThrow('Oops');
+
+        // State is unchanged (no rollback to pre-withKeyringUnsafe state)
+        expect(controller.state.keyrings[0].accounts).toStrictEqual(
+          accountsBefore,
+        );
+        expect(controller.state.keyrings[0].accounts).not.toStrictEqual(
+          initialState.keyrings[0].accounts,
+        );
       });
     });
   });
@@ -4362,9 +4619,7 @@ describe('KeyringController', () => {
             expect(controller.state).toStrictEqual(initialState);
             await expect(
               controller.exportAccount(password, mockAddress),
-            ).rejects.toThrow(
-              'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-            );
+            ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
           },
         );
       });

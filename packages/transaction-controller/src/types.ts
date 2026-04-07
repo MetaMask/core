@@ -2,7 +2,6 @@
 
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
-import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
@@ -277,6 +276,13 @@ export type TransactionMeta = {
 
   /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
   isGasFeeTokenIgnoredIfBalance?: boolean;
+
+  /**
+   * When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance.
+   * Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions
+   * This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all
+   */
+  excludeNativeTokenForFee?: boolean;
 
   /** Whether the intent of the transaction was achieved via an alternate route or chain. */
   isIntentComplete?: boolean;
@@ -774,6 +780,16 @@ export enum TransactionType {
    * A transaction that withdraws tokens from a lending contract.
    */
   lendingWithdraw = 'lendingWithdraw',
+
+  /**
+   * A transaction that deposits funds into a money account.
+   */
+  moneyAccountDeposit = 'moneyAccountDeposit',
+
+  /**
+   * A transaction that withdraws funds from a money account.
+   */
+  moneyAccountWithdraw = 'moneyAccountWithdraw',
 
   /**
    * A transaction that claims yield from a mUSD contract.
@@ -1451,9 +1467,6 @@ export type GasFeeEstimates =
 
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
-  /** An EthQuery instance to enable queries to the associated RPC provider. */
-  ethQuery: EthQuery;
-
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 
@@ -1814,6 +1827,11 @@ export type TransactionBatchRequest = {
 
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
+
+  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
+  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
+  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  excludeNativeTokenForFee?: boolean;
 
   /** Gas limit for the transaction batch if submitted via EIP-7702. */
   gasLimit7702?: Hex;
@@ -2190,6 +2208,11 @@ export type AddTransactionOptions = {
 
   /** Whether MetaMask will sponsor the gas fee for the transaction. */
   isGasFeeSponsored?: boolean;
+
+  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
+  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
+  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  excludeNativeTokenForFee?: boolean;
 
   /**
    * Whether the transaction has no lifecycle and is not signed or published.

@@ -71,6 +71,8 @@ export class IncomingTransactionHelper {
     transactions: TransactionMeta[],
   ) => TransactionMeta[];
 
+  #isTransactionHistoryRetrievalActive = false;
+
   readonly #updateTransactions?: boolean;
 
   readonly #useBackendWebSocketService: boolean;
@@ -220,7 +222,13 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    if (this.#isTransactionHistoryRetrievalActive) {
+      return;
+    }
+
     log('Started transaction history retrieval (event-driven)');
+
+    this.#isTransactionHistoryRetrievalActive = true;
 
     this.update().catch((error) => {
       log('Initial update in transaction history retrieval failed', error);
@@ -238,7 +246,13 @@ export class IncomingTransactionHelper {
   }
 
   #stopTransactionHistoryRetrieval(): void {
+    if (!this.#isTransactionHistoryRetrievalActive) {
+      return;
+    }
+
     log('Stopped transaction history retrieval');
+
+    this.#isTransactionHistoryRetrievalActive = false;
 
     this.#messenger.unsubscribe(
       'AccountActivityService:transactionUpdated',

@@ -11,10 +11,16 @@ import {
   assertValidLegacyUserStorageAccount,
 } from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 
 jest.mock('./validation');
+jest.mock('../../logger');
+
+const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
+  typeof backupAndSyncLogger
+>;
 
 const mockAssertValidUserStorageWallet =
   assertValidUserStorageWallet as jest.MockedFunction<
@@ -106,6 +112,36 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
 
       expect(result).toStrictEqual({
+        groupIndex: 0,
+      });
+    });
+
+    it('falls back to blank metadata and logs if mask throws due to invalid field types', () => {
+      mockContext.controller.state.accountGroupsMetadata[mockGroup.id] = {
+        // `name` should be an UpdatableField object, not a plain string
+        name: 'invalid-not-an-object' as never,
+      };
+
+      const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
+
+      expect(result).toStrictEqual({ groupIndex: 0 });
+      expect(mockBackupAndSyncLogger).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Error trying to format group for user storage usage',
+        ),
+      );
+    });
+
+    it('strips fields not in the schema (e.g. lastSelected)', () => {
+      mockContext.controller.state.accountGroupsMetadata[mockGroup.id] = {
+        name: { value: 'Group Name', lastUpdatedAt: 123456 },
+        lastSelected: 999999,
+      };
+
+      const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
+
+      expect(result).toStrictEqual({
+        name: { value: 'Group Name', lastUpdatedAt: 123456 },
         groupIndex: 0,
       });
     });

@@ -79,6 +79,7 @@ const MarketInsightsReportStruct = structType({
 });
 
 const MarketInsightsDigestEnvelopeStruct = structType({
+  id: string(),
   digest: MarketInsightsReportStruct,
 });
 
@@ -87,9 +88,9 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 const RelatedAssetStruct = structType({
   name: string(),
   symbol: string(),
-  caip19: array(string()),
+  caip19: optional(array(string())),
   sourceAssetId: string(),
-  hlPerpsMarket: optional(string()),
+  hlPerpsMarket: optional(array(string())),
 });
 
 const MarketOverviewTrendStruct = structType({
@@ -112,13 +113,24 @@ const MarketOverviewReportEnvelopeStruct = structType({
   report: MarketOverviewStruct,
 });
 
+const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
+  ...raw,
+  trends: raw.trends.map((trend) => ({
+    ...trend,
+    relatedAssets: trend.relatedAssets.map((asset) => ({
+      ...asset,
+      caip19: asset.caip19 ?? [],
+    })),
+  })),
+});
+
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
   if (is(value, MarketOverviewStruct)) {
-    return value;
+    return normalizeRelatedAssets(value);
   }
 
   if (is(value, MarketOverviewReportEnvelopeStruct)) {
-    return value.report;
+    return normalizeRelatedAssets(value.report);
   }
 
   return null;
@@ -127,12 +139,8 @@ const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
 const getNormalizedMarketInsightsReport = (
   value: unknown,
 ): MarketInsightsReport | null => {
-  if (is(value, MarketInsightsReportStruct)) {
-    return value;
-  }
-
   if (is(value, MarketInsightsDigestEnvelopeStruct)) {
-    return value.digest;
+    return { ...value.digest, digestId: value.id };
   }
 
   return null;

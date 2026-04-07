@@ -16,7 +16,10 @@ import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
-import { TokenFeatureType } from './utils/validators';
+import {
+  TokenFeatureType,
+  QuoteStreamCompleteReason,
+} from './utils/validators';
 import { flushPromises } from '../../../tests/helpers';
 import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
@@ -25,6 +28,7 @@ import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
   mockSseEventSource,
+  mockSseEventSourceWithComplete,
   mockSseEventSourceWithMultipleDelays,
   mockSseEventSourceWithWarnings,
   mockSseServerError,
@@ -198,6 +202,7 @@ describe('BridgeController SSE', function () {
         onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
         onTokenWarning: expect.any(Function),
+        onComplete: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -338,6 +343,7 @@ describe('BridgeController SSE', function () {
           onQuoteValidationFailure: expect.any(Function),
           onValidQuoteReceived: expect.any(Function),
           onTokenWarning: expect.any(Function),
+          onComplete: expect.any(Function),
           onClose: expect.any(Function),
         },
         '13.8.0',
@@ -472,6 +478,7 @@ describe('BridgeController SSE', function () {
         onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
         onTokenWarning: expect.any(Function),
+        onComplete: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -1106,6 +1113,7 @@ describe('BridgeController SSE', function () {
         onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
         onTokenWarning: expect.any(Function),
+        onComplete: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -1303,5 +1311,134 @@ describe('BridgeController SSE', function () {
       honeypotWarning,
       fakeTokenWarning,
     ]);
+  });
+
+  it('should populate quoteStreamComplete from complete SSE event', async function () {
+    const mockComplete = {
+      quoteCount: 2,
+      hasQuotes: true,
+      reason: QuoteStreamCompleteReason.RETRY,
+      context: { source: 'bridge-api' },
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithComplete(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [],
+        mockComplete,
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    expect(bridgeController.state.quoteStreamComplete).toBeNull();
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
+      mockComplete,
+    );
+    expect(bridgeController.state.quotes.length).toBeGreaterThan(0);
+  });
+
+  it('should populate quoteStreamComplete with optional fields omitted', async function () {
+    const mockComplete = {
+      quoteCount: 0,
+      hasQuotes: false,
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithComplete([], [], mockComplete);
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
+      mockComplete,
+    );
+  });
+
+  it('should clear quoteStreamComplete on resetState', async function () {
+    const mockComplete = {
+      quoteCount: 2,
+      hasQuotes: true,
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithComplete(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [],
+        mockComplete,
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
+      mockComplete,
+    );
+
+    bridgeController.resetState();
+    expect(bridgeController.state.quoteStreamComplete).toBeNull();
+  });
+
+  it('should clear quoteStreamComplete at the start of each fetch', async function () {
+    const mockComplete = {
+      quoteCount: 2,
+      hasQuotes: true,
+    };
+    mockFetchFn.mockImplementation(async () => {
+      return mockSseEventSourceWithComplete(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [],
+        mockComplete,
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
+      mockComplete,
+    );
+
+    // Trigger a second fetch — quoteStreamComplete should be cleared before the stream completes
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+
+    expect(bridgeController.state.quoteStreamComplete).toBeNull();
+
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.quoteStreamComplete).toStrictEqual(
+      mockComplete,
+    );
   });
 });

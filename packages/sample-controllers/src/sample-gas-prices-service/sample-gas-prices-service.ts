@@ -1,16 +1,16 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
-  CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import {
-  createServicePolicy,
-  fromHex,
-  HttpError,
-} from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { HttpError, fromHex } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { hasProperty, isPlainObject } from '@metamask/utils';
+import type { Infer } from '@metamask/superstruct';
+import { is, number, type } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
-import type { IDisposable } from 'cockatiel';
+import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { SampleGasPricesServiceMethodActions } from './sample-gas-prices-service-method-action-types';
 
@@ -24,22 +24,49 @@ export const serviceName = 'SampleGasPricesService';
 
 // === MESSENGER ===
 
+/**
+ * All of the methods within {@link SampleGasPricesService} that are exposed via
+ * the messenger.
+ */
 const MESSENGER_EXPOSED_METHODS = ['fetchGasPrices'] as const;
+
+/**
+ * Invalidates cached queries for {@link SampleGasPricesService}.
+ */
+export type SampleGasPricesServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
 
 /**
  * Actions that {@link SampleGasPricesService} exposes to other consumers.
  */
-export type SampleGasPricesServiceActions = SampleGasPricesServiceMethodActions;
+export type SampleGasPricesServiceActions =
+  | SampleGasPricesServiceMethodActions
+  | SampleGasPricesServiceInvalidateQueriesAction;
 
 /**
- * Actions from other messengers that {@link SampleGasPricesMessenger} calls.
+ * Actions from other messengers that {@link SampleGasPricesService} calls.
  */
 type AllowedActions = never;
 
 /**
+ * Published when {@link SampleGasPricesService}'s cache is updated.
+ */
+export type SampleGasPricesServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link SampleGasPricesService}'s cache is
+ * updated.
+ */
+export type SampleGasPricesServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link SampleGasPricesService} exposes to other consumers.
  */
-export type SampleGasPricesServiceEvents = never;
+export type SampleGasPricesServiceEvents =
+  | SampleGasPricesServiceCacheUpdatedEvent
+  | SampleGasPricesServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link SampleGasPricesService} subscribes
@@ -60,15 +87,25 @@ export type SampleGasPricesServiceMessenger = Messenger<
 // === SERVICE DEFINITION ===
 
 /**
+ * Struct to validate what the API endpoint returns.
+ */
+const GasPricesResponseStruct = type({
+  data: type({
+    low: number(),
+    average: number(),
+    high: number(),
+  }),
+});
+
+/**
  * What the API endpoint returns.
  */
-type GasPricesResponse = {
-  data: {
-    low: number;
-    average: number;
-    high: number;
-  };
-};
+type GasPricesResponse = Infer<typeof GasPricesResponseStruct>;
+
+/**
+ * The base URL of the API that the service represents.
+ */
+const BASE_URL = 'https://api.example.com';
 
 /**
  * This service object is responsible for fetching gas prices via an API.
@@ -76,10 +113,10 @@ type GasPricesResponse = {
  * @example
  *
  * ``` ts
+ * import type { MessengerActions, MessengerEvents } from '@metamask/messenger';
  * import { Messenger } from '@metamask/messenger';
  * import type {
- *   SampleGasPricesServiceActions,
- *   SampleGasPricesServiceEvents,
+ *   SampleGasPricesServiceMessenger,
  * } from '@metamask/sample-controllers';
  *
  * const rootMessenger = new Messenger<
@@ -89,8 +126,8 @@ type GasPricesResponse = {
  * >({ namespace: 'Root' });
  * const gasPricesServiceMessenger = new Messenger<
  *   'SampleGasPricesService',
- *   SampleGasPricesServiceActions,
- *   SampleGasPricesServiceEvents,
+ *   MessengerActions<SampleGasPricesServiceMessenger>,
+ *   MessengerEvents<SampleGasPricesServiceMessenger>,
  *   typeof rootMessenger,
  * >({
  *   namespace: 'SampleGasPricesService',
@@ -99,7 +136,6 @@ type GasPricesResponse = {
  * // Instantiate the service to register its actions on the messenger
  * new SampleGasPricesService({
  *   messenger: gasPricesServiceMessenger,
- *   fetch,
  * });
  *
  * // Later...
@@ -111,113 +147,40 @@ type GasPricesResponse = {
  * // ... Do something with the gas prices ...
  * ```
  */
-export class SampleGasPricesService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  /**
-   * The messenger suited for this service.
-   */
-  readonly #messenger: ConstructorParameters<
-    typeof SampleGasPricesService
-  >[0]['messenger'];
-
-  /**
-   * A function that can be used to make an HTTP request.
-   */
-  readonly #fetch: ConstructorParameters<
-    typeof SampleGasPricesService
-  >[0]['fetch'];
-
-  /**
-   * The policy that wraps the request.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #policy: ServicePolicy;
-
+export class SampleGasPricesService extends BaseDataService<
+  typeof serviceName,
+  SampleGasPricesServiceMessenger
+> {
   /**
    * Constructs a new SampleGasPricesService object.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
-   * @param args.fetch - A function that can be used to make an HTTP request. If
-   * your JavaScript environment supports `fetch` natively, you'll probably want
-   * to pass that; otherwise you can pass an equivalent (such as `fetch` via
-   * `node-fetch`).
+   * @param args.queryClientConfig - Configuration for the underlying TanStack
+   * Query client.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
     messenger,
-    fetch: fetchFunction,
+    queryClientConfig = {},
     policyOptions = {},
   }: {
     messenger: SampleGasPricesServiceMessenger;
-    fetch: typeof fetch;
+    queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
-    this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy(policyOptions);
+    super({
+      name: serviceName,
+      messenger,
+      queryClientConfig,
+      policyOptions,
+    });
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * Registers a handler that will be called after a request returns a non-500
-   * response, causing a retry. Primarily useful in tests where timers are being
-   * mocked.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   * @see {@link createServicePolicy}
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    return this.#policy.onRetry(listener);
-  }
-
-  /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   * @see {@link createServicePolicy}
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    return this.#policy.onBreak(listener);
-  }
-
-  /**
-   * Registers a handler that will be called under one of two circumstances:
-   *
-   * 1. After a set number of retries prove that requests to the API
-   * consistently result in one of the following failures:
-   *    1. A connection initiation error
-   *    2. A connection reset error
-   *    3. A timeout error
-   *    4. A non-JSON response
-   *    5. A 502, 503, or 504 response
-   * 2. After a successful request is made to the API, but the response takes
-   * longer than a set duration to return.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): IDisposable {
-    return this.#policy.onDegraded(listener);
   }
 
   /**
@@ -228,43 +191,29 @@ export class SampleGasPricesService {
    * @returns The gas prices for the given chain.
    */
   async fetchGasPrices(chainId: Hex): Promise<GasPricesResponse['data']> {
-    const response = await this.#policy.execute(async () => {
-      const url = new URL('https://api.example.com/gas-prices');
-      url.searchParams.append(
-        'chainId',
-        `eip155:${fromHex(chainId).toString()}`,
-      );
-      const localResponse = await this.#fetch(url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
-        );
-      }
-      return localResponse;
-    });
-    const jsonResponse = await response.json();
+    const url = new URL('/gas-prices', BASE_URL);
+    url.searchParams.append('chainId', `eip155:${fromHex(chainId).toString()}`);
 
-    if (
-      isPlainObject(jsonResponse) &&
-      hasProperty(jsonResponse, 'data') &&
-      isPlainObject(jsonResponse.data) &&
-      hasProperty(jsonResponse.data, 'low') &&
-      hasProperty(jsonResponse.data, 'average') &&
-      hasProperty(jsonResponse.data, 'high')
-    ) {
-      const {
-        data: { low, average, high },
-      } = jsonResponse;
-      if (
-        typeof low === 'number' &&
-        typeof average === 'number' &&
-        typeof high === 'number'
-      ) {
-        return { low, average, high };
-      }
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchGasPrices`, chainId],
+      queryFn: async () => {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Gas prices API failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (!is(jsonResponse, GasPricesResponseStruct)) {
+      throw new Error('Malformed response received from gas prices API');
     }
 
-    throw new Error('Malformed response received from gas prices API');
+    return jsonResponse.data;
   }
 }

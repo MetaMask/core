@@ -12,6 +12,7 @@ import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
@@ -46,6 +47,7 @@ export type AllowedActions =
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
+  | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RampsControllerGetQuotesAction
@@ -73,6 +75,13 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
+  /**
+   * Whether the source of funds is HyperLiquid (HyperCore).
+   * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
+   * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
+   */
+  isHyperliquidSource?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -163,6 +172,9 @@ export type TransactionData = {
    * (e.g., bridging output to a different token/chain).
    */
   isPostQuote?: boolean;
+
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
 
   /**
    * Optional address to receive refunds if the Relay transaction fails.
@@ -323,6 +335,9 @@ export type QuoteRequest = {
 
   /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
+
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
 
   /**
    * Optional address to receive refunds if the Relay transaction fails.

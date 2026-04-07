@@ -42,24 +42,31 @@ export const rekeyHistoryItemInState = (
  *
  * @param actionId - The action ID used for pre-submission tracking
  * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
+ * @param syntheticTransactionId - The transactionId of the intent's placeholder transaction
  * @returns The key to use for the history item
  * @throws Error if neither actionId nor bridgeTxMetaId is provided
  */
 export function getHistoryKey(
   actionId: string | undefined,
   bridgeTxMetaId: string | undefined,
+  syntheticTransactionId?: string,
 ): string {
-  const historyKey = actionId ?? bridgeTxMetaId;
+  const historyKey = actionId ?? bridgeTxMetaId ?? syntheticTransactionId;
   if (!historyKey) {
     throw new Error(
-      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+      'Cannot add tx to history: either actionId, bridgeTxMeta.id, or syntheticTransactionId must be provided',
     );
   }
   return historyKey;
 }
 
 export const getInitialHistoryItem = (
-  {
+  args: StartPollingForBridgeTxStatusArgsSerialized,
+): {
+  historyKey: string;
+  txHistoryItem: BridgeHistoryItem;
+} => {
+  const {
     bridgeTxMeta,
     quoteResponse,
     startTime,
@@ -70,28 +77,26 @@ export const getInitialHistoryItem = (
     isStxEnabled,
     location,
     abTests,
-    statusRequest,
     activeAbTests,
     accountAddress: selectedAddress,
-  }: StartPollingForBridgeTxStatusArgsSerialized,
-  actionId?: string,
-): {
-  historyKey: string;
-  txHistoryItem: BridgeHistoryItem;
-} => {
+    originalTransactionId,
+    actionId,
+  } = args;
   // Determine the key for this history item:
   // - For pre-submission (non-batch EVM): use actionId
   // - For post-submission or other cases: use bridgeTxMeta.id
-  const historyKey = getHistoryKey(actionId, bridgeTxMeta?.id);
+  const historyKey = getHistoryKey(
+    actionId,
+    bridgeTxMeta?.id,
+    originalTransactionId,
+  );
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
   const txHistoryItem = {
     txMetaId: bridgeTxMeta?.id,
     actionId,
-    originalTransactionId:
-      (bridgeTxMeta as unknown as { originalTransactionId: string })
-        ?.originalTransactionId || bridgeTxMeta?.id, // Keep original for intent transactions
+    originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
     batchId: bridgeTxMeta?.batchId,
     quote: quoteResponse.quote,
     startTime,
@@ -114,7 +119,7 @@ export const getInitialHistoryItem = (
       status: StatusTypes.PENDING,
       srcChain: {
         chainId: quoteResponse.quote.srcChainId,
-        txHash: statusRequest?.srcTxHash ?? bridgeTxMeta?.hash,
+        txHash: bridgeTxMeta?.hash,
       },
     },
     hasApprovalTx: Boolean(quoteResponse.approval),

@@ -30,6 +30,7 @@ import {
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
+jest.mock('./hyperliquid-withdraw');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -124,6 +125,7 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
   isSmartTransaction: () => false,
   transaction: {
     id: ORIGINAL_TRANSACTION_ID_MOCK,
+    txParams: { from: FROM_MOCK },
   } as TransactionMeta,
 };
 
@@ -135,7 +137,6 @@ describe('Relay Submit Utils', () => {
   const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
-
   const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
   const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
 
@@ -1107,6 +1108,57 @@ describe('Relay Submit Utils', () => {
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'Cannot validate payment token balance - RPC timeout',
       );
+    });
+
+    describe('HyperLiquid source', () => {
+      it('calls submitHyperliquidWithdraw instead of submitTransactions', async () => {
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
+
+        request.quotes[0].request.isHyperliquidSource = true;
+        request.quotes[0].original.steps[0].kind = 'transaction';
+
+        await submitRelayQuotes(request);
+
+        expect(hlWithdrawMock).toHaveBeenCalledTimes(1);
+        expect(hlWithdrawMock).toHaveBeenCalledWith(
+          request.quotes[0],
+          FROM_MOCK,
+          messenger,
+        );
+        expect(addTransactionMock).not.toHaveBeenCalled();
+        expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      });
+
+      it('still polls relay status after HyperLiquid withdraw', async () => {
+        request.quotes[0].request.isHyperliquidSource = true;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => STATUS_RESPONSE_MOCK,
+        } as Response);
+
+        const result = await submitRelayQuotes(request);
+
+        expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+        expect(successfulFetchMock).toHaveBeenCalledWith(
+          `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+          { method: 'GET' },
+        );
+      });
+
+      it('does not call submitHyperliquidWithdraw for non-HL source', async () => {
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
+
+        request.quotes[0].request.isHyperliquidSource = false;
+
+        await submitRelayQuotes(request);
+
+        expect(hlWithdrawMock).not.toHaveBeenCalled();
+        expect(addTransactionMock).toHaveBeenCalled();
+      });
     });
 
     describe('EIP-7702 execute path', () => {

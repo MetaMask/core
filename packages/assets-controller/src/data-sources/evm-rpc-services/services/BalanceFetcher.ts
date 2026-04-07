@@ -1,25 +1,23 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import { parseCaipAssetType } from '@metamask/utils';
 
+import { ZERO_ADDRESS } from '../../../utils/constants';
 import type { MulticallClient } from '../clients';
 import type {
   AccountId,
   Address,
   AssetBalance,
+  AssetFetchEntry,
   AssetsBalanceState,
-  BalanceFetchOptions,
   BalanceFetchResult,
   BalanceOfRequest,
   BalanceOfResponse,
+  CaipAssetType,
   ChainId,
-  TokenFetchInfo,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
-
-const ZERO_ADDRESS: Address =
-  '0x0000000000000000000000000000000000000000' as Address;
 
 /**
  * Minimal messenger interface for BalanceFetcher.
@@ -31,7 +29,6 @@ export type BalanceFetcherMessenger = {
 export type BalanceFetcherConfig = {
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
-  includeNativeByDefault?: boolean;
   /** Polling interval in ms (default: 30s) */
   pollingInterval?: number;
 };
@@ -58,6 +55,11 @@ export type OnBalanceUpdateCallback = (
 /**
  * BalanceFetcher - Fetches token balances via multicall.
  * Extends StaticIntervalPollingControllerOnly for built-in polling support.
+ *
+ * Callers provide CAIP-19 asset IDs; the fetcher extracts on-chain addresses
+ * (or uses the zero address for native assets) and maps multicall responses
+ * back to the original asset IDs. This ensures the returned balance entries
+ * always carry the correct identifier regardless of chain.
  */
 export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalancePollingInput>() {
   readonly #multicallClient: MulticallClient;
@@ -79,7 +81,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     this.#config = {
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
-      includeNativeByDefault: config?.includeNativeByDefault ?? true,
     };
 
     // Set the polling interval
@@ -102,7 +103,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param input - The polling input.
    */
   async _executePoll(input: BalancePollingInput): Promise<void> {
-    const result = await this.fetchBalances(
+    const result = await this.#fetchBalances(
       input.chainId,
       input.accountId,
       input.accountAddress,
@@ -113,97 +114,113 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     }
   }
 
-  getTokensToFetch(chainId: ChainId, accountId: AccountId): TokenFetchInfo[] {
+  /**
+   * Return asset fetch entries tracked in state for the given account and
+   * chain. Both native (`slip44:`) and ERC-20 (`erc20:`) entries are included.
+   *
+   * @param chainId - Hex chain ID (e.g. "0x1").
+   * @param accountId - Account UUID.
+   * @returns Array of asset fetch entries from state for the requested chain.
+   */
+  #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
     const state = this.#messenger.call('AssetsController:getState');
 
-    if (!state?.assetsBalance) {
-      return [];
-    }
-
-    const accountBalances = state.assetsBalance[accountId];
+    const accountBalances = state?.assetsBalance?.[accountId];
     if (!accountBalances) {
       return [];
     }
 
     // Convert hex chainId to decimal for CAIP-2 matching
-    const chainIdDecimal = parseInt(chainId, 16);
-    const caipChainPrefix = `eip155:${chainIdDecimal}/`;
+    // This is safe because we are filtring with an accountId that is for evm balances only
+    const chainIdDecimal = parseInt(chainId, 16).toString();
 
-    const tokenMap = new Map<string, TokenFetchInfo>();
+    const assetsToFetch = new Map<string, AssetFetchEntry>();
 
-    for (const assetId of Object.keys(accountBalances)) {
-      // Only process ERC20 tokens on the current chain
-      if (assetId.startsWith(caipChainPrefix) && assetId.includes('/erc20:')) {
-        // Parse token address from CAIP-19: eip155:1/erc20:0x...
-        const tokenAddress = assetId.split('/erc20:')[1] as Address;
-        if (tokenAddress) {
-          const lowerAddress = tokenAddress.toLowerCase();
-          if (!tokenMap.has(lowerAddress)) {
-            tokenMap.set(lowerAddress, {
-              address: tokenAddress,
-              symbol: '',
-            });
-          }
+    for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
+      const {
+        chain: { reference: chainReference },
+        assetNamespace,
+        assetReference,
+      } = parseCaipAssetType(assetId);
+
+      if (chainReference === chainIdDecimal) {
+        const assetIdLowerCase = assetId.toLowerCase();
+        if (assetsToFetch.has(assetIdLowerCase)) {
+          continue;
         }
+
+        const isNative = assetNamespace === 'slip44';
+        const tokenAddress = isNative
+          ? ZERO_ADDRESS
+          : (assetReference.toLowerCase() as Address);
+
+        assetsToFetch.set(assetIdLowerCase, {
+          assetId,
+          address: tokenAddress,
+        });
       }
     }
 
-    return Array.from(tokenMap.values());
+    return Array.from(assetsToFetch.values());
   }
 
-  async fetchBalances(
+  /**
+   * Fetch balances for assets already tracked in state for the given
+   * account and chain.
+   *
+   * @param chainId - Hex chain ID.
+   * @param accountId - Account UUID.
+   * @param accountAddress - On-chain address of the account.
+   * @returns Balance fetch result.
+   */
+  async #fetchBalances(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
-    options?: BalanceFetchOptions,
   ): Promise<BalanceFetchResult> {
-    const tokens = this.getTokensToFetch(chainId, accountId);
-    const tokenAddresses = tokens.map((token) => token.address);
+    const assets = this.#getAssetsToFetch(chainId, accountId);
 
-    return this.fetchBalancesForTokens(
+    return this.fetchBalancesForAssets(
       chainId,
       accountId,
       accountAddress,
-      tokenAddresses,
-      options,
-      tokens,
+      assets,
     );
   }
 
-  async fetchBalancesForTokens(
+  /**
+   * Fetch balances for the given assets via multicall.
+   *
+   * Each entry bundles a CAIP-19 asset ID with its on-chain address and
+   * optional decimals.
+   *
+   * @param chainId - Hex chain ID.
+   * @param accountId - Account UUID.
+   * @param accountAddress - On-chain address of the account.
+   * @param assets - Asset fetch entries to fetch balances for.
+   * @returns Balance fetch result.
+   */
+  async fetchBalancesForAssets(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
-    tokenAddresses: Address[],
-    options?: BalanceFetchOptions,
-    tokenInfos?: TokenFetchInfo[],
+    assets: AssetFetchEntry[],
   ): Promise<BalanceFetchResult> {
-    const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
-    const includeNative =
-      options?.includeNative ?? this.#config.includeNativeByDefault;
     const timestamp = Date.now();
 
-    const tokenInfoMap = new Map<string, TokenFetchInfo>();
-    if (tokenInfos) {
-      for (const info of tokenInfos) {
-        tokenInfoMap.set(info.address.toLowerCase(), info);
-      }
-    }
-
+    // Build a single map keyed by lowercase address that holds all info
+    // needed to match multicall responses back to their original entries.
     const balanceRequests: BalanceOfRequest[] = [];
+    const entryByAddress = new Map<string, AssetFetchEntry>();
 
-    if (includeNative) {
-      balanceRequests.push({
-        tokenAddress: ZERO_ADDRESS,
-        accountAddress,
-      });
-    }
+    for (const entry of assets) {
+      const lowerAddress = entry.address.toLowerCase();
+      if (entryByAddress.has(lowerAddress)) {
+        continue; // deduplicate
+      }
 
-    for (const tokenAddress of tokenAddresses) {
-      balanceRequests.push({
-        tokenAddress,
-        accountAddress,
-      });
+      entryByAddress.set(lowerAddress, entry);
+      balanceRequests.push({ tokenAddress: entry.address, accountAddress });
     }
 
     if (balanceRequests.length === 0) {
@@ -227,7 +244,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       FetchAccumulator
     >({
       values: balanceRequests,
-      batchSize,
+      batchSize: this.#config.defaultBatchSize,
       initialResult: {
         balances: [],
         failedAddresses: [],
@@ -244,7 +261,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           chainId,
           accountId,
           timestamp,
-          tokenInfoMap,
+          entryByAddress,
         );
       },
     });
@@ -267,7 +284,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     chainId: ChainId,
     accountId: AccountId,
     timestamp: number,
-    tokenInfoMap: Map<string, TokenFetchInfo>,
+    entryByAddress: Map<string, AssetFetchEntry>,
   ): {
     balances: AssetBalance[];
     failedAddresses: Address[];
@@ -280,31 +297,29 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         continue;
       }
 
-      const balance = response.balance ?? '0';
-      const chainIdDecimal = parseInt(chainId, 16);
-      const isNative =
-        response.tokenAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase();
-      const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
+      const lowerAddress = response.tokenAddress.toLowerCase();
+      const entry = entryByAddress.get(lowerAddress);
+      if (!entry) {
+        continue;
+      }
 
-      // Native uses 18. ERC-20: format when decimals are known; otherwise pass raw
-      // `balance` through so RpcDataSource can resolve decimals (state → list → RPC).
+      const balance = response.balance ?? '0';
+      const isNative = lowerAddress === ZERO_ADDRESS.toLowerCase();
+
       let decimals: number | undefined;
       let formattedBalance: string;
       if (isNative) {
         decimals = 18;
         formattedBalance = this.#formatBalance(balance, decimals);
-      } else if (tokenInfo?.decimals === undefined) {
+      } else if (entry.decimals === undefined) {
         formattedBalance = balance;
       } else {
-        decimals = tokenInfo.decimals;
+        decimals = entry.decimals;
         formattedBalance = this.#formatBalance(balance, decimals);
       }
-      const assetId: CaipAssetType = isNative
-        ? (`eip155:${chainIdDecimal}/slip44:60` as CaipAssetType)
-        : (`eip155:${chainIdDecimal}/erc20:${response.tokenAddress.toLowerCase()}` as CaipAssetType);
 
       const balanceEntry: AssetBalance = {
-        assetId,
+        assetId: entry.assetId,
         accountId,
         chainId,
         balance,

@@ -1,15 +1,16 @@
 import { Interface } from '@ethersproject/abi';
 import type { TransactionDescription } from '@ethersproject/abi';
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import {
   abiERC721,
   abiERC20,
   abiERC1155,
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
+import type { NetworkClientId } from '@metamask/network-controller';
 
 import { DELEGATION_PREFIX } from './eip7702';
+import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { InferTransactionTypeResult, TransactionParams } from '../types';
 import { TransactionType } from '../types';
 
@@ -26,12 +27,17 @@ const USDCInterface = new Interface(abiFiatTokenV2);
  * represent specific events that we specify manually at transaction creation.
  *
  * @param txParams - Parameters for the transaction.
- * @param ethQuery - EthQuery instance.
+ * @param options - Optional messenger and network client ID to query the network.
+ * @param options.messenger - The TransactionController messenger.
+ * @param options.networkClientId - The network client ID to use.
  * @returns A object with the transaction type and the contract code response in Hex.
  */
 export async function determineTransactionType(
   txParams: TransactionParams,
-  ethQuery?: EthQuery,
+  options?: {
+    messenger: TransactionControllerMessenger;
+    networkClientId: NetworkClientId;
+  },
 ): Promise<InferTransactionTypeResult> {
   const { data, to } = txParams;
 
@@ -42,8 +48,13 @@ export async function determineTransactionType(
   let getCodeResponse;
   let isContractAddress = Boolean(data?.length);
 
-  if (ethQuery) {
-    const response = await readAddressAsContract(ethQuery, to);
+  if (options) {
+    const { messenger, networkClientId } = options;
+    const response = await readAddressAsContract(
+      messenger,
+      networkClientId,
+      to,
+    );
 
     getCodeResponse = response.contractCode;
     isContractAddress = response.isContractAddress;
@@ -142,12 +153,14 @@ function getMethodName(data?: string): string | undefined {
 /**
  * Reads an Ethereum address and determines if it is a contract address.
  *
- * @param ethQuery - The Ethereum query object used to interact with the Ethereum blockchain.
+ * @param messenger - The TransactionController messenger.
+ * @param networkClientId - The network client ID to use.
  * @param address - The Ethereum address.
  * @returns An object containing the contract code and a boolean indicating if it is a contract address.
  */
 async function readAddressAsContract(
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
   address?: string,
 ): Promise<{
   contractCode: string | null;
@@ -155,7 +168,12 @@ async function readAddressAsContract(
 }> {
   let contractCode;
   try {
-    contractCode = await query(ethQuery, 'getCode', [address]);
+    contractCode = (await rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'eth_getCode',
+      params: [address as string, 'latest'],
+    })) as string;
     // Not used
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
