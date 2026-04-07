@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
-
-## [9.1.0]
-
 ### Added
 
 - Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
@@ -25,6 +18,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/toprf-secure-backup` from `^0.11.0` to `^1.0.0` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - `SecretType` is now derived internally from `EncAccountDataType`
+  - Encrypted payload still includes `type` for backward compatibility with older clients
+- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
+  - Use `SecretMetadata.compare` or `SecretMetadata.compareByTimestamp` for sorting
+  - Use `SecretMetadata.matchesType` for filtering
+- **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
+- **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
+
+### Fixed
+
+- Fix TIMEUUID sorting by extracting actual timestamps instead of using lexicographic comparison ([#7284](https://github.com/MetaMask/core/pull/7284))
+
+## [9.1.0]
+
+### Added
+
 - Expose all public `SeedlessOnboardingController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
   - The following actions are now available:
     - `SeedlessOnboardingController:fetchMetadataAccessCreds`
@@ -81,21 +97,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
-  - `SecretType` is now derived internally from `EncAccountDataType`
-  - Encrypted payload still includes `type` for backward compatibility with older clients
-- **BREAKING:** Remove `parseSecretsFromMetadataStore`, `fromBatch`, and `sort` methods from `SecretMetadata` ([#7284](https://github.com/MetaMask/core/pull/7284))
-  - Use `SecretMetadata.compare` or `SecretMetadata.compareByTimestamp` for sorting
-  - Use `SecretMetadata.matchesType` for filtering
-- **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
-- **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
 - `refreshAuthTokens` now coalesces concurrent calls — if a refresh is already in-flight, subsequent callers share the same promise rather than issuing duplicate HTTP requests with the same token ([#7989](https://github.com/MetaMask/core/pull/7989))
 - `refreshAuthTokens` now uses the live `state.refreshToken` value when calling `authenticate` after a successful HTTP refresh, preventing a stale-capture bug that could overwrite a concurrently-renewed token with an older one ([#7989](https://github.com/MetaMask/core/pull/7989))
 - `renewRefreshToken` now queues the old token for revocation only after `#createNewVaultWithAuthData` succeeds, ensuring tokens are not queued if vault creation fails ([#7989](https://github.com/MetaMask/core/pull/7989))
 
 ### Fixed
 
-- Fix TIMEUUID sorting by extracting actual timestamps instead of using lexicographic comparison ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Fixed `refreshAuthTokens` throwing the generic `FailedToRefreshJWTTokens` error for all HTTP failures — a 401 response (permanently revoked token) now throws `InvalidRefreshToken` instead, giving callers a distinct signal to distinguish permanent from transient failures ([#7989](https://github.com/MetaMask/core/pull/7989))
 
 ## [8.0.0]
