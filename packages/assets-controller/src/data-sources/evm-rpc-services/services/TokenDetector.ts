@@ -1,6 +1,7 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
+import { projectLogger, createModuleLogger } from '../../../logger';
 import type { MulticallClient } from '../clients';
 import type { TokensApiClient } from '../clients/TokensApiClient';
 import type {
@@ -16,6 +17,8 @@ import type {
   TokenListEntry,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
+
+const log = createModuleLogger(projectLogger, 'TokenDetector');
 
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
@@ -100,14 +103,18 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @param input - The polling input.
    */
   async _executePoll(input: DetectionPollingInput): Promise<void> {
-    const result = await this.detectTokens(
-      input.chainId,
-      input.accountId,
-      input.accountAddress,
-    );
+    try {
+      const result = await this.detectTokens(
+        input.chainId,
+        input.accountId,
+        input.accountAddress,
+      );
 
-    if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
-      this.#onDetectionUpdate(result);
+      if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
+        this.#onDetectionUpdate(result);
+      }
+    } catch (error) {
+      log('Token detection poll failed', { chainId: input.chainId, error });
     }
   }
 
@@ -215,9 +222,19 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
   }
 
   async #fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
-    const list = await this.#tokensApiClient.fetchTokenList(chainId);
-    this.#tokenListCache.set(chainId, list);
-    return list;
+    try {
+      const list = await this.#tokensApiClient.fetchTokenList(chainId);
+      this.#tokenListCache.set(chainId, list);
+      return list;
+    } catch (error) {
+      const cached = this.#tokenListCache.get(chainId);
+      log('Failed to fetch token list; using stale cache', {
+        chainId,
+        cachedCount: cached?.length ?? 0,
+        error,
+      });
+      return cached ?? [];
+    }
   }
 
   #processBalanceResponses(
