@@ -40,9 +40,7 @@ function createMockFetch(
   return jest.fn().mockResolvedValue(response);
 }
 
-function buildClient(
-  config?: TokensApiClientConfig,
-): TokensApiClient {
+function buildClient(config?: TokensApiClientConfig): TokensApiClient {
   return new TokensApiClient(config);
 }
 
@@ -126,7 +124,8 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               symbol: 'USDC',
               name: 'USD Coin',
               decimals: 6,
@@ -153,14 +152,16 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               symbol: 'USDC',
               name: 'USD Coin',
               decimals: 6,
               occurrences: 10,
             },
             {
-              assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              assetId:
+                'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
               symbol: 'USDT',
               name: 'Tether USD',
               decimals: 6,
@@ -202,7 +203,8 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               name: 'USD Coin',
               decimals: 6,
             },
@@ -219,7 +221,8 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               symbol: 'USDC',
               decimals: 6,
             },
@@ -236,7 +239,8 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               symbol: 'USDC',
               name: 'USD Coin',
             },
@@ -253,7 +257,8 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               symbol: 'USDC',
               name: 'USD Coin',
               decimals: 6,
@@ -279,7 +284,8 @@ describe('TokensApiClient', () => {
               decimals: 18,
             },
             {
-              assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              assetId:
+                'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
               symbol: 'USDC',
               name: 'USD Coin',
               decimals: 6,
@@ -298,7 +304,8 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(
           createMockResponse([
             {
-              assetId: 'eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
+              assetId:
+                'eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
               symbol: 'BAYC',
               name: 'Bored Ape Yacht Club',
               decimals: 0,
@@ -315,8 +322,19 @@ describe('TokensApiClient', () => {
       it('returns an empty array when all items are non-erc20', async () => {
         const mockFetch = createMockFetch(
           createMockResponse([
-            { assetId: 'eip155:1/slip44:60', symbol: 'ETH', name: 'Ether', decimals: 18 },
-            { assetId: 'eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D', symbol: 'BAYC', name: 'BAYC', decimals: 0 },
+            {
+              assetId: 'eip155:1/slip44:60',
+              symbol: 'ETH',
+              name: 'Ether',
+              decimals: 18,
+            },
+            {
+              assetId:
+                'eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
+              symbol: 'BAYC',
+              name: 'BAYC',
+              decimals: 0,
+            },
           ]),
         );
         const client = buildClient({ fetch: mockFetch });

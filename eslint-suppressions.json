@@ -174,9 +174,6 @@
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 4
     }
@@ -2309,11 +2306,6 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
-    "import-x/no-relative-packages": {
       "count": 1
     }
   },
