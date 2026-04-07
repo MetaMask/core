@@ -7,17 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
 ### Removed
 
 - **BREAKING:** Remove persisted `delegations` state ([#8330](https://github.com/MetaMask/core/pull/8330))
   - `store`, `list`, `retrieve`, `chain`, and `delete` methods (and related messenger action types)
   - `DelegationEntry` type export
   - Remove dependency on `@metamask/accounts-controller`
-
-### Changed 
-
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 
 ## [2.1.0]
 
