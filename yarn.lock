@@ -3652,7 +3652,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-hd-keyring@npm:^13.0.0, @metamask/eth-hd-keyring@npm:^13.1.0":
+"@metamask/eth-hd-keyring@npm:^13.1.0":
   version: 13.1.0
   resolution: "@metamask/eth-hd-keyring@npm:13.1.0"
   dependencies:
@@ -4457,7 +4457,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.1"
     "@metamask/controller-utils": "npm:^11.20.0"
-    "@metamask/eth-hd-keyring": "npm:^13.0.0"
+    "@metamask/eth-hd-keyring": "npm:^13.1.0"
     "@metamask/eth-snap-keyring": "npm:^19.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
     "@metamask/keyring-api": "npm:^21.6.0"
