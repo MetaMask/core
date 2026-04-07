@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expose `updateTransactionsForAccount` as a messenger action (`MultichainTransactionsController:updateTransactionsForAccount`) ([#8391](https://github.com/MetaMask/core/pull/8391))
   - The new `MultichainTransactionsControllerUpdateTransactionsForAccountAction` type is now exported.
   - `MultichainTransactionsControllerActions` union now includes this action.
+- Export `MultichainTransactionsControllerActions`, `MultichainTransactionsControllerEvents`, `MultichainTransactionsControllerMessenger` ([#8391](https://github.com/MetaMask/core/pull/8391))
 
 ### Changed
 
