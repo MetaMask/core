@@ -301,7 +301,6 @@ linkStyle default opacity:0.5
   core_backend --> keyring_controller;
   core_backend --> messenger;
   core_backend --> profile_sync_controller;
-  delegation_controller --> accounts_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
