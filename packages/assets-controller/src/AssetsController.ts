@@ -674,8 +674,8 @@ export class AssetsController extends BaseController<
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
   readonly #onActiveChainsUpdated: (
-    dataSourceId: string,
-    activeChains: ChainId[],
+    dataSourceName: string,
+    chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
 
@@ -714,7 +714,14 @@ export class AssetsController extends BaseController<
       chains: ChainId[],
       previousChains: ChainId[],
     ): void => {
-      this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+      try {
+        this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+      } catch (error) {
+        log('Failed to handle active chains update', {
+          dataSourceName,
+          error,
+        });
+      }
     };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
