@@ -396,7 +396,7 @@ async function calculateSourceNetworkCost(
   const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
-  const gasEstimates = await estimateQuoteGasLimits({
+  let gasEstimates = await estimateQuoteGasLimits({
     fallbackGas: acrossFallbackGas,
     messenger,
     transactions: orderedTransactions.map((transaction) => ({
@@ -408,7 +408,43 @@ async function calculateSourceNetworkCost(
       value: transaction.value ?? '0x0',
     })),
   });
-  const { batchGasLimit, is7702, requiresAuthorizationList } = gasEstimates;
+  const { batchGasLimit } = gasEstimates;
+
+  const accountSupports7702 = await messenger.call(
+    'KeyringController:accountSupports7702',
+    from,
+  );
+
+  // If the chain returned a combined 7702 gas limit but the account cannot sign
+  // EIP-7702 authorizations (e.g. hardware wallet), re-estimate each transaction
+  // individually so the submit path receives per-transaction gas limits.
+  if (gasEstimates.is7702 && !accountSupports7702) {
+    const individualResults = await Promise.all(
+      orderedTransactions.map((transaction) =>
+        estimateQuoteGasLimits({
+          fallbackGas: acrossFallbackGas,
+          messenger,
+          transactions: [
+            {
+              chainId: toHex(transaction.chainId),
+              data: transaction.data,
+              from,
+              gas: transaction.gas,
+              to: transaction.to,
+              value: transaction.value ?? '0x0',
+            },
+          ],
+        }),
+      ),
+    );
+    gasEstimates = {
+      ...gasEstimates,
+      is7702: false,
+      gasLimits: individualResults.map((result) => result.gasLimits[0]),
+    };
+  }
+
+  const { is7702 } = gasEstimates;
 
   if (is7702) {
     if (!batchGasLimit) {

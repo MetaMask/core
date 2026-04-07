@@ -264,7 +264,7 @@ describe('Across Submit', () => {
     it('disables 7702 batch when account does not support 7702', async () => {
       accountSupports7702Mock.mockResolvedValue(false);
 
-      const batchGasQuote = {
+      const nonIs7702Quote = {
         ...QUOTE_MOCK,
         original: {
           ...QUOTE_MOCK.original,
@@ -273,14 +273,14 @@ describe('Across Submit', () => {
               { estimate: 21000, max: 21000 },
               { estimate: 22000, max: 22000 },
             ],
-            is7702: true,
+            is7702: false,
           },
         },
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
         messenger,
-        quotes: [batchGasQuote],
+        quotes: [nonIs7702Quote],
         transaction: TRANSACTION_META_MOCK,
         isSmartTransaction: jest.fn(),
       });

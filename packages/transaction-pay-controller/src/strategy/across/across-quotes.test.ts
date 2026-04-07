@@ -164,6 +164,7 @@ describe('Across Quotes', () => {
   const calculateGasCostMock = jest.mocked(calculateGasCost);
 
   const {
+    accountSupports7702Mock,
     messenger,
     estimateGasMock,
     estimateGasBatchMock,
@@ -203,6 +204,7 @@ describe('Across Quotes', () => {
     getGasBufferMock.mockReturnValue(1.0);
     getSlippageMock.mockReturnValue(0.005);
 
+    accountSupports7702Mock.mockResolvedValue(true);
     findNetworkClientIdByChainIdMock.mockReturnValue('mainnet');
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
@@ -1255,10 +1257,17 @@ describe('Across Quotes', () => {
       );
     });
 
-    it('omits the authorization-list flag when a combined batch does not require one', async () => {
+    it('re-estimates individually when batch returns 7702 but account does not support it', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 51000,
         gasLimits: [51000],
+      });
+
+      estimateGasMock.mockResolvedValue({
+        gas: '0x5208',
+        simulationFails: undefined,
       });
 
       successfulFetchMock.mockResolvedValue({
@@ -1281,15 +1290,9 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].original.metamask).toStrictEqual({
-        gasLimits: [
-          {
-            estimate: 51000,
-            max: 51000,
-          },
-        ],
-        is7702: true,
-      });
+      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(result[0].original.metamask.gasLimits).toHaveLength(2);
+      expect(estimateGasMock).toHaveBeenCalledTimes(2);
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {

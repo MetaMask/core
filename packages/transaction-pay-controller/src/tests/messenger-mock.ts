@@ -6,6 +6,7 @@ import type {
   BridgeStatusControllerGetStateAction,
   BridgeStatusControllerSubmitTxAction,
 } from '@metamask/bridge-status-controller';
+import type { KeyringControllerAccountSupports7702Action } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -14,7 +15,6 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
-import type { KeyringControllerAccountSupports7702Action } from '@metamask/keyring-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   TransactionControllerAddTransactionAction,

@@ -1054,8 +1054,9 @@ describe('KeyringController', () => {
             [privateKey],
           );
 
-        const result =
-          await controller.accountSupports7702(importedAccountAddress);
+        const result = await controller.accountSupports7702(
+          importedAccountAddress,
+        );
         expect(result).toBe(true);
       });
     });
