@@ -123,7 +123,6 @@ export {
   TransactionContainerType,
   TransactionEnvelopeType,
   TransactionStatus,
-  TransactionSubmissionMethod,
   TransactionType,
   UserFeeLevel,
   WalletDevice,
