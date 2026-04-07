@@ -485,6 +485,11 @@ async function submitViaTransactionController(
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
   const { isPostQuote } = quote.request;
 
+  const accountSupports7702 = await messenger.call(
+    'KeyringController:accountSupports7702',
+    from,
+  );
+
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
     sourceChainId,
@@ -535,7 +540,9 @@ async function submitViaTransactionController(
     quote.original.details.currencyOut.currency.chainId;
 
   const authorizationList: AuthorizationList | undefined =
-    isSameChain && quote.original.request.authorizationList?.length
+    accountSupports7702 &&
+    isSameChain &&
+    quote.original.request.authorizationList?.length
       ? quote.original.request.authorizationList.map((a) => ({
           address: a.address,
           chainId: toHex(a.chainId),
@@ -564,9 +571,10 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 = metamask.is7702
-      ? toHex(metamask.gasLimits[0])
-      : undefined;
+    const gasLimit7702 =
+      accountSupports7702 && metamask.is7702
+        ? toHex(metamask.gasLimits[0])
+        : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];

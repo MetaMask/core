@@ -2213,14 +2213,23 @@ export class KeyringController<
     return keyring.type;
   }
 
-  /**
-   * Constructor helper for registering this controller's messeger
-   * actions.
-   */
+  async accountSupports7702(account: string): Promise<boolean> {
+    const keyringType = await this.getAccountKeyringType(account);
+    return (
+      keyringType === (KeyringTypes.hd as string) ||
+      keyringType === (KeyringTypes.simple as string)
+    );
+  }
+
   #registerMessageHandlers(): void {
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
+    );
+
+    this.messenger.registerActionHandler(
+      `${name}:accountSupports7702`,
+      this.accountSupports7702.bind(this),
     );
   }
 

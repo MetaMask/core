@@ -180,6 +180,7 @@ describe('Relay Quotes Utils', () => {
   const getSlippageMock = jest.mocked(getSlippage);
 
   const {
+    accountSupports7702Mock,
     messenger,
     estimateGasMock,
     estimateGasBatchMock,
@@ -215,6 +216,7 @@ describe('Relay Quotes Utils', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
+    accountSupports7702Mock.mockResolvedValue(true);
     isEIP7702ChainMock.mockReturnValue(true);
     isRelayExecuteEnabledMock.mockReturnValue(false);
     getGasBufferMock.mockReturnValue(1.0);
@@ -302,6 +304,27 @@ describe('Relay Quotes Utils', () => {
     it('omits originGasOverhead when relay execute is enabled but chain does not support EIP-7702', async () => {
       isRelayExecuteEnabledMock.mockReturnValue(true);
       isEIP7702ChainMock.mockReturnValue(false);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.originGasOverhead).toBeUndefined();
+    });
+
+    it('omits originGasOverhead when account does not support 7702 even on EIP-7702 chain with relay execute enabled', async () => {
+      isRelayExecuteEnabledMock.mockReturnValue(true);
+      accountSupports7702Mock.mockResolvedValue(false);
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
