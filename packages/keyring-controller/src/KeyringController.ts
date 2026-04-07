@@ -1281,7 +1281,7 @@ export class KeyringController<
         );
       }
 
-      const { keyring } = this.#keyrings[keyringIndex];
+      const { keyring, keyringV2 } = this.#keyrings[keyringIndex];
 
       const isPrimaryKeyring = keyringIndex === 0;
       const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
@@ -1311,7 +1311,7 @@ export class KeyringController<
 
       if (shouldRemoveKeyring) {
         this.#keyrings.splice(keyringIndex, 1);
-        await this.#destroyKeyring(keyring);
+        await this.#destroyKeyring(keyring, keyringV2);
       }
     });
 
@@ -2716,8 +2716,8 @@ export class KeyringController<
    */
   async #clearKeyrings(): Promise<void> {
     this.#assertControllerMutexIsLocked();
-    for (const { keyring } of this.#keyrings) {
-      await this.#destroyKeyring(keyring);
+    for (const { keyring, keyringV2 } of this.#keyrings) {
+      await this.#destroyKeyring(keyring, keyringV2);
     }
     this.#keyrings = [];
     this.#unsupportedKeyrings = [];
@@ -2787,9 +2787,16 @@ export class KeyringController<
    * clears the keyring bridge iframe from the DOM.
    *
    * @param keyring - The keyring to destroy.
+   * @param keyringV2 - The keyring v2 to destroy (if any).
    */
-  async #destroyKeyring(keyring: EthKeyring): Promise<void> {
+  async #destroyKeyring(
+    keyring: EthKeyring,
+    keyringV2?: KeyringV2,
+  ): Promise<void> {
     await keyring.destroy?.();
+    if (keyringV2) {
+      await keyringV2.destroy?.();
+    }
   }
 
   /**
