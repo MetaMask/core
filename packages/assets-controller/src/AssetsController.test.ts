@@ -18,9 +18,12 @@ import type {
   AssetsControllerState,
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
+import { PriceDataSource } from './data-sources/PriceDataSource';
+import { TokenDataSource } from './data-sources/TokenDataSource';
 import type {
   Caip19AssetId,
   AccountId,
+  DataRequest,
   DataResponse,
   FungibleAssetMetadata,
 } from './types';
@@ -695,6 +698,40 @@ describe('AssetsController', () => {
           },
         );
       });
+
+      it('does not run token or price middleware in getAssets pipelines when isBasicFunctionality is false', async () => {
+        const tokenMiddlewareGetter = jest.spyOn(
+          TokenDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        ) as unknown as jest.SpyInstance;
+        const priceMiddlewareGetter = jest.spyOn(
+          PriceDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        ) as unknown as jest.SpyInstance;
+
+        await withController(
+          { isBasicFunctionality: () => false },
+          async ({ controller }) => {
+            tokenMiddlewareGetter.mockClear();
+            priceMiddlewareGetter.mockClear();
+
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            });
+            await flushPromises();
+          },
+        );
+
+        expect(tokenMiddlewareGetter).not.toHaveBeenCalled();
+        expect(priceMiddlewareGetter).not.toHaveBeenCalled();
+
+        tokenMiddlewareGetter.mockRestore();
+        priceMiddlewareGetter.mockRestore();
+      });
     });
 
     it('filters by chainIds option', async () => {
@@ -990,6 +1027,53 @@ describe('AssetsController', () => {
         expect(stored.symbol).toBe('');
         expect(stored.name).toBe('');
       });
+    });
+
+    it('does not run token or price middleware when isBasicFunctionality is false', async () => {
+      const tokenMiddlewareGetter = jest.spyOn(
+        TokenDataSource.prototype,
+        'assetsMiddleware',
+        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+        'get',
+      ) as unknown as jest.SpyInstance;
+      const priceMiddlewareGetter = jest.spyOn(
+        PriceDataSource.prototype,
+        'assetsMiddleware',
+        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+        'get',
+      ) as unknown as jest.SpyInstance;
+
+      const request: DataRequest = {
+        accountsWithSupportedChains: [],
+        chainIds: ['eip155:1'],
+        dataTypes: ['balance', 'metadata', 'price'],
+      };
+
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          tokenMiddlewareGetter.mockClear();
+          priceMiddlewareGetter.mockClear();
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+                },
+              },
+            },
+            'RpcDataSource',
+            request,
+          );
+        },
+      );
+
+      expect(tokenMiddlewareGetter).not.toHaveBeenCalled();
+      expect(priceMiddlewareGetter).not.toHaveBeenCalled();
+
+      tokenMiddlewareGetter.mockRestore();
+      priceMiddlewareGetter.mockRestore();
     });
   });
 
@@ -1378,6 +1462,30 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockRestore();
       });
+    });
+
+    it('does not call getAssets when isBasicFunctionality is false', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+          controller.setSelectedCurrency('eur');
+
+          expect(controller.state.selectedCurrency).toBe('eur');
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+
+          getAssetsSpy.mockRestore();
+        },
+      );
     });
   });
 

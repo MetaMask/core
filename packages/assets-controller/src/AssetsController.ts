@@ -1165,8 +1165,9 @@ export class AssetsController extends BaseController<
       await this.#updateState({ ...response, updateMode });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
-      // commits to state. Their balances are merged together before detection
-      // and metadata/price enrichment, then merged into state.
+      // commits to state. Their balances are merged together before detection.
+      // Token + price enrichment matches the pre-split behavior: only when basic
+      // functionality is on (RPC-only mode must not call token/price APIs).
       const slowSources = this.#isBasicFunctionality()
         ? [this.#snapDataSource, this.#rpcDataSource]
         : [this.#rpcDataSource];
@@ -1175,10 +1176,14 @@ export class AssetsController extends BaseController<
         [
           createParallelBalanceMiddleware(slowSources),
           this.#detectionMiddleware,
-          createParallelMiddleware([
-            this.#tokenDataSource,
-            this.#priceDataSource,
-          ]),
+          ...(this.#isBasicFunctionality()
+            ? [
+                createParallelMiddleware([
+                  this.#tokenDataSource,
+                  this.#priceDataSource,
+                ]),
+              ]
+            : []),
         ],
         request,
       )
@@ -1522,6 +1527,10 @@ export class AssetsController extends BaseController<
       previousCurrency,
       selectedCurrency,
     });
+
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
 
     this.getAssets(this.#selectedAccounts, {
       forceUpdate: true,
@@ -2471,7 +2480,8 @@ export class AssetsController extends BaseController<
   /**
    * Handle assets updated from a data source.
    * Called via the onAssetsUpdate callback passed in SubscriptionRequest when the controller subscribes to a data source.
-   * Enriches the response with token metadata (via middlewares) before updating state.
+   * Runs detection, then (when basic functionality is enabled) token metadata and price enrichment before updating state.
+   * When basic functionality is disabled (RPC-only mode), only detection runs; token and price APIs are not used.
    *
    * @param response - The data response with updated assets
    * @param sourceId - The data source ID reporting the update
@@ -2489,21 +2499,36 @@ export class AssetsController extends BaseController<
       hasPrice: Boolean(response.assetsPrice),
     });
 
-    // Run through enrichment middlewares (Detection, then Token + Price in parallel)
-    // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
-    const { response: enrichedResponse } = await this.#executeMiddlewares(
-      [
-        this.#detectionMiddleware,
+    const resolvedRequest: DataRequest = request ?? {
+      accountsWithSupportedChains: [],
+      chainIds: [],
+      dataTypes: ['balance', 'metadata', 'price'],
+    };
+
+    // RPC-only mode (basic functionality off): never run token/price APIs. Strip
+    // those data types so downstream middleware cannot treat them as requested.
+    const pipelineRequest: DataRequest = this.#isBasicFunctionality()
+      ? resolvedRequest
+      : {
+          ...resolvedRequest,
+          dataTypes: resolvedRequest.dataTypes.filter(
+            (dt) => dt !== 'metadata' && dt !== 'price',
+          ),
+        };
+
+    const enrichmentSources: AssetsDataSource[] = [this.#detectionMiddleware];
+    if (this.#isBasicFunctionality()) {
+      enrichmentSources.push(
         createParallelMiddleware([
           this.#tokenDataSource,
           this.#priceDataSource,
         ]),
-      ],
-      request ?? {
-        accountsWithSupportedChains: [],
-        chainIds: [],
-        dataTypes: ['balance', 'metadata', 'price'],
-      },
+      );
+    }
+
+    const { response: enrichedResponse } = await this.#executeMiddlewares(
+      enrichmentSources,
+      pipelineRequest,
       response,
     );
 

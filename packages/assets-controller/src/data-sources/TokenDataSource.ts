@@ -275,8 +275,7 @@ export class TokenDataSource {
         }
 
         for (const entry of tokenEntries) {
-          const result =
-            scanResponse[entry.address] ?? scanResponse[entry.address];
+          const result = scanResponse[entry.address];
           if (result?.result_type === TokenScanResultType.Malicious) {
             rejectedAssets.add(entry.asset);
           }
