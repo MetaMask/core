@@ -278,4 +278,189 @@ export type FooChangeEvent = {
       expect(items.filter((i) => i.kind === 'event')).toHaveLength(1);
     });
   });
+
+  it('resolves template literal type strings with constants', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+const controllerName = 'MyController';
+
+export type MyControllerGetAction = {
+  type: \`\${typeof controllerName}:get\`;
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('MyController:get');
+    });
+  });
+
+  it('resolves controller name from imported constants', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'constants.ts'),
+        `export const CONTROLLER_NAME = 'ImportedController';`,
+      );
+
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+import { CONTROLLER_NAME } from './constants';
+
+export type ImportedControllerGetAction = {
+  type: \`\${typeof CONTROLLER_NAME}:get\`;
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('ImportedController:get');
+    });
+  });
+
+  it('extracts JSDoc with @link references', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * See {@link FooController} for details.
+ */
+export type FooAction = {
+  type: 'Foo:get';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('`FooController`');
+    });
+  });
+
+  it('strips @param and @returns tags from JSDoc', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Does something important.
+ *
+ * @param x - The input.
+ * @returns The output.
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: (x: string) => string;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('Does something important.');
+      expect(items[0].jsDoc).not.toContain('@param');
+      expect(items[0].jsDoc).not.toContain('@returns');
+    });
+  });
+
+  it('extracts deprecated text from JSDoc', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Old method.
+ * @deprecated Use newMethod instead.
+ */
+export type FooAction = {
+  type: 'Foo:old';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].deprecated).toBe(true);
+      expect(items[0].jsDoc).toContain('**Deprecated:**');
+    });
+  });
+
+  it('extracts from .d.cts declaration files', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'index.d.cts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type DeclaredGetAction = {
+  type: 'Declared:get';
+  handler: () => string;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('Declared:get');
+    });
+  });
+
+  it('handles class method JSDoc in handler resolution', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+class MyCtrl {
+  /**
+   * Fetches data from server.
+   */
+  fetchData(id: number): Promise<string> {
+    return Promise.resolve('');
+  }
+}
+
+export type MyCtrlFetchAction = {
+  type: 'MyCtrl:fetchData';
+  handler: MyCtrl['fetchData'];
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain('(id: number)');
+    });
+  });
 });

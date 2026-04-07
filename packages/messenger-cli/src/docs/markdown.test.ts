@@ -89,6 +89,34 @@ describe('generateItemMarkdown', () => {
     expect(result).toContain('[`getState`](#foocontrollergetstate)');
   });
 
+  it('linkifies references via namespace prefix lookup', () => {
+    const known = new Map([
+      ['FooController:reset', '#foocontrollerreset'],
+    ]);
+    const item = makeItem({ jsDoc: 'Call `reset` to clear state.' });
+    const result = generateItemMarkdown(item, 'FooController', known, null);
+
+    expect(result).toContain('[`reset`](#foocontrollerreset)');
+  });
+
+  it('linkifies references via anchor fallback', () => {
+    const known = new Map([
+      ['irrelevant', './actions#foocontrollerreset'],
+    ]);
+    const item = makeItem({ jsDoc: 'Call `reset` to clear.' });
+    const result = generateItemMarkdown(item, 'FooController', known, null);
+
+    expect(result).toContain('[`reset`](./actions#foocontrollerreset)');
+  });
+
+  it('does not linkify unknown references', () => {
+    const item = makeItem({ jsDoc: 'See `unknownThing` for info.' });
+    const result = generateItemMarkdown(item, 'FooController', new Map(), null);
+
+    expect(result).toContain('`unknownThing`');
+    expect(result).not.toContain('[`unknownThing`]');
+  });
+
   it('shows plain source path when no repo URL', () => {
     const item = makeItem();
     const result = generateItemMarkdown(item, 'FooController', new Map(), null);
