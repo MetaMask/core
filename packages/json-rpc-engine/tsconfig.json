@@ -9,5 +9,6 @@
     "noUncheckedIndexedAccess": true,
     "target": "es2020"
   },
-  "include": ["../../types", "../../tests", "./src", "./tests"]
+  "include": ["../../types", "../../tests", "./src", "./tests"],
+  "references": []
 }

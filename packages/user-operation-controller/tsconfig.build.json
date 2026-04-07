@@ -29,6 +29,12 @@
     },
     {
       "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-block-tracker/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

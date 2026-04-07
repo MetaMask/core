@@ -6,11 +6,21 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../accounts-controller/tsconfig.build.json" },
-    { "path": "../controller-utils/tsconfig.build.json" },
-    { "path": "../keyring-controller/tsconfig.build.json" },
-    { "path": "../messenger/tsconfig.build.json" },
-    { "path": "../profile-sync-controller/tsconfig.build.json" }
+    {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
+    }
   ],
   "include": ["../../types", "./src"]
 }

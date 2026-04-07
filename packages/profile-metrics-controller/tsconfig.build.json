@@ -6,14 +6,30 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../../packages/accounts-controller/tsconfig.build.json" },
-    { "path": "../../packages/base-controller/tsconfig.build.json" },
-    { "path": "../../packages/controller-utils/tsconfig.build.json" },
-    { "path": "../../packages/keyring-controller/tsconfig.build.json" },
-    { "path": "../../packages/messenger/tsconfig.build.json" },
-    { "path": "../../packages/polling-controller/tsconfig.build.json" },
-    { "path": "../../packages/profile-sync-controller/tsconfig.build.json" },
-    { "path": "../../packages/transaction-controller/tsconfig.build.json" }
+    {
+      "path": "../accounts-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../polling-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
+    }
   ],
   "include": ["../../types", "./src"]
 }

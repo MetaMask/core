@@ -8,10 +8,10 @@
       "path": "../base-controller"
     },
     {
-      "path": "../message-manager"
+      "path": "../messenger"
     },
     {
-      "path": "../messenger"
+      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

@@ -3,6 +3,10 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [{ "path": "../base-data-service" }],
+  "references": [
+    {
+      "path": "../base-data-service"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

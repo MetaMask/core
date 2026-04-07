@@ -14,9 +14,6 @@
       "path": "../json-rpc-engine"
     },
     {
-      "path": "../network-controller"
-    },
-    {
       "path": "../message-manager"
     }
   ],

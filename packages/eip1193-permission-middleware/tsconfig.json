@@ -5,10 +5,18 @@
     "rootDir": "../.."
   },
   "references": [
-    { "path": "../chain-agnostic-permission" },
-    { "path": "../controller-utils" },
-    { "path": "../json-rpc-engine" },
-    { "path": "../permission-controller" }
+    {
+      "path": "../chain-agnostic-permission"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../permission-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }

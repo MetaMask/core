@@ -15,6 +15,9 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src"]
