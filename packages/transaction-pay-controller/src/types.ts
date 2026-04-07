@@ -23,6 +23,7 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuotesAction,
+  RampsControllerSetSelectedTokenAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
@@ -60,6 +61,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
+  | RampsControllerSetSelectedTokenAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
