@@ -2,7 +2,6 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
-import type { GetTokenListState } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -267,7 +266,6 @@ type AllowedActions =
   // AssetsController
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
   // RpcDataSource
-  | GetTokenListState
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   // RpcDataSource, StakedBalanceDataSource
@@ -1133,12 +1131,18 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
-      const sources = this.#isBasicFunctionality()
+      // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
+      // Snap and RPC are excluded here due to their latency (snap triggers account
+      // creation, RPC is slow on many chains). Results are committed to state
+      // immediately so the UI can display balances without waiting for them.
+      //
+      // Both the fast and background pipelines use 'merge' mode because neither
+      // alone represents the full set of data sources. Using 'full' in either
+      // would wipe balances from the sources handled by the other pipeline.
+      const fastSources = this.#isBasicFunctionality()
         ? [
             createParallelBalanceMiddleware([
               this.#accountsApiDataSource,
-              this.#snapDataSource,
-              this.#rpcDataSource,
               this.#stakedBalanceDataSource,
             ]),
             this.#detectionMiddleware,
@@ -1147,23 +1151,43 @@ export class AssetsController extends BaseController<
               this.#priceDataSource,
             ]),
           ]
-        : [
-            this.#rpcDataSource,
-            this.#stakedBalanceDataSource,
-            this.#detectionMiddleware,
-          ];
+        : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
       const { response, durationByDataSource } = await this.#executeMiddlewares(
-        sources,
+        fastSources,
         request,
       );
-      // Default to 'merge' when fetching a subset of chains so we don't wipe
-      // balances from chains that weren't included in this fetch.
-      const isPartialChainFetch =
-        options?.chainIds !== undefined &&
-        options.chainIds.length < this.#enabledChains.size;
-      const updateMode =
-        options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
-      await this.#updateState({ ...response, updateMode });
+      // The fast pipeline only contains a subset of data sources (AccountsApi +
+      // StakedBalance), so it must always merge to avoid wiping Snap/RPC
+      // balances that the background pipeline hasn't yet replaced.
+      await this.#updateState({ ...response, updateMode: 'merge' });
+
+      // Background pipeline: snap and RPC run in parallel after the fast path
+      // commits to state. Their balances are merged together before detection.
+      // Token + price enrichment matches the pre-split behavior: only when basic
+      // functionality is on (RPC-only mode must not call token/price APIs).
+      const slowSources = this.#isBasicFunctionality()
+        ? [this.#snapDataSource, this.#rpcDataSource]
+        : [this.#rpcDataSource];
+
+      this.#executeMiddlewares(
+        [
+          createParallelBalanceMiddleware(slowSources),
+          this.#detectionMiddleware,
+          ...(this.#isBasicFunctionality()
+            ? [
+                createParallelMiddleware([
+                  this.#tokenDataSource,
+                  this.#priceDataSource,
+                ]),
+              ]
+            : []),
+        ],
+        request,
+      )
+        .then(({ response: slowResponse }) =>
+          this.#updateState({ ...slowResponse, updateMode: 'merge' }),
+        )
+        .catch((error) => log('Background pipeline failed', { error }));
 
       const durationMs = performance.now() - startTime;
 
@@ -1500,6 +1524,10 @@ export class AssetsController extends BaseController<
       previousCurrency,
       selectedCurrency,
     });
+
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
 
     this.getAssets(this.#selectedAccounts, {
       forceUpdate: true,
@@ -2449,7 +2477,8 @@ export class AssetsController extends BaseController<
   /**
    * Handle assets updated from a data source.
    * Called via the onAssetsUpdate callback passed in SubscriptionRequest when the controller subscribes to a data source.
-   * Enriches the response with token metadata (via middlewares) before updating state.
+   * Runs detection, then (when basic functionality is enabled) token metadata and price enrichment before updating state.
+   * When basic functionality is disabled (RPC-only mode), only detection runs; token and price APIs are not used.
    *
    * @param response - The data response with updated assets
    * @param sourceId - The data source ID reporting the update
@@ -2467,21 +2496,36 @@ export class AssetsController extends BaseController<
       hasPrice: Boolean(response.assetsPrice),
     });
 
-    // Run through enrichment middlewares (Detection, then Token + Price in parallel)
-    // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
-    const { response: enrichedResponse } = await this.#executeMiddlewares(
-      [
-        this.#detectionMiddleware,
+    const resolvedRequest: DataRequest = request ?? {
+      accountsWithSupportedChains: [],
+      chainIds: [],
+      dataTypes: ['balance', 'metadata', 'price'],
+    };
+
+    // RPC-only mode (basic functionality off): never run token/price APIs. Strip
+    // those data types so downstream middleware cannot treat them as requested.
+    const pipelineRequest: DataRequest = this.#isBasicFunctionality()
+      ? resolvedRequest
+      : {
+          ...resolvedRequest,
+          dataTypes: resolvedRequest.dataTypes.filter(
+            (dt) => dt !== 'metadata' && dt !== 'price',
+          ),
+        };
+
+    const enrichmentSources: AssetsDataSource[] = [this.#detectionMiddleware];
+    if (this.#isBasicFunctionality()) {
+      enrichmentSources.push(
         createParallelMiddleware([
           this.#tokenDataSource,
           this.#priceDataSource,
         ]),
-      ],
-      request ?? {
-        accountsWithSupportedChains: [],
-        chainIds: [],
-        dataTypes: ['balance', 'metadata', 'price'],
-      },
+      );
+    }
+
+    const { response: enrichedResponse } = await this.#executeMiddlewares(
+      enrichmentSources,
+      pipelineRequest,
       response,
     );
 

@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
+
+### Fixed
+
+- Fix perps withdraw to Arbitrum USDC showing inflated transaction fee by bypassing same-token filter when `isHyperliquidSource` is set ([#8387](https://github.com/MetaMask/core/pull/8387))
+
+## [19.0.3]
+
 ### Changed
 
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.0` ([#8364](https://github.com/MetaMask/core/pull/8364))
+- Bump `@metamask/ramps-controller` from `^12.1.0` to `^13.0.0` ([#8380](https://github.com/MetaMask/core/pull/8380))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 
 ## [19.0.2]
 
@@ -616,7 +627,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.3...HEAD
+[19.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.2...@metamask/transaction-pay-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.1...@metamask/transaction-pay-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.0...@metamask/transaction-pay-controller@19.0.1
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.2.0...@metamask/transaction-pay-controller@19.0.0

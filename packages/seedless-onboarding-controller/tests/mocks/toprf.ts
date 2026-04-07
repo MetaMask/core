@@ -1,5 +1,7 @@
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
+
 import { MockToprfEncryptorDecryptor } from './toprfEncryptor';
-import type { SecretType } from '../../src/constants';
+import { SecretType } from '../../src/constants';
 
 export const TOPRF_BASE_URL = /https:\/\/node-[1-5]\.dev-node\.web3auth\.io/u;
 
@@ -56,16 +58,37 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
   {
     data: new Uint8Array(Buffer.from('seedPhrase1', 'utf-8')),
     timestamp: 10,
+    type: SecretType.Mnemonic,
+    itemId: 'srp-1',
+    dataType: EncAccountDataType.PrimarySrp,
+    createdAt: '00000001-0000-1000-8000-000000000001',
   },
   {
     data: new Uint8Array(Buffer.from('seedPhrase3', 'utf-8')),
     timestamp: 60,
+    type: SecretType.Mnemonic,
+    itemId: 'srp-3',
+    dataType: EncAccountDataType.ImportedSrp,
+    createdAt: '00000003-0000-1000-8000-000000000003',
   },
   {
     data: new Uint8Array(Buffer.from('seedPhrase2', 'utf-8')),
     timestamp: 20,
+    type: SecretType.Mnemonic,
+    itemId: 'srp-2',
+    dataType: EncAccountDataType.ImportedSrp,
+    createdAt: '00000002-0000-1000-8000-000000000002',
   },
 ];
+
+type MockSecretDataInput = {
+  data: Uint8Array;
+  timestamp?: number;
+  type?: SecretType;
+  itemId: string;
+  dataType?: EncAccountDataType;
+  createdAt?: string;
+};
 
 /**
  * Creates a mock secret data get response
@@ -74,33 +97,37 @@ export const MULTIPLE_MOCK_SECRET_METADATA = [
  * @param password - The password to be used
  * @returns The mock secret data get response
  */
-export function createMockSecretDataGetResponse<
-  DataType extends
-    | Uint8Array
-    | { data: Uint8Array; timestamp?: number; type?: SecretType },
->(
-  secretDataArr: DataType[],
+export function createMockSecretDataGetResponse(
+  secretDataArr: MockSecretDataInput[],
   password: string,
-): { success: boolean; data: string[]; ids: string[] } {
+): {
+  success: boolean;
+  data: string[];
+  ids: string[];
+  versions: ('v1' | 'v2')[];
+  dataTypes: (EncAccountDataType | null)[];
+  createdAt: (string | null)[];
+} {
   const mockToprfEncryptor = new MockToprfEncryptorDecryptor();
   const ids: string[] = [];
+  const versions: ('v1' | 'v2')[] = [];
+  const dataTypes: (EncAccountDataType | null)[] = [];
+  const createdAt: (string | null)[] = [];
 
   const encryptedSecretData = secretDataArr.map((secretData) => {
-    let b64SecretData: string;
-    let timestamp = Date.now();
-    let type: SecretType | undefined;
-    if (secretData instanceof Uint8Array) {
-      b64SecretData = Buffer.from(secretData).toString('base64');
-    } else {
-      b64SecretData = Buffer.from(secretData.data).toString('base64');
-      timestamp = secretData.timestamp ?? Date.now();
-      type = secretData.type;
-    }
+    const b64SecretData = Buffer.from(secretData.data).toString('base64');
+    const timestamp = secretData.timestamp ?? Date.now();
+
+    ids.push(secretData.itemId);
+    // Default to 'v1' for legacy data (no dataType), otherwise 'v2'
+    versions.push(secretData.dataType === undefined ? 'v1' : 'v2');
+    dataTypes.push(secretData.dataType ?? null);
+    createdAt.push(secretData.createdAt ?? null);
 
     const metadata = JSON.stringify({
       data: b64SecretData,
       timestamp,
-      type,
+      type: secretData.type,
     });
 
     return mockToprfEncryptor.encrypt(
@@ -109,11 +136,12 @@ export function createMockSecretDataGetResponse<
     );
   });
 
-  const jsonData = {
+  return {
     success: true,
     data: encryptedSecretData,
     ids,
+    versions,
+    dataTypes,
+    createdAt,
   };
-
-  return jsonData;
 }

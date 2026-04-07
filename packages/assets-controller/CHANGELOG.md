@@ -9,8 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `TokenDetector` now fetches the token list directly from the Tokens API (`/v3/chains/{chain}/assets`) via a new `TokensApiClient` instead of reading from `TokenListController:getState` ([#8385](https://github.com/MetaMask/core/pull/8385))
+  - `TokenDetectorMessenger` type has been removed; `TokenDetector` constructor now takes a `TokensApiClient` instance as its second argument
+  - `RpcDataSource` no longer requires `TokenListController:getState` — `GetTokenListState` has been removed from `RpcDataSourceAllowedActions` and `AssetsControllerAllowedActions`
+  - Unknown ERC-20 metadata is no longer looked up from the token list as a fallback in `RpcDataSource`; `TokenDataSource` handles enrichment downstream
+- Split `getAssets` fetch pipeline into a fast awaited path and a parallel fire-and-forget background path to reduce perceived latency on unlock and onboarding ([#8383](https://github.com/MetaMask/core/pull/8383))
+  - Fast pipeline: AccountsApi + StakedBalance → Detection → Token + Price (awaited, committed to state immediately)
+  - Background pipeline: Snap + RPC run in parallel → Detection → Token + Price when basic functionality is enabled; when disabled (RPC-only mode), Token + Price are omitted (fire-and-forget merge)
+  - `handleAssetsUpdate` skips token/price enrichment and strips `metadata` / `price` from the effective request when basic functionality is disabled (RPC-only mode)
+  - `setSelectedCurrency` no longer triggers a price refresh via `getAssets` when basic functionality is disabled
+- `PriceDataSource` now batches spot-price API requests in chunks of 50 using `reduceInBatchesSerially` to avoid DynamoDB batch-limit errors ([#8383](https://github.com/MetaMask/core/pull/8383))
+- `TokenDataSource` now batches token metadata API requests in chunks of 50 using `reduceInBatchesSerially` to avoid DynamoDB batch-limit errors ([#8383](https://github.com/MetaMask/core/pull/8383))
+- `PriceDataSource` filters out all synthetic `slip44:NUMBER-*` staking-position asset IDs before calling the Price API ([#8383](https://github.com/MetaMask/core/pull/8383))
+- `TokenDataSource` filters EVM ERC-20 tokens by `occurrences >= 3` and treats missing occurrences as 0 ([#8383](https://github.com/MetaMask/core/pull/8383))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.0` ([#8364](https://github.com/MetaMask/core/pull/8364))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 
 ## [4.0.0]
 

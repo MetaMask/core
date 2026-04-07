@@ -5,14 +5,13 @@ import type {
   PhishingControllerBulkScanTokensAction,
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
-import {
-  KnownCaipNamespace,
-  numberToHex,
-  parseCaipAssetType,
-} from '@metamask/utils';
+import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { isStakingContractAssetId } from './evm-rpc-services';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from './evm-rpc-services';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
@@ -31,13 +30,19 @@ const CONTROLLER_NAME = 'TokenDataSource';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
+/** Max asset IDs per tokens API request. */
+const TOKENS_API_BATCH_SIZE = 50;
+
 /** Max tokens per PhishingController:bulkScanTokens request (see PhishingController). */
 const BULK_SCAN_BATCH_SIZE = 100;
 
 /**
- * CAIP-19 `assetNamespace` segments used for Blockaid bulk scanning
- * (`slip44` skipped; `erc20` + eip155 and `token` namespaces are scanned).
+ * Minimum number of aggregator occurrences required for an EVM ERC-20 token to
+ * pass the spam filter. Non-EVM tokens are filtered via Blockaid bulk scan instead.
  */
+const MIN_TOKEN_OCCURRENCES = 3;
+
+/** CAIP-19 `assetNamespace` segments used across filtering logic. */
 enum CaipAssetNamespace {
   Slip44 = 'slip44',
   Erc20 = 'erc20',
@@ -205,14 +210,12 @@ export class TokenDataSource {
   }
 
   /**
-   * Filters out tokens flagged as malicious by Blockaid via
-   * `PhishingController:bulkScanTokens`. EVM ERC-20 assets (`erc20` + `eip155`)
-   * are scanned with a hex chain ID; non-EVM fungible `token` assets use
-   * `chain.namespace` (same pattern as MultichainAssetsController). Native
-   * (`slip44`) and other namespaces are not scanned. If the scan fails, all
-   * tokens are kept (fail open).
+   * Filters non-EVM fungible `token` assets flagged as malicious by Blockaid
+   * via `PhishingController:bulkScanTokens`. Only the `token` namespace (e.g.
+   * Solana mints) is scanned; native (`slip44`) and EVM assets are not handled
+   * here (EVM uses occurrence-count filtering instead). Fails open on error.
    *
-   * @param assets - CAIP-19 asset IDs to filter.
+   * @param assets - CAIP-19 asset IDs to filter (non-EVM only).
    * @returns Asset IDs with malicious tokens removed.
    */
   async #filterBlockaidSpamTokens(assets: string[]): Promise<string[]> {
@@ -229,20 +232,7 @@ export class TokenDataSource {
           asset as CaipAssetType,
         );
 
-        if (assetNamespace === CaipAssetNamespace.Slip44) {
-          continue;
-        }
-
-        if (
-          assetNamespace === CaipAssetNamespace.Erc20 &&
-          chain.namespace === KnownCaipNamespace.Eip155
-        ) {
-          const chainIdHex = numberToHex(parseInt(chain.reference, 10));
-          if (!tokensByChain[chainIdHex]) {
-            tokensByChain[chainIdHex] = [];
-          }
-          tokensByChain[chainIdHex].push({ asset, address: assetReference });
-        } else if (assetNamespace === CaipAssetNamespace.Token) {
+        if (assetNamespace === CaipAssetNamespace.Token) {
           const chainName = chain.namespace;
           if (!tokensByChain[chainName]) {
             tokensByChain[chainName] = [];
@@ -285,11 +275,7 @@ export class TokenDataSource {
         }
 
         for (const entry of tokenEntries) {
-          const addressKey = chainId.startsWith('0x')
-            ? entry.address.toLowerCase()
-            : entry.address;
-          const result =
-            scanResponse[addressKey] ?? scanResponse[entry.address];
+          const result = scanResponse[entry.address];
           if (result?.result_type === TokenScanResultType.Malicious) {
             rejectedAssets.add(entry.asset);
           }
@@ -369,25 +355,87 @@ export class TokenDataSource {
       }
 
       try {
-        // Use ApiPlatformClient for fetching asset metadata
-        // API returns an array with assetId as a property on each item
-        const metadataResponse = await this.#apiClient.tokens.fetchV3Assets(
-          supportedAssetIds,
-          {
-            includeIconUrl: true,
-            includeMarketData: true,
-            includeMetadata: true,
-            includeLabels: true,
-            includeRwaData: true,
-            includeAggregators: true,
-            includeOccurrences: true,
+        const fetchOptions = {
+          includeIconUrl: true,
+          includeMarketData: true,
+          includeMetadata: true,
+          includeLabels: true,
+          includeRwaData: true,
+          includeAggregators: true,
+          includeOccurrences: true,
+        };
+
+        const metadataResponse = await reduceInBatchesSerially<
+          string,
+          V3AssetResponse[]
+        >({
+          values: supportedAssetIds,
+          batchSize: TOKENS_API_BATCH_SIZE,
+          eachBatch: async (workingResult, batch) => {
+            const batchResponse = await this.#apiClient.tokens.fetchV3Assets(
+              batch,
+              fetchOptions,
+            );
+            return [...(workingResult as V3AssetResponse[]), ...batchResponse];
           },
+          initialResult: [],
+        });
+
+        // Split assets by chain type: EVM uses occurrence-count filtering;
+        // non-EVM non-native uses Blockaid; native (slip44) is always allowed.
+        const occurrencesByAssetId = new Map(
+          metadataResponse.map((a) => [a.assetId, a.occurrences]),
         );
 
-        const assetIdsFromApi = metadataResponse.map((a) => a.assetId);
-        const allowedAssetIds = new Set(
-          await this.#filterBlockaidSpamTokens(assetIdsFromApi),
+        const evmErc20Ids: string[] = [];
+        const nonEvmTokenIds: string[] = [];
+
+        for (const assetData of metadataResponse) {
+          const { assetNamespace, chain } = parseCaipAssetType(
+            assetData.assetId as CaipAssetType,
+          );
+          if (assetNamespace === CaipAssetNamespace.Slip44) {
+            // Native assets are always kept — no filtering.
+          } else if (
+            assetNamespace === CaipAssetNamespace.Erc20 &&
+            chain.namespace === KnownCaipNamespace.Eip155
+          ) {
+            evmErc20Ids.push(assetData.assetId);
+          } else if (assetNamespace === CaipAssetNamespace.Token) {
+            nonEvmTokenIds.push(assetData.assetId);
+          }
+        }
+
+        // EVM: require minimum occurrence count to suppress low-signal tokens.
+        // Tokens with no occurrence data (undefined) are treated the same as
+        // zero occurrences and filtered out.
+        const allowedEvmIds = new Set(
+          evmErc20Ids.filter(
+            (id) =>
+              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES,
+          ),
         );
+
+        // Non-EVM: Blockaid bulk scan.
+        const allowedNonEvmIds = new Set(
+          await this.#filterBlockaidSpamTokens(nonEvmTokenIds),
+        );
+
+        // Start with every asset the API returned; only remove those that
+        // fail their respective filter (EVM occurrences / non-EVM Blockaid).
+        // Native (slip44) and unrecognised namespaces are kept (fail open).
+        const allowedAssetIds = new Set(metadataResponse.map((a) => a.assetId));
+
+        for (const id of evmErc20Ids) {
+          if (!allowedEvmIds.has(id)) {
+            allowedAssetIds.delete(id);
+          }
+        }
+        for (const id of nonEvmTokenIds) {
+          if (!allowedNonEvmIds.has(id)) {
+            allowedAssetIds.delete(id);
+          }
+        }
 
         response.assetsInfo ??= {};
 

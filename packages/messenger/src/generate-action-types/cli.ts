@@ -92,6 +92,10 @@ async function loadESLint(): Promise<ESLint | null> {
  * Main entry point for the CLI.
  */
 async function main(): Promise<void> {
+  console.warn(
+    '⚠️  `messenger-generate-action-types` from @metamask/messenger is deprecated. Use `messenger-action-types` from @metamask/messenger-cli instead.',
+  );
+
   const { fix, sourcePath } = await parseCommandLineArguments(
     globalThis.process.argv.slice(2),
   );

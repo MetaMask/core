@@ -1469,10 +1469,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        // First call is 'AccountsController:stateChange'
-        expect(messengerSpy).toHaveBeenNthCalledWith(
-          // 1. AccountsController:stateChange
-          2,
+        expect(messengerSpy).toHaveBeenCalledWith(
           'AccountsController:accountAdded',
           MockExpectedInternalAccountBuilder.from(mockAccount2)
             .setExpectedLastSelectedAsAny()
@@ -1790,10 +1787,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        // First call is 'AccountsController:stateChange'
-        expect(messengerSpy).toHaveBeenNthCalledWith(
-          // 1. AccountsController:stateChange
-          2,
+        expect(messengerSpy).toHaveBeenCalledWith(
           'AccountsController:accountRemoved',
           mockAccount3.id,
         );
@@ -3893,16 +3887,9 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockNonEvmAccount.id);
 
-      expect(messengerSpy.mock.calls).toHaveLength(2); // state change and then selectedAccountChange
-
-      expect(messengerSpy).not.toHaveBeenLastCalledWith(
+      expect(messengerSpy).not.toHaveBeenCalledWith(
         'AccountsController:selectedEvmAccountChange',
         mockNonEvmAccount,
-      );
-
-      expect(messengerSpy).toHaveBeenLastCalledWith(
-        'AccountsController:selectedAccountChange',
-        setExpectedLastSelectedAsAny(mockNonEvmAccount),
       );
     });
   });

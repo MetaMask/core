@@ -40,7 +40,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/base-data-service",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/base-data-service",
-    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -50,7 +51,7 @@
   },
   "dependencies": {
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.0",
+    "@metamask/messenger": "^1.1.1",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^4.43.0",
     "fast-deep-equal": "^3.1.3"

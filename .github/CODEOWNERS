@@ -44,8 +44,8 @@
 /packages/ai-controllers                    @MetaMask/social-ai
 /packages/social-controllers                @MetaMask/social-ai
 
-## Ramp Team
-/packages/ramps-controller                  @MetaMask/ramp
+## Money Movement Team
+/packages/ramps-controller                  @MetaMask/money-movement
 
 ## Networks Team
 /packages/config-registry-controller        @MetaMask/networks
@@ -86,6 +86,7 @@
 /packages/controller-utils             @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
+/packages/messenger-cli                @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
@@ -177,8 +178,8 @@
 /packages/perps-controller/CHANGELOG.md       @MetaMask/perps @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/core-platform
-/packages/ramps-controller/package.json       @MetaMask/ramp @MetaMask/core-platform
-/packages/ramps-controller/CHANGELOG.md       @MetaMask/ramp @MetaMask/core-platform
+/packages/ramps-controller/package.json       @MetaMask/money-movement @MetaMask/core-platform
+/packages/ramps-controller/CHANGELOG.md       @MetaMask/money-movement @MetaMask/core-platform
 /packages/profile-sync-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
