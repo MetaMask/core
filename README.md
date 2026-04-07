@@ -21,6 +21,7 @@ Each package in this repository has its own README where you can find installati
 <!-- start package list -->
 
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
+- [`@metamask/accounts-api`](packages/accounts-api)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/ai-controllers`](packages/ai-controllers)
@@ -107,6 +108,7 @@ Each package in this repository has its own README where you can find installati
 graph LR;
 linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
+  accounts_api(["@metamask/accounts-api"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   ai_controllers(["@metamask/ai-controllers"]);
@@ -189,6 +191,9 @@ linkStyle default opacity:0.5
   account_tree_controller --> messenger;
   account_tree_controller --> multichain_account_service;
   account_tree_controller --> profile_sync_controller;
+  accounts_api --> base_data_service;
+  accounts_api --> controller_utils;
+  accounts_api --> messenger;
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
   accounts_controller --> messenger;
