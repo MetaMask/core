@@ -226,6 +226,9 @@
     },
     {
       "path": "./packages/user-operation-controller"
+    },
+    {
+      "path": "./packages/wallet"
     }
   ],
   "files": [],
