@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional provider fiat/payment buy limits to `Provider` so consumers can validate quote amounts before requesting quotes.
+- Add optional provider fiat/payment buy limits to `Provider` so consumers can validate quote amounts before requesting quotes ([#8405](https://github.com/MetaMask/core/pull/8405))
 
 ## [13.0.0]
 
