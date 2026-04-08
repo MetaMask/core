@@ -549,12 +549,13 @@ async function submitViaTransactionController(
   const { metamask } = quote.original;
   const { gasLimits } = metamask;
 
-  if (allParams.length === 1) {
-    const transactionParams = {
-      ...allParams[0],
-      authorizationList,
-      gas: toHex(gasLimits[0]),
-    };
+  if (allParams.length === 1 || !accountSupports7702) {
+    for (let i = 0; i < allParams.length; i++) {
+      const transactionParams = {
+        ...allParams[i],
+        ...(i === 0 ? { authorizationList } : {}),
+        gas: toHex(gasLimits[i] ?? gasLimits[0]),
+      };
 
     result = await messenger.call(
       'TransactionController:addTransaction',
@@ -568,10 +569,9 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 =
-      accountSupports7702 && metamask.is7702
-        ? toHex(metamask.gasLimits[0])
-        : undefined;
+    const gasLimit7702 = metamask.is7702
+      ? toHex(metamask.gasLimits[0])
+      : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
