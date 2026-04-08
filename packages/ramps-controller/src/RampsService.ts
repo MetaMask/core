@@ -81,6 +81,28 @@ export type ProviderLogos = {
 export type ProviderBrowserType = 'APP_BROWSER' | 'IN_APP_OS_BROWSER' | null;
 
 /**
+ * Fiat amount limits for a provider and payment method.
+ */
+export type ProviderLimit = {
+  minAmount: number;
+  maxAmount: number;
+  feeFixedRate: number;
+  feeDynamicRate: number;
+};
+
+/**
+ * Fiat buy limits keyed by lowercased fiat short code, then payment method id.
+ */
+export type ProviderFiatLimits = Record<string, Record<string, ProviderLimit>>;
+
+/**
+ * Provider limits exposed by the regions providers endpoint.
+ */
+export type ProviderLimits = {
+  fiat?: ProviderFiatLimits;
+};
+
+/**
  * Represents a ramp provider.
  */
 export type Provider = {
@@ -94,6 +116,7 @@ export type Provider = {
   supportedCryptoCurrencies?: Record<string, boolean>;
   supportedFiatCurrencies?: Record<string, boolean>;
   supportedPaymentMethods?: Record<string, boolean>;
+  limits?: ProviderLimits;
 };
 
 /**

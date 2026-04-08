@@ -420,6 +420,18 @@ describe('RampsController', () => {
           height: 24,
           width: 77,
         },
+        limits: {
+          fiat: {
+            usd: {
+              '/payments/debit-credit-card': {
+                minAmount: 30,
+                maxAmount: 1000,
+                feeFixedRate: 1,
+                feeDynamicRate: 0.02,
+              },
+            },
+          },
+        },
       },
       {
         id: '/providers/ramp-network-staging',
@@ -453,6 +465,28 @@ describe('RampsController', () => {
 
         expect(result.providers).toStrictEqual(mockProviders);
         expect(controller.state.providers.data).toStrictEqual(mockProviders);
+      });
+    });
+
+    it('preserves provider limits in controller state', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async (_regionCode: string) => ({ providers: mockProviders }),
+        );
+
+        await rootMessenger.call('RampsController:getProviders', 'us-ca');
+
+        expect(
+          controller.state.providers.data[0]?.limits?.fiat?.usd?.[
+            '/payments/debit-credit-card'
+          ],
+        ).toStrictEqual({
+          minAmount: 30,
+          maxAmount: 1000,
+          feeFixedRate: 1,
+          feeDynamicRate: 0.02,
+        });
       });
     });
 
