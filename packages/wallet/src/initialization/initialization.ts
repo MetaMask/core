@@ -15,8 +15,14 @@ export function initialize({
   messenger,
   initializationConfigurations = [],
 }: InitializeArgs) {
+  const overriddenConfiguration = initializationConfigurations.map(
+    (config) => config.name,
+  );
+
   const configurationEntries = initializationConfigurations.concat(
-    Object.values(defaultConfigurations),
+    Object.values(defaultConfigurations).filter(
+      (config) => !overriddenConfiguration.includes(config.name),
+    ),
   );
 
   const instances = {};
