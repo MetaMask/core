@@ -1,6 +1,7 @@
 import { Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
 
+import { ZERO_ADDRESS } from '../../../utils/constants';
 import type {
   Address,
   BalanceOfRequest,
@@ -78,12 +79,6 @@ const erc20Interface = new Interface(ERC20_ABI);
 // =============================================================================
 // CONSTANTS
 // =============================================================================
-
-/**
- * Zero address constant for native token.
- */
-const ZERO_ADDRESS: Address =
-  '0x0000000000000000000000000000000000000000' as Address;
 
 /**
  * Multicall3 contract addresses by chain ID.

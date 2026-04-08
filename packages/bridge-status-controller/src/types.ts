@@ -22,8 +22,7 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
   TransactionControllerAddTransactionAction,
@@ -37,7 +36,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { BridgeStatusController } from './bridge-status-controller';
+import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
 
@@ -110,6 +109,9 @@ export type RefuelStatusResponse = object & StatusResponse;
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
@@ -163,6 +165,10 @@ export type BridgeHistoryItem = {
   };
 };
 
+/**
+ * @deprecated Use the separate action types instead (e.g.
+ * `BridgeStatusControllerStartPollingForBridgeTxStatusAction`).
+ */
 export enum BridgeStatusAction {
   StartPollingForBridgeTxStatus = 'StartPollingForBridgeTxStatus',
   WipeBridgeStatus = 'WipeBridgeStatus',
@@ -212,8 +218,12 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: TransactionMeta;
-  statusRequest: StatusRequest;
+  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
+  actionId?: string;
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
+  originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
@@ -248,49 +258,14 @@ export type BridgeStatusControllerState = {
 };
 
 // Actions
-type BridgeStatusControllerAction<
-  FunctionName extends keyof BridgeStatusController,
-> = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:${FunctionName}`;
-  handler: BridgeStatusController[FunctionName];
-};
-
 export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState
 >;
 
-// Maps to BridgeController function names
-export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
-  BridgeStatusControllerAction<'startPollingForBridgeTxStatus'>;
-
-export type BridgeStatusControllerWipeBridgeStatusAction =
-  BridgeStatusControllerAction<'wipeBridgeStatus'>;
-
-export type BridgeStatusControllerResetStateAction =
-  BridgeStatusControllerAction<'resetState'>;
-
-export type BridgeStatusControllerSubmitTxAction =
-  BridgeStatusControllerAction<'submitTx'>;
-
-export type BridgeStatusControllerSubmitIntentAction =
-  BridgeStatusControllerAction<'submitIntent'>;
-
-export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
-  BridgeStatusControllerAction<'restartPollingForFailedAttempts'>;
-
-export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
-  BridgeStatusControllerAction<'getBridgeHistoryItemByTxMetaId'>;
-
 export type BridgeStatusControllerActions =
-  | BridgeStatusControllerStartPollingForBridgeTxStatusAction
-  | BridgeStatusControllerWipeBridgeStatusAction
-  | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerSubmitIntentAction
-  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
+  | BridgeStatusControllerMethodActions;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -317,7 +292,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
   | TransactionControllerAddTransactionAction
@@ -327,7 +302,6 @@ type AllowedActions =
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
-  | RemoteFeatureFlagControllerGetStateAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;
 

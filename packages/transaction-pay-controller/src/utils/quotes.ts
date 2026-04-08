@@ -70,6 +70,7 @@ export async function updateQuotes(
   const {
     isMaxAmount,
     isPostQuote,
+    isHyperliquidSource,
     paymentToken: originalPaymentToken,
     refundTo,
     sourceAmounts,
@@ -95,6 +96,7 @@ export async function updateQuotes(
       from,
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
+      isHyperliquidSource,
       paymentToken,
       refundTo,
       sourceAmounts,
@@ -254,6 +256,7 @@ export async function refreshQuotes(
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
@@ -266,6 +269,7 @@ function buildQuoteRequests({
   from,
   isMaxAmount,
   isPostQuote,
+  isHyperliquidSource,
   paymentToken,
   refundTo,
   sourceAmounts,
@@ -275,6 +279,7 @@ function buildQuoteRequests({
   from: Hex;
   isMaxAmount: boolean;
   isPostQuote?: boolean;
+  isHyperliquidSource?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -286,11 +291,10 @@ function buildQuoteRequests({
   }
 
   if (isPostQuote) {
-    // Post-quote flow: source = transaction's required token, target = paymentToken (destination)
-    // The user wants to receive the transaction output in paymentToken
     return buildPostQuoteRequests({
       from,
       isMaxAmount,
+      isHyperliquidSource,
       destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
@@ -332,6 +336,7 @@ function buildQuoteRequests({
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
@@ -341,6 +346,7 @@ function buildQuoteRequests({
 function buildPostQuoteRequests({
   from,
   isMaxAmount,
+  isHyperliquidSource,
   destinationToken,
   refundTo,
   sourceAmounts,
@@ -348,6 +354,7 @@ function buildPostQuoteRequests({
 }: {
   from: Hex;
   isMaxAmount: boolean;
+  isHyperliquidSource?: boolean;
   destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -376,13 +383,12 @@ function buildPostQuoteRequests({
     from,
     isMaxAmount,
     isPostQuote: true,
+    isHyperliquidSource,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,
     sourceTokenAddress: sourceAmount.sourceTokenAddress,
-    // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
-    // and we show them how much they'll receive after fees
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
     targetTokenAddress: destinationToken.address,

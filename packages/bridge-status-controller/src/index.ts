@@ -18,10 +18,6 @@ export type {
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,
   BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerStartPollingForBridgeTxStatusAction,
-  BridgeStatusControllerWipeBridgeStatusAction,
-  BridgeStatusControllerResetStateAction,
-  BridgeStatusControllerRestartPollingForFailedAttemptsAction,
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,
@@ -29,6 +25,16 @@ export type {
   TokenAmountValuesSerialized,
   QuoteMetadataSerialized,
 } from './types';
+
+export type {
+  BridgeStatusControllerStartPollingForBridgeTxStatusAction,
+  BridgeStatusControllerWipeBridgeStatusAction,
+  BridgeStatusControllerResetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+  BridgeStatusControllerSubmitIntentAction,
+  BridgeStatusControllerRestartPollingForFailedAttemptsAction,
+  BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction,
+} from './bridge-status-controller-method-action-types';
 
 export { BridgeId, BridgeStatusAction } from './types';
 

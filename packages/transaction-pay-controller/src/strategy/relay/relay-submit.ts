@@ -14,11 +14,13 @@ import {
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
 } from './constants';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
   RelayQuote,
   RelayStatusResponse,
+  RelayTransactionStep,
 } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -99,7 +101,12 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, transaction, messenger);
+  if (quote.request.isHyperliquidSource) {
+    const from = transaction.txParams.from as Hex;
+    await submitHyperliquidWithdraw(quote, from, messenger);
+  } else {
+    await submitTransactions(quote, transaction, messenger);
+  }
 
   const targetHash = await waitForRelayCompletion(
     quote.original,
@@ -216,7 +223,7 @@ async function waitForRelayCompletion(
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
-  params: RelayQuote['steps'][0]['items'][0]['data'],
+  params: RelayTransactionStep['items'][0]['data'],
   messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
   const featureFlags = getFeatureFlags(messenger);
@@ -310,8 +317,14 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
   const { steps } = quote.original;
-  const params = steps.flatMap((step) => step.items).map((item) => item.data);
-  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
+  const txSteps = steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
+  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
+  )?.kind;
 
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);

@@ -146,6 +146,12 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  quoteStreamComplete: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -166,6 +172,16 @@ type BridgePollingInput = {
       UnifiedSwapBridgeEventName.QuotesRequested
     >[UnifiedSwapBridgeEventName.QuotesRequested];
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateBridgeQuoteRequestParams',
+  'fetchQuotes',
+  'stopPollingForQuotes',
+  'setLocation',
+  'resetState',
+  'setChainIntervalLength',
+  'trackUnifiedSwapBridgeEvent',
+] as const;
 
 export class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
   typeof BRIDGE_CONTROLLER_NAME,
@@ -272,30 +288,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
 
-    // Register action handlers
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
-      this.setChainIntervalLength.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
-      this.updateBridgeQuoteRequestParams.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:resetState`,
-      this.resetState.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
-      this.trackUnifiedSwapBridgeEvent.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
-      this.stopPollingForQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
-      this.fetchQuotes.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -614,6 +609,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
     });
   };
 
@@ -657,6 +654,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
@@ -851,6 +850,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             if (!isDuplicate) {
               state.tokenWarnings = [...state.tokenWarnings, warning];
             }
+          });
+        },
+        onComplete: (data) => {
+          this.update((state) => {
+            state.quoteStreamComplete = data;
           });
         },
         onClose: async () => {

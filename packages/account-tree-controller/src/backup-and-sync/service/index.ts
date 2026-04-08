@@ -32,6 +32,7 @@ import {
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
+  toErrorMessage,
 } from '../utils';
 import type { StateSnapshot } from '../utils';
 
@@ -345,12 +346,14 @@ export class BackupAndSyncService {
               );
             }
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            const errorString = `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`;
+            const errorMessage = toErrorMessage(error);
 
-            backupAndSyncLogger(errorString);
-            throw new Error(errorString);
+            backupAndSyncLogger(
+              `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`,
+            );
+            throw new Error(
+              `Legacy syncing failed for wallet: ${errorMessage}`,
+            );
           }
 
           // 3. Execute multichain account syncing
@@ -400,8 +403,7 @@ export class BackupAndSyncService {
               walletProfileId,
             );
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
+            const errorMessage = toErrorMessage(error);
             const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
 
             backupAndSyncLogger(errorString);

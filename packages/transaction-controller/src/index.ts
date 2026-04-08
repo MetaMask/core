@@ -123,11 +123,11 @@ export {
   TransactionContainerType,
   TransactionEnvelopeType,
   TransactionStatus,
+  TransactionSubmissionMethod,
   TransactionType,
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
 export {
   isEIP1559Transaction,

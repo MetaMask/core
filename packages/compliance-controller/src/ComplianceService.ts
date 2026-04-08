@@ -5,7 +5,7 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Infer } from '@metamask/superstruct';
-import { array, boolean, number, object, string } from '@metamask/superstruct';
+import { array, boolean, object, string } from '@metamask/superstruct';
 import type { IDisposable } from 'cockatiel';
 
 import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types';
@@ -33,7 +33,6 @@ const COMPLIANCE_API_URLS: Record<ComplianceServiceEnvironment, string> = {
 const MESSENGER_EXPOSED_METHODS = [
   'checkWalletCompliance',
   'checkWalletsCompliance',
-  'updateBlockedWallets',
 ] as const;
 
 /**
@@ -93,23 +92,6 @@ const BatchWalletCheckResponseItemStruct = WalletCheckResponseStruct;
 type BatchWalletCheckResponseItem = Infer<
   typeof BatchWalletCheckResponseItemStruct
 >;
-
-/**
- * Schema for the response from `GET /v1/blocked-wallets`.
- */
-const BlockedWalletsResponseStruct = object({
-  addresses: array(string()),
-  sources: object({
-    ofac: number(),
-    remote: number(),
-  }),
-  lastUpdated: string(),
-});
-
-/**
- * The validated shape of the blocked wallets response.
- */
-type BlockedWalletsResponse = Infer<typeof BlockedWalletsResponseStruct>;
 
 // === SERVICE DEFINITION ===
 
@@ -317,32 +299,6 @@ export class ComplianceService {
       jsonResponse,
       array(BatchWalletCheckResponseItemStruct),
       'compliance batch check API',
-    );
-  }
-
-  /**
-   * Fetches the full list of blocked wallets and source metadata.
-   *
-   * @returns The blocked wallets data.
-   */
-  async updateBlockedWallets(): Promise<BlockedWalletsResponse> {
-    const response = await this.#policy.execute(async () => {
-      const url = new URL('/v1/blocked-wallets', this.#complianceApiUrl);
-      const localResponse = await this.#fetch(url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
-        );
-      }
-      return localResponse;
-    });
-    const jsonResponse: unknown = await response.json();
-
-    return validateResponse(
-      jsonResponse,
-      BlockedWalletsResponseStruct,
-      'compliance blocked wallets API',
     );
   }
 }

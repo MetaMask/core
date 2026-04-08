@@ -145,19 +145,6 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
 }
 `;
 
-exports[`BridgeStatusController constructor should setup correctly 1`] = `
-[
-  [
-    "TransactionController:transactionFailed",
-    [Function],
-  ],
-  [
-    "TransactionController:transactionConfirmed",
-    [Function],
-  ],
-]
-`;
-
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [
@@ -396,328 +383,6 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 1`] = `
-{
-  "chainId": "0xa4b1",
-  "hash": "0xevmTxHash",
-  "id": "test-tx-id",
-  "status": "unapproved",
-  "time": 1234567890,
-  "txParams": {
-    "chainId": "0xa4b1",
-    "data": "0xdata",
-    "from": "0xaccount1",
-    "gasLimit": "0x5208",
-    "to": "0xbridgeContract",
-    "value": "0x0",
-  },
-  "txReceipt": {
-    "effectiveGasPrice": "0x1880a",
-    "gasUsed": "0x2c92a",
-  },
-  "type": "bridge",
-}
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 2`] = `
-{
-  "account": "0xaccount1",
-  "actionId": "1234567890.456",
-  "approvalTxId": "test-approval-tx-id",
-  "batchId": undefined,
-  "estimatedProcessingTimeInSeconds": 15,
-  "featureId": undefined,
-  "hasApprovalTx": true,
-  "initialDestAssetBalance": undefined,
-  "isStxEnabled": false,
-  "location": "Main View",
-  "originalTransactionId": "test-tx-id",
-  "pricingData": {
-    "amountSent": "1.234",
-    "amountSentInUsd": "1.01",
-    "quotedGasAmount": ".00055",
-    "quotedGasInUsd": "2.5778",
-    "quotedReturnInUsd": "0.134214",
-  },
-  "quote": {
-    "bridgeId": "lifi",
-    "bridges": [
-      "across",
-    ],
-    "destAsset": {
-      "address": "0x0000000000000000000000000000000000000000",
-      "assetId": "eip155:10/slip44:60",
-      "chainId": 10,
-      "coinKey": "ETH",
-      "decimals": 18,
-      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "name": "ETH",
-      "priceUSD": "2478.63",
-      "symbol": "ETH",
-    },
-    "destChainId": 10,
-    "destTokenAmount": "990654755978612",
-    "feeData": {
-      "metabridge": {
-        "amount": "8750000000000",
-        "asset": {
-          "address": "0x0000000000000000000000000000000000000000",
-          "assetId": "eip155:42161/slip44:60",
-          "chainId": 42161,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2478.7",
-          "symbol": "ETH",
-        },
-      },
-    },
-    "minDestTokenAmount": "941000000000000",
-    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": {
-      "address": "0x0000000000000000000000000000000000000000",
-      "assetId": "eip155:42161/slip44:60",
-      "chainId": 42161,
-      "coinKey": "ETH",
-      "decimals": 18,
-      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "name": "ETH",
-      "priceUSD": "2478.7",
-      "symbol": "ETH",
-    },
-    "srcChainId": 42161,
-    "srcTokenAmount": "991250000000000",
-    "steps": [
-      {
-        "action": "bridge",
-        "destAmount": "990654755978612",
-        "destAsset": {
-          "address": "0x0000000000000000000000000000000000000000",
-          "assetId": "eip155:10/slip44:60",
-          "chainId": 10,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2478.63",
-          "symbol": "ETH",
-        },
-        "destChainId": 10,
-        "protocol": {
-          "displayName": "Across",
-          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
-          "name": "across",
-        },
-        "srcAmount": "991250000000000",
-        "srcAsset": {
-          "address": "0x0000000000000000000000000000000000000000",
-          "assetId": "eip155:42161/slip44:60",
-          "chainId": 42161,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2478.7",
-          "symbol": "ETH",
-        },
-        "srcChainId": 42161,
-      },
-    ],
-  },
-  "slippagePercentage": 0,
-  "startTime": 1234567890,
-  "status": {
-    "srcChain": {
-      "chainId": 42161,
-      "txHash": "0xevmTxHash",
-    },
-    "status": "PENDING",
-  },
-  "targetContractAddress": undefined,
-  "txMetaId": "test-tx-id",
-}
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 3`] = `
-[
-  [
-    "BridgeController:stopPollingForQuotes",
-    "Transaction submitted",
-    undefined,
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Submitted",
-    {
-      "action_type": "swapbridge-v1",
-      "chain_id_destination": "eip155:10",
-      "chain_id_source": "eip155:42161",
-      "custom_slippage": false,
-      "gas_included": false,
-      "gas_included_7702": false,
-      "is_hardware_wallet": true,
-      "location": "Main View",
-      "price_impact": 0,
-      "provider": "lifi_across",
-      "quoted_time_minutes": 0.25,
-      "stx_enabled": false,
-      "swap_type": "crosschain",
-      "token_symbol_destination": "ETH",
-      "token_symbol_source": "ETH",
-      "usd_amount_source": 1.01,
-      "usd_quoted_gas": 2.5778,
-      "usd_quoted_return": 0,
-    },
-  ],
-  [
-    "TransactionController:isAtomicBatchSupported",
-    {
-      "address": "0xaccount1",
-      "chainIds": [
-        "0xa4b1",
-      ],
-    },
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum-client-id",
-      "transactionParams": {
-        "chainId": "0xa4b1",
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:addTransaction",
-    {
-      "chainId": "0xa4b1",
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": true,
-      "type": "bridgeApproval",
-    },
-  ],
-  [
-    "TransactionController:getState",
-  ],
-  [
-    "AccountsController:getAccountByAddress",
-    "0xaccount1",
-  ],
-  [
-    "NetworkController:findNetworkClientIdByChainId",
-    "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
-  ],
-  [
-    "TransactionController:estimateGasFee",
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "chainId": "0xa4b1",
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    "TransactionController:addTransaction",
-    {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": true,
-      "type": "bridge",
-    },
-  ],
-  [
-    "TransactionController:getState",
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 4`] = `
-[
-  [
-    {
-      "data": {
-        "srcChainId": "eip155:42161",
-        "stxEnabled": false,
-      },
-      "name": "Bridge Transaction Completed",
-    },
-    [Function],
-  ],
-  [
-    {
-      "data": {
-        "srcChainId": "eip155:42161",
-        "stxEnabled": false,
-      },
-      "name": "Bridge Transaction Approval Completed",
-    },
-    [Function],
-  ],
-]
-`;
-
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 1`] = `
 {
   "chainId": "0xa4b1",
@@ -744,7 +409,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567892.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -951,7 +616,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -999,7 +664,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1063,7 +728,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567892.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1270,7 +935,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1318,7 +983,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -1679,7 +1344,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567892.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1886,7 +1551,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -1937,7 +1602,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2001,7 +1666,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567892.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2208,7 +1873,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -2259,7 +1924,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2323,7 +1988,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567893.458",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2530,7 +2195,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -2581,7 +2246,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -2632,7 +2297,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567893.458",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2671,7 +2336,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567892.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2878,7 +2543,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -2929,7 +2594,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -2968,7 +2633,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567891.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -3175,7 +2840,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -3273,11 +2938,36 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
       "type": "bridgeApproval",
+    },
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "error_message": "Approval tx failed",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
     },
   ],
 ]
@@ -3368,7 +3058,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -3377,6 +3067,353 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   ],
   [
     "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "error_message": "Failed to submit cross-chain swap tx: txMeta for txHash was not found",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 1`] = `
+{
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "txReceipt": {
+    "effectiveGasPrice": "0x1880a",
+    "gasUsed": "0x2c92a",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 2`] = `
+{
+  "account": "0xaccount1",
+  "actionId": "1234567892.457",
+  "approvalTxId": "test-approval-tx-id",
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 15,
+  "featureId": undefined,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "location": "Main View",
+  "originalTransactionId": "test-tx-id",
+  "pricingData": {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": {
+    "bridgeId": "lifi",
+    "bridges": [
+      "across",
+    ],
+    "destAsset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 10,
+    "destTokenAmount": "990654755978612",
+    "feeData": {
+      "metabridge": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+    },
+    "minDestTokenAmount": "941000000000000",
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": [
+      {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": {
+    "srcChain": {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 3`] = `
+[
+  [
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": true,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0.25,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  [
+    "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567891.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": true,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  [
+    "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567892.457",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": true,
+      "type": "bridge",
+    },
+  ],
+  [
+    "TransactionController:getState",
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 4`] = `
+[
+  [
+    {
+      "data": {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Completed",
+    },
+    [Function],
+  ],
+  [
+    {
+      "data": {
+        "srcChainId": "eip155:42161",
+        "stxEnabled": false,
+      },
+      "name": "Bridge Transaction Approval Completed",
+    },
+    [Function],
   ],
 ]
 `;
@@ -3485,7 +3522,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -3536,7 +3573,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -4067,7 +4104,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
       "requireApproval": false,
@@ -4118,7 +4155,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567892.457",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -4153,7 +4190,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567891.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -4360,7 +4397,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "value": "0x0",
     },
     {
-      "actionId": "1234567890.456",
+      "actionId": "1234567891.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
@@ -4435,7 +4472,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567891.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -4585,7 +4622,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit) 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567890.456",
+  "actionId": "1234567891.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -4871,7 +4908,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
   "sourceTokenSymbol": "SOL",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567890,
+  "time": 1234567891,
   "txParams": {
     "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
     "from": "0x123...",
@@ -5195,6 +5232,43 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
   [
     "TransactionController:getState",
   ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+    {
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": true,
+      "destination_transaction": "PENDING",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": true,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "test-bridge_undefined",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 5,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:1399811149/slip44:501",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
+      "token_symbol_destination": "USDC",
+      "token_symbol_source": "SOL",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 1000,
+    },
+  ],
 ]
 `;
 
@@ -5219,7 +5293,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
   "sourceTokenSymbol": "SOL",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567890,
+  "time": 1234567891,
   "txParams": {
     "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
     "from": "0x123...",
@@ -5596,7 +5670,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "sourceTokenSymbol": "USDT",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567890,
+  "time": 1234567892,
   "txParams": {
     "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
     "from": "TRX123...",
@@ -5817,7 +5891,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "sourceTokenSymbol": "USDT",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567890,
+  "time": 1234567892,
   "txParams": {
     "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
     "from": "TRX123...",

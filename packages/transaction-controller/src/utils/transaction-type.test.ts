@@ -1,65 +1,55 @@
 import { Interface } from '@ethersproject/abi';
 import type { TransactionDescription } from '@ethersproject/abi';
-import EthQuery from '@metamask/eth-query';
 import {
   abiERC721,
   abiERC20,
   abiERC1155,
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
+import type { NetworkClientId } from '@metamask/network-controller';
 
 import { DELEGATION_PREFIX } from './eip7702';
+import { rpcRequest } from './provider';
 import {
   decodeTransactionData,
   determineTransactionType,
 } from './transaction-type';
-import { FakeProvider } from '../../../../tests/fake-provider';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionType } from '../types';
 
-type GetCodeCallback = (error: Error | null, result?: string) => void;
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
+}));
 
 const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
 const ERC1155Interface = new Interface(abiERC1155);
 const USDCInterface = new Interface(abiFiatTokenV2);
 
-/**
- * Creates a mock EthQuery instance for testing.
- *
- * @param getCodeResponse The response string to return from getCode, or undefined/null.
- * @param shouldThrow Whether getCode should throw an error instead of returning a response.
- * @returns An EthQuery instance with a mocked getCode method.
- */
-function createMockEthQuery(
-  getCodeResponse: string | undefined | null,
-  shouldThrow = false,
-): EthQuery {
-  return new (class extends EthQuery {
-    getCode(_to: string, callback: GetCodeCallback): void {
-      if (shouldThrow) {
-        return callback(new Error('Some error'));
-      }
-      return callback(null, getCodeResponse ?? undefined);
-    }
-  })(new FakeProvider());
-}
-
 describe('determineTransactionType', () => {
   const FROM_MOCK = '0x9e';
+  const messengerMock = {} as unknown as TransactionControllerMessenger;
+  const networkClientIdMock = 'testNetworkClientId' as NetworkClientId;
   const txParams = {
     to: '0x9e673399f795D01116e9A8B2dD2F156705131ee9',
     data: '0xa9059cbb0000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C970000000000000000000000000000000000000000000000000000000000000000a',
     from: FROM_MOCK,
   };
 
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   it('returns a token transfer type when the recipient is a contract, there is no value passed, and data is for the respective method call', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+
     const result = await determineTransactionType(
       {
         to: '0x9e673399f795D01116e9A8B2dD2F156705131ee9',
         data: '0xa9059cbb0000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C970000000000000000000000000000000000000000000000000000000000000000a',
         from: FROM_MOCK,
       },
-      createMockEthQuery('0xab'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
 
     expect(result).toMatchObject({
@@ -72,11 +62,12 @@ describe('determineTransactionType', () => {
     'does NOT return a token transfer type and instead returns contract interaction' +
       ' when the recipient is a contract, the data matches the respective method call, but there is a value passed',
     async () => {
-      const resultWithEmptyValue = await determineTransactionType(
-        txParams,
+      jest.mocked(rpcRequest).mockResolvedValue('0xab');
 
-        createMockEthQuery('0xab'),
-      );
+      const resultWithEmptyValue = await determineTransactionType(txParams, {
+        messenger: messengerMock,
+        networkClientId: networkClientIdMock,
+      });
       expect(resultWithEmptyValue).toMatchObject({
         type: TransactionType.tokenMethodTransfer,
         getCodeResponse: '0xab',
@@ -87,8 +78,7 @@ describe('determineTransactionType', () => {
           value: '0x0000',
           ...txParams,
         },
-
-        createMockEthQuery('0xab'),
+        { messenger: messengerMock, networkClientId: networkClientIdMock },
       );
 
       expect(resultWithEmptyValue2).toMatchObject({
@@ -101,8 +91,7 @@ describe('determineTransactionType', () => {
           value: '0x12345',
           ...txParams,
         },
-
-        createMockEthQuery('0xab'),
+        { messenger: messengerMock, networkClientId: networkClientIdMock },
       );
       expect(resultWithValue).toMatchObject({
         type: TransactionType.contractInteraction,
@@ -112,10 +101,12 @@ describe('determineTransactionType', () => {
   );
 
   it('does NOT return a token transfer type when the recipient is not a contract but the data matches the respective method call', async () => {
-    const result = await determineTransactionType(
-      txParams,
-      createMockEthQuery('0x'),
-    );
+    jest.mocked(rpcRequest).mockResolvedValue('0x');
+
+    const result = await determineTransactionType(txParams, {
+      messenger: messengerMock,
+      networkClientId: networkClientIdMock,
+    });
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
       getCodeResponse: '0x',
@@ -123,13 +114,17 @@ describe('determineTransactionType', () => {
   });
 
   it('does not identify contract codes with DELEGATION_PREFIX as contract addresses', async () => {
+    jest
+      .mocked(rpcRequest)
+      .mockResolvedValue(`${DELEGATION_PREFIX}1234567890abcdef`);
+
     const result = await determineTransactionType(
       {
         to: '0x9e673399f795D01116e9A8B2dD2F156705131ee9',
         data: '0xabd',
         from: FROM_MOCK,
       },
-      createMockEthQuery(`${DELEGATION_PREFIX}1234567890abcdef`),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
 
     expect(result).toMatchObject({
@@ -139,12 +134,14 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a token approve type when the recipient is a contract and data is for the respective method call', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+
     const result = await determineTransactionType(
       {
         ...txParams,
         data: '0x095ea7b30000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C9700000000000000000000000000000000000000000000000000000000000000005',
       },
-      createMockEthQuery('0xab'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.tokenMethodApprove,
@@ -153,12 +150,14 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a token approve type when data is uppercase', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+
     const result = await determineTransactionType(
       {
         ...txParams,
         data: '0x095EA7B30000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C9700000000000000000000000000000000000000000000000000000000000000005',
       },
-      createMockEthQuery('0xab'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.tokenMethodApprove,
@@ -173,7 +172,7 @@ describe('determineTransactionType', () => {
         to: '',
         data: '0xabd',
       },
-      createMockEthQuery(''),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.deployContract,
@@ -182,12 +181,14 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a simple send type with a 0x getCodeResponse when there is data, but the "to" address is not a contract address', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0x');
+
     const result = await determineTransactionType(
       {
         ...txParams,
         data: '0xabd',
       },
-      createMockEthQuery('0x'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
@@ -196,12 +197,14 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a simple send type with a null getCodeResponse when "to" is truthy and there is data, but getCode returns an error', async () => {
+    jest.mocked(rpcRequest).mockRejectedValue(new Error('Some error'));
+
     const result = await determineTransactionType(
       {
         ...txParams,
         data: '0xabd',
       },
-      createMockEthQuery(null, true),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
@@ -210,12 +213,14 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is truthy and there is data, and it is not a token transaction', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+
     const result = await determineTransactionType(
       {
         ...txParams,
         data: 'abd',
       },
-      createMockEthQuery('0xa'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,
@@ -224,12 +229,14 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is a contract address and data is falsy', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+
     const result = await determineTransactionType(
       {
         ...txParams,
         data: '',
       },
-      createMockEthQuery('0xa'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,
@@ -238,13 +245,15 @@ describe('determineTransactionType', () => {
   });
 
   it('returns contractInteraction for send with approve', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+
     const result = await determineTransactionType(
       {
         ...txParams,
         value: '0x5af3107a4000',
         data: '0x095ea7b30000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C9700000000000000000000000000000000000000000000000000000000000000005',
       },
-      createMockEthQuery('0xa'),
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
     );
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,

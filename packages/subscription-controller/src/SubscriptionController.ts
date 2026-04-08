@@ -537,7 +537,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Invalid chain id');
     }
     const tokenPaymentInfo = chainPaymentInfo.tokens.find(
-      (token) => token.address === request.paymentTokenAddress,
+      (token) =>
+        token.address.toLowerCase() ===
+        request.paymentTokenAddress.toLowerCase(),
     );
     if (!tokenPaymentInfo) {
       throw new Error('Invalid token address');

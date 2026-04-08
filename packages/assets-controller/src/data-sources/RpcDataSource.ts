@@ -1,5 +1,4 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -18,7 +17,6 @@ import type {
 import {
   isStrictHexString,
   isCaipChainId,
-  numberToHex,
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
@@ -34,6 +32,7 @@ import {
   BalanceFetcher,
   MulticallClient,
   TokenDetector,
+  TokensApiClient,
 } from './evm-rpc-services';
 import type {
   BalancePollingInput,
@@ -41,11 +40,10 @@ import type {
 } from './evm-rpc-services';
 import type {
   Address,
+  AssetFetchEntry,
   Provider as RpcProvider,
-  TokenListState,
   BalanceFetchResult,
   TokenDetectionResult,
-  TokenFetchInfo,
 } from './evm-rpc-services/types';
 import type {
   AssetsControllerGetStateAction,
@@ -62,6 +60,7 @@ import type {
   Middleware,
 } from '../types';
 import { normalizeAssetId } from '../utils';
+import { ZERO_ADDRESS } from '../utils/constants';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -74,7 +73,6 @@ export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AssetsControllerGetStateAction
-  | GetTokenListState
   | NetworkEnablementControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
@@ -268,35 +266,40 @@ export class RpcDataSource extends AbstractDataSource<
       },
     };
 
-    const tokenDetectorMessenger = {
-      call: (_action: 'TokenListController:getState'): TokenListState => {
-        return this.#messenger.call('TokenListController:getState');
-      },
-    };
-
     // Initialize BalanceFetcher with polling interval
     this.#balanceFetcher = new BalanceFetcher(
       this.#multicallClient,
       balanceFetcherMessenger,
       { pollingInterval: balanceInterval },
     );
-    this.#balanceFetcher.setOnBalanceUpdate(
-      this.#handleBalanceUpdate.bind(this),
-    );
+    // Polling controller awaits this callback; rejections must not become unhandled.
+    this.#balanceFetcher.setOnBalanceUpdate(async (result) => {
+      try {
+        await this.#handleBalanceUpdate(result);
+      } catch (error) {
+        log('Balance update handler failed', { error });
+      }
+    });
 
     // Initialize TokenDetector with polling interval
+    const tokensApiClient = new TokensApiClient();
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
-      tokenDetectorMessenger,
+      tokensApiClient,
       {
         pollingInterval: detectionInterval,
         tokenDetectionEnabled: this.#tokenDetectionEnabled,
         useExternalService: this.#useExternalService,
       },
     );
-    this.#tokenDetector.setOnDetectionUpdate(
-      this.#handleDetectionUpdate.bind(this),
-    );
+    // Sync throw in the detector would reject the poll tick if uncaught.
+    this.#tokenDetector.setOnDetectionUpdate((result) => {
+      try {
+        this.#handleDetectionUpdate(result);
+      } catch (error) {
+        log('Detection update handler failed', { error });
+      }
+    });
 
     this.#subscribeToNetworkController();
     this.#subscribeToTransactionEvents();
@@ -346,21 +349,11 @@ export class RpcDataSource extends AbstractDataSource<
           };
         }
       } else {
-        // For ERC20 tokens, try existing metadata from state first
+        // For ERC20 tokens, use existing metadata from state if available.
+        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
         const existingMeta = existingMetadata[balance.assetId];
-
         if (existingMeta) {
           assetsInfo[balance.assetId] = existingMeta;
-        } else {
-          // Fallback to token list if not in state
-          const tokenListMeta = this.#getTokenMetadataFromTokenList(
-            balance.assetId,
-          );
-          if (tokenListMeta) {
-            assetsInfo[balance.assetId] = tokenListMeta;
-          }
-          // Unknown ERC-20: omit from assetsInfo until decimals are known.
-          // #handleBalanceUpdate resolves decimals via RPC or omits the balance.
         }
       }
     }
@@ -900,9 +893,15 @@ export class RpcDataSource extends AbstractDataSource<
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
 
-        // Extract ERC20 token addresses from customAssets for this chain
-        const customTokenAddresses: Address[] = [];
+        // Build a single AssetFetchEntry[] for native + custom ERC-20s
+        const nativeAssetId = this.#buildNativeAssetId(chainId);
+        const assetsToFetch: AssetFetchEntry[] = [
+          { assetId: nativeAssetId, address: ZERO_ADDRESS },
+        ];
+
         if (request.customAssets) {
+          const existingMetadata = this.#getExistingAssetsMetadata();
+
           for (const assetId of request.customAssets) {
             try {
               const parsed = parseCaipAssetType(assetId);
@@ -911,7 +910,16 @@ export class RpcDataSource extends AbstractDataSource<
                 assetChainId === chainId &&
                 parsed.assetNamespace === 'erc20'
               ) {
-                customTokenAddresses.push(parsed.assetReference as Address);
+                const tokenAddress =
+                  parsed.assetReference.toLowerCase() as Address;
+                const normalizedId = normalizeAssetId(assetId);
+                const decimals = existingMetadata[normalizedId]?.decimals;
+
+                assetsToFetch.push({
+                  assetId,
+                  address: tokenAddress,
+                  decimals,
+                });
               }
             } catch {
               // Skip unparseable asset IDs
@@ -920,19 +928,11 @@ export class RpcDataSource extends AbstractDataSource<
         }
 
         try {
-          const tokenInfos = this.#tokenFetchInfosForCustomErc20s(
-            chainId,
-            customTokenAddresses,
-          );
-
-          // Use BalanceFetcher for batched balance fetching
-          const result = await this.#balanceFetcher.fetchBalancesForTokens(
+          const result = await this.#balanceFetcher.fetchBalancesForAssets(
             hexChainId,
             accountId,
             address as Address,
-            customTokenAddresses,
-            { includeNative: true },
-            tokenInfos,
+            assetsToFetch,
           );
 
           if (!assetsBalance[accountId]) {
@@ -992,7 +992,6 @@ export class RpcDataSource extends AbstractDataSource<
           if (!assetsBalance[accountId]) {
             assetsBalance[accountId] = {};
           }
-          const nativeAssetId = this.#buildNativeAssetId(chainId);
           assetsBalance[accountId][nativeAssetId] = { amount: '0' };
 
           // Even on error, include native token metadata
@@ -1355,39 +1354,6 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * Build token infos for custom ERC-20s when decimals are already known from
-   * state or token list so BalanceFetcher can format balances; unknown decimals
-   * are left out and resolved in `fetch` / `#handleBalanceUpdate`.
-   *
-   * @param caipChainId - CAIP-2 chain id (e.g. `eip155:1`).
-   * @param tokenAddresses - ERC-20 contract addresses on that chain.
-   * @returns Token fetch infos that include only entries with known decimals.
-   */
-  #tokenFetchInfosForCustomErc20s(
-    caipChainId: ChainId,
-    tokenAddresses: Address[],
-  ): TokenFetchInfo[] {
-    const existingMetadata = this.#getExistingAssetsMetadata();
-    const infos: TokenFetchInfo[] = [];
-
-    for (const tokenAddress of tokenAddresses) {
-      const { reference } = parseCaipChainId(caipChainId);
-      const rawAssetId =
-        `eip155:${reference}/erc20:${tokenAddress.toLowerCase()}` as Caip19AssetId;
-      const assetId = normalizeAssetId(rawAssetId);
-      const decimals =
-        existingMetadata[assetId]?.decimals ??
-        this.#getTokenMetadataFromTokenList(assetId)?.decimals;
-
-      if (decimals !== undefined) {
-        infos.push({ address: tokenAddress, decimals });
-      }
-    }
-
-    return infos;
-  }
-
-  /**
    * Get existing assets metadata from AssetsController state.
    * Used to include metadata for ERC20 tokens when returning balance updates.
    *
@@ -1397,61 +1363,9 @@ export class RpcDataSource extends AbstractDataSource<
     try {
       const state = this.#messenger.call('AssetsController:getState');
       return state.assetsInfo ?? {};
-    } catch {
-      // If AssetsController:getState fails, return empty metadata
+    } catch (error) {
+      log('Failed to get existing assets metadata', { error });
       return {};
-    }
-  }
-
-  /**
-   * Get token metadata from TokenListController for an ERC20 token.
-   * Used as a fallback when metadata is not in AssetsController state.
-   *
-   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:1/erc20:0x...")
-   * @returns Token metadata if found in token list, undefined otherwise.
-   */
-  #getTokenMetadataFromTokenList(
-    assetId: Caip19AssetId,
-  ): AssetMetadata | undefined {
-    try {
-      const parsed = parseCaipAssetType(assetId);
-      if (parsed.assetNamespace !== 'erc20') {
-        return undefined;
-      }
-      const tokenAddress = parsed.assetReference;
-      const { reference } = parseCaipChainId(parsed.chainId);
-      const hexChainId = numberToHex(parseInt(reference, 10));
-
-      const tokenListState = this.#messenger.call(
-        'TokenListController:getState',
-      );
-      const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
-      const chainTokenList = chainCacheEntry?.data;
-
-      if (!chainTokenList) {
-        return undefined;
-      }
-
-      // Look up token by address (case-insensitive)
-      const lowerAddress = tokenAddress.toLowerCase();
-      for (const [address, tokenData] of Object.entries(chainTokenList)) {
-        if (address.toLowerCase() === lowerAddress) {
-          const token = tokenData;
-          if (token.symbol && token.decimals !== undefined) {
-            return {
-              type: 'erc20',
-              symbol: token.symbol,
-              name: token.name ?? token.symbol,
-              decimals: token.decimals,
-              image: token.iconUrl,
-            };
-          }
-        }
-      }
-
-      return undefined;
-    } catch {
-      return undefined;
     }
   }
 

@@ -266,7 +266,7 @@ const setupController = ({
     actions: [
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
-      'SnapController:getAll',
+      'SnapController:getRunnableSnaps',
       'PermissionController:getPermissions',
       'PhishingController:bulkScanTokens',
     ],
@@ -296,7 +296,7 @@ const setupController = ({
 
   const mockGetAllSnaps = jest.fn();
   messenger.registerActionHandler(
-    'SnapController:getAll',
+    'SnapController:getRunnableSnaps',
     mockGetAllSnaps.mockReturnValue(
       mocks?.getAllReturnValue ?? mockGetAllSnapsReturnValue,
     ),

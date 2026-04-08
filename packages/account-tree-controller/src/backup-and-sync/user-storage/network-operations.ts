@@ -22,6 +22,7 @@ import type {
   UserStorageSyncedWallet,
   UserStorageSyncedWalletGroup,
 } from '../types';
+import { toErrorMessage } from '../utils/errors';
 
 /**
  * Retrieves the wallet from user storage.
@@ -53,7 +54,7 @@ export const getWalletFromUserStorage = async (
       return parseWalletFromUserStorageResponse(walletData);
     } catch (error) {
       backupAndSyncLogger(
-        `Failed to parse wallet data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to parse wallet data from user storage: ${toErrorMessage(error)}`,
       );
       return null;
     }
@@ -119,7 +120,7 @@ export const getAllGroupsFromUserStorage = async (
           return parseGroupFromUserStorageResponse(stringifiedGroup);
         } catch (error) {
           backupAndSyncLogger(
-            `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to parse group data from user storage: ${toErrorMessage(error)}`,
           );
           return null;
         }
@@ -163,7 +164,7 @@ export const getGroupFromUserStorage = async (
       return parseGroupFromUserStorageResponse(groupData);
     } catch (error) {
       backupAndSyncLogger(
-        `Failed to parse group data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to parse group data from user storage: ${toErrorMessage(error)}`,
       );
       return null;
     }
@@ -270,7 +271,7 @@ export const getAllLegacyUserStorageAccounts = async (
           return parseLegacyAccountFromUserStorageResponse(stringifiedAccount);
         } catch (error) {
           backupAndSyncLogger(
-            `Failed to parse legacy account data from user storage: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to parse legacy account data from user storage: ${toErrorMessage(error)}`,
           );
           return null;
         }

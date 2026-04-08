@@ -192,10 +192,14 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         this.#getProvider(hexChainId),
     });
 
-    // Wire the callback so polling results flow back to subscriptions
-    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate(
-      this.#handleStakedBalanceUpdate.bind(this),
-    );
+    // Polling controller invokes this synchronously; keep failures inside the poll tick.
+    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate((result) => {
+      try {
+        this.#handleStakedBalanceUpdate(result);
+      } catch (error) {
+        log('Staked balance update handler failed', { error });
+      }
+    });
 
     this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',
