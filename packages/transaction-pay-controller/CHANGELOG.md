@@ -11,10 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
 
-### Changed
-
-- Bump `@metamask/assets-controller` from `^4.0.0` to `^4.1.0` ([#8397](https://github.com/MetaMask/core/pull/8397))
-
 ### Fixed
 
 - Fix perps withdraw to Arbitrum USDC showing inflated transaction fee by bypassing same-token filter when `isHyperliquidSource` is set ([#8387](https://github.com/MetaMask/core/pull/8387))
