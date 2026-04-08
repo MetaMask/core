@@ -261,7 +261,7 @@ describe('Across Submit', () => {
       );
     });
 
-    it('disables 7702 batch when account does not support 7702', async () => {
+    it('submits individually when account does not support 7702', async () => {
       accountSupports7702Mock.mockResolvedValue(false);
 
       const nonIs7702Quote = {
@@ -285,14 +285,8 @@ describe('Across Submit', () => {
         isSmartTransaction: jest.fn(),
       });
 
-      expect(addTransactionBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          disable7702: true,
-          disableHook: false,
-          disableSequential: false,
-          gasLimit7702: undefined,
-        }),
-      );
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
     });
 
     it('submits a single transaction when no approvals', async () => {

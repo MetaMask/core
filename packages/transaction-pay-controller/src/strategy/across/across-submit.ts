@@ -203,17 +203,19 @@ async function submitTransactions(
   let result: { result: Promise<string> } | undefined;
 
   try {
-    if (transactions.length === 1) {
-      result = await messenger.call(
-        'TransactionController:addTransaction',
-        transactions[0].params,
-        {
-          networkClientId,
-          origin: ORIGIN_METAMASK,
-          requireApproval: false,
-          type: transactions[0].type,
-        },
-      );
+    if (transactions.length === 1 || !accountSupports7702) {
+      for (const { params, type } of transactions) {
+        result = await messenger.call(
+          'TransactionController:addTransaction',
+          params,
+          {
+            networkClientId,
+            origin: ORIGIN_METAMASK,
+            requireApproval: false,
+            type,
+          },
+        );
+      }
     } else {
       const batchTransactions = transactions.map(({ params, type }) => ({
         params: toBatchTransactionParams(params),

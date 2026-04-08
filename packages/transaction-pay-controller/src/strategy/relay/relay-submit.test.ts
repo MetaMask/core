@@ -1083,27 +1083,20 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('disables 7702 batch when account does not support 7702', async () => {
+    it('submits individually when account does not support 7702', async () => {
       accountSupports7702Mock.mockResolvedValue(false);
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
 
-      request.quotes[0].original.metamask.gasLimits = [42000];
+      request.quotes[0].original.metamask.gasLimits = [21000, 22000];
       request.quotes[0].original.metamask.is7702 = true;
 
       await submitRelayQuotes(request);
 
-      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
-      expect(addTransactionBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          disable7702: true,
-          disableHook: false,
-          disableSequential: false,
-          gasLimit7702: undefined,
-        }),
-      );
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
     });
 
     it('adds transaction batch without gasLimit7702 when multiple gas limits', async () => {
