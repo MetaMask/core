@@ -9,9 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-- fix(assets-controller): hardened error handling ([#8389](https://github.com/MetaMask/core/pull/8389))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-
 ### Changed
 
 - `TokenDetector` now fetches the token list directly from the Tokens API (`/v3/chains/{chain}/assets`) via a new `TokensApiClient` instead of reading from `TokenListController:getState` ([#8385](https://github.com/MetaMask/core/pull/8385))
@@ -29,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TokenDataSource` filters EVM ERC-20 tokens by `occurrences >= 3` and treats missing occurrences as 0 ([#8383](https://github.com/MetaMask/core/pull/8383))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+### Fixed
+
+- Hardened error handling ([#8389](https://github.com/MetaMask/core/pull/8389))
 
 ## [4.0.0]
 
