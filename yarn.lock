@@ -5702,6 +5702,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/browser-passworder": "npm:^6.0.0"
+    "@metamask/controller-utils": "npm:^11.20.0"
     "@metamask/keyring-controller": "npm:^25.2.0"
     "@metamask/messenger": "npm:^1.1.1"
     "@metamask/scure-bip39": "npm:^2.1.1"

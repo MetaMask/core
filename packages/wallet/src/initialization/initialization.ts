@@ -2,18 +2,23 @@ import { Json } from '@metamask/utils';
 
 import * as defaultConfigurations from './instances';
 import { InitializationConfiguration } from './types';
-import { RootMessenger } from '../types';
+import { RootMessenger, WalletOptions } from '../types';
 
 export type InitializeArgs = {
   state: Record<string, Json>;
   messenger: RootMessenger;
-  initializationConfigurations?: InitializationConfiguration<unknown>[];
+  initializationConfigurations?: InitializationConfiguration<
+    unknown,
+    unknown
+  >[];
+  options: WalletOptions;
 };
 
 export function initialize({
   state,
   messenger,
   initializationConfigurations = [],
+  options,
 }: InitializeArgs) {
   const overriddenConfiguration = initializationConfigurations.map(
     (config) => config.name,
@@ -37,6 +42,7 @@ export function initialize({
     const { instance } = config.init({
       state: instanceState,
       messenger: instanceMessenger,
+      options,
     });
 
     instances[name] = instance;

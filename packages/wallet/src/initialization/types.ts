@@ -1,4 +1,4 @@
-import { RootMessenger } from '../types';
+import { RootMessenger, WalletOptions } from '../types';
 
 export type InstanceState<Instance> = Instance extends { state: unknown }
   ? Instance['state']
@@ -7,6 +7,7 @@ export type InstanceState<Instance> = Instance extends { state: unknown }
 export type InitFunctionArguments<Instance, InstanceMessenger> = {
   state: InstanceState<Instance>;
   messenger: InstanceMessenger;
+  options: WalletOptions;
 };
 
 export type InitFunction<Instance, InstanceMessenger> = (
