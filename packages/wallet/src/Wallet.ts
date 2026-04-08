@@ -2,10 +2,11 @@ import { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
 import { initialize } from './initialization';
-import { RootMessenger } from './types';
+import { RootMessenger, WalletOptions } from './types';
 
-export type WalletArgs = {
-  state: Json;
+export type WalletConstructorArgs = {
+  state?: Record<string, Json>;
+  options: WalletOptions;
 };
 
 export class Wallet {
@@ -13,12 +14,12 @@ export class Wallet {
 
   readonly #instances;
 
-  constructor({ state = {} } = {}) {
+  constructor({ state = {}, options }: WalletConstructorArgs) {
     this.messenger = new Messenger({
       namespace: 'Root',
     });
 
-    this.#instances = initialize({ state, messenger: this.messenger });
+    this.#instances = initialize({ state, messenger: this.messenger, options });
   }
 
   get state(): Record<string, unknown> {

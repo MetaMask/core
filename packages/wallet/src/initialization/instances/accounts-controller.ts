@@ -2,13 +2,17 @@ import {
   AccountsController,
   AccountsControllerMessenger,
 } from '@metamask/accounts-controller';
-import type {
-  AllowedActions,
-  AllowedEvents,
-} from '@metamask/accounts-controller';
-import { Messenger } from '@metamask/messenger';
+import {
+  Messenger,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 
 import { InitializationConfiguration } from '../types';
+
+type AllowedActions = MessengerActions<AccountsControllerMessenger>;
+
+type AllowedEvents = MessengerEvents<AccountsControllerMessenger>;
 
 export const accountsController: InitializationConfiguration<
   AccountsController,
