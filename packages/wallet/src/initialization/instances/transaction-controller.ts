@@ -32,6 +32,10 @@ export const transactionController: InitializationConfiguration<
         messenger,
         'NetworkController:getEIP1559Compatibility',
       ),
+      getNetworkState: messenger.call.bind(
+        messenger,
+        'NetworkController:getState',
+      ),
       sign: messenger.call.bind(messenger, 'KeyringController:signTransaction'),
     });
 
@@ -63,6 +67,7 @@ export const transactionController: InitializationConfiguration<
         // TODO: These are added for use in the constructor, in the extension this uses the "init messenger" concept.
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getEIP1559Compatibility',
+        'NetworkController:getState',
         'KeyringController:signTransaction',
       ],
       events: [
