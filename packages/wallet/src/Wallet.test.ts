@@ -44,13 +44,23 @@ describe('Wallet', () => {
     const { result, transactionMeta } = await sendTransaction(
       wallet,
       { from: addresses[0], to: addresses[0], data: '0x00' },
-      { networkClientId: 'mainnet' },
+      { networkClientId: 'sepolia' },
     );
 
-    await result;
+    const hash = await result;
 
-    expect(result).toStrictEqual({});
-    expect(transactionMeta).toStrictEqual({});
+    expect(hash).toStrictEqual(expect.any(String));
+    expect(transactionMeta).toStrictEqual(
+      expect.objectContaining({
+        txParams: expect.objectContaining({
+          from: addresses[0],
+          to: addresses[0],
+          data: '0x00',
+          value: '0x0',
+          type: '0x2',
+        }),
+      }),
+    );
   });
 
   it('exposes state', async () => {

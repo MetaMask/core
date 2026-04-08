@@ -49,7 +49,7 @@ export async function createSecretRecoveryPhrase(
 
 /**
  * Sign a transaction using the wallet and submit it to the blockchain.
- * 
+ *
  * @param wallet - The wallet object.
  * @param transaction - The transaction.
  * @param options - The transaction options (including which network to use).
