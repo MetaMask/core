@@ -1,7 +1,8 @@
 // TODO: Determine if these should be available directly on Wallet.
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import {
+import type {
   AddTransactionOptions,
+  TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
 
@@ -60,11 +61,11 @@ export async function sendTransaction(
   transaction: TransactionParams,
   options: AddTransactionOptions,
 ) {
-  const { transactionMeta, result } = await wallet.messenger.call(
+  const { transactionMeta, result } = (await wallet.messenger.call(
     'TransactionController:addTransaction',
     transaction,
     options,
-  );
+  )) as { transactionMeta: TransactionMeta; result: Promise<string> };
 
   const approvalId = transactionMeta.id;
 

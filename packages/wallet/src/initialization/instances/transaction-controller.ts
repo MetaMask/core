@@ -1,8 +1,15 @@
+import type { KeyringControllerSignTransactionAction } from '@metamask/keyring-controller';
 import {
   Messenger,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type {
+  NetworkControllerGetEIP1559CompatibilityAction,
+  NetworkControllerGetNetworkClientRegistryAction,
+  NetworkControllerGetStateAction,
+} from '@metamask/network-controller';
+import type { TransactionControllerOptions } from '@metamask/transaction-controller';
 import {
   TransactionController,
   TransactionControllerMessenger,
@@ -10,33 +17,54 @@ import {
 
 import { InitializationConfiguration } from '../types';
 
-type AllowedActions = MessengerActions<TransactionControllerMessenger>;
+type InitActions =
+  | NetworkControllerGetNetworkClientRegistryAction
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerGetStateAction
+  | KeyringControllerSignTransactionAction;
+
+type AllowedActions =
+  | MessengerActions<TransactionControllerMessenger>
+  | InitActions;
 
 type AllowedEvents = MessengerEvents<TransactionControllerMessenger>;
 
+type WalletTransactionControllerMessenger = Messenger<
+  'TransactionController',
+  AllowedActions,
+  AllowedEvents
+>;
+
 export const transactionController: InitializationConfiguration<
   TransactionController,
-  TransactionControllerMessenger
+  WalletTransactionControllerMessenger
 > = {
   name: 'TransactionController',
   init: ({ state, messenger }) => {
     // TODO: Add the rest of the arguments.
     const instance = new TransactionController({
       state,
-      messenger,
-      getNetworkClientRegistry: messenger.call.bind(
-        messenger,
-        'NetworkController:getNetworkClientRegistry',
-      ),
-      getCurrentNetworkEIP1559Compatibility: messenger.call.bind(
-        messenger,
-        'NetworkController:getEIP1559Compatibility',
-      ),
-      getNetworkState: messenger.call.bind(
-        messenger,
-        'NetworkController:getState',
-      ),
-      sign: messenger.call.bind(messenger, 'KeyringController:signTransaction'),
+      messenger: messenger as unknown as TransactionControllerMessenger,
+      disableHistory: true,
+      disableSendFlowHistory: true,
+      disableSwaps: true,
+      hooks: {},
+      getNetworkClientRegistry: () =>
+        messenger.call('NetworkController:getNetworkClientRegistry'),
+      getCurrentNetworkEIP1559Compatibility: () =>
+        messenger.call(
+          'NetworkController:getEIP1559Compatibility',
+        ) as Promise<boolean>,
+      getNetworkState: () => messenger.call('NetworkController:getState'),
+      sign: (
+        ...args: Parameters<NonNullable<TransactionControllerOptions['sign']>>
+      ) =>
+        messenger.call(
+          'KeyringController:signTransaction',
+          ...args,
+        ) as unknown as ReturnType<
+          NonNullable<TransactionControllerOptions['sign']>
+        >,
     });
 
     return {

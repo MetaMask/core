@@ -1,3 +1,9 @@
+import {
+  ClientConfigApiService,
+  ClientType,
+  DistributionType,
+  EnvironmentType,
+} from '@metamask/remote-feature-flag-controller';
 import nock, { enableNetConnect } from 'nock';
 
 import { importSecretRecoveryPhrase, sendTransaction } from './utilities';
@@ -19,6 +25,15 @@ async function setupWallet() {
       infuraProjectId: process.env.INFURA_PROJECT_KEY,
       clientVersion: '1.0.0',
       showApprovalRequest: () => undefined,
+      clientConfigApiService: new ClientConfigApiService({
+        fetch: globalThis.fetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      }),
+      getMetaMetricsId: () => 'fake-metrics-id',
     },
   });
 

@@ -25,7 +25,12 @@ export class Wallet {
   get state(): Record<string, unknown> {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (accumulator, [key, instance]) => {
-        accumulator[key] = instance.state ?? null;
+        accumulator[key] =
+          instance !== null &&
+          typeof instance === 'object' &&
+          'state' in instance
+            ? instance.state
+            : null;
         return accumulator;
       },
       {},

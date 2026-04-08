@@ -2,7 +2,7 @@ import { RootMessenger, WalletOptions } from '../types';
 
 export type InstanceState<Instance> = Instance extends { state: unknown }
   ? Instance['state']
-  : null;
+  : unknown;
 
 export type InitFunctionArguments<Instance, InstanceMessenger> = {
   state: InstanceState<Instance>;
@@ -10,16 +10,12 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
   options: WalletOptions;
 };
 
-export type InitFunction<Instance, InstanceMessenger> = (
-  args: InitFunctionArguments<Instance, InstanceMessenger>,
-) => { instance: Instance };
-
-export type MessengerInitFunction<NarrowedMessenger> = (
-  parent: RootMessenger,
-) => NarrowedMessenger;
-
+// Method syntax provides bivariant parameter checking, which is needed to
+// collect heterogeneous InitializationConfiguration values in a single array.
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: string;
-  init: InitFunction<Instance, InstanceMessenger>;
-  messenger: MessengerInitFunction<InstanceMessenger>;
+  init(args: InitFunctionArguments<Instance, InstanceMessenger>): {
+    instance: Instance;
+  };
+  messenger(parent: RootMessenger): InstanceMessenger;
 };

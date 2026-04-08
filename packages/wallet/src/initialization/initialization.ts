@@ -30,7 +30,7 @@ export function initialize({
     ),
   );
 
-  const instances = {};
+  const instances: Record<string, unknown> = {};
 
   for (const config of configurationEntries) {
     const { name } = config;
