@@ -31,7 +31,10 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerAccountSupports7702Action,
+  KeyringControllerSignEip7702AuthorizationAction,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTracker,
@@ -491,6 +494,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | ApprovalControllerAddRequestAction
+  | KeyringControllerAccountSupports7702Action
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
