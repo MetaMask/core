@@ -122,8 +122,13 @@ export async function updateQuotes(
 
     log('Calculated totals', { transactionId, totals });
 
+    const accountSupports7702 = await messenger.call(
+      'KeyringController:accountSupports7702',
+      from,
+    );
+
     syncTransaction({
-      batchTransactions,
+      batchTransactions: accountSupports7702 ? batchTransactions : [],
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
