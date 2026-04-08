@@ -137,4 +137,7 @@ export { CHAIN_IDS } from './constants';
 export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
 export { HARDFORK } from './utils/prepare';
 export { getAccountAddressRelationship } from './api/accounts-api';
-export type { GetAccountAddressRelationshipRequest } from './api/accounts-api';
+export type {
+  GetAccountAddressRelationshipRequest,
+  AccountAddressRelationshipResult,
+} from './api/accounts-api';
