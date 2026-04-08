@@ -80,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Set `submittedTime` at the start of `TransactionPayPublishHook` before strategy execution for accurate `mm_pay_time_to_complete_s` metrics in intent-based flows ([#8439](https://github.com/MetaMask/core/pull/8439))
 
+### Fixed
+
+- Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on `KeyringController:accountSupports7702` ([#8388](https://github.com/MetaMask/core/pull/8388))
+
 ## [19.1.0]
 
 ### Added
