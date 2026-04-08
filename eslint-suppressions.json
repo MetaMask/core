@@ -1616,54 +1616,14 @@
       "count": 3
     }
   },
-  "packages/perps-controller/src/providers/HyperLiquidProvider.ts": {
-    "no-restricted-syntax": {
-      "count": 12
-    }
-  },
-  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
-  "packages/perps-controller/src/services/TradingService.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/perps-controller/src/types/index.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "packages/perps-controller/src/types/transactionTypes.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
-  "packages/perps-controller/src/utils/errorUtils.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/perps-controller/src/utils/hyperLiquidAdapter.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "packages/perps-controller/src/utils/hyperLiquidValidation.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/perps-controller/src/utils/marketDataTransform.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/perpsConnectionAttemptContext.ts": {
+    "require-atomic-updates": {
+      "count": 1
     }
   },
   "packages/perps-controller/tests/defer-eligibility.test.ts": {
