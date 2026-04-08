@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `MultichainAssetsController` now fails closed when verifying fungible `token:` assets with Blockaid during detection: tokens are only added when `PhishingController:bulkScanTokens` returns an explicit non-malicious result per address (failed batches, empty API responses, or omitted tokens no longer allow those assets through). A periodic Blockaid re-scan (default once per day; pass `blockaidTokenRescanInterval: 0` to disable) removes stored SPL-style tokens that become malicious.
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
