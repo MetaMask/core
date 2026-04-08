@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add action types for all public `BridgeController` methods ([#8367](https://github.com/MetaMask/core/pull/8367))
+  - The following types are now available:
+    - `BridgeControllerUpdateBridgeQuoteRequestParamsAction`
+    - `BridgeControllerFetchQuotesAction`
+    - `BridgeControllerStopPollingForQuotesAction`
+    - `BridgeControllerSetLocationAction`
+    - `BridgeControllerResetStateAction`
+    - `BridgeControllerSetChainIntervalLengthAction`
+    - `BridgeControllerTrackUnifiedSwapBridgeEventAction`
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+### Deprecated
+
+- Deprecate `BridgeControllerAction`, `BridgeUserAction` and `BridgeBackgroundAction` in favor of separate action types ([#8367](https://github.com/MetaMask/core/pull/8367))
+
+## [70.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/assets-controller` from `^3.2.1` to `^4.0.0` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/assets-controllers` from `^103.0.0` to `^103.1.1` ([#8355](https://github.com/MetaMask/core/pull/8355), [#8359](https://github.com/MetaMask/core/pull/8359))
+
+## [70.0.0]
+
+### Added
+
+- **BREAKING:** Add `quoteStreamComplete` state field to `BridgeControllerState`, populated from the `complete` SSE event emitted by the quote stream ([#8306](https://github.com/MetaMask/core/pull/8306))
+  - Exposes `QuoteStreamCompleteData` type and `validateQuoteStreamComplete` validator
+  - `quoteStreamComplete` is cleared at the start of each fetch and on `resetState`
+
 ## [69.2.3]
 
 ### Changed
@@ -1305,7 +1343,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.0.1...HEAD
+[70.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.0.0...@metamask/bridge-controller@70.0.1
+[70.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.3...@metamask/bridge-controller@70.0.0
 [69.2.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.2...@metamask/bridge-controller@69.2.3
 [69.2.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.1...@metamask/bridge-controller@69.2.2
 [69.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.0...@metamask/bridge-controller@69.2.1

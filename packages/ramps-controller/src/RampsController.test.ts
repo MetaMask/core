@@ -1050,6 +1050,27 @@ describe('RampsController', () => {
       });
     });
 
+    it('evaluates isResultCurrent on resource request errors', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const isResultCurrent = jest.fn(() => true);
+        const fetcher = async (): Promise<string> => {
+          throw new Error('network failed');
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-resource',
+            fetcher,
+            { resourceType: 'providers', isResultCurrent },
+          ),
+        ).rejects.toThrow('network failed');
+
+        expect(isResultCurrent).toHaveBeenCalledTimes(1);
+        expect(controller.state.providers.error).toBe('network failed');
+      });
+    });
+
     it('sets loading state while request is in progress', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let resolvePromise: (value: string) => void;
@@ -1121,6 +1142,57 @@ describe('RampsController', () => {
 
         expect(controller.state.providers.isLoading).toBe(false);
       });
+    });
+
+    it('keeps loading true when stale request finishes after region reset and a new request starts', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let resolveFirst: (value: string) => void = () => undefined;
+          let resolveSecond: (value: string) => void = () => undefined;
+          const firstFetcher = async (): Promise<string> =>
+            new Promise<string>((resolve) => {
+              resolveFirst = resolve;
+            });
+          const secondFetcher = async (): Promise<string> =>
+            new Promise<string>((resolve) => {
+              resolveSecond = resolve;
+            });
+
+          const firstRequest = rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-key-before-region-change',
+            firstFetcher,
+            { resourceType: 'providers' },
+          );
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          await rootMessenger.call('RampsController:setUserRegion', 'FR');
+
+          const secondRequest = rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-key-after-region-change',
+            secondFetcher,
+            { resourceType: 'providers' },
+          );
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          resolveFirst('first-result');
+          await firstRequest;
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          resolveSecond('second-result');
+          await secondRequest;
+          expect(controller.state.providers.isLoading).toBe(false);
+        },
+      );
     });
 
     it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
@@ -1653,7 +1725,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('refetches providers and tokens when init() is called with same region but empty resource data', async () => {
+    it('does not fetch tokens or providers when init() is called (client owns fetching)', async () => {
       const getTokensSpy = jest.fn(async () => ({
         topTokens: [],
         allTokens: [],
@@ -1688,8 +1760,9 @@ describe('RampsController', () => {
           await rootMessenger.call('RampsController:init');
 
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
-          expect(getTokensSpy).toHaveBeenCalled();
-          expect(getProvidersSpy).toHaveBeenCalled();
+          // Tokens and providers are fetched by the client (RampsBootstrap), not the controller
+          expect(getTokensSpy).not.toHaveBeenCalled();
+          expect(getProvidersSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1887,6 +1960,48 @@ describe('RampsController', () => {
         expect(getCountriesCallCount).toBe(2);
       });
     });
+
+    it('forceRefresh does not override persisted userRegion with geolocation', async () => {
+      let getGeolocationCalled = false;
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => createMockCountries(),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ny';
+            },
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          await rootMessenger.call('RampsController:init', {
+            forceRefresh: true,
+          });
+
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
   });
 
   describe('setUserRegion', () => {
@@ -1973,6 +2088,10 @@ describe('RampsController', () => {
 
           await rootMessenger.call('RampsController:setUserRegion', 'US-ca');
           await new Promise((resolve) => setTimeout(resolve, 50));
+
+          // Manually load tokens, providers, payment methods (simulating RampsBootstrap / React Query)
+          await rootMessenger.call('RampsController:getTokens', 'us-ca', 'buy');
+          await rootMessenger.call('RampsController:getProviders', 'us-ca');
           await rootMessenger.call(
             'RampsController:getPaymentMethods',
             'us-ca',
@@ -1994,7 +2113,8 @@ describe('RampsController', () => {
           providersToReturn = [];
           await rootMessenger.call('RampsController:setUserRegion', 'FR');
           await new Promise((resolve) => setTimeout(resolve, 50));
-          expect(controller.state.tokens.data).toStrictEqual(mockTokens);
+          // Region change resets dependent resources
+          expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.providers.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
@@ -2052,6 +2172,45 @@ describe('RampsController', () => {
           );
 
           expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('aborts in-flight dependent requests during cleanup when setUserRegion fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let wasAborted = false;
+          const fetcher = async (signal: AbortSignal): Promise<string> =>
+            new Promise<string>((_resolve, reject) => {
+              signal.addEventListener('abort', () => {
+                wasAborted = true;
+                reject(new Error('Aborted'));
+              });
+            });
+
+          const requestPromise = rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-cleanup-key',
+            fetcher,
+            { resourceType: 'providers' },
+          );
+
+          await expect(
+            rootMessenger.call('RampsController:setUserRegion', 'ZZ'),
+          ).rejects.toThrow('Region "zz" not found');
+
+          expect(
+            controller.getRequestState('providers-cleanup-key'),
+          ).toBeUndefined();
+          await expect(requestPromise).rejects.toThrow('Aborted');
+          expect(wasAborted).toBe(true);
         },
       );
     });
@@ -2650,7 +2809,55 @@ describe('RampsController', () => {
       );
     });
 
-    it('clears selected provider, paymentMethods, and selectedPaymentMethod when null is provided', async () => {
+    it('sets selected provider from a full Provider object without state lookup', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              // providers.data is empty — full object bypasses lookup
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider,
+            { autoSelected: true },
+          );
+          expect(controller.state.providers.selected).toStrictEqual(
+            mockProvider,
+          );
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('defaults providerAutoSelected to false when setting full Provider object without options', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([], null),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider,
+          );
+          expect(controller.state.providers.selected).toStrictEqual(
+            mockProvider,
+          );
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('clears selected provider but preserves paymentMethods when null is provided', async () => {
       const mockPaymentMethod: PaymentMethod = {
         id: '/payments/test-card',
         paymentType: 'debit-credit-card',
@@ -2676,20 +2883,17 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toStrictEqual(
             mockProvider,
           );
+
+          rootMessenger.call('RampsController:setSelectedProvider', null);
+
+          expect(controller.state.providers.selected).toBeNull();
+          // Payment methods are managed by React Query — not cleared on provider change
           expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
           expect(controller.state.paymentMethods.selected).toStrictEqual(
             mockPaymentMethod,
           );
-
-          rootMessenger.call('RampsController:setSelectedProvider', null);
-
-          expect(controller.state.providers.selected).toBeNull();
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
-          expect(controller.state.paymentMethods.isLoading).toBe(false);
-          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2716,7 +2920,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when providers are not loaded', async () => {
+    it('silently ignores when providers are not loaded', async () => {
       await withController(
         {
           options: {
@@ -2725,20 +2929,17 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ rootMessenger }) => {
-          expect(() => {
-            rootMessenger.call(
-              'RampsController:setSelectedProvider',
-              mockProvider.id,
-            );
-          }).toThrow(
-            'Providers not loaded. Cannot set selected provider before providers are fetched.',
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            mockProvider.id,
           );
+          expect(controller.state.providers.selected).toBeNull();
         },
       );
     });
 
-    it('throws error when provider is not found', async () => {
+    it('silently ignores when provider is not found', async () => {
       await withController(
         {
           options: {
@@ -2748,20 +2949,17 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ rootMessenger }) => {
-          expect(() => {
-            rootMessenger.call(
-              'RampsController:setSelectedProvider',
-              '/providers/nonexistent',
-            );
-          }).toThrow(
-            'Provider with ID "/providers/nonexistent" not found in available providers.',
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedProvider',
+            '/providers/nonexistent',
           );
+          expect(controller.state.providers.selected).toBeNull();
         },
       );
     });
 
-    it('updates selected provider and clears payment methods when a new provider is set', async () => {
+    it('updates selected provider and preserves payment methods when a new provider is set', async () => {
       const newProvider: Provider = {
         ...mockProvider,
         id: '/providers/ramp-network-staging',
@@ -2793,11 +2991,6 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => ({ payments: [] }),
-          );
-
           expect(controller.state.paymentMethods.data).toStrictEqual([
             existingPaymentMethod,
           ]);
@@ -2816,8 +3009,13 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected?.id).toBe(
             '/providers/ramp-network-staging',
           );
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
+          // Payment methods persist until React Query fetches for the new provider
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            existingPaymentMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            existingPaymentMethod,
+          );
         },
       );
     });
@@ -2869,7 +3067,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field', async () => {
+    it('does not fetch getPaymentMethods on provider selection (React Query owns fetching)', async () => {
       const providerWithoutField: Provider = { ...mockProvider };
       delete (providerWithoutField as Partial<Provider>)
         .supportedCryptoCurrencies;
@@ -2898,55 +3096,7 @@ describe('RampsController', () => {
 
           await new Promise((resolve) => setTimeout(resolve, 0));
 
-          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('fetches getPaymentMethods when selected token is explicitly supported by the new provider', async () => {
-      const supportedToken: RampsToken = {
-        assetId: 'eip155:1/slip44:60',
-        chainId: 'eip155:1',
-        name: 'Ether',
-        symbol: 'ETH',
-        decimals: 18,
-        iconUrl: '',
-        tokenSupported: true,
-      };
-
-      const providerWithSupport: Provider = {
-        ...mockProvider,
-        supportedCryptoCurrencies: {
-          [supportedToken.assetId]: true,
-        },
-      };
-
-      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
-
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us-ca'),
-              providers: createResourceState([providerWithSupport], null),
-              tokens: createResourceState(null, supportedToken),
-            },
-          },
-        },
-        async ({ rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            getPaymentMethodsMock,
-          );
-
-          rootMessenger.call(
-            'RampsController:setSelectedProvider',
-            providerWithSupport.id,
-          );
-
-          await new Promise((resolve) => setTimeout(resolve, 0));
-
-          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+          expect(getPaymentMethodsMock).not.toHaveBeenCalled();
         },
       );
     });
@@ -3119,10 +3269,13 @@ describe('RampsController', () => {
           rootMessenger.call('RampsController:setSelectedToken', undefined);
 
           expect(controller.state.tokens.selected).toBeNull();
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
-          expect(controller.state.paymentMethods.isLoading).toBe(false);
-          expect(controller.state.paymentMethods.error).toBeNull();
+          // Payment methods are provider-scoped — not cleared on token change
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            mockPaymentMethod,
+          );
         },
       );
     });
@@ -3194,7 +3347,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('triggers getPaymentMethods with token assetId', async () => {
+    it('does not trigger getPaymentMethods on token selection', async () => {
       await withController(
         {
           options: {
@@ -3205,16 +3358,11 @@ describe('RampsController', () => {
           },
         },
         async ({ rootMessenger }) => {
-          let receivedAssetId: string | undefined;
+          let getPaymentMethodsCalled = false;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
-            async (options: {
-              region: string;
-              fiat: string;
-              assetId: string;
-              provider: string;
-            }) => {
-              receivedAssetId = options.assetId;
+            async () => {
+              getPaymentMethodsCalled = true;
               return { payments: [] };
             },
           );
@@ -3225,12 +3373,12 @@ describe('RampsController', () => {
           );
           await new Promise((resolve) => setTimeout(resolve, 10));
 
-          expect(receivedAssetId).toBe(mockToken.assetId);
+          expect(getPaymentMethodsCalled).toBe(false);
         },
       );
     });
 
-    it('updates selected token and clears payment methods when a new token is set', async () => {
+    it('preserves payment methods when a new token is set', async () => {
       const newToken: RampsToken = {
         ...mockToken,
         assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
@@ -3257,11 +3405,6 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getPaymentMethods',
-            async () => ({ payments: [] }),
-          );
-
           expect(controller.state.paymentMethods.data).toStrictEqual([
             mockPaymentMethod,
           ]);
@@ -3274,9 +3417,15 @@ describe('RampsController', () => {
             newToken.assetId,
           );
 
+          // Payment methods are provider-scoped, not token-scoped.
+          // Token change should NOT reset them.
           expect(controller.state.tokens.selected).toStrictEqual(newToken);
-          expect(controller.state.paymentMethods.data).toStrictEqual([]);
-          expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.data).toStrictEqual([
+            mockPaymentMethod,
+          ]);
+          expect(controller.state.paymentMethods.selected).toStrictEqual(
+            mockPaymentMethod,
+          );
         },
       );
     });
@@ -4390,6 +4539,7 @@ describe('RampsController', () => {
             },
           );
 
+          // Start a payment methods request for token A
           const tokenAPaymentMethodsPromise = rootMessenger.call(
             'RampsController:getPaymentMethods',
             'us-ca',
@@ -4398,15 +4548,28 @@ describe('RampsController', () => {
             },
           );
 
+          // Change selected token to B (simulating user action)
           rootMessenger.call(
             'RampsController:setSelectedToken',
             tokenB.assetId,
           );
 
+          // Start a second request for token B (simulating React Query)
+          const tokenBPaymentMethodsPromise = rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: tokenB.assetId,
+            },
+          );
+
+          // Token A's request resolves after token B is selected
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
+          await tokenBPaymentMethodsPromise;
           await new Promise((resolve) => setTimeout(resolve, 10));
 
+          // Token A's results should be discarded since token B is now selected
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
             paymentMethodsForTokenB,
@@ -4502,6 +4665,7 @@ describe('RampsController', () => {
             },
           );
 
+          // Start a payment methods request for provider A
           const providerAPaymentMethodsPromise = rootMessenger.call(
             'RampsController:getPaymentMethods',
             'us-ca',
@@ -4510,15 +4674,28 @@ describe('RampsController', () => {
             },
           );
 
+          // Change selected provider to B (simulating user action)
           rootMessenger.call(
             'RampsController:setSelectedProvider',
             providerB.id,
           );
 
+          // Start a second request for provider B (simulating React Query)
+          const providerBPaymentMethodsPromise = rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              provider: providerB.id,
+            },
+          );
+
+          // Provider A's request resolves after provider B is selected
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
+          await providerBPaymentMethodsPromise;
           await new Promise((resolve) => setTimeout(resolve, 10));
 
+          // Provider A's results should be discarded since provider B is now selected
           expect(controller.state.providers.selected).toStrictEqual(providerB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
             paymentMethodsForProviderB,
@@ -4660,20 +4837,30 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when payment methods are not loaded', async () => {
-      await withController(({ rootMessenger }) => {
-        expect(() => {
-          rootMessenger.call(
-            'RampsController:setSelectedPaymentMethod',
-            mockPaymentMethod.id,
-          );
-        }).toThrow(
-          'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
+    it('sets selected payment method from a full PaymentMethod object without state lookup', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        // paymentMethods.data is empty — full object bypasses lookup
+        rootMessenger.call(
+          'RampsController:setSelectedPaymentMethod',
+          mockPaymentMethod,
+        );
+        expect(controller.state.paymentMethods.selected).toStrictEqual(
+          mockPaymentMethod,
         );
       });
     });
 
-    it('throws error when payment method is not found', async () => {
+    it('sets selected to null when payment methods are not loaded and ID is passed', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call(
+          'RampsController:setSelectedPaymentMethod',
+          mockPaymentMethod.id,
+        );
+        expect(controller.state.paymentMethods.selected).toBeNull();
+      });
+    });
+
+    it('sets selected to null when payment method ID is not found', async () => {
       await withController(
         {
           options: {
@@ -4682,15 +4869,12 @@ describe('RampsController', () => {
             },
           },
         },
-        ({ rootMessenger }) => {
-          expect(() => {
-            rootMessenger.call(
-              'RampsController:setSelectedPaymentMethod',
-              '/payments/nonexistent',
-            );
-          }).toThrow(
-            'Payment method with ID "/payments/nonexistent" not found in available payment methods.',
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:setSelectedPaymentMethod',
+            '/payments/nonexistent',
           );
+          expect(controller.state.paymentMethods.selected).toBeNull();
         },
       );
     });

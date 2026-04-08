@@ -2,6 +2,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 
 import { getAcrossQuotes } from './across-quotes';
 import { submitAcrossQuotes } from './across-submit';
+import { isSupportedAcrossPerpsDepositRequest } from './perps';
 import type { AcrossQuote } from './types';
 import type {
   PayStrategy,
@@ -19,8 +20,13 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    if (request.transaction?.type === TransactionType.perpsAcrossDeposit) {
-      return false;
+    if (request.transaction?.type === TransactionType.perpsDeposit) {
+      return request.requests.every((singleRequest) =>
+        isSupportedAcrossPerpsDepositRequest(
+          singleRequest,
+          request.transaction?.type,
+        ),
+      );
     }
 
     // Across doesn't support same-chain swaps (e.g. mUSD conversions).

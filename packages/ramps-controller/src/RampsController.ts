@@ -409,14 +409,13 @@ const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
 function resetResource(
   state: Draft<RampsControllerState>,
   resourceType: DependentResourceKey,
-  defaultResource?: RampsControllerState[DependentResourceKey],
+  defaultResource: RampsControllerState[DependentResourceKey],
 ): void {
-  const def = defaultResource ?? getDefaultRampsControllerState()[resourceType];
   const resource = state[resourceType];
-  resource.data = def.data;
-  resource.selected = def.selected;
-  resource.isLoading = def.isLoading;
-  resource.error = def.error;
+  resource.data = defaultResource.data;
+  resource.selected = defaultResource.selected;
+  resource.isLoading = defaultResource.isLoading;
+  resource.error = defaultResource.error;
 }
 
 /**
@@ -723,6 +722,12 @@ export class RampsController extends BaseController<
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
+  /**
+   * Monotonic generation per resource type used to invalidate stale in-flight
+   * requests after region/token/provider dependent-resource resets.
+   */
+  readonly #pendingResourceGeneration: Map<ResourceType, number> = new Map();
+
   readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
 
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -744,6 +749,8 @@ export class RampsController extends BaseController<
   #clearPendingResourceCountForDependentResources(): void {
     for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+      const generation = this.#pendingResourceGeneration.get(resourceType) ?? 0;
+      this.#pendingResourceGeneration.set(resourceType, generation + 1);
     }
   }
 
@@ -851,6 +858,9 @@ export class RampsController extends BaseController<
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
     const { resourceType } = options ?? {};
+    const resourceGeneration = resourceType
+      ? (this.#pendingResourceGeneration.get(resourceType) ?? 0)
+      : undefined;
 
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
@@ -915,13 +925,17 @@ export class RampsController extends BaseController<
 
         // Clear resource-level loading state only when no requests for this resource remain
         if (resourceType && !abortController.signal.aborted) {
-          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
-          const next = Math.max(0, count - 1);
-          if (next === 0) {
-            this.#pendingResourceCount.delete(resourceType);
-            this.#setResourceLoading(resourceType, false);
-          } else {
-            this.#pendingResourceCount.set(resourceType, next);
+          const currentGeneration =
+            this.#pendingResourceGeneration.get(resourceType) ?? 0;
+          if (currentGeneration === resourceGeneration) {
+            const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+            const next = Math.max(0, count - 1);
+            if (next === 0) {
+              this.#pendingResourceCount.delete(resourceType);
+              this.#setResourceLoading(resourceType, false);
+            } else {
+              this.#pendingResourceCount.set(resourceType, next);
+            }
           }
         }
       }
@@ -982,16 +996,6 @@ export class RampsController extends BaseController<
     this.update((state) =>
       resetDependentResources(state, { clearUserRegionData: true }),
     );
-  }
-
-  /**
-   * Executes a promise without awaiting, swallowing errors.
-   * Errors are stored in state via executeRequest.
-   *
-   * @param promise - The promise to execute.
-   */
-  #fireAndForget<Result>(promise: Promise<Result>): void {
-    promise.catch((_error: unknown) => undefined);
   }
 
   #requireRegion(): string {
@@ -1143,15 +1147,15 @@ export class RampsController extends BaseController<
       }
 
       const regionChanged =
+        Boolean(options?.forceRefresh) ||
         normalizedRegion !== this.state.userRegion?.regionCode;
 
-      const needsRefetch =
-        regionChanged ||
-        !this.state.tokens.data ||
-        this.state.providers.data.length === 0;
-
       if (regionChanged) {
-        this.#abortDependentRequests();
+        // Note: we intentionally do NOT abort in-flight requests here.
+        // Aborting causes data loss during rapid region switching (e.g.
+        // user taps France → Finland → France quickly). Instead we let
+        // old requests complete naturally; isResultCurrent guards in
+        // getProviders/getPaymentMethods discard stale results.
         this.#clearPendingResourceCountForDependentResources();
       }
       this.update((state) => {
@@ -1161,23 +1165,6 @@ export class RampsController extends BaseController<
         state.userRegion = userRegion;
       });
 
-      if (needsRefetch) {
-        const refetchPromises: Promise<unknown>[] = [];
-        if (regionChanged || !this.state.tokens.data) {
-          refetchPromises.push(
-            this.getTokens(userRegion.regionCode, 'buy', options),
-          );
-        }
-        if (regionChanged || this.state.providers.data.length === 0) {
-          refetchPromises.push(
-            this.getProviders(userRegion.regionCode, options),
-          );
-        }
-        if (refetchPromises.length > 0) {
-          this.#fireAndForget(Promise.all(refetchPromises));
-        }
-      }
-
       return userRegion;
     } catch (error) {
       this.#cleanupState();
@@ -1186,67 +1173,51 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected provider by ID, or clears the selection.
-   * Looks up the provider from the current providers in state and automatically
-   * fetches payment methods for that provider.
+   * Sets the user's selected provider.
    *
-   * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+   * Accepts either a Provider object (stored directly) or a provider ID
+   * string (looked up from state). The object form is preferred when the
+   * caller already has the full data (e.g. from React Query cache).
+   *
+   * @param providerOrId - A Provider object, a provider ID string (e.g., "/providers/moonpay"), or null to clear.
    * @param options - Optional settings for the selection.
    * @param options.autoSelected - When true, marks the provider as system-guessed
    *   (soft selection). The UI will silently auto-switch on token conflict instead
    *   of showing the "Token Not Available" modal. Defaults to false.
-   * @throws If region is not set, providers are not loaded, or provider is not found.
    */
   setSelectedProvider(
-    providerId: string | null,
+    providerOrId: string | Provider | null,
     options?: { autoSelected?: boolean },
   ): void {
-    if (providerId === null) {
+    if (providerOrId === null) {
       this.update((state) => {
         state.providers.selected = null;
         state.providerAutoSelected = false;
-        resetResource(state, 'paymentMethods');
       });
       return;
     }
 
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
+
+    // If a full Provider object is passed, store it directly (avoids
+    // depending on state.providers.data being populated).
+    if (typeof providerOrId !== 'string') {
+      this.update((state) => {
+        state.providers.selected = providerOrId;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
+      return;
+    }
+
+    // ID string: look up from state
     const providers = this.state.providers.data;
-    if (!providers || providers.length === 0) {
-      throw new Error(
-        'Providers not loaded. Cannot set selected provider before providers are fetched.',
-      );
-    }
+    const provider = providers?.find((prov) => prov.id === providerOrId);
 
-    const provider = providers.find((prov) => prov.id === providerId);
-    if (!provider) {
-      throw new Error(
-        `Provider with ID "${providerId}" not found in available providers.`,
-      );
-    }
-
-    const selectedToken = this.state.tokens.selected;
-    const supportedCryptos = provider.supportedCryptoCurrencies;
-
-    // Only fetch payment methods if the selected token is supported by the new
-    // provider. If it isn't, the payment methods request would fail or return
-    // empty for the wrong reason; the UI will show the Token Not Available modal
-    // so the user can change token or pick a different provider.
-    const assetId = selectedToken?.assetId;
-    const tokenSupportedByProvider = !(
-      assetId && supportedCryptos?.[assetId] === false
-    );
-
-    this.update((state) => {
-      state.providers.selected = provider;
-      state.providerAutoSelected = options?.autoSelected ?? false;
-      resetResource(state, 'paymentMethods');
-    });
-
-    if (tokenSupportedByProvider) {
-      this.#fireAndForget(
-        this.getPaymentMethods(regionCode, { provider: provider.id }),
-      );
+    if (provider) {
+      this.update((state) => {
+        state.providers.selected = provider;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
     }
   }
 
@@ -1291,13 +1262,11 @@ export class RampsController extends BaseController<
       await this.getCountries(options);
     }
 
-    let regionCode: string | undefined;
-    if (forceRefresh) {
-      regionCode = await this.messenger.call('RampsService:getGeolocation');
-    } else {
-      regionCode = this.state.userRegion?.regionCode;
-      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
-    }
+    // Always prefer the user's persisted region. Geolocation is only used to
+    // seed the initial value; once the user (or a prior init) has set a region
+    // we must respect that choice — even on forceRefresh.
+    let regionCode: string | undefined = this.state.userRegion?.regionCode;
+    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
 
     if (!regionCode) {
       throw new Error(
@@ -1402,12 +1371,11 @@ export class RampsController extends BaseController<
     if (!assetId) {
       this.update((state) => {
         state.tokens.selected = null;
-        resetResource(state, 'paymentMethods');
       });
       return;
     }
 
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
     const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
@@ -1427,12 +1395,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      resetResource(state, 'paymentMethods');
     });
-
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
-    );
   }
 
   /**
@@ -1590,38 +1553,42 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected payment method by ID.
-   * Looks up the payment method from the current payment methods in state.
+   * Sets the user's selected payment method.
    *
-   * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
-   * @throws If payment methods are not loaded or payment method is not found.
+   * Accepts either a payment method ID (looked up from state) or a full
+   * PaymentMethod object (stored directly). The object form is preferred
+   * when the caller already has the full data (e.g. from React Query cache),
+   * as it avoids depending on controller state being populated.
+   *
+   * @param paymentMethodOrId - A PaymentMethod object, a payment method ID string, or undefined/null to clear.
    */
-  setSelectedPaymentMethod(paymentMethodId?: string): void {
-    if (!paymentMethodId) {
+  setSelectedPaymentMethod(
+    paymentMethodOrId?: string | PaymentMethod | null,
+  ): void {
+    if (!paymentMethodOrId) {
       this.update((state) => {
         state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const paymentMethods = this.state.paymentMethods.data;
-    if (!paymentMethods || paymentMethods.length === 0) {
-      throw new Error(
-        'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
-      );
+    // If a full object is passed, store it directly
+    if (typeof paymentMethodOrId !== 'string') {
+      this.update((state) => {
+        state.paymentMethods.selected = paymentMethodOrId;
+      });
+      return;
     }
 
-    const paymentMethod = paymentMethods.find(
+    // ID string: look up from state
+    const paymentMethodId = paymentMethodOrId;
+    const paymentMethods = this.state.paymentMethods.data;
+    const paymentMethod = paymentMethods?.find(
       (pm) => pm.id === paymentMethodId,
     );
-    if (!paymentMethod) {
-      throw new Error(
-        `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,
-      );
-    }
 
     this.update((state) => {
-      state.paymentMethods.selected = paymentMethod;
+      state.paymentMethods.selected = paymentMethod ?? null;
     });
   }
 

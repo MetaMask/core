@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [103.1.1]
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.0.1` to `^5.0.2` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/phishing-controller` from `^17.1.0` to `^17.1.1` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+
+## [103.1.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Hide native tokens on Tempo networks (testnet and mainnet) in asset selectors ([#7882](https://github.com/MetaMask/core/pull/7882))
+- Force `occurrenceFloor` to `1` for Tempo Mainnet in `token-service.ts` ([#7882](https://github.com/MetaMask/core/pull/7882))
+
+### Fixed
+
+- Fix `NftControllerMessenger` actions union type resolving to `any` for consumers ([#8350](https://github.com/MetaMask/core/pull/8350))
+- Fix `NftDetectionControllerMessenger` actions union type resolving to `any` for consumers ([#8350](https://github.com/MetaMask/core/pull/8350))
+
 ## [103.0.0]
 
 ### Changed
@@ -2894,7 +2921,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...HEAD
+[103.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...@metamask/assets-controllers@103.1.1
+[103.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...@metamask/assets-controllers@103.1.0
 [103.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...@metamask/assets-controllers@103.0.0
 [102.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.1...@metamask/assets-controllers@102.0.0
 [101.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@101.0.0...@metamask/assets-controllers@101.0.1

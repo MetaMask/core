@@ -132,6 +132,12 @@
       "path": "./packages/messenger"
     },
     {
+      "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/money-account-controller"
+    },
+    {
       "path": "./packages/multichain-account-service"
     },
     {

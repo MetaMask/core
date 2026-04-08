@@ -1115,7 +1115,7 @@ export class AccountTreeController extends BaseController<
   #assertAccountGroupExists(groupId: AccountGroupId): void {
     const exists = this.#groupIdToWalletId.has(groupId);
     if (!exists) {
-      throw new Error(`Account group with ID "${groupId}" not found in tree`);
+      throw new Error('Account group not found in tree');
     }
   }
 
@@ -1128,7 +1128,7 @@ export class AccountTreeController extends BaseController<
   #assertAccountWalletExists(walletId: AccountWalletId): void {
     const exists = Boolean(this.state.accountTree.wallets[walletId]);
     if (!exists) {
-      throw new Error(`Account wallet with ID "${walletId}" not found in tree`);
+      throw new Error('Account wallet not found in tree');
     }
   }
 
@@ -1174,7 +1174,7 @@ export class AccountTreeController extends BaseController<
     // Find the first account in this group to select
     const accountToSelect = this.#getDefaultAccountFromAccountGroupId(groupId);
     if (!accountToSelect) {
-      throw new Error(`No accounts found in group: ${groupId}`);
+      throw new Error('No accounts found in group');
     }
 
     this.update((state) => {
@@ -1441,7 +1441,7 @@ export class AccountTreeController extends BaseController<
     this.#assertAccountGroupExists(groupId);
 
     const walletId = this.#groupIdToWalletId.get(groupId);
-    assert(walletId, `Account group with ID "${groupId}" not found in tree`);
+    assert(walletId, 'Account group not found in tree');
 
     const wallet = this.state.accountTree.wallets[walletId];
     let finalName = name;
