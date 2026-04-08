@@ -51,6 +51,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'signMessage',
   'signEip7702Authorization',
   'signPersonalMessage',
+  'signTransaction',
   'signTypedMessage',
   'decryptMessage',
   'getEncryptionPublicKey',

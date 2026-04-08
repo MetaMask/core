@@ -195,6 +195,19 @@ export type KeyringControllerSignTypedMessageAction = {
 };
 
 /**
+ * Signs a transaction by calling down into a specific keyring.
+ *
+ * @param transaction - Transaction object to sign. Must be a `ethereumjs-tx` transaction instance.
+ * @param from - Address to sign from, should be in keychain.
+ * @param opts - An optional options object.
+ * @returns Promise resolving to a signed transaction string.
+ */
+export type KeyringControllerSignTransactionAction = {
+  type: `KeyringController:signTransaction`;
+  handler: KeyringController['signTransaction'];
+};
+
+/**
  * Convert a base transaction to a base UserOperation.
  *
  * @param from - Address of the sender.
@@ -316,6 +329,7 @@ export type KeyringControllerMethodActions =
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
+  | KeyringControllerSignTransactionAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
