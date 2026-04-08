@@ -29,15 +29,17 @@ import {
   TRX_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
   TrxAccountProvider,
+  BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+  TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
 } from './providers';
 import {
-  AccountProviderWrapper,
-  isAccountProviderWrapper,
-} from './providers/AccountProviderWrapper';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
+  EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+  EvmAccountProvider,
+} from './providers/EvmAccountProvider';
 import { SolAccountProvider } from './providers/SolAccountProvider';
 import {
   SOL_ACCOUNT_PROVIDER_NAME,
+  SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
 import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
@@ -133,6 +135,8 @@ export class MultichainAccountService {
 
   readonly #trace: TraceCallback;
 
+  #basicFunctionalityEnabled: boolean = true;
+
   readonly #wallets: Map<
     MultichainAccountWalletId,
     MultichainAccountWallet<Bip44Account<KeyringAccount>>
@@ -177,36 +181,52 @@ export class MultichainAccountService {
     // This trace is passed down to wallets and providers to be used for tracing operations within them.
     this.#trace = trace;
 
+    // Provider configs:
+    const evmProviderConfig =
+      providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME] ??
+      EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG;
+    const solProviderConfig =
+      providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME] ??
+      SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG;
+    const btcProviderConfig =
+      providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME] ??
+      BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG;
+    const trxProviderConfig =
+      providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME] ??
+      TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG;
+
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
-      new EvmAccountProvider(
+      new EvmAccountProvider(this.#messenger, evmProviderConfig, trace),
+      new SolAccountProvider(
         this.#messenger,
-        providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
+        {
+          ...solProviderConfig,
+          isEnabled: (): boolean =>
+            this.#basicFunctionalityEnabled &&
+            (solProviderConfig.isEnabled?.() ?? true),
+        },
         trace,
       ),
-      new AccountProviderWrapper(
+      new BtcAccountProvider(
         this.#messenger,
-        new SolAccountProvider(
-          this.#messenger,
-          providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
-          trace,
-        ),
+        {
+          ...btcProviderConfig,
+          isEnabled: (): boolean =>
+            this.#basicFunctionalityEnabled &&
+            (btcProviderConfig.isEnabled?.() ?? true),
+        },
+        trace,
       ),
-      new AccountProviderWrapper(
+      new TrxAccountProvider(
         this.#messenger,
-        new BtcAccountProvider(
-          this.#messenger,
-          providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME],
-          trace,
-        ),
-      ),
-      new AccountProviderWrapper(
-        this.#messenger,
-        new TrxAccountProvider(
-          this.#messenger,
-          providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
-          trace,
-        ),
+        {
+          ...trxProviderConfig,
+          isEnabled: (): boolean =>
+            this.#basicFunctionalityEnabled &&
+            (trxProviderConfig.isEnabled?.() ?? true),
+        },
+        trace,
       ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
@@ -694,16 +714,7 @@ export class MultichainAccountService {
   async setBasicFunctionality(enabled: boolean): Promise<void> {
     log(`Turning basic functionality: ${enabled ? 'ON' : 'OFF'}`);
 
-    // Loop through providers and enable/disable only wrapped ones when basic functionality changes
-    for (const provider of this.#providers) {
-      if (isAccountProviderWrapper(provider)) {
-        log(
-          `${enabled ? 'Enabling' : 'Disabling'} account provider: "${provider.getName()}"`,
-        );
-        provider.setEnabled(enabled);
-      }
-      // Regular providers (like EVM) are never disabled for basic functionality
-    }
+    this.#basicFunctionalityEnabled = enabled;
 
     // Trigger alignment only when basic functionality is enabled
     if (enabled) {

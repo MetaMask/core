@@ -92,7 +92,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
     });
   }
 
-  async discoverAccounts({
+  protected override async discoverBip44Accounts({
     entropySource,
     groupIndex,
   }: {

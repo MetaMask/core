@@ -23,7 +23,6 @@ export type {
   MultichainAccountServiceAlignWalletAction,
 } from './MultichainAccountService-method-action-types';
 export {
-  AccountProviderWrapper,
   BaseBip44AccountProvider,
   SnapAccountProvider,
   TimeoutError,

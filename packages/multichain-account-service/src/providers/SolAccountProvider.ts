@@ -116,7 +116,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     return account;
   }
 
-  async discoverAccounts({
+  protected override async discoverBip44Accounts({
     entropySource,
     groupIndex,
   }: {

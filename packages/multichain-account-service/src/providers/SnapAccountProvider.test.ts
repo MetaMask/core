@@ -952,6 +952,19 @@ describe('SnapAccountProvider', () => {
       consoleWarnSpy.mockRestore();
       consoleErrorSpy.mockRestore();
     });
+
+    it('returns early without contacting snap when isEnabled returns false', async () => {
+      const { provider, mocks } = setup({
+        accounts: mockAccounts,
+        config: { isEnabled: () => false },
+      });
+
+      await provider.resyncAccounts(mockAccounts);
+
+      expect(
+        mocks.SnapController.handleKeyringRequest.listAccounts,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe('ensureCanUseSnapPlatform', () => {
