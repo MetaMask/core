@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `TokenDetector` now fetches the token list directly from the Tokens API (`/v3/chains/{chain}/assets`) via a new `TokensApiClient` instead of reading from `TokenListController:getState` ([#8385](https://github.com/MetaMask/core/pull/8385))
+- **BREAKING:** `TokenDetector` now fetches the token list directly from the Tokens API (`/v3/chains/{chain}/assets`) via a new `TokensApiClient` instead of reading from `TokenListController:getState` ([#8385](https://github.com/MetaMask/core/pull/8385))
   - `TokenDetectorMessenger` type has been removed; `TokenDetector` constructor now takes a `TokensApiClient` instance as its second argument
   - `RpcDataSource` no longer requires `TokenListController:getState` — `GetTokenListState` has been removed from `RpcDataSourceAllowedActions` and `AssetsControllerAllowedActions`
   - Unknown ERC-20 metadata is no longer looked up from the token list as a fallback in `RpcDataSource`; `TokenDataSource` handles enrichment downstream
