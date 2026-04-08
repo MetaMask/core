@@ -1099,6 +1099,28 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(2);
     });
 
+    it('falls back to first gas limit when entry is missing for individual submission', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [21000];
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(addTransactionMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          gas: '0x5208',
+        }),
+        expect.anything(),
+      );
+    });
+
     it('adds transaction batch without gasLimit7702 when multiple gas limits', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
