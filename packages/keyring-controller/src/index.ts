@@ -13,6 +13,7 @@ export type {
   KeyringControllerPersistAllKeyringsAction,
   KeyringControllerRemoveAccountAction,
   KeyringControllerSignMessageAction,
+  KeyringControllerAccountSupports7702Action,
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTransactionAction,
