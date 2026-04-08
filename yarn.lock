@@ -4823,6 +4823,9 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
     uuid: "npm:^8.3.2"
+  dependenciesMeta:
+    "@myx-trade/sdk":
+      optional: true
   languageName: unknown
   linkType: soft
 
