@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Update Release 905.0.0 (#8399) and release 904.0.0 (#8397)" ([#8399](https://github.com/MetaMask/core/pull/8399))
+- Update Release 905.0.0 ([#8399](https://github.com/MetaMask/core/pull/8399))
+- Release/904.0.0 ([#8397](https://github.com/MetaMask/core/pull/8397))
+- chore: Update bridge controllers to expose all methods through messenger ([#8367](https://github.com/MetaMask/core/pull/8367))
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+
 ### Added
 
 - Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
