@@ -101,7 +101,8 @@ const BATCH_TRANSACTION_MOCK = {
 } as BatchTransaction;
 
 describe('Quotes Utils', () => {
-  const { messenger, getControllerStateMock } = getMessengerMock();
+  const { messenger, getControllerStateMock, accountSupports7702Mock } =
+    getMessengerMock();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);
@@ -177,6 +178,7 @@ describe('Quotes Utils', () => {
     getQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getBatchTransactionsMock.mockResolvedValue([BATCH_TRANSACTION_MOCK]);
     calculateTotalsMock.mockReturnValue(TOTALS_MOCK);
+    accountSupports7702Mock.mockResolvedValue(true);
 
     getLiveTokenBalanceMock.mockResolvedValue('5000000');
     getTokenFiatRateMock.mockReturnValue({
@@ -655,6 +657,22 @@ describe('Quotes Utils', () => {
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
           batchTransactions: [BATCH_TRANSACTION_MOCK],
+          batchTransactionsOptions: {},
+        }),
+      );
+    });
+
+    it('clears batch transactions when account does not support 7702', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({
+          batchTransactions: [],
           batchTransactionsOptions: {},
         }),
       );
