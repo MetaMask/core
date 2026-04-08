@@ -9,11 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.0]
 
-### Uncategorized
+### Added
 
-- Revert "Update Release 905.0.0 (#8399) and release 904.0.0 (#8397)" ([#8399](https://github.com/MetaMask/core/pull/8399))
-- Release/904.0.0 ([#8397](https://github.com/MetaMask/core/pull/8397))
-- fix(assets-controller): hardened error handling ([#8389](https://github.com/MetaMask/core/pull/8389))
 - feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
 
 ### Changed
