@@ -75,6 +75,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createNewVaultAndKeychain',
   'createNewVaultAndRestore',
   'removeAccount',
+  'accountSupports7702',
 ] as const;
 
 /**
@@ -2088,11 +2089,6 @@ export class KeyringController<
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
-    );
-
-    this.messenger.registerActionHandler(
-      `${name}:accountSupports7702`,
-      this.accountSupports7702.bind(this),
     );
   }
 
