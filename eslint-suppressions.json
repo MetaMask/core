@@ -2296,6 +2296,11 @@
       "count": 1
     }
   },
+  "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
+    "import-x/no-relative-packages": {
+      "count": 1
+    }
+  },
   "packages/transaction-pay-controller/src/utils/transaction.ts": {
     "no-restricted-syntax": {
       "count": 2
