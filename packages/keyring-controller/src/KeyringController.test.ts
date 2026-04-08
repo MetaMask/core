@@ -38,7 +38,6 @@ import type {
   SerializedKeyring,
   KeyringSelector,
   KeyringSelectorV2,
-  KeyringV2Builder,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -4385,7 +4384,9 @@ describe('KeyringController', () => {
               .mockReturnValueOnce(true);
 
             const fn = jest.fn();
-            await expect(controller.withKeyringV2({ filter }, fn)).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+            await expect(
+              controller.withKeyringV2({ filter }, fn),
+            ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
           },
         );
       });
