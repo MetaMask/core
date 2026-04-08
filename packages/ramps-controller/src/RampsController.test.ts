@@ -490,6 +490,19 @@ describe('RampsController', () => {
       });
     });
 
+    it('stores providers without limits in state (backward compatibility)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async (_regionCode: string) => ({ providers: mockProviders }),
+        );
+
+        await rootMessenger.call('RampsController:getProviders', 'us-ca');
+
+        expect(controller.state.providers.data[1]?.limits).toBeUndefined();
+      });
+    });
+
     it('caches responses for the same region', async () => {
       await withController(async ({ rootMessenger }) => {
         let callCount = 0;
@@ -3224,6 +3237,54 @@ describe('RampsController', () => {
           controller.setSelectedProvider(mockProvider.id);
 
           expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('preserves limits when provider is selected by ID', async () => {
+      const mockProviderWithLimits: Provider = {
+        ...mockProvider,
+        limits: {
+          fiat: {
+            usd: {
+              '/payments/debit-credit-card': {
+                minAmount: 30,
+                maxAmount: 1000,
+                feeFixedRate: 1,
+                feeDynamicRate: 0.02,
+              },
+            },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProviderWithLimits], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          controller.setSelectedProvider(mockProviderWithLimits.id);
+
+          expect(
+            controller.state.providers.selected?.limits?.fiat?.usd?.[
+              '/payments/debit-credit-card'
+            ],
+          ).toStrictEqual({
+            minAmount: 30,
+            maxAmount: 1000,
+            feeFixedRate: 1,
+            feeDynamicRate: 0.02,
+          });
         },
       );
     });
