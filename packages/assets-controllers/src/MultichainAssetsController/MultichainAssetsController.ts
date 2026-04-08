@@ -887,10 +887,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   ): Promise<CaipAssetType[]> {
     const tokensByChain = this.#groupTokenAssetsByChain(assets);
 
-    if (Object.keys(tokensByChain).length === 0) {
-      return [];
-    }
-
     const maliciousAssets: CaipAssetType[] = [];
 
     for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {

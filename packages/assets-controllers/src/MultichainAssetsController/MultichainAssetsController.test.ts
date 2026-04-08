@@ -1737,7 +1737,7 @@ describe('MultichainAssetsController', () => {
 
       messenger.publish('AccountsController:accountAssetListUpdated', {
         assets: {
-          [mockAccountId]: { added: tokens, removed: [] },
+          [mockAccountId]: { added: tokens as CaipAssetType[], removed: [] },
         },
       });
 
@@ -1806,7 +1806,7 @@ describe('MultichainAssetsController', () => {
 
       messenger.publish('AccountsController:accountAssetListUpdated', {
         assets: {
-          [mockAccountId]: { added: tokens, removed: [] },
+          [mockAccountId]: { added: tokens as CaipAssetType[], removed: [] },
         },
       });
 
@@ -1883,6 +1883,92 @@ describe('MultichainAssetsController', () => {
         token,
       ]);
 
+      controller.stopAllPolling();
+    });
+
+    it('periodic rescan skips Blockaid when account only holds native slip44 assets', async () => {
+      const mockAccountId = 'account1';
+      const native = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+
+      const { controller, mockBulkScanTokens } = setupController({
+        blockaidTokenRescanInterval: 60_000,
+        state: {
+          accountsAssets: { [mockAccountId]: [native] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(mockBulkScanTokens).not.toHaveBeenCalled();
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        native,
+      ]);
+
+      controller.stopAllPolling();
+    });
+
+    it('periodic rescan skips entries that are not CAIP asset type strings', async () => {
+      const mockAccountId = 'account1';
+      const notCaip = 'clearly-not-caip' as CaipAssetType;
+
+      const { controller, mockBulkScanTokens } = setupController({
+        blockaidTokenRescanInterval: 60_000,
+        state: {
+          accountsAssets: { [mockAccountId]: [notCaip] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(mockBulkScanTokens).not.toHaveBeenCalled();
+
+      controller.stopAllPolling();
+    });
+
+    it('does not publish accountAssetListUpdated when periodic rescan finds no malicious tokens', async () => {
+      const mockAccountId = 'account1';
+      const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:StillBenign';
+
+      const { controller, mockBulkScanTokens } = setupController({
+        blockaidTokenRescanInterval: 60_000,
+        state: {
+          accountsAssets: { [mockAccountId]: [token] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      mockBulkScanTokens.mockResolvedValue({
+        StillBenign: {
+          result_type: TokenScanResultType.Benign,
+          chain: 'solana',
+          address: 'StillBenign',
+        },
+      });
+
+      const publishSpy = jest.spyOn(
+        (
+          controller as unknown as {
+            messenger: MultichainAssetsControllerMessenger;
+          }
+        ).messenger,
+        'publish',
+      );
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(
+        publishSpy.mock.calls.filter(
+          (call) =>
+            call[0] === 'MultichainAssetsController:accountAssetListUpdated',
+        ),
+      ).toHaveLength(0);
+
+      publishSpy.mockRestore();
       controller.stopAllPolling();
     });
   });
