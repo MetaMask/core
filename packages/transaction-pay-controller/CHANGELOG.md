@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.4]
+
 ### Added
 
 - Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
@@ -631,7 +633,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.4...HEAD
+[19.0.4]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.3...@metamask/transaction-pay-controller@19.0.4
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.2...@metamask/transaction-pay-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.1...@metamask/transaction-pay-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.0...@metamask/transaction-pay-controller@19.0.1
