@@ -2725,5 +2725,4 @@ function getDefaultKeyringMetadata(): KeyringMetadata {
   return { id: ulid(), name: '' };
 }
 
-
 export default KeyringController;
