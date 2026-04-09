@@ -5263,6 +5263,28 @@ describe('KeyringController', () => {
       });
     });
 
+    describe('withController', () => {
+      it('should call withController', async () => {
+        await withController(async ({ messenger }) => {
+          const operation = jest.fn().mockResolvedValue('result');
+
+          const actionReturnValue = await messenger.call(
+            'KeyringController:withController',
+            operation,
+          );
+
+          expect(operation).toHaveBeenCalledWith(
+            expect.objectContaining({
+              keyrings: expect.any(Array),
+              addNewKeyring: expect.any(Function),
+              removeKeyring: expect.any(Function),
+            }),
+          );
+          expect(actionReturnValue).toBe('result');
+        });
+      });
+    });
+
     describe('addNewKeyring', () => {
       it('should call addNewKeyring', async () => {
         const mockKeyringMetadata: KeyringMetadata = {
