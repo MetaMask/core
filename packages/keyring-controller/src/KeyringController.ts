@@ -262,10 +262,7 @@ export type RestrictedController = {
    * Read-only live view of all keyrings in the current transaction (original
    * keyrings plus any added, minus any removed so far in this callback).
    */
-  readonly keyrings: ReadonlyArray<{
-    keyring: EthKeyring;
-    metadata: KeyringMetadata;
-  }>;
+  readonly keyrings: readonly KeyringEntry[];
   /**
    * Create a new keyring of the given type and stage it for commit. The new
    * entry is immediately visible in {@link RestrictedController.keyrings}.
@@ -706,10 +703,7 @@ function isSerializedKeyringsArray(
 async function displayForKeyring({
   keyring,
   metadata,
-}: {
-  keyring: EthKeyring;
-  metadata: KeyringMetadata;
-}): Promise<KeyringObject> {
+}: KeyringEntry): Promise<KeyringObject> {
   const accounts = await keyring.getAccounts();
 
   return {
@@ -1803,13 +1797,7 @@ export class KeyringController<
     CallbackResult = void,
   >(
     selector: KeyringSelector<SelectedKeyring>,
-    operation: ({
-      keyring,
-      metadata,
-    }: {
-      keyring: SelectedKeyring;
-      metadata: KeyringMetadata;
-    }) => Promise<CallbackResult>,
+    operation: ({ keyring, metadata }: KeyringEntry) => Promise<CallbackResult>,
     // eslint-disable-next-line @typescript-eslint/unified-signatures
     options:
       | { createIfMissing?: false }
@@ -1836,13 +1824,7 @@ export class KeyringController<
     CallbackResult = void,
   >(
     selector: KeyringSelector<SelectedKeyring>,
-    operation: ({
-      keyring,
-      metadata,
-    }: {
-      keyring: SelectedKeyring;
-      metadata: KeyringMetadata;
-    }) => Promise<CallbackResult>,
+    operation: ({ keyring, metadata }: KeyringEntry) => Promise<CallbackResult>,
   ): Promise<CallbackResult>;
 
   async withKeyring<
@@ -1850,13 +1832,7 @@ export class KeyringController<
     CallbackResult = void,
   >(
     selector: KeyringSelector<SelectedKeyring>,
-    operation: ({
-      keyring,
-      metadata,
-    }: {
-      keyring: SelectedKeyring;
-      metadata: KeyringMetadata;
-    }) => Promise<CallbackResult>,
+    operation: ({ keyring, metadata }: KeyringEntry) => Promise<CallbackResult>,
     options:
       | { createIfMissing?: false }
       | { createIfMissing: true; createWithData?: unknown } = {
@@ -1916,58 +1892,81 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#persistOrRollback(async () => {
-      const liveKeyrings = [...this.#keyrings];
-      const createdEntries = new Set<{
-        keyring: EthKeyring;
-        metadata: KeyringMetadata;
-      }>();
-      const removedEntries = new Set<{
-        keyring: EthKeyring;
-        metadata: KeyringMetadata;
-      }>();
+      // Track created and removed keyrings during the operation execution.
+      const createdEntries = new Set<KeyringEntry>();
+      const removedEntries = new Set<KeyringEntry>();
 
+      // Copy of the current keyrings that is mutated during the operation execution.
+      const restrictedEntries = [...this.#keyrings];
+
+      // The restricted controller proxies the current keyrings and allows staging
+      // mutations that are only applied to the real keyrings if the operation
+      // completes successfully. This allows us to have a single source of truth
+      // for the keyrings during the operation execution, and to automatically
+      // roll back any changes if an error is thrown.
       const restrictedController: RestrictedController = {
+        // We freeze the array to prevent direct mutations, but the keyring instances
+        // themselves are not frozen, allowing safe read-only access.
         get keyrings() {
-          return Object.freeze([...liveKeyrings]) as RestrictedController['keyrings'];
+          return Object.freeze([
+            ...restrictedEntries,
+          ]) as RestrictedController['keyrings'];
         },
+
+        // Method to create a new keyring and adds it to the restricted entries.
         addNewKeyring: async (type: string, opts?: unknown) => {
           const keyring = await this.#createKeyring(type, opts);
           const entry = { keyring, metadata: getDefaultKeyringMetadata() };
-          liveKeyrings.push(entry);
+
+          restrictedEntries.push(entry);
           createdEntries.add(entry);
+
           return entry;
         },
+
+        // Method to remove a keyring from the restricted entries.
         removeKeyring: async (id: string) => {
-          const idx = liveKeyrings.findIndex((e) => e.metadata.id === id);
-          if (idx === -1) {
+          const index = restrictedEntries.findIndex(
+            (entry) => entry.metadata.id === id,
+          );
+          if (index === -1) {
             throw new KeyringControllerError(
               KeyringControllerErrorMessage.KeyringNotFound,
             );
           }
-          const [removed] = liveKeyrings.splice(idx, 1) as [
-            { keyring: EthKeyring; metadata: KeyringMetadata },
+
+          const [removed] = restrictedEntries.splice(index, 1) as [
+            KeyringEntry,
           ];
           removedEntries.add(removed);
         },
+      };
+
+      const destroyKeyrings = async (
+        entries: Iterable<KeyringEntry>,
+      ): Promise<void> => {
+        await Promise.all(
+          [...entries].map(({ keyring }) => this.#destroyKeyring(keyring)),
+        );
       };
 
       let result: CallbackResult;
       try {
         result = await operation(restrictedController);
       } catch (error) {
-        await Promise.all(
-          [...createdEntries].map(({ keyring }) =>
-            this.#destroyKeyring(keyring),
-          ),
-        );
+        await destroyKeyrings(createdEntries);
+
         throw error;
       }
 
-      await Promise.all(
-        [...removedEntries].map(({ keyring }) => this.#destroyKeyring(keyring)),
-      );
-      this.#keyrings = liveKeyrings;
+      await destroyKeyrings(removedEntries);
 
+      // We update the real keyrings only after the operation completes successfully, so that
+      // they will be persisted in the vault.
+      this.#keyrings = restrictedEntries;
+
+      // As usual, we want to prevent returning direct references to keyring instances, so we check
+      // the result for any unsafe direct access before returning.
       for (const { keyring } of this.#keyrings) {
         this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
       }
