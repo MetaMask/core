@@ -50,7 +50,6 @@ import type {
 import type { EarnControllerMethodActions } from './EarnController-method-action-types';
 import type {
   RefreshEarnEligibilityOptions,
-  RefreshLendingEligibilityOptions,
   RefreshLendingPositionsOptions,
   RefreshPooledStakesOptions,
   RefreshPooledStakingDataOptions,
@@ -265,7 +264,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshPooledStakingData',
   'refreshLendingMarkets',
   'refreshLendingPositions',
-  'refreshLendingEligibility',
   'refreshLendingData',
   'refreshTronStakingApy',
   'getTronStakingApy',
@@ -462,6 +460,12 @@ export class EarnController extends BaseController<
     );
   }
 
+  #refreshEarnPortfolio(address: string): void {
+    this.refreshEarnEligibility({ address }).catch(console.error);
+    this.refreshPooledStakingData({ address }).catch(console.error);
+    this.refreshLendingData().catch(console.error);
+  }
+
   init(): void {
     if (this.#initialized) {
       return;
@@ -471,8 +475,12 @@ export class EarnController extends BaseController<
       console.error,
     );
 
-    if (!this.#getSelectedEvmAccountAddress()) {
-      this.#deferAccountDependentRefreshes();
+    const address = this.#getSelectedEvmAccountAddress();
+    if (address) {
+      this.#refreshEarnPortfolio(address);
+    } else {
+      // Account tree state is not yet available, so we defer the refresh to when it is.
+      this.#refreshEarnPortfolioOnAccountReady();
     }
 
     this.#initialized = true;
@@ -558,7 +566,7 @@ export class EarnController extends BaseController<
    * This handles the case where EarnController.init() runs before
    * AccountTreeController.init() has populated the selected account group.
    */
-  #deferAccountDependentRefreshes(): void {
+  #refreshEarnPortfolioOnAccountReady(): void {
     const handler = ({
       selectedAccountGroup,
     }: {
@@ -571,8 +579,7 @@ export class EarnController extends BaseController<
 
       const address = this.#getSelectedEvmAccountAddress();
       if (address) {
-        this.refreshPooledStakingData().catch(console.error);
-        this.refreshLendingData().catch(console.error);
+        this.#refreshEarnPortfolio(address);
       }
     };
     this.messenger.subscribe('AccountTreeController:stateChange', handler);
@@ -766,11 +773,6 @@ export class EarnController extends BaseController<
   }: RefreshPooledStakingDataOptions = {}): Promise<void> {
     const errors: Error[] = [];
 
-    // Refresh earn eligibility once since it's not chain-specific
-    await this.refreshEarnEligibility({ address }).catch((error) => {
-      errors.push(error);
-    });
-
     for (const chainId of this.#supportedPooledStakingChains) {
       await Promise.all([
         this.refreshPooledStakes({ resetCache, address, chainId }).catch(
@@ -847,38 +849,6 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Refreshes the lending eligibility status for the current account.
-   * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
-   *
-   * @param options - Optional arguments
-   * @param [options.address] - The address to refresh lending eligibility for (optional).
-   * @returns A promise that resolves when the eligibility status has been updated
-   */
-  async refreshLendingEligibility({
-    address,
-  }: RefreshLendingEligibilityOptions = {}): Promise<void> {
-    const addressToUse = address ?? this.#getSelectedEvmAccountAddress();
-    // TODO: this is a temporary solution to refresh lending eligibility as
-    // the eligibility check is not yet implemented for lending
-    // this check will check the address against the same blocklist as the
-    // staking eligibility check
-
-    if (!addressToUse) {
-      return;
-    }
-
-    const { eligible: isEligible } =
-      await this.#earnApiService.pooledStaking.getPooledStakingEligibility([
-        addressToUse,
-      ]);
-
-    this.update((state) => {
-      state.lending.isEligible = isEligible;
-      state.pooled_staking.isEligible = isEligible;
-    });
-  }
-
-  /**
    * Refreshes all lending related data including markets, positions, and eligibility.
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
@@ -894,9 +864,6 @@ export class EarnController extends BaseController<
         errors.push(error);
       }),
       this.refreshLendingPositions().catch((error) => {
-        errors.push(error);
-      }),
-      this.refreshLendingEligibility().catch((error) => {
         errors.push(error);
       }),
     ]);
