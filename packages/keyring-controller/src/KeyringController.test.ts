@@ -4073,9 +4073,9 @@ describe('KeyringController', () => {
       await withController(
         { skipVaultCreation: true },
         async ({ controller }) => {
-          await expect(
-            controller.withController(jest.fn()),
-          ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
+          await expect(controller.withController(jest.fn())).rejects.toThrow(
+            KeyringControllerErrorMessage.ControllerLocked,
+          );
         },
       );
     });
@@ -4181,8 +4181,7 @@ describe('KeyringController', () => {
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller }) => {
             await controller.addNewKeyring(MockKeyring.type);
-            const idToRemove =
-              controller.state.keyrings[1].metadata.id;
+            const idToRemove = controller.state.keyrings[1].metadata.id;
 
             await controller.withController(async (restrictedController) => {
               await restrictedController.removeKeyring(idToRemove);
@@ -4206,8 +4205,7 @@ describe('KeyringController', () => {
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller }) => {
             await controller.addNewKeyring(MockKeyring.type);
-            const idToRemove =
-              controller.state.keyrings[1].metadata.id;
+            const idToRemove = controller.state.keyrings[1].metadata.id;
 
             await controller.withController(async (restrictedController) => {
               expect(restrictedController.keyrings).toHaveLength(2);
@@ -4229,8 +4227,7 @@ describe('KeyringController', () => {
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller }) => {
             await controller.addNewKeyring(MockKeyring.type);
-            const idToRemove =
-              controller.state.keyrings[1].metadata.id;
+            const idToRemove = controller.state.keyrings[1].metadata.id;
 
             await controller.withController(async (restrictedController) => {
               await restrictedController.removeKeyring(idToRemove);
