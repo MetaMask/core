@@ -6,6 +6,11 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import type {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
@@ -74,11 +79,6 @@ import {
   deserializeVaultData,
   serializeVaultData,
 } from './utils';
-import type {
-  DefaultEncryptionResult,
-  EncryptionResultConstraint,
-  Encryptor,
-} from '@metamask/keyring-controller';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -138,8 +138,7 @@ type AllowedEvents = never;
 // Messenger
 export type SeedlessOnboardingControllerMessenger = Messenger<
   typeof controllerName,
-  | SeedlessOnboardingControllerActions
-  | AllowedActions,
+  SeedlessOnboardingControllerActions | AllowedActions,
   SeedlessOnboardingControllerEvents | AllowedEvents
 >;
 
@@ -153,7 +152,8 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
 export type SeedlessOnboardingControllerOptions<
   EncryptionKey,
   SupportedKeyDerivationParams,
-  EncryptionResult extends EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -167,7 +167,11 @@ export type SeedlessOnboardingControllerOptions<
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: Encryptor<EncryptionKey, SupportedKeyDerivationParams, EncryptionResult>;
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationParams,
+    EncryptionResult
+  >;
 
   /**
    * A function to get a new jwt token using refresh token.
@@ -383,7 +387,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
 export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
-  EncryptionResult extends EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,

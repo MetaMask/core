@@ -2,14 +2,20 @@ import type {
   EncryptionKey,
   KeyDerivationOptions,
 } from '@metamask/browser-passworder';
-import { DefaultEncryptionResult, Encryptor } from '@metamask/keyring-controller';
+import {
+  DefaultEncryptionResult,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
-
 export default class MockVaultEncryptor
   implements
-    Encryptor<EncryptionKey | webcrypto.CryptoKey, KeyDerivationOptions, DefaultEncryptionResult<KeyDerivationOptions>>
+    Encryptor<
+      EncryptionKey | webcrypto.CryptoKey,
+      KeyDerivationOptions,
+      DefaultEncryptionResult<KeyDerivationOptions>
+    >
 {
   defaultDerivationParams: KeyDerivationOptions = {
     algorithm: 'PBKDF2',

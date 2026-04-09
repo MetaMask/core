@@ -17,6 +17,10 @@ import {
   encryptWithKey as encryptWithKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
 import {
+  DefaultEncryptionResult,
+  Encryptor,
+} from '@metamask/keyring-controller';
+import {
   EncAccountDataType,
   TOPRFError,
   TOPRFErrorCode,
@@ -59,9 +63,7 @@ import {
   getInitialSeedlessOnboardingControllerStateWithDefaults,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
-import type {
-  SeedlessOnboardingControllerState,
-} from './types';
+import type { SeedlessOnboardingControllerState } from './types';
 import type {
   MockKeyringControllerMessenger,
   RootMessenger,
@@ -80,7 +82,6 @@ import {
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import { createMockJWTToken } from '../tests/mocks/utils';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
-import { DefaultEncryptionResult, Encryptor } from '@metamask/keyring-controller';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -135,7 +136,11 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
       SupportedKeyDerivationOptions,
       DefaultEncryptionResult<SupportedKeyDerivationOptions>
     >;
-    encryptor: Encryptor<EKey, SupportedKeyDerivationOptions, DefaultEncryptionResult<SupportedKeyDerivationOptions>>;
+    encryptor: Encryptor<
+      EKey,
+      SupportedKeyDerivationOptions,
+      DefaultEncryptionResult<SupportedKeyDerivationOptions>
+    >;
     initialState: SeedlessOnboardingControllerState;
     messenger: SeedlessOnboardingControllerMessenger;
     baseMessenger: RootMessenger;
@@ -147,7 +152,11 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions<EKey, SupportedKeyDerivationParams> = Partial<
-  SeedlessOnboardingControllerOptions<EKey, SupportedKeyDerivationParams, DefaultEncryptionResult<SupportedKeyDerivationParams>>
+  SeedlessOnboardingControllerOptions<
+    EKey,
+    SupportedKeyDerivationParams,
+    DefaultEncryptionResult<SupportedKeyDerivationParams>
+  >
 >;
 
 type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
