@@ -552,6 +552,8 @@ async function submitViaTransactionController(
   const { metamask } = quote.original;
   const { gasLimits } = metamask;
 
+  const results: { result: Promise<string> }[] = [];
+
   if (allParams.length === 1 || !accountSupports7702) {
     for (let i = 0; i < allParams.length; i++) {
       const transactionParams = {
@@ -617,6 +619,14 @@ async function submitViaTransactionController(
   end();
 
   log('Added transactions', transactionIds);
+
+  if (!accountSupports7702 && allParams.length > 1) {
+    log(
+      'Hardware wallet transactions signed and broadcast, skipping on-chain confirmation wait',
+    );
+    await Promise.all(results.map((res) => res.result));
+    return undefined as unknown as Hex;
+  }
 
   if (result) {
     const txHash = await result.result;

@@ -1121,6 +1121,70 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('skips on-chain confirmation wait for non-7702 accounts with multiple transactions', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [21000, 22000];
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(waitForTransactionConfirmedMock).not.toHaveBeenCalled();
+    });
+
+    it('awaits all transaction results before returning for non-7702 accounts', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      request.quotes[0].original.metamask.gasLimits = [21000, 22000];
+
+      const resultPromise1 = Promise.resolve('0xhash1');
+      const resultPromise2 = Promise.resolve('0xhash2');
+
+      addTransactionMock
+        .mockResolvedValueOnce({
+          result: resultPromise1,
+          transactionMeta: TRANSACTION_META_MOCK,
+        })
+        .mockResolvedValueOnce({
+          result: resultPromise2,
+          transactionMeta: TRANSACTION_META_MOCK,
+        });
+
+      await submitRelayQuotes(request);
+
+      expect(await resultPromise1).toBe('0xhash1');
+      expect(await resultPromise2).toBe('0xhash2');
+    });
+
+    it('still waits for on-chain confirmation for 7702 accounts with multiple transactions', async () => {
+      accountSupports7702Mock.mockResolvedValue(true);
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(waitForTransactionConfirmedMock).toHaveBeenCalled();
+    });
+
+    it('still waits for on-chain confirmation for non-7702 accounts with single transaction', async () => {
+      accountSupports7702Mock.mockResolvedValue(false);
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(waitForTransactionConfirmedMock).toHaveBeenCalled();
+    });
+
     it('adds transaction batch without gasLimit7702 when multiple gas limits', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
