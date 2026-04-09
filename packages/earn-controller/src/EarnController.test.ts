@@ -132,6 +132,7 @@ function getEarnControllerMessenger(
     events: [
       'NetworkController:networkDidChange',
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
   });
@@ -869,6 +870,108 @@ describe('EarnController', () => {
         mockedEarnApiService?.pooledStaking?.getPooledStakes,
       ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI) from the first init()
     });
+
+    describe('when no EVM account is available at init time', () => {
+      // Minimal AccountTreeControllerState shape used to trigger the stateChange event
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockAccountTreeStateWithGroup: any = {
+        selectedAccountGroup: 'keyring:test/0',
+        accountTree: { wallets: {} },
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
+      };
+
+      it('defers portfolio refresh until AccountTreeController:stateChange fires with a non-empty selectedAccountGroup', async () => {
+        const mockGetAccounts = jest
+          .fn()
+          .mockReturnValueOnce([]) // No account during init
+          .mockReturnValue([mockInternalAccount1]); // Account available after stateChange
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // No eligibility or staking refresh should have happened during init
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).not.toHaveBeenCalled();
+
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).toHaveBeenCalledWith([mockAccount1Address]);
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenCalled();
+      });
+
+      it('does not trigger portfolio refresh when selectedAccountGroup is empty', async () => {
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          {
+            ...mockAccountTreeStateWithGroup,
+            selectedAccountGroup: '',
+          },
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('unsubscribes after the first non-empty selectedAccountGroup event', async () => {
+        const mockGetAccounts = jest
+          .fn()
+          .mockReturnValueOnce([]) // No account during init
+          .mockReturnValue([mockInternalAccount1]); // Account available after stateChange
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // First publish triggers the deferred refresh
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const eligibilityCallCount = (
+          mockedEarnApiService?.pooledStaking
+            ?.getPooledStakingEligibility as jest.Mock
+        ).mock.calls.length;
+
+        // Second publish should be ignored – handler was already unsubscribed
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).toHaveBeenCalledTimes(eligibilityCallCount);
+      });
+    });
   });
 
   describe('SDK initialization', () => {
@@ -1051,7 +1154,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         await expect(controller.refreshPooledStakingData()).rejects.toThrow(
-          'Failed to refresh some staking data: API Error getPooledStakingEligibility, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
+          'Failed to refresh some staking data: API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
         );
         expect(consoleErrorSpy).toHaveBeenCalled();
         consoleErrorSpy.mockRestore();
@@ -1223,7 +1326,19 @@ describe('EarnController', () => {
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenNthCalledWith(3, [mockAccount2Address]);
+        ).toHaveBeenNthCalledWith(2, [mockAccount2Address]);
+      });
+
+      it('returns early without fetching when no address is available', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.refreshEarnEligibility();
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
       });
     });
 
@@ -1624,31 +1739,6 @@ describe('EarnController', () => {
   });
 
   describe('Lending', () => {
-    describe('refreshLendingEligibility', () => {
-      it('fetches lending eligibility using active account (default)', async () => {
-        const { controller } = await setupController();
-
-        await controller.refreshLendingEligibility();
-
-        // Assertion on third call since the first and second calls are part of controller setup.
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenNthCalledWith(3, [mockAccount1Address]);
-      });
-
-      it('fetches lending eligibility using options.address override', async () => {
-        const { controller } = await setupController();
-        await controller.refreshLendingEligibility({
-          address: mockAccount2Address,
-        });
-
-        // Assertion on third call since the first and second calls are part of controller setup.
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenNthCalledWith(3, [mockAccount2Address]);
-      });
-    });
-
     describe('refreshLendingPositions', () => {
       it('fetches using active account (default)', async () => {
         const { controller } = await setupController();
@@ -1670,6 +1760,18 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.lending?.getPositions,
         ).toHaveBeenNthCalledWith(2, mockAccount2Address);
+      });
+
+      it('returns early without fetching when no address is available', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.refreshLendingPositions();
+
+        expect(
+          mockedEarnApiService?.lending?.getPositions,
+        ).not.toHaveBeenCalled();
       });
     });
 
@@ -1697,9 +1799,6 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.lending?.getPositions,
         ).toHaveBeenCalledTimes(2);
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenCalledTimes(3); // Additionally called once in controller setup by refreshPooledStakingData
       });
     });
 
