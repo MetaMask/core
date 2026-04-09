@@ -83,6 +83,9 @@ describe('MantleLayer1GasFeeFlow', () => {
     contractGetOperatorFeeMock.mockResolvedValue(new BN(0));
     contractTokenRatioMock.mockResolvedValue(TOKEN_RATIO_MOCK);
 
+    // The base class creates a contract first (for getL1Fee/getOperatorFee),
+    // then transformOracleFee creates a second contract (for tokenRatio).
+    // Both use the same mock constructor.
     contractMock.mockReturnValue({
       getL1Fee: contractGetL1FeeMock,
       getOperatorFee: contractGetOperatorFeeMock,
@@ -207,24 +210,6 @@ describe('MantleLayer1GasFeeFlow', () => {
       });
     });
 
-    it('throws if getL1Fee fails', async () => {
-      contractGetL1FeeMock.mockRejectedValue(new Error('error'));
-
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
-
-      const flow = new MantleLayer1GasFeeFlow();
-
-      await expect(flow.getLayer1Fee(request)).rejects.toThrow(
-        'Failed to get Mantle layer 1 gas fee',
-      );
-    });
-
     it('throws if tokenRatio call fails', async () => {
       contractTokenRatioMock.mockRejectedValue(new Error('error'));
 
@@ -239,7 +224,7 @@ describe('MantleLayer1GasFeeFlow', () => {
       const flow = new MantleLayer1GasFeeFlow();
 
       await expect(flow.getLayer1Fee(request)).rejects.toThrow(
-        'Failed to get Mantle layer 1 gas fee',
+        'Failed to get oracle layer 1 gas fee',
       );
     });
 
