@@ -61,7 +61,6 @@ import {
 } from './SeedlessOnboardingController';
 import type {
   SeedlessOnboardingControllerState,
-  VaultEncryptor,
 } from './types';
 import type {
   MockKeyringControllerMessenger,
@@ -81,6 +80,7 @@ import {
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import { createMockJWTToken } from '../tests/mocks/utils';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
+import { DefaultEncryptionResult, Encryptor } from '@metamask/keyring-controller';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -132,9 +132,10 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }: {
     controller: SeedlessOnboardingController<
       EKey,
-      SupportedKeyDerivationOptions
+      SupportedKeyDerivationOptions,
+      DefaultEncryptionResult<SupportedKeyDerivationOptions>
     >;
-    encryptor: VaultEncryptor<EKey, SupportedKeyDerivationOptions>;
+    encryptor: Encryptor<EKey, SupportedKeyDerivationOptions, DefaultEncryptionResult<SupportedKeyDerivationOptions>>;
     initialState: SeedlessOnboardingControllerState;
     messenger: SeedlessOnboardingControllerMessenger;
     baseMessenger: RootMessenger;
@@ -146,7 +147,7 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions<EKey, SupportedKeyDerivationParams> = Partial<
-  SeedlessOnboardingControllerOptions<EKey, SupportedKeyDerivationParams>
+  SeedlessOnboardingControllerOptions<EKey, SupportedKeyDerivationParams, DefaultEncryptionResult<SupportedKeyDerivationParams>>
 >;
 
 type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
@@ -163,9 +164,10 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
  *
  * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor<
+function getDefaultSeedlessOnboardingVaultEncryptor(): Encryptor<
   EncryptionKey | webcrypto.CryptoKey,
-  KeyDerivationOptions
+  KeyDerivationOptions,
+  DefaultEncryptionResult<KeyDerivationOptions>
 > {
   return {
     encrypt,

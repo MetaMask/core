@@ -60,7 +60,6 @@ import type {
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
-  VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
   RenewRefreshToken,
@@ -75,6 +74,11 @@ import {
   deserializeVaultData,
   serializeVaultData,
 } from './utils';
+import type {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
@@ -134,7 +138,8 @@ type AllowedEvents = never;
 // Messenger
 export type SeedlessOnboardingControllerMessenger = Messenger<
   typeof controllerName,
-  SeedlessOnboardingControllerActions | AllowedActions,
+  | SeedlessOnboardingControllerActions
+  | AllowedActions,
   SeedlessOnboardingControllerEvents | AllowedEvents
 >;
 
@@ -146,8 +151,9 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
 export type SeedlessOnboardingControllerOptions<
-  EncryptionKey = encryptionUtils.EncryptionKey,
-  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
+  EncryptionKey,
+  SupportedKeyDerivationParams,
+  EncryptionResult extends EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -161,7 +167,7 @@ export type SeedlessOnboardingControllerOptions<
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams>;
+  encryptor: Encryptor<EncryptionKey, SupportedKeyDerivationParams, EncryptionResult>;
 
   /**
    * A function to get a new jwt token using refresh token.
@@ -377,14 +383,16 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
 export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor<
+  readonly #vaultEncryptor: Encryptor<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >;
 
   readonly #controllerOperationMutex = new Mutex();
@@ -451,7 +459,8 @@ export class SeedlessOnboardingController<
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >) {
     super({
       name: controllerName,
