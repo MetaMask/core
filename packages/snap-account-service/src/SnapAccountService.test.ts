@@ -12,51 +12,6 @@ import { SnapAccountService } from './SnapAccountService';
 const MOCK_KEYRING_SNAP_ID = 'npm:@metamask/keyring-snap' as SnapId;
 const MOCK_OTHER_SNAP_ID = 'npm:@metamask/other-snap' as SnapId;
 
-describe('SnapAccountService', () => {
-  describe('init', () => {
-    it('resolves without throwing when there are no snaps', async () => {
-      const { service } = setup({ snaps: [] });
-
-      expect(await service.init()).toBeUndefined();
-    });
-
-    it('stores snap IDs that have the endowment:keyring permission', async () => {
-      const { service } = setup({
-        snaps: [buildSnap(MOCK_KEYRING_SNAP_ID, { 'endowment:keyring': {} })],
-      });
-
-      await service.init();
-
-      expect(service.getSnaps().has(MOCK_KEYRING_SNAP_ID)).toBe(true);
-    });
-
-    it('does not store snap IDs that lack the endowment:keyring permission', async () => {
-      const { service } = setup({
-        snaps: [buildSnap(MOCK_OTHER_SNAP_ID, {})],
-      });
-
-      await service.init();
-
-      expect(service.getSnaps().has(MOCK_OTHER_SNAP_ID)).toBe(false);
-    });
-
-    it('handles a mix of keyring and non-keyring snaps', async () => {
-      const { service } = setup({
-        snaps: [
-          buildSnap(MOCK_KEYRING_SNAP_ID, { 'endowment:keyring': {} }),
-          buildSnap(MOCK_OTHER_SNAP_ID, {}),
-        ],
-      });
-
-      await service.init();
-
-      expect(service.getSnaps().has(MOCK_KEYRING_SNAP_ID)).toBe(true);
-      expect(service.getSnaps().has(MOCK_OTHER_SNAP_ID)).toBe(false);
-      expect(service.getSnaps().size).toBe(1);
-    });
-  });
-});
-
 /**
  * The type of the messenger populated with all external actions and events
  * required by the service under test.
@@ -126,3 +81,64 @@ function setup({ snaps }: { snaps: ReturnType<typeof buildSnap>[] }): {
 
   return { service, rootMessenger, messenger };
 }
+
+describe('SnapAccountService', () => {
+  describe('init', () => {
+    it('resolves without throwing when there are no snaps', async () => {
+      const { service } = setup({ snaps: [] });
+
+      expect(await service.init()).toBeUndefined();
+    });
+
+    it('stores snap IDs that have the endowment:keyring permission', async () => {
+      const { service } = setup({
+        snaps: [buildSnap(MOCK_KEYRING_SNAP_ID, { 'endowment:keyring': {} })],
+      });
+
+      await service.init();
+
+      expect(service.getSnaps().has(MOCK_KEYRING_SNAP_ID)).toBe(true);
+    });
+
+    it('does not store snap IDs that lack the endowment:keyring permission', async () => {
+      const { service } = setup({
+        snaps: [buildSnap(MOCK_OTHER_SNAP_ID, {})],
+      });
+
+      await service.init();
+
+      expect(service.getSnaps().has(MOCK_OTHER_SNAP_ID)).toBe(false);
+    });
+
+    it('handles a mix of keyring and non-keyring snaps', async () => {
+      const { service } = setup({
+        snaps: [
+          buildSnap(MOCK_KEYRING_SNAP_ID, { 'endowment:keyring': {} }),
+          buildSnap(MOCK_OTHER_SNAP_ID, {}),
+        ],
+      });
+
+      await service.init();
+
+      expect(service.getSnaps().has(MOCK_KEYRING_SNAP_ID)).toBe(true);
+      expect(service.getSnaps().has(MOCK_OTHER_SNAP_ID)).toBe(false);
+      expect(service.getSnaps().size).toBe(1);
+    });
+  });
+
+  describe('getSnaps', () => {
+    it('returns the set of account management snap IDs via the messenger action', async () => {
+      const { rootMessenger, service } = setup({
+        snaps: [buildSnap(MOCK_KEYRING_SNAP_ID, { 'endowment:keyring': {} })],
+      });
+
+      await service.init();
+
+      expect(
+        rootMessenger
+          .call('SnapAccountService:getSnaps')
+          .has(MOCK_KEYRING_SNAP_ID),
+      ).toBe(true);
+    });
+  });
+});

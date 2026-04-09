@@ -3,6 +3,7 @@ import type { SnapControllerGetRunnableSnapsAction } from '@metamask/snaps-contr
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 
 import { projectLogger as log } from './logger';
+import { SnapAccountServiceMethodActions } from './SnapAccountService-method-action-types';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's
@@ -14,12 +15,12 @@ export const serviceName = 'SnapAccountService';
  * All of the methods within {@link SnapAccountService} that are exposed via
  * the messenger.
  */
-const MESSENGER_EXPOSED_METHODS = [] as const;
+const MESSENGER_EXPOSED_METHODS = ['getSnaps'] as const;
 
 /**
  * Actions that {@link SnapAccountService} exposes to other consumers.
  */
-export type SnapAccountServiceActions = never;
+export type SnapAccountServiceActions = SnapAccountServiceMethodActions;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
