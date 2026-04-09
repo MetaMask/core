@@ -67,6 +67,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'patchUserOperation',
   'signUserOperation',
   'addNewAccount',
+  'withController',
   'withKeyring',
   'withKeyringUnsafe',
   'withKeyringV2',
