@@ -250,6 +250,43 @@ type KeyringEntry = {
 };
 
 /**
+ * A restricted view of the {@link KeyringController} exposed to the callback
+ * passed to {@link KeyringController.withController}.
+ *
+ * It provides a read-only live view of all keyrings and the ability to stage
+ * keyring additions and removals atomically within a single transaction.
+ */
+export type RestrictedController = {
+  /**
+   * Read-only live view of all keyrings in the current transaction (original
+   * keyrings plus any added, minus any removed so far in this callback).
+   */
+  readonly keyrings: ReadonlyArray<{
+    keyring: EthKeyring;
+    metadata: KeyringMetadata;
+  }>;
+  /**
+   * Create a new keyring of the given type and stage it for commit. The new
+   * entry is immediately visible in {@link RestrictedController.keyrings}.
+   *
+   * @param type - The type of keyring to create.
+   * @param opts - Optional data to pass to the keyring builder.
+   * @returns The newly created `{ keyring, metadata }` entry.
+   */
+  addNewKeyring(
+    type: string,
+    opts?: unknown,
+  ): Promise<{ keyring: EthKeyring; metadata: KeyringMetadata }>;
+  /**
+   * Stage the keyring with the given id for removal. The keyring is
+   * immediately removed from {@link RestrictedController.keyrings}.
+   *
+   * @param id - The id of the keyring to remove.
+   */
+  removeKeyring(id: string): Promise<void>;
+};
+
+/**
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
@@ -1854,6 +1891,87 @@ export class KeyringController<
         await operation({ keyring, metadata }),
         keyring,
       );
+    });
+  }
+
+  /**
+   * Execute an operation against all keyrings as a mutually exclusive atomic
+   * operation. The operation receives a {@link RestrictedController} instance
+   * that exposes a read-only live view of all keyrings as well as
+   * `addNewKeyring` and `removeKeyring` methods to stage mutations.
+   *
+   * The method automatically persists changes at the end of the function
+   * execution, or rolls back the changes if an error is thrown.
+   *
+   * @param operation - Function to execute with the restricted controller.
+   * @returns Promise resolving to the result of the function execution.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async withController<CallbackResult = void>(
+    operation: (
+      restrictedController: RestrictedController,
+    ) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    this.#assertIsUnlocked();
+
+    return this.#persistOrRollback(async () => {
+      const liveKeyrings = [...this.#keyrings];
+      const createdEntries = new Set<{
+        keyring: EthKeyring;
+        metadata: KeyringMetadata;
+      }>();
+      const removedEntries = new Set<{
+        keyring: EthKeyring;
+        metadata: KeyringMetadata;
+      }>();
+
+      const restrictedController: RestrictedController = {
+        get keyrings() {
+          return Object.freeze([...liveKeyrings]) as RestrictedController['keyrings'];
+        },
+        addNewKeyring: async (type: string, opts?: unknown) => {
+          const keyring = await this.#createKeyring(type, opts);
+          const entry = { keyring, metadata: getDefaultKeyringMetadata() };
+          liveKeyrings.push(entry);
+          createdEntries.add(entry);
+          return entry;
+        },
+        removeKeyring: async (id: string) => {
+          const idx = liveKeyrings.findIndex((e) => e.metadata.id === id);
+          if (idx === -1) {
+            throw new KeyringControllerError(
+              KeyringControllerErrorMessage.KeyringNotFound,
+            );
+          }
+          const [removed] = liveKeyrings.splice(idx, 1) as [
+            { keyring: EthKeyring; metadata: KeyringMetadata },
+          ];
+          removedEntries.add(removed);
+        },
+      };
+
+      let result: CallbackResult;
+      try {
+        result = await operation(restrictedController);
+      } catch (error) {
+        await Promise.all(
+          [...createdEntries].map(({ keyring }) =>
+            this.#destroyKeyring(keyring),
+          ),
+        );
+        throw error;
+      }
+
+      await Promise.all(
+        [...removedEntries].map(({ keyring }) => this.#destroyKeyring(keyring)),
+      );
+      this.#keyrings = liveKeyrings;
+
+      for (const { keyring } of this.#keyrings) {
+        this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
+      }
+
+      return result;
     });
   }
 
