@@ -1,4 +1,4 @@
-import { ParsedMessage } from '@spruceid/siwe-parser';
+import { ParsedMessage } from '@signinwithethereum/siwe-parser';
 
 import { detectSIWE, isValidSIWEOrigin } from './siwe';
 

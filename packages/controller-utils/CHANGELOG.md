@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace `@spruceid/siwe-parser` with `@signinwithethereum/siwe-parser` ^4.2.0 ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - The old package is no longer maintained. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope.
+  - The `ParsedMessage` class API is backward compatible.
+  - v4.2.0 relaxes EIP-55 address checksum enforcement: all-lowercase and all-uppercase addresses now parse successfully (with a non-fatal warning on the new `warnings: string[]` field); only mixed-case addresses with an invalid checksum still fail to parse.
+
 ## [11.20.0]
 
 ### Added

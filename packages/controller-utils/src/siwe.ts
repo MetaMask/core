@@ -1,5 +1,5 @@
 import { remove0x } from '@metamask/utils';
-import { ParsedMessage } from '@spruceid/siwe-parser';
+import { ParsedMessage } from '@signinwithethereum/siwe-parser';
 
 import { projectLogger, createModuleLogger } from './logger';
 
