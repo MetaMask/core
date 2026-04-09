@@ -32,7 +32,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep } from 'lodash';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -1526,7 +1526,7 @@ export class KeyringController<
     encryptionKey: string,
     encryptionSalt?: string,
   ): Promise<void> {
-    const { newMetadata } = await this.#withRollback(async () => {
+    const { hasChanged } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings({
         encryptionKey,
         encryptionSalt,
@@ -1539,7 +1539,7 @@ export class KeyringController<
       // if new metadata has been generated during login, we
       // can attempt to upgrade the vault.
       await this.#withRollback(async () => {
-        if (newMetadata) {
+        if (hasChanged) {
           await this.#updateVault();
         }
       });
@@ -1572,7 +1572,7 @@ export class KeyringController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    const { newMetadata } = await this.#withRollback(async () => {
+    const { hasChanged } = await this.#withRollback(async () => {
       const result = await this.#unlockKeyrings({ password });
       this.#setUnlocked();
       return result;
@@ -1580,10 +1580,10 @@ export class KeyringController<
 
     try {
       // If there are stronger encryption params available, or
-      // if new metadata has been generated during login, we
+      // if the keyring state has changed during deserialization, we
       // can attempt to upgrade the vault.
       await this.#withRollback(async () => {
-        if (newMetadata || this.#isNewEncryptionAvailable()) {
+        if (hasChanged || this.#isNewEncryptionAvailable()) {
           await this.#deriveAndSetEncryptionKey(password, {
             // If the vault is being upgraded, we want to ignore the metadata
             // that is already in the vault, so we can effectively
@@ -2179,24 +2179,24 @@ export class KeyringController<
     serializedKeyrings: SerializedKeyring[],
   ): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
-    newMetadata: boolean;
+    hasChanged: boolean;
   }> {
     await this.#clearKeyrings();
     const keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[] = [];
-    let newMetadata = false;
+    let hasChanged = false;
 
     for (const serializedKeyring of serializedKeyrings) {
       const result = await this.#restoreKeyring(serializedKeyring);
       if (result) {
         const { keyring, metadata } = result;
         keyrings.push({ keyring, metadata });
-        if (result.newMetadata) {
-          newMetadata = true;
+        if (result.hasChanged) {
+          hasChanged = true;
         }
       }
     }
 
-    return { keyrings, newMetadata };
+    return { keyrings, hasChanged };
   }
 
   /**
@@ -2217,7 +2217,7 @@ export class KeyringController<
         },
   ): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
-    newMetadata: boolean;
+    hasChanged: boolean;
   }> {
     return this.#withVaultLock(async () => {
       if (!this.state.vault) {
@@ -2255,7 +2255,7 @@ export class KeyringController<
         );
       }
 
-      const { keyrings, newMetadata } =
+      const { keyrings, hasChanged } =
         await this.#restoreSerializedKeyrings(vault);
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
@@ -2266,7 +2266,7 @@ export class KeyringController<
         state.encryptionSalt = this.#encryptionKey?.salt;
       });
 
-      return { keyrings, newMetadata };
+      return { keyrings, hasChanged };
     });
   }
 
@@ -2496,30 +2496,36 @@ export class KeyringController<
   async #restoreKeyring(
     serialized: SerializedKeyring,
   ): Promise<
-    | { keyring: EthKeyring; metadata: KeyringMetadata; newMetadata: boolean }
+    | { keyring: EthKeyring; metadata: KeyringMetadata; hasChanged: boolean }
     | undefined
   > {
     this.#assertControllerMutexIsLocked();
 
     try {
       const { type, data, metadata: serializedMetadata } = serialized;
-      let newMetadata = false;
-      let metadata = serializedMetadata;
+
       const keyring = await this.#createKeyring(type, data);
+      const restoredData = await keyring.serialize();
+      let hasChanged = hasStateChanged(data, restoredData);
+
       await this.#assertNoDuplicateAccounts([keyring]);
-      // If metadata is missing, assume the data is from an installation before
-      // we had keyring metadata.
+
+      // If metadata is missing, assume the data is from an installation before we had
+      // keyring metadata.
+      let metadata = serializedMetadata;
       if (!metadata) {
-        newMetadata = true;
+        hasChanged = true;
         metadata = getDefaultKeyringMetadata();
       }
+
       // The keyring is added to the keyrings array only if it's successfully restored
       // and the metadata is successfully added to the controller
       this.#keyrings.push({
         keyring,
         metadata,
       });
-      return { keyring, metadata, newMetadata };
+
+      return { keyring, metadata, hasChanged };
     } catch (error) {
       console.error(error);
       this.#unsupportedKeyrings.push(serialized);
@@ -2598,12 +2604,12 @@ export class KeyringController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldState = JSON.stringify(await this.#getSessionState());
+      const prevState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
-      const newState = JSON.stringify(await this.#getSessionState());
+      const newState = await this.#getSessionState();
 
       // State is committed only if the operation is successful and need to trigger a vault update.
-      if (!isEqual(oldState, newState)) {
+      if (hasStateChanged(prevState, newState)) {
         await this.#updateVault();
       }
 
@@ -2717,6 +2723,18 @@ async function withLock<Result>(
  */
 function getDefaultKeyringMetadata(): KeyringMetadata {
   return { id: ulid(), name: '' };
+}
+
+/**
+ * Check if the state of a keyring has changed by comparing the serialized state before
+ * and after an operation.
+ *
+ * @param before - The state of the keyring before the operation.
+ * @param after - The state of the keyring after the operation.
+ * @returns True if the state has changed, false otherwise.
+ */
+function hasStateChanged(before: Json, after: Json): boolean {
+  return JSON.stringify(before) !== JSON.stringify(after);
 }
 
 export default KeyringController;
