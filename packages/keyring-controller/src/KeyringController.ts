@@ -2604,12 +2604,12 @@ export class KeyringController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const prevState = await this.#getSessionState();
+      const oldState = await this.#getSessionState();
       const callbackResult = await callback({ releaseLock });
       const newState = await this.#getSessionState();
 
       // State is committed only if the operation is successful and need to trigger a vault update.
-      if (hasStateChanged(prevState, newState)) {
+      if (hasStateChanged(oldState, newState)) {
         await this.#updateVault();
       }
 
