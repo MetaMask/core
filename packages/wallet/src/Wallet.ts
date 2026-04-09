@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { isObject } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 
 import { initialize } from './initialization';
@@ -12,7 +13,7 @@ export type WalletConstructorArgs = {
 export class Wallet {
   public messenger: RootMessenger;
 
-  readonly #instances;
+  readonly #instances: Record<string, Record<string, unknown>>;
 
   constructor({ state = {}, options }: WalletConstructorArgs) {
     this.messenger = new Messenger({
@@ -24,14 +25,9 @@ export class Wallet {
 
   get state(): Record<string, unknown> {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
-      (accumulator, [key, instance]) => {
-        accumulator[key] =
-          instance !== null &&
-          typeof instance === 'object' &&
-          'state' in instance
-            ? instance.state
-            : null;
-        return accumulator;
+      (totalState, [name, instance]) => {
+        totalState[name] = instance.state ?? null;
+        return totalState;
       },
       {},
     );

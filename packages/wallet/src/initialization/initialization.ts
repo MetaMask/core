@@ -19,7 +19,7 @@ export function initialize({
   messenger,
   initializationConfigurations = [],
   options,
-}: InitializeArgs) {
+}: InitializeArgs): Record<string, Record<string, unknown>> {
   const overriddenConfiguration = initializationConfigurations.map(
     (config) => config.name,
   );
@@ -30,7 +30,7 @@ export function initialize({
     ),
   );
 
-  const instances: Record<string, unknown> = {};
+  const instances: Record<string, Record<string, unknown>> = {};
 
   for (const config of configurationEntries) {
     const { name } = config;
@@ -45,7 +45,7 @@ export function initialize({
       options,
     });
 
-    instances[name] = instance;
+    instances[name] = instance as Record<string, unknown>;
   }
 
   return instances;
