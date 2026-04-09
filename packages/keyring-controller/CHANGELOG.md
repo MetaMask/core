@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `withController` action to run atomic operations on multiple keyrings (within a single transaction) ([#8416](https://github.com/MetaMask/core/pull/8416))
+  - This action takes a subset of the controllr (a `RestrictedController` object) that exposes `addNewKeyring` and `removeKeyring` methods to add and remove keyring during that transaction call.
 - Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
 - Persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
   - If a keyring's serialized state differs after deserialization (e.g. a migration ran, or metadata was missing), the vault is now re-persisted so the change is not lost on the next unlock.
@@ -22,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#8390](https://github.com/MetaMask/core/pull/8390))
   - Accepts a `KeyringSelectorV2` to select keyrings by `type`, `address`, `id`, or `filter`.
   - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
-- Add `withController` method for atomically adding and removing keyrings within a single transaction, via a `RestrictedController` object with `addNewKeyring` and `removeKeyring`
 
 ### Changed
 
