@@ -58,6 +58,8 @@ const ProfileSummaryStruct = structType({
 
 const TradeStruct = structType({
   direction: string(),
+  intent: string(),
+  category: optional(string()),
   tokenAmount: number(),
   usdCost: number(),
   timestamp: number(),

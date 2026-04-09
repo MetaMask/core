@@ -24,6 +24,7 @@ const mockSocialHandles = {
 
 const mockTrade = {
   direction: 'buy',
+  intent: 'enter',
   tokenAmount: 1.5,
   usdCost: 3000,
   timestamp: 1700000000,
