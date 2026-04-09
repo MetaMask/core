@@ -14,6 +14,7 @@ export type {
   KeyringControllerSignMessageAction,
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
+  KeyringControllerSignTransactionAction,
   KeyringControllerSignTypedMessageAction,
   KeyringControllerPrepareUserOperationAction,
   KeyringControllerPatchUserOperationAction,
