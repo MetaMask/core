@@ -5,13 +5,23 @@ import type {
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { Infer } from '@metamask/superstruct';
-import { is, object, string } from '@metamask/superstruct';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
+import type {
+  AssociateAddressRequest,
+  AssociateAddressResponse,
+  CreateUpgradeRequest,
+  CreateUpgradeResponse,
+  CreateWithdrawalRequest,
+  CreateWithdrawalResponse,
+  GetUpgradeResponse,
+  SendIntentRequest,
+  SendIntentResponse,
+  VerifyDelegationRequest,
+  VerifyDelegationResponse,
+} from './types';
 
 // === GENERAL ===
 
@@ -27,7 +37,15 @@ export const serviceName = 'ChompApiService';
  * All of the methods within {@link ChompApiService} that are exposed via the
  * messenger.
  */
-const MESSENGER_EXPOSED_METHODS = ['fetch'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'associateAddress',
+  'createUpgrade',
+  'getUpgrade',
+  'verifyDelegation',
+  'createIntents',
+  'getIntentsByAddress',
+  'createWithdrawal',
+] as const;
 
 /**
  * Invalidates cached queries for {@link ChompApiService}.
@@ -83,46 +101,48 @@ export type ChompApiServiceMessenger = Messenger<
 
 // === SERVICE DEFINITION ===
 
-// TODO: Define the response struct to match the actual Chomp API response shape.
-const ChompResponseStruct = object({
-  // TODO: Replace with real fields.
-  id: string(),
-});
-
 /**
- * What the API endpoint returns.
- */
-type ChompResponse = Infer<typeof ChompResponseStruct>;
-
-/**
- * The base URL of the Chomp API.
- */
-// TODO: Replace with the real Chomp API base URL.
-const BASE_URL = 'https://api.chomp.example.com';
-
-/**
- * This service object is responsible for fetching data from the Chomp API.
+ * This service is responsible for communicating with the CHOMP API.
+ *
+ * All requests are authenticated via JWT Bearer tokens obtained from the
+ * `getAccessToken` callback provided at construction time.
  */
 export class ChompApiService extends BaseDataService<
   typeof serviceName,
   ChompApiServiceMessenger
 > {
+  readonly #baseUrl: string;
+
+  readonly #getAccessToken: () => Promise<string>;
+
+  readonly #fetch: typeof globalThis.fetch;
+
   /**
-   * Constructs a new ChompApiService object.
+   * Constructs a new ChompApiService.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
+   * @param args.baseUrl - The base URL of the CHOMP API.
+   * @param args.getAccessToken - An async callback that returns a valid JWT
+   * access token for authenticating requests.
+   * @param args.fetchFn - An optional custom fetch implementation. Defaults to
+   * the global `fetch`.
    * @param args.queryClientConfig - Configuration for the underlying TanStack
    * Query client.
-   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
-   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   * @param args.policyOptions - Options to pass to `createServicePolicy`.
    */
   constructor({
     messenger,
+    baseUrl,
+    getAccessToken,
+    fetchFn = globalThis.fetch,
     queryClientConfig = {},
     policyOptions = {},
   }: {
     messenger: ChompApiServiceMessenger;
+    baseUrl: string;
+    getAccessToken: () => Promise<string>;
+    fetchFn?: typeof globalThis.fetch;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
   }) {
@@ -133,6 +153,10 @@ export class ChompApiService extends BaseDataService<
       policyOptions,
     });
 
+    this.#baseUrl = baseUrl;
+    this.#getAccessToken = getAccessToken;
+    this.#fetch = fetchFn;
+
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -140,35 +164,175 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
-   * TODO: Replace with a real description of the endpoint this method calls.
+   * Builds the standard headers for an authenticated CHOMP API request.
    *
-   * @param id - TODO: Describe the parameter.
-   * @returns TODO: Describe the return value.
+   * @returns Headers including Authorization and Content-Type.
    */
-  async fetch(id: string): Promise<ChompResponse> {
-    // TODO: Build the real URL for the Chomp API endpoint.
-    const url = new URL(`/items/${id}`, BASE_URL);
+  async #authHeaders(): Promise<Record<string, string>> {
+    const token = await this.#getAccessToken();
+    return {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  }
 
-    const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetch`, id],
-      queryFn: async () => {
-        const response = await fetch(url);
+  /**
+   * Associates an address with a CHOMP profile.
+   *
+   * POST /v1/auth/address
+   *
+   * TODO: Implement the request using this.fetchQuery or direct POST via
+   * this.#fetch. Validate the response with a superstruct. Note that a 409
+   * response is valid and should be returned (not thrown).
+   *
+   * @param request - The association request containing signature, timestamp,
+   * and address.
+   * @returns The profile association result.
+   */
+  async associateAddress(
+    request: AssociateAddressRequest,
+  ): Promise<AssociateAddressResponse> {
+    // TODO: POST to `${this.#baseUrl}/v1/auth/address` with JSON body.
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Return response body on 200 or 409; throw on other non-OK statuses.
+    // TODO: Validate response shape with superstruct before returning.
+    const _headers = await this.#authHeaders();
+    void request;
+    throw new Error('Not implemented');
+  }
 
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Chomp API failed with status '${response.status}'`,
-          );
-        }
+  /**
+   * Creates an account upgrade request.
+   *
+   * POST /v1/account-upgrade
+   *
+   * TODO: Implement the POST request. Validate the response with a superstruct.
+   *
+   * @param request - The upgrade request containing signature components and
+   * chain details.
+   * @returns The upgrade result.
+   */
+  async createUpgrade(
+    request: CreateUpgradeRequest,
+  ): Promise<CreateUpgradeResponse> {
+    // TODO: POST to `${this.#baseUrl}/v1/account-upgrade` with JSON body.
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Throw on non-OK responses.
+    // TODO: Validate response shape with superstruct before returning.
+    const _headers = await this.#authHeaders();
+    void request;
+    throw new Error('Not implemented');
+  }
 
-        return response.json();
-      },
-    });
+  /**
+   * Fetches the upgrade record for a given address.
+   *
+   * GET /v1/account-upgrade/:address
+   *
+   * TODO: Implement the GET request. Return null on 404. Validate the response
+   * with a superstruct for non-404 responses.
+   *
+   * @param address - The address to look up.
+   * @returns The upgrade record, or null if not found.
+   */
+  async getUpgrade(address: string): Promise<GetUpgradeResponse | null> {
+    // TODO: GET `${this.#baseUrl}/v1/account-upgrade/${address}`.
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Return null on 404, throw on other non-OK statuses.
+    // TODO: Validate response shape with superstruct before returning.
+    // TODO: Consider using this.fetchQuery with a queryKey for caching.
+    const _headers = await this.#authHeaders();
+    void address;
+    throw new Error('Not implemented');
+  }
 
-    if (!is(jsonResponse, ChompResponseStruct)) {
-      throw new Error('Malformed response received from Chomp API');
-    }
+  /**
+   * Verifies a delegation signature.
+   *
+   * POST /v1/intent/verify-delegation
+   *
+   * TODO: Implement the POST request. Validate the response with a superstruct.
+   *
+   * @param request - The delegation verification request.
+   * @returns The verification result including validity and optional errors.
+   */
+  async verifyDelegation(
+    request: VerifyDelegationRequest,
+  ): Promise<VerifyDelegationResponse> {
+    // TODO: POST to `${this.#baseUrl}/v1/intent/verify-delegation` with JSON body.
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Throw on non-OK responses.
+    // TODO: Validate response shape with superstruct before returning.
+    const _headers = await this.#authHeaders();
+    void request;
+    throw new Error('Not implemented');
+  }
 
-    return jsonResponse;
+  /**
+   * Submits one or more intents to the CHOMP API.
+   *
+   * POST /v1/intent
+   *
+   * TODO: Implement the POST request. Validate the response array with a
+   * superstruct.
+   *
+   * @param intents - The array of intents to submit.
+   * @returns The array of intent responses.
+   */
+  async createIntents(
+    intents: SendIntentRequest[],
+  ): Promise<SendIntentResponse[]> {
+    // TODO: POST to `${this.#baseUrl}/v1/intent` with JSON body.
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Throw on non-OK responses.
+    // TODO: Validate response shape with superstruct before returning.
+    const _headers = await this.#authHeaders();
+    void intents;
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Fetches intents associated with a given address.
+   *
+   * GET /v1/intent/account/:address
+   *
+   * TODO: Implement the GET request. Validate the response array with a
+   * superstruct.
+   *
+   * @param address - The address to look up intents for.
+   * @returns The array of intents for the address.
+   */
+  async getIntentsByAddress(
+    address: string,
+  ): Promise<SendIntentResponse[]> {
+    // TODO: GET `${this.#baseUrl}/v1/intent/account/${address}`.
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Throw on non-OK responses.
+    // TODO: Validate response shape with superstruct before returning.
+    // TODO: Consider using this.fetchQuery with a queryKey for caching.
+    const _headers = await this.#authHeaders();
+    void address;
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Creates a withdrawal for card spend flows.
+   *
+   * TODO: Confirm the endpoint path against CHOMP API docs.
+   * TODO: Implement the POST request. Validate the response with a superstruct.
+   *
+   * @param request - The withdrawal request.
+   * @returns The withdrawal result.
+   */
+  async createWithdrawal(
+    request: CreateWithdrawalRequest,
+  ): Promise<CreateWithdrawalResponse> {
+    // TODO: Confirm endpoint path (e.g. POST `${this.#baseUrl}/v1/withdrawal`).
+    // TODO: Include Authorization header via this.#authHeaders().
+    // TODO: Throw on non-OK responses.
+    // TODO: Validate response shape with superstruct before returning.
+    const _headers = await this.#authHeaders();
+    void request;
+    throw new Error('Not implemented');
   }
 }
