@@ -2506,7 +2506,7 @@ export class KeyringController<
 
       const keyring = await this.#createKeyring(type, data);
       const restoredData = await keyring.serialize();
-      let hasChanged = hasStateChanged(data, restoredData);
+      let hasChanged = JSON.stringify(data) !== JSON.stringify(restoredData);
 
       await this.#assertNoDuplicateAccounts([keyring]);
 
@@ -2604,12 +2604,12 @@ export class KeyringController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const oldState = await this.#getSessionState();
+      const oldState = JSON.stringify(await this.#getSessionState());
       const callbackResult = await callback({ releaseLock });
-      const newState = await this.#getSessionState();
+      const newState = JSON.stringify(await this.#getSessionState());
 
       // State is committed only if the operation is successful and need to trigger a vault update.
-      if (hasStateChanged(oldState, newState)) {
+      if (oldState !== newState) {
         await this.#updateVault();
       }
 
@@ -2725,16 +2725,5 @@ function getDefaultKeyringMetadata(): KeyringMetadata {
   return { id: ulid(), name: '' };
 }
 
-/**
- * Check if the state of a keyring has changed by comparing the serialized state before
- * and after an operation.
- *
- * @param before - The state of the keyring before the operation.
- * @param after - The state of the keyring after the operation.
- * @returns True if the state has changed, false otherwise.
- */
-function hasStateChanged(before: Json, after: Json): boolean {
-  return JSON.stringify(before) !== JSON.stringify(after);
-}
 
 export default KeyringController;
