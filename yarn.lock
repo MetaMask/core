@@ -4368,7 +4368,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/messenger@npm:^1.1.1, @metamask/messenger@workspace:packages/messenger":
+"@metamask/messenger@npm:^1.1.1, @metamask/messenger@workspace:^, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
   dependencies:
@@ -5265,6 +5265,24 @@ __metadata:
   checksum: 10/296ac7c578bd35792c7e3942a9a0b7d9d7af76cf98358b97403c1ed483faa3c2fe6c71b1c3f8c7719fbfcf9fc73e5fa8707c89ac277ee9ce6c8bc4c694b2059d
   languageName: node
   linkType: hard
+
+"@metamask/snap-account-service@workspace:packages/snap-account-service":
+  version: 0.0.0-use.local
+  resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/messenger": "workspace:^"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.20.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
 
 "@metamask/snaps-controllers@npm:^19.0.0":
   version: 19.0.0

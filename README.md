@@ -91,6 +91,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
@@ -177,6 +178,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
