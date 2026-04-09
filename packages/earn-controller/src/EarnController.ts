@@ -3,6 +3,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
@@ -318,6 +319,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  * All events that EarnController subscribes to internally.
  */
 export type AllowedEvents =
+  | AccountTreeControllerStateChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkDidChangeEvent;
@@ -468,8 +470,10 @@ export class EarnController extends BaseController<
     this.#initializeSDK(this.#getSelectedNetworkClientId()).catch(
       console.error,
     );
-    this.refreshPooledStakingData().catch(console.error);
-    this.refreshLendingData().catch(console.error);
+
+    if (!this.#getSelectedEvmAccountAddress()) {
+      this.#deferAccountDependentRefreshes();
+    }
 
     this.#initialized = true;
   }
@@ -543,6 +547,35 @@ export class EarnController extends BaseController<
    */
   #getSelectedEvmAccountAddress(): string | undefined {
     return this.#getSelectedEvmAccount()?.address;
+  }
+
+  /**
+   * Sets up a one-time subscription to AccountTreeController:stateChange that
+   * triggers address-dependent refreshes once the selected account group
+   * becomes available. Unsubscribes immediately after the first successful
+   * trigger.
+   *
+   * This handles the case where EarnController.init() runs before
+   * AccountTreeController.init() has populated the selected account group.
+   */
+  #deferAccountDependentRefreshes(): void {
+    const handler = ({
+      selectedAccountGroup,
+    }: {
+      selectedAccountGroup: string;
+    }): void => {
+      if (!selectedAccountGroup) {
+        return;
+      }
+      this.messenger.unsubscribe('AccountTreeController:stateChange', handler);
+
+      const address = this.#getSelectedEvmAccountAddress();
+      if (address) {
+        this.refreshPooledStakingData().catch(console.error);
+        this.refreshLendingData().catch(console.error);
+      }
+    };
+    this.messenger.subscribe('AccountTreeController:stateChange', handler);
   }
 
   /**
