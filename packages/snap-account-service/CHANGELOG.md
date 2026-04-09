@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SnapAccountService` ([#8414](https://github.com/MetaMask/core/pull/8414))
+- Add `SnapAccountService` ([#8414](https://github.com/MetaMask/core/pull/8414)), ([#8418](https://github.com/MetaMask/core/pull/8418))
 
 [Unreleased]: https://github.com/MetaMask/core/
