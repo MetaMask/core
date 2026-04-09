@@ -4,7 +4,7 @@ import {
   DistributionType,
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
-import nock, { enableNetConnect } from 'nock';
+import { cleanAll, enableNetConnect } from 'nock';
 
 import { importSecretRecoveryPhrase, sendTransaction } from './utilities';
 import { Wallet } from './Wallet';
@@ -13,7 +13,7 @@ const TEST_PHRASE =
   'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
-async function setupWallet() {
+async function setupWallet(): Promise<Wallet> {
   if (!process.env.INFURA_PROJECT_KEY) {
     throw new Error(
       'INFURA_PROJECT_KEY is not set. Copy .env.example to .env and fill in your key.',
@@ -24,7 +24,7 @@ async function setupWallet() {
     options: {
       infuraProjectId: process.env.INFURA_PROJECT_KEY,
       clientVersion: '1.0.0',
-      showApprovalRequest: () => undefined,
+      showApprovalRequest: (): undefined => undefined,
       clientConfigApiService: new ClientConfigApiService({
         fetch: globalThis.fetch,
         config: {
@@ -33,7 +33,7 @@ async function setupWallet() {
           environment: EnvironmentType.Production,
         },
       }),
-      getMetaMetricsId: () => 'fake-metrics-id',
+      getMetaMetricsId: (): string => 'fake-metrics-id',
     },
   });
 
@@ -51,8 +51,8 @@ describe('Wallet', () => {
 
   afterEach(async () => {
     await wallet?.destroy();
-    nock.cleanAll();
-    nock.enableNetConnect();
+    cleanAll();
+    enableNetConnect();
     jest.useRealTimers();
   });
 

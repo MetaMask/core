@@ -15,7 +15,7 @@ module.exports = merge(baseConfig, {
   displayName,
 
   // Load dotenv before tests
-  setupFiles: [path.resolve(__dirname, 'tests/setup.ts')],
+  setupFiles: [path.resolve(__dirname, 'test/setup.ts')],
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {

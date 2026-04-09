@@ -1,5 +1,4 @@
 import { Messenger } from '@metamask/messenger';
-import { isObject } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 
 import { initialize } from './initialization';
@@ -36,12 +35,7 @@ export class Wallet {
   async destroy(): Promise<void> {
     await Promise.all(
       Object.values(this.#instances).map((instance) => {
-        if (
-          instance !== null &&
-          typeof instance === 'object' &&
-          'destroy' in instance &&
-          typeof instance.destroy === 'function'
-        ) {
+        if (typeof instance.destroy === 'function') {
           return instance.destroy();
         }
         return undefined;
