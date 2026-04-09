@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Mantle layer 1 gas fee flow with tokenRatio conversion for accurate MNT-denominated gas estimates ([#8376](https://github.com/MetaMask/core/pull/8376))
-- Extend Mantle layer 1 gas fee flow to support Mantle Sepolia testnet (chain ID `0x138b`) ([#8386](https://github.com/MetaMask/core/pull/8386))
+- Add Mantle layer 1 gas fee flow with tokenRatio conversion for accurate MNT-denominated gas estimates, supporting both mainnet (chain ID `0x1388`) and Sepolia testnet (chain ID `0x138b`) ([#8376](https://github.com/MetaMask/core/pull/8376))
 
 ### Changed
 
