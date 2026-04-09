@@ -875,7 +875,6 @@ export class AssetsController extends BaseController<
     // when init() calls this.update(). #start() is idempotent so
     // repeated fires are safe.
     this.messenger.subscribe('AccountTreeController:stateChange', () => {
-      console.log('AccountTreeController:stateChanged +++++++++++');
       this.#updateActive();
     });
 
