@@ -125,6 +125,7 @@ function getEarnControllerMessenger(
   rootMessenger.delegate({
     messenger: earnControllerMessenger,
     actions: [
+      'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     ],
@@ -682,22 +683,29 @@ const setupController = async ({
     },
   })),
 
+  mockGetNetworkControllerState = jest.fn(() => ({
+    ...getDefaultNetworkControllerState(),
+    selectedNetworkClientId: '1',
+  })),
+
   mockGetAccountsFromSelectedAccountGroup = jest.fn(() => [
     mockInternalAccount1,
   ]),
 
   addTransactionFn = jest.fn(),
-  selectedNetworkClientId = '1',
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
   mockGetNetworkClientById?: jest.Mock;
   mockGetNetworkControllerState?: jest.Mock;
   mockGetAccountsFromSelectedAccountGroup?: jest.Mock;
   addTransactionFn?: jest.Mock;
-  selectedNetworkClientId?: string;
 } = {}) => {
   const messenger = buildMessenger();
 
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    mockGetNetworkControllerState,
+  );
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById,
@@ -713,7 +721,6 @@ const setupController = async ({
     messenger: earnControllerMessenger,
     ...options,
     addTransactionFn,
-    selectedNetworkClientId,
   });
 
   controller.init();
@@ -2011,7 +2018,10 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          mockGetNetworkControllerState: jest.fn(() => ({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '',
+          })),
         });
 
         await expect(
@@ -2202,7 +2212,10 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          mockGetNetworkControllerState: jest.fn(() => ({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '',
+          })),
         });
 
         await expect(
@@ -2393,7 +2406,10 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          mockGetNetworkControllerState: jest.fn(() => ({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '',
+          })),
         });
 
         await expect(

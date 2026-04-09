@@ -1,3 +1,4 @@
+import { BigNumber } from '@ethersproject/bignumber';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
@@ -15,6 +16,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
@@ -295,6 +297,7 @@ export type EarnControllerActions =
  * All actions that EarnController calls internally.
  */
 export type AllowedActions =
+  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
@@ -343,8 +346,6 @@ export class EarnController extends BaseController<
 
   #initialized = false;
 
-  #selectedNetworkClientId: string;
-
   readonly #earnApiService: EarnApiService;
 
   readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
@@ -357,13 +358,11 @@ export class EarnController extends BaseController<
     messenger,
     state = {},
     addTransactionFn,
-    selectedNetworkClientId,
     env = EarnEnvironments.PROD,
   }: {
     messenger: EarnControllerMessenger;
     state?: Partial<EarnControllerState>;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
-    selectedNetworkClientId: string;
     env?: EarnEnvironments;
   }) {
     super({
@@ -387,16 +386,13 @@ export class EarnController extends BaseController<
 
     this.#addTransactionFn = addTransactionFn;
 
-    this.#selectedNetworkClientId = selectedNetworkClientId;
-
     // Listen for network changes
     this.messenger.subscribe(
       'NetworkController:networkDidChange',
       (networkControllerState: NetworkState) => {
-        this.#selectedNetworkClientId =
-          networkControllerState.selectedNetworkClientId;
-
-        this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
+        this.#initializeSDK(
+          networkControllerState.selectedNetworkClientId,
+        ).catch(console.error);
 
         // refresh pooled staking data
         this.refreshPooledStakingVaultMetadata().catch(console.error);
@@ -469,7 +465,9 @@ export class EarnController extends BaseController<
       return;
     }
 
-    this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
+    this.#initializeSDK(this.#getSelectedNetworkClientId()).catch(
+      console.error,
+    );
     this.refreshPooledStakingData().catch(console.error);
     this.refreshLendingData().catch(console.error);
 
@@ -481,7 +479,7 @@ export class EarnController extends BaseController<
    *
    * @param networkClientId - The network client id to initialize the Earn SDK for.
    */
-  async #initializeSDK(networkClientId: string) {
+  async #initializeSDK(networkClientId: string): Promise<void> {
     const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -515,6 +513,16 @@ export class EarnController extends BaseController<
         console.error('Earn SDK initialization failed:', error);
       }
     }
+  }
+
+  /**
+   * Gets the selected network client ID from NetworkController's live state.
+   *
+   * @returns The selected network client ID.
+   */
+  #getSelectedNetworkClientId(): string {
+    return this.messenger.call('NetworkController:getState')
+      .selectedNetworkClientId;
   }
 
   /**
@@ -687,7 +695,7 @@ export class EarnController extends BaseController<
    */
   async refreshPooledStakingVaultApyAverages(
     chainId: number = ChainId.ETHEREUM,
-  ) {
+  ): Promise<void> {
     const chainIdToUse = isSupportedPooledStakingChain(chainId)
       ? chainId
       : ChainId.ETHEREUM;
@@ -752,7 +760,7 @@ export class EarnController extends BaseController<
     if (errors.length > 0) {
       throw new Error(
         `Failed to refresh some staking data: ${errors
-          .map((e) => e.message)
+          .map((error) => error.message)
           .join(', ')}`,
       );
     }
@@ -863,7 +871,7 @@ export class EarnController extends BaseController<
     if (errors.length > 0) {
       throw new Error(
         `Failed to refresh some lending data: ${errors
-          .map((e) => e.message)
+          .map((error) => error.message)
           .join(', ')}`,
       );
     }
@@ -1029,7 +1037,9 @@ export class EarnController extends BaseController<
     if (!transactionData) {
       throw new Error('Transaction data not found');
     }
-    if (!this.#selectedNetworkClientId) {
+
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    if (!selectedNetworkClientId) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1046,7 +1056,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: selectedNetworkClientId,
       },
     );
 
@@ -1105,7 +1115,8 @@ export class EarnController extends BaseController<
       throw new Error('Transaction data not found');
     }
 
-    if (!this.#selectedNetworkClientId) {
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    if (!selectedNetworkClientId) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1122,7 +1133,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: selectedNetworkClientId,
       },
     );
 
@@ -1181,7 +1192,8 @@ export class EarnController extends BaseController<
       throw new Error('Transaction data not found');
     }
 
-    if (!this.#selectedNetworkClientId) {
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    if (!selectedNetworkClientId) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1198,7 +1210,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: selectedNetworkClientId,
       },
     );
 
@@ -1215,7 +1227,7 @@ export class EarnController extends BaseController<
   async getLendingTokenAllowance(
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
-  ) {
+  ): Promise<BigNumber | undefined> {
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
@@ -1240,7 +1252,7 @@ export class EarnController extends BaseController<
   async getLendingTokenMaxWithdraw(
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
-  ) {
+  ): Promise<BigNumber | undefined> {
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
@@ -1265,7 +1277,7 @@ export class EarnController extends BaseController<
   async getLendingTokenMaxDeposit(
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
-  ) {
+  ): Promise<BigNumber | undefined> {
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
