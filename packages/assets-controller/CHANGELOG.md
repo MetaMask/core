@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `AssetsController` no longer silently skips asset fetching on startup for returning users ([#8412](https://github.com/MetaMask/core/pull/8412))
+  - Previously, `#start()` was called at keyring unlock before `AccountTreeController.init()` had built the account tree, causing `#selectedAccounts` to return an empty array and all subscriptions and fetches to be skipped. `selectedAccountGroupChange` does not fire when the persisted selected group is unchanged, leaving the controller idle.
+  - Now subscribes to `AccountTreeController:stateChange` (the base-controller event guaranteed to fire when `init()` calls `this.update()`), so the controller re-evaluates its active state once accounts are available.
+  - `#start()` is now idempotent: it returns early when accounts or chains are not yet available, and when subscriptions are already active, preventing duplicate fetches from repeated events.
+
 ## [5.0.0]
 
 ### Changed
