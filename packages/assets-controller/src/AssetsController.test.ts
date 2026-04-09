@@ -1806,7 +1806,8 @@ describe('AssetsController', () => {
         () => ({
           enabledNetworkMap: { eip155: { '1': true } },
           nativeAssetIdentifiers: {
-            'eip155:1': 'eip155:1/slip44:60' as `${string}:${string}/slip44:${number}`,
+            'eip155:1':
+              'eip155:1/slip44:60' as `${string}:${string}/slip44:${number}`,
           },
         }),
       );
