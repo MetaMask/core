@@ -1,12 +1,14 @@
 import type { Messenger } from '@metamask/messenger';
+import type { SnapControllerGetRunnableSnapsAction } from '@metamask/snaps-controllers';
+import type { Snap, SnapId } from '@metamask/snaps-sdk';
+
+import { projectLogger as log } from './logger';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's
  * actions and events.
  */
 export const serviceName = 'SnapAccountService';
-
-// === MESSENGER ===
 
 /**
  * All of the methods within {@link SnapAccountService} that are exposed via
@@ -22,7 +24,7 @@ export type SnapAccountServiceActions = never;
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
  */
-type AllowedActions = never;
+type AllowedActions = SnapControllerGetRunnableSnapsAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -45,6 +47,16 @@ export type SnapAccountServiceMessenger = Messenger<
 >;
 
 /**
+ * Checks if a given Snap is an account management Snap.
+ *
+ * @param snap - The Snap to check.
+ * @returns True if the Snap is an account management Snap, false otherwise.
+ */
+function isAccountManagementSnap(snap: Snap): boolean {
+  return snap.initialPermissions['endowment:keyring'] !== undefined;
+}
+
+/**
  * Service responsible for managing account management snaps.
  */
 export class SnapAccountService {
@@ -54,6 +66,8 @@ export class SnapAccountService {
   readonly name: typeof serviceName;
 
   readonly #messenger: SnapAccountServiceMessenger;
+
+  readonly #snaps: Set<SnapId> = new Set();
 
   /**
    * Constructs a new {@link SnapAccountService}.
@@ -72,9 +86,24 @@ export class SnapAccountService {
   }
 
   /**
-   * Initializes the snap account service.
+   * Initializes the Snap account service.
    */
   async init(): Promise<void> {
-    // TODO: Add initialization logic here.
+    const snaps = this.#messenger.call('SnapController:getRunnableSnaps');
+    for (const snap of snaps) {
+      if (isAccountManagementSnap(snap)) {
+        log(`Found account management Snap: ${snap.id}`);
+        this.#snaps.add(snap.id);
+      }
+    }
+  }
+
+  /**
+   * Returns the Snap IDs of all account management Snaps.
+   *
+   * @returns Set of Snap IDs of all account management Snaps.
+   */
+  getSnaps(): Set<SnapId> {
+    return this.#snaps;
   }
 }
