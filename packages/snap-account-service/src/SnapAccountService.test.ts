@@ -13,7 +13,7 @@ describe('SnapAccountService', () => {
     it('resolves without throwing', async () => {
       const { service } = createService();
 
-      await expect(service.init()).resolves.toBeUndefined();
+      expect(await service.init()).toBeUndefined();
     });
   });
 });
