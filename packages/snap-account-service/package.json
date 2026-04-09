@@ -68,6 +68,6 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@metamask/messenger": "workspace:^"
+    "@metamask/messenger": "^1.1.1"
   }
 }

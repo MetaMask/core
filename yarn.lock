@@ -4368,7 +4368,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/messenger@npm:^1.1.1, @metamask/messenger@workspace:^, @metamask/messenger@workspace:packages/messenger":
+"@metamask/messenger@npm:^1.1.1, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
   dependencies:
@@ -5271,7 +5271,7 @@ __metadata:
   resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/messenger": "workspace:^"
+    "@metamask/messenger": "npm:^1.1.1"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
