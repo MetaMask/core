@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace `@spruceid/siwe-parser` with `@signinwithethereum/siwe-parser` ^4.1.0 ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - The original package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `ParsedMessage` class API is unchanged.
+
 ## [11.20.0]
 
 ### Added
