@@ -716,10 +716,9 @@ const setupController = async ({
     selectedNetworkClientId,
   });
 
-  // We create a promise here and wait for it to resolve.
-  // We do this to try and ensure that the controller is fully initialized before we start testing.
-  // This is a hack; really we should implement an async 'init' method on the controller which does required async setup
-  // rather than having async calls in the constructor which is an anti-pattern.
+  controller.init();
+
+  // Wait for fire-and-forget async operations started by init() to settle.
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   return { controller, messenger };
@@ -741,7 +740,7 @@ describe('EarnController', () => {
 
     isSupportedLendingChainMock.mockReturnValue(true);
     isSupportedPooledStakingChainMock.mockReturnValue(true);
-    // Apply EarnSdk mock before initializing EarnController
+    // Apply EarnSdk mock before initializing EarnController`
     (EarnSdk.create as jest.Mock).mockImplementation(() => ({
       contracts: {
         pooledStaking: null,
@@ -845,6 +844,23 @@ describe('EarnController', () => {
         chainId: 1,
         env: EarnEnvironments.DEV,
       });
+    });
+  });
+
+  describe('init', () => {
+    it('does not re-run initialization if already initialized', async () => {
+      const { controller } = await setupController();
+
+      // init() was already called once inside setupController; call it again.
+      controller.init();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // EarnSdk.create and data-fetch calls should not have increased beyond
+      // the single init() call made during setupController.
+      expect(EarnSdk.create).toHaveBeenCalledTimes(1);
+      expect(
+        mockedEarnApiService?.pooledStaking?.getPooledStakes,
+      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI) from the first init()
     });
   });
 

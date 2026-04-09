@@ -341,6 +341,8 @@ export class EarnController extends BaseController<
 > {
   #earnSDK: EarnSdk | null = null;
 
+  #initialized = false;
+
   #selectedNetworkClientId: string;
 
   readonly #earnApiService: EarnApiService;
@@ -386,10 +388,6 @@ export class EarnController extends BaseController<
     this.#addTransactionFn = addTransactionFn;
 
     this.#selectedNetworkClientId = selectedNetworkClientId;
-
-    this.#initializeSDK(selectedNetworkClientId).catch(console.error);
-    this.refreshPooledStakingData().catch(console.error);
-    this.refreshLendingData().catch(console.error);
 
     // Listen for network changes
     this.messenger.subscribe(
@@ -464,6 +462,18 @@ export class EarnController extends BaseController<
         }
       },
     );
+  }
+
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+
+    this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
+    this.refreshPooledStakingData().catch(console.error);
+    this.refreshLendingData().catch(console.error);
+
+    this.#initialized = true;
   }
 
   /**
