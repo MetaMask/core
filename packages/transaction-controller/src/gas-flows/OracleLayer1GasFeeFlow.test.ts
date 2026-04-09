@@ -340,7 +340,9 @@ describe('OracleLayer1GasFeeFlow', () => {
           return true;
         }
 
-        protected override async transformOracleFee(oracleFee: BN): Promise<BN> {
+        protected override async transformOracleFee(
+          oracleFee: BN,
+        ): Promise<BN> {
           return oracleFee.mul(multiplier);
         }
 
