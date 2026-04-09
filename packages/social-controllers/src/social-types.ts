@@ -30,8 +30,12 @@ export type SocialHandles = {
  * A single trade within a position.
  */
 export type Trade = {
-  /** "buy" or "sell". */
+  /** "buy" or "sell" (semi-deprecated by Clicker in favor of intent). */
   direction: string;
+  /** "enter" or "exit" — preferred over direction. */
+  intent: string;
+  /** Trade category from Clicker (e.g. "receive" for airdrops/transfers). */
+  category?: string;
   /** Quantity traded. */
   tokenAmount: number;
   /** USD value of the trade. */

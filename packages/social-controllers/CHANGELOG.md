@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `intent` and optional `category` fields to `Trade` type ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.0` to `^1.1.1` ([#8373](https://github.com/MetaMask/core/pull/8373))
