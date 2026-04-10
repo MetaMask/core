@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `submissionMethod` property and `TransactionSubmissionMethod` enum to `TransactionMeta` ([#8375](https://github.com/MetaMask/core/pull/8375))
 - Export `getAccountAddressRelationship` function and `GetAccountAddressRelationshipRequest` type from the public API ([#8402](https://github.com/MetaMask/core/pull/8402))
+- Add `startTransaction` method for synchronous transaction creation with deferred async data resolution ([#8248](https://github.com/MetaMask/core/pull/8248))
 
 ### Changed
 

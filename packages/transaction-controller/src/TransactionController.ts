@@ -50,18 +50,13 @@ import type {
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import {
-  errorCodes,
-  rpcErrors,
-  providerErrors,
-  JsonRpcError,
-} from '@metamask/rpc-errors';
+import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -88,6 +83,14 @@ import {
   shouldResimulate,
 } from './helpers/ResimulateHelper';
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
+import {
+  startTransaction as startTransactionPipeline,
+  addTransaction as addTransactionPipeline,
+} from './lifecycle/pipeline';
+import type {
+  StartTransactionResult,
+  TransactionContext,
+} from './lifecycle/types';
 import { projectLogger as log } from './logger';
 import type { TransactionControllerMethodActions } from './TransactionController-method-action-types';
 import type {
@@ -147,7 +150,6 @@ import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
 } from './utils/feature-flags';
-import { updateFirstTimeInteraction } from './utils/first-time-interaction';
 import {
   addGasBuffer,
   estimateGas,
@@ -171,10 +173,7 @@ import {
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getChainId, getNetworkClientId, rpcRequest } from './utils/provider';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
-import {
-  updatePostTransactionBalance,
-  updateSwapsTransaction,
-} from './utils/swaps';
+import { updatePostTransactionBalance } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
   normalizeTransactionParams,
@@ -184,18 +183,9 @@ import {
   validateIfTransactionUnapprovedOrSubmitted,
   normalizeTxError,
   normalizeGasFeeValues,
-  setEnvelopeType,
 } from './utils/utils';
-import {
-  ErrorCode,
-  validateTransactionOrigin,
-  validateTxParams,
-} from './utils/validation';
+import { ErrorCode, validateTxParams } from './utils/validation';
 
-/**
- * Metadata for the TransactionController state, describing how to "anonymize"
- * the state and which parts should be persisted.
- */
 const metadata: StateMetadata<TransactionControllerState> = {
   transactions: {
     includeInStateLogs: true,
@@ -1111,6 +1101,26 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Create a transaction and add it to state immediately.
+   * All async data (gas, simulation, type) resolves in the background.
+   * The returned `result` promise resolves with the hash once approved and published.
+   *
+   * @param txParams - Standard parameters for an Ethereum transaction.
+   * @param options - Additional options to control how the transaction is added.
+   * @returns Object with the transaction metadata and a promise for the final hash.
+   */
+  startTransaction(
+    txParams: TransactionParams,
+    options: AddTransactionOptions,
+  ): StartTransactionResult {
+    return startTransactionPipeline(
+      txParams,
+      options,
+      this.#getTransactionContext(),
+    );
+  }
+
+  /**
    * Add a batch of transactions to be submitted after approval.
    *
    * @param request - Request object containing the transactions to add.
@@ -1179,272 +1189,11 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: AddTransactionOptions,
   ): Promise<Result> {
-    log('Adding transaction', txParams, options);
-
-    const {
-      actionId,
-      assetsFiatValues,
-      batchId,
-      deviceConfirmedOn,
-      disableGasBuffer,
-      gasFeeToken,
-      excludeNativeTokenForFee,
-      isGasFeeIncluded,
-      isGasFeeSponsored,
-      isStateOnly,
-      method,
-      nestedTransactions,
-      networkClientId,
-      origin,
-      publishHook,
-      requestId,
-      requiredAssets,
-      requireApproval,
-      securityAlertResponse,
-      skipInitialGasEstimate,
-      swaps = {},
-      traceContext,
-      type,
-    } = options;
-
-    // eslint-disable-next-line no-param-reassign
-    txParams = normalizeTransactionParams(txParams);
-
-    if (!this.#multichainTrackingHelper.has(networkClientId)) {
-      throw new Error(`Network client not found - ${networkClientId}`);
-    }
-
-    const chainId = getChainId({ messenger: this.messenger, networkClientId });
-
-    const permittedAddresses =
-      origin === undefined
-        ? undefined
-        : await this.#getPermittedAccounts?.(origin);
-
-    const internalAccounts = this.#getInternalAccounts();
-
-    await validateTransactionOrigin({
-      data: txParams.data,
-      from: txParams.from,
-      internalAccounts,
-      origin,
-      permittedAddresses,
+    return addTransactionPipeline(
       txParams,
-      type,
-    });
-
-    const delegationAddressPromise = getDelegationAddress(
-      txParams.from as Hex,
-      this.messenger,
-      networkClientId,
-    ).catch(() => undefined);
-
-    const isEIP1559Compatible =
-      await this.#getEIP1559Compatibility(networkClientId);
-
-    validateTxParams(txParams, isEIP1559Compatible, chainId);
-
-    if (!txParams.type) {
-      // Determine transaction type based on transaction parameters and network compatibility
-      setEnvelopeType(txParams, isEIP1559Compatible);
-    }
-
-    const isDuplicateBatchId =
-      batchId?.length &&
-      this.state.transactions.some(
-        (tx) => tx.batchId?.toLowerCase() === batchId?.toLowerCase(),
-      );
-
-    if (isDuplicateBatchId && origin && origin !== ORIGIN_METAMASK) {
-      throw new JsonRpcError(
-        ErrorCode.DuplicateBundleId,
-        'Batch ID already exists',
-      );
-    }
-
-    const dappSuggestedGasFees = this.#generateDappSuggestedGasFees(
-      txParams,
-      origin,
+      options,
+      this.#getTransactionContext(),
     );
-
-    const transactionType =
-      type ??
-      (
-        await determineTransactionType(txParams, {
-          messenger: this.messenger,
-          networkClientId,
-        })
-      ).type;
-
-    /**
-     * Original behavior was that this was set to 'true' whenever a gasFeeToken was passed.
-     * 'excludeNativeTokenForFee' optionally overrides this behavior to prevent native token from
-     * being used when another gasFeeToken is set.
-     */
-    const isGasFeeTokenIgnoredIfBalance =
-      Boolean(gasFeeToken) && !excludeNativeTokenForFee;
-    let addedTransactionMeta: TransactionMeta = {
-      actionId,
-      assetsFiatValues,
-      batchId,
-      chainId,
-      dappSuggestedGasFees,
-      deviceConfirmedOn,
-      disableGasBuffer,
-      id: random(),
-      isGasFeeTokenIgnoredIfBalance,
-      isGasFeeIncluded,
-      isGasFeeSponsored,
-      // To avoid the property to be set as undefined.
-      ...(excludeNativeTokenForFee === undefined
-        ? {}
-        : { excludeNativeTokenForFee }),
-      isFirstTimeInteraction: undefined,
-      isStateOnly,
-      nestedTransactions,
-      networkClientId,
-      origin,
-      requestId,
-      requiredAssets,
-      securityAlertResponse,
-      selectedGasFeeToken: gasFeeToken,
-      status: TransactionStatus.unapproved as const,
-      time: Date.now(),
-      txParams,
-      type: transactionType,
-      userEditedGasLimit: false,
-      verifiedOnBlockchain: false,
-    };
-
-    const { updateTransaction } = await this.#afterAdd({
-      transactionMeta: addedTransactionMeta,
-    });
-
-    if (updateTransaction) {
-      log('Updating transaction using afterAdd hook');
-
-      addedTransactionMeta.txParamsOriginal = cloneDeep(
-        addedTransactionMeta.txParams,
-      );
-
-      updateTransaction(addedTransactionMeta);
-    }
-
-    // eslint-disable-next-line no-negated-condition
-    if (!skipInitialGasEstimate) {
-      await this.#trace(
-        { name: 'Estimate Gas Properties', parentContext: traceContext },
-        (context) =>
-          this.#updateGasProperties(addedTransactionMeta, {
-            traceContext: context,
-          }),
-      );
-    } else {
-      const newTransactionMeta = cloneDeep(addedTransactionMeta);
-
-      this.#updateGasProperties(newTransactionMeta)
-        .then(() => {
-          this.#updateTransactionInternal(
-            {
-              transactionId: newTransactionMeta.id,
-              skipResimulateCheck: true,
-              skipValidation: true,
-            },
-            (tx) => {
-              tx.txParams.gas = newTransactionMeta.txParams.gas;
-              tx.txParams.gasPrice = newTransactionMeta.txParams.gasPrice;
-              tx.txParams.maxFeePerGas =
-                newTransactionMeta.txParams.maxFeePerGas;
-              tx.txParams.maxPriorityFeePerGas =
-                newTransactionMeta.txParams.maxPriorityFeePerGas;
-            },
-          );
-
-          return undefined;
-        })
-        .catch(noop);
-    }
-
-    // Set security provider response
-    if (method && this.#securityProviderRequest) {
-      const securityProviderResponse = await this.#securityProviderRequest(
-        addedTransactionMeta,
-        method,
-      );
-      // eslint-disable-next-line require-atomic-updates
-      addedTransactionMeta.securityProviderResponse = securityProviderResponse;
-    }
-
-    addedTransactionMeta = updateSwapsTransaction(
-      addedTransactionMeta,
-      transactionType,
-      swaps,
-      {
-        isSwapsDisabled: this.#isSwapsDisabled,
-        cancelTransaction: this.#rejectTransaction.bind(this),
-        messenger: this.messenger,
-      },
-    );
-
-    this.#addMetadata(addedTransactionMeta);
-
-    delegationAddressPromise
-      .then((delegationAddress) => {
-        this.#updateTransactionInternal(
-          {
-            transactionId: addedTransactionMeta.id,
-            skipResimulateCheck: true,
-            skipValidation: true,
-          },
-          (tx) => {
-            tx.delegationAddress = delegationAddress;
-          },
-        );
-
-        return undefined;
-      })
-      .catch(noop);
-
-    if (requireApproval !== false && !isStateOnly) {
-      this.#updateSimulationData(addedTransactionMeta, {
-        traceContext,
-      }).catch((error) => {
-        log('Error while updating simulation data', error);
-        throw error;
-      });
-
-      updateFirstTimeInteraction({
-        existingTransactions: this.state.transactions,
-        getTransaction: (transactionId: string) =>
-          this.#getTransaction(transactionId),
-        isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
-        trace: this.#trace,
-        traceContext,
-        transactionMeta: addedTransactionMeta,
-        updateTransaction: this.#updateTransactionInternal.bind(this),
-      }).catch((error) => {
-        log('Error while updating first interaction properties', error);
-      });
-    } else {
-      log(
-        'Skipping simulation & first interaction update as approval not required',
-      );
-    }
-
-    this.messenger.publish(
-      `${controllerName}:unapprovedTransactionAdded`,
-      addedTransactionMeta,
-    );
-
-    return {
-      result: this.#processApproval(addedTransactionMeta, {
-        actionId,
-        publishHook,
-        requireApproval,
-        traceContext,
-      }),
-      transactionMeta: addedTransactionMeta,
-    };
   }
 
   /**
@@ -1491,6 +1240,12 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ): Promise<void> {
+    if (this.#getTransaction(transactionId)?.ready === false) {
+      throw new Error(
+        'Cannot cancel transaction: essential async data has not resolved yet.',
+      );
+    }
+
     await this.#retryTransaction({
       actionId,
       estimatedBaseFee,
@@ -1535,6 +1290,12 @@ export class TransactionController extends BaseController<
       estimatedBaseFee,
     }: { actionId?: string; estimatedBaseFee?: string } = {},
   ): Promise<void> {
+    if (this.#getTransaction(transactionId)?.ready === false) {
+      throw new Error(
+        'Cannot speed up transaction: essential async data has not resolved yet.',
+      );
+    }
+
     await this.#retryTransaction({
       actionId,
       estimatedBaseFee,
@@ -2945,6 +2706,47 @@ export class TransactionController extends BaseController<
     );
   }
 
+  #getTransactionContext(): TransactionContext {
+    return {
+      getChainId: (networkClientId: string) =>
+        getChainId({ messenger: this.messenger, networkClientId }),
+      getEIP1559Compatibility: this.#getEIP1559Compatibility.bind(this),
+      afterAdd: this.#afterAdd.bind(this),
+      addMetadata: this.#addMetadata.bind(this),
+      cancelTransaction: this.#rejectTransaction.bind(this),
+      existingTransactions: this.state.transactions,
+      failTransaction: this.#failTransaction.bind(this),
+      generateDappSuggestedGasFees:
+        this.#generateDappSuggestedGasFees.bind(this),
+      getTransaction: (id: string) => this.#getTransaction(id),
+      getTransactionWithActionId: (actionId?: string) =>
+        actionId
+          ? this.state.transactions.find((tx) => tx.actionId === actionId)
+          : undefined,
+      isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
+      isSwapsDisabled: this.#isSwapsDisabled,
+      messenger: this.messenger,
+      publishEvent: (transactionMeta: TransactionMeta): void => {
+        this.messenger.publish(
+          `${controllerName}:unapprovedTransactionAdded`,
+          transactionMeta,
+        );
+      },
+      securityProviderRequest: this.#securityProviderRequest,
+      trace: this.#trace,
+      updateGasProperties: this.#updateGasProperties.bind(this),
+      updateSimulationData: this.#updateSimulationData.bind(this),
+      updateTransactionInternal: this.#updateTransactionInternal.bind(this),
+      hasNetworkClient: (networkClientId: string) =>
+        this.#multichainTrackingHelper.has(networkClientId),
+      getInternalAccounts: this.#getInternalAccounts.bind(this),
+      getPermittedAccounts: this.#getPermittedAccounts,
+      requestApproval: this.#requestApproval.bind(this),
+      processApproval: (transactionMeta, opts) =>
+        this.#processApproval(transactionMeta, opts),
+    };
+  }
+
   #onBootCleanup(): void {
     this.clearUnapprovedTransactions();
     this.#failIncompleteTransactions();
@@ -2999,12 +2801,16 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     {
       actionId,
+      approvalPromise,
+      isExisting: _isExisting = false,
       publishHook,
       requireApproval,
       shouldShowRequest = true,
       traceContext,
     }: {
       actionId?: string;
+      approvalPromise?: Promise<AddResult>;
+      isExisting?: boolean;
       publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
@@ -3035,14 +2841,16 @@ export class TransactionController extends BaseController<
     if (meta && !isCompleted) {
       try {
         if (requireApproval !== false) {
-          const acceptResult = await this.#trace(
-            { name: 'Await Approval', parentContext: traceContext },
-            (context) =>
-              this.#requestApproval(transactionMeta, {
-                shouldShowRequest,
-                traceContext: context,
-              }),
-          );
+          const acceptResult = approvalPromise
+            ? await approvalPromise
+            : await this.#trace(
+                { name: 'Await Approval', parentContext: traceContext },
+                (context) =>
+                  this.#requestApproval(transactionMeta, {
+                    shouldShowRequest,
+                    traceContext: context,
+                  }),
+              );
 
           resultCallbacks = acceptResult.resultCallbacks;
 

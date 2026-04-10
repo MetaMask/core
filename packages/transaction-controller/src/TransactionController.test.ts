@@ -3307,6 +3307,71 @@ describe('TransactionController', () => {
           await expect(result).rejects.toThrow('Unknown problem');
         });
       });
+
+      describe('ready gate', () => {
+        it('resolves data before approval when using startTransaction', async () => {
+          const { controller } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: 'approved',
+              },
+            },
+          });
+
+          const { result } = controller.startTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await result;
+
+          expect(controller.state.transactions[0]).toMatchObject(
+            expect.objectContaining({
+              status: TransactionStatus.submitted,
+              ready: true,
+            }),
+          );
+        });
+
+        it('proceeds normally when ready is undefined', async () => {
+          const { controller } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: 'approved',
+              },
+            },
+          });
+
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await result;
+
+          expect(controller.state.transactions[0]).toMatchObject(
+            expect.objectContaining({
+              status: TransactionStatus.submitted,
+            }),
+          );
+        });
+      });
     });
 
     describe('on reject', () => {
@@ -3661,6 +3726,245 @@ describe('TransactionController', () => {
           batchId: BATCH_ID_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
         });
+      });
+    });
+
+    describe('startTransaction', () => {
+      it('returns immediately with ready false', () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(transactionMeta.ready).toBe(false);
+        expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      });
+
+      it('adds transaction to state immediately', () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const txInState = controller.state.transactions.find(
+          (tx) => tx.id === transactionMeta.id,
+        );
+
+        expect(txInState).toBeDefined();
+        expect(txInState?.ready).toBe(false);
+      });
+
+      it('sets ready to true after background resolution', async () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        const txInState = controller.state.transactions.find(
+          (tx) => tx.id === transactionMeta.id,
+        );
+
+        expect(txInState?.ready).toBe(true);
+      });
+
+      it('throws with an external origin', () => {
+        const { controller } = setupController();
+
+        expect(() =>
+          controller.startTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+              origin: 'https://metamask.github.io/test-dapp/',
+            },
+          ),
+        ).toThrow(
+          'startTransaction is not supported for external transactions.',
+        );
+      });
+
+      it('does not throw with ORIGIN_METAMASK', () => {
+        const { controller } = setupController();
+
+        const startResult = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_METAMASK,
+          },
+        );
+
+        expect(startResult).toMatchObject({
+          transactionMeta: expect.objectContaining({ ready: false }),
+        });
+      });
+
+      it('publishes unapprovedTransactionAdded event immediately', () => {
+        const { controller, messenger } = setupController();
+        const listener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:unapprovedTransactionAdded',
+          listener,
+        );
+
+        controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener.mock.calls[0][0]).toMatchObject({ ready: false });
+      });
+
+      it('does not set ready when using addTransaction', async () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        expect(transactionMeta.ready).toBeUndefined();
+      });
+
+      it('uses caller-provided type without waiting for background', () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            type: TransactionType.simpleSend,
+          },
+        );
+
+        expect(transactionMeta.type).toBe(TransactionType.simpleSend);
+      });
+
+      it('works with requireApproval false', () => {
+        const { controller } = setupController();
+
+        const { transactionMeta, result } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            requireApproval: false,
+          },
+        );
+
+        result.catch(() => undefined);
+
+        expect(transactionMeta.ready).toBe(false);
+        expect(
+          controller.state.transactions.some(
+            (tx) => tx.id === transactionMeta.id,
+          ),
+        ).toBe(true);
+      });
+
+      it('adds multiple transactions in quick succession', () => {
+        uuidModuleMock.v1
+          .mockImplementationOnce(() => 'aaa-instant-1')
+          .mockImplementationOnce(() => 'bbb-instant-2')
+          .mockImplementationOnce(() => 'ccc-instant-3');
+
+        const { controller } = setupController();
+
+        const results = [
+          controller.startTransaction(
+            { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+            { networkClientId: NETWORK_CLIENT_ID_MOCK },
+          ),
+          controller.startTransaction(
+            { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+            { networkClientId: NETWORK_CLIENT_ID_MOCK },
+          ),
+          controller.startTransaction(
+            { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+            { networkClientId: NETWORK_CLIENT_ID_MOCK },
+          ),
+        ];
+
+        const ids = results.map((res) => res.transactionMeta.id);
+
+        expect(new Set(ids).size).toBe(3);
+        expect(
+          controller.state.transactions.filter((tx) => ids.includes(tx.id)),
+        ).toHaveLength(3);
+      });
+
+      it('fails the transaction if background resolution throws', async () => {
+        updateGasMock.mockImplementationOnce(() => {
+          throw new Error('gas estimation failed');
+        });
+
+        const { controller } = setupController();
+
+        const { transactionMeta, result } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        result.catch(() => undefined);
+
+        await flushPromises();
+
+        const txInState = controller.state.transactions.find(
+          (tx) => tx.id === transactionMeta.id,
+        );
+
+        expect(txInState?.status).toBe(TransactionStatus.failed);
       });
     });
   });
@@ -4107,6 +4411,55 @@ describe('TransactionController', () => {
         }),
       ]);
     });
+
+    describe('when ready is false', () => {
+      it('throws when transaction has ready false', async () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(
+          controller.stopTransaction(transactionMeta.id),
+        ).rejects.toThrow(
+          'Cannot cancel transaction: essential async data has not resolved yet.',
+        );
+      });
+
+      it('does not throw ready error when ready is undefined', async () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const stopResult = controller
+          .stopTransaction(transactionMeta.id)
+          .then(() => ({ threw: false, message: '' }))
+          .catch((error: Error) => ({ threw: true, message: error.message }));
+
+        const outcome = await stopResult;
+
+        expect(
+          !outcome.threw ||
+            outcome.message !==
+              'Cannot cancel transaction: essential async data has not resolved yet.',
+        ).toBe(true);
+      });
+    });
   });
 
   describe('speedUpTransaction', () => {
@@ -4500,6 +4853,55 @@ describe('TransactionController', () => {
           origin: ORIGIN_METAMASK,
         }),
       ]);
+    });
+
+    describe('when ready is false', () => {
+      it('throws when transaction has ready false', async () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = controller.startTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await expect(
+          controller.speedUpTransaction(transactionMeta.id),
+        ).rejects.toThrow(
+          'Cannot speed up transaction: essential async data has not resolved yet.',
+        );
+      });
+
+      it('does not throw ready error when ready is undefined', async () => {
+        const { controller } = setupController();
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const speedUpResult = controller
+          .speedUpTransaction(transactionMeta.id)
+          .then(() => ({ threw: false, message: '' }))
+          .catch((error: Error) => ({ threw: true, message: error.message }));
+
+        const outcome = await speedUpResult;
+
+        expect(
+          !outcome.threw ||
+            outcome.message !==
+              'Cannot speed up transaction: essential async data has not resolved yet.',
+        ).toBe(true);
+      });
     });
   });
 

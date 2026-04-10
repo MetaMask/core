@@ -140,3 +140,11 @@ export type {
   GetAccountAddressRelationshipRequest,
   AccountAddressRelationshipResult,
 } from './api/accounts-api';
+export { addTransaction, startTransaction } from './lifecycle/pipeline';
+export { data } from './lifecycle/stages/data';
+export type {
+  PipelineCallbacks,
+  StartTransactionResult,
+  TransactionContext,
+  TransactionStage,
+} from './lifecycle/types';

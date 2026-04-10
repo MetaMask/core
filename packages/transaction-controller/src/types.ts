@@ -386,6 +386,11 @@ export type TransactionMeta = {
   rawTx?: string;
 
   /**
+   * Whether essential async data has been resolved for this transaction. Set to false when added with the instant option; flips to true once gas estimation, gas fee calculation, and transaction type resolution complete. Undefined for non-instant transactions (treated as ready).
+   */
+  ready?: boolean;
+
+  /**
    * When the transaction is dropped, this is the replacement transaction hash.
    */
   replacedBy?: string;
