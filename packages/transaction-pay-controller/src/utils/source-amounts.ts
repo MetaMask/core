@@ -1,5 +1,4 @@
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller/src/src';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -10,6 +9,7 @@ import type {
   TransactionPaymentToken,
 } from '..';
 import { TransactionPayStrategy } from '..';
+import type { TransactionMeta } from '../../../transaction-controller/src';
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { projectLogger } from '../logger';
 import type {
