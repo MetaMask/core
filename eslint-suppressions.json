@@ -928,17 +928,14 @@
       "count": 3
     }
   },
-  "packages/earn-controller/src/EarnController.test.ts": {
+  "packages/delegation-controller/src/utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     }
   },
   "packages/earn-controller/src/EarnController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
-    "id-length": {
-      "count": 2
+      "count": 4
     },
     "no-negated-condition": {
       "count": 3
