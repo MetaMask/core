@@ -1,3 +1,22 @@
+import type { Hex } from '@metamask/utils';
+
+// === COMMON TYPES ===
+
+export type DelegationCaveat = {
+  enforcer: Hex;
+  terms: Hex;
+  args: Hex;
+};
+
+export type SignedDelegation = {
+  delegate: Hex;
+  delegator: Hex;
+  authority: Hex;
+  caveats: DelegationCaveat[];
+  salt: Hex;
+  signature: Hex;
+};
+
 // === REQUEST TYPES ===
 
 export type AssociateAddressRequest = {
@@ -17,21 +36,30 @@ export type CreateUpgradeRequest = {
 };
 
 export type VerifyDelegationRequest = {
-  signedDelegation: string;
-  chainId: string;
+  signedDelegation: SignedDelegation;
+  chainId: Hex;
 };
 
-/**
- * A single intent to be submitted to the Chomp API.
- * TODO: Define the full shape of an intent once the API schema is confirmed.
- */
-export type SendIntentRequest = Record<string, unknown>;
+export type IntentMetadataRequest = {
+  allowance: Hex;
+  tokenSymbol: string;
+  tokenAddress: Hex;
+  type: 'cash-deposit' | 'cash-withdrawal';
+};
 
-/**
- * TODO: Define request shape once the withdrawal endpoint path and schema are
- * confirmed against CHOMP API docs.
- */
-export type CreateWithdrawalRequest = Record<string, unknown>;
+export type SendIntentRequest = {
+  account: Hex;
+  delegationHash: Hex;
+  chainId: Hex;
+  metadata: IntentMetadataRequest;
+};
+
+export type CreateWithdrawalRequest = {
+  chainId: Hex;
+  /** Decimal integer or 0x-prefixed hex string representing the amount. */
+  amount: string;
+  account: Hex;
+};
 
 // === RESPONSE TYPES ===
 
@@ -49,7 +77,6 @@ export type CreateUpgradeResponse = {
 
 /**
  * The upgrade record returned by GET /v1/account-upgrade/:address.
- * TODO: Confirm full shape against CHOMP API docs.
  */
 export type GetUpgradeResponse = {
   signerAddress: string;
@@ -63,14 +90,38 @@ export type VerifyDelegationResponse = {
   errors?: string[];
 };
 
-/**
- * A single intent response.
- * TODO: Define the full shape once the API schema is confirmed.
- */
-export type SendIntentResponse = Record<string, unknown>;
+export type IntentMetadataResponse = {
+  allowance: Hex;
+  tokenSymbol: string;
+  tokenAddress: Hex;
+  type: 'cash-deposit' | 'cash-withdrawal';
+};
+
+export type SendIntentResponse = {
+  delegationHash: string;
+  metadata: IntentMetadataResponse;
+  createdAt: string;
+};
 
 /**
- * TODO: Define response shape once the withdrawal endpoint path and schema are
- * confirmed against CHOMP API docs.
+ * The shape returned by GET /v1/intent/account/:address for each intent.
+ *
+ * Note: the metadata `type` uses 'deposit' | 'withdraw' here, whereas the
+ * create-intent endpoint uses 'cash-deposit' | 'cash-withdrawal'.
  */
-export type CreateWithdrawalResponse = Record<string, unknown>;
+export type IntentEntry = {
+  account: Hex;
+  delegationHash: Hex;
+  chainId: Hex;
+  status: 'active' | 'revoked';
+  metadata: {
+    allowance: Hex;
+    tokenAddress: Hex;
+    tokenSymbol: string;
+    type: 'deposit' | 'withdraw';
+  };
+};
+
+export type CreateWithdrawalResponse = {
+  success: true;
+};

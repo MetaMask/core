@@ -4,8 +4,22 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
+import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import {
+  array,
+  boolean,
+  create,
+  enums,
+  literal,
+  optional,
+  string,
+  type,
+} from '@metamask/superstruct';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
@@ -17,6 +31,7 @@ import type {
   CreateWithdrawalRequest,
   CreateWithdrawalResponse,
   GetUpgradeResponse,
+  IntentEntry,
   SendIntentRequest,
   SendIntentResponse,
   VerifyDelegationRequest,
@@ -68,8 +83,9 @@ type AllowedActions = never;
 /**
  * Published when {@link ChompApiService}'s cache is updated.
  */
-export type ChompApiServiceCacheUpdatedEvent =
-  DataServiceCacheUpdatedEvent<typeof serviceName>;
+export type ChompApiServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
 
 /**
  * Published when a key within {@link ChompApiService}'s cache is updated.
@@ -99,6 +115,58 @@ export type ChompApiServiceMessenger = Messenger<
   ChompApiServiceEvents | AllowedEvents
 >;
 
+// === RESPONSE VALIDATION ===
+
+const AssociateAddressResponseStruct = type({
+  profileId: string(),
+  address: string(),
+  status: string(),
+});
+
+const UpgradeResponseStruct = type({
+  signerAddress: string(),
+  status: string(),
+  createdAt: string(),
+});
+
+const VerifyDelegationResponseStruct = type({
+  valid: boolean(),
+  delegationHash: optional(string()),
+  errors: optional(array(string())),
+});
+
+const SendIntentResponseArrayStruct = array(
+  type({
+    delegationHash: string(),
+    metadata: type({
+      allowance: string(),
+      tokenSymbol: string(),
+      tokenAddress: string(),
+      type: enums(['cash-deposit', 'cash-withdrawal']),
+    }),
+    createdAt: string(),
+  }),
+);
+
+const IntentEntryArrayStruct = array(
+  type({
+    account: string(),
+    delegationHash: string(),
+    chainId: string(),
+    status: enums(['active', 'revoked']),
+    metadata: type({
+      allowance: string(),
+      tokenAddress: string(),
+      tokenSymbol: string(),
+      type: enums(['deposit', 'withdraw']),
+    }),
+  }),
+);
+
+const CreateWithdrawalResponseStruct = type({
+  success: literal(true),
+});
+
 // === SERVICE DEFINITION ===
 
 /**
@@ -115,7 +183,7 @@ export class ChompApiService extends BaseDataService<
 
   readonly #getAccessToken: () => Promise<string>;
 
-  readonly #fetch: typeof globalThis.fetch;
+  readonly #mutationPolicy: ServicePolicy;
 
   /**
    * Constructs a new ChompApiService.
@@ -125,8 +193,6 @@ export class ChompApiService extends BaseDataService<
    * @param args.baseUrl - The base URL of the CHOMP API.
    * @param args.getAccessToken - An async callback that returns a valid JWT
    * access token for authenticating requests.
-   * @param args.fetchFn - An optional custom fetch implementation. Defaults to
-   * the global `fetch`.
    * @param args.queryClientConfig - Configuration for the underlying TanStack
    * Query client.
    * @param args.policyOptions - Options to pass to `createServicePolicy`.
@@ -135,14 +201,12 @@ export class ChompApiService extends BaseDataService<
     messenger,
     baseUrl,
     getAccessToken,
-    fetchFn = globalThis.fetch,
     queryClientConfig = {},
     policyOptions = {},
   }: {
     messenger: ChompApiServiceMessenger;
     baseUrl: string;
     getAccessToken: () => Promise<string>;
-    fetchFn?: typeof globalThis.fetch;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
   }) {
@@ -155,7 +219,7 @@ export class ChompApiService extends BaseDataService<
 
     this.#baseUrl = baseUrl;
     this.#getAccessToken = getAccessToken;
-    this.#fetch = fetchFn;
+    this.#mutationPolicy = createServicePolicy(policyOptions);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -177,36 +241,59 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
+   * Makes an authenticated POST request to the CHOMP API.
+   *
+   * @param path - The URL path relative to the base URL.
+   * @param body - The request body to serialize as JSON.
+   * @param acceptedStatuses - HTTP status codes that should be returned rather
+   * than treated as errors (e.g. 409 for conflict).
+   * @returns The raw fetch Response.
+   */
+  async #postJson(
+    path: string,
+    body: unknown,
+    acceptedStatuses: number[] = [],
+  ): Promise<Response> {
+    const headers = await this.#authHeaders();
+    return this.#mutationPolicy.execute(async () => {
+      const response = await fetch(new URL(path, this.#baseUrl), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok && !acceptedStatuses.includes(response.status)) {
+        throw new HttpError(
+          response.status,
+          `POST ${path} failed with status '${response.status}'`,
+        );
+      }
+
+      return response;
+    });
+  }
+
+  /**
    * Associates an address with a CHOMP profile.
    *
    * POST /v1/auth/address
    *
-   * TODO: Implement the request using this.fetchQuery or direct POST via
-   * this.#fetch. Validate the response with a superstruct. Note that a 409
-   * response is valid and should be returned (not thrown).
-   *
    * @param request - The association request containing signature, timestamp,
    * and address.
-   * @returns The profile association result.
+   * @returns The profile association result. Returns on both 201 and 409.
    */
   async associateAddress(
     request: AssociateAddressRequest,
   ): Promise<AssociateAddressResponse> {
-    // TODO: POST to `${this.#baseUrl}/v1/auth/address` with JSON body.
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Return response body on 200 or 409; throw on other non-OK statuses.
-    // TODO: Validate response shape with superstruct before returning.
-    const _headers = await this.#authHeaders();
-    void request;
-    throw new Error('Not implemented');
+    const response = await this.#postJson('/v1/auth/address', request, [409]);
+    const json = await response.json();
+    return create(json, AssociateAddressResponseStruct);
   }
 
   /**
    * Creates an account upgrade request.
    *
    * POST /v1/account-upgrade
-   *
-   * TODO: Implement the POST request. Validate the response with a superstruct.
    *
    * @param request - The upgrade request containing signature components and
    * chain details.
@@ -215,13 +302,9 @@ export class ChompApiService extends BaseDataService<
   async createUpgrade(
     request: CreateUpgradeRequest,
   ): Promise<CreateUpgradeResponse> {
-    // TODO: POST to `${this.#baseUrl}/v1/account-upgrade` with JSON body.
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Throw on non-OK responses.
-    // TODO: Validate response shape with superstruct before returning.
-    const _headers = await this.#authHeaders();
-    void request;
-    throw new Error('Not implemented');
+    const response = await this.#postJson('/v1/account-upgrade', request);
+    const json = await response.json();
+    return create(json, UpgradeResponseStruct);
   }
 
   /**
@@ -229,21 +312,39 @@ export class ChompApiService extends BaseDataService<
    *
    * GET /v1/account-upgrade/:address
    *
-   * TODO: Implement the GET request. Return null on 404. Validate the response
-   * with a superstruct for non-404 responses.
-   *
    * @param address - The address to look up.
    * @returns The upgrade record, or null if not found.
    */
   async getUpgrade(address: string): Promise<GetUpgradeResponse | null> {
-    // TODO: GET `${this.#baseUrl}/v1/account-upgrade/${address}`.
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Return null on 404, throw on other non-OK statuses.
-    // TODO: Validate response shape with superstruct before returning.
-    // TODO: Consider using this.fetchQuery with a queryKey for caching.
-    const _headers = await this.#authHeaders();
-    void address;
-    throw new Error('Not implemented');
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:getUpgrade`, address],
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL(`/v1/account-upgrade/${address}`, this.#baseUrl),
+          { headers },
+        );
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Get upgrade request failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (jsonResponse === null) {
+      return null;
+    }
+
+    return create(jsonResponse, UpgradeResponseStruct);
   }
 
   /**
@@ -251,21 +352,18 @@ export class ChompApiService extends BaseDataService<
    *
    * POST /v1/intent/verify-delegation
    *
-   * TODO: Implement the POST request. Validate the response with a superstruct.
-   *
    * @param request - The delegation verification request.
    * @returns The verification result including validity and optional errors.
    */
   async verifyDelegation(
     request: VerifyDelegationRequest,
   ): Promise<VerifyDelegationResponse> {
-    // TODO: POST to `${this.#baseUrl}/v1/intent/verify-delegation` with JSON body.
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Throw on non-OK responses.
-    // TODO: Validate response shape with superstruct before returning.
-    const _headers = await this.#authHeaders();
-    void request;
-    throw new Error('Not implemented');
+    const response = await this.#postJson(
+      '/v1/intent/verify-delegation',
+      request,
+    );
+    const json = await response.json();
+    return create(json, VerifyDelegationResponseStruct);
   }
 
   /**
@@ -273,22 +371,15 @@ export class ChompApiService extends BaseDataService<
    *
    * POST /v1/intent
    *
-   * TODO: Implement the POST request. Validate the response array with a
-   * superstruct.
-   *
    * @param intents - The array of intents to submit.
    * @returns The array of intent responses.
    */
   async createIntents(
     intents: SendIntentRequest[],
   ): Promise<SendIntentResponse[]> {
-    // TODO: POST to `${this.#baseUrl}/v1/intent` with JSON body.
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Throw on non-OK responses.
-    // TODO: Validate response shape with superstruct before returning.
-    const _headers = await this.#authHeaders();
-    void intents;
-    throw new Error('Not implemented');
+    const response = await this.#postJson('/v1/intent', intents);
+    const json = await response.json();
+    return create(json, SendIntentResponseArrayStruct) as SendIntentResponse[];
   }
 
   /**
@@ -296,43 +387,47 @@ export class ChompApiService extends BaseDataService<
    *
    * GET /v1/intent/account/:address
    *
-   * TODO: Implement the GET request. Validate the response array with a
-   * superstruct.
-   *
    * @param address - The address to look up intents for.
    * @returns The array of intents for the address.
    */
-  async getIntentsByAddress(
-    address: string,
-  ): Promise<SendIntentResponse[]> {
-    // TODO: GET `${this.#baseUrl}/v1/intent/account/${address}`.
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Throw on non-OK responses.
-    // TODO: Validate response shape with superstruct before returning.
-    // TODO: Consider using this.fetchQuery with a queryKey for caching.
-    const _headers = await this.#authHeaders();
-    void address;
-    throw new Error('Not implemented');
+  async getIntentsByAddress(address: string): Promise<IntentEntry[]> {
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:getIntentsByAddress`, address],
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL(`/v1/intent/account/${address}`, this.#baseUrl),
+          { headers },
+        );
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Get intents request failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, IntentEntryArrayStruct) as IntentEntry[];
   }
 
   /**
    * Creates a withdrawal for card spend flows.
    *
-   * TODO: Confirm the endpoint path against CHOMP API docs.
-   * TODO: Implement the POST request. Validate the response with a superstruct.
+   * POST /v1/withdrawal
    *
-   * @param request - The withdrawal request.
+   * @param request - The withdrawal request containing chainId, amount
+   * (decimal or hex string), and account address.
    * @returns The withdrawal result.
    */
   async createWithdrawal(
     request: CreateWithdrawalRequest,
   ): Promise<CreateWithdrawalResponse> {
-    // TODO: Confirm endpoint path (e.g. POST `${this.#baseUrl}/v1/withdrawal`).
-    // TODO: Include Authorization header via this.#authHeaders().
-    // TODO: Throw on non-OK responses.
-    // TODO: Validate response shape with superstruct before returning.
-    const _headers = await this.#authHeaders();
-    void request;
-    throw new Error('Not implemented');
+    const response = await this.#postJson('/v1/withdrawal', request);
+    const json = await response.json();
+    return create(json, CreateWithdrawalResponseStruct);
   }
 }

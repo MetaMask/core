@@ -1,9 +1,11 @@
+import { DEFAULT_MAX_RETRIES } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import nock from 'nock';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service';
 import { ChompApiService } from './chomp-api-service';
@@ -12,127 +14,445 @@ const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
 
 describe('ChompApiService', () => {
-  describe('constructor', () => {
-    it('can be constructed with baseUrl, getAccessToken, and messenger', () => {
-      const { service } = createService();
-      expect(service).toBeInstanceOf(ChompApiService);
-    });
-
-    it('accepts a custom fetch implementation', () => {
-      const customFetch = jest.fn();
-      const { service } = createService({
-        options: { fetchFn: customFetch as unknown as typeof globalThis.fetch },
-      });
-      expect(service).toBeInstanceOf(ChompApiService);
-    });
-  });
-
   describe('associateAddress', () => {
-    // TODO: Test POST /v1/auth/address with correct URL, method, headers
-    //   (Authorization: Bearer <token>), and JSON body { signature, timestamp, address }.
-    // TODO: Test that 200 returns { profileId, address, status }.
-    // TODO: Test that 409 returns the response body (not throws).
-    // TODO: Test that other non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    it('sends a POST with auth headers and returns the response on 201', async () => {
+      nock(BASE_URL)
+        .post('/v1/auth/address', {
+          signature: '0x123',
+          timestamp: '2026-01-01T00:00:00Z',
+          address: '0xabc',
+        })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .matchHeader('Content-Type', 'application/json')
+        .reply(201, {
+          profileId: 'p1',
+          address: '0xabc',
+          status: 'created',
+        });
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:associateAddress',
+        {
+          signature: '0x123',
+          timestamp: '2026-01-01T00:00:00Z',
+          address: '0xabc',
+        },
+      );
+
+      expect(result).toStrictEqual({
+        profileId: 'p1',
+        address: '0xabc',
+        status: 'created',
+      });
+    });
+
+    it('returns the response on 409 without throwing', async () => {
+      nock(BASE_URL).post('/v1/auth/address').reply(409, {
+        profileId: 'p1',
+        address: '0xabc',
+        status: 'already_associated',
+      });
       const { service } = createService();
-      await expect(service.associateAddress({
+
+      const result = await service.associateAddress({
         signature: '0x123',
         timestamp: '2026-01-01T00:00:00Z',
         address: '0xabc',
-      })).rejects.toThrow('Not implemented');
+      });
+
+      expect(result).toStrictEqual({
+        profileId: 'p1',
+        address: '0xabc',
+        status: 'already_associated',
+      });
+    });
+
+    it('throws on non-201/409 status', async () => {
+      nock(BASE_URL)
+        .post('/v1/auth/address')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
+      await expect(
+        service.associateAddress({
+          signature: '0x123',
+          timestamp: '2026-01-01T00:00:00Z',
+          address: '0xabc',
+        }),
+      ).rejects.toThrow("POST /v1/auth/address failed with status '500'");
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v1/auth/address')
+        .reply(201, JSON.stringify({ missing: 'fields' }));
+      const { service } = createService();
+
+      await expect(
+        service.associateAddress({
+          signature: '0x123',
+          timestamp: '2026-01-01T00:00:00Z',
+          address: '0xabc',
+        }),
+      ).rejects.toThrow('At path: profileId -- Expected a string');
     });
   });
 
   describe('createUpgrade', () => {
-    // TODO: Test POST /v1/account-upgrade with correct URL, method, headers
-    //   (Authorization: Bearer <token>), and JSON body { r, s, v, yParity, address, chainId, nonce }.
-    // TODO: Test that 200 returns { signerAddress, status, createdAt }.
-    // TODO: Test that non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    const upgradeRequest = {
+      r: '0x1',
+      s: '0x2',
+      v: 27,
+      yParity: 0,
+      address: '0xabc',
+      chainId: '1',
+      nonce: '0',
+    };
+
+    const upgradeResponse = {
+      signerAddress: '0xdef',
+      status: 'pending',
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+
+    it('sends a POST with auth headers and returns the response', async () => {
+      nock(BASE_URL)
+        .post('/v1/account-upgrade', upgradeRequest)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, upgradeResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:createUpgrade',
+        upgradeRequest,
+      );
+
+      expect(result).toStrictEqual(upgradeResponse);
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
       const { service } = createService();
-      await expect(service.createUpgrade({
-        r: '0x1',
-        s: '0x2',
-        v: 27,
-        yParity: 0,
-        address: '0xabc',
-        chainId: '1',
-        nonce: '0',
-      })).rejects.toThrow('Not implemented');
+
+      await expect(service.createUpgrade(upgradeRequest)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '500'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .reply(200, JSON.stringify({ bad: 'data' }));
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeRequest)).rejects.toThrow(
+        'At path: signerAddress -- Expected a string',
+      );
     });
   });
 
   describe('getUpgrade', () => {
-    // TODO: Test GET /v1/account-upgrade/:address with correct URL, method,
-    //   and headers (Authorization: Bearer <token>).
-    // TODO: Test that 200 returns the upgrade record.
-    // TODO: Test that 404 returns null.
-    // TODO: Test that other non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    const upgradeRecord = {
+      signerAddress: '0xdef',
+      status: 'pending',
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+
+    it('sends a GET with auth headers and returns the upgrade record', async () => {
+      nock(BASE_URL)
+        .get('/v1/account-upgrade/0xabc')
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, upgradeRecord);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:getUpgrade',
+        '0xabc',
+      );
+
+      expect(result).toStrictEqual(upgradeRecord);
+    });
+
+    it('returns null on 404', async () => {
+      nock(BASE_URL).get('/v1/account-upgrade/0xabc').reply(404);
       const { service } = createService();
+
+      const result = await service.getUpgrade('0xabc');
+
+      expect(result).toBeNull();
+    });
+
+    it('throws on non-OK/non-404 status', async () => {
+      nock(BASE_URL)
+        .get('/v1/account-upgrade/0xabc')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
       await expect(service.getUpgrade('0xabc')).rejects.toThrow(
-        'Not implemented',
+        "Get upgrade request failed with status '500'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .get('/v1/account-upgrade/0xabc')
+        .reply(200, JSON.stringify({ bad: 'data' }));
+      const { service } = createService();
+
+      await expect(service.getUpgrade('0xabc')).rejects.toThrow(
+        'At path: signerAddress -- Expected a string',
       );
     });
   });
 
   describe('verifyDelegation', () => {
-    // TODO: Test POST /v1/intent/verify-delegation with correct URL, method,
-    //   headers (Authorization: Bearer <token>), and JSON body { signedDelegation, chainId }.
-    // TODO: Test that 200 returns { valid, delegationHash?, errors? }.
-    // TODO: Test that non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    const delegationRequest = {
+      signedDelegation: {
+        delegate: '0x1' as const,
+        delegator: '0x2' as const,
+        authority: '0x3' as const,
+        caveats: [],
+        salt: '0x4' as const,
+        signature: '0x5' as const,
+      },
+      chainId: '0x1' as const,
+    };
+
+    it('sends a POST with auth headers and returns the response', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent/verify-delegation', delegationRequest)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, { valid: true, delegationHash: '0xhash123' });
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:verifyDelegation',
+        delegationRequest,
+      );
+
+      expect(result).toStrictEqual({
+        valid: true,
+        delegationHash: '0xhash123',
+      });
+    });
+
+    it('returns errors when delegation is invalid', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent/verify-delegation')
+        .reply(200, { valid: false, errors: ['bad signature'] });
       const { service } = createService();
-      await expect(service.verifyDelegation({
-        signedDelegation: '0x123',
-        chainId: '1',
-      })).rejects.toThrow('Not implemented');
+
+      const result = await service.verifyDelegation(delegationRequest);
+
+      expect(result).toStrictEqual({
+        valid: false,
+        errors: ['bad signature'],
+      });
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent/verify-delegation')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(400);
+      const { service } = createService();
+
+      await expect(service.verifyDelegation(delegationRequest)).rejects.toThrow(
+        "POST /v1/intent/verify-delegation failed with status '400'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent/verify-delegation')
+        .reply(200, JSON.stringify({ bad: 'data' }));
+      const { service } = createService();
+
+      await expect(service.verifyDelegation(delegationRequest)).rejects.toThrow(
+        'At path: valid -- Expected a value of type `boolean`',
+      );
     });
   });
 
   describe('createIntents', () => {
-    // TODO: Test POST /v1/intent with correct URL, method, headers
-    //   (Authorization: Bearer <token>), and JSON body (array of intents).
-    // TODO: Test that 200 returns SendIntentResponse[].
-    // TODO: Test that non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    const intentRequest = [
+      {
+        account: '0xabc' as const,
+        delegationHash: '0xdef' as const,
+        chainId: '0x1' as const,
+        metadata: {
+          allowance: '0xff' as const,
+          tokenSymbol: 'USDC',
+          tokenAddress: '0x123' as const,
+          type: 'cash-deposit' as const,
+        },
+      },
+    ];
+
+    const intentResponse = [
+      {
+        delegationHash: '0xdef',
+        metadata: {
+          allowance: '0xff',
+          tokenSymbol: 'USDC',
+          tokenAddress: '0x123',
+          type: 'cash-deposit',
+        },
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ];
+
+    it('sends a POST with auth headers and returns the response array', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent', intentRequest)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(201, intentResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:createIntents',
+        intentRequest,
+      );
+
+      expect(result).toStrictEqual(intentResponse);
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(409);
       const { service } = createService();
-      await expect(service.createIntents([{ foo: 'bar' }])).rejects.toThrow(
-        'Not implemented',
+
+      await expect(service.createIntents(intentRequest)).rejects.toThrow(
+        "POST /v1/intent failed with status '409'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v1/intent')
+        .reply(201, JSON.stringify([{ bad: 'data' }]));
+      const { service } = createService();
+
+      await expect(service.createIntents(intentRequest)).rejects.toThrow(
+        'At path: 0.delegationHash -- Expected a string',
       );
     });
   });
 
   describe('getIntentsByAddress', () => {
-    // TODO: Test GET /v1/intent/account/:address with correct URL, method,
-    //   and headers (Authorization: Bearer <token>).
-    // TODO: Test that 200 returns an array of intents.
-    // TODO: Test that non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    const intentsResponse = [
+      {
+        account: '0xabc',
+        delegationHash: '0xdef',
+        chainId: '0x1',
+        status: 'active',
+        metadata: {
+          allowance: '0xff',
+          tokenAddress: '0x123',
+          tokenSymbol: 'USDC',
+          type: 'deposit',
+        },
+      },
+    ];
+
+    it('sends a GET with auth headers and returns the intents array', async () => {
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, intentsResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:getIntentsByAddress',
+        '0xabc',
+      );
+
+      expect(result).toStrictEqual(intentsResponse);
+    });
+
+    it('returns an empty array when no intents exist', async () => {
+      nock(BASE_URL).get('/v1/intent/account/0xabc').reply(200, []);
       const { service } = createService();
+
+      const result = await service.getIntentsByAddress('0xabc');
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
       await expect(service.getIntentsByAddress('0xabc')).rejects.toThrow(
-        'Not implemented',
+        "Get intents request failed with status '500'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .reply(200, JSON.stringify([{ bad: 'data' }]));
+      const { service } = createService();
+
+      await expect(service.getIntentsByAddress('0xabc')).rejects.toThrow(
+        'At path: 0.account -- Expected a string',
       );
     });
   });
 
   describe('createWithdrawal', () => {
-    // TODO: Confirm endpoint path against CHOMP API docs.
-    // TODO: Test POST to the withdrawal endpoint with correct URL, method,
-    //   headers (Authorization: Bearer <token>), and JSON body.
-    // TODO: Test that 200 returns the withdrawal result.
-    // TODO: Test that non-OK statuses throw.
-    // TODO: Test response validation rejects malformed responses.
-    it('is registered as a messenger action', async () => {
+    const withdrawalRequest = {
+      chainId: '0x1' as const,
+      amount: '1000000',
+      account: '0xabc' as const,
+    };
+
+    it('sends a POST with auth headers and returns the response', async () => {
+      nock(BASE_URL)
+        .post('/v1/withdrawal', withdrawalRequest)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, { success: true });
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:createWithdrawal',
+        withdrawalRequest,
+      );
+
+      expect(result).toStrictEqual({ success: true });
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .post('/v1/withdrawal')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(400);
       const { service } = createService();
-      await expect(service.createWithdrawal({})).rejects.toThrow(
-        'Not implemented',
+
+      await expect(service.createWithdrawal(withdrawalRequest)).rejects.toThrow(
+        "POST /v1/withdrawal failed with status '400'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v1/withdrawal')
+        .reply(200, JSON.stringify({ success: false }));
+      const { service } = createService();
+
+      await expect(service.createWithdrawal(withdrawalRequest)).rejects.toThrow(
+        'At path: success -- Expected the literal `true`',
       );
     });
   });
@@ -196,7 +516,7 @@ function createService({
   const messenger = createServiceMessenger(rootMessenger);
   const service = new ChompApiService({
     baseUrl: BASE_URL,
-    getAccessToken: async () => MOCK_TOKEN,
+    getAccessToken: async (): Promise<string> => MOCK_TOKEN,
     messenger,
     ...options,
   });
