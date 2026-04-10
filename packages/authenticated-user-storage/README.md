@@ -17,24 +17,42 @@ or
 
 ## Usage
 
-### Creating a client
+### Creating a service
 
-The constructor requires two options:
+`AuthenticatedUserStorage` extends `BaseDataService` and requires a messenger, an environment, and an access-token callback:
 
+- **`messenger`** -- a namespaced messenger for registering actions and events.
 - **`env`** -- selects the backend environment (`DEV`, `UAT`, or `PRD`).
-- **`getAccessToken`** -- an async callback that returns a valid JWT access token for the current user. In MetaMask clients this is wired through the messenger to `AuthenticationController:getBearerToken`, which handles the full SRP-based OIDC login flow internally.
+- **`getAccessToken`** -- an async callback that returns a valid JWT access token for the current user.
 
 ```typescript
+import { Messenger } from '@metamask/messenger';
 import {
   AuthenticatedUserStorage,
   Env,
 } from '@metamask/authenticated-user-storage';
+import type {
+  AuthenticatedUserStorageMessenger,
+  AuthenticatedUserStorageActions,
+  AuthenticatedUserStorageEvents,
+} from '@metamask/authenticated-user-storage';
 
-// Inside a controller that has access to the messenger:
-const storage = new AuthenticatedUserStorage({
+// Create the messenger
+const messenger = new Messenger<
+  'AuthenticatedUserStorage',
+  AuthenticatedUserStorageActions,
+  AuthenticatedUserStorageEvents
+>({
+  namespace: 'AuthenticatedUserStorage',
+  parent: rootMessenger,
+});
+
+// Instantiate the service
+const service = new AuthenticatedUserStorage({
+  messenger,
   env: Env.PRD,
   getAccessToken: () =>
-    this.messenger.call('AuthenticationController:getBearerToken'),
+    rootMessenger.call('AuthenticationController:getBearerToken'),
 });
 ```
 
@@ -46,27 +64,35 @@ The `env` option selects the backend environment:
 | `Env.UAT`   | `user-storage.uat-api.cx.metamask.io` |
 | `Env.PRD`   | `user-storage.api.cx.metamask.io`     |
 
-The `AuthenticationController` manages the full authentication lifecycle (SRP key derivation, nonce signing, backend authentication, OIDC token exchange, and session caching). Callers do not need to handle tokens directly -- the `getBearerToken` action returns a cached access token or transparently re-authenticates when the session has expired.
+### Calling methods via the messenger
+
+Once instantiated, all service methods are available as messenger actions. This allows any consumer with access to the messenger to call them without needing a direct reference to the service instance:
+
+```typescript
+const delegations = await rootMessenger.call(
+  'AuthenticatedUserStorage:listDelegations',
+);
+```
 
 ### Delegations
 
 Delegations are immutable once stored. They can only be revoked (deleted), not updated.
 
 ```typescript
-import type { Hex, DelegationSubmission } from '@metamask/authenticated-user-storage';
+import type { DelegationSubmission } from '@metamask/authenticated-user-storage';
 
 // List all delegations for the authenticated user
-const delegations = await storage.delegations.list();
+const delegations = await service.listDelegations();
 
 // Submit a new signed delegation
 const submission: DelegationSubmission = {
   signedDelegation: { ... },
   metadata: { ... },
 };
-await storage.delegations.create(submission, 'extension');
+await service.createDelegation(submission, 'extension');
 
 // Revoke a delegation by its hash
-await storage.delegations.revoke('0xdae6d1...');
+await service.revokeDelegation('0xdae6d1...');
 ```
 
 ### Notification preferences
@@ -74,10 +100,10 @@ await storage.delegations.revoke('0xdae6d1...');
 Preferences are mutable. The first call creates the record; subsequent calls update it.
 
 ```typescript
-import type { NotificationPreferences, Hex } from '@metamask/authenticated-user-storage';
+import type { NotificationPreferences } from '@metamask/authenticated-user-storage';
 
 // Retrieve current preferences (returns null if none have been set)
-const prefs = await storage.preferences.getNotifications();
+const prefs = await service.getNotificationPreferences();
 
 // Create or update preferences
 const updated: NotificationPreferences = {
@@ -86,26 +112,26 @@ const updated: NotificationPreferences = {
   perps: { ... },
   socialAI: { ... },
 };
-await storage.preferences.putNotifications(updated, 'extension');
+await service.putNotificationPreferences(updated, 'extension');
 ```
 
 ## Response validation
 
-All API responses are validated at runtime using [`@metamask/superstruct`](https://github.com/MetaMask/superstruct) schemas before being returned to callers. If the server returns data that doesn't match the expected shape, the SDK throws an `AuthenticatedUserStorageError` with details about the structural mismatch rather than silently returning malformed data.
+All API responses are validated at runtime using [`@metamask/superstruct`](https://github.com/MetaMask/superstruct) schemas before being returned to callers. If the server returns data that doesn't match the expected shape, the SDK throws with details about the structural mismatch rather than silently returning malformed data.
 
 ## Error handling
 
-All methods throw `AuthenticatedUserStorageError` on failure. This covers HTTP errors, response validation failures, and network issues. The error message includes the HTTP status code and the server's error response when available.
+HTTP errors are represented as `HttpError` from `@metamask/controller-utils`. All errors are encouraged to bubble up to the caller. The service policy provided by `BaseDataService` automatically retries transient failures before propagating the error.
 
 ```typescript
-import { AuthenticatedUserStorageError } from '@metamask/authenticated-user-storage';
+import { HttpError } from '@metamask/controller-utils';
 
 try {
-  await storage.delegations.create(submission);
+  await service.createDelegation(submission);
 } catch (error) {
-  if (error instanceof AuthenticatedUserStorageError) {
+  if (error instanceof HttpError) {
     console.error(error.message);
-    // e.g. "failed to create delegation. HTTP 409 message: delegation already exists, error: Conflict"
+    // e.g. "Failed to create delegation: 409"
   }
 }
 ```
