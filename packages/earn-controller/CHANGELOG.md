@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `EarnController` constructor no longer accepts `selectedNetworkClientId`, no longer triggers async work during construction, and now requires `AccountTreeController:stateChanged` and `NetworkController:getState` to be available on its messenger. Consumers must call `init()` after construction to start SDK initialization, initial data fetches, and account-dependent refresh scheduling ([#8421](https://github.com/MetaMask/core/pull/8421))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 
