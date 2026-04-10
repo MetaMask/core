@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^13.0.0` to `^13.1.0` ([#8407](https://github.com/MetaMask/core/pull/8407))
+
 ## [19.1.0]
 
 ### Added

@@ -36,6 +36,7 @@ export type {
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types';
 
+export { TradeStruct } from './social-types';
 export type {
   FetchFollowersOptions,
   FetchFollowingOptions,

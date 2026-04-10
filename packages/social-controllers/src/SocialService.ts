@@ -36,6 +36,7 @@ import type {
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types';
+import { TradeStruct } from './social-types';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types';
 
 // ---------------------------------------------------------------------------
@@ -54,14 +55,6 @@ const ProfileSummaryStruct = structType({
   address: string(),
   name: string(),
   imageUrl: optional(nullable(string())),
-});
-
-const TradeStruct = structType({
-  direction: string(),
-  tokenAmount: number(),
-  usdCost: number(),
-  timestamp: number(),
-  transactionHash: string(),
 });
 
 const PositionStruct = structType({

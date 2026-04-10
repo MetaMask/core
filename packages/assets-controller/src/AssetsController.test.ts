@@ -1789,4 +1789,86 @@ describe('AssetsController', () => {
       });
     });
   });
+
+  describe('account tree state change', () => {
+    it('triggers start when tree initializes after unlock with empty accounts', async () => {
+      const getAccountsMock = jest.fn().mockReturnValue([]);
+
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        getAccountsMock,
+      );
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: { eip155: { '1': true } },
+          nativeAssetIdentifiers: {
+            'eip155:1':
+              'eip155:1/slip44:60' as `${string}:${string}/slip44:${number}`,
+          },
+        }),
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('ClientController:getState', () => ({
+        isUiOpen: true,
+      }));
+
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient: createMockQueryApiClient(),
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op */
+        },
+      });
+
+      const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+      // Step 1: UI open + unlock — accounts empty, #start() is a no-op
+      (
+        messenger as unknown as {
+          publish: (topic: string, payload?: unknown) => void;
+        }
+      ).publish('ClientController:stateChange', { isUiOpen: true });
+      messenger.publish('KeyringController:unlock');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(getAssetsSpy).not.toHaveBeenCalled();
+
+      // Step 2: AccountTreeController.init() completes — accounts now available
+      getAccountsMock.mockReturnValue([createMockInternalAccount()]);
+      (messenger.publish as CallableFunction)(
+        'AccountTreeController:stateChange',
+        {},
+        [],
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+      expect(getAssetsSpy).toHaveBeenCalledWith(
+        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+        expect.objectContaining({ forceUpdate: true }),
+      );
+    });
+  });
 });

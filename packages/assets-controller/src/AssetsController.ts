@@ -1,6 +1,7 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
@@ -282,6 +283,7 @@ type AllowedActions =
 type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | AccountTreeControllerStateChangeEvent
   | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
@@ -864,6 +866,17 @@ export class AssetsController extends BaseController<
         this.#handleAccountGroupChanged().catch(console.error);
       },
     );
+
+    // Catch the initial tree build. On returning users,
+    // `selectedAccountGroupChange` does NOT fire when the persisted group
+    // is unchanged, and `accountTreeChange` doesn't fire either (init()
+    // rebuilds from persisted accounts without publishing it).
+    // The base-controller `:stateChange` event is guaranteed to fire
+    // when init() calls this.update(). #start() is idempotent so
+    // repeated fires are safe.
+    this.messenger.subscribe('AccountTreeController:stateChange', () => {
+      this.#updateActive();
+    });
 
     // Subscribe to network enablement changes (only enabledNetworkMap)
     this.messenger.subscribe(
@@ -2047,18 +2060,30 @@ export class AssetsController extends BaseController<
 
   /**
    * Start asset tracking: subscribe to updates and fetch current balances.
-   * Called when app opens, account changes, or keyring unlocks.
+   * Idempotent — returns early if accounts/chains are not yet available or
+   * subscriptions are already active.
    */
   #start(): void {
+    const accounts = this.#selectedAccounts;
+    const chainIds = [...this.#enabledChains];
+
+    if (accounts.length === 0 || chainIds.length === 0) {
+      return;
+    }
+
+    if (this.#activeSubscriptions.size > 0) {
+      return;
+    }
+
     log('Starting asset tracking', {
-      selectedAccountCount: this.#selectedAccounts.length,
-      enabledChainCount: this.#enabledChains.size,
+      selectedAccountCount: accounts.length,
+      enabledChainCount: chainIds.length,
     });
 
     this.#subscribeAssets();
     this.#ensureNativeBalancesDefaultZero();
-    this.getAssets(this.#selectedAccounts, {
-      chainIds: [...this.#enabledChains],
+    this.getAssets(accounts, {
+      chainIds,
       forceUpdate: true,
     }).catch((error) => {
       log('Failed to fetch assets', error);
