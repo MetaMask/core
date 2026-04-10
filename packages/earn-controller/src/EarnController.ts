@@ -584,6 +584,7 @@ export class EarnController extends BaseController<
       this.messenger.unsubscribe('AccountTreeController:stateChange', handler);
       this.#refreshEarnPortfolio(address);
     };
+    // eslint-disable-next-line no-restricted-syntax
     this.messenger.subscribe('AccountTreeController:stateChange', handler);
   }
 
