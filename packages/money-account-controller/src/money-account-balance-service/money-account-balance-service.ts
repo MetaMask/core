@@ -7,34 +7,33 @@ import type {
 } from '@metamask/base-data-service';
 import { BaseDataService } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { HttpError } from '@metamask/controller-utils';
+import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByChainIdAction,
 } from '@metamask/network-controller';
+import { is } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 import { Duration, inMilliseconds } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
-  ACCOUNTANT_CONTRACT_ADDRESS,
-  MUSD_CONTRACT_ADDRESS,
-  MUSD_DECIMALS,
-  MUSDHFVD_CONTRACT_ADDRESS,
-  VAULT_CHAIN_ID,
-  VEDA_NETWORK,
+  DEFAULT_VEDA_API_NETWORK_NAME,
+  VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
 } from './constants';
+import { VedaResponseValidationError } from './errors';
 import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
+import { normalizeVaultApyResponse } from './requestNormalization';
 import type {
+  Erc20BalanceResponse,
   ExchangeRateResponse,
-  MusdBalanceResponse,
   MusdEquivalentValueResponse,
-  MusdSHFvdBalanceResponse,
   VaultApyResponse,
-} from './types';
+} from './response.types';
+import { VaultApyResponseStruct } from './structs';
 
 // === GENERAL ===
 
@@ -110,6 +109,24 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
   MoneyAccountBalanceServiceEvents | AllowedEvents
 >;
 
+export type MoneyAccountBalanceServiceConfig = {
+  /** The address of the Veda vault (musdSHFvd token contract). */
+  vaultAddress: Hex;
+  /** The chain ID of the Veda vault. */
+  vaultChainId: Hex;
+  /** The address of the Veda Accountant contract. */
+  accountantAddress: Hex;
+  /** The address of the underlying token (mUSD). Must be on the same chain as the vault. */
+  underlyingTokenAddress: Hex;
+  /**
+   * The decimals of the underlying token. Also determines the precision of
+   * the Accountant's `getRate()` return value.
+   */
+  underlyingTokenDecimals: number;
+  /** Base URL for the Veda Seven Seas performance API. Defaults to https://api.sevenseas.capital. */
+  vedaApiBaseUrl?: string;
+};
+
 // === SERVICE DEFINITION ===
 
 /**
@@ -126,6 +143,13 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  * ```ts
  * const service = new MoneyAccountBalanceService({
  *   messenger: moneyAccountBalanceServiceMessenger,
+ *   config: {
+ *     vaultAddress: '0x...',
+ *     vaultChainId: '0xa4b1',
+ *     accountantAddress: '0x...',
+ *     underlyingTokenAddress: '0x...',
+ *     underlyingTokenDecimals: 6,
+ *   },
  * });
  *
  * const { balance } = await service.getMusdBalance('0xYourMoneyAccount...');
@@ -135,6 +159,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
   typeof serviceName,
   MoneyAccountBalanceServiceMessenger
 > {
+  readonly #config: MoneyAccountBalanceServiceConfig;
+
+  readonly #networkName: string;
+
   /**
    * Constructs a new MoneyAccountBalanceService.
    *
@@ -142,19 +170,36 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param args.messenger - The messenger suited for this service.
    * @param args.policyOptions - Options to pass to `createServicePolicy`,
    * which is used to wrap each request.
+   * @param args.config - The configuration for the service.
    */
   constructor({
     messenger,
     policyOptions = {},
+    config,
   }: {
     messenger: MoneyAccountBalanceServiceMessenger;
+    config: MoneyAccountBalanceServiceConfig;
     policyOptions?: CreateServicePolicyOptions;
   }) {
     super({
       name: serviceName,
       messenger,
-      policyOptions,
+      policyOptions: {
+        ...policyOptions,
+        retryFilterPolicy: handleWhen(
+          (error) => !(error instanceof VedaResponseValidationError),
+        ),
+      },
     });
+
+    this.#config = {
+      ...config,
+      vedaApiBaseUrl: config.vedaApiBaseUrl ?? VEDA_PERFORMANCE_API_BASE_URL,
+    };
+
+    this.#networkName =
+      VEDA_API_NETWORK_NAMES[this.#config.vaultChainId] ??
+      DEFAULT_VEDA_API_NETWORK_NAME;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -163,7 +208,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Resolves a Web3Provider for {@link VAULT_CHAIN_ID} by looking up the
+   * Resolves a Web3Provider for {@link MoneyAccountBalanceServiceConfig.vaultChainId} by looking up the
    * network configuration and client via the messenger.
    *
    * @returns A Web3Provider connected to the vault chain.
@@ -173,12 +218,12 @@ export class MoneyAccountBalanceService extends BaseDataService<
   #getProvider(): Web3Provider {
     const config = this.messenger.call(
       'NetworkController:getNetworkConfigurationByChainId',
-      VAULT_CHAIN_ID,
+      this.#config.vaultChainId,
     );
 
     if (!config) {
       throw new Error(
-        `No network configuration found for chain ${VAULT_CHAIN_ID}`,
+        `No network configuration found for chain ${this.#config.vaultChainId}`,
       );
     }
 
@@ -191,10 +236,29 @@ export class MoneyAccountBalanceService extends BaseDataService<
     );
 
     if (!networkClient?.provider) {
-      throw new Error(`No provider found for chain ${VAULT_CHAIN_ID}`);
+      throw new Error(
+        `No provider found for chain ${this.#config.vaultChainId}`,
+      );
     }
 
     return new Web3Provider(networkClient.provider);
+  }
+
+  /**
+   * Fetches the ERC-20 balance for the given contract address and account address via RPC.
+   *
+   * @param contractAddress - The address of the ERC-20 contract.
+   * @param accountAddress - The address of the account.
+   * @returns The balance as a raw uint256 string.
+   */
+  async #fetchErc20Balance(
+    contractAddress: Hex,
+    accountAddress: Hex,
+  ): Promise<Erc20BalanceResponse> {
+    const provider = this.#getProvider();
+    const contract = new Contract(contractAddress, abiERC20, provider);
+    const balance = await contract.balanceOf(accountAddress);
+    return balance.toString();
   }
 
   /**
@@ -203,18 +267,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The mUSD balance as a raw uint256 string.
    */
-  async getMusdBalance(accountAddress: Hex): Promise<MusdBalanceResponse> {
+  async getMusdBalance(accountAddress: Hex): Promise<Erc20BalanceResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
-        const provider = this.#getProvider();
-        const contract = new Contract(
-          MUSD_CONTRACT_ADDRESS,
-          abiERC20,
-          provider,
+        const balance = await this.#fetchErc20Balance(
+          this.#config.underlyingTokenAddress,
+          accountAddress,
         );
-        const balance = await contract.balanceOf(accountAddress);
-        return { balance: balance.toString() };
+        return { balance };
       },
       staleTime: inMilliseconds(30, Duration.Second),
     });
@@ -229,18 +290,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
    */
   async getMusdSHFvdBalance(
     accountAddress: Hex,
-  ): Promise<MusdSHFvdBalanceResponse> {
+  ): Promise<Erc20BalanceResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdSHFvdBalance`, accountAddress],
       queryFn: async () => {
-        const provider = this.#getProvider();
-        const contract = new Contract(
-          MUSDHFVD_CONTRACT_ADDRESS,
-          abiERC20,
-          provider,
+        const balance = await this.#fetchErc20Balance(
+          this.#config.vaultAddress,
+          accountAddress,
         );
-        const balance = await contract.balanceOf(accountAddress);
-        return { balance: balance.toString() } as MusdSHFvdBalanceResponse;
+        return { balance };
       },
       staleTime: inMilliseconds(30, Duration.Second),
     });
@@ -259,12 +317,12 @@ export class MoneyAccountBalanceService extends BaseDataService<
       queryFn: async () => {
         const provider = this.#getProvider();
         const contract = new Contract(
-          ACCOUNTANT_CONTRACT_ADDRESS,
+          this.#config.accountantAddress,
           ACCOUNTANT_ABI,
           provider,
         );
         const rate = await contract.getRate();
-        return { rate: rate.toString() } as ExchangeRateResponse;
+        return { rate: rate.toString() };
       },
       staleTime: inMilliseconds(30, Duration.Second),
     });
@@ -275,11 +333,6 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * Internally fetches the musdSHFvd balance and exchange rate (using cached
    * values when available within their staleTime windows), then multiplies
    * them.
-   *
-   * The Veda Accountant's `getRate()` returns the exchange rate in
-   * `MUSD_DECIMALS` (6) precision (e.g., `1000000` = 1.0, `1050000` = 1.05).
-   * Dividing by `10^MUSD_DECIMALS` removes the rate's scaling, producing
-   * a result in the same 6-decimal raw units as mUSD.
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The musdSHFvd balance, exchange rate, and computed
@@ -296,9 +349,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
     const balanceBigInt = BigInt(musdSHFvdBalance);
     const rateBigInt = BigInt(exchangeRate);
+
     const musdEquivalentValue = (
       (balanceBigInt * rateBigInt) /
-      BigInt(10 ** MUSD_DECIMALS)
+      10n ** BigInt(this.#config.underlyingTokenDecimals)
     ).toString();
 
     return {
@@ -309,18 +363,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Fetches the vault's APY and fee breakdown from the Veda performance REST
-   * API at `api.sevenseas.capital`.
+   * Fetches the vault's APY and fee breakdown from the Veda performance REST API.
    *
-   * @returns The 7-day trailing net APY, fees, and per-position breakdown.
+   * @returns The normalized vault APY response.
    */
   async getVaultApy(): Promise<VaultApyResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getVaultApy`],
       queryFn: async () => {
         const url = new URL(
-          `/performance/${VEDA_NETWORK}/${MUSDHFVD_CONTRACT_ADDRESS}`,
-          VEDA_PERFORMANCE_API_BASE_URL,
+          `/performance/${this.#networkName}/${this.#config.vaultAddress}`,
+          this.#config.vedaApiBaseUrl,
         );
 
         const response = await fetch(url);
@@ -332,26 +385,16 @@ export class MoneyAccountBalanceService extends BaseDataService<
           );
         }
 
-        const json = await response.json();
+        const rawResponse = await response.json();
 
-        return {
-          apy: json.apy ?? null,
-          fees: json.global_apy_breakdown?.fees ?? null,
-          performanceFees: json.performance_fees ?? null,
-          apyBreakdown: (
-            json.global_apy_breakdown?.real_apy_breakdown ?? []
-          ).map(
-            (entry: {
-              category?: string;
-              apy?: number;
-              allocation?: number;
-            }) => ({
-              category: entry.category ?? 'unknown',
-              apy: entry.apy ?? null,
-              allocation: entry.allocation ?? null,
-            }),
-          ),
-        } as VaultApyResponse;
+        // Validate raw response inside queryFn to avoid poisoned cache.
+        if (!is(rawResponse, VaultApyResponseStruct)) {
+          throw new VedaResponseValidationError(
+            'Malformed response received from Veda performance API',
+          );
+        }
+
+        return normalizeVaultApyResponse(rawResponse);
       },
       staleTime: inMilliseconds(5, Duration.Minute),
     });

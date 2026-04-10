@@ -1,18 +1,8 @@
-// TODO: Determine if this is necessary. See if other existing data services have similar type definitions.
-// TODO: Validate if types are accurate.
 /**
- * Response from {@link MoneyAccountBalanceService.getMusdBalance}.
+ * Response from {@link MoneyAccountBalanceService.#fetchErc20Balance}.
  * Balance is a raw uint256 string (no decimal normalization).
  */
-export type MusdBalanceResponse = {
-  balance: string;
-};
-
-/**
- * Response from {@link MoneyAccountBalanceService.getMusdSHFvdBalance}.
- * Balance is a raw uint256 string (no decimal normalization).
- */
-export type MusdSHFvdBalanceResponse = {
+export type Erc20BalanceResponse = {
   balance: string;
 };
 
@@ -27,7 +17,7 @@ export type ExchangeRateResponse = {
 /**
  * Response from {@link MoneyAccountBalanceService.getMusdEquivalentValue}.
  * All values are raw uint256 strings. The `musdEquivalentValue` is
- * `musdSHFvdBalance * exchangeRate / 1e18`.
+ * `musdSHFvdBalance * exchangeRate / 10^underlyingTokenDecimals` (= 1e6 for mUSD).
  */
 export type MusdEquivalentValueResponse = {
   musdSHFvdBalance: string;
@@ -36,22 +26,28 @@ export type MusdEquivalentValueResponse = {
 };
 
 /**
- * Per-position APY entry from the Veda performance API's
- * `global_apy_breakdown.real_apy_breakdown` array.
- */
-export type VaultApyBreakdownEntry = {
-  category: string;
-  apy: number;
-  allocation: number;
-};
-
-/**
  * Response from {@link MoneyAccountBalanceService.getVaultApy}.
  * All APY / fee values are decimals (multiply by 100 for percentage).
  */
 export type VaultApyResponse = {
+  aggregationPeriod: string; // E.g. "7 days"
   apy: number;
+  chainAllocation: {
+    [network: string]: number;
+  };
   fees: number;
+  globalApyBreakdown: {
+    fee: number;
+    maturityApy: number;
+    realApy: number;
+  };
   performanceFees: number;
-  apyBreakdown: VaultApyBreakdownEntry[];
+  realApyBreakdown: {
+    allocation: number;
+    apy: number;
+    apyNet: number;
+    chain: string;
+    protocol: string;
+  }[];
+  timestamp: string;
 };
