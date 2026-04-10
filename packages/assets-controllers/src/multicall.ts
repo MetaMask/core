@@ -1304,19 +1304,23 @@ const getNftOwnershipViaMulticall = async (
     if (results[nftIndex].isOwned !== undefined) {
       return;
     }
-    if (callVariant === 'erc721') {
-      const [owner] = erc721Contract.interface.decodeFunctionResult(
-        OWNER_OF_FUNCTION,
-        data,
-      );
-      results[nftIndex].isOwned =
-        owner.toLowerCase() === nfts[nftIndex].userAddress.toLowerCase();
-    } else {
-      const [balance] = erc1155Contract.interface.decodeFunctionResult(
-        ERC1155_BALANCE_OF_FUNCTION,
-        data,
-      );
-      results[nftIndex].isOwned = new BN(balance.toString()).gt(new BN(0));
+    try {
+      if (callVariant === 'erc721') {
+        const [owner] = erc721Contract.interface.decodeFunctionResult(
+          OWNER_OF_FUNCTION,
+          data,
+        );
+        results[nftIndex].isOwned =
+          owner.toLowerCase() === nfts[nftIndex].userAddress.toLowerCase();
+      } else {
+        const [balance] = erc1155Contract.interface.decodeFunctionResult(
+          ERC1155_BALANCE_OF_FUNCTION,
+          data,
+        );
+        results[nftIndex].isOwned = new BN(balance.toString()).gt(new BN(0));
+      }
+    } catch {
+      // Malformed return data from a non-standard contract; leave isOwned as undefined.
     }
   });
 

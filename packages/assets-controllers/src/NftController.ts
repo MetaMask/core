@@ -1906,7 +1906,7 @@ export class NftController extends BaseController<
       return;
     }
 
-    const updatedNfts = nfts.filter((nft, index) => {
+    const updatedNfts = nfts.filter((_nft, index) => {
       const { isOwned } = ownershipResults[index];
       return isOwned !== false;
     });
