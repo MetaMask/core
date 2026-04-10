@@ -28,54 +28,75 @@ export type PasskeyAuthenticationSession = {
 
 export type Base64URLString = string;
 
-export type PublicKeyCredentialRpEntityJSON = {
+export type ResidentKeyRequirement = 'discouraged' | 'preferred' | 'required';
+export type UserVerificationRequirement =
+  | 'discouraged'
+  | 'preferred'
+  | 'required';
+export type AuthenticatorAttachment = 'cross-platform' | 'platform';
+export type AttestationConveyancePreference =
+  | 'direct'
+  | 'enterprise'
+  | 'indirect'
+  | 'none';
+export type PublicKeyCredentialHint =
+  | 'hybrid'
+  | 'security-key'
+  | 'client-device';
+
+export type PublicKeyCredentialRpEntity = {
   id?: string;
   name: string;
 };
 
-export type PublicKeyCredentialUserEntityJSON = {
+export type COSEAlgorithmIdentifier = number;
+export type PublicKeyCredentialType = 'public-key';
+
+export type PublicKeyCredentialParameters = {
+  alg: COSEAlgorithmIdentifier;
+  type: PublicKeyCredentialType;
+};
+
+export type PublicKeyCredentialUserEntity = {
   id: Base64URLString;
   name: string;
   displayName: string;
 };
 
-export type PublicKeyCredentialParametersJSON = {
-  alg: number;
-  type: 'public-key';
-};
-
-export type AuthenticatorSelectionCriteriaJSON = {
-  authenticatorAttachment?: string;
+export type AuthenticatorSelectionCriteria = {
+  authenticatorAttachment?: AuthenticatorAttachment;
   requireResidentKey?: boolean;
-  residentKey?: string;
-  userVerification?: string;
+  residentKey?: ResidentKeyRequirement;
+  userVerification?: UserVerificationRequirement;
 };
 
-export type PublicKeyCredentialDescriptorJSON = {
+export type PublicKeyCredentialDescriptor = {
   id: Base64URLString;
   type: 'public-key';
 };
 
-export type PrfEvalExtensionJSON = {
+export type PrfEvalExtension = {
   eval: {
     first: Base64URLString;
   };
 };
 
-export type AuthenticationExtensionsClientInputsJSON = {
-  prf?: PrfEvalExtensionJSON;
+export type AuthenticationExtensionsClientInputs = {
+  prf?: PrfEvalExtension;
 };
 
 export type PasskeyRegistrationOptions = {
-  rp: PublicKeyCredentialRpEntityJSON;
-  user: PublicKeyCredentialUserEntityJSON;
+  rp: PublicKeyCredentialRpEntity;
+  user: PublicKeyCredentialUserEntity;
   challenge: Base64URLString;
-  pubKeyCredParams: PublicKeyCredentialParametersJSON[];
+  pubKeyCredParams: PublicKeyCredentialParameters[];
   timeout?: number;
-  excludeCredentials?: PublicKeyCredentialDescriptorJSON[];
-  authenticatorSelection?: AuthenticatorSelectionCriteriaJSON;
-  attestation?: string;
-  extensions?: AuthenticationExtensionsClientInputsJSON;
+  excludeCredentials?: PublicKeyCredentialDescriptor[];
+  authenticatorSelection?: AuthenticatorSelectionCriteria;
+  attestation?: AttestationConveyancePreference;
+  /** WebAuthn L3 credential hints (`client-device`, `hybrid`, etc.). */
+  hints?: string[];
+  extensions?: AuthenticationExtensionsClientInputs;
 };
 
 export type AuthenticatorTransportFuture = string;
@@ -101,10 +122,10 @@ export type PasskeyAuthenticationOptions = {
   challenge: Base64URLString;
   timeout?: number;
   rpId?: string;
-  allowCredentials?: PublicKeyCredentialDescriptorJSON[];
-  userVerification?: string;
-  hints?: string[];
-  extensions?: AuthenticationExtensionsClientInputsJSON;
+  allowCredentials?: PublicKeyCredentialDescriptor[];
+  userVerification?: UserVerificationRequirement;
+  hints?: PublicKeyCredentialHint[];
+  extensions?: AuthenticationExtensionsClientInputs;
 };
 
 export type PasskeyAuthenticationResponse = {

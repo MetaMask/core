@@ -133,6 +133,10 @@ describe('PasskeyController', () => {
       expect(options.challenge).toBeDefined();
       expect(options.user.id).toBeDefined();
       expect(options.extensions?.prf?.eval.first).toBeDefined();
+      expect(options.hints).toStrictEqual(['client-device', 'hybrid']);
+      expect(options.pubKeyCredParams.map((param) => param.alg)).toStrictEqual([
+        -8, -7, -257,
+      ]);
 
       const credentialId = 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=';
 

@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
+import { COSEALG } from './constants';
 import { deriveWrappingKey, unwrapKey, wrapKey } from './crypto';
 import { base64UrlStringToArrayBuffer, bytesToBase64URL } from './encoding';
 import type {
@@ -115,17 +116,10 @@ export class PasskeyController extends BaseController<
     return this.state.passkeyRecord !== null;
   }
 
-  removePasskey(): void {
-    this.#registrationSession = null;
-    this.#authenticationSession = null;
-    this.update((state) => {
-      state.passkeyRecord = null;
-    });
-  }
-
   generatePasskeyRegistrationOptions(creationOptionsConfig?: {
     rp?: { name?: string; id?: string };
   }): PasskeyRegistrationOptions {
+    // create registration session
     const userHandle = bytesToBase64URL(
       globalThis.crypto.getRandomValues(new Uint8Array(64)),
     );
@@ -135,10 +129,9 @@ export class PasskeyController extends BaseController<
     const challenge = bytesToBase64URL(
       globalThis.crypto.getRandomValues(new Uint8Array(32)),
     );
-
-    // store session in memory
     this.#registrationSession = { userHandle, prfSalt, challenge };
 
+    // build registration options
     const options: PasskeyRegistrationOptions = {
       rp: {
         name: creationOptionsConfig?.rp?.name ?? 'MetaMask',
@@ -151,14 +144,17 @@ export class PasskeyController extends BaseController<
       },
       challenge,
       pubKeyCredParams: [
-        { alg: -7, type: 'public-key' },
-        { alg: -257, type: 'public-key' },
+        { alg: COSEALG.EdDSA, type: 'public-key' },
+        { alg: COSEALG.ES256, type: 'public-key' },
+        { alg: COSEALG.RS256, type: 'public-key' },
       ],
       authenticatorSelection: {
         residentKey: 'preferred',
-        userVerification: 'required',
+        userVerification: 'preferred',
         authenticatorAttachment: 'platform',
       },
+      attestation: 'direct',
+      hints: ['client-device', 'hybrid'],
       extensions: {
         prf: { eval: { first: prfSalt } },
       },
@@ -187,7 +183,8 @@ export class PasskeyController extends BaseController<
     const options: PasskeyAuthenticationOptions = {
       challenge,
       allowCredentials: [{ type: 'public-key', id: record.credentialId }],
-      userVerification: 'required',
+      userVerification: 'preferred',
+      hints: ['client-device', 'hybrid'],
     };
 
     if (record.derivationMethod === 'prf' && record.prfSalt) {
@@ -305,5 +302,13 @@ export class PasskeyController extends BaseController<
     // clear session
     this.#authenticationSession = null;
     return encryptionKey;
+  }
+
+  removePasskey(): void {
+    this.#registrationSession = null;
+    this.#authenticationSession = null;
+    this.update((state) => {
+      state.passkeyRecord = null;
+    });
   }
 }
