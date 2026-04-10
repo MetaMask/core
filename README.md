@@ -31,6 +31,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/approval-controller`](packages/approval-controller)
 - [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
+- [`@metamask/authenticated-user-storage`](packages/authenticated-user-storage)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/base-data-service`](packages/base-data-service)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
@@ -117,6 +118,7 @@ linkStyle default opacity:0.5
   approval_controller(["@metamask/approval-controller"]);
   assets_controller(["@metamask/assets-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
+  authenticated_user_storage(["@metamask/authenticated-user-storage"]);
   base_controller(["@metamask/base-controller"]);
   base_data_service(["@metamask/base-data-service"]);
   bridge_controller(["@metamask/bridge-controller"]);
@@ -243,6 +245,9 @@ linkStyle default opacity:0.5
   assets_controllers --> profile_sync_controller;
   assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
+  authenticated_user_storage --> base_data_service;
+  authenticated_user_storage --> controller_utils;
+  authenticated_user_storage --> messenger;
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
   base_data_service --> controller_utils;
