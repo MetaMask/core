@@ -725,7 +725,7 @@ const setupController = async ({
     addTransactionFn,
   });
 
-  controller.init();
+  await controller.init();
 
   // Wait for fire-and-forget async operations started by init() to settle.
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -867,7 +867,7 @@ describe('EarnController', () => {
       const { controller } = await setupController();
 
       // init() was already called once inside setupController; call it again.
-      controller.init();
+      await controller.init();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // EarnSdk.create and data-fetch calls should not have increased beyond

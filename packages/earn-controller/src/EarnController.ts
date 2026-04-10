@@ -466,14 +466,12 @@ export class EarnController extends BaseController<
     this.refreshLendingData().catch(console.error);
   }
 
-  init(): void {
+  async init(): Promise<void> {
     if (this.#initialized) {
       return;
     }
 
-    this.#initializeSDK(this.#getSelectedNetworkClientId()).catch(
-      console.error,
-    );
+    await this.#initializeSDK(this.#getSelectedNetworkClientId());
 
     const address = this.#getSelectedEvmAccountAddress();
     if (address) {
