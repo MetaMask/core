@@ -4502,6 +4502,48 @@ describe('AccountTreeController', () => {
       );
     });
 
+    it('always emits selectedAccountGroupChange on init even if the selected group did not change', () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_1,
+      );
+
+      controller.init();
+
+      const defaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
+        defaultAccountGroupId,
+      );
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      // Re-init with the same accounts — the selected group still exists and has not changed.
+      controller.reinit();
+
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
+        defaultAccountGroupId,
+      );
+      // The event must fire even though the group did not change, so that
+      // subscribers that missed the first init can still react accordingly.
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        defaultAccountGroupId,
+        defaultAccountGroupId,
+      );
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+    });
+
     it('emits selectedAccountGroupChange when setSelectedAccountGroup is called', () => {
       // Use different keyring types to ensure different groups
       const { controller, messenger } = setup({

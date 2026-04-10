@@ -369,18 +369,15 @@ export class AccountTreeController extends BaseController<
       }
     });
 
-    // We still compare the previous and new value, the previous one could have been
-    // an empty string and `#getDefaultSelectedAccountGroup` could also return an
-    // empty string too, thus, we would re-use the same value here again. In that
-    // case, no need to fire any event.
-    if (previousSelectedAccountGroup !== this.state.selectedAccountGroup) {
-      log(`Selected (initial) group is: [${this.state.selectedAccountGroup}]`);
-      this.messenger.publish(
-        `${controllerName}:selectedAccountGroupChange`,
-        this.state.selectedAccountGroup,
-        previousSelectedAccountGroup,
-      );
-    }
+    // We always fire the current selected group after init, even if it did not change, to ensure that
+    // all subscribers are aware of it and can react accordingly (e.g. by fetching accounts from
+    // the selected group).
+    log(`Selected (initial) group is: [${this.state.selectedAccountGroup}]`);
+    this.messenger.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      this.state.selectedAccountGroup,
+      previousSelectedAccountGroup,
+    );
 
     log('Initialized!');
     this.#initialized = true;
