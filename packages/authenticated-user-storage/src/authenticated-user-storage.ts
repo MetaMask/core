@@ -9,7 +9,7 @@ import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { AuthenticatedUserStorageMethodActions } from './authenticated-user-storage-method-action-types';
+import type { AuthenticatedUserStorageServiceMethodActions } from './authenticated-user-storage-method-action-types';
 import type { Environment } from './env';
 import { getUserStorageApiUrl } from './env';
 import type {
@@ -62,7 +62,7 @@ export type AuthenticatedUserStorageInvalidateQueriesAction =
  * consumers.
  */
 export type AuthenticatedUserStorageActions =
-  | AuthenticatedUserStorageMethodActions
+  | AuthenticatedUserStorageServiceMethodActions
   | AuthenticatedUserStorageInvalidateQueriesAction;
 
 /**

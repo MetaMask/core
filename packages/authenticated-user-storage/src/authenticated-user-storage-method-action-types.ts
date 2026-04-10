@@ -10,7 +10,7 @@ import type { AuthenticatedUserStorageService } from './authenticated-user-stora
  *
  * @returns An array of delegation records, or an empty array if none exist.
  */
-export type AuthenticatedUserStorageListDelegationsAction = {
+export type AuthenticatedUserStorageServiceListDelegationsAction = {
   type: `AuthenticatedUserStorageService:listDelegations`;
   handler: AuthenticatedUserStorageService['listDelegations'];
 };
@@ -21,7 +21,7 @@ export type AuthenticatedUserStorageListDelegationsAction = {
  * @param submission - The signed delegation and its metadata.
  * @param clientType - Optional client type header.
  */
-export type AuthenticatedUserStorageCreateDelegationAction = {
+export type AuthenticatedUserStorageServiceCreateDelegationAction = {
   type: `AuthenticatedUserStorageService:createDelegation`;
   handler: AuthenticatedUserStorageService['createDelegation'];
 };
@@ -31,7 +31,7 @@ export type AuthenticatedUserStorageCreateDelegationAction = {
  *
  * @param delegationHash - The unique hash identifying the delegation.
  */
-export type AuthenticatedUserStorageRevokeDelegationAction = {
+export type AuthenticatedUserStorageServiceRevokeDelegationAction = {
   type: `AuthenticatedUserStorageService:revokeDelegation`;
   handler: AuthenticatedUserStorageService['revokeDelegation'];
 };
@@ -42,7 +42,7 @@ export type AuthenticatedUserStorageRevokeDelegationAction = {
  * @returns The notification preferences object, or `null` if none have been
  * set (404).
  */
-export type AuthenticatedUserStorageGetNotificationPreferencesAction = {
+export type AuthenticatedUserStorageServiceGetNotificationPreferencesAction = {
   type: `AuthenticatedUserStorageService:getNotificationPreferences`;
   handler: AuthenticatedUserStorageService['getNotificationPreferences'];
 };
@@ -53,17 +53,17 @@ export type AuthenticatedUserStorageGetNotificationPreferencesAction = {
  * @param prefs - The full notification preferences object.
  * @param clientType - Optional client type header.
  */
-export type AuthenticatedUserStoragePutNotificationPreferencesAction = {
+export type AuthenticatedUserStorageServicePutNotificationPreferencesAction = {
   type: `AuthenticatedUserStorageService:putNotificationPreferences`;
   handler: AuthenticatedUserStorageService['putNotificationPreferences'];
 };
 
 /**
- * Union of all AuthenticatedUserStorage action types.
+ * Union of all AuthenticatedUserStorageService action types.
  */
-export type AuthenticatedUserStorageMethodActions =
-  | AuthenticatedUserStorageListDelegationsAction
-  | AuthenticatedUserStorageCreateDelegationAction
-  | AuthenticatedUserStorageRevokeDelegationAction
-  | AuthenticatedUserStorageGetNotificationPreferencesAction
-  | AuthenticatedUserStoragePutNotificationPreferencesAction;
+export type AuthenticatedUserStorageServiceMethodActions =
+  | AuthenticatedUserStorageServiceListDelegationsAction
+  | AuthenticatedUserStorageServiceCreateDelegationAction
+  | AuthenticatedUserStorageServiceRevokeDelegationAction
+  | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
+  | AuthenticatedUserStorageServicePutNotificationPreferencesAction;

@@ -11,11 +11,11 @@ export type {
   AuthenticatedUserStorageMessenger,
 } from './authenticated-user-storage';
 export type {
-  AuthenticatedUserStorageListDelegationsAction,
-  AuthenticatedUserStorageCreateDelegationAction,
-  AuthenticatedUserStorageRevokeDelegationAction,
-  AuthenticatedUserStorageGetNotificationPreferencesAction,
-  AuthenticatedUserStoragePutNotificationPreferencesAction,
+  AuthenticatedUserStorageServiceListDelegationsAction,
+  AuthenticatedUserStorageServiceCreateDelegationAction,
+  AuthenticatedUserStorageServiceRevokeDelegationAction,
+  AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
+  AuthenticatedUserStorageServicePutNotificationPreferencesAction,
 } from './authenticated-user-storage-method-action-types';
 export { getUserStorageApiUrl } from './env';
 export type { Environment } from './env';
