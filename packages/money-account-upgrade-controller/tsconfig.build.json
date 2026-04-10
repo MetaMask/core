@@ -6,10 +6,12 @@
     "rootDir": "./src"
   },
   "references": [
-    {
-      "path": "../base-controller/tsconfig.build.json"
-    },
-    { "path": "../messenger/tsconfig.build.json" }
+    { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../chomp-api-service/tsconfig.build.json" },
+    { "path": "../delegation-controller/tsconfig.build.json" },
+    { "path": "../keyring-controller/tsconfig.build.json" },
+    { "path": "../messenger/tsconfig.build.json" },
+    { "path": "../money-account-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

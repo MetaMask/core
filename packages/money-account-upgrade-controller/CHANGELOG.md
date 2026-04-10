@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MoneyAccountUpgradeController` with `upgradeAccount` method
+- Add `MoneyAccountUpgradeController` with multi-step `upgradeAccount` method that orchestrates address association, EIP-7702 authorization, delegation verification, and intent registration via CHOMP
 
 [Unreleased]: https://github.com/MetaMask/core/

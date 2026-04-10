@@ -1,3 +1,4 @@
+export type { UpgradeConfig, UpgradeStep, AccountUpgradeEntry } from './types';
 export {
   MoneyAccountUpgradeController,
   controllerName,

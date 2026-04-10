@@ -6,9 +6,10 @@
 import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
 
 /**
- * Upgrades a money account. This method iterates over a number of
- * steps to perform the upgrade.
+ * Runs the full upgrade sequence for a Money Account.
  *
+ * @param address - The Money Account address to upgrade.
+ * @param chainId - The target chain for the upgrade.
  * @returns A promise that resolves when the upgrade is complete.
  */
 export type MoneyAccountUpgradeControllerUpgradeAccountAction = {

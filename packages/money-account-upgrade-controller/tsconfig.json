@@ -5,7 +5,11 @@
   },
   "references": [
     { "path": "../base-controller" },
-    { "path": "../messenger" }
+    { "path": "../chomp-api-service" },
+    { "path": "../delegation-controller" },
+    { "path": "../keyring-controller" },
+    { "path": "../messenger" },
+    { "path": "../money-account-controller" }
   ],
   "include": ["../../types", "./src"]
 }
