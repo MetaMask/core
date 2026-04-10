@@ -928,8 +928,8 @@
       "count": 3
     }
   },
-  "packages/delegation-controller/src/utils.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
+  "packages/earn-controller/src/EarnController.test.ts": {
+    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -939,6 +939,9 @@
     },
     "no-negated-condition": {
       "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/earn-controller/src/selectors.ts": {
