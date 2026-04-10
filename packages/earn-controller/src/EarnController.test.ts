@@ -132,6 +132,7 @@ function getEarnControllerMessenger(
     events: [
       'NetworkController:networkDidChange',
       'AccountTreeController:selectedAccountGroupChange',
+      // eslint-disable-next-line no-restricted-syntax
       'AccountTreeController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
@@ -700,7 +701,7 @@ const setupController = async ({
   mockGetNetworkControllerState?: jest.Mock;
   mockGetAccountsFromSelectedAccountGroup?: jest.Mock;
   addTransactionFn?: jest.Mock;
-} = {}) => {
+} = {}): Promise<{ controller: EarnController; messenger: RootMessenger }> => {
   const messenger = buildMessenger();
 
   messenger.registerActionHandler(
@@ -733,7 +734,13 @@ const setupController = async ({
 };
 
 const EarnApiServiceMock = jest.mocked(EarnApiService);
-let mockedEarnApiService: Partial<EarnApiService>;
+
+type MockedEarnApiService = {
+  pooledStaking?: Partial<jest.Mocked<PooledStakingApiService>>;
+  lending?: Partial<jest.Mocked<LendingApiService>>;
+};
+
+let mockedEarnApiService: MockedEarnApiService;
 
 const isSupportedLendingChainMock = jest.requireMock(
   '@metamask/stake-sdk',
@@ -773,7 +780,7 @@ describe('EarnController', () => {
           .fn()
           .mockResolvedValue(mockPooledStakingVaultApyAverages),
         getUserDailyRewards: jest.fn().mockResolvedValue(mockUserDailyRewards),
-      } as Partial<PooledStakingApiService>,
+      } as Partial<jest.Mocked<PooledStakingApiService>>,
       lending: {
         getMarkets: jest.fn().mockResolvedValue(mockLendingMarkets),
         getPositions: jest.fn().mockResolvedValue(mockLendingPositions),
@@ -783,8 +790,8 @@ describe('EarnController', () => {
         getHistoricMarketApys: jest
           .fn()
           .mockResolvedValue(mockLendingHistoricMarketApys),
-      } as Partial<LendingApiService>,
-    } as Partial<EarnApiService>;
+      } as Partial<jest.Mocked<LendingApiService>>,
+    };
 
     EarnApiServiceMock.mockImplementation(
       () => mockedEarnApiService as EarnApiService,
@@ -1017,10 +1024,9 @@ describe('EarnController', () => {
         );
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        const eligibilityCallCount = (
-          mockedEarnApiService?.pooledStaking
-            ?.getPooledStakingEligibility as jest.Mock
-        ).mock.calls.length;
+        const eligibilityCallCount =
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility?.mock
+            .calls.length ?? 0;
 
         // Second publish should be ignored – handler was already unsubscribed
         messenger.publish(
@@ -1207,7 +1213,7 @@ describe('EarnController', () => {
             getVaultApyAverages: jest.fn().mockImplementation(() => {
               throw new Error('API Error getVaultApyAverages');
             }),
-          } as unknown as PooledStakingApiService,
+          } as Partial<jest.Mocked<PooledStakingApiService>>,
         };
 
         EarnApiServiceMock.mockImplementation(
