@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import nock from 'nock';
 
 import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
 import {
@@ -48,6 +49,10 @@ describe('getAuthenticatedStorageUrl()', () => {
 });
 
 describe('AuthenticatedUserStorageService', () => {
+  afterEach(() => {
+    nock.cleanAll(); // eslint-disable-line import-x/no-named-as-default-member
+  });
+
   describe('AuthenticatedUserStorageService:listDelegations', () => {
     it('returns delegation records via the messenger', async () => {
       handleMockListDelegations();
@@ -234,6 +239,51 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
+  describe('cache invalidation', () => {
+    it('invalidates listDelegations cache after createDelegation', async () => {
+      handleMockCreateDelegation();
+      handleMockListDelegations();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:listDelegations'],
+      });
+    });
+
+    it('invalidates listDelegations cache after revokeDelegation', async () => {
+      handleMockRevokeDelegation();
+      handleMockListDelegations();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.revokeDelegation(
+        MOCK_DELEGATION_SUBMISSION.metadata.delegationHash,
+      );
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:listDelegations'],
+      });
+    });
+
+    it('invalidates getNotificationPreferences cache after putNotificationPreferences', async () => {
+      handleMockPutNotificationPreferences();
+      handleMockGetNotificationPreferences();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: [
+          'AuthenticatedUserStorageService:getNotificationPreferences',
+        ],
+      });
+    });
+  });
+
   describe('authorization', () => {
     it('passes the access token as a Bearer header', async () => {
       handleMockListDelegations();
@@ -270,7 +320,9 @@ function createServiceMessenger(
 function createService({
   options = {},
 }: {
-  options?: Partial<ConstructorParameters<typeof AuthenticatedUserStorageService>[0]>;
+  options?: Partial<
+    ConstructorParameters<typeof AuthenticatedUserStorageService>[0]
+  >;
 } = {}): {
   service: AuthenticatedUserStorageService;
   rootMessenger: RootMessenger;

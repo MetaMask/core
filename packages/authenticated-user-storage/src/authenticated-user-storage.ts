@@ -219,6 +219,10 @@ export class AuthenticatedUserStorageService extends BaseDataService<
         return null;
       },
     });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:listDelegations`],
+    });
   }
 
   /**
@@ -248,6 +252,10 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
         return null;
       },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:listDelegations`],
     });
   }
 
@@ -321,6 +329,10 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
         return null;
       },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getNotificationPreferences`],
     });
   }
 
