@@ -7,6 +7,7 @@ import { BaseDataService } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 
 import type { AuthenticatedUserStorageMethodActions } from './authenticated-user-storage-method-action-types';
 import type { Environment } from './env';
@@ -310,7 +311,10 @@ export class AuthenticatedUserStorageService extends BaseDataService<
     const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/notifications`;
 
     await this.fetchQuery({
-      queryKey: [`${this.name}:putNotificationPreferences`],
+      queryKey: [
+        `${this.name}:putNotificationPreferences`,
+        prefs as unknown as Json,
+      ],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#getHeaders(clientType);
