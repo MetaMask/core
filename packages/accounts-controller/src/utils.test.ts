@@ -5,14 +5,42 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import {
   constructAccountIdByAddress,
   getEvmGroupIndexFromAddressIndex,
+  isMoneyKeyringType,
   isNormalKeyringType,
   isSimpleKeyringType,
+  keyringTypeToName,
 } from './utils';
 import { createMockInternalAccount } from '../tests/mocks';
 
 describe('utils', () => {
+  describe('keyringTypeToName', () => {
+    it.each([
+      [KeyringTypes.simple, 'Account'],
+      [KeyringTypes.hd, 'Account'],
+      [KeyringTypes.trezor, 'Trezor'],
+      [KeyringTypes.oneKey, 'OneKey'],
+      [KeyringTypes.ledger, 'Ledger'],
+      [KeyringTypes.lattice, 'Lattice'],
+      [KeyringTypes.qr, 'QR'],
+      [KeyringTypes.snap, 'Snap Account'],
+      [KeyringTypes.money, 'Money'],
+    ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
+      expect(keyringTypeToName(keyringType)).toBe(expectedName);
+    });
+
+    it('throws for an unknown keyring type', () => {
+      expect(() => keyringTypeToName('unknown')).toThrow(
+        'Unknown keyring unknown',
+      );
+    });
+  });
+
   describe('isNormalKeyringType', () => {
-    const { snap: snapKeyringType, ...keyringTypes } = KeyringTypes;
+    const {
+      snap: snapKeyringType,
+      money: moneyKeyringType,
+      ...keyringTypes
+    } = KeyringTypes;
 
     it('returns true for normal keyring types', () => {
       for (const keyringType of Object.values(keyringTypes)) {
@@ -22,6 +50,22 @@ describe('utils', () => {
 
     it('returns false for snap keyring type', () => {
       expect(isNormalKeyringType(snapKeyringType)).toBe(false);
+    });
+
+    it('returns false for money keyring type', () => {
+      expect(isNormalKeyringType(moneyKeyringType)).toBe(false);
+    });
+  });
+
+  describe('isMoneyKeyringType', () => {
+    it('returns true for money keyring type', () => {
+      expect(isMoneyKeyringType(KeyringTypes.money)).toBe(true);
+    });
+
+    it('returns false for non-money keyring types', () => {
+      expect(isMoneyKeyringType(KeyringTypes.hd)).toBe(false);
+      expect(isMoneyKeyringType(KeyringTypes.snap)).toBe(false);
+      expect(isMoneyKeyringType(KeyringTypes.simple)).toBe(false);
     });
   });
 

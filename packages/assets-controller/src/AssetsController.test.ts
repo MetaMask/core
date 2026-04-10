@@ -18,9 +18,12 @@ import type {
   AssetsControllerState,
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
+import { PriceDataSource } from './data-sources/PriceDataSource';
+import { TokenDataSource } from './data-sources/TokenDataSource';
 import type {
   Caip19AssetId,
   AccountId,
+  DataRequest,
   DataResponse,
   FungibleAssetMetadata,
 } from './types';
@@ -37,6 +40,19 @@ jest.mock('./utils', () => {
 const formatExchangeRatesForBridgeMock = jest.mocked(
   formatExchangeRatesForBridge,
 );
+
+/**
+ * Flush pending microtasks so fire-and-forget background pipelines settle
+ * before Jest tears down the test.  Multiple rounds are needed because the
+ * background pipeline chains several async steps.
+ *
+ * @returns A promise that resolves after pending callbacks.
+ */
+async function flushPromises(): Promise<void> {
+  for (let i = 0; i < 10; i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
@@ -162,13 +178,6 @@ async function withController<ReturnValue>(
   ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
     provider: {},
   }));
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('TokenListController:getState', () => ({
-    tokensChainsCache: {},
-  }));
 
   if (clientControllerState !== undefined) {
     (
@@ -192,7 +201,12 @@ async function withController<ReturnValue>(
     ...controllerOptions,
   });
 
-  return fn({ controller, messenger });
+  try {
+    return await fn({ controller, messenger });
+  } finally {
+    await flushPromises();
+    controller.destroy();
+  }
 }
 
 describe('AssetsController', () => {
@@ -270,13 +284,6 @@ describe('AssetsController', () => {
         }
       ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
         provider: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('TokenListController:getState', () => ({
-        tokensChainsCache: {},
       }));
 
       const controller = new AssetsController({
@@ -371,13 +378,6 @@ describe('AssetsController', () => {
         }
       ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
         provider: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('TokenListController:getState', () => ({
-        tokensChainsCache: {},
       }));
 
       expect(
@@ -601,6 +601,118 @@ describe('AssetsController', () => {
       });
     });
 
+    describe('pipeline splitting', () => {
+      it('returns from getAssets before background pipelines complete', async () => {
+        // Spy on handleAssetsUpdate to count how many times state is written.
+        // Fast pipeline commits once; background pipelines each commit once more.
+        await withController(async ({ controller }) => {
+          const updateSpy = jest.spyOn(controller, 'handleAssetsUpdate');
+
+          await controller.getAssets([createMockInternalAccount()], {
+            forceUpdate: true,
+          });
+
+          // getAssets has returned — fast pipeline committed to state.
+          // Background pipelines are still in flight (fire-and-forget).
+          expect(updateSpy).not.toHaveBeenCalled(); // internal #updateState, not handleAssetsUpdate
+
+          // Let all pending microtasks resolve so background pipelines finish.
+          await flushPromises();
+
+          updateSpy.mockRestore();
+        });
+      });
+
+      it('getAssets resolves without error in basic functionality mode', async () => {
+        await withController(async ({ controller }) => {
+          const assets = await controller.getAssets(
+            [createMockInternalAccount()],
+            { forceUpdate: true },
+          );
+          expect(assets).toBeDefined();
+
+          await flushPromises();
+        });
+      });
+
+      it('background pipelines merge state without overwriting fast-pipeline results', async () => {
+        const initialState: Partial<AssetsControllerState> = {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+            },
+          },
+        };
+
+        await withController(
+          { state: initialState },
+          async ({ controller }) => {
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            });
+
+            await flushPromises();
+
+            // Background pipelines use 'merge' mode — they don't wipe existing entries.
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                MOCK_NATIVE_ASSET_ID
+              ],
+            ).toBeDefined();
+          },
+        );
+      });
+
+      it('getAssets resolves without error when isBasicFunctionality is false', async () => {
+        await withController(
+          { isBasicFunctionality: () => false },
+          async ({ controller }) => {
+            const assets = await controller.getAssets(
+              [createMockInternalAccount()],
+              { forceUpdate: true },
+            );
+            expect(assets).toBeDefined();
+
+            await flushPromises();
+          },
+        );
+      });
+
+      it('does not run token or price middleware in getAssets pipelines when isBasicFunctionality is false', async () => {
+        const tokenMiddlewareGetter = jest.spyOn(
+          TokenDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        ) as unknown as jest.SpyInstance;
+        const priceMiddlewareGetter = jest.spyOn(
+          PriceDataSource.prototype,
+          'assetsMiddleware',
+          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'get',
+        ) as unknown as jest.SpyInstance;
+
+        await withController(
+          { isBasicFunctionality: () => false },
+          async ({ controller }) => {
+            tokenMiddlewareGetter.mockClear();
+            priceMiddlewareGetter.mockClear();
+
+            await controller.getAssets([createMockInternalAccount()], {
+              forceUpdate: true,
+            });
+            await flushPromises();
+          },
+        );
+
+        expect(tokenMiddlewareGetter).not.toHaveBeenCalled();
+        expect(priceMiddlewareGetter).not.toHaveBeenCalled();
+
+        tokenMiddlewareGetter.mockRestore();
+        priceMiddlewareGetter.mockRestore();
+      });
+    });
+
     it('filters by chainIds option', async () => {
       await withController(async ({ controller }) => {
         const accounts = [createMockInternalAccount()];
@@ -611,6 +723,181 @@ describe('AssetsController', () => {
 
         expect(assets).toBeDefined();
       });
+    });
+
+    it('hides native tokens on Tempo testnet (eip155:42431)', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:42431/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+              'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
+                type: 'erc20',
+                symbol: 'USDC',
+                name: 'USD Coin',
+                decimals: 6,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:42431/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+                'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48':
+                  {
+                    amount: '100',
+                    unit: 'USDC',
+                  },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:42431'],
+          });
+
+          // Native token should be hidden
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:42431/slip44:60'],
+          ).toBeUndefined();
+
+          // ERC20 token should still be visible
+          expect(
+            assets[MOCK_ACCOUNT_ID][
+              'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+            ],
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('hides native tokens on Tempo mainnet (eip155:4217)', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:4217/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:4217/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:4217'],
+          });
+
+          // Native token should be hidden
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:4217/slip44:60'],
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('does not hide native tokens on non-Tempo networks', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:1/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:1/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:1'],
+          });
+
+          // Native token should still be visible on Ethereum
+          expect(assets[MOCK_ACCOUNT_ID]['eip155:1/slip44:60']).toBeDefined();
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:1/slip44:60'].metadata.symbol,
+          ).toBe('ETH');
+        },
+      );
+    });
+
+    it('hides native tokens identified by metadata type', async () => {
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              'eip155:42431/some:other': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:42431/some:other': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:42431'],
+          });
+
+          // Native token should be hidden even if assetId doesn't have slip44
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:42431/some:other'],
+          ).toBeUndefined();
+        },
+      );
     });
   });
 
@@ -719,6 +1006,53 @@ describe('AssetsController', () => {
         expect(stored.symbol).toBe('');
         expect(stored.name).toBe('');
       });
+    });
+
+    it('does not run token or price middleware when isBasicFunctionality is false', async () => {
+      const tokenMiddlewareGetter = jest.spyOn(
+        TokenDataSource.prototype,
+        'assetsMiddleware',
+        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+        'get',
+      ) as unknown as jest.SpyInstance;
+      const priceMiddlewareGetter = jest.spyOn(
+        PriceDataSource.prototype,
+        'assetsMiddleware',
+        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+        'get',
+      ) as unknown as jest.SpyInstance;
+
+      const request: DataRequest = {
+        accountsWithSupportedChains: [],
+        chainIds: ['eip155:1'],
+        dataTypes: ['balance', 'metadata', 'price'],
+      };
+
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          tokenMiddlewareGetter.mockClear();
+          priceMiddlewareGetter.mockClear();
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+                },
+              },
+            },
+            'RpcDataSource',
+            request,
+          );
+        },
+      );
+
+      expect(tokenMiddlewareGetter).not.toHaveBeenCalled();
+      expect(priceMiddlewareGetter).not.toHaveBeenCalled();
+
+      tokenMiddlewareGetter.mockRestore();
+      priceMiddlewareGetter.mockRestore();
     });
   });
 
@@ -1108,6 +1442,30 @@ describe('AssetsController', () => {
         getAssetsSpy.mockRestore();
       });
     });
+
+    it('does not call getAssets when isBasicFunctionality is false', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+          controller.setSelectedCurrency('eur');
+
+          expect(controller.state.selectedCurrency).toBe('eur');
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+
+          getAssetsSpy.mockRestore();
+        },
+      );
+    });
   });
 
   describe('events', () => {
@@ -1429,6 +1787,88 @@ describe('AssetsController', () => {
 
         expect(true).toBe(true);
       });
+    });
+  });
+
+  describe('account tree state change', () => {
+    it('triggers start when tree initializes after unlock with empty accounts', async () => {
+      const getAccountsMock = jest.fn().mockReturnValue([]);
+
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        getAccountsMock,
+      );
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: { eip155: { '1': true } },
+          nativeAssetIdentifiers: {
+            'eip155:1':
+              'eip155:1/slip44:60' as `${string}:${string}/slip44:${number}`,
+          },
+        }),
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('ClientController:getState', () => ({
+        isUiOpen: true,
+      }));
+
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient: createMockQueryApiClient(),
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op */
+        },
+      });
+
+      const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+      // Step 1: UI open + unlock — accounts empty, #start() is a no-op
+      (
+        messenger as unknown as {
+          publish: (topic: string, payload?: unknown) => void;
+        }
+      ).publish('ClientController:stateChange', { isUiOpen: true });
+      messenger.publish('KeyringController:unlock');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(getAssetsSpy).not.toHaveBeenCalled();
+
+      // Step 2: AccountTreeController.init() completes — accounts now available
+      getAccountsMock.mockReturnValue([createMockInternalAccount()]);
+      (messenger.publish as CallableFunction)(
+        'AccountTreeController:stateChange',
+        {},
+        [],
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+      expect(getAssetsSpy).toHaveBeenCalledWith(
+        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+        expect.objectContaining({ forceUpdate: true }),
+      );
     });
   });
 });

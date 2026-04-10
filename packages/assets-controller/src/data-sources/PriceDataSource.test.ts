@@ -255,6 +255,47 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('fetch splits large asset lists into batches of 50', async () => {
+    // Generate 120 distinct mock asset IDs to exceed the 50-item batch limit.
+    const assetIds = Array.from(
+      { length: 120 },
+      (_, i) =>
+        `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
+    );
+    const priceResponse = Object.fromEntries(
+      assetIds.map((id) => [id, createMockPriceData(100)]),
+    );
+    const balanceState = Object.fromEntries(
+      assetIds.map((id) => [id, { amount: '1' }]),
+    );
+
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: { 'mock-account-id': balanceState },
+      priceResponse,
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({ chainIds: [] }),
+      getAssetsState,
+    );
+
+    // With 120 assets and a batch size of 50, the API should be called three times.
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(3);
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[0][0]).toHaveLength(
+      50,
+    );
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[1][0]).toHaveLength(
+      50,
+    );
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[2][0]).toHaveLength(
+      20,
+    );
+    // All 120 prices should be merged into the response.
+    expect(Object.keys(response.assetsPrice ?? {})).toHaveLength(120);
+
+    controller.destroy();
+  });
+
   it('fetch uses custom currency', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
       getSelectedCurrency: () => 'eur',
@@ -872,8 +913,20 @@ describe('PriceDataSource', () => {
       asset: 'tron:0x2b6653dc/slip44:maximum-energy',
     },
     {
-      pattern: '-staked-for-',
-      asset: 'tron:0x2b6653dc/slip44:195-staked-for-bandwidth',
+      pattern: 'slip44:NUMBER-staked-for-',
+      asset: 'tron:728126428/slip44:195-staked-for-bandwidth',
+    },
+    {
+      pattern: 'slip44:NUMBER-ready-for-withdrawal',
+      asset: 'tron:728126428/slip44:195-ready-for-withdrawal',
+    },
+    {
+      pattern: 'slip44:NUMBER-in-lock-period',
+      asset: 'tron:728126428/slip44:195-in-lock-period',
+    },
+    {
+      pattern: 'slip44:NUMBER-staking-rewards',
+      asset: 'tron:728126428/slip44:195-staking-rewards',
     },
   ])(
     'filters out non-priceable asset with pattern: $pattern',

@@ -37,20 +37,19 @@ import { RecommendedAction } from '@metamask/phishing-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import BN from 'bn.js';
 import nock from 'nock';
 import { v4 } from 'uuid';
 
 import type {
-  AssetsContractControllerGetERC1155BalanceOfAction,
   AssetsContractControllerGetERC1155TokenURIAction,
   AssetsContractControllerGetERC721AssetNameAction,
   AssetsContractControllerGetERC721AssetSymbolAction,
-  AssetsContractControllerGetERC721OwnerOfAction,
   AssetsContractControllerGetERC721TokenURIAction,
 } from './AssetsContractController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
+import type { NftOwnershipResult } from './multicall';
+import { getNftOwnershipForMultipleNfts } from './multicall';
 import type {
   Nft,
   NftControllerState,
@@ -139,6 +138,11 @@ jest.mock('uuid', () => {
   };
 });
 
+jest.mock('./multicall', () => ({
+  ...jest.requireActual('./multicall'),
+  getNftOwnershipForMultipleNfts: jest.fn(),
+}));
+
 /**
  * Setup a test controller instance.
  *
@@ -150,10 +154,6 @@ jest.mock('uuid', () => {
  * `AssetsContractController:getERC721AssetSymbol` action.
  * @param args.getERC721TokenURI - Used to construct mock versions of the
  * `AssetsContractController:getERC721TokenURI` action.
- * @param args.getERC721OwnerOf - Used to construct mock versions of the
- * `AssetsContractController:getERC721OwnerOf` action.
- * @param args.getERC1155BalanceOf - Used to construct mock versions of the
- * `AssetsContractController:getERC1155BalanceOf` action.
  * @param args.getERC1155TokenURI - Used to construct mock versions of the
  * `AssetsContractController:getERC1155TokenURI` action.
  * @param args.mockNetworkClientConfigurationsByNetworkClientId - Used to construct
@@ -179,8 +179,6 @@ function setupController({
   getERC721AssetName,
   getERC721AssetSymbol,
   getERC721TokenURI,
-  getERC721OwnerOf,
-  getERC1155BalanceOf,
   getERC1155TokenURI,
   getAccount,
   getSelectedAccount,
@@ -203,14 +201,6 @@ function setupController({
   getERC721TokenURI?: jest.Mock<
     ReturnType<AssetsContractControllerGetERC721TokenURIAction['handler']>,
     Parameters<AssetsContractControllerGetERC721TokenURIAction['handler']>
-  >;
-  getERC721OwnerOf?: jest.Mock<
-    ReturnType<AssetsContractControllerGetERC721OwnerOfAction['handler']>,
-    Parameters<AssetsContractControllerGetERC721OwnerOfAction['handler']>
-  >;
-  getERC1155BalanceOf?: jest.Mock<
-    ReturnType<AssetsContractControllerGetERC1155BalanceOfAction['handler']>,
-    Parameters<AssetsContractControllerGetERC1155BalanceOfAction['handler']>
   >;
   getERC1155TokenURI?: jest.Mock<
     ReturnType<AssetsContractControllerGetERC1155TokenURIAction['handler']>,
@@ -303,28 +293,6 @@ function setupController({
     mockGetERC721TokenURI,
   );
 
-  const mockGetERC721OwnerOf =
-    getERC721OwnerOf ??
-    jest.fn<
-      ReturnType<AssetsContractControllerGetERC721OwnerOfAction['handler']>,
-      Parameters<AssetsContractControllerGetERC721OwnerOfAction['handler']>
-    >();
-  messenger.registerActionHandler(
-    'AssetsContractController:getERC721OwnerOf',
-    mockGetERC721OwnerOf,
-  );
-
-  const mockGetERC1155BalanceOf =
-    getERC1155BalanceOf ??
-    jest.fn<
-      ReturnType<AssetsContractControllerGetERC1155BalanceOfAction['handler']>,
-      Parameters<AssetsContractControllerGetERC1155BalanceOfAction['handler']>
-    >();
-  messenger.registerActionHandler(
-    'AssetsContractController:getERC1155BalanceOf',
-    mockGetERC1155BalanceOf,
-  );
-
   const mockGetERC1155TokenURI =
     getERC1155TokenURI ??
     jest.fn<
@@ -390,8 +358,6 @@ function setupController({
       'AssetsContractController:getERC721AssetName',
       'AssetsContractController:getERC721AssetSymbol',
       'AssetsContractController:getERC721TokenURI',
-      'AssetsContractController:getERC721OwnerOf',
-      'AssetsContractController:getERC1155BalanceOf',
       'AssetsContractController:getERC1155TokenURI',
       'NetworkController:findNetworkClientIdByChainId',
       'PhishingController:bulkScanUrls',
@@ -439,11 +405,9 @@ function setupController({
     triggerSelectedAccountChange,
     mockGetAccount,
     mockGetSelectedAccount,
-    mockGetERC1155BalanceOf,
     mockGetERC1155TokenURI,
     mockGetERC721AssetName,
     mockGetERC721AssetSymbol,
-    mockGetERC721OwnerOf,
     mockGetERC721TokenURI,
   };
 }
@@ -581,8 +545,10 @@ describe('NftController', () => {
         getERC721TokenURI: jest
           .fn()
           .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore-next-line
@@ -667,9 +633,11 @@ describe('NftController', () => {
     it('should error if the user does not own the suggested ERC721 NFT', async function () {
       const addRequestMock = jest.fn();
       const { nftController } = setupController({
-        getERC721OwnerOf: jest.fn().mockImplementation(() => '0x12345abcefg'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: false },
+      ]);
 
       await expect(() =>
         nftController.watchNft(
@@ -701,9 +669,11 @@ describe('NftController', () => {
     it('should error if the user does not own the suggested ERC1155 NFT', async function () {
       const addRequestMock = jest.fn();
       const { nftController, mockGetAccount } = setupController({
-        getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(0)),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: false },
+      ]);
 
       await expect(() =>
         nftController.watchNft(
@@ -739,12 +709,14 @@ describe('NftController', () => {
         mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -811,12 +783,14 @@ describe('NftController', () => {
         mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
@@ -882,12 +856,14 @@ describe('NftController', () => {
         mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
@@ -953,12 +929,14 @@ describe('NftController', () => {
         mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -1023,10 +1001,6 @@ describe('NftController', () => {
         triggerSelectedAccountChange,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-        getERC721OwnerOf: jest
-          .fn()
-          .mockRejectedValue(new Error('Not an ERC721 contract')),
-        getERC1155BalanceOf: jest.fn().mockResolvedValue(new BN(1)),
         getERC721TokenURI: jest
           .fn()
           .mockRejectedValue(new Error('Not an ERC721 contract')),
@@ -1035,6 +1009,9 @@ describe('NftController', () => {
           .mockResolvedValue('https://testtokenuri.com'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -1092,10 +1069,6 @@ describe('NftController', () => {
       const addRequestMock = jest.fn().mockResolvedValue(undefined);
       const { nftController, triggerPreferencesStateChange } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
-        getERC721OwnerOf: jest
-          .fn()
-          .mockRejectedValue(new Error('Not an ERC721 contract')),
-        getERC1155BalanceOf: jest.fn().mockResolvedValue(new BN(1)),
         getERC721TokenURI: jest
           .fn()
           .mockRejectedValue(new Error('Not an ERC721 contract')),
@@ -1104,6 +1077,9 @@ describe('NftController', () => {
           .mockResolvedValue('https://testtokenuri.com'),
         approvalAddRequest: addRequestMock,
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
@@ -1163,13 +1139,15 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
-        getERC721OwnerOf: jest.fn().mockResolvedValue(SECOND_OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
         getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
         getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       const requestId = 'approval-request-id-1';
 
@@ -1266,13 +1244,15 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
-        getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
         getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
         getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       const requestId = 'approval-request-id-1';
 
@@ -1362,8 +1342,9 @@ describe('NftController', () => {
 
     it('should throw an error when calls to `ownerOf` and `balanceOf` revert', async function () {
       const { nftController } = setupController();
-      // getERC721OwnerOf not mocked
-      // getERC1155BalanceOf not mocked
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: undefined },
+      ]);
 
       const requestId = 'approval-request-id-1';
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
@@ -3765,14 +3746,10 @@ describe('NftController', () => {
 
   describe('isNftOwner', () => {
     it('should verify the ownership of an NFT when passed a networkClientId', async () => {
-      const mockGetERC721OwnerOf = jest.fn().mockResolvedValue(OWNER_ADDRESS);
-      const mockGetERC1155BalanceOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC1155 error'));
-      const { nftController } = setupController({
-        getERC721OwnerOf: mockGetERC721OwnerOf,
-        getERC1155BalanceOf: mockGetERC1155BalanceOf,
-      });
+      const { nftController } = setupController();
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       const isOwner = await nftController.isNftOwner(
         OWNER_ADDRESS,
@@ -3784,14 +3761,10 @@ describe('NftController', () => {
     });
 
     it('should verify the ownership of an ERC-721 NFT with the correct owner address', async () => {
-      const mockGetERC721OwnerOf = jest.fn().mockResolvedValue(OWNER_ADDRESS);
-      const mockGetERC1155BalanceOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC1155 error'));
-      const { nftController } = setupController({
-        getERC721OwnerOf: mockGetERC721OwnerOf,
-        getERC1155BalanceOf: mockGetERC1155BalanceOf,
-      });
+      const { nftController } = setupController();
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       const isOwner = await nftController.isNftOwner(
         OWNER_ADDRESS,
@@ -3803,14 +3776,10 @@ describe('NftController', () => {
     });
 
     it('should not verify the ownership of an ERC-721 NFT with the wrong owner address', async () => {
-      const mockGetERC721OwnerOf = jest.fn().mockResolvedValue(OWNER_ADDRESS);
-      const mockGetERC1155BalanceOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC1155 error'));
-      const { nftController } = setupController({
-        getERC721OwnerOf: mockGetERC721OwnerOf,
-        getERC1155BalanceOf: mockGetERC1155BalanceOf,
-      });
+      const { nftController } = setupController();
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: false },
+      ]);
 
       const isOwner = await nftController.isNftOwner(
         '0x0000000000000000000000000000000000000000',
@@ -3822,14 +3791,10 @@ describe('NftController', () => {
     });
 
     it('should verify the ownership of an ERC-1155 NFT with the correct owner address', async () => {
-      const mockGetERC721OwnerOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC721 error'));
-      const mockGetERC1155BalanceOf = jest.fn().mockResolvedValue(new BN(1));
-      const { nftController } = setupController({
-        getERC721OwnerOf: mockGetERC721OwnerOf,
-        getERC1155BalanceOf: mockGetERC1155BalanceOf,
-      });
+      const { nftController } = setupController();
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: true },
+      ]);
 
       const isOwner = await nftController.isNftOwner(
         OWNER_ADDRESS,
@@ -3841,14 +3806,10 @@ describe('NftController', () => {
     });
 
     it('should not verify the ownership of an ERC-1155 NFT with the wrong owner address', async () => {
-      const mockGetERC721OwnerOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC721 error'));
-      const mockGetERC1155BalanceOf = jest.fn().mockResolvedValue(new BN(0));
-      const { nftController } = setupController({
-        getERC721OwnerOf: mockGetERC721OwnerOf,
-        getERC1155BalanceOf: mockGetERC1155BalanceOf,
-      });
+      const { nftController } = setupController();
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: false },
+      ]);
 
       const isOwner = await nftController.isNftOwner(
         '0x0000000000000000000000000000000000000000',
@@ -3861,16 +3822,10 @@ describe('NftController', () => {
     });
 
     it('should throw an error for an unsupported standard', async () => {
-      const mockGetERC721OwnerOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC721 error'));
-      const mockGetERC1155BalanceOf = jest
-        .fn()
-        .mockRejectedValue(new Error('ERC1155 error'));
-      const { nftController } = setupController({
-        getERC721OwnerOf: mockGetERC721OwnerOf,
-        getERC1155BalanceOf: mockGetERC1155BalanceOf,
-      });
+      const { nftController } = setupController();
+      (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValueOnce([
+        { isOwned: undefined },
+      ]);
       const error =
         "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.";
       const result = async () => {
@@ -4221,11 +4176,19 @@ describe('NftController', () => {
 
   describe('checkAndUpdateNftsOwnershipStatus', () => {
     describe('checkAndUpdateAllNftsOwnershipStatus', () => {
-      it('should check whether NFTs for the current selectedAccount/chainId combination are still owned by the selectedAccount and update the isCurrentlyOwned value to false when NFT is not still owned', async () => {
+      const nftOwnershipResult = (
+        isOwned: boolean | undefined,
+      ): NftOwnershipResult[] => [
+        { nftAddress: '0x02', tokenId: '1', isOwned },
+      ];
+
+      it('should remove NFT from state when it is no longer owned', async () => {
         const { nftController } = setupController({
           defaultSelectedAccount: OWNER_ACCOUNT,
         });
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
+        (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValue(
+          nftOwnershipResult(false),
+        );
 
         await nftController.addNft('0x02', '1', 'mainnet', {
           nftMetadata: {
@@ -4237,53 +4200,23 @@ describe('NftController', () => {
           },
         });
         expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+        ).toHaveLength(1);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus('mainnet');
 
         expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(false);
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+        ).toHaveLength(0);
       });
 
-      it('should check whether NFTs for the current selectedAccount/chainId combination are still owned by the selectedAccount and leave/set the isCurrentlyOwned value to true when NFT is still owned', async () => {
+      it('should leave isCurrentlyOwned as true when NFT is still owned', async () => {
         const { nftController } = setupController({
           defaultSelectedAccount: OWNER_ACCOUNT,
         });
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(true);
-
-        await nftController.addNft('0x02', '1', 'mainnet', {
-          nftMetadata: {
-            name: 'name',
-            image: 'image',
-            description: 'description',
-            standard: 'standard',
-            favorite: false,
-          },
-        });
-
-        expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
-
-        await nftController.checkAndUpdateAllNftsOwnershipStatus('mainnet');
-        expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
-      });
-
-      it('should check whether NFTs for the current selectedAccount/chainId combination are still owned by the selectedAccount and leave the isCurrentlyOwned value as is when NFT ownership check fails', async () => {
-        const { nftController } = setupController({
-          defaultSelectedAccount: OWNER_ACCOUNT,
-        });
-        jest
-          .spyOn(nftController, 'isNftOwner')
-          .mockRejectedValue('Unable to verify ownership');
+        (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValue(
+          nftOwnershipResult(true),
+        );
 
         await nftController.addNft('0x02', '1', 'mainnet', {
           nftMetadata: {
@@ -4307,7 +4240,37 @@ describe('NftController', () => {
         ).toBe(true);
       });
 
-      it('should check whether NFTs for the current selectedAccount/chainId combination are still owned by the selectedAccount and update the isCurrentlyOwned value to false when NFT is not still owned, when the currently configured selectedAccount/chainId are different from those passed', async () => {
+      it('should leave isCurrentlyOwned unchanged when ownership check is inconclusive', async () => {
+        const { nftController } = setupController({
+          defaultSelectedAccount: OWNER_ACCOUNT,
+        });
+        (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValue(
+          nftOwnershipResult(undefined),
+        );
+
+        await nftController.addNft('0x02', '1', 'mainnet', {
+          nftMetadata: {
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
+          },
+        });
+
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
+            .isCurrentlyOwned,
+        ).toBe(true);
+
+        await nftController.checkAndUpdateAllNftsOwnershipStatus('mainnet');
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
+            .isCurrentlyOwned,
+        ).toBe(true);
+      });
+
+      it('should respect an explicit userAddress when checking ownership', async () => {
         const { nftController, triggerPreferencesStateChange, mockGetAccount } =
           setupController();
 
@@ -4332,7 +4295,9 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(true);
 
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
+        (getNftOwnershipForMultipleNfts as jest.Mock).mockResolvedValue(
+          nftOwnershipResult(false),
+        );
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
@@ -4344,15 +4309,13 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
-            .isCurrentlyOwned,
-        ).toBe(false);
+          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId],
+        ).toHaveLength(0);
       });
 
       it('should handle default case where selectedAccount is not set', async () => {
         const { nftController, mockGetAccount } = setupController({});
         mockGetAccount.mockReturnValue(null);
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
 
         await nftController.addNft('0x02', '1', 'mainnet', {
           nftMetadata: {
@@ -4369,208 +4332,35 @@ describe('NftController', () => {
 
         expect(nftController.state.allNfts['']).toBeUndefined();
       });
-    });
 
-    describe('checkAndUpdateSingleNftOwnershipStatus', () => {
-      it('should check whether the passed NFT is still owned by the the current selectedAccount/chainId combination and update its isCurrentlyOwned property in state if batch is false and isNftOwner returns false', async () => {
+      it('should preserve current state when getNftOwnershipForMultipleNfts throws', async () => {
         const { nftController } = setupController({
           defaultSelectedAccount: OWNER_ACCOUNT,
         });
-
-        const nft = {
-          address: '0x02',
-          tokenId: '1',
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        };
-
-        await nftController.addNft(nft.address, nft.tokenId, 'mainnet', {
-          nftMetadata: nft,
-        });
-
-        expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
-
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
-
-        await nftController.checkAndUpdateSingleNftOwnershipStatus(
-          nft,
-          false,
-          'mainnet',
+        (getNftOwnershipForMultipleNfts as jest.Mock).mockRejectedValue(
+          new Error('provider connection lost'),
         );
 
-        expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(false);
-      });
-
-      it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and return the updated NFT object without updating state if batch is true', async () => {
-        const { nftController } = setupController({
-          defaultSelectedAccount: OWNER_ACCOUNT,
-        });
-
-        const nft = {
-          address: '0x02',
-          tokenId: '1',
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        };
-
-        await nftController.addNft(nft.address, nft.tokenId, 'mainnet', {
-          nftMetadata: nft,
-        });
-
-        expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
-
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
-
-        const updatedNft =
-          await nftController.checkAndUpdateSingleNftOwnershipStatus(
-            nft,
-            true,
-            'mainnet',
-          );
-
-        expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
-
-        expect(updatedNft?.isCurrentlyOwned).toBe(false);
-      });
-
-      it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
-        const firstSelectedAddress = OWNER_ACCOUNT.address;
-        const {
-          nftController,
-          triggerPreferencesStateChange,
-          triggerSelectedAccountChange,
-        } = setupController();
-
-        triggerSelectedAccountChange(OWNER_ACCOUNT);
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          displayNftMedia: true,
-        });
-
-        const nft = {
-          address: '0x02',
-          tokenId: '1',
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        };
-
-        await nftController.addNft(nft.address, nft.tokenId, 'sepolia', {
-          nftMetadata: nft,
-        });
-
-        expect(
-          nftController.state.allNfts[firstSelectedAddress][ChainId.sepolia][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
-
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
-        const secondAccount = createMockInternalAccount({
-          address: SECOND_OWNER_ADDRESS,
-        });
-        triggerSelectedAccountChange(secondAccount);
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          displayNftMedia: true,
-        });
-
-        await nftController.checkAndUpdateSingleNftOwnershipStatus(
-          nft,
-          false,
-          'sepolia',
-          {
-            userAddress: OWNER_ADDRESS,
+        await nftController.addNft('0x02', '1', 'mainnet', {
+          nftMetadata: {
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
           },
-        );
-
-        expect(
-          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
-            .isCurrentlyOwned,
-        ).toBe(false);
-      });
-
-      it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and return the updated NFT object without updating state, when the currently configured selectedAddress/chainId are different from those passed and batch is true', async () => {
-        const firstSelectedAddress = OWNER_ACCOUNT.address;
-        const {
-          nftController,
-          triggerPreferencesStateChange,
-          triggerSelectedAccountChange,
-        } = setupController();
-
-        triggerSelectedAccountChange(OWNER_ACCOUNT);
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          displayNftMedia: true,
         });
-
-        const nft = {
-          address: '0x02',
-          tokenId: '1',
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        };
-
-        await nftController.addNft(nft.address, nft.tokenId, 'sepolia', {
-          nftMetadata: nft,
-        });
-
         expect(
-          nftController.state.allNfts[firstSelectedAddress][ChainId.sepolia][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
-        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
-        const secondAccount = createMockInternalAccount({
-          address: SECOND_OWNER_ADDRESS,
-        });
-        triggerSelectedAccountChange(secondAccount);
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          displayNftMedia: true,
-        });
-
-        const updatedNft =
-          await nftController.checkAndUpdateSingleNftOwnershipStatus(
-            nft,
-            false,
-            'sepolia',
-            {
-              userAddress: OWNER_ADDRESS,
-            },
-          );
-
-        expect(updatedNft).toStrictEqual({
-          ...nft,
-          isCurrentlyOwned: false,
-        });
+        await nftController.checkAndUpdateAllNftsOwnershipStatus('mainnet');
 
         expect(
-          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
             .isCurrentlyOwned,
-        ).toBe(false);
+        ).toBe(true);
       });
     });
   });

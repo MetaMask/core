@@ -104,9 +104,6 @@
       "path": "./packages/ens-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/error-reporting-service/tsconfig.build.json"
-    },
-    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {
@@ -143,7 +140,13 @@
       "path": "./packages/message-manager/tsconfig.build.json"
     },
     {
+      "path": "./packages/messenger-cli/tsconfig.build.json"
+    },
+    {
       "path": "./packages/messenger/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
@@ -219,6 +222,9 @@
     },
     {
       "path": "./packages/signature-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/social-controllers/tsconfig.build.json"
     },
     {
       "path": "./packages/storage-service/tsconfig.build.json"

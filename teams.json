@@ -1,12 +1,13 @@
 {
   "metamask/accounts-controller": "team-accounts-framework",
   "metamask/ai-controllers": "team-social-ai",
+  "metamask/social-controllers": "team-social-ai",
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
   "metamask/authenticated-user-storage": "team-auth-engineers",
   "metamask/profile-sync-controller": "team-accounts-framework",
-  "metamask/ramps-controller": "team-ramp",
+  "metamask/ramps-controller": "team-money-movement",
   "metamask/assets-controller": "team-assets",
   "metamask/assets-controllers": "team-assets",
   "metamask/network-enablement-controller": "team-assets",
@@ -45,8 +46,8 @@
   "metamask/connectivity-controller": "team-core-platform",
   "metamask/geolocation-controller": "team-core-platform",
   "metamask/controller-utils": "team-core-platform",
-  "metamask/error-reporting-service": "team-core-platform",
   "metamask/messenger": "team-core-platform",
+  "metamask/messenger-cli": "team-core-platform",
   "metamask/sample-controllers": "team-core-platform",
   "metamask/polling-controller": "team-core-platform",
   "metamask/preferences-controller": "team-core-platform",
@@ -74,5 +75,6 @@
   "metamask/analytics-data-regulation-controller": "team-extension-platform,team-mobile-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
-  "metamask/config-registry-controller": "team-networks"
+  "metamask/config-registry-controller": "team-networks",
+  "metamask/money-account-controller": "team-accounts-framework"
 }

@@ -122,7 +122,6 @@ type ActionHandlerOverrides = {
     configuration: { chainId: string };
   };
   'AssetsController:getState'?: () => unknown;
-  'TokenListController:getState'?: () => unknown;
   'NetworkEnablementController:getState'?: () => unknown;
 };
 
@@ -197,15 +196,6 @@ async function withController<ReturnValue>(
       ).registerActionHandler('AssetsController:getState', () =>
         getDefaultAssetsControllerState(),
       );
-    }
-    if (!actionHandlerOverrides['TokenListController:getState']) {
-      (
-        rootMessenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('TokenListController:getState', () => ({
-        tokensChainsCache: {},
-      }));
     }
     if (!actionHandlerOverrides['NetworkEnablementController:getState']) {
       (
@@ -699,7 +689,7 @@ describe('RpcDataSource', () => {
       );
     });
 
-    it('merges metadata from chain status, existing state, and token list', async () => {
+    it('merges metadata from chain status and existing state', async () => {
       const getState = jest.fn().mockReturnValue({
         assetsInfo: {
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
@@ -715,25 +705,10 @@ describe('RpcDataSource', () => {
         assetPreferences: {},
         selectedCurrency: 'usd',
       });
-      const tokenListState = {
-        tokensChainsCache: {
-          '0x1': {
-            data: {
-              '0xabcdef00000000000000000000000000000000': {
-                symbol: 'TKN',
-                name: 'Token',
-                decimals: 18,
-                iconUrl: 'https://example.com/icon.png',
-              },
-            },
-          },
-        },
-      };
       await withController(
         {
           actionHandlerOverrides: {
             'AssetsController:getState': getState,
-            'TokenListController:getState': () => tokenListState,
           },
         },
         async ({ controller }) => {
@@ -1406,81 +1381,7 @@ describe('RpcDataSource', () => {
       expect(response.assetsInfo[normalizedId]).toStrictEqual(existingMetadata);
     });
 
-    it('uses token list metadata for ERC20 not in AssetsController state (#getTokenMetadataFromTokenList)', async () => {
-      const tokenAddress = '0xDef4567890123456789012345678901234567890';
-      const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
-      let balanceUpdateCallback:
-        | ((result: BalanceFetchResult) => void | Promise<void>)
-        | null = null;
-      jest
-        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
-        .mockImplementation(function (this: BalanceFetcher, callback) {
-          balanceUpdateCallback = callback;
-        });
-
-      const tokenListState = {
-        tokensChainsCache: {
-          [MOCK_CHAIN_ID_HEX]: {
-            timestamp: 0,
-            data: {
-              [tokenAddress.toLowerCase()]: {
-                address: tokenAddress,
-                symbol: 'TKN',
-                name: 'Test Token',
-                decimals: 18,
-                iconUrl: 'https://example.com/icon.png',
-              },
-            },
-          },
-        },
-      };
-
-      const onAssetsUpdate = jest.fn();
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              assetsInfo: {},
-            }),
-            'TokenListController:getState': () => tokenListState,
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-
-          expect(balanceUpdateCallback).not.toBeNull();
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: erc20AssetId,
-                  balance: '0',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
-
-      expect(onAssetsUpdate).toHaveBeenCalled();
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: 'TKN',
-        name: 'Test Token',
-        decimals: 18,
-        image: 'https://example.com/icon.png',
-      });
-    });
-
-    it('omits unknown ERC-20 from assetsInfo when not in token list (#getTokenMetadataFromTokenList no match)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when not in existing state', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000001';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1493,22 +1394,6 @@ describe('RpcDataSource', () => {
           balanceUpdateCallback = callback;
         });
 
-      const tokenListState = {
-        tokensChainsCache: {
-          [MOCK_CHAIN_ID_HEX]: {
-            timestamp: 0,
-            data: {
-              '0xOtherAddress': {
-                address: '0xOtherAddress',
-                symbol: 'OTH',
-                name: 'Other',
-                decimals: 18,
-              },
-            },
-          },
-        },
-      };
-
       const onAssetsUpdate = jest.fn();
       await withController(
         {
@@ -1517,7 +1402,6 @@ describe('RpcDataSource', () => {
               ...getDefaultAssetsControllerState(),
               assetsInfo: {},
             }),
-            'TokenListController:getState': () => tokenListState,
           },
         },
         async ({ controller }) => {
@@ -1572,7 +1456,6 @@ describe('RpcDataSource', () => {
                 },
               },
             }),
-            'TokenListController:getState': () => ({ tokensChainsCache: {} }),
           },
         },
         async ({ controller }) => {
@@ -1600,220 +1483,6 @@ describe('RpcDataSource', () => {
       expect(
         response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
       ).toBeUndefined();
-    });
-
-    it('omits unknown ERC-20 from assetsInfo when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
-      const erc20AssetId =
-        'eip155:1/erc20:0xAbc0000000000000000000000000000000000002' as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
-      let balanceUpdateCallback:
-        | ((result: BalanceFetchResult) => void | Promise<void>)
-        | null = null;
-      jest
-        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
-        .mockImplementation(function (this: BalanceFetcher, callback) {
-          balanceUpdateCallback = callback;
-        });
-
-      const onAssetsUpdate = jest.fn();
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              assetsInfo: {},
-            }),
-            'TokenListController:getState': () => ({ tokensChainsCache: {} }),
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: erc20AssetId,
-                  balance: '0',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
-
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
-    });
-
-    it('omits unknown ERC-20 from assetsInfo when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
-      const tokenAddress = '0xAbc0000000000000000000000000000000000003';
-      const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
-      let balanceUpdateCallback:
-        | ((result: BalanceFetchResult) => void | Promise<void>)
-        | null = null;
-      jest
-        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
-        .mockImplementation(function (this: BalanceFetcher, callback) {
-          balanceUpdateCallback = callback;
-        });
-
-      const tokenListState = {
-        tokensChainsCache: {
-          [MOCK_CHAIN_ID_HEX]: {
-            timestamp: 0,
-            data: {
-              [tokenAddress.toLowerCase()]: {
-                address: tokenAddress,
-                symbol: '',
-                name: 'Incomplete',
-                decimals: undefined as unknown as number,
-              },
-            },
-          },
-        },
-      };
-
-      const onAssetsUpdate = jest.fn();
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              assetsInfo: {},
-            }),
-            'TokenListController:getState': () => tokenListState,
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: erc20AssetId,
-                  balance: '0',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
-
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
-    });
-
-    it('omits non-ERC20 asset from assetsInfo when not found in token list (#getTokenMetadataFromTokenList)', async () => {
-      const nonErc20AssetId =
-        'eip155:1/erc721:0xAbc0000000000000000000000000000000000004' as Caip19AssetId;
-      const normalizedId = normalizeAssetId(nonErc20AssetId);
-      let balanceUpdateCallback:
-        | ((result: BalanceFetchResult) => void | Promise<void>)
-        | null = null;
-      jest
-        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
-        .mockImplementation(function (this: BalanceFetcher, callback) {
-          balanceUpdateCallback = callback;
-        });
-
-      const onAssetsUpdate = jest.fn();
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              assetsInfo: {},
-            }),
-            'TokenListController:getState': () => ({
-              tokensChainsCache: {
-                [MOCK_CHAIN_ID_HEX]: { timestamp: 0, data: {} },
-              },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: nonErc20AssetId,
-                  balance: '0',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
-
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
-    });
-
-    it('omits unknown ERC-20 from assetsInfo when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
-      const erc20AssetId =
-        'eip155:1/erc20:0xAbc0000000000000000000000000000000000005' as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
-      let balanceUpdateCallback:
-        | ((result: BalanceFetchResult) => void | Promise<void>)
-        | null = null;
-      jest
-        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
-        .mockImplementation(function (this: BalanceFetcher, callback) {
-          balanceUpdateCallback = callback;
-        });
-
-      const onAssetsUpdate = jest.fn();
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              assetsInfo: {},
-            }),
-            'TokenListController:getState': () => {
-              throw new Error('Token list unavailable');
-            },
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: erc20AssetId,
-                  balance: '0',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
-
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
   });
 

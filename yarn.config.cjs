@@ -117,7 +117,10 @@ module.exports = defineConfig({
 
         // All non-root packages must set up ESM- and CommonJS-compatible
         // exports correctly.
-        if (workspace.ident !== '@metamask/foundryup') {
+        if (
+          workspace.ident !== '@metamask/foundryup' &&
+          workspace.ident !== '@metamask/messenger-cli'
+        ) {
           expectCorrectWorkspaceExports(workspace);
         }
 
@@ -136,7 +139,9 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "build:docs" script.
-        expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
+        if (workspace.ident !== '@metamask/messenger-cli') {
+          expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
+        }
 
         // No non-root packages may have a "prepack" script.
         workspace.unset('scripts.prepack');

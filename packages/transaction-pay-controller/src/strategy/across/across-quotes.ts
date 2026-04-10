@@ -4,6 +4,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { getAcrossDestination } from './across-actions';
+import { normalizeAcrossRequest } from './perps';
 import { getAcrossOrderedTransactions } from './transactions';
 import type {
   AcrossAction,
@@ -80,6 +81,7 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, transaction } = fullRequest;
+  const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
   const {
     from,
     isMaxAmount,
@@ -89,7 +91,7 @@ async function getSingleQuote(
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
-  } = request;
+  } = normalizedRequest;
 
   const config = getPayStrategiesConfig(messenger);
   const slippageDecimal = getSlippage(
@@ -123,7 +125,7 @@ async function getSingleQuote(
     },
   };
 
-  return await normalizeQuote(originalQuote, request, fullRequest);
+  return await normalizeQuote(originalQuote, normalizedRequest, fullRequest);
 }
 
 type AcrossApprovalRequest = {

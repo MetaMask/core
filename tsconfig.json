@@ -99,9 +99,6 @@
       "path": "./packages/ens-controller"
     },
     {
-      "path": "./packages/error-reporting-service"
-    },
-    {
       "path": "./packages/eth-block-tracker"
     },
     {
@@ -136,6 +133,12 @@
     },
     {
       "path": "./packages/messenger"
+    },
+    {
+      "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/money-account-controller"
     },
     {
       "path": "./packages/multichain-account-service"
@@ -211,6 +214,9 @@
     },
     {
       "path": "./packages/signature-controller"
+    },
+    {
+      "path": "./packages/social-controllers"
     },
     {
       "path": "./packages/subscription-controller"

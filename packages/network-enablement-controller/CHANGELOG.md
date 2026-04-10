@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [5.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
 ## [5.0.1]
 
 ### Changed
@@ -257,7 +268,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.2...HEAD
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.1...@metamask/network-enablement-controller@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.0...@metamask/network-enablement-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...@metamask/network-enablement-controller@5.0.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...@metamask/network-enablement-controller@4.2.0

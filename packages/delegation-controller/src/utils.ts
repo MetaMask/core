@@ -2,18 +2,7 @@ import type { TypedMessageParams } from '@metamask/keyring-controller';
 import { getChecksumAddress } from '@metamask/utils';
 
 import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
-import type { Address, Delegation, DelegationStruct, Hex } from './types';
-
-/**
- * Checks if two hex strings are equal.
- *
- * @param a - The first hex string.
- * @param b - The second hex string.
- * @returns True if the hex strings are equal, false otherwise.
- */
-export function isHexEqual(a: Hex, b: Hex) {
-  return a.toLowerCase() === b.toLowerCase();
-}
+import type { Address, Delegation, DelegationStruct } from './types';
 
 type CreateTypedMessageParamsOptions = {
   chainId: number;

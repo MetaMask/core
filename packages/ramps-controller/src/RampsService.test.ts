@@ -1237,6 +1237,18 @@ describe('RampsService', () => {
               height: 24,
               width: 77,
             },
+            limits: {
+              fiat: {
+                usd: {
+                  '/payments/debit-credit-card': {
+                    minAmount: 30,
+                    maxAmount: 1000,
+                    feeFixedRate: 1,
+                    feeDynamicRate: 0.02,
+                  },
+                },
+              },
+            },
           },
         ],
       };
@@ -1281,6 +1293,179 @@ describe('RampsService', () => {
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
+    });
+
+    it('preserves provider limits from the API response', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+            limits: {
+              fiat: {
+                usd: {
+                  '/payments/debit-credit-card': {
+                    minAmount: 30,
+                    maxAmount: 1000,
+                    feeFixedRate: 1,
+                    feeDynamicRate: 0.02,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(
+        providersResponse.providers[0]?.limits?.fiat?.usd?.[
+          '/payments/debit-credit-card'
+        ],
+      ).toStrictEqual({
+        minAmount: 30,
+        maxAmount: 1000,
+        feeFixedRate: 1,
+        feeDynamicRate: 0.02,
+      });
+    });
+
+    it('accepts providers without limits field (backward compatibility)', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toHaveLength(1);
+      expect(providersResponse.providers[0]?.id).toBe(
+        '/providers/paypal-staging',
+      );
+      expect(providersResponse.providers[0]?.limits).toBeUndefined();
+    });
+
+    it('handles mix of providers with and without limits', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+            limits: {
+              fiat: {
+                usd: {
+                  '/payments/debit-credit-card': {
+                    minAmount: 30,
+                    maxAmount: 1000,
+                    feeFixedRate: 1,
+                    feeDynamicRate: 0.02,
+                  },
+                },
+              },
+            },
+          },
+          {
+            id: '/providers/ramp-network-staging',
+            name: 'Ramp Network (Staging)',
+            environmentType: 'STAGING',
+            description: 'Another test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/providers/ramp_light.png',
+              dark: '/assets/providers/ramp_dark.png',
+              height: 24,
+              width: 77,
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toHaveLength(2);
+      expect(
+        providersResponse.providers[0]?.limits?.fiat?.usd?.[
+          '/payments/debit-credit-card'
+        ],
+      ).toStrictEqual({
+        minAmount: 30,
+        maxAmount: 1000,
+        feeFixedRate: 1,
+        feeDynamicRate: 0.02,
+      });
+      expect(providersResponse.providers[1]?.limits).toBeUndefined();
     });
 
     it('passes filter options as query parameters', async () => {

@@ -21,7 +21,8 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
 function getTokensURL(chainId: Hex): string {
   const occurrenceFloor =
     chainId === ChainId['linea-mainnet'] ||
-    chainId === ChainId['megaeth-mainnet']
+    chainId === ChainId['megaeth-mainnet'] ||
+    chainId === '0x1079' // Tempo Mainnet
       ? 1
       : 3;
 

@@ -1,4 +1,3 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -71,24 +70,9 @@ export type DelegationStruct = Omit<Delegation, 'salt'> & {
   salt: bigint;
 };
 
-export type DelegationEntry = {
-  tags: string[];
-  chainId: Hex;
-  delegation: Delegation;
-  meta?: string;
-};
-
-export type DelegationFilter = {
-  chainId?: Hex;
-  tags?: string[];
-  from?: Address;
-};
-
-export type DelegationControllerState = {
-  delegations: {
-    [hash: Hex]: DelegationEntry;
-  };
-};
+// Empty controller state (signing-only; no persisted fields).
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type DelegationControllerState = {};
 
 export type DelegationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -106,9 +90,7 @@ export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type DelegationControllerEvents = DelegationControllerStateChangeEvent;
 
-type AllowedActions =
-  | KeyringControllerSignTypedMessageAction
-  | AccountsControllerGetSelectedAccountAction;
+type AllowedActions = KeyringControllerSignTypedMessageAction;
 
 type AllowedEvents = never;
 

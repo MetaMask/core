@@ -5,10 +5,16 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getAcrossQuotes } from './across-quotes';
+import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps';
 import * as acrossTransactions from './transactions';
 import type { AcrossSwapApprovalResponse } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { TransactionPayStrategy } from '../../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
+  TransactionPayStrategy,
+} from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type { QuoteRequest } from '../../types';
 import { getGasBuffer, getSlippage } from '../../utils/feature-flags';
@@ -381,6 +387,46 @@ describe('Across Quotes', () => {
         method: 'POST',
       });
       expect(body.actions).toStrictEqual([]);
+    });
+
+    it('converts supported perps deposits to Across HyperCore direct deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '1000000',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+          txParams: {
+            from: FROM_MOCK,
+            to: ARBITRUM_USDC_ADDRESS,
+            data: buildTransferData(TRANSFER_RECIPIENT, 1),
+          },
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('amount')).toBe('100000000');
+      expect(params.get('destinationChainId')).toBe(
+        String(parseInt(CHAIN_ID_HYPERCORE, 16)),
+      );
+      expect(params.get('outputToken')).toBe(
+        ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(getRequestBody().actions).toStrictEqual([]);
     });
 
     it('uses transfer recipient for token transfer transactions', async () => {

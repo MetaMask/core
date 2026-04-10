@@ -1,11 +1,15 @@
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
 import type { DecodedNodeAuthToken } from './types';
 import {
+  compareTimeuuid,
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
+  getSecretTypeFromDataType,
+  getTimestampFromTimeuuid,
 } from './utils';
 import { createMockJWTToken } from '../tests/mocks/utils';
 
@@ -216,6 +220,76 @@ describe('utils', () => {
       const result = compareAndGetLatestToken(token1, token2);
 
       expect(result).toBe(token1);
+    });
+  });
+
+  describe('getTimestampFromTimeuuid', () => {
+    it('should extract timestamp from TIMEUUID', () => {
+      const uuid = '00000001-0000-1000-8000-000000000001';
+      const timestamp = getTimestampFromTimeuuid(uuid);
+      expect(timestamp).toBe(BigInt(1));
+    });
+
+    it('should correctly parse TIMEUUID timestamps in chronological order', () => {
+      const uuid1 = 'c14cc4a0-d1cd-11f0-9878-3be4d8d3a8a0';
+      const uuid2 = '04e72250-d1ce-11f0-9878-3be4d8d3a8a0';
+      const uuid3 = '11765040-d1ce-11f0-9878-3be4d8d3a8a0';
+      const uuid4 = 'b2649610-d1ce-11f0-9878-3be4d8d3a8a0';
+
+      const ts1 = getTimestampFromTimeuuid(uuid1);
+      const ts2 = getTimestampFromTimeuuid(uuid2);
+      const ts3 = getTimestampFromTimeuuid(uuid3);
+      const ts4 = getTimestampFromTimeuuid(uuid4);
+
+      expect(ts1 < ts2).toBe(true);
+      expect(ts2 < ts3).toBe(true);
+      expect(ts3 < ts4).toBe(true);
+    });
+  });
+
+  describe('compareTimeuuid', () => {
+    it('should return negative when a < b in ascending order', () => {
+      const earlier = '00000001-0000-1000-8000-000000000001';
+      const later = '00000002-0000-1000-8000-000000000002';
+      expect(compareTimeuuid(earlier, later, 'asc')).toBe(-1);
+    });
+
+    it('should return positive when a > b in ascending order', () => {
+      const earlier = '00000001-0000-1000-8000-000000000001';
+      const later = '00000002-0000-1000-8000-000000000002';
+      expect(compareTimeuuid(later, earlier, 'asc')).toBe(1);
+    });
+
+    it('should return zero when timestamps are equal', () => {
+      const uuid = '00000001-0000-1000-8000-000000000001';
+      expect(compareTimeuuid(uuid, uuid, 'asc')).toBe(0);
+    });
+
+    it('should return positive when a < b in descending order', () => {
+      const earlier = '00000001-0000-1000-8000-000000000001';
+      const later = '00000002-0000-1000-8000-000000000002';
+      expect(compareTimeuuid(earlier, later, 'desc')).toBe(1);
+    });
+
+    it('should return negative when a > b in descending order', () => {
+      const earlier = '00000001-0000-1000-8000-000000000001';
+      const later = '00000002-0000-1000-8000-000000000002';
+      expect(compareTimeuuid(later, earlier, 'desc')).toBe(-1);
+    });
+
+    it('should default to ascending order', () => {
+      const earlier = '00000001-0000-1000-8000-000000000001';
+      const later = '00000002-0000-1000-8000-000000000002';
+      expect(compareTimeuuid(earlier, later)).toBe(-1);
+    });
+  });
+
+  describe('getSecretTypeFromDataType', () => {
+    it('should throw an error for unknown EncAccountDataType', () => {
+      const unknownDataType = 'UnknownType' as unknown as EncAccountDataType;
+      expect(() => getSecretTypeFromDataType(unknownDataType)).toThrow(
+        'Unknown EncAccountDataType: UnknownType',
+      );
     });
   });
 });
