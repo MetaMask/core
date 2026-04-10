@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers that construct the `NftController` messenger and register handlers for these two actions must remove them from their allowed actions list.
 - **BREAKING:** Removed the `checkAndUpdateSingleNftOwnershipStatus` method from `NftController` ([#8281](https://github.com/MetaMask/core/pull/8281))
   - Use `checkAndUpdateAllNftsOwnershipStatus` instead, which now batches all ownership checks via Multicall3 in a single RPC request.
+- `checkAndUpdateAllNftsOwnershipStatus` now removes NFTs confirmed as unowned from state instead of setting `isCurrentlyOwned: false` ([#8281](https://github.com/MetaMask/core/pull/8281))
+  - The `isCurrentlyOwned: false` flag was originally used to power a "Previously Owned" NFTs section in MetaMask, which is no longer supported. NFTs that are confirmed as no longer owned are now removed from state immediately rather than being retained with a stale flag.
 - `NftController` NFT ownership checks (`isNftOwner`, `checkAndUpdateAllNftsOwnershipStatus`) now use Multicall3 to batch ERC-721 `ownerOf` and ERC-1155 `balanceOf` calls into fewer RPC requests, falling back to individual calls on unsupported chains ([#8281](https://github.com/MetaMask/core/pull/8281))
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))

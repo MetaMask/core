@@ -1906,11 +1906,9 @@ export class NftController extends BaseController<
       return;
     }
 
-    const updatedNfts = nfts.map((nft, index) => {
+    const updatedNfts = nfts.filter((nft, index) => {
       const { isOwned } = ownershipResults[index];
-      return isOwned === undefined
-        ? nft
-        : { ...nft, isCurrentlyOwned: isOwned };
+      return isOwned !== false;
     });
 
     this.#updateNestedNftState(updatedNfts, ALL_NFTS_STATE_KEY, {

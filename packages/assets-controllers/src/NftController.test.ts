@@ -4182,7 +4182,7 @@ describe('NftController', () => {
         { nftAddress: '0x02', tokenId: '1', isOwned },
       ];
 
-      it('should update isCurrentlyOwned to false when NFT is no longer owned', async () => {
+      it('should remove NFT from state when it is no longer owned', async () => {
         const { nftController } = setupController({
           defaultSelectedAccount: OWNER_ACCOUNT,
         });
@@ -4200,16 +4200,14 @@ describe('NftController', () => {
           },
         });
         expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(true);
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+        ).toHaveLength(1);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus('mainnet');
 
         expect(
-          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
-            .isCurrentlyOwned,
-        ).toBe(false);
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+        ).toHaveLength(0);
       });
 
       it('should leave isCurrentlyOwned as true when NFT is still owned', async () => {
@@ -4311,9 +4309,8 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
-            .isCurrentlyOwned,
-        ).toBe(false);
+          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId],
+        ).toHaveLength(0);
       });
 
       it('should handle default case where selectedAccount is not set', async () => {
