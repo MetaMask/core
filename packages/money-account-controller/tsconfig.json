@@ -5,9 +5,12 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../base-data-service" },
     { "path": "../accounts-controller" },
+    { "path": "../controller-utils" },
     { "path": "../keyring-controller" },
-    { "path": "../messenger" }
+    { "path": "../messenger" },
+    { "path": "../network-controller" }
   ],
   "include": ["../../types", "./src"]
 }

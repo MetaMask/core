@@ -18,3 +18,27 @@ export type {
   MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
 } from './MoneyAccountController-method-action-types';
+export {
+  MoneyAccountBalanceService,
+  serviceName as moneyAccountBalanceServiceName,
+} from './money-account-balance-service/money-account-balance-service';
+export type {
+  MoneyAccountBalanceServiceActions,
+  MoneyAccountBalanceServiceEvents,
+  MoneyAccountBalanceServiceMessenger,
+} from './money-account-balance-service/money-account-balance-service';
+export type {
+  MoneyAccountBalanceServiceGetMusdBalanceAction,
+  MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction,
+  MoneyAccountBalanceServiceGetExchangeRateAction,
+  MoneyAccountBalanceServiceGetMusdEquivalentValueAction,
+  MoneyAccountBalanceServiceGetVaultApyAction,
+} from './money-account-balance-service/money-account-balance-service-method-action-types';
+export type {
+  MusdBalanceResponse,
+  MusdSHFvdBalanceResponse,
+  ExchangeRateResponse,
+  MusdEquivalentValueResponse,
+  VaultApyResponse,
+  VaultApyBreakdownEntry,
+} from './money-account-balance-service/types';
