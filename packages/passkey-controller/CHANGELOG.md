@@ -9,12 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- PasskeyController for passkey state management
-- Orchestration functions for passkey enrollment and unlock (adaptive PRF + userHandle)
-- Crypto utilities (HKDF-SHA256, AES-256-GCM) for password encryption/decryption
-
-### Changed
-
-- Store `PasskeyRecord.credentialId` as standard base64 (not base64url).
+- Initial release of `@metamask/passkey-controller`, a controller and helper library for passkey-based wallet unlock (WebAuthn registration/authentication, optional PRF extension, and encrypted vault key wrapping).
+- **`PasskeyController`** (`PasskeyController.ts`): extends `BaseController` with persisted `passkeyRecord` and in-memory registration/authentication sessions (challenge and PRF salt material are not part of controller `state`).
+  - `generatePasskeyRegistrationOptions` — starts registration, stores session data, returns WebAuthn creation options JSON (platform authenticator, `userVerification: required`, PRF `eval` with a random salt).
+  - `completePasskeyRegistration` — verifies the registration challenge in `clientDataJSON`, derives a wrapping key via HKDF (PRF output or `userHandle`), wraps the supplied vault encryption key with AES-GCM, and persists `PasskeyRecord`.
+  - `generatePasskeyAuthenticationOptions` — requires an enrolled passkey; stores an auth challenge and returns WebAuthn request options (including PRF `eval` when the stored record used PRF).
+  - `unwrapVaultEncryptionKey` — verifies the authentication challenge, derives the same wrapping key material, and unwraps the stored encryption key.
+  - `isPasskeyEnrolled` / `removePasskey` — enrollment status and clearing record plus in-memory sessions.
+  - Messenger registers `PasskeyController:isPasskeyEnrolled`; public typings are `PasskeyControllerState` and `PasskeyControllerMessenger`.
+- **`getDefaultPasskeyControllerState`** for initializing controller state.
+- **Crypto** (`crypto.ts`): `deriveWrappingKey` (HKDF-SHA256 → AES-256-GCM key), `wrapKey` / `unwrapKey` for the vault encryption string using `PASSKEY_HKDF_INFO` from `constants.ts`.
+- **Encoding** (`encoding.ts`): `arrayBufferToBase64`, `base64ToArrayBuffer`, `bytesToBase64URL`, `decodeBase64UrlString`, `base64UrlStringToArrayBuffer` (WebAuthn base64url wire decoding for HKDF inputs).
+- **WebAuthn** (`webauthn.ts`): `webauthnWireBinaryToBytes`, `verifyChallengeInClientData`.
+- **Types** (`types.ts`): `PasskeyRecord`, registration/authentication options and response JSON shapes, PRF extension types, and related WebAuthn wire aliases.
+- **Unit tests** for `PasskeyController`, `crypto`, `encoding`, and `webauthn`.
 
 [Unreleased]: https://github.com/MetaMask/core/

@@ -1,3 +1,1 @@
-export const controllerName = 'PasskeyController';
-
-export const PASSKEY_HKDF_INFO = 'MetaMask-passkey-password-encryption-v1';
+export const PASSKEY_HKDF_INFO = 'MetaMask-passkey-encryption-v1';

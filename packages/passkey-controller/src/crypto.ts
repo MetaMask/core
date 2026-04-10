@@ -1,43 +1,5 @@
 import { PASSKEY_HKDF_INFO } from './constants';
-import type {
-  CredentialCreationResult,
-  PasskeyDerivationMethod,
-} from './types';
-
-/*
- * Base64 via `btoa`/`atob` keeps this package free of Node's `Buffer`, which is
- * not guaranteed in browsers, extension workers, or React Native unless polyfilled.
- * (Profile-sync uses `Buffer.from` in Node-oriented code.)
- */
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-export function selectDerivationMethod(
-  result: CredentialCreationResult,
-): PasskeyDerivationMethod {
-  if (
-    result.prfFirst !== undefined &&
-    new Uint8Array(result.prfFirst).byteLength > 0
-  ) {
-    return 'prf';
-  }
-  return 'userHandle';
-}
+import { arrayBufferToBase64, base64ToArrayBuffer } from './encoding';
 
 export async function deriveWrappingKey(
   ikm: ArrayBuffer,
