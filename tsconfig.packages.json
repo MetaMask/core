@@ -4,6 +4,7 @@
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "types": ["jest"],
     /**
      * Here we ensure that TypeScript resolves `@metamask/*` imports to the
      * uncompiled source code for packages that live in this repo.
