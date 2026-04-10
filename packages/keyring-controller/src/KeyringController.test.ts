@@ -1760,6 +1760,88 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('removeEmptyKeyring', () => {
+    it('should remove an empty non-primary keyring', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addNewKeyring(KeyringTypes.simple);
+        expect(controller.state.keyrings).toHaveLength(2);
+
+        const emptyKeyringId = controller.state.keyrings[1].metadata.id;
+        await controller.removeEmptyKeyring(emptyKeyringId);
+
+        expect(controller.state.keyrings).toHaveLength(1);
+        expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+      });
+    });
+
+    it('should throw if the keyring id is not found', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.removeEmptyKeyring('non-existent-id'),
+        ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+      });
+    });
+
+    it('should throw if the keyring is not empty', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.removeEmptyKeyring(
+            controller.state.keyrings[0].metadata.id,
+          ),
+        ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotEmpty);
+      });
+    });
+
+    it('should throw if the primary keyring has no accounts', async () => {
+      const hdData = defaultKeyrings[0].data as {
+        mnemonic: number[];
+        numberOfAccounts: number;
+        hdPath: string;
+      };
+      const emptyHdKeyrings: SerializedKeyring[] = [
+        {
+          type: KeyringTypes.hd,
+          data: {
+            mnemonic: hdData.mnemonic,
+            numberOfAccounts: 0,
+            hdPath: hdData.hdPath,
+          },
+          metadata: defaultKeyrings[0].metadata,
+        },
+      ];
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: { vault: createVault(emptyHdKeyrings) },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const primaryId = controller.state.keyrings[0].metadata.id;
+          expect(controller.state.keyrings[0].accounts).toStrictEqual([]);
+
+          await expect(
+            controller.removeEmptyKeyring(primaryId),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.PrimaryKeyringCannotBeRemoved,
+          );
+        },
+      );
+    });
+
+    it('should throw when the controller is locked', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addNewKeyring(KeyringTypes.simple);
+        const emptyKeyringId = controller.state.keyrings[1].metadata.id;
+        await controller.setLocked();
+
+        await expect(
+          controller.removeEmptyKeyring(emptyKeyringId),
+        ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
+      });
+    });
+  });
+
   describe('signMessage', () => {
     describe('when the keyring for the given address supports signMessage', () => {
       it('should sign message', async () => {
@@ -4554,6 +4636,24 @@ describe('KeyringController', () => {
           await messenger.call('KeyringController:persistAllKeyrings');
 
           expect(controller.persistAllKeyrings).toHaveBeenCalledWith();
+        });
+      });
+    });
+
+    describe('removeEmptyKeyring', () => {
+      it('should call removeEmptyKeyring', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'removeEmptyKeyring')
+          .mockResolvedValue();
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call(
+            'KeyringController:removeEmptyKeyring',
+            'keyring-id',
+          );
+
+          expect(controller.removeEmptyKeyring).toHaveBeenCalledWith(
+            'keyring-id',
+          );
         });
       });
     });

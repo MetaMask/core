@@ -148,6 +148,19 @@ export type KeyringControllerRemoveAccountAction = {
 };
 
 /**
+ * Removes a keyring that has no accounts from keyring state.
+ *
+ * The primary keyring (first in the list) cannot be removed.
+ *
+ * @param keyringId - Metadata id of the keyring to remove.
+ * @returns Promise resolving when the keyring is removed.
+ */
+export type KeyringControllerRemoveEmptyKeyringAction = {
+  type: `KeyringController:removeEmptyKeyring`;
+  handler: KeyringController['removeEmptyKeyring'];
+};
+
+/**
  * Signs message by calling down into a specific keyring.
  *
  * @param messageParams - PersonalMessageParams object to sign.
@@ -325,6 +338,7 @@ export type KeyringControllerMethodActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerPersistAllKeyringsAction
   | KeyringControllerRemoveAccountAction
+  | KeyringControllerRemoveEmptyKeyringAction
   | KeyringControllerSignMessageAction
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction

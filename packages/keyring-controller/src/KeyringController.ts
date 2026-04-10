@@ -69,6 +69,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createNewVaultAndKeychain',
   'createNewVaultAndRestore',
   'removeAccount',
+  'removeEmptyKeyring',
 ] as const;
 
 /**
@@ -1221,6 +1222,48 @@ export class KeyringController<
     });
 
     this.messenger.publish(`${name}:accountRemoved`, address);
+  }
+
+  /**
+   * Removes a keyring that has no accounts from keyring state.
+   *
+   * The primary keyring (first in the list) cannot be removed.
+   *
+   * @param keyringId - Metadata id of the keyring to remove.
+   * @returns Promise resolving when the keyring is removed.
+   */
+  async removeEmptyKeyring(keyringId: string): Promise<void> {
+    this.#assertIsUnlocked();
+
+    await this.#persistOrRollback(async () => {
+      const keyringIndex = this.#keyrings.findIndex(
+        ({ metadata }) => metadata.id === keyringId,
+      );
+
+      if (keyringIndex === -1) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
+      }
+
+      const { keyring } = this.#keyrings[keyringIndex];
+      const accounts = await keyring.getAccounts();
+
+      if (accounts.length > 0) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotEmpty,
+        );
+      }
+
+      if (keyringIndex === 0) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.PrimaryKeyringCannotBeRemoved,
+        );
+      }
+
+      this.#keyrings.splice(keyringIndex, 1);
+      await this.#destroyKeyring(keyring);
+    });
   }
 
   /**

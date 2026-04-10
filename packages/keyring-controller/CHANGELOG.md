@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `removeEmptyKeyring` and `KeyringController:removeEmptyKeyring` to drop a non-primary keyring that has no accounts
 - Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
 - Persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
   - If a keyring's serialized state differs after deserialization (e.g. a migration ran, or metadata was missing), the vault is now re-persisted so the change is not lost on the next unlock.

@@ -11,6 +11,7 @@ export type {
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerPersistAllKeyringsAction,
   KeyringControllerRemoveAccountAction,
+  KeyringControllerRemoveEmptyKeyringAction,
   KeyringControllerSignMessageAction,
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,

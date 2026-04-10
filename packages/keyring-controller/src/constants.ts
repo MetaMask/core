@@ -38,4 +38,6 @@ export enum KeyringControllerErrorMessage {
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
   LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
   EncryptionKeyNotSet = 'KeyringController - Encryption key not set',
+  KeyringNotEmpty = 'KeyringController - The keyring has one or more accounts and cannot be removed as empty',
+  PrimaryKeyringCannotBeRemoved = 'KeyringController - The primary keyring cannot be removed',
 }
