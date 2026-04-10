@@ -2,41 +2,36 @@ import {
   array,
   assert,
   boolean,
-  define,
   number,
   optional,
   string,
   type,
 } from '@metamask/superstruct';
+import { StrictHexStruct } from '@metamask/utils';
 
 import type { DelegationResponse, NotificationPreferences } from './types';
 
-const HexSchema = define<`0x${string}`>(
-  'Hex',
-  (value) => typeof value === 'string' && value.startsWith('0x'),
-);
-
 const CaveatSchema = type({
-  enforcer: HexSchema,
-  terms: HexSchema,
-  args: HexSchema,
+  enforcer: StrictHexStruct,
+  terms: StrictHexStruct,
+  args: StrictHexStruct,
 });
 
 const SignedDelegationSchema = type({
-  delegate: HexSchema,
-  delegator: HexSchema,
-  authority: HexSchema,
+  delegate: StrictHexStruct,
+  delegator: StrictHexStruct,
+  authority: StrictHexStruct,
   caveats: array(CaveatSchema),
-  salt: HexSchema,
-  signature: HexSchema,
+  salt: StrictHexStruct,
+  signature: StrictHexStruct,
 });
 
 const DelegationMetadataSchema = type({
-  delegationHash: HexSchema,
-  chainIdHex: HexSchema,
-  allowance: HexSchema,
+  delegationHash: StrictHexStruct,
+  chainIdHex: StrictHexStruct,
+  allowance: StrictHexStruct,
   tokenSymbol: string(),
-  tokenAddress: HexSchema,
+  tokenAddress: StrictHexStruct,
   type: string(),
 });
 
@@ -46,7 +41,7 @@ const DelegationResponseSchema = type({
 });
 
 const WalletActivityAccountSchema = type({
-  address: HexSchema,
+  address: StrictHexStruct,
   enabled: boolean(),
 });
 

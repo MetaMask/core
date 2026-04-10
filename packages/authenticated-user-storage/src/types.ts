@@ -1,4 +1,6 @@
-export type Hex = `0x${string}`;
+import type { Hex } from '@metamask/utils';
+
+export type { Hex };
 
 // ---------------------------------------------------------------------------
 // Delegations
