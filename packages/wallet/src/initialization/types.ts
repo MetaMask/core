@@ -46,10 +46,10 @@ export function bindMessengerAction<
   ) => ExtractActionResponse<MessengerActions<Msgr>, ActionType>;
 }
 
-// Method syntax provides bivariant parameter checking, which is needed to
-// collect heterogeneous InitializationConfiguration values in a single array.
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: string;
+  // This is a method as opposed to function property in order to collect
+  // heterogeneous InitializationConfiguration values in a single array.
   init(args: InitFunctionArguments<Instance, InstanceMessenger>): {
     instance: Instance;
   };

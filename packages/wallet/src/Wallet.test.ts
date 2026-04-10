@@ -4,7 +4,7 @@ import {
   DistributionType,
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
-import { cleanAll, enableNetConnect } from 'nock';
+import { enableNetConnect } from 'nock';
 
 import { importSecretRecoveryPhrase, sendTransaction } from './utilities';
 import { Wallet } from './Wallet';
@@ -51,7 +51,6 @@ describe('Wallet', () => {
 
   afterEach(async () => {
     await wallet?.destroy();
-    cleanAll();
     enableNetConnect();
     jest.useRealTimers();
   });
@@ -82,6 +81,7 @@ describe('Wallet', () => {
       { networkClientId: 'sepolia' },
     );
 
+    // Advance timers by an arbitrary value to trigger downstream timer logic.
     const hash = await jest.advanceTimersByTimeAsync(60_000).then(() => result);
 
     expect(hash).toStrictEqual(expect.any(String));
@@ -96,7 +96,7 @@ describe('Wallet', () => {
         }),
       }),
     );
-  }, 30_000);
+  }, 10_000);
 
   it('exposes state', async () => {
     wallet = await setupWallet();
