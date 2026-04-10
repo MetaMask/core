@@ -2504,9 +2504,10 @@ export class KeyringController<
     try {
       const { type, data, metadata: serializedMetadata } = serialized;
 
+      const oldState = JSON.stringify(data);
       const keyring = await this.#createKeyring(type, data);
-      const restoredData = await keyring.serialize();
-      let hasChanged = JSON.stringify(data) !== JSON.stringify(restoredData);
+      const newState = JSON.stringify(await keyring.serialize());
+      let hasChanged = oldState !== newState;
 
       await this.#assertNoDuplicateAccounts([keyring]);
 

@@ -2949,8 +2949,9 @@ describe('KeyringController', () => {
       const oldState = { version: 1, foo: 'bar' };
       const newState = { version: 2, foo: 'bar' };
 
-      // A keyring that migrates its own state during deserialization:
-      // after deserialize(oldState), serialize() returns newState.
+      // A keyring that migrates its own state in-place during deserialization: after
+      // deserialize(oldState), the original `data` object is mutated and serialize()
+      // returns the updated state.
       class MigratingKeyring {
         static type = 'Migrating Keyring';
 
@@ -2963,7 +2964,9 @@ describe('KeyringController', () => {
         }
 
         async deserialize(data: Record<string, unknown>): Promise<void> {
-          this.#state = data.version === 1 ? { ...data, version: 2 } : data;
+          // Mutate in-place to simulate a keyring that upgrades its own format.
+          data.version = 2;
+          this.#state = data;
         }
 
         async getAccounts(): Promise<string[]> {
@@ -3002,6 +3005,8 @@ describe('KeyringController', () => {
 
           await controller.submitPassword(password);
 
+          // Migration should have triggered a new vault update that we need to
+          // re-encrypt:
           expect(encryptWithKeySpy).toHaveBeenCalledWith(
             defaultCredentials,
             expect.arrayContaining([
