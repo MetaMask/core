@@ -1,15 +1,4 @@
-import type { Env } from './env';
-
 export type Hex = `0x${string}`;
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
-
-export type AuthenticatedUserStorageConfig = {
-  env: Env;
-  getAccessToken: () => Promise<string>;
-};
 
 // ---------------------------------------------------------------------------
 // Delegations

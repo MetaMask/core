@@ -26,8 +26,7 @@ module.exports = merge(baseConfig, {
 
   coveragePathIgnorePatterns: [
     ...baseConfig.coveragePathIgnorePatterns,
-    '/__fixtures__/',
-    '/mocks/',
+    '/tests/',
     'index.ts',
   ],
 });

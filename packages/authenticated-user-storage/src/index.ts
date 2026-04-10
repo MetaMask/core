@@ -1,11 +1,19 @@
 export {
   authenticatedStorageUrl,
+  serviceName,
   AuthenticatedUserStorage,
 } from './authenticated-user-storage';
-export { AuthenticatedUserStorageError } from './errors';
+export type {
+  AuthenticatedUserStorageActions,
+  AuthenticatedUserStorageCacheUpdatedEvent,
+  AuthenticatedUserStorageEvents,
+  AuthenticatedUserStorageGranularCacheUpdatedEvent,
+  AuthenticatedUserStorageInvalidateQueriesAction,
+  AuthenticatedUserStorageMessenger,
+} from './authenticated-user-storage';
+export type { AuthenticatedUserStorageMethodActions } from './authenticated-user-storage-method-action-types';
 export { Env, getEnvUrls } from './env';
 export type {
-  AuthenticatedUserStorageConfig,
   Hex,
   Caveat,
   SignedDelegation,

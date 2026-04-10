@@ -1,35 +1,31 @@
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
+import nock from 'nock';
+
+import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
+import {
+  authenticatedStorageUrl,
+  AuthenticatedUserStorage,
+} from './authenticated-user-storage';
+import { Env, getEnvUrls } from './env';
 import {
   handleMockListDelegations,
   handleMockCreateDelegation,
   handleMockRevokeDelegation,
   handleMockGetNotificationPreferences,
   handleMockPutNotificationPreferences,
-} from './__fixtures__/authenticated-userstorage';
-import {
-  authenticatedStorageUrl,
-  AuthenticatedUserStorage,
-} from './authenticated-user-storage';
-import { Env, getEnvUrls } from './env';
-import { AuthenticatedUserStorageError } from './errors';
+} from '../tests/fixtures/authenticated-userstorage';
 import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
   MOCK_NOTIFICATION_PREFERENCES,
-} from './mocks/authenticated-userstorage';
+} from '../tests/mocks/authenticated-userstorage';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
-
-function arrangeAuthenticatedUserStorage(): {
-  storage: AuthenticatedUserStorage;
-  mockGetAccessToken: jest.Mock;
-} {
-  const mockGetAccessToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
-  const storage = new AuthenticatedUserStorage({
-    env: Env.PRD,
-    getAccessToken: mockGetAccessToken,
-  });
-  return { storage, mockGetAccessToken };
-}
 
 describe('getEnvUrls()', () => {
   it('returns URLs for a valid environment', () => {
@@ -46,230 +42,256 @@ describe('getEnvUrls()', () => {
   });
 });
 
-describe('AuthenticatedUserStorage - authenticatedStorageUrl()', () => {
+describe('authenticatedStorageUrl()', () => {
   it('generates the base URL for a given environment', () => {
     const result = authenticatedStorageUrl(Env.PRD);
     expect(result).toBe('https://user-storage.api.cx.metamask.io/api/v1');
   });
 });
 
-describe('AuthenticatedUserStorage - delegations', () => {
-  it('lists delegations', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockListDelegations();
-
-    const result = await storage.delegations.list();
-
-    expect(mock.isDone()).toBe(true);
-    expect(result).toStrictEqual([MOCK_DELEGATION_RESPONSE]);
+describe('AuthenticatedUserStorage', () => {
+  afterEach(() => {
+    nock.cleanAll(); // eslint-disable-line import-x/no-named-as-default-member
   });
 
-  it('throws AuthenticatedUserStorageError when list fails', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockListDelegations({
-      status: 500,
-      body: { message: 'server error', error: 'internal' },
+  describe('AuthenticatedUserStorage:listDelegations', () => {
+    it('returns delegation records via the messenger', async () => {
+      handleMockListDelegations();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorage:listDelegations',
+      );
+
+      expect(result).toStrictEqual([MOCK_DELEGATION_RESPONSE]);
+    });
+  });
+
+  describe('listDelegations', () => {
+    it('returns delegation records from the API', async () => {
+      const mock = handleMockListDelegations();
+      const { service } = createService();
+
+      const result = await service.listDelegations();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual([MOCK_DELEGATION_RESPONSE]);
     });
 
-    await expect(storage.delegations.list()).rejects.toThrow(
-      AuthenticatedUserStorageError,
-    );
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockListDelegations({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.listDelegations()).rejects.toThrow(
+        'Failed to list delegations: 500',
+      );
+    });
   });
 
-  it('creates a delegation', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockCreateDelegation();
+  describe('createDelegation', () => {
+    it('submits a delegation to the API', async () => {
+      const mock = handleMockCreateDelegation();
+      const { service } = createService();
 
-    await storage.delegations.create(MOCK_DELEGATION_SUBMISSION);
+      await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
 
-    expect(mock.isDone()).toBe(true);
-  });
-
-  it('creates a delegation with clientType header', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockCreateDelegation();
-
-    await storage.delegations.create(MOCK_DELEGATION_SUBMISSION, 'extension');
-
-    expect(mock.isDone()).toBe(true);
-  });
-
-  it('throws AuthenticatedUserStorageError on 409 conflict when creating duplicate delegation', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockCreateDelegation({
-      status: 409,
-      body: { message: 'delegation already exists', error: 'conflict' },
+      expect(mock.isDone()).toBe(true);
     });
 
-    await expect(
-      storage.delegations.create(MOCK_DELEGATION_SUBMISSION),
-    ).rejects.toThrow(AuthenticatedUserStorageError);
-  });
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const mock = handleMockCreateDelegation();
+      const { service } = createService();
 
-  it('throws AuthenticatedUserStorageError when create fails', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockCreateDelegation({
-      status: 400,
-      body: { message: 'invalid body', error: 'bad_request' },
+      await service.createDelegation(MOCK_DELEGATION_SUBMISSION, 'extension');
+
+      expect(mock.isDone()).toBe(true);
     });
 
-    await expect(
-      storage.delegations.create(MOCK_DELEGATION_SUBMISSION),
-    ).rejects.toThrow(AuthenticatedUserStorageError);
-  });
+    it('throws when the API returns a 409 conflict', async () => {
+      handleMockCreateDelegation({ status: 409 });
+      const { service } = createService();
 
-  it('sends the correct request body when creating a delegation', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockCreateDelegation(undefined, async (_, requestBody) => {
-      expect(requestBody).toStrictEqual(MOCK_DELEGATION_SUBMISSION);
+      await expect(
+        service.createDelegation(MOCK_DELEGATION_SUBMISSION),
+      ).rejects.toThrow('Failed to create delegation: 409');
     });
 
-    await storage.delegations.create(MOCK_DELEGATION_SUBMISSION);
-  });
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockCreateDelegation({ status: 400 });
+      const { service } = createService();
 
-  it('revokes a delegation', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockRevokeDelegation();
-
-    await storage.delegations.revoke(
-      MOCK_DELEGATION_SUBMISSION.metadata.delegationHash,
-    );
-
-    expect(mock.isDone()).toBe(true);
-  });
-
-  it('throws AuthenticatedUserStorageError when revoke returns 404', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockRevokeDelegation({
-      status: 404,
-      body: { message: 'not found', error: 'not_found' },
+      await expect(
+        service.createDelegation(MOCK_DELEGATION_SUBMISSION),
+      ).rejects.toThrow('Failed to create delegation: 400');
     });
 
-    await expect(storage.delegations.revoke('0xdeadbeef')).rejects.toThrow(
-      AuthenticatedUserStorageError,
-    );
+    it('sends the correct request body', async () => {
+      handleMockCreateDelegation(undefined, async (_, requestBody) => {
+        expect(requestBody).toStrictEqual(MOCK_DELEGATION_SUBMISSION);
+      });
+      const { service } = createService();
+
+      await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
+    });
   });
 
-  it('throws AuthenticatedUserStorageError when revoke fails', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockRevokeDelegation({
-      status: 500,
-      body: { message: 'server error', error: 'internal' },
+  describe('revokeDelegation', () => {
+    it('revokes a delegation via the API', async () => {
+      const mock = handleMockRevokeDelegation();
+      const { service } = createService();
+
+      await service.revokeDelegation(
+        MOCK_DELEGATION_SUBMISSION.metadata.delegationHash,
+      );
+
+      expect(mock.isDone()).toBe(true);
     });
 
-    await expect(storage.delegations.revoke('0xdeadbeef')).rejects.toThrow(
-      AuthenticatedUserStorageError,
-    );
+    it('throws when the API returns a 404', async () => {
+      handleMockRevokeDelegation({ status: 404 });
+      const { service } = createService();
+
+      await expect(service.revokeDelegation('0xdeadbeef')).rejects.toThrow(
+        'Failed to revoke delegation: 404',
+      );
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockRevokeDelegation({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.revokeDelegation('0xdeadbeef')).rejects.toThrow(
+        'Failed to revoke delegation: 500',
+      );
+    });
+  });
+
+  describe('getNotificationPreferences', () => {
+    it('returns notification preferences from the API', async () => {
+      const mock = handleMockGetNotificationPreferences();
+      const { service } = createService();
+
+      const result = await service.getNotificationPreferences();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
+    });
+
+    it('returns null when preferences are not found', async () => {
+      handleMockGetNotificationPreferences({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getNotificationPreferences();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetNotificationPreferences({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getNotificationPreferences()).rejects.toThrow(
+        'Failed to get notification preferences: 500',
+      );
+    });
+  });
+
+  describe('putNotificationPreferences', () => {
+    it('submits notification preferences to the API', async () => {
+      const mock = handleMockPutNotificationPreferences();
+      const { service } = createService();
+
+      await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const mock = handleMockPutNotificationPreferences();
+      const { service } = createService();
+
+      await service.putNotificationPreferences(
+        MOCK_NOTIFICATION_PREFERENCES,
+        'mobile',
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      handleMockPutNotificationPreferences(
+        undefined,
+        async (_, requestBody) => {
+          expect(requestBody).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
+        },
+      );
+      const { service } = createService();
+
+      await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockPutNotificationPreferences({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES),
+      ).rejects.toThrow('Failed to put notification preferences: 400');
+    });
+  });
+
+  describe('authorization', () => {
+    it('passes the access token as a Bearer header', async () => {
+      handleMockListDelegations();
+      const { service, mockGetAccessToken } = createService();
+
+      await service.listDelegations();
+
+      expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
-describe('AuthenticatedUserStorage - preferences', () => {
-  it('gets notification preferences', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockGetNotificationPreferences();
+// === Test helpers ===
 
-    const result = await storage.preferences.getNotifications();
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<AuthenticatedUserStorageMessenger>,
+  MessengerEvents<AuthenticatedUserStorageMessenger>
+>;
 
-    expect(mock.isDone()).toBe(true);
-    expect(result).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
+function createRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function createServiceMessenger(
+  rootMessenger: RootMessenger,
+): AuthenticatedUserStorageMessenger {
+  return new Messenger({
+    namespace: 'AuthenticatedUserStorage',
+    parent: rootMessenger,
+  });
+}
+
+function createService({
+  options = {},
+}: {
+  options?: Partial<ConstructorParameters<typeof AuthenticatedUserStorage>[0]>;
+} = {}): {
+  service: AuthenticatedUserStorage;
+  rootMessenger: RootMessenger;
+  messenger: AuthenticatedUserStorageMessenger;
+  mockGetAccessToken: jest.Mock;
+} {
+  const rootMessenger = createRootMessenger();
+  const messenger = createServiceMessenger(rootMessenger);
+  const mockGetAccessToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
+  const service = new AuthenticatedUserStorage({
+    messenger,
+    env: Env.PRD,
+    getAccessToken: mockGetAccessToken,
+    ...options,
   });
 
-  it('returns null when notification preferences are not found', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockGetNotificationPreferences({ status: 404 });
-
-    const result = await storage.preferences.getNotifications();
-
-    expect(result).toBeNull();
-  });
-
-  it('throws AuthenticatedUserStorageError when get preferences fails', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockGetNotificationPreferences({
-      status: 500,
-      body: { message: 'server error', error: 'internal' },
-    });
-
-    await expect(storage.preferences.getNotifications()).rejects.toThrow(
-      AuthenticatedUserStorageError,
-    );
-  });
-
-  it('puts notification preferences', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockPutNotificationPreferences();
-
-    await storage.preferences.putNotifications(MOCK_NOTIFICATION_PREFERENCES);
-
-    expect(mock.isDone()).toBe(true);
-  });
-
-  it('puts notification preferences with clientType header', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    const mock = handleMockPutNotificationPreferences();
-
-    await storage.preferences.putNotifications(
-      MOCK_NOTIFICATION_PREFERENCES,
-      'mobile',
-    );
-
-    expect(mock.isDone()).toBe(true);
-  });
-
-  it('sends the correct request body when putting preferences', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockPutNotificationPreferences(undefined, async (_, requestBody) => {
-      expect(requestBody).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
-    });
-
-    await storage.preferences.putNotifications(MOCK_NOTIFICATION_PREFERENCES);
-  });
-
-  it('throws AuthenticatedUserStorageError when put preferences fails', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockPutNotificationPreferences({
-      status: 400,
-      body: { message: 'invalid body', error: 'bad_request' },
-    });
-
-    await expect(
-      storage.preferences.putNotifications(MOCK_NOTIFICATION_PREFERENCES),
-    ).rejects.toThrow(AuthenticatedUserStorageError);
-  });
-});
-
-describe('AuthenticatedUserStorage - authorization', () => {
-  it('passes the access token as a Bearer header', async () => {
-    const { storage, mockGetAccessToken } = arrangeAuthenticatedUserStorage();
-    handleMockListDelegations();
-
-    await storage.delegations.list();
-
-    expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
-  });
-
-  it('wraps non-Error thrown values in AuthenticatedUserStorageError', async () => {
-    const storage = new AuthenticatedUserStorage({
-      env: Env.PRD,
-      getAccessToken: jest.fn().mockRejectedValue('string rejection'),
-    });
-
-    await expect(storage.delegations.list()).rejects.toThrow(
-      AuthenticatedUserStorageError,
-    );
-    await expect(storage.delegations.list()).rejects.toThrow(
-      'string rejection',
-    );
-  });
-
-  it('wraps null thrown values in AuthenticatedUserStorageError', async () => {
-    const storage = new AuthenticatedUserStorage({
-      env: Env.PRD,
-      getAccessToken: jest.fn().mockRejectedValue(null),
-    });
-
-    await expect(storage.delegations.list()).rejects.toThrow(
-      AuthenticatedUserStorageError,
-    );
-  });
-});
+  return { service, rootMessenger, messenger, mockGetAccessToken };
+}

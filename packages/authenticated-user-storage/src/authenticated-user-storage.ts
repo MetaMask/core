@@ -1,8 +1,17 @@
+import type {
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { BaseDataService } from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+
+import type { AuthenticatedUserStorageMethodActions } from './authenticated-user-storage-method-action-types';
 import type { Env } from './env';
 import { getEnvUrls } from './env';
-import { AuthenticatedUserStorageError } from './errors';
 import type {
-  AuthenticatedUserStorageConfig,
   ClientType,
   DelegationResponse,
   DelegationSubmission,
@@ -13,253 +22,315 @@ import {
   assertNotificationPreferences,
 } from './validators';
 
+// === GENERAL ===
+
+/**
+ * The name of the {@link AuthenticatedUserStorage} service, used to namespace
+ * the service's actions and events.
+ */
+export const serviceName = 'AuthenticatedUserStorage';
+
+/**
+ * Builds the versioned API base URL for a given environment.
+ *
+ * @param env - The target environment.
+ * @returns The base URL including the `/api/v1` path segment.
+ */
 export function authenticatedStorageUrl(env: Env): string {
   return `${getEnvUrls(env).userStorageApiUrl}/api/v1`;
 }
 
-type ErrorMessage = {
-  message: string;
-  error: string;
-};
+// === MESSENGER ===
 
-export class AuthenticatedUserStorage {
+const MESSENGER_EXPOSED_METHODS = [
+  'listDelegations',
+  'createDelegation',
+  'revokeDelegation',
+  'getNotificationPreferences',
+  'putNotificationPreferences',
+] as const;
+
+/**
+ * Invalidates cached queries for {@link AuthenticatedUserStorage}.
+ */
+export type AuthenticatedUserStorageInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
+ * Actions that {@link AuthenticatedUserStorage} exposes to other consumers.
+ */
+export type AuthenticatedUserStorageActions =
+  | AuthenticatedUserStorageMethodActions
+  | AuthenticatedUserStorageInvalidateQueriesAction;
+
+/**
+ * Actions from other messengers that {@link AuthenticatedUserStorage} calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Published when {@link AuthenticatedUserStorage}'s cache is updated.
+ */
+export type AuthenticatedUserStorageCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link AuthenticatedUserStorage}'s cache is
+ * updated.
+ */
+export type AuthenticatedUserStorageGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Events that {@link AuthenticatedUserStorage} exposes to other consumers.
+ */
+export type AuthenticatedUserStorageEvents =
+  | AuthenticatedUserStorageCacheUpdatedEvent
+  | AuthenticatedUserStorageGranularCacheUpdatedEvent;
+
+/**
+ * Events from other messengers that {@link AuthenticatedUserStorage} subscribes
+ * to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger which is restricted to actions and events accessed by
+ * {@link AuthenticatedUserStorage}.
+ */
+export type AuthenticatedUserStorageMessenger = Messenger<
+  typeof serviceName,
+  AuthenticatedUserStorageActions | AllowedActions,
+  AuthenticatedUserStorageEvents | AllowedEvents
+>;
+
+// === SERVICE ===
+
+/**
+ * Data service wrapping authenticated user-storage API endpoints.
+ *
+ * Provides methods for managing delegations and notification preferences
+ * for the authenticated user.
+ */
+export class AuthenticatedUserStorage extends BaseDataService<
+  typeof serviceName,
+  AuthenticatedUserStorageMessenger
+> {
   readonly #env: Env;
 
   readonly #getAccessToken: () => Promise<string>;
 
   /**
-   * Domain accessor for delegation operations.
+   * Constructs a new AuthenticatedUserStorage service.
    *
-   * Delegations are immutable signed records scoped to the authenticated user.
-   * Once a delegation is stored it cannot be modified -- it can only be revoked.
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this service.
+   * @param args.env - The target environment (dev, uat, prd).
+   * @param args.getAccessToken - Callback that returns a valid access token.
+   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
+   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
-  public readonly delegations: {
-    /**
-     * Returns all delegation records belonging to the authenticated user.
-     *
-     * @returns An array of delegation records, or an empty array if none exist.
-     * @throws {AuthenticatedUserStorageError} If the request fails.
-     */
-    list: () => Promise<DelegationResponse[]>;
-    /**
-     * Stores a signed delegation record for the authenticated user.
-     * Delegations are immutable; once stored they cannot be modified or replaced.
-     *
-     * @param submission - The signed delegation and its metadata.
-     * @param submission.signedDelegation - The EIP-712 signed delegation object.
-     * @param submission.metadata - Metadata including the delegation hash, chain, token, and type.
-     * @param clientType - Optional client type header (`'extension'`, `'mobile'`, or `'portfolio'`).
-     * @throws {AuthenticatedUserStorageError} If the request fails. A 409 status indicates the delegation already exists.
-     */
-    create: (
-      submission: DelegationSubmission,
-      clientType?: ClientType,
-    ) => Promise<void>;
-    /**
-     * Revokes (deletes) a delegation record. The caller must own the delegation.
-     *
-     * @param delegationHash - The unique hash identifying the delegation (hex string, 0x-prefixed).
-     * @throws {AuthenticatedUserStorageError} If the request fails or the delegation is not found (404).
-     */
-    revoke: (delegationHash: string) => Promise<void>;
-  };
+  constructor({
+    messenger,
+    env,
+    getAccessToken,
+    policyOptions,
+  }: {
+    messenger: AuthenticatedUserStorageMessenger;
+    env: Env;
+    getAccessToken: () => Promise<string>;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    super({ name: serviceName, messenger, policyOptions });
+    this.#env = env;
+    this.#getAccessToken = getAccessToken;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
 
   /**
-   * Domain accessor for user preference operations.
+   * Returns all delegation records belonging to the authenticated user.
    *
-   * Preferences are mutable structured records scoped to the authenticated user.
+   * @returns An array of delegation records, or an empty array if none exist.
    */
-  public readonly preferences: {
-    /**
-     * Returns the notification preferences for the authenticated user.
-     *
-     * @returns The notification preferences object, or `null` if none have been set.
-     * @throws {AuthenticatedUserStorageError} If the request fails.
-     */
-    getNotifications: () => Promise<NotificationPreferences | null>;
-    /**
-     * Creates or updates the notification preferences for the authenticated user.
-     * On first call the record is created; subsequent calls update it.
-     *
-     * @param prefs - The full notification preferences object.
-     * @param clientType - Optional client type header (`'extension'`, `'mobile'`, or `'portfolio'`).
-     * @throws {AuthenticatedUserStorageError} If the request fails.
-     */
-    putNotifications: (
-      prefs: NotificationPreferences,
-      clientType?: ClientType,
-    ) => Promise<void>;
-  };
+  async listDelegations(): Promise<DelegationResponse[]> {
+    const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
 
-  constructor(config: AuthenticatedUserStorageConfig) {
-    this.#env = config.env;
-    this.#getAccessToken = config.getAccessToken;
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:listDelegations`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
 
-    this.delegations = {
-      list: this.#listDelegations.bind(this),
-      create: this.#createDelegation.bind(this),
-      revoke: this.#revokeDelegation.bind(this),
-    };
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to list delegations: ${response.status}`,
+          );
+        }
 
-    this.preferences = {
-      getNotifications: this.#getNotificationPreferences.bind(this),
-      putNotifications: this.#putNotificationPreferences.bind(this),
-    };
+        return response.json();
+      },
+    });
+
+    assertDelegationResponseArray(data);
+    return data;
   }
 
-  async #listDelegations(): Promise<DelegationResponse[]> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
-
-      const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-
-      if (!response.ok) {
-        throw await this.#buildHttpError(response);
-      }
-
-      const data: unknown = await response.json();
-      assertDelegationResponseArray(data);
-      return data;
-    } catch (error) {
-      throw this.#wrapError('list delegations', error);
-    }
-  }
-
-  async #createDelegation(
+  /**
+   * Stores a signed delegation record for the authenticated user.
+   *
+   * @param submission - The signed delegation and its metadata.
+   * @param clientType - Optional client type header.
+   */
+  async createDelegation(
     submission: DelegationSubmission,
     clientType?: ClientType,
   ): Promise<void> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
+    const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
 
-      const optionalHeaders: Record<string, string> = {};
-      if (clientType) {
-        optionalHeaders['X-Client-Type'] = clientType;
-      }
+    await this.fetchQuery({
+      queryKey: [
+        `${this.name}:createDelegation`,
+        submission.metadata.delegationHash,
+      ],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(submission),
+        });
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-          ...optionalHeaders,
-        },
-        body: JSON.stringify(submission),
-      });
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to create delegation: ${response.status}`,
+          );
+        }
 
-      if (!response.ok) {
-        throw await this.#buildHttpError(response);
-      }
-    } catch (error) {
-      throw this.#wrapError('create delegation', error);
-    }
-  }
-
-  async #revokeDelegation(delegationHash: string): Promise<void> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = `${authenticatedStorageUrl(this.#env)}/delegations/${encodeURIComponent(delegationHash)}`;
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-
-      if (!response.ok) {
-        throw await this.#buildHttpError(response);
-      }
-    } catch (error) {
-      throw this.#wrapError('revoke delegation', error);
-    }
-  }
-
-  async #getNotificationPreferences(): Promise<NotificationPreferences | null> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
-
-      const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-
-      if (response.status === 404) {
         return null;
-      }
-
-      if (!response.ok) {
-        throw await this.#buildHttpError(response);
-      }
-
-      const data: unknown = await response.json();
-      assertNotificationPreferences(data);
-      return data;
-    } catch (error) {
-      throw this.#wrapError('get notification preferences', error);
-    }
+      },
+    });
   }
 
-  async #putNotificationPreferences(
+  /**
+   * Revokes (deletes) a delegation record.
+   *
+   * @param delegationHash - The unique hash identifying the delegation.
+   */
+  async revokeDelegation(delegationHash: string): Promise<void> {
+    const url = `${authenticatedStorageUrl(this.#env)}/delegations/${encodeURIComponent(delegationHash)}`;
+
+    await this.fetchQuery({
+      queryKey: [`${this.name}:revokeDelegation`, delegationHash],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to revoke delegation: ${response.status}`,
+          );
+        }
+
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Returns the notification preferences for the authenticated user.
+   *
+   * @returns The notification preferences object, or `null` if none have been
+   * set (404).
+   */
+  async getNotificationPreferences(): Promise<NotificationPreferences | null> {
+    const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
+
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getNotificationPreferences`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to get notification preferences: ${response.status}`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    assertNotificationPreferences(data);
+    return data;
+  }
+
+  /**
+   * Creates or updates the notification preferences for the authenticated user.
+   *
+   * @param prefs - The full notification preferences object.
+   * @param clientType - Optional client type header.
+   */
+  async putNotificationPreferences(
     prefs: NotificationPreferences,
     clientType?: ClientType,
   ): Promise<void> {
-    try {
-      const headers = await this.#getAuthorizationHeader();
-      const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
+    const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
 
-      const optionalHeaders: Record<string, string> = {};
-      if (clientType) {
-        optionalHeaders['X-Client-Type'] = clientType;
-      }
+    await this.fetchQuery({
+      queryKey: [`${this.name}:putNotificationPreferences`],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(prefs),
+        });
 
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-          ...optionalHeaders,
-        },
-        body: JSON.stringify(prefs),
-      });
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to put notification preferences: ${response.status}`,
+          );
+        }
 
-      if (!response.ok) {
-        throw await this.#buildHttpError(response);
-      }
-    } catch (error) {
-      throw this.#wrapError('put notification preferences', error);
-    }
+        return null;
+      },
+    });
   }
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
+  async #getHeaders(clientType?: ClientType): Promise<Record<string, string>> {
     const accessToken = await this.#getAccessToken();
-    return { Authorization: `Bearer ${accessToken}` };
-  }
-
-  async #buildHttpError(response: Response): Promise<Error> {
-    const body: ErrorMessage = await response.json().catch(() => ({
-      message: 'unknown',
-      error: 'unknown',
-    }));
-    return new Error(
-      `HTTP ${response.status} message: ${body.message}, error: ${body.error}`,
-    );
-  }
-
-  #wrapError(
-    operation: string,
-    thrown: unknown,
-  ): AuthenticatedUserStorageError {
-    if (thrown instanceof AuthenticatedUserStorageError) {
-      return thrown;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      Authorization: `Bearer ${accessToken}`,
+    };
+    if (clientType) {
+      headers['X-Client-Type'] = clientType;
     }
-    const message =
-      thrown instanceof Error ? thrown.message : JSON.stringify(thrown ?? '');
-    return new AuthenticatedUserStorageError(
-      `failed to ${operation}. ${message}`,
-    );
+    return headers;
   }
 }
