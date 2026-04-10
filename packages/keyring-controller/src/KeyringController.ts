@@ -67,6 +67,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'addNewAccount',
   'withKeyring',
   'withKeyringUnsafe',
+  'withKeyringV2',
+  'withKeyringV2Unsafe',
   'addNewKeyring',
   'createNewVaultAndKeychain',
   'createNewVaultAndRestore',
