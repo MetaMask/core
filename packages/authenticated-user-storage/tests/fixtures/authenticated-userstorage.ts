@@ -32,7 +32,7 @@ export function handleMockCreateDelegation(
 
   if (callback) {
     return interceptor.reply(reply.status, async (uri, requestBody) => {
-      await callback(uri, requestBody);
+      return callback(uri, requestBody);
     });
   }
   return interceptor.reply(reply.status, reply.body);
@@ -68,7 +68,7 @@ export function handleMockPutNotificationPreferences(
 
   if (callback) {
     return interceptor.reply(reply.status, async (uri, requestBody) => {
-      await callback(uri, requestBody);
+      return callback(uri, requestBody);
     });
   }
   return interceptor.reply(reply.status, reply.body);

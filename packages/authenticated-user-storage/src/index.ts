@@ -11,7 +11,13 @@ export type {
   AuthenticatedUserStorageInvalidateQueriesAction,
   AuthenticatedUserStorageMessenger,
 } from './authenticated-user-storage';
-export type { AuthenticatedUserStorageMethodActions } from './authenticated-user-storage-method-action-types';
+export type {
+  AuthenticatedUserStorageListDelegationsAction,
+  AuthenticatedUserStorageCreateDelegationAction,
+  AuthenticatedUserStorageRevokeDelegationAction,
+  AuthenticatedUserStorageGetNotificationPreferencesAction,
+  AuthenticatedUserStoragePutNotificationPreferencesAction,
+} from './authenticated-user-storage-method-action-types';
 export { Env, getEnvUrls } from './env';
 export type {
   Hex,

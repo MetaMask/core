@@ -325,7 +325,6 @@ export class AuthenticatedUserStorage extends BaseDataService<
     const accessToken = await this.#getAccessToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       Authorization: `Bearer ${accessToken}`,
     };
     if (clientType) {
