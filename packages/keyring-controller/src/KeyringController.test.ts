@@ -2945,6 +2945,81 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should update the vault if the keyring state changes during deserialization', async () => {
+      const oldState = { version: 1, foo: 'bar' };
+      const newState = { version: 2, foo: 'bar' };
+
+      // A keyring that migrates its own state in-place during deserialization: after
+      // deserialize(oldState), the original `data` object is mutated and serialize()
+      // returns the updated state.
+      class MigratingKeyring {
+        static type = 'Migrating Keyring';
+
+        type = 'Migrating Keyring';
+
+        #state: Record<string, unknown> = {};
+
+        async serialize(): Promise<Record<string, unknown>> {
+          return this.#state;
+        }
+
+        async deserialize(data: Record<string, unknown>): Promise<void> {
+          // Mutate in-place to simulate a keyring that upgrades its own format.
+          data.version = 2;
+          this.#state = data;
+        }
+
+        async getAccounts(): Promise<string[]> {
+          return [];
+        }
+
+        async addAccounts(): Promise<string[]> {
+          return [];
+        }
+      }
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: createVault([
+              // #updateVault requires at least one HD keyring to be present.
+              {
+                type: KeyringTypes.hd,
+                data: {},
+                metadata: { id: '0', name: '' },
+              },
+              {
+                type: MigratingKeyring.type,
+                data: oldState,
+                metadata: { id: '1', name: '' },
+              },
+            ]),
+          },
+          keyringBuilders: [
+            keyringBuilderFactory(MigratingKeyring as unknown as KeyringClass),
+          ],
+        },
+        async ({ controller, encryptor }) => {
+          const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
+
+          await controller.submitPassword(password);
+
+          // Migration should have triggered a new vault update that we need to
+          // re-encrypt:
+          expect(encryptWithKeySpy).toHaveBeenCalledWith(
+            defaultCredentials,
+            expect.arrayContaining([
+              expect.objectContaining({
+                type: MigratingKeyring.type,
+                data: newState,
+              }),
+            ]),
+          );
+        },
+      );
+    });
+
     it('should unlock the wallet if the state has a duplicate account and the encryption parameters are outdated', async () => {
       stubKeyringClassWithAccount(MockKeyring, '0x123');
       stubKeyringClassWithAccount(HdKeyring, '0x123');
