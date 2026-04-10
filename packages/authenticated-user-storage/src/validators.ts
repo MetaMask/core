@@ -72,7 +72,7 @@ const PerpsPreferenceSchema = type({
 const SocialAIPreferenceSchema = type({
   enabled: boolean(),
   txAmountLimit: optional(number()),
-  tokens: array(string()),
+  traderProfileIds: array(string()),
 });
 
 const NotificationPreferencesSchema = type({
