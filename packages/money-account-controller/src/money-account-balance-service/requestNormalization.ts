@@ -1,7 +1,7 @@
 import { Infer } from '@metamask/superstruct';
 
-import { VaultApyResponseStruct } from './structs';
 import { VaultApyResponse } from './response.types';
+import { VaultApyResponseStruct } from './structs';
 
 /**
  * Normalizes the raw response from the Veda performance API into the expected
@@ -20,13 +20,15 @@ export function normalizeVaultApyResponse(
     apy: response.apy,
     chainAllocation: response.chain_allocation,
     fees: response.fees,
-    globalApyBreakdown: {
-      fee: response.global_apy_breakdown.fee,
-      maturityApy: response.global_apy_breakdown.maturity_apy,
-      realApy: response.global_apy_breakdown.real_apy,
-    },
+    globalApyBreakdown: response.global_apy_breakdown
+      ? {
+          fee: response.global_apy_breakdown.fee,
+          maturityApy: response.global_apy_breakdown.maturity_apy,
+          realApy: response.global_apy_breakdown.real_apy,
+        }
+      : undefined,
     performanceFees: response.performance_fees,
-    realApyBreakdown: response.real_apy_breakdown.map((item) => ({
+    realApyBreakdown: response.real_apy_breakdown?.map((item) => ({
       allocation: item.allocation,
       apy: item.apy,
       apyNet: item.apy_net,

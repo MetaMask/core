@@ -28,26 +28,29 @@ export type MusdEquivalentValueResponse = {
 /**
  * Response from {@link MoneyAccountBalanceService.getVaultApy}.
  * All APY / fee values are decimals (multiply by 100 for percentage).
+ *
+ * Only `apy` and `timestamp` are guaranteed to be present — all other fields
+ * are optional because the Veda API omits them when the vault has no activity.
  */
 export type VaultApyResponse = {
-  aggregationPeriod: string; // E.g. "7 days"
+  aggregationPeriod?: string; // E.g. "7 days"
   apy: number;
-  chainAllocation: {
+  chainAllocation?: {
     [network: string]: number;
   };
-  fees: number;
-  globalApyBreakdown: {
-    fee: number;
-    maturityApy: number;
-    realApy: number;
+  fees?: number;
+  globalApyBreakdown?: {
+    fee?: number;
+    maturityApy?: number;
+    realApy?: number;
   };
-  performanceFees: number;
-  realApyBreakdown: {
-    allocation: number;
-    apy: number;
-    apyNet: number;
-    chain: string;
-    protocol: string;
+  performanceFees?: number;
+  realApyBreakdown?: {
+    allocation?: number;
+    apy?: number;
+    apyNet?: number;
+    chain?: string;
+    protocol?: string;
   }[];
   timestamp: string;
 };

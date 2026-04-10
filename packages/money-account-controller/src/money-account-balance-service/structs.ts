@@ -1,31 +1,45 @@
-import { array, number, record, string, type } from '@metamask/superstruct';
+import {
+  array,
+  number,
+  optional,
+  record,
+  string,
+  type,
+} from '@metamask/superstruct';
 
 /**
  * Superstruct schema for {@link VaultApyResponse}.
  *
  * Uses `type()` (loose validation) so that unknown fields returned by the
  * Veda API do not cause validation failures.
+ *
+ * Only `apy` and `timestamp` are required — all other fields are optional
+ * because the Veda API omits some fields when the vault has no activity.
  */
 export const VaultApyResponseStruct = type({
   Response: type({
-    aggregation_period: string(),
+    aggregation_period: optional(string()),
     apy: number(),
-    chain_allocation: record(string(), number()),
-    fees: number(),
-    global_apy_breakdown: type({
-      fee: number(),
-      maturity_apy: number(),
-      real_apy: number(),
-    }),
-    performance_fees: number(),
-    real_apy_breakdown: array(
+    chain_allocation: optional(record(string(), number())),
+    fees: optional(number()),
+    global_apy_breakdown: optional(
       type({
-        allocation: number(),
-        apy: number(),
-        apy_net: number(),
-        chain: string(),
-        protocol: string(),
+        fee: optional(number()),
+        maturity_apy: optional(number()),
+        real_apy: optional(number()),
       }),
+    ),
+    performance_fees: optional(number()),
+    real_apy_breakdown: optional(
+      array(
+        type({
+          allocation: optional(number()),
+          apy: optional(number()),
+          apy_net: optional(number()),
+          chain: optional(string()),
+          protocol: optional(string()),
+        }),
+      ),
     ),
     timestamp: string(),
   }),
