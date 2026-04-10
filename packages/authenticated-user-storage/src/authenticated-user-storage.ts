@@ -25,8 +25,8 @@ import {
 // === GENERAL ===
 
 /**
- * The name of the {@link AuthenticatedUserStorage} service, used to namespace
- * the service's actions and events.
+ * The name of the {@link AuthenticatedUserStorageService} service, used to
+ * namespace the service's actions and events.
  */
 export const serviceName = 'AuthenticatedUserStorage';
 
@@ -51,52 +51,55 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
- * Invalidates cached queries for {@link AuthenticatedUserStorage}.
+ * Invalidates cached queries for {@link AuthenticatedUserStorageService}.
  */
 export type AuthenticatedUserStorageInvalidateQueriesAction =
   DataServiceInvalidateQueriesAction<typeof serviceName>;
 
 /**
- * Actions that {@link AuthenticatedUserStorage} exposes to other consumers.
+ * Actions that {@link AuthenticatedUserStorageService} exposes to other
+ * consumers.
  */
 export type AuthenticatedUserStorageActions =
   | AuthenticatedUserStorageMethodActions
   | AuthenticatedUserStorageInvalidateQueriesAction;
 
 /**
- * Actions from other messengers that {@link AuthenticatedUserStorage} calls.
+ * Actions from other messengers that {@link AuthenticatedUserStorageService}
+ * calls.
  */
 type AllowedActions = never;
 
 /**
- * Published when {@link AuthenticatedUserStorage}'s cache is updated.
+ * Published when {@link AuthenticatedUserStorageService}'s cache is updated.
  */
 export type AuthenticatedUserStorageCacheUpdatedEvent =
   DataServiceCacheUpdatedEvent<typeof serviceName>;
 
 /**
- * Published when a key within {@link AuthenticatedUserStorage}'s cache is
- * updated.
+ * Published when a key within {@link AuthenticatedUserStorageService}'s cache
+ * is updated.
  */
 export type AuthenticatedUserStorageGranularCacheUpdatedEvent =
   DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
 /**
- * Events that {@link AuthenticatedUserStorage} exposes to other consumers.
+ * Events that {@link AuthenticatedUserStorageService} exposes to other
+ * consumers.
  */
 export type AuthenticatedUserStorageEvents =
   | AuthenticatedUserStorageCacheUpdatedEvent
   | AuthenticatedUserStorageGranularCacheUpdatedEvent;
 
 /**
- * Events from other messengers that {@link AuthenticatedUserStorage} subscribes
- * to.
+ * Events from other messengers that
+ * {@link AuthenticatedUserStorageService} subscribes to.
  */
 type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by
- * {@link AuthenticatedUserStorage}.
+ * {@link AuthenticatedUserStorageService}.
  */
 export type AuthenticatedUserStorageMessenger = Messenger<
   typeof serviceName,
@@ -112,7 +115,7 @@ export type AuthenticatedUserStorageMessenger = Messenger<
  * Provides methods for managing delegations and notification preferences
  * for the authenticated user.
  */
-export class AuthenticatedUserStorage extends BaseDataService<
+export class AuthenticatedUserStorageService extends BaseDataService<
   typeof serviceName,
   AuthenticatedUserStorageMessenger
 > {
@@ -121,7 +124,7 @@ export class AuthenticatedUserStorage extends BaseDataService<
   readonly #getAccessToken: () => Promise<string>;
 
   /**
-   * Constructs a new AuthenticatedUserStorage service.
+   * Constructs a new AuthenticatedUserStorageService.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.

@@ -40,13 +40,13 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/authenticated-user-storage",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/authenticated-user-storage",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/base-data-service": "^0.1.1",

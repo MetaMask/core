@@ -9,7 +9,7 @@ import nock from 'nock';
 import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
 import {
   authenticatedStorageUrl,
-  AuthenticatedUserStorage,
+  AuthenticatedUserStorageService,
 } from './authenticated-user-storage';
 import { Env, getEnvUrls } from './env';
 import {
@@ -49,12 +49,8 @@ describe('authenticatedStorageUrl()', () => {
   });
 });
 
-describe('AuthenticatedUserStorage', () => {
-  afterEach(() => {
-    nock.cleanAll(); // eslint-disable-line import-x/no-named-as-default-member
-  });
-
-  describe('AuthenticatedUserStorage:listDelegations', () => {
+describe('AuthenticatedUserStorageService', () => {
+  describe('AuthenticatedUserStorageService:listDelegations', () => {
     it('returns delegation records via the messenger', async () => {
       handleMockListDelegations();
       const { rootMessenger } = createService();
@@ -276,9 +272,9 @@ function createServiceMessenger(
 function createService({
   options = {},
 }: {
-  options?: Partial<ConstructorParameters<typeof AuthenticatedUserStorage>[0]>;
+  options?: Partial<ConstructorParameters<typeof AuthenticatedUserStorageService>[0]>;
 } = {}): {
-  service: AuthenticatedUserStorage;
+  service: AuthenticatedUserStorageService;
   rootMessenger: RootMessenger;
   messenger: AuthenticatedUserStorageMessenger;
   mockGetAccessToken: jest.Mock;
@@ -286,7 +282,7 @@ function createService({
   const rootMessenger = createRootMessenger();
   const messenger = createServiceMessenger(rootMessenger);
   const mockGetAccessToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
-  const service = new AuthenticatedUserStorage({
+  const service = new AuthenticatedUserStorageService({
     messenger,
     env: Env.PRD,
     getAccessToken: mockGetAccessToken,

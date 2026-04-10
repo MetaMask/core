@@ -1,7 +1,6 @@
 export {
   authenticatedStorageUrl,
-  serviceName,
-  AuthenticatedUserStorage,
+  AuthenticatedUserStorageService,
 } from './authenticated-user-storage';
 export type {
   AuthenticatedUserStorageActions,
@@ -20,7 +19,6 @@ export type {
 } from './authenticated-user-storage-method-action-types';
 export { Env, getEnvUrls } from './env';
 export type {
-  Hex,
   Caveat,
   SignedDelegation,
   DelegationMetadata,

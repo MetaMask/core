@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AuthenticatedUserStorage } from './authenticated-user-storage';
+import type { AuthenticatedUserStorageService } from './authenticated-user-storage';
 
 /**
  * Returns all delegation records belonging to the authenticated user.
@@ -12,7 +12,7 @@ import type { AuthenticatedUserStorage } from './authenticated-user-storage';
  */
 export type AuthenticatedUserStorageListDelegationsAction = {
   type: `AuthenticatedUserStorage:listDelegations`;
-  handler: AuthenticatedUserStorage['listDelegations'];
+  handler: AuthenticatedUserStorageService['listDelegations'];
 };
 
 /**
@@ -23,7 +23,7 @@ export type AuthenticatedUserStorageListDelegationsAction = {
  */
 export type AuthenticatedUserStorageCreateDelegationAction = {
   type: `AuthenticatedUserStorage:createDelegation`;
-  handler: AuthenticatedUserStorage['createDelegation'];
+  handler: AuthenticatedUserStorageService['createDelegation'];
 };
 
 /**
@@ -33,7 +33,7 @@ export type AuthenticatedUserStorageCreateDelegationAction = {
  */
 export type AuthenticatedUserStorageRevokeDelegationAction = {
   type: `AuthenticatedUserStorage:revokeDelegation`;
-  handler: AuthenticatedUserStorage['revokeDelegation'];
+  handler: AuthenticatedUserStorageService['revokeDelegation'];
 };
 
 /**
@@ -44,7 +44,7 @@ export type AuthenticatedUserStorageRevokeDelegationAction = {
  */
 export type AuthenticatedUserStorageGetNotificationPreferencesAction = {
   type: `AuthenticatedUserStorage:getNotificationPreferences`;
-  handler: AuthenticatedUserStorage['getNotificationPreferences'];
+  handler: AuthenticatedUserStorageService['getNotificationPreferences'];
 };
 
 /**
@@ -55,7 +55,7 @@ export type AuthenticatedUserStorageGetNotificationPreferencesAction = {
  */
 export type AuthenticatedUserStoragePutNotificationPreferencesAction = {
   type: `AuthenticatedUserStorage:putNotificationPreferences`;
-  handler: AuthenticatedUserStorage['putNotificationPreferences'];
+  handler: AuthenticatedUserStorageService['putNotificationPreferences'];
 };
 
 /**

@@ -19,7 +19,7 @@ or
 
 ### Creating a service
 
-`AuthenticatedUserStorage` extends `BaseDataService` and requires a messenger, an environment, and an access-token callback:
+`AuthenticatedUserStorageService` extends `BaseDataService` and requires a messenger, an environment, and an access-token callback:
 
 - **`messenger`** -- a namespaced messenger for registering actions and events.
 - **`env`** -- selects the backend environment (`DEV`, `UAT`, or `PRD`).
@@ -28,7 +28,7 @@ or
 ```typescript
 import { Messenger } from '@metamask/messenger';
 import {
-  AuthenticatedUserStorage,
+  AuthenticatedUserStorageService,
   Env,
 } from '@metamask/authenticated-user-storage';
 import type {
@@ -48,7 +48,7 @@ const messenger = new Messenger<
 });
 
 // Instantiate the service
-const service = new AuthenticatedUserStorage({
+const service = new AuthenticatedUserStorageService({
   messenger,
   env: Env.PRD,
   getAccessToken: () =>
