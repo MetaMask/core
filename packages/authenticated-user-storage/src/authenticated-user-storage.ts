@@ -9,8 +9,8 @@ import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
 import type { AuthenticatedUserStorageMethodActions } from './authenticated-user-storage-method-action-types';
-import type { Env } from './env';
-import { getEnvUrls } from './env';
+import type { Environment } from './env';
+import { getUserStorageApiUrl } from './env';
 import type {
   ClientType,
   DelegationResponse,
@@ -28,16 +28,16 @@ import {
  * The name of the {@link AuthenticatedUserStorageService} service, used to
  * namespace the service's actions and events.
  */
-export const serviceName = 'AuthenticatedUserStorage';
+export const serviceName = 'AuthenticatedUserStorageService';
 
 /**
  * Builds the versioned API base URL for a given environment.
  *
- * @param env - The target environment.
+ * @param environment - The target environment.
  * @returns The base URL including the `/api/v1` path segment.
  */
-export function authenticatedStorageUrl(env: Env): string {
-  return `${getEnvUrls(env).userStorageApiUrl}/api/v1`;
+export function getAuthenticatedStorageUrl(environment: Environment): string {
+  return `${getUserStorageApiUrl(environment)}/api/v1`;
 }
 
 // === MESSENGER ===
@@ -119,7 +119,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   typeof serviceName,
   AuthenticatedUserStorageMessenger
 > {
-  readonly #env: Env;
+  readonly #environment: Environment;
 
   readonly #getAccessToken: () => Promise<string>;
 
@@ -128,24 +128,24 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
-   * @param args.env - The target environment (dev, uat, prd).
+   * @param args.environment - The target environment (dev, uat, prod).
    * @param args.getAccessToken - Callback that returns a valid access token.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
     messenger,
-    env,
+    environment,
     getAccessToken,
     policyOptions,
   }: {
     messenger: AuthenticatedUserStorageMessenger;
-    env: Env;
+    environment: Environment;
     getAccessToken: () => Promise<string>;
     policyOptions?: CreateServicePolicyOptions;
   }) {
     super({ name: serviceName, messenger, policyOptions });
-    this.#env = env;
+    this.#environment = environment;
     this.#getAccessToken = getAccessToken;
 
     this.messenger.registerMethodActionHandlers(
@@ -160,7 +160,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * @returns An array of delegation records, or an empty array if none exist.
    */
   async listDelegations(): Promise<DelegationResponse[]> {
-    const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/delegations`;
 
     const data = await this.fetchQuery({
       queryKey: [`${this.name}:listDelegations`],
@@ -193,7 +193,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
     submission: DelegationSubmission,
     clientType?: ClientType,
   ): Promise<void> {
-    const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/delegations`;
 
     await this.fetchQuery({
       queryKey: [
@@ -227,7 +227,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * @param delegationHash - The unique hash identifying the delegation.
    */
   async revokeDelegation(delegationHash: string): Promise<void> {
-    const url = `${authenticatedStorageUrl(this.#env)}/delegations/${encodeURIComponent(delegationHash)}`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/delegations/${encodeURIComponent(delegationHash)}`;
 
     await this.fetchQuery({
       queryKey: [`${this.name}:revokeDelegation`, delegationHash],
@@ -258,7 +258,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * set (404).
    */
   async getNotificationPreferences(): Promise<NotificationPreferences | null> {
-    const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/notifications`;
 
     const data = await this.fetchQuery({
       queryKey: [`${this.name}:getNotificationPreferences`],
@@ -299,7 +299,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
     prefs: NotificationPreferences,
     clientType?: ClientType,
   ): Promise<void> {
-    const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/notifications`;
 
     await this.fetchQuery({
       queryKey: [`${this.name}:putNotificationPreferences`],

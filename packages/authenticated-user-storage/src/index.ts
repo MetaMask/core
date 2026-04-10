@@ -1,5 +1,5 @@
 export {
-  authenticatedStorageUrl,
+  getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
 } from './authenticated-user-storage';
 export type {
@@ -17,7 +17,8 @@ export type {
   AuthenticatedUserStorageGetNotificationPreferencesAction,
   AuthenticatedUserStoragePutNotificationPreferencesAction,
 } from './authenticated-user-storage-method-action-types';
-export { Env, getEnvUrls } from './env';
+export { getUserStorageApiUrl } from './env';
+export type { Environment } from './env';
 export type {
   Caveat,
   SignedDelegation,

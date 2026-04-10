@@ -4,14 +4,14 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock from 'nock';
 
 import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
 import {
-  authenticatedStorageUrl,
+  getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
 } from './authenticated-user-storage';
-import { Env, getEnvUrls } from './env';
+import type { Environment } from './env';
+import { getUserStorageApiUrl } from './env';
 import {
   handleMockListDelegations,
   handleMockCreateDelegation,
@@ -27,24 +27,22 @@ import {
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
-describe('getEnvUrls()', () => {
-  it('returns URLs for a valid environment', () => {
-    const result = getEnvUrls(Env.PRD);
-    expect(result.userStorageApiUrl).toBe(
-      'https://user-storage.api.cx.metamask.io',
-    );
+describe('getUserStorageApiUrl()', () => {
+  it('returns the API URL for a valid environment', () => {
+    const result = getUserStorageApiUrl('prod');
+    expect(result).toBe('https://user-storage.api.cx.metamask.io');
   });
 
   it('throws for an invalid environment', () => {
-    expect(() => getEnvUrls('invalid' as Env)).toThrow(
-      'invalid environment configuration',
+    expect(() => getUserStorageApiUrl('invalid' as Environment)).toThrow(
+      'Invalid environment: invalid',
     );
   });
 });
 
-describe('authenticatedStorageUrl()', () => {
+describe('getAuthenticatedStorageUrl()', () => {
   it('generates the base URL for a given environment', () => {
-    const result = authenticatedStorageUrl(Env.PRD);
+    const result = getAuthenticatedStorageUrl('prod');
     expect(result).toBe('https://user-storage.api.cx.metamask.io/api/v1');
   });
 });
@@ -56,7 +54,7 @@ describe('AuthenticatedUserStorageService', () => {
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
-        'AuthenticatedUserStorage:listDelegations',
+        'AuthenticatedUserStorageService:listDelegations',
       );
 
       expect(result).toStrictEqual([MOCK_DELEGATION_RESPONSE]);
@@ -264,7 +262,7 @@ function createServiceMessenger(
   rootMessenger: RootMessenger,
 ): AuthenticatedUserStorageMessenger {
   return new Messenger({
-    namespace: 'AuthenticatedUserStorage',
+    namespace: 'AuthenticatedUserStorageService',
     parent: rootMessenger,
   });
 }
@@ -284,7 +282,7 @@ function createService({
   const mockGetAccessToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
   const service = new AuthenticatedUserStorageService({
     messenger,
-    env: Env.PRD,
+    environment: 'prod',
     getAccessToken: mockGetAccessToken,
     ...options,
   });

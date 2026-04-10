@@ -27,10 +27,7 @@ or
 
 ```typescript
 import { Messenger } from '@metamask/messenger';
-import {
-  AuthenticatedUserStorageService,
-  Env,
-} from '@metamask/authenticated-user-storage';
+import { AuthenticatedUserStorageService } from '@metamask/authenticated-user-storage';
 import type {
   AuthenticatedUserStorageMessenger,
   AuthenticatedUserStorageActions,
@@ -39,30 +36,30 @@ import type {
 
 // Create the messenger
 const messenger = new Messenger<
-  'AuthenticatedUserStorage',
+  'AuthenticatedUserStorageService',
   AuthenticatedUserStorageActions,
   AuthenticatedUserStorageEvents
 >({
-  namespace: 'AuthenticatedUserStorage',
+  namespace: 'AuthenticatedUserStorageService',
   parent: rootMessenger,
 });
 
 // Instantiate the service
 const service = new AuthenticatedUserStorageService({
   messenger,
-  env: Env.PRD,
+  environment: 'prod',
   getAccessToken: () =>
     rootMessenger.call('AuthenticationController:getBearerToken'),
 });
 ```
 
-The `env` option selects the backend environment:
+The `environment` option selects the backend environment:
 
-| `Env` value | Server                                |
-| ----------- | ------------------------------------- |
-| `Env.DEV`   | `user-storage.dev-api.cx.metamask.io` |
-| `Env.UAT`   | `user-storage.uat-api.cx.metamask.io` |
-| `Env.PRD`   | `user-storage.api.cx.metamask.io`     |
+| Value    | Server                                |
+| -------- | ------------------------------------- |
+| `'dev'`  | `user-storage.dev-api.cx.metamask.io` |
+| `'uat'`  | `user-storage.uat-api.cx.metamask.io` |
+| `'prod'` | `user-storage.api.cx.metamask.io`     |
 
 ### Calling methods via the messenger
 
@@ -70,7 +67,7 @@ Once instantiated, all service methods are available as messenger actions. This 
 
 ```typescript
 const delegations = await rootMessenger.call(
-  'AuthenticatedUserStorage:listDelegations',
+  'AuthenticatedUserStorageService:listDelegations',
 );
 ```
 

@@ -1,35 +1,22 @@
-export enum Env {
-  DEV = 'dev',
-  UAT = 'uat',
-  PRD = 'prd',
-}
+export type Environment = 'dev' | 'uat' | 'prod';
 
-type EnvUrlsEntry = {
-  userStorageApiUrl: string;
-};
-
-const ENV_URLS: Record<Env, EnvUrlsEntry> = {
-  dev: {
-    userStorageApiUrl: 'https://user-storage.dev-api.cx.metamask.io',
-  },
-  uat: {
-    userStorageApiUrl: 'https://user-storage.uat-api.cx.metamask.io',
-  },
-  prd: {
-    userStorageApiUrl: 'https://user-storage.api.cx.metamask.io',
-  },
-};
+const API_SUBDOMAINS = {
+  dev: 'dev-api',
+  uat: 'uat-api',
+  prod: 'api',
+} as const satisfies Record<Environment, string>;
 
 /**
- * Validates and returns the correct environment endpoint.
+ * Returns the user-storage API base URL for the given environment.
  *
- * @param env - environment field
- * @returns the correct environment url entry
- * @throws on invalid environment passed
+ * @param environment - The target environment.
+ * @returns The base URL for the user-storage API.
+ * @throws If the environment is invalid.
  */
-export function getEnvUrls(env: Env): EnvUrlsEntry {
-  if (!ENV_URLS[env]) {
-    throw new Error('invalid environment configuration');
+export function getUserStorageApiUrl(environment: Environment): string {
+  const subdomain = API_SUBDOMAINS[environment];
+  if (!subdomain) {
+    throw new Error(`Invalid environment: ${String(environment)}`);
   }
-  return ENV_URLS[env];
+  return `https://user-storage.${subdomain}.cx.metamask.io`;
 }

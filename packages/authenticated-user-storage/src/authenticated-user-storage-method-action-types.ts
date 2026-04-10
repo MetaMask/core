@@ -11,7 +11,7 @@ import type { AuthenticatedUserStorageService } from './authenticated-user-stora
  * @returns An array of delegation records, or an empty array if none exist.
  */
 export type AuthenticatedUserStorageListDelegationsAction = {
-  type: `AuthenticatedUserStorage:listDelegations`;
+  type: `AuthenticatedUserStorageService:listDelegations`;
   handler: AuthenticatedUserStorageService['listDelegations'];
 };
 
@@ -22,7 +22,7 @@ export type AuthenticatedUserStorageListDelegationsAction = {
  * @param clientType - Optional client type header.
  */
 export type AuthenticatedUserStorageCreateDelegationAction = {
-  type: `AuthenticatedUserStorage:createDelegation`;
+  type: `AuthenticatedUserStorageService:createDelegation`;
   handler: AuthenticatedUserStorageService['createDelegation'];
 };
 
@@ -32,7 +32,7 @@ export type AuthenticatedUserStorageCreateDelegationAction = {
  * @param delegationHash - The unique hash identifying the delegation.
  */
 export type AuthenticatedUserStorageRevokeDelegationAction = {
-  type: `AuthenticatedUserStorage:revokeDelegation`;
+  type: `AuthenticatedUserStorageService:revokeDelegation`;
   handler: AuthenticatedUserStorageService['revokeDelegation'];
 };
 
@@ -43,7 +43,7 @@ export type AuthenticatedUserStorageRevokeDelegationAction = {
  * set (404).
  */
 export type AuthenticatedUserStorageGetNotificationPreferencesAction = {
-  type: `AuthenticatedUserStorage:getNotificationPreferences`;
+  type: `AuthenticatedUserStorageService:getNotificationPreferences`;
   handler: AuthenticatedUserStorageService['getNotificationPreferences'];
 };
 
@@ -54,7 +54,7 @@ export type AuthenticatedUserStorageGetNotificationPreferencesAction = {
  * @param clientType - Optional client type header.
  */
 export type AuthenticatedUserStoragePutNotificationPreferencesAction = {
-  type: `AuthenticatedUserStorage:putNotificationPreferences`;
+  type: `AuthenticatedUserStorageService:putNotificationPreferences`;
   handler: AuthenticatedUserStorageService['putNotificationPreferences'];
 };
 
