@@ -4,34 +4,42 @@ import {
   boolean,
   number,
   optional,
+  pattern,
   string,
   type,
 } from '@metamask/superstruct';
-import { StrictHexStruct } from '@metamask/utils';
 
 import type { DelegationResponse, NotificationPreferences } from './types';
 
+/**
+ * Matches a 0x-prefixed hex string with zero or more hex digits.
+ * Unlike `StrictHexStruct` from `@metamask/utils` (which requires at least
+ * one digit after the prefix), this also accepts `"0x"` — the standard
+ * encoding for empty bytes that the delegation API returns.
+ */
+const HexDataStruct = pattern(string(), /^0x[0-9a-f]*$/iu);
+
 const CaveatSchema = type({
-  enforcer: StrictHexStruct,
-  terms: StrictHexStruct,
-  args: StrictHexStruct,
+  enforcer: HexDataStruct,
+  terms: HexDataStruct,
+  args: HexDataStruct,
 });
 
 const SignedDelegationSchema = type({
-  delegate: StrictHexStruct,
-  delegator: StrictHexStruct,
-  authority: StrictHexStruct,
+  delegate: HexDataStruct,
+  delegator: HexDataStruct,
+  authority: HexDataStruct,
   caveats: array(CaveatSchema),
-  salt: StrictHexStruct,
-  signature: StrictHexStruct,
+  salt: HexDataStruct,
+  signature: HexDataStruct,
 });
 
 const DelegationMetadataSchema = type({
-  delegationHash: StrictHexStruct,
-  chainIdHex: StrictHexStruct,
-  allowance: StrictHexStruct,
+  delegationHash: HexDataStruct,
+  chainIdHex: HexDataStruct,
+  allowance: HexDataStruct,
   tokenSymbol: string(),
-  tokenAddress: StrictHexStruct,
+  tokenAddress: HexDataStruct,
   type: string(),
 });
 
@@ -41,7 +49,7 @@ const DelegationResponseSchema = type({
 });
 
 const WalletActivityAccountSchema = type({
-  address: StrictHexStruct,
+  address: HexDataStruct,
   enabled: boolean(),
 });
 
