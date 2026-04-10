@@ -559,9 +559,9 @@ export class EarnController extends BaseController<
 
   /**
    * Sets up a one-time subscription to AccountTreeController:stateChange that
-   * triggers address-dependent refreshes once the selected account group
-   * becomes available. Unsubscribes immediately after the first successful
-   * trigger.
+   * triggers address-dependent refreshes once both the selected account group
+   * is populated and an EVM account address is resolvable. Unsubscribes
+   * only after a refresh is triggered.
    *
    * This handles the case where EarnController.init() runs before
    * AccountTreeController.init() has populated the selected account group.
@@ -575,12 +575,14 @@ export class EarnController extends BaseController<
       if (!selectedAccountGroup) {
         return;
       }
-      this.messenger.unsubscribe('AccountTreeController:stateChange', handler);
 
       const address = this.#getSelectedEvmAccountAddress();
-      if (address) {
-        this.#refreshEarnPortfolio(address);
+      if (!address) {
+        return;
       }
+
+      this.messenger.unsubscribe('AccountTreeController:stateChange', handler);
+      this.#refreshEarnPortfolio(address);
     };
     this.messenger.subscribe('AccountTreeController:stateChange', handler);
   }

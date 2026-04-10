@@ -936,6 +936,69 @@ describe('EarnController', () => {
         ).not.toHaveBeenCalled();
       });
 
+      it('does not trigger portfolio refresh when selectedAccountGroup only contains non-EVM accounts', async () => {
+        // Always returns no accounts, simulating a non-EVM-only group (e.g. Bitcoin-only)
+        const mockGetAccounts = jest.fn(() => []);
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // Publish with a non-empty selectedAccountGroup but no EVM account resolvable
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('stays subscribed and fires when an EVM account eventually appears after a non-EVM-only state change', async () => {
+        const mockGetAccounts = jest
+          .fn()
+          .mockReturnValueOnce([]) // No account during init
+          .mockReturnValueOnce([]) // Still no EVM account on first stateChange (non-EVM group)
+          .mockReturnValue([mockInternalAccount1]); // EVM account available on second stateChange
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // First publish: group is non-empty but still no EVM account — should not refresh
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+
+        // Second publish: EVM account is now available — deferred refresh should fire
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).toHaveBeenCalledWith([mockAccount1Address]);
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenCalled();
+      });
+
       it('unsubscribes after the first non-empty selectedAccountGroup event', async () => {
         const mockGetAccounts = jest
           .fn()
