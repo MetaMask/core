@@ -1751,7 +1751,7 @@ export class KeyringController<
    * @returns Promise resolving to the result of the function execution.
    * @template SelectedKeyring - The type of the selected keyring.
    * @template CallbackResult - The type of the value resolved by the callback function.
-   * @deprecated Use `withKeyringV2` instead, which supports the KeyringV2 API.
+   * @deprecated This method overload is deprecated. Use `withKeyring` without options instead.
    */
   async withKeyring<
     SelectedKeyring extends EthKeyring = EthKeyring,
@@ -1785,7 +1785,6 @@ export class KeyringController<
    * @returns Promise resolving to the result of the function execution.
    * @template SelectedKeyring - The type of the selected keyring.
    * @template CallbackResult - The type of the value resolved by the callback function.
-   * @deprecated Use `withKeyringV2` instead, which supports the KeyringV2 API.
    */
   async withKeyring<
     SelectedKeyring extends EthKeyring = EthKeyring,
