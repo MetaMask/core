@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 
+### Fixed
+
+- Allow external origins to sign non-root delegation (redelegation) requests for internal accounts ([#7917](https://github.com/MetaMask/core/issues/7917))
+  - Previously, `validateDelegation` blocked all delegation signing from external origins when the delegator was an internal account, including safe redelegations.
+  - Now, only root delegations (where `authority` equals the ERC-7710 root authority sentinel `0xfff…fff`) are blocked from external origins. Redelegations with a non-root authority are allowed, as they are bounded by the parent delegation's caveats.
+
 ## [39.1.2]
 
 ### Changed

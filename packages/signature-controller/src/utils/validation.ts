@@ -20,6 +20,16 @@ import type {
 
 export const PRIMARY_TYPE_DELEGATION = 'Delegation';
 export const DELEGATOR_FIELD = 'delegator';
+export const AUTHORITY_FIELD = 'authority';
+
+/**
+ * The root authority sentinel value per ERC-7710.
+ * When `authority` equals this value, the delegation is a root delegation
+ * (the EOA is the original delegator). Any other value indicates a
+ * redelegation, which is safe for external origins to sign.
+ */
+const ROOT_AUTHORITY =
+  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 /**
  * Validate a personal signature request.
@@ -285,9 +295,14 @@ function validateDelegation({
         internalAccount.toLowerCase() === delegatorAddressLowercase,
     );
 
-    if (isOriginExternal && isSignerInternal) {
+    const authority = (
+      (data.message as Record<string, Json>)?.[AUTHORITY_FIELD] as string
+    )?.toLowerCase();
+    const isRootAuthority = authority === ROOT_AUTHORITY;
+
+    if (isOriginExternal && isSignerInternal && isRootAuthority) {
       throw new Error(
-        `External signature requests cannot sign delegations for internal accounts.`,
+        `External signature requests cannot sign root delegations for internal accounts.`,
       );
     }
   }
