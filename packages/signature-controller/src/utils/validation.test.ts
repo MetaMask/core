@@ -524,7 +524,7 @@ describe('Validation Utils', () => {
             ).not.toThrow();
           });
 
-          it('does not throw if external origin and delegation without authority field from internal account', () => {
+          it('throws if external origin and delegation without authority field from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
             data.primaryType = PRIMARY_TYPE_DELEGATION;
@@ -542,7 +542,9 @@ describe('Validation Utils', () => {
                 request: { origin: ORIGIN_MOCK } as OriginalRequest,
                 version,
               }),
-            ).not.toThrow();
+            ).toThrow(
+              'External signature requests cannot sign root delegations for internal accounts.',
+            );
           });
 
           it('does not throw if external origin in message params and redelegation from internal account', () => {
