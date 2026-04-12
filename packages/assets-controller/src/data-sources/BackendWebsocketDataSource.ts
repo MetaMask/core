@@ -227,6 +227,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** Chains the backend API reports as supported (preserved across disconnects). */
+  #supportedChains: ChainId[] = [];
+
+  /** Whether the WebSocket is currently connected. Chains are only claimed when true. */
+  #isConnected = false;
+
   /** WebSocket subscriptions by our internal subscription ID */
   readonly #wsSubscriptions: Map<string, WebSocketSubscription> = new Map();
 
@@ -257,10 +263,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
-      const previous = [...this.state.activeChains];
-      this.updateActiveChains(chains, (updatedChains) =>
-        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
-      );
+      this.#supportedChains = chains;
+
+      // Only claim chains if the websocket is already connected.
+      // If not connected, chains stay unclaimed so AccountsApiDataSource
+      // can pick them up via polling. They'll be claimed on reconnect.
+      if (this.#isConnected) {
+        const previous = [...this.state.activeChains];
+        this.updateActiveChains(chains, (updatedChains) =>
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+        );
+      }
 
       this.#chainsRefreshTimer = setInterval(() => {
         this.#refreshActiveChains().catch(console.error);
@@ -273,6 +286,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #refreshActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
+      this.#supportedChains = chains;
+
+      // Only update activeChains if connected; otherwise keep them unclaimed.
+      if (!this.#isConnected) {
+        return;
+      }
+
       const previousChains = new Set(this.state.activeChains);
       const newChains = new Set(chains);
 
@@ -311,10 +331,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       'BackendWebSocketService:connectionStateChanged',
       (connectionInfo: ConnectionStatePayload) => {
         if (connectionInfo.state === ('connected' as WebSocketState)) {
-          this.#processPendingSubscriptions().catch(console.error);
+          this.#isConnected = true;
+          this.#handleReconnect();
         } else if (
           connectionInfo.state === ('disconnected' as WebSocketState)
         ) {
+          this.#isConnected = false;
           this.#handleDisconnect();
         }
       },
@@ -337,19 +359,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
    * Moves all active subscriptions to pending for re-subscription on reconnect.
    */
   #handleDisconnect(): void {
-    log('WebSocket disconnected, preserving subscriptions for reconnect', {
+    log('WebSocket disconnected, releasing chains for fallback', {
       activeSubscriptionCount: this.activeSubscriptions.size,
       wsSubscriptionCount: this.#wsSubscriptions.size,
+      chainCount: this.state.activeChains.length,
     });
 
     // Move active subscriptions to pending for re-subscription
     for (const [subscriptionId] of this.activeSubscriptions) {
       const originalRequest = this.#subscriptionRequests.get(subscriptionId);
       if (originalRequest) {
-        // Mark as update since it was previously active
         this.#pendingSubscriptions.set(subscriptionId, {
           ...originalRequest,
-          isUpdate: false, // Treat as new subscription since server cleared it
+          isUpdate: false,
         });
       }
     }
@@ -359,6 +381,36 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
     // Clear active subscriptions (they're no longer valid)
     this.activeSubscriptions.clear();
+
+    // Release chains so the chain-claiming loop assigns them to
+    // AccountsApiDataSource (polling fallback) on the next #subscribeAssets.
+    const previous = [...this.state.activeChains];
+    if (previous.length > 0) {
+      this.updateActiveChains([], (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
+    }
+  }
+
+  /**
+   * Handle WebSocket reconnection.
+   * Restores activeChains so the chain-claiming loop re-assigns them to
+   * this data source, then processes any pending subscriptions.
+   */
+  #handleReconnect(): void {
+    log('WebSocket reconnected, reclaiming chains', {
+      supportedChainCount: this.#supportedChains.length,
+      pendingSubscriptionCount: this.#pendingSubscriptions.size,
+    });
+
+    if (this.#supportedChains.length > 0) {
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains(this.#supportedChains, (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
+    }
+
+    this.#processPendingSubscriptions().catch(console.error);
   }
 
   /**
