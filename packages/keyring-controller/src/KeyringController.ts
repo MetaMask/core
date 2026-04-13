@@ -1719,10 +1719,10 @@ export class KeyringController<
    * @throws If the value is the same instance as the keyring.
    * @returns The original value if the check passes.
    */
-  #assertNoUnsafeDirectKeyringAccess<
-    Value,
-    SelectedKeyring extends EthKeyring = EthKeyring,
-  >(value: Value, keyring: SelectedKeyring): Value {
+  #assertNoUnsafeDirectKeyringAccess<Value, SelectedKeyring>(
+    value: Value,
+    keyring: SelectedKeyring,
+  ): Value {
     if (Object.is(value, keyring)) {
       // Access to a keyring instance outside of controller safeguards
       // should be discouraged, as it can lead to unexpected behavior.
@@ -1974,18 +1974,13 @@ export class KeyringController<
       const { metadata } = entry;
       const keyring = entry.keyringV2 as SelectedKeyring;
 
-      const result = await operation({
+      return this.#assertNoUnsafeDirectKeyringAccess(
+        await operation({
+          keyring,
+          metadata,
+        }),
         keyring,
-        metadata,
-      });
-
-      if (Object.is(result, keyring)) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
-        );
-      }
-
-      return result;
+      );
     });
   }
 
@@ -2058,15 +2053,12 @@ export class KeyringController<
     const { metadata } = entry;
     const keyring = entry.keyringV2 as SelectedKeyring;
 
-    const result = await operation({ keyring, metadata });
-
-    if (Object.is(result, keyring)) {
-      throw new KeyringControllerError(
-        KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
-      );
-    }
-
-    return result;
+    // Even if this method is "unsafe", we still want to prevent returning
+    // the keyring directly.
+    return this.#assertNoUnsafeDirectKeyringAccess(
+      await operation({ keyring, metadata }),
+      keyring,
+    );
   }
 
   async getAccountKeyringType(account: string): Promise<string> {
