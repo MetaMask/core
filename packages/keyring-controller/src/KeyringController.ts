@@ -2184,7 +2184,12 @@ export class KeyringController<
 
       // As usual, we want to prevent returning direct references to keyring instances, so we check
       // the result for any unsafe direct access before returning.
-      for (const { keyring, keyringV2 } of this.#keyrings) {
+      for (const { keyring, keyringV2 } of [
+        ...this.#keyrings,
+        // We also check for keyrings that got removed during the operation, since the result could
+        // still have references to them.
+        ...removedEntries,
+      ]) {
         this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
         if (keyringV2) {
           this.#assertNoUnsafeDirectKeyringAccess(result, keyringV2);
