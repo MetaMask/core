@@ -236,7 +236,7 @@ export type KeyringMetadata = {
 /**
  * A keyring entry, including the keyring instance (+ v2 instance) and its metadata.
  */
-type KeyringEntry = {
+export type KeyringEntry = {
   /**
    * The keyring instance.
    */
@@ -274,10 +274,7 @@ export type RestrictedController = {
    * @param opts - Optional data to pass to the keyring builder.
    * @returns The newly created `{ keyring, metadata }` entry.
    */
-  addNewKeyring(
-    type: string,
-    opts?: unknown,
-  ): Promise<{ keyring: EthKeyring; metadata: KeyringMetadata }>;
+  addNewKeyring(type: string, opts?: unknown): Promise<KeyringEntry>;
   /**
    * Stage the keyring with the given id for removal. The keyring is
    * immediately removed from {@link RestrictedController.keyrings}.
