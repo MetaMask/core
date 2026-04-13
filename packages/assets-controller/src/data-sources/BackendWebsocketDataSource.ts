@@ -394,8 +394,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   /**
    * Handle WebSocket reconnection.
-   * Restores activeChains so the chain-claiming loop re-assigns them to
-   * this data source, then processes any pending subscriptions.
+   * Clears stale pending subscriptions and restores activeChains so the
+   * chain-claiming loop re-assigns them to this data source, triggering
+   * fresh subscriptions with current accounts and chains.
    */
   #handleReconnect(): void {
     log('WebSocket reconnected, reclaiming chains', {
@@ -403,38 +404,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       pendingSubscriptionCount: this.#pendingSubscriptions.size,
     });
 
+    // Discard stale pending subscriptions captured at disconnect time.
+    // The chain reclaim below triggers #onActiveChainsUpdated →
+    // #subscribeAssets() in AssetsController, which creates fresh
+    // subscriptions with current accounts and chains. Processing the
+    // stale pending entries afterwards would overwrite those with
+    // outdated request data.
+    this.#pendingSubscriptions.clear();
+
     if (this.#supportedChains.length > 0) {
       const previous = [...this.state.activeChains];
       this.updateActiveChains(this.#supportedChains, (updatedChains) =>
         this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
       );
-    }
-
-    this.#processPendingSubscriptions().catch(console.error);
-  }
-
-  /**
-   * Process any pending subscriptions that were queued while WebSocket was disconnected.
-   */
-  async #processPendingSubscriptions(): Promise<void> {
-    if (this.#pendingSubscriptions.size === 0) {
-      return;
-    }
-
-    // Process all pending subscriptions
-    const pendingEntries = Array.from(this.#pendingSubscriptions.entries());
-
-    for (const [subscriptionId, request] of pendingEntries) {
-      try {
-        // Remove from pending before processing to avoid infinite loop
-        this.#pendingSubscriptions.delete(subscriptionId);
-        await this.subscribe(request);
-      } catch (error) {
-        log('Failed to process pending subscription', {
-          subscriptionId,
-          error,
-        });
-      }
     }
   }
 
