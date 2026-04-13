@@ -272,24 +272,6 @@ export type KeyringControllerWithKeyringAction = {
 };
 
 /**
- * Execute an operation against all keyrings as a mutually exclusive atomic
- * operation. The operation receives a {@link RestrictedController} instance
- * that exposes a read-only live view of all keyrings as well as
- * `addNewKeyring` and `removeKeyring` methods to stage mutations.
- *
- * The method automatically persists changes at the end of the function
- * execution, or rolls back the changes if an error is thrown.
- *
- * @param operation - Function to execute with the restricted controller.
- * @returns Promise resolving to the result of the function execution.
- * @template CallbackResult - The type of the value resolved by the callback function.
- */
-export type KeyringControllerWithControllerAction = {
-  type: `KeyringController:withController`;
-  handler: KeyringController['withController'];
-};
-
-/**
  * Select a keyring and execute the given operation with the selected
  * keyring, **without** acquiring the controller's mutual exclusion lock.
  *
@@ -394,6 +376,24 @@ export type KeyringControllerWithKeyringV2UnsafeAction = {
 };
 
 /**
+ * Execute an operation against all keyrings as a mutually exclusive atomic
+ * operation. The operation receives a {@link RestrictedController} instance
+ * that exposes a read-only live view of all keyrings as well as
+ * `addNewKeyring` and `removeKeyring` methods to stage mutations.
+ *
+ * The method automatically persists changes at the end of the function
+ * execution, or rolls back the changes if an error is thrown.
+ *
+ * @param operation - Function to execute with the restricted controller.
+ * @returns Promise resolving to the result of the function execution.
+ * @template CallbackResult - The type of the value resolved by the callback function.
+ */
+export type KeyringControllerWithControllerAction = {
+  type: `KeyringController:withController`;
+  handler: KeyringController['withController'];
+};
+
+/**
  * Union of all KeyringController action types.
  */
 export type KeyringControllerMethodActions =
@@ -417,7 +417,7 @@ export type KeyringControllerMethodActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerWithControllerAction
   | KeyringControllerWithKeyringUnsafeAction
   | KeyringControllerWithKeyringV2Action
-  | KeyringControllerWithKeyringV2UnsafeAction;
+  | KeyringControllerWithKeyringV2UnsafeAction
+  | KeyringControllerWithControllerAction;
