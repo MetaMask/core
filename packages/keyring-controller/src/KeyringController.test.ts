@@ -4110,6 +4110,18 @@ describe('KeyringController', () => {
       });
     });
 
+    it('throws if the callback returns a raw keyring (v2) instance', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.withController(async (restrictedController) => {
+            return restrictedController.keyrings[0].keyringV2;
+          }),
+        ).rejects.toThrow(
+          KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
+        );
+      });
+    });
+
     describe('addNewKeyring', () => {
       it('creates an initialized keyring and stages it for commit', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
