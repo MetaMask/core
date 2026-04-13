@@ -11,15 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `NftController` no longer uses the `AssetsContractController:getERC721OwnerOf` and `AssetsContractController:getERC1155BalanceOf` messenger actions for ownership checks; these have been removed from `AllowedActions` ([#8281](https://github.com/MetaMask/core/pull/8281))
   - Consumers that construct the `NftController` messenger and register handlers for these two actions must remove them from their allowed actions list.
-- **BREAKING:** Removed the `checkAndUpdateSingleNftOwnershipStatus` method from `NftController` ([#8281](https://github.com/MetaMask/core/pull/8281))
-  - Use `checkAndUpdateAllNftsOwnershipStatus` instead, which now batches all ownership checks via Multicall3 in a single RPC request.
-- `checkAndUpdateAllNftsOwnershipStatus` now removes NFTs confirmed as unowned from state instead of setting `isCurrentlyOwned: false` ([#8281](https://github.com/MetaMask/core/pull/8281))
+- **BREAKING:** `checkAndUpdateSingleNftOwnershipStatus` no longer accepts a `batch` boolean as its second argument; the signature is now `(nft, networkClientId, { userAddress }?)` ([#8281](https://github.com/MetaMask/core/pull/8281), [#8435](https://github.com/MetaMask/core/pull/8435))
+  - The method now always writes the updated NFT to state and returns it. Remove the `batch` argument from all call sites.
+- **BREAKING:** `checkAndUpdateAllNftsOwnershipStatus` now removes NFTs confirmed as unowned from state instead of setting `isCurrentlyOwned: false` on them ([#8281](https://github.com/MetaMask/core/pull/8281))
   - The `isCurrentlyOwned: false` flag was originally used to power a "Previously Owned" NFTs section in MetaMask, which is no longer supported. NFTs that are confirmed as no longer owned are now removed from state immediately rather than being retained with a stale flag.
-- `NftController` NFT ownership checks (`isNftOwner`, `checkAndUpdateAllNftsOwnershipStatus`) now use Multicall3 to batch ERC-721 `ownerOf` and ERC-1155 `balanceOf` calls into fewer RPC requests, falling back to individual calls on unsupported chains ([#8281](https://github.com/MetaMask/core/pull/8281))
+- `NftController` NFT ownership checks (`isNftOwner`, `checkAndUpdateSingleNftOwnershipStatus`, `checkAndUpdateAllNftsOwnershipStatus`) now use Multicall3 to batch ERC-721 `ownerOf` and ERC-1155 `balanceOf` calls into fewer RPC requests, falling back to individual calls on unsupported chains ([#8281](https://github.com/MetaMask/core/pull/8281))
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
+
+### Fixed
+
+- Restore `checkAndUpdateSingleNftOwnershipStatus` to `NftController` to fix a regression where consumers (e.g. the MetaMask extension) that call this method individually were broken by its removal in [#8281](https://github.com/MetaMask/core/pull/8281) ([#8435](https://github.com/MetaMask/core/pull/8435))
 
 ## [103.1.1]
 
