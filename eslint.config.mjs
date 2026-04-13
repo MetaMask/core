@@ -90,7 +90,7 @@ const config = createConfig([
     rules: {
       // Handled by Oxfmt.
       'prettier/prettier': 'off',
-    }
+    },
   },
   {
     rules: {

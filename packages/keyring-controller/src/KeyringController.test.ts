@@ -86,9 +86,8 @@ const input =
 const seedWords =
   'puzzle seed penalty soldier say clay field arctic metal hen cage runway';
 const uint8ArraySeed = new Uint8Array(
-  new Uint16Array(
-    seedWords.split(' ').map((word) => wordlist.indexOf(word)),
-  ).buffer,
+  new Uint16Array(seedWords.split(' ').map((word) => wordlist.indexOf(word)))
+    .buffer,
 );
 const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';

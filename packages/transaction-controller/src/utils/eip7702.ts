@@ -122,10 +122,9 @@ export async function isAccountUpgradedToEIP7702(
 
   const isSupported = Boolean(
     delegationAddress &&
-      contractAddresses.some(
-        (contract) =>
-          contract.toLowerCase() === delegationAddress.toLowerCase(),
-      ),
+    contractAddresses.some(
+      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
+    ),
   );
 
   return {

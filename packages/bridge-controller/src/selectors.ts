@@ -522,8 +522,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-        quotesLastFetched &&
-        currentTimeInMs - quotesLastFetched > refreshRate,
+      quotesLastFetched &&
+      currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 
