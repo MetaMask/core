@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `isOnboarded` option to `AssetsControllerOptions` and `RpcDataSourceConfig` ([#8430](https://github.com/MetaMask/core/pull/XXXX))
+  - When `isOnboarded` returns `false`, `RpcDataSource` skips `fetch` and `subscribe` calls, preventing on-chain RPC calls before onboarding is complete.
+  - Defaults to `() => true` so existing consumers are unaffected.
+
 ### Fixed
 
 - `AssetsController` now re-subscribes to all data sources when `AccountTreeController` state changes after initial startup, ensuring snap accounts and their chains are included ([#8430](https://github.com/MetaMask/core/pull/8430))

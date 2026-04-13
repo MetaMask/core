@@ -619,4 +619,5 @@ describe('StakedBalanceDataSource', () => {
       });
     });
   });
+
 });
