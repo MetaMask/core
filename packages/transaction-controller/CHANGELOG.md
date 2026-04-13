@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(STX-433): remove submission method from transaction meta ([#8409](https://github.com/MetaMask/core/pull/8409))
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+
 ### Added
 
 - Add optional `submissionMethod` property and `TransactionSubmissionMethod` enum to `TransactionMeta` ([#8375](https://github.com/MetaMask/core/pull/8375))
