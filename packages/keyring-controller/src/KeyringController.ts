@@ -1911,9 +1911,7 @@ export class KeyringController<
         // We freeze the array to prevent direct mutations, but the keyring instances
         // themselves are not frozen, allowing safe read-only access.
         get keyrings() {
-          return Object.freeze([
-            ...restrictedEntries,
-          ]) as RestrictedController['keyrings'];
+          return Object.freeze([...restrictedEntries]);
         },
 
         // Method to create a new keyring and adds it to the restricted entries.
