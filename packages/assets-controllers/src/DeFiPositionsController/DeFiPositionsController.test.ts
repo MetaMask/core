@@ -105,6 +105,7 @@ function setupController({
       'KeyringController:lock',
       'TransactionController:transactionConfirmed',
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
     ],
   });
 
@@ -156,11 +157,16 @@ function setupController({
     );
   };
 
+  const triggerAccountTreeStateChange = (): void => {
+    messenger.publish('AccountTreeController:stateChange', {} as never, []);
+  };
+
   return {
     controller,
     triggerLock,
     triggerTransactionConfirmed,
     triggerAccountGroupChange,
+    triggerAccountTreeStateChange,
     buildPositionsFetcherSpy,
     updateSpy,
     mockFetchPositions,
@@ -383,6 +389,71 @@ describe('DeFiPositionsController', () => {
     expect(mockGroupDeFiPositions).toHaveBeenCalledTimes(1);
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches positions for the selected evm account when the account tree state changes', async () => {
+    const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
+    const mockGroupDeFiPositions = jest
+      .fn()
+      .mockReturnValue('mock-grouped-data-1');
+
+    const {
+      controller,
+      triggerAccountTreeStateChange,
+      buildPositionsFetcherSpy,
+      updateSpy,
+    } = setupController({
+      mockFetchPositions,
+      mockGroupDeFiPositions,
+    });
+
+    triggerAccountTreeStateChange();
+    await flushPromises();
+
+    expect(controller.state).toStrictEqual({
+      allDeFiPositions: {
+        [GROUP_ACCOUNTS[0].address]: 'mock-grouped-data-1',
+      },
+      allDeFiPositionsCount: {},
+    });
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
+    expect(mockFetchPositions).toHaveBeenCalledWith(GROUP_ACCOUNTS[0].address);
+    expect(mockFetchPositions).toHaveBeenCalledTimes(1);
+
+    expect(mockGroupDeFiPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupDeFiPositions).toHaveBeenCalledTimes(1);
+
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch positions when the account tree state changes and there is no evm account', async () => {
+    const {
+      controller,
+      triggerAccountTreeStateChange,
+      buildPositionsFetcherSpy,
+      updateSpy,
+      mockFetchPositions,
+      mockGroupDeFiPositions,
+    } = setupController({
+      mockGroupAccounts: GROUP_ACCOUNTS_NO_EVM,
+    });
+
+    triggerAccountTreeStateChange();
+    await flushPromises();
+
+    expect(controller.state).toStrictEqual(
+      getDefaultDefiPositionsControllerState(),
+    );
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
+    expect(mockFetchPositions).not.toHaveBeenCalled();
+
+    expect(mockGroupDeFiPositions).not.toHaveBeenCalled();
+
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('does not fetch positions when the account group changes and there is no evm account', async () => {

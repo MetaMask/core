@@ -1,6 +1,7 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
@@ -114,7 +115,8 @@ export type AllowedActions =
 export type AllowedEvents =
   | KeyringControllerLockEvent
   | TransactionControllerTransactionConfirmedEvent
-  | AccountTreeControllerSelectedAccountGroupChangeEvent;
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | AccountTreeControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link DeFiPositionsController}.
@@ -202,6 +204,20 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
         await this.#updateAccountPositions(selectedAddress);
       },
     );
+
+    // `selectedAccountGroupChange` does not fire on returning users when the
+    // persisted selected group is unchanged. `:stateChange` is guaranteed to
+    // fire when `AccountTreeController.init()` calls `this.update()`, so we
+    // use it to catch the initial tree build and trigger a position refresh.
+    this.messenger.subscribe('AccountTreeController:stateChange', async () => {
+      const selectedAddress = this.#getSelectedEvmAdress();
+
+      if (!selectedAddress) {
+        return;
+      }
+
+      await this.#updateAccountPositions(selectedAddress);
+    });
 
     this.#trackEvent = trackEvent;
   }
