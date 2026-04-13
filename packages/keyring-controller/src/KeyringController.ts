@@ -1832,7 +1832,13 @@ export class KeyringController<
     CallbackResult = void,
   >(
     selector: KeyringSelector<SelectedKeyring>,
-    operation: ({ keyring, metadata }: KeyringEntry) => Promise<CallbackResult>,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
     options:
       | { createIfMissing?: false }
       | { createIfMissing: true; createWithData?: unknown } = {
