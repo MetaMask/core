@@ -1823,27 +1823,30 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     return this.#persistOrRollback(async () => {
-      let keyring: SelectedKeyring | undefined =
-        await this.#selectKeyring<SelectedKeyring>(selector);
+      let entry: KeyringEntry | undefined = await this.#selectKeyringEntry({
+        v2: false,
+        selector,
+      });
 
-      if (!keyring && 'type' in selector && options.createIfMissing) {
-        keyring = (await this.#newKeyring(
+      if (!entry && 'type' in selector && options.createIfMissing) {
+        const newKeyring = (await this.#newKeyring(
           selector.type,
           options.createWithData,
         )) as SelectedKeyring;
+        entry = this.#keyrings.find(({ keyring }) => keyring === newKeyring);
       }
 
-      if (!keyring) {
+      if (!entry) {
         throw new KeyringControllerError(
           KeyringControllerErrorMessage.KeyringNotFound,
         );
       }
 
+      const { metadata } = entry;
+      const keyring = entry.keyring as SelectedKeyring;
+
       return this.#assertNoUnsafeDirectKeyringAccess(
-        await operation({
-          keyring,
-          metadata: this.#getKeyringMetadata(keyring),
-        }),
+        await operation({ keyring, metadata }),
         keyring,
       );
     });
@@ -1898,21 +1901,21 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    const keyring = await this.#selectKeyring<SelectedKeyring>(selector);
+    const entry = await this.#selectKeyringEntry({ v2: false, selector });
 
-    if (!keyring) {
+    if (!entry) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.KeyringNotFound,
       );
     }
 
+    const { metadata } = entry;
+    const keyring = entry.keyring as SelectedKeyring;
+
     // Even if this method is "unsafe", we still want to prevent returning
     // the keyring directly.
     return this.#assertNoUnsafeDirectKeyringAccess(
-      await operation({
-        keyring,
-        metadata: this.#getKeyringMetadata(keyring),
-      }),
+      await operation({ keyring, metadata }),
       keyring,
     );
   }
@@ -2129,24 +2132,6 @@ export class KeyringController<
     }
 
     return entry;
-  }
-
-  /**
-   * Select a keyring using a selector without acquiring the controller lock.
-   *
-   * @param selector - Keyring selector object.
-   * @returns The selected keyring, or `undefined` if no match is found.
-   * @template SelectedKeyring - The expected type of the selected keyring.
-   */
-  async #selectKeyring<SelectedKeyring extends EthKeyring = EthKeyring>(
-    selector: KeyringSelector<SelectedKeyring>,
-  ): Promise<SelectedKeyring | undefined> {
-    const entry = await this.#selectKeyringEntry({
-      v2: false,
-      selector,
-    });
-
-    return entry?.keyring as SelectedKeyring | undefined;
   }
 
   /**
