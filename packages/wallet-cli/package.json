@@ -31,6 +31,9 @@
   },
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.cts",
+  "bin": {
+    "mm": "./bin/run.mjs"
+  },
   "files": [
     "dist/"
   ],
@@ -47,6 +50,9 @@
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@oclif/core": "^4.10.5"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
@@ -66,5 +72,11 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "oclif": {
+    "bin": "mm",
+    "commands": "./dist/commands",
+    "dirname": "mm",
+    "topicSeparator": " "
   }
 }
