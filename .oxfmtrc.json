@@ -5,5 +5,10 @@
   "singleQuote": true,
   "tabWidth": 2,
   "trailingComma": "all",
-  "ignorePatterns": [".yarnrc.yml", "merged-packages/**", "CHANGELOG.md"]
+  "ignorePatterns": [
+    "**/*-method-action-types.ts",
+    ".yarnrc.yml",
+    "merged-packages/**",
+    "CHANGELOG.md"
+  ]
 }
