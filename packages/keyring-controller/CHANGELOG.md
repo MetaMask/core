@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mirrors `withKeyringUnsafe` semantics: no mutex acquired, no persistence or rollback.
   - Caller is responsible for ensuring the operation is read-only and accesses only immutable keyring data.
 - Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#8390](https://github.com/MetaMask/core/pull/8390))
-  - Accepts a `KeyringSelectorV2` (alias for `KeyringSelector`) to select keyrings by `type`, `address`, `id`, or `filter`.
+  - Accepts a `KeyringSelectorV2` to select keyrings by `type`, `address`, `id`, or `filter`.
   - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
 
 ### Changed
