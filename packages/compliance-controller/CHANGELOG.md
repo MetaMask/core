@@ -36,11 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1]
 
-### Changed
+### Fixed
 
-- No consumer-facing changes; version bump only ([#8017](https://github.com/MetaMask/core/pull/8017))
+- Fix package to include files, which were accidentally omitted in 1.0.0 ([#8017](https://github.com/MetaMask/core/pull/8017))
 
-## [1.0.0]
+## [1.0.0] [DEPRECATED]
 
 ### Added
 
