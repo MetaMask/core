@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ChompApiService` ([#8361](https://github.com/MetaMask/core/pull/8413))
+- Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
 [Unreleased]: https://github.com/MetaMask/core/
