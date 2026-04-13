@@ -2509,6 +2509,8 @@ export class AssetsController extends BaseController<
       accountIds: accounts.map((a) => a.id),
     });
 
+    this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
+
     // Subscribe and fetch for the new account group
     this.#subscribeAssets();
     if (accounts.length > 0) {
