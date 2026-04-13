@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- Release/895.0.0 ([#8359](https://github.com/MetaMask/core/pull/8359))
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+
 ### Changed
 
 - **BREAKING:** `EarnController` constructor no longer accepts `selectedNetworkClientId` and no longer performs async work during construction. Consumers must call `init()` after construction. The messenger must now allow `AccountTreeController:stateChange` and `NetworkController:getState` ([#8421](https://github.com/MetaMask/core/pull/8421))
