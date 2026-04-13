@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1]
 
+### Changed
+
+- No consumer-facing changes; version bump only ([#8017](https://github.com/MetaMask/core/pull/8017))
+
 ## [1.0.0]
 
 ### Added
