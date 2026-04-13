@@ -481,7 +481,10 @@ export class EarnController extends BaseController<
         // Account tree state is not yet available, so we defer the refresh to when it is.
         this.#refreshEarnPortfolioOnAccountReady();
       }
-    })();
+    })().catch((error) => {
+      this.#initPromise = null;
+      throw error;
+    });
 
     return this.#initPromise;
   }

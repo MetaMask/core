@@ -922,6 +922,61 @@ describe('EarnController', () => {
       ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI), not doubled to 4
     });
 
+    it('allows retry when init fails', async () => {
+      const rootMessenger = buildMessenger();
+
+      // First call to NetworkController:getState throws, second succeeds.
+      const mockGetState = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('NetworkController not ready');
+        })
+        .mockReturnValue({
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '1',
+        });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        mockGetState,
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn(() => ({
+          configuration: { chainId: toHex(1) },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        })) as unknown as jest.Mock,
+      );
+      rootMessenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        jest.fn(() => [mockInternalAccount1]),
+      );
+
+      const earnControllerMessenger = getEarnControllerMessenger(rootMessenger);
+      const controller = new EarnController({
+        messenger: earnControllerMessenger,
+        addTransactionFn: jest.fn(),
+      });
+
+      // First init() should reject and clear #initPromise.
+      await expect(controller.init()).rejects.toThrow(
+        'NetworkController not ready',
+      );
+
+      // Second init() should succeed and trigger data fetches.
+      await controller.init();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(EarnSdk.create).toHaveBeenCalledTimes(1);
+      expect(
+        mockedEarnApiService?.pooledStaking?.getPooledStakes,
+      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI)
+    });
+
     describe('when no EVM account is available at init time', () => {
       // Minimal AccountTreeControllerState shape used to trigger the stateChange event
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
