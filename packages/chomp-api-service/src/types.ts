@@ -69,16 +69,7 @@ export type AssociateAddressResponse = {
   status: string;
 };
 
-export type CreateUpgradeResponse = {
-  signerAddress: string;
-  status: string;
-  createdAt: string;
-};
-
-/**
- * The upgrade record returned by GET /v1/account-upgrade/:address.
- */
-export type GetUpgradeResponse = {
+export type UpgradeResponse = {
   signerAddress: string;
   status: string;
   createdAt: string;

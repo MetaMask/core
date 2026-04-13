@@ -11,12 +11,14 @@ import {
   array,
   boolean,
   create,
+  define,
   enums,
   literal,
   optional,
   string,
   type,
 } from '@metamask/superstruct';
+import { isStrictHexString } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
@@ -24,10 +26,9 @@ import type {
   AssociateAddressRequest,
   AssociateAddressResponse,
   CreateUpgradeRequest,
-  CreateUpgradeResponse,
+  UpgradeResponse,
   CreateWithdrawalRequest,
   CreateWithdrawalResponse,
-  GetUpgradeResponse,
   IntentEntry,
   SendIntentRequest,
   SendIntentResponse,
@@ -114,6 +115,10 @@ export type ChompApiServiceMessenger = Messenger<
 
 // === RESPONSE VALIDATION ===
 
+const HexStringStruct = define<string>('Hex string', (value) =>
+  isStrictHexString(value),
+);
+
 const AssociateAddressResponseStruct = type({
   profileId: string(),
   address: string(),
@@ -136,9 +141,9 @@ const SendIntentResponseArrayStruct = array(
   type({
     delegationHash: string(),
     metadata: type({
-      allowance: string(),
+      allowance: HexStringStruct,
       tokenSymbol: string(),
-      tokenAddress: string(),
+      tokenAddress: HexStringStruct,
       type: enums(['cash-deposit', 'cash-withdrawal']),
     }),
     createdAt: string(),
@@ -147,13 +152,13 @@ const SendIntentResponseArrayStruct = array(
 
 const IntentEntryArrayStruct = array(
   type({
-    account: string(),
-    delegationHash: string(),
-    chainId: string(),
+    account: HexStringStruct,
+    delegationHash: HexStringStruct,
+    chainId: HexStringStruct,
     status: enums(['active', 'revoked']),
     metadata: type({
-      allowance: string(),
-      tokenAddress: string(),
+      allowance: HexStringStruct,
+      tokenAddress: HexStringStruct,
       tokenSymbol: string(),
       type: enums(['deposit', 'withdraw']),
     }),
@@ -283,9 +288,7 @@ export class ChompApiService extends BaseDataService<
    * chain details.
    * @returns The upgrade result.
    */
-  async createUpgrade(
-    request: CreateUpgradeRequest,
-  ): Promise<CreateUpgradeResponse> {
+  async createUpgrade(request: CreateUpgradeRequest): Promise<UpgradeResponse> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:createUpgrade`, request],
       staleTime: 0,
@@ -322,7 +325,7 @@ export class ChompApiService extends BaseDataService<
    * @param address - The address to look up.
    * @returns The upgrade record, or null if not found.
    */
-  async getUpgrade(address: string): Promise<GetUpgradeResponse | null> {
+  async getUpgrade(address: string): Promise<UpgradeResponse | null> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getUpgrade`, address],
       queryFn: async () => {
