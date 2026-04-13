@@ -233,6 +233,9 @@ export type KeyringMetadata = {
   name: string;
 };
 
+/**
+ * A keyring entry, including the keyring instance (+ v2 instance) and its metadata.
+ */
 type KeyringEntry = {
   /**
    * The keyring instance.
