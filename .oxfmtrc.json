@@ -1,6 +1,9 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "printWidth": 80,
+  "quoteProps": "as-needed",
   "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "all",
   "ignorePatterns": [".yarnrc.yml", "merged-packages/**", "CHANGELOG.md"]
 }
