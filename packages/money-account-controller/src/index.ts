@@ -35,7 +35,6 @@ export type {
   MoneyAccountBalanceServiceGetVaultApyAction,
 } from './money-account-balance-service/money-account-balance-service-method-action-types';
 export type {
-  Erc20BalanceResponse,
   ExchangeRateResponse,
   MusdEquivalentValueResponse,
   VaultApyResponse,

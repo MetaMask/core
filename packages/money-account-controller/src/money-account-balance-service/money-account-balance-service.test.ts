@@ -235,6 +235,33 @@ function mockAccountantGetRate(rate: string): void {
   );
 }
 
+/**
+ * Configures the Contract mock to route calls to the correct contract method
+ * based on the address. Used when `getMusdEquivalentValue` creates two
+ * contracts in the same call — the vault (balanceOf) and the accountant
+ * (getRate).
+ *
+ * @param vaultBalance - The raw uint256 balance string for the vault share contract.
+ * @param exchangeRate - The raw uint256 rate string for the accountant contract.
+ */
+function mockContractsByAddress(
+  vaultBalance: string,
+  exchangeRate: string,
+): void {
+  const contractMocksByAddress: Record<string, Partial<Contract>> = {
+    [MOCK_VAULT_ADDRESS]: {
+      balanceOf: jest.fn().mockResolvedValue({ toString: () => vaultBalance }),
+    },
+    [MOCK_ACCOUNTANT_ADDRESS]: {
+      getRate: jest.fn().mockResolvedValue({ toString: () => exchangeRate }),
+    },
+  };
+
+  MockContract.mockImplementation(
+    (address) => contractMocksByAddress[address] as unknown as Contract,
+  );
+}
+
 // ============================================================
 // Tests
 // ============================================================
@@ -370,6 +397,24 @@ describe('MoneyAccountBalanceService', () => {
         expect.anything(),
       );
     });
+
+    it('throws if no network configuration is found for the vault chain', async () => {
+      const { service, mockGetNetworkConfig } = createService();
+      mockGetNetworkConfig.mockReturnValue(undefined);
+
+      await expect(
+        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('No network configuration found for chain 0xa4b1');
+    });
+
+    it('throws if the network client has no provider', async () => {
+      const { service, mockGetNetworkClient } = createService();
+      mockGetNetworkClient.mockReturnValue({ provider: null });
+
+      await expect(
+        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('No provider found for chain 0xa4b1');
+    });
   });
 
   // ----------------------------------------------------------
@@ -426,19 +471,7 @@ describe('MoneyAccountBalanceService', () => {
     it('returns the vault share balance, exchange rate, and computed mUSD-equivalent value', async () => {
       // balance = 2_000_000, rate = 1_100_000, decimals = 6
       // equivalent = (2_000_000 * 1_100_000) / 10^6 = 2_200_000
-      MockContract.mockImplementationOnce(
-        () =>
-          ({
-            balanceOf: jest
-              .fn()
-              .mockResolvedValue({ toString: () => '2000000' }),
-          }) as unknown as Contract,
-      ).mockImplementationOnce(
-        () =>
-          ({
-            getRate: jest.fn().mockResolvedValue({ toString: () => '1100000' }),
-          }) as unknown as Contract,
-      );
+      mockContractsByAddress('2000000', '1100000');
 
       const { service } = createService();
 
@@ -452,17 +485,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('returns zero musdEquivalentValue when the vault share balance is zero', async () => {
-      MockContract.mockImplementationOnce(
-        () =>
-          ({
-            balanceOf: jest.fn().mockResolvedValue({ toString: () => '0' }),
-          }) as unknown as Contract,
-      ).mockImplementationOnce(
-        () =>
-          ({
-            getRate: jest.fn().mockResolvedValue({ toString: () => '1100000' }),
-          }) as unknown as Contract,
-      );
+      mockContractsByAddress('0', '1100000');
 
       const { service } = createService();
 
@@ -472,23 +495,9 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('truncates (floors) fractional mUSD when the product is not evenly divisible', async () => {
-      // balance = 1_000_001, rate = 1_000_000, decimals = 6
-      // equivalent = (1_000_001 * 1_000_000) / 10^6 = 1_000_001 (exact)
-      // Check with a value that *would* truncate: balance=3, rate=1_000_000, decimals=6
-      // => (3 * 1_000_000) / 1_000_000 = 3 (no truncation needed in this case)
-      // Real truncation test: balance=7, rate=1_500_000, decimals=6
+      // balance = 7, rate = 1_500_000, decimals = 6
       // => (7 * 1_500_000) / 1_000_000 = 10_500_000 / 1_000_000 = 10 (BigInt floors)
-      MockContract.mockImplementationOnce(
-        () =>
-          ({
-            balanceOf: jest.fn().mockResolvedValue({ toString: () => '7' }),
-          }) as unknown as Contract,
-      ).mockImplementationOnce(
-        () =>
-          ({
-            getRate: jest.fn().mockResolvedValue({ toString: () => '1500000' }),
-          }) as unknown as Contract,
-      );
+      mockContractsByAddress('7', '1500000');
 
       const { service } = createService();
 

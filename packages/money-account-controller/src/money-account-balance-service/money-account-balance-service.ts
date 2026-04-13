@@ -28,7 +28,6 @@ import { VedaResponseValidationError } from './errors';
 import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
 import { normalizeVaultApyResponse } from './requestNormalization';
 import type {
-  Erc20BalanceResponse,
   ExchangeRateResponse,
   MusdEquivalentValueResponse,
   VaultApyResponse,
@@ -185,10 +184,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
       name: serviceName,
       messenger,
       policyOptions: {
-        ...policyOptions,
         retryFilterPolicy: handleWhen(
           (error) => !(error instanceof VedaResponseValidationError),
         ),
+        ...policyOptions,
       },
     });
 
@@ -254,7 +253,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
   async #fetchErc20Balance(
     contractAddress: Hex,
     accountAddress: Hex,
-  ): Promise<Erc20BalanceResponse> {
+  ): Promise<string> {
     const provider = this.#getProvider();
     const contract = new Contract(contractAddress, abiERC20, provider);
     const balance = await contract.balanceOf(accountAddress);
@@ -267,7 +266,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The mUSD balance as a raw uint256 string.
    */
-  async getMusdBalance(accountAddress: Hex): Promise<Erc20BalanceResponse> {
+  async getMusdBalance(accountAddress: Hex): Promise<{ balance: string }> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
@@ -288,9 +287,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The musdSHFvd balance as a raw uint256 string.
    */
-  async getMusdSHFvdBalance(
-    accountAddress: Hex,
-  ): Promise<Erc20BalanceResponse> {
+  async getMusdSHFvdBalance(accountAddress: Hex): Promise<{ balance: string }> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdSHFvdBalance`, accountAddress],
       queryFn: async () => {
