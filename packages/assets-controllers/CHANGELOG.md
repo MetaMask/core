@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-- Deprecate <ControllerName>:stateChange in favor of :stateChanged ([#8187](https://github.com/MetaMask/core/pull/8187))
-
 ### Changed
 
 - **BREAKING:** `NftController` no longer uses the `AssetsContractController:getERC721OwnerOf` and `AssetsContractController:getERC1155BalanceOf` messenger actions for ownership checks; these have been removed from `AllowedActions` ([#8281](https://github.com/MetaMask/core/pull/8281))

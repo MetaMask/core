@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: adopt messenger-cli pattern for 4 controller packages ([#8391](https://github.com/MetaMask/core/pull/8391))
-
 ### Added
 
 - Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))

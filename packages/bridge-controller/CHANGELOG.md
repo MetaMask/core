@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Update Release 905.0.0 (#8399) and release 904.0.0 (#8397)" ([#8399](https://github.com/MetaMask/core/pull/8399))
-- Release/904.0.0 ([#8397](https://github.com/MetaMask/core/pull/8397))
-
 ### Added
 
 - Add action types for all public `BridgeController` methods ([#8367](https://github.com/MetaMask/core/pull/8367))
