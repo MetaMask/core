@@ -2102,7 +2102,7 @@ export class KeyringController<
     v2,
     selector,
   }: // Use distinct union tags to ensure proper type narrowing of the selector object.
-  | {
+    | {
         v2: false;
         selector: KeyringSelector<SelectedKeyring>;
       }
