@@ -1918,23 +1918,20 @@ export class KeyringController<
   }
 
   /**
-   * Select a keyring, wrap it in a `KeyringV2` adapter, and execute
+   * Select a keyring using its `KeyringV2` adapter, and execute
    * the given operation with the wrapped keyring as a mutually
    * exclusive atomic operation.
    *
-   * We re-wrap the keyring in a `KeyringV2` adapter on each invocation,
-   * since V2 wrappers are ephemeral adapters created on-the-fly, and cheap to create.
-   *
-   * The method automatically persists changes at the end of the
-   * function execution, or rolls back the changes if an error
-   * is thrown.
+   * The cached `KeyringV2` adapter is retrieved from the keyring
+   * entry.
    *
    * A `KeyringV2Builder` for the selected keyring's type must exist
    * (either as a default or registered via the `keyringV2Builders`
    * constructor option); otherwise an error is thrown.
    *
-   * Selection is performed against the V1 keyrings in `#keyrings`, since
-   * V2 wrappers are ephemeral adapters created on-the-fly.
+   * The method automatically persists changes at the end of the
+   * function execution, or rolls back the changes if an error
+   * is thrown.
    *
    * @param selector - Keyring selector object.
    * @param operation - Function to execute with the wrapped V2 keyring.
