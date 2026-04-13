@@ -506,8 +506,8 @@ export type KeyringBuilder = {
 /**
  * A builder that wraps a legacy `Keyring` into a `KeyringV2` adapter.
  *
- * The controller calls the builder every time `withKeyringV2` is
- * invoked; the resulting wrapper is not cached.
+ * The controller calls the builder once when the V1 keyring is created
+ * or restored; the resulting wrapper is cached for the keyring's lifetime.
  */
 export type KeyringV2Builder = {
   (keyring: Keyring, metadata: KeyringMetadata): KeyringV2;
