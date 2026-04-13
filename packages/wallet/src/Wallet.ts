@@ -1,7 +1,9 @@
 import { Messenger } from '@metamask/messenger';
-import { hasProperty, type Json } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 
 import type {
+  DefaultActions,
+  DefaultEvents,
   DefaultInstances,
   DefaultState,
   RootMessenger,
@@ -15,7 +17,8 @@ export type WalletConstructorArgs = {
 };
 
 export class Wallet {
-  public messenger: RootMessenger;
+  // TODO: Expand types when passing additionalConfigurations.
+  public readonly messenger: RootMessenger<DefaultActions, DefaultEvents>;
 
   readonly #instances: DefaultInstances;
 

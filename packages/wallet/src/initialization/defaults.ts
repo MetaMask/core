@@ -1,4 +1,6 @@
 import type {
+  ActionConstraint,
+  EventConstraint,
   Messenger,
   MessengerActions,
   MessengerEvents,
@@ -39,8 +41,8 @@ export type DefaultActions = MessengerActions<AllMessengers>;
 export type DefaultEvents = MessengerEvents<AllMessengers>;
 
 export type RootMessenger<
-  AllowedActions extends DefaultActions = DefaultActions,
-  AllowedEvents extends DefaultEvents = DefaultEvents,
+  AllowedActions extends ActionConstraint = ActionConstraint,
+  AllowedEvents extends EventConstraint = EventConstraint,
 > = Messenger<'Root', AllowedActions, AllowedEvents>;
 
 export type DefaultState = {
