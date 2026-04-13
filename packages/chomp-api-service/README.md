@@ -1,14 +1,14 @@
-# `@metamask/chom-api-service`
+# `@metamask/chomp-api-service`
 
 Chomp API data service.
 
 ## Installation
 
-`yarn add @metamask/chom-api-service`
+`yarn add @metamask/chomp-api-service`
 
 or
 
-`npm install @metamask/chom-api-service`
+`npm install @metamask/chomp-api-service`
 
 ## Contributing
 
