@@ -2920,7 +2920,7 @@ __metadata:
   linkType: hard
 
 "@metamask/auto-changelog@npm:@metamask-previews/auto-changelog@6.0.0-preview-b0fc35a":
-  version: 6.0.0-preview-7ee0be4
+  version: 6.0.0-preview-b0fc35a
   resolution: "@metamask-previews/auto-changelog@npm:6.0.0-preview-b0fc35a"
   dependencies:
     "@octokit/rest": "npm:^20.0.0"
