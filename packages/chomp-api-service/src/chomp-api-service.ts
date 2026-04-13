@@ -4,11 +4,8 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
-import type {
-  CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import {
   array,
@@ -183,8 +180,6 @@ export class ChompApiService extends BaseDataService<
 
   readonly #getAccessToken: () => Promise<string>;
 
-  readonly #mutationPolicy: ServicePolicy;
-
   /**
    * Constructs a new ChompApiService.
    *
@@ -219,7 +214,6 @@ export class ChompApiService extends BaseDataService<
 
     this.#baseUrl = baseUrl;
     this.#getAccessToken = getAccessToken;
-    this.#mutationPolicy = createServicePolicy(policyOptions);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -241,39 +235,6 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
-   * Makes an authenticated POST request to the CHOMP API.
-   *
-   * @param path - The URL path relative to the base URL.
-   * @param body - The request body to serialize as JSON.
-   * @param acceptedStatuses - HTTP status codes that should be returned rather
-   * than treated as errors (e.g. 409 for conflict).
-   * @returns The raw fetch Response.
-   */
-  async #postJson(
-    path: string,
-    body: unknown,
-    acceptedStatuses: number[] = [],
-  ): Promise<Response> {
-    const headers = await this.#authHeaders();
-    return this.#mutationPolicy.execute(async () => {
-      const response = await fetch(new URL(path, this.#baseUrl), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok && !acceptedStatuses.includes(response.status)) {
-        throw new HttpError(
-          response.status,
-          `POST ${path} failed with status '${response.status}'`,
-        );
-      }
-
-      return response;
-    });
-  }
-
-  /**
    * Associates an address with a CHOMP profile.
    *
    * POST /v1/auth/address
@@ -285,9 +246,32 @@ export class ChompApiService extends BaseDataService<
   async associateAddress(
     request: AssociateAddressRequest,
   ): Promise<AssociateAddressResponse> {
-    const response = await this.#postJson('/v1/auth/address', request, [409]);
-    const json = await response.json();
-    return create(json, AssociateAddressResponseStruct);
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:associateAddress`, request],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v1/auth/address', this.#baseUrl),
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(request),
+          },
+        );
+
+        if (!response.ok && response.status !== 409) {
+          throw new HttpError(
+            response.status,
+            `POST /v1/auth/address failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, AssociateAddressResponseStruct);
   }
 
   /**
@@ -302,9 +286,32 @@ export class ChompApiService extends BaseDataService<
   async createUpgrade(
     request: CreateUpgradeRequest,
   ): Promise<CreateUpgradeResponse> {
-    const response = await this.#postJson('/v1/account-upgrade', request);
-    const json = await response.json();
-    return create(json, UpgradeResponseStruct);
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:createUpgrade`, request],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v1/account-upgrade', this.#baseUrl),
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(request),
+          },
+        );
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `POST /v1/account-upgrade failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, UpgradeResponseStruct);
   }
 
   /**
@@ -358,12 +365,32 @@ export class ChompApiService extends BaseDataService<
   async verifyDelegation(
     request: VerifyDelegationRequest,
   ): Promise<VerifyDelegationResponse> {
-    const response = await this.#postJson(
-      '/v1/intent/verify-delegation',
-      request,
-    );
-    const json = await response.json();
-    return create(json, VerifyDelegationResponseStruct);
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:verifyDelegation`, request],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(
+          new URL('/v1/intent/verify-delegation', this.#baseUrl),
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(request),
+          },
+        );
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `POST /v1/intent/verify-delegation failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, VerifyDelegationResponseStruct);
   }
 
   /**
@@ -377,9 +404,32 @@ export class ChompApiService extends BaseDataService<
   async createIntents(
     intents: SendIntentRequest[],
   ): Promise<SendIntentResponse[]> {
-    const response = await this.#postJson('/v1/intent', intents);
-    const json = await response.json();
-    return create(json, SendIntentResponseArrayStruct) as SendIntentResponse[];
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:createIntents`, intents],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(new URL('/v1/intent', this.#baseUrl), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(intents),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `POST /v1/intent failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(
+      jsonResponse,
+      SendIntentResponseArrayStruct,
+    ) as SendIntentResponse[];
   }
 
   /**
@@ -426,8 +476,28 @@ export class ChompApiService extends BaseDataService<
   async createWithdrawal(
     request: CreateWithdrawalRequest,
   ): Promise<CreateWithdrawalResponse> {
-    const response = await this.#postJson('/v1/withdrawal', request);
-    const json = await response.json();
-    return create(json, CreateWithdrawalResponseStruct);
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:createWithdrawal`, request],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(new URL('/v1/withdrawal', this.#baseUrl), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `POST /v1/withdrawal failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, CreateWithdrawalResponseStruct);
   }
 }
