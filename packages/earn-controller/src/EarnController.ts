@@ -1,4 +1,4 @@
-import { BigNumber } from '@ethersproject/bignumber';
+import type { BigNumber } from '@ethersproject/bignumber';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
@@ -344,7 +344,7 @@ export class EarnController extends BaseController<
 > {
   #earnSDK: EarnSdk | null = null;
 
-  #initialized = false;
+  #initPromise: Promise<void> | null = null;
 
   readonly #earnApiService: EarnApiService;
 
@@ -467,21 +467,23 @@ export class EarnController extends BaseController<
   }
 
   async init(): Promise<void> {
-    if (this.#initialized) {
-      return;
+    if (this.#initPromise) {
+      return this.#initPromise;
     }
 
-    await this.#initializeSDK(this.#getSelectedNetworkClientId());
+    this.#initPromise = (async (): Promise<void> => {
+      await this.#initializeSDK(this.#getSelectedNetworkClientId());
 
-    const address = this.#getSelectedEvmAccountAddress();
-    if (address) {
-      this.#refreshEarnPortfolio(address);
-    } else {
-      // Account tree state is not yet available, so we defer the refresh to when it is.
-      this.#refreshEarnPortfolioOnAccountReady();
-    }
+      const address = this.#getSelectedEvmAccountAddress();
+      if (address) {
+        this.#refreshEarnPortfolio(address);
+      } else {
+        // Account tree state is not yet available, so we defer the refresh to when it is.
+        this.#refreshEarnPortfolioOnAccountReady();
+      }
+    })();
 
-    this.#initialized = true;
+    return this.#initPromise;
   }
 
   /**
@@ -582,7 +584,6 @@ export class EarnController extends BaseController<
       this.messenger.unsubscribe('AccountTreeController:stateChange', handler);
       this.#refreshEarnPortfolio(address);
     };
-    // eslint-disable-next-line no-restricted-syntax
     this.messenger.subscribe('AccountTreeController:stateChange', handler);
   }
 

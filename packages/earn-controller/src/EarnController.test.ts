@@ -132,7 +132,6 @@ function getEarnControllerMessenger(
     events: [
       'NetworkController:networkDidChange',
       'AccountTreeController:selectedAccountGroupChange',
-      // eslint-disable-next-line no-restricted-syntax
       'AccountTreeController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
@@ -863,10 +862,10 @@ describe('EarnController', () => {
   });
 
   describe('init', () => {
-    it('does not re-run initialization if already initialized', async () => {
+    it('does not re-run initialization when called again after init has already completed', async () => {
       const { controller } = await setupController();
 
-      // init() was already called once inside setupController; call it again.
+      // init() was already called once inside setupController; call it again after it settled.
       await controller.init();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -876,6 +875,51 @@ describe('EarnController', () => {
       expect(
         mockedEarnApiService?.pooledStaking?.getPooledStakes,
       ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI) from the first init()
+    });
+
+    it('does not re-run initialization when called concurrently before init has completed', async () => {
+      // Build the controller without calling init() so we can control the race ourselves.
+      // Reuse the same mock factories that setupController defaults to.
+      const rootMessenger = buildMessenger();
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn(() => ({
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '1',
+        })),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn(() => ({
+          configuration: { chainId: toHex(1) },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        })) as unknown as jest.Mock,
+      );
+      rootMessenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        jest.fn(() => [mockInternalAccount1]),
+      );
+
+      const earnControllerMessenger = getEarnControllerMessenger(rootMessenger);
+      const controller = new EarnController({
+        messenger: earnControllerMessenger,
+        addTransactionFn: jest.fn(),
+      });
+
+      // Fire two concurrent init() calls — neither has settled yet.
+      await Promise.all([controller.init(), controller.init()]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // SDK should only have been created once despite two concurrent calls.
+      expect(EarnSdk.create).toHaveBeenCalledTimes(1);
+      expect(
+        mockedEarnApiService?.pooledStaking?.getPooledStakes,
+      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI), not doubled to 4
     });
 
     describe('when no EVM account is available at init time', () => {
