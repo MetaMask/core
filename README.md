@@ -352,8 +352,11 @@ linkStyle default opacity:0.5
   message_manager --> messenger;
   money_account_controller --> accounts_controller;
   money_account_controller --> base_controller;
+  money_account_controller --> base_data_service;
+  money_account_controller --> controller_utils;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_controller --> network_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
