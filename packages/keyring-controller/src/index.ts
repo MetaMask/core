@@ -19,6 +19,7 @@ export type {
   KeyringControllerPrepareUserOperationAction,
   KeyringControllerPatchUserOperationAction,
   KeyringControllerSignUserOperationAction,
+  KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringAction,
   KeyringControllerWithKeyringUnsafeAction,
   KeyringControllerWithKeyringV2Action,
