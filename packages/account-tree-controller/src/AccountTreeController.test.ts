@@ -235,6 +235,46 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
 
 const mockGetSelectedMultichainAccountActionHandler = jest.fn();
 
+const MOCK_PREPOPULATED_WALLET_ID = toMultichainAccountWalletId(
+  MOCK_HD_KEYRING_1.metadata.id,
+);
+const MOCK_PREPOPULATED_GROUP_ID = toMultichainAccountGroupId(
+  MOCK_PREPOPULATED_WALLET_ID,
+  MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+);
+const MOCK_PREPOPULATED_STATE: Partial<AccountTreeControllerState> = {
+  selectedAccountGroup: MOCK_PREPOPULATED_GROUP_ID,
+  accountTree: {
+    wallets: {
+      [MOCK_PREPOPULATED_WALLET_ID]: {
+        id: MOCK_PREPOPULATED_WALLET_ID,
+        type: AccountWalletType.Entropy,
+        status: 'ready',
+        groups: {
+          [MOCK_PREPOPULATED_GROUP_ID]: {
+            id: MOCK_PREPOPULATED_GROUP_ID,
+            type: AccountGroupType.MultichainAccount,
+            accounts: [MOCK_HD_ACCOUNT_1.id],
+            metadata: {
+              name: 'Account 1',
+              entropy: {
+                groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+              },
+              pinned: false,
+              hidden: false,
+              lastSelected: 0,
+            },
+          },
+        },
+        metadata: {
+          name: 'Wallet 1',
+          entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
+        },
+      },
+    },
+  },
+};
+
 /**
  * Sets up the AccountTreeController for testing.
  *
@@ -1076,6 +1116,27 @@ describe('AccountTreeController', () => {
         toMultichainAccountWalletId(MOCK_HD_KEYRING_2.metadata.id),
       );
     });
+
+    it('populates reverse mappings from persisted tree state without calling init()', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // init() is NOT called — reverse mappings must be populated from the persisted tree.
+      const context = controller.getAccountContext(MOCK_HD_ACCOUNT_1.id);
+      expect(context).toBeDefined();
+      expect(context?.walletId).toBe(MOCK_PREPOPULATED_WALLET_ID);
+      expect(context?.groupId).toBe(MOCK_PREPOPULATED_GROUP_ID);
+      expect(context?.sortOrder).toBeDefined();
+
+      const group = controller.getAccountGroupObject(
+        MOCK_PREPOPULATED_GROUP_ID,
+      );
+      expect(group).toBeDefined();
+      expect(group?.id).toBe(MOCK_PREPOPULATED_GROUP_ID);
+    });
   });
 
   describe('getAccountsFromSelectAccountGroup', () => {
@@ -1146,6 +1207,19 @@ describe('AccountTreeController', () => {
       controller.init();
 
       expect(controller.getAccountsFromSelectedAccountGroup()).toHaveLength(0);
+    });
+
+    it('returns accounts from persisted state without calling init()', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // init() is NOT called — accounts must be served from the persisted state.
+      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
     });
   });
 
@@ -4863,6 +4937,9 @@ describe('AccountTreeController', () => {
       ).toMatchInlineSnapshot(`
         {
           "accountGroupsMetadata": {},
+          "accountTree": {
+            "wallets": {},
+          },
           "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
           "selectedAccountGroup": "",
