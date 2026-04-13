@@ -1878,112 +1878,6 @@ export class KeyringController<
   }
 
   /**
-   * Execute an operation against all keyrings as a mutually exclusive atomic
-   * operation. The operation receives a {@link RestrictedController} instance
-   * that exposes a read-only live view of all keyrings as well as
-   * `addNewKeyring` and `removeKeyring` methods to stage mutations.
-   *
-   * The method automatically persists changes at the end of the function
-   * execution, or rolls back the changes if an error is thrown.
-   *
-   * @param operation - Function to execute with the restricted controller.
-   * @returns Promise resolving to the result of the function execution.
-   * @template CallbackResult - The type of the value resolved by the callback function.
-   */
-  async withController<CallbackResult = void>(
-    operation: (
-      restrictedController: RestrictedController,
-    ) => Promise<CallbackResult>,
-  ): Promise<CallbackResult> {
-    this.#assertIsUnlocked();
-
-    return this.#persistOrRollback(async () => {
-      // Track created and removed keyrings during the operation execution.
-      const createdEntries = new Set<KeyringEntry>();
-      const removedEntries = new Set<KeyringEntry>();
-
-      // Copy of the current keyrings that is mutated during the operation execution.
-      const restrictedEntries = [...this.#keyrings];
-
-      // The restricted controller proxies the current keyrings and allows staging
-      // mutations that are only applied to the real keyrings if the operation
-      // completes successfully. This allows us to have a single source of truth
-      // for the keyrings during the operation execution, and to automatically
-      // roll back any changes if an error is thrown.
-      const restrictedController: RestrictedController = {
-        // We freeze the array to prevent direct mutations, but the keyring instances
-        // themselves are not frozen, allowing safe read-only access.
-        get keyrings() {
-          return Object.freeze([...restrictedEntries]);
-        },
-
-        // Method to create a new keyring and adds it to the restricted entries.
-        addNewKeyring: async (type: string, opts?: unknown) => {
-          const entry = await this.#createKeyring(type, opts);
-
-          restrictedEntries.push(entry);
-          createdEntries.add(entry);
-
-          return entry;
-        },
-
-        // Method to remove a keyring from the restricted entries.
-        removeKeyring: async (id: string) => {
-          const index = restrictedEntries.findIndex(
-            (entry) => entry.metadata.id === id,
-          );
-          if (index === -1) {
-            throw new KeyringControllerError(
-              KeyringControllerErrorMessage.KeyringNotFound,
-            );
-          }
-
-          const [removed] = restrictedEntries.splice(index, 1) as [
-            KeyringEntry,
-          ];
-          removedEntries.add(removed);
-        },
-      };
-
-      const destroyKeyrings = async (
-        entries: Iterable<KeyringEntry>,
-      ): Promise<void> => {
-        await Promise.all(
-          [...entries].map(({ keyring, keyringV2 }) =>
-            this.#destroyKeyring(keyring, keyringV2),
-          ),
-        );
-      };
-
-      let result: CallbackResult;
-      try {
-        result = await operation(restrictedController);
-      } catch (error) {
-        await destroyKeyrings(createdEntries);
-
-        throw error;
-      }
-
-      await destroyKeyrings(removedEntries);
-
-      // We update the real keyrings only after the operation completes successfully, so that
-      // they will be persisted in the vault.
-      this.#keyrings = restrictedEntries;
-
-      // As usual, we want to prevent returning direct references to keyring instances, so we check
-      // the result for any unsafe direct access before returning.
-      for (const { keyring, keyringV2 } of this.#keyrings) {
-        this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
-        if (keyringV2) {
-          this.#assertNoUnsafeDirectKeyringAccess(result, keyringV2);
-        }
-      }
-
-      return result;
-    });
-  }
-
-  /**
    * Select a keyring and execute the given operation with the selected
    * keyring, **without** acquiring the controller's mutual exclusion lock.
    *
@@ -2193,6 +2087,112 @@ export class KeyringController<
       await operation({ keyring, metadata }),
       keyring,
     );
+  }
+
+  /**
+   * Execute an operation against all keyrings as a mutually exclusive atomic
+   * operation. The operation receives a {@link RestrictedController} instance
+   * that exposes a read-only live view of all keyrings as well as
+   * `addNewKeyring` and `removeKeyring` methods to stage mutations.
+   *
+   * The method automatically persists changes at the end of the function
+   * execution, or rolls back the changes if an error is thrown.
+   *
+   * @param operation - Function to execute with the restricted controller.
+   * @returns Promise resolving to the result of the function execution.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async withController<CallbackResult = void>(
+    operation: (
+      restrictedController: RestrictedController,
+    ) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    this.#assertIsUnlocked();
+
+    return this.#persistOrRollback(async () => {
+      // Track created and removed keyrings during the operation execution.
+      const createdEntries = new Set<KeyringEntry>();
+      const removedEntries = new Set<KeyringEntry>();
+
+      // Copy of the current keyrings that is mutated during the operation execution.
+      const restrictedEntries = [...this.#keyrings];
+
+      // The restricted controller proxies the current keyrings and allows staging
+      // mutations that are only applied to the real keyrings if the operation
+      // completes successfully. This allows us to have a single source of truth
+      // for the keyrings during the operation execution, and to automatically
+      // roll back any changes if an error is thrown.
+      const restrictedController: RestrictedController = {
+        // We freeze the array to prevent direct mutations, but the keyring instances
+        // themselves are not frozen, allowing safe read-only access.
+        get keyrings() {
+          return Object.freeze([...restrictedEntries]);
+        },
+
+        // Method to create a new keyring and adds it to the restricted entries.
+        addNewKeyring: async (type: string, opts?: unknown) => {
+          const entry = await this.#createKeyring(type, opts);
+
+          restrictedEntries.push(entry);
+          createdEntries.add(entry);
+
+          return entry;
+        },
+
+        // Method to remove a keyring from the restricted entries.
+        removeKeyring: async (id: string) => {
+          const index = restrictedEntries.findIndex(
+            (entry) => entry.metadata.id === id,
+          );
+          if (index === -1) {
+            throw new KeyringControllerError(
+              KeyringControllerErrorMessage.KeyringNotFound,
+            );
+          }
+
+          const [removed] = restrictedEntries.splice(index, 1) as [
+            KeyringEntry,
+          ];
+          removedEntries.add(removed);
+        },
+      };
+
+      const destroyKeyrings = async (
+        entries: Iterable<KeyringEntry>,
+      ): Promise<void> => {
+        await Promise.all(
+          [...entries].map(({ keyring, keyringV2 }) =>
+            this.#destroyKeyring(keyring, keyringV2),
+          ),
+        );
+      };
+
+      let result: CallbackResult;
+      try {
+        result = await operation(restrictedController);
+      } catch (error) {
+        await destroyKeyrings(createdEntries);
+
+        throw error;
+      }
+
+      await destroyKeyrings(removedEntries);
+
+      // We update the real keyrings only after the operation completes successfully, so that
+      // they will be persisted in the vault.
+      this.#keyrings = restrictedEntries;
+
+      // As usual, we want to prevent returning direct references to keyring instances, so we check
+      // the result for any unsafe direct access before returning.
+      for (const { keyring, keyringV2 } of this.#keyrings) {
+        this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
+        if (keyringV2) {
+          this.#assertNoUnsafeDirectKeyringAccess(result, keyringV2);
+        }
+      }
+
+      return result;
+    });
   }
 
   async getAccountKeyringType(account: string): Promise<string> {
