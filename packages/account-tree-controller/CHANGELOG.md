@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Now persist `accounTree` ([#8437](https://github.com/MetaMask/core/pull/8437))
+  - The tree is not persisted and can be used before `init` is called.
+  - This allow consumers (like the assets controllers) to rely on the selected group's accounts right away.
 - Remove dynamic identifiers (wallet IDs, group IDs) from backup and sync thrown error messages to improve Sentry error grouping ([#8349](https://github.com/MetaMask/core/pull/8349))
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
