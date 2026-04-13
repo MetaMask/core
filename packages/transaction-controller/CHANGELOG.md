@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [64.1.0]
+
+### Added
+
+- Export `getAccountAddressRelationship` function and `GetAccountAddressRelationshipRequest` type from the public API ([#8402](https://github.com/MetaMask/core/pull/8402))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
@@ -2312,7 +2318,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.1.0...HEAD
+[64.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.0.0...@metamask/transaction-controller@64.1.0
 [64.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.3.1...@metamask/transaction-controller@64.0.0
 [63.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.3.0...@metamask/transaction-controller@63.3.1
 [63.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.2.0...@metamask/transaction-controller@63.3.0

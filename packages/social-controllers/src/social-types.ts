@@ -1,3 +1,12 @@
+import type { Infer } from '@metamask/superstruct';
+import {
+  enums,
+  number,
+  optional,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
+
 // ---------------------------------------------------------------------------
 // Shared sub-types
 // ---------------------------------------------------------------------------
@@ -26,21 +35,17 @@ export type SocialHandles = {
   lens?: string | null;
 };
 
-/**
- * A single trade within a position.
- */
-export type Trade = {
-  /** "buy" or "sell". */
-  direction: string;
-  /** Quantity traded. */
-  tokenAmount: number;
-  /** USD value of the trade. */
-  usdCost: number;
-  /** Unix timestamp. */
-  timestamp: number;
-  /** On-chain transaction hash. */
-  transactionHash: string;
-};
+export const TradeStruct = structType({
+  direction: enums(['buy', 'sell']),
+  intent: enums(['enter', 'exit']),
+  category: optional(string()),
+  tokenAmount: number(),
+  usdCost: number(),
+  timestamp: number(),
+  transactionHash: string(),
+});
+
+export type Trade = Infer<typeof TradeStruct>;
 
 // ---------------------------------------------------------------------------
 // Leaderboard

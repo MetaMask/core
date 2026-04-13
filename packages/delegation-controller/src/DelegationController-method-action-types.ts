@@ -19,68 +19,7 @@ export type DelegationControllerSignDelegationAction = {
 };
 
 /**
- * Stores a delegation in storage.
- *
- * @param params - The parameters for storing the delegation.
- * @param params.entry - The delegation entry to store.
- */
-export type DelegationControllerStoreAction = {
-  type: `DelegationController:store`;
-  handler: DelegationController['store'];
-};
-
-/**
- * Lists delegation entries.
- *
- * @param filter - The filter to use to list the delegation entries.
- * @returns A list of delegation entries that match the filter.
- */
-export type DelegationControllerListAction = {
-  type: `DelegationController:list`;
-  handler: DelegationController['list'];
-};
-
-/**
- * Retrieves the delegation entry for a given delegation hash.
- *
- * @param hash - The hash of the delegation to retrieve.
- * @returns The delegation entry, or null if not found.
- */
-export type DelegationControllerRetrieveAction = {
-  type: `DelegationController:retrieve`;
-  handler: DelegationController['retrieve'];
-};
-
-/**
- * Retrieves a delegation chain from a delegation hash.
- *
- * @param hash - The hash of the delegation to retrieve.
- * @returns The delegation chain, or null if not found.
- */
-export type DelegationControllerChainAction = {
-  type: `DelegationController:chain`;
-  handler: DelegationController['chain'];
-};
-
-/**
- * Deletes a delegation entrie from storage, along with any other entries
- * that are redelegated from it.
- *
- * @param hash - The hash of the delegation to delete.
- * @returns The number of entries deleted.
- */
-export type DelegationControllerDeleteAction = {
-  type: `DelegationController:delete`;
-  handler: DelegationController['delete'];
-};
-
-/**
  * Union of all DelegationController action types.
  */
 export type DelegationControllerMethodActions =
-  | DelegationControllerSignDelegationAction
-  | DelegationControllerStoreAction
-  | DelegationControllerListAction
-  | DelegationControllerRetrieveAction
-  | DelegationControllerChainAction
-  | DelegationControllerDeleteAction;
+  DelegationControllerSignDelegationAction;
