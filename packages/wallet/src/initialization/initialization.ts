@@ -1,8 +1,9 @@
 import { Json } from '@metamask/utils';
 
-import * as defaultConfigurations from './instances';
+import type { DefaultInstances } from './defaults';
+import { defaultConfigurations, RootMessenger } from './defaults';
 import { InitializationConfiguration } from './types';
-import { RootMessenger, WalletOptions } from '../types';
+import { WalletOptions } from '../types';
 
 export type InitializeArgs = {
   state: Record<string, Json>;
@@ -19,7 +20,7 @@ export function initialize({
   messenger,
   initializationConfigurations = [],
   options,
-}: InitializeArgs): Record<string, Record<string, unknown>> {
+}: InitializeArgs): DefaultInstances {
   const overriddenConfiguration = initializationConfigurations.map(
     (config) => config.name,
   );
@@ -30,7 +31,7 @@ export function initialize({
     ),
   );
 
-  const instances: Record<string, Record<string, unknown>> = {};
+  const instances: Record<string, unknown> = {};
 
   for (const config of configurationEntries) {
     const { name } = config;
@@ -48,5 +49,5 @@ export function initialize({
     instances[name] = instance as Record<string, unknown>;
   }
 
-  return instances;
+  return instances as DefaultInstances;
 }
