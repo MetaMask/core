@@ -25,6 +25,19 @@ export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
 
+/**
+ * ERC-7579 ModeCode encoding for the ERC-7821 `execute` function.
+ *
+ * Layout: | CallType (1 byte) | ExecType (1 byte) | Unused (4 bytes) | ModeSelector (4 bytes) | ModePayload (22 bytes) |
+ *
+ * - CallType 0x01 = batch
+ * - ExecType 0x00 = default (revert on failure)
+ * - ExecType 0x01 = try (skip on failure)
+ */
+const ERC7579_CALL_TYPE_BATCH = '01';
+const ERC7579_EXEC_TYPE_DEFAULT = '00';
+const ERC7579_EXEC_TYPE_TRY = '01';
+
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
 /**
@@ -128,8 +141,8 @@ export async function isAccountUpgradedToEIP7702(
  * @param transactions - The transactions to batch.
  * @param options - Options bag.
  * @param options.atomic - Whether the batch should be atomic. Defaults to `true`.
- * When `true`, mode `0x01` is used and all calls revert together.
- * When `false`, mode `0x00` is used and individual calls can fail independently.
+ * When `true`, uses ERC-7579 ExecType `default` and all calls revert together.
+ * When `false`, uses ERC-7579 ExecType `try` and individual calls can fail independently.
  * @returns The batch transaction.
  */
 export function generateEIP7702BatchTransaction(
@@ -150,7 +163,8 @@ export function generateEIP7702BatchTransaction(
     ];
   });
 
-  const mode = (atomic ? '0x01' : '0x00').padEnd(66, '0');
+  const execType = atomic ? ERC7579_EXEC_TYPE_DEFAULT : ERC7579_EXEC_TYPE_TRY;
+  const mode = `0x${ERC7579_CALL_TYPE_BATCH}${execType}`.padEnd(66, '0');
 
   const callData = defaultAbiCoder.encode([CALLS_SIGNATURE], [calls]);
 
