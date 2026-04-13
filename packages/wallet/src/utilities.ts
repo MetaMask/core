@@ -61,11 +61,11 @@ export async function sendTransaction(
   transaction: TransactionParams,
   options: AddTransactionOptions,
 ): Promise<{ transactionMeta: TransactionMeta; result: Promise<string> }> {
-  const { transactionMeta, result } = (await wallet.messenger.call(
+  const { transactionMeta, result } = await wallet.messenger.call(
     'TransactionController:addTransaction',
     transaction,
     options,
-  )) as { transactionMeta: TransactionMeta; result: Promise<string> };
+  );
 
   const approvalId = transactionMeta.id;
 
