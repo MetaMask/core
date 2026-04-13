@@ -7,11 +7,11 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "files": [],
   "workspaces": [
     "examples/*",
     "packages/*"
   ],
+  "files": [],
   "scripts": {
     "build": "yarn ts-bridge --project tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -26,7 +26,7 @@
     "lint:dependencies:fix": "depcheck && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=6144' yarn eslint",
     "lint:fix": "yarn lint:eslint --fix --prune-suppressions && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix && yarn messenger-action-types:generate && yarn readme-content:update",
-    "lint:misc": "prettier --no-error-on-unmatched-pattern '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' '!merged-packages/**' --ignore-path .gitignore",
+    "lint:misc": "oxfmt --ignore-path .gitignore \"$@\" && prettier --ignore-path .gitignore \"**/CHANGELOG.md\" \"$@\"",
     "lint:misc:check": "yarn lint:misc --check",
     "lint:teams": "tsx scripts/lint-teams-json.ts",
     "messenger-action-types:check": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:check",
@@ -42,14 +42,6 @@
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
-  },
-  "simple-git-hooks": {
-    "pre-push": "yarn lint"
-  },
-  "resolutions": {
-    "elliptic@6.5.4": "^6.5.7",
-    "fast-xml-parser@^4.3.4": "^4.4.1",
-    "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -89,9 +81,9 @@
     "jest-silent-reporter": "^0.5.0",
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
+    "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
     "prettier-2": "npm:prettier@^2.8.8",
-    "prettier-plugin-packagejson": "^2.4.5",
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
@@ -101,10 +93,18 @@
     "uuid": "^8.3.2",
     "yargs": "^17.7.2"
   },
-  "packageManager": "yarn@4.10.3",
+  "resolutions": {
+    "elliptic@6.5.4": "^6.5.7",
+    "fast-xml-parser@^4.3.4": "^4.4.1",
+    "ws@7.4.6": "^7.5.10"
+  },
+  "simple-git-hooks": {
+    "pre-push": "yarn lint"
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
+  "packageManager": "yarn@4.10.3",
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,

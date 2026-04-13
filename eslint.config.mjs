@@ -87,6 +87,13 @@ const config = createConfig([
     },
   },
   {
+    files: ['!**/*-method-action-types{.ts,.tmp.ts}'],
+    rules: {
+      // Handled by Oxfmt.
+      'prettier/prettier': 'off',
+    },
+  },
+  {
     rules: {
       // TODO: Re-enable this rule
       // Enabling it with error suppression breaks `--fix`, because the autofixer for this rule

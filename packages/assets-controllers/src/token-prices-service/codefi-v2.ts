@@ -568,9 +568,10 @@ export function resetSupportedCurrenciesCache(): void {
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
-export class CodefiTokenPricesServiceV2
-  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
-{
+export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
+  SupportedChainId,
+  SupportedCurrency
+> {
   readonly #policy: ServicePolicy;
 
   /**

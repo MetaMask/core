@@ -163,7 +163,7 @@ type RequiredEventContextFromClientBase = {
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
-    (TradeData &
+      (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<
           RequestMetadata,
