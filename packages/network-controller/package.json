@@ -72,7 +72,7 @@
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^29.5.14",
