@@ -35,6 +35,7 @@
     "mm": "./bin/run.mjs"
   },
   "files": [
+    "bin/",
     "dist/"
   ],
   "scripts": {
@@ -52,6 +53,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/remote-feature-flag-controller": "^4.2.0",
+    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/utils": "^11.9.0",
+    "@metamask/wallet": "^0.0.0",
     "@oclif/core": "^4.10.5"
   },
   "devDependencies": {

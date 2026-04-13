@@ -1,0 +1,116 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { rm, writeFile } from 'node:fs/promises';
+
+import { getDaemonPaths } from './paths';
+import { startRpcSocketServer } from './rpc-socket-server';
+import type { RpcSocketServerHandle } from './rpc-socket-server';
+import type { RpcHandlerMap } from './types';
+import { createWallet } from './wallet-factory';
+
+const startTime = Date.now();
+
+main().catch((error: unknown) => {
+  process.stderr.write(`Daemon fatal: ${String(error)}\n`);
+  process.exitCode = 1;
+});
+
+/**
+ * Main daemon entry point. Starts the daemon process and keeps it running.
+ */
+async function main(): Promise<void> {
+  const dataDir = process.env.MM_DAEMON_DATA_DIR;
+  if (!dataDir) {
+    throw new Error('MM_DAEMON_DATA_DIR environment variable is required');
+  }
+
+  const infuraProjectId = process.env.INFURA_PROJECT_ID;
+  if (!infuraProjectId) {
+    throw new Error('INFURA_PROJECT_ID environment variable is required');
+  }
+
+  mkdirSync(dataDir, { recursive: true });
+
+  const {
+    socketPath: defaultSocketPath,
+    pidPath,
+    logPath,
+  } = getDaemonPaths(dataDir);
+  const socketPath = process.env.MM_DAEMON_SOCKET_PATH ?? defaultSocketPath;
+
+  const log = makeLogger(logPath);
+  log('Starting daemon...');
+
+  const wallet = createWallet({ infuraProjectId });
+
+  const handlers: RpcHandlerMap = {
+    getStatus: async () => ({
+      pid: process.pid,
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+    }),
+  };
+
+  let handle: RpcSocketServerHandle;
+  try {
+    await writeFile(pidPath, String(process.pid));
+
+    handle = await startRpcSocketServer({
+      socketPath,
+      handlers,
+      onShutdown: async () => shutdown('RPC shutdown'),
+    });
+  } catch (error) {
+    try {
+      await wallet.destroy();
+    } catch {
+      // Best-effort cleanup.
+    }
+    rm(pidPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+
+  log(`Daemon started. Socket: ${socketPath}`);
+
+  let shutdownPromise: Promise<void> | undefined;
+
+  /**
+   * Shut down the daemon idempotently. Concurrent calls coalesce.
+   *
+   * @param reason - A label describing why shutdown was triggered.
+   * @returns A promise that resolves when shutdown completes.
+   */
+  async function shutdown(reason: string): Promise<void> {
+    if (shutdownPromise === undefined) {
+      log(`Shutting down (${reason})...`);
+      shutdownPromise = (async (): Promise<void> => {
+        try {
+          await handle.close();
+          await wallet.destroy();
+        } finally {
+          rm(pidPath, { force: true }).catch(() => undefined);
+          rm(socketPath, { force: true }).catch(() => undefined);
+        }
+      })();
+    }
+    return shutdownPromise;
+  }
+
+  process.on('SIGTERM', () => {
+    shutdown('SIGTERM').catch(() => (process.exitCode = 1));
+  });
+  process.on('SIGINT', () => {
+    shutdown('SIGINT').catch(() => (process.exitCode = 1));
+  });
+}
+
+/**
+ * Create a simple file logger.
+ *
+ * @param logPath - The log file path.
+ * @returns A logging function.
+ */
+function makeLogger(logPath: string): (message: string) => void {
+  return (message: string): void => {
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    appendFileSync(logPath, line);
+  };
+}

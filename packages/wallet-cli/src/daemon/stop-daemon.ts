@@ -1,0 +1,75 @@
+import { rm } from 'node:fs/promises';
+
+import { pingDaemon, sendCommand } from './daemon-client';
+import { isProcessAlive, readPidFile, waitFor } from './utils';
+
+/**
+ * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
+ * the socket is unresponsive, and escalates to SIGKILL if SIGTERM is ignored.
+ *
+ * @param socketPath - The daemon socket path.
+ * @param pidPath - The daemon PID file path.
+ * @param log - Optional logging function for status messages.
+ * @returns True if the daemon was stopped (or was not running).
+ */
+export async function stopDaemon(
+  socketPath: string,
+  pidPath: string,
+  log?: (message: string) => void,
+): Promise<boolean> {
+  const pid = await readPidFile(pidPath);
+  const processAlive = pid !== undefined && isProcessAlive(pid);
+  const socketResponsive = await pingDaemon(socketPath);
+
+  if (!socketResponsive && !processAlive) {
+    if (pid !== undefined) {
+      await rm(pidPath, { force: true });
+    }
+    return true;
+  }
+
+  log?.('Stopping daemon...');
+
+  let stopped = false;
+
+  // Strategy 1: Graceful socket-based shutdown.
+  if (socketResponsive) {
+    try {
+      await sendCommand({ socketPath, method: 'shutdown' });
+    } catch {
+      // Socket became unresponsive.
+    }
+    stopped = await waitFor(async () => !(await pingDaemon(socketPath)), 5_000);
+  }
+
+  // Strategy 2: SIGTERM.
+  if (!stopped && pid !== undefined) {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      stopped = true;
+    }
+    if (!stopped) {
+      stopped = await waitFor(() => !isProcessAlive(pid), 5_000);
+    }
+  }
+
+  // Strategy 3: SIGKILL.
+  if (!stopped && pid !== undefined) {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {
+      stopped = true;
+    }
+    if (!stopped) {
+      stopped = await waitFor(() => !isProcessAlive(pid), 2_000);
+    }
+  }
+
+  if (stopped) {
+    await rm(pidPath, { force: true });
+    log?.('Daemon stopped.');
+  }
+
+  return stopped;
+}

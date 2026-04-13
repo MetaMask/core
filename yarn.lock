@@ -5832,6 +5832,10 @@ __metadata:
   resolution: "@metamask/wallet-cli@workspace:packages/wallet-cli"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.0"
+    "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/utils": "npm:^11.9.0"
+    "@metamask/wallet": "npm:^0.0.0"
     "@oclif/core": "npm:^4.10.5"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5847,7 +5851,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/wallet@workspace:packages/wallet":
+"@metamask/wallet@npm:^0.0.0, @metamask/wallet@workspace:packages/wallet":
   version: 0.0.0-use.local
   resolution: "@metamask/wallet@workspace:packages/wallet"
   dependencies:

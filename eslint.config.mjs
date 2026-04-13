@@ -301,6 +301,19 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/wallet-cli/src/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/bin/**/*.mjs'],
+    rules: {
+      'import-x/no-unresolved': 'off',
+    },
+  },
+  {
     files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',

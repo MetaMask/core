@@ -3,6 +3,13 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
-  "include": ["../../types", "./src"]
+  "references": [
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.json"
+    },
+    {
+      "path": "../wallet/tsconfig.json"
+    }
+  ],
+  "include": ["../../types", "./bin", "./src"]
 }

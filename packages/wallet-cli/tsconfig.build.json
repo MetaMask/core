@@ -5,6 +5,13 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../wallet/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
