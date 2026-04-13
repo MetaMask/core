@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
+
 ### Fixed
 
 - `AssetsController` no longer silently skips asset fetching on startup for returning users ([#8412](https://github.com/MetaMask/core/pull/8412))

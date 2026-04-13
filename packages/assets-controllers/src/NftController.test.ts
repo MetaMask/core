@@ -4363,6 +4363,108 @@ describe('NftController', () => {
         ).toBe(true);
       });
     });
+
+    describe('checkAndUpdateSingleNftOwnershipStatus', () => {
+      it('should check whether the passed NFT is still owned by the current selectedAccount/chainId combination and update its isCurrentlyOwned property in state when isNftOwner returns false', async () => {
+        const { nftController } = setupController({
+          defaultSelectedAccount: OWNER_ACCOUNT,
+        });
+
+        const nft = {
+          address: '0x02',
+          tokenId: '1',
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        };
+
+        await nftController.addNft(nft.address, nft.tokenId, 'mainnet', {
+          nftMetadata: nft,
+        });
+
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
+            .isCurrentlyOwned,
+        ).toBe(true);
+
+        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
+
+        await nftController.checkAndUpdateSingleNftOwnershipStatus(
+          nft,
+          'mainnet',
+        );
+
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
+            .isCurrentlyOwned,
+        ).toBe(false);
+      });
+
+      it('should check whether the passed NFT is still owned by the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
+        const firstSelectedAddress = OWNER_ACCOUNT.address;
+        const {
+          nftController,
+          triggerPreferencesStateChange,
+          triggerSelectedAccountChange,
+        } = setupController();
+
+        triggerSelectedAccountChange(OWNER_ACCOUNT);
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          displayNftMedia: true,
+        });
+
+        const nft = {
+          address: '0x02',
+          tokenId: '1',
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        };
+
+        await nftController.addNft(nft.address, nft.tokenId, 'sepolia', {
+          nftMetadata: nft,
+        });
+
+        expect(
+          nftController.state.allNfts[firstSelectedAddress][ChainId.sepolia][0]
+            .isCurrentlyOwned,
+        ).toBe(true);
+
+        jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(false);
+        const secondAccount = createMockInternalAccount({
+          address: SECOND_OWNER_ADDRESS,
+        });
+        triggerSelectedAccountChange(secondAccount);
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          displayNftMedia: true,
+        });
+
+        const updatedNft =
+          await nftController.checkAndUpdateSingleNftOwnershipStatus(
+            nft,
+            'sepolia',
+            {
+              userAddress: OWNER_ADDRESS,
+            },
+          );
+
+        expect(updatedNft).toStrictEqual({
+          ...nft,
+          isCurrentlyOwned: false,
+        });
+
+        expect(
+          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
+            .isCurrentlyOwned,
+        ).toBe(false);
+      });
+    });
   });
 
   describe('findNftByAddressAndTokenId', () => {

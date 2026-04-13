@@ -1859,6 +1859,68 @@ export class NftController extends BaseController<
   }
 
   /**
+   * Checks whether input NFT is still owned by the user
+   * and updates the isCurrentlyOwned value on the NFT object accordingly.
+   *
+   * @param nft - The NFT object to check and update.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param accountParams - The userAddress to check ownership against.
+   * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure assets are stored to the correct account
+   * @returns the NFT with the updated isCurrentlyOwned value
+   */
+  async checkAndUpdateSingleNftOwnershipStatus(
+    nft: Nft,
+    networkClientId: NetworkClientId,
+    { userAddress }: { userAddress?: string } = {},
+  ): Promise<Nft> {
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
+    const {
+      configuration: { chainId },
+    } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    const { address, tokenId } = nft;
+    let isOwned = nft.isCurrentlyOwned;
+    try {
+      isOwned = await this.isNftOwner(
+        addressToSearch,
+        address,
+        tokenId,
+        networkClientId,
+        { standard: nft.standard },
+      );
+    } catch {
+      // ignore error
+      // this will only throw an error 'Unable to verify ownership' in which case
+      // we want to keep the current value of isCurrentlyOwned for this flow.
+    }
+
+    const updatedNft = {
+      ...nft,
+      isCurrentlyOwned: isOwned,
+    };
+
+    const { allNfts } = this.state;
+    const nfts = [...(allNfts[addressToSearch]?.[chainId] ?? [])];
+    const indexToUpdate = nfts.findIndex(
+      (item) =>
+        item.tokenId === tokenId &&
+        item.address.toLowerCase() === address.toLowerCase(),
+    );
+
+    if (indexToUpdate !== -1) {
+      nfts[indexToUpdate] = updatedNft;
+      this.#updateNestedNftState(nfts, ALL_NFTS_STATE_KEY, {
+        userAddress: addressToSearch,
+        chainId,
+      });
+    }
+
+    return updatedNft;
+  }
+
+  /**
    * Checks whether NFTs associated with current selectedAddress/chainId combination are still owned by the user
    * And updates the isCurrentlyOwned value on each accordingly.
    * Uses Multicall3 to batch all ownership checks into a single RPC request when available.
