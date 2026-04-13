@@ -1913,8 +1913,7 @@ export class KeyringController<
 
         // Method to create a new keyring and adds it to the restricted entries.
         addNewKeyring: async (type: string, opts?: unknown) => {
-          const keyring = await this.#createKeyring(type, opts);
-          const entry = { keyring, metadata: getDefaultKeyringMetadata() };
+          const entry = await this.#createKeyring(type, opts);
 
           restrictedEntries.push(entry);
           createdEntries.add(entry);
