@@ -247,6 +247,9 @@
     },
     {
       "path": "./packages/wallet"
+    },
+    {
+      "path": "./packages/wallet-cli"
     }
   ],
   "files": [],
