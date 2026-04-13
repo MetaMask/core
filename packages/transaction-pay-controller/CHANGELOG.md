@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^13.0.0` to `^13.1.0` ([#8407](https://github.com/MetaMask/core/pull/8407))
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
 
+### Fixed
+
+- Set `submittedTime` at the start of `TransactionPayPublishHook` before strategy execution for accurate `mm_pay_time_to_complete_s` metrics in intent-based flows ([#8439](https://github.com/MetaMask/core/pull/8439))
+
 ## [19.1.0]
 
 ### Added

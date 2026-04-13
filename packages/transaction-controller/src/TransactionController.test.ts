@@ -2903,6 +2903,51 @@ describe('TransactionController', () => {
         });
       });
 
+      it('preserves submittedTime if already set by publish hook', async () => {
+        const presetSubmittedTime = 1000000;
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              publish: async (txMeta) => {
+                const existing = controller.state.transactions.find(
+                  (transaction) => transaction.id === txMeta.id,
+                );
+
+                if (existing) {
+                  controller.updateTransaction(
+                    { ...existing, submittedTime: presetSubmittedTime },
+                    'Set submittedTime in publish hook',
+                  );
+                }
+                return { transactionHash: '0x123' };
+              },
+            },
+          },
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(controller.state.transactions[0].submittedTime).toBe(
+          presetSubmittedTime,
+        );
+      });
+
       it('throws with data message if publish fails', async () => {
         const { controller } = setupController({
           messengerOptions: {

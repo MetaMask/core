@@ -3291,7 +3291,7 @@ export class TransactionController extends BaseController<
         (draftTxMeta) => {
           draftTxMeta.hash = hash;
           draftTxMeta.status = TransactionStatus.submitted;
-          draftTxMeta.submittedTime = new Date().getTime();
+          draftTxMeta.submittedTime ??= new Date().getTime();
           if (shouldUpdatePreTxBalance) {
             draftTxMeta.preTxBalance = preTxBalance;
             log('Updated pre-transaction balance', preTxBalance);
