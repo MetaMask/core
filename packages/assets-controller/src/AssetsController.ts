@@ -623,6 +623,13 @@ export class AssetsController extends BaseController<
   #enabledChains: Set<ChainId> = new Set();
 
   /**
+   * Snapshot of account IDs that were active when the last subscription/fetch
+   * cycle ran. Used by #handleAccountTreeStateChange to skip redundant
+   * re-subscriptions when the account set hasn't actually changed.
+   */
+  #lastKnownAccountIds: ReadonlySet<string> = new Set();
+
+  /**
    * Get the currently selected accounts from AccountTreeController.
    * This includes all accounts in the same group as the selected account
    * (EVM, Bitcoin, Solana, Tron, etc. that belong to the same logical account group).
@@ -933,9 +940,12 @@ export class AssetsController extends BaseController<
 
   /**
    * Handle AccountTreeController state changes.
-   * If already running, re-subscribe to pick up new accounts (e.g. snap
-   * accounts that were added after the initial subscription).
-   * If not running yet, delegate to #updateActive for the normal start flow.
+   * If already running, re-subscribe only when the set of selected accounts
+   * has actually changed (e.g. a snap account was added after initial startup).
+   * This guards against the many tree mutations that don't affect which
+   * accounts are selected — without this check every tree update would
+   * trigger a redundant full re-subscribe + forceUpdate fetch.
+   * If not running yet, delegate to #start() for the normal start flow.
    */
   #handleAccountTreeStateChange(): void {
     const shouldRun = this.#uiOpen && this.#keyringUnlocked;
@@ -944,6 +954,22 @@ export class AssetsController extends BaseController<
     }
     if (this.#activeSubscriptions.size > 0) {
       const accounts = this.#getSelectedAccounts();
+      const currentIds = new Set(accounts.map((a) => a.id));
+
+      const accountsChanged =
+        currentIds.size !== this.#lastKnownAccountIds.size ||
+        [...currentIds].some((id) => !this.#lastKnownAccountIds.has(id));
+
+      if (!accountsChanged) {
+        return;
+      }
+
+      log('Account tree changed with new accounts, re-subscribing', {
+        previousCount: this.#lastKnownAccountIds.size,
+        currentCount: currentIds.size,
+      });
+
+      this.#lastKnownAccountIds = currentIds;
       this.#subscribeAssets();
       this.#ensureNativeBalancesDefaultZero();
       this.getAssets(accounts, {
@@ -2118,6 +2144,7 @@ export class AssetsController extends BaseController<
       enabledChainCount: chainIds.length,
     });
 
+    this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
     this.#subscribeAssets();
     this.#ensureNativeBalancesDefaultZero();
     this.getAssets(accounts, {
@@ -2140,6 +2167,7 @@ export class AssetsController extends BaseController<
 
     this.#firstInitFetchReported = false;
     this.#stateSizeReported = false;
+    this.#lastKnownAccountIds = new Set();
 
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
