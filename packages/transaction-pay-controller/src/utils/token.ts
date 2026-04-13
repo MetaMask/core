@@ -6,13 +6,13 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   STABLECOINS,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+import { getAssetsUnifyStateFeature } from './feature-flags';
 
 /**
  * Check if two tokens are the same (same address and chain).

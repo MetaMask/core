@@ -7,6 +7,8 @@ import type { TransactionControllerState } from '@metamask/transaction-controlle
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash';
 
+import { getMessengerMock } from '../tests/messenger-mock';
+import type { TransactionData, TransactionPayRequiredToken } from '../types';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
@@ -17,8 +19,6 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
-import { getMessengerMock } from '../tests/messenger-mock';
-import type { TransactionData, TransactionPayRequiredToken } from '../types';
 
 jest.mock('./required-tokens');
 

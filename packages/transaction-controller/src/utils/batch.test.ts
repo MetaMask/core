@@ -5,24 +5,6 @@ import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
 
 import {
-  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
-  addTransactionBatch,
-  isAtomicBatchSupported,
-} from './batch';
-import {
-  ERROR_MESSGE_PUBLIC_KEY,
-  doesChainSupportEIP7702,
-  generateEIP7702BatchTransaction,
-  isAccountUpgradedToEIP7702,
-} from './eip7702';
-import {
-  getEIP7702SupportedChains,
-  getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { determineTransactionType } from './transaction-type';
-import { validateBatchRequest } from './validation';
-import {
   TransactionEnvelopeType,
   TransactionType,
   GasFeeEstimateLevel,
@@ -43,6 +25,24 @@ import type {
   RequiredAsset,
   TransactionBatchSingleRequest,
 } from '../types';
+import {
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  addTransactionBatch,
+  isAtomicBatchSupported,
+} from './batch';
+import {
+  ERROR_MESSGE_PUBLIC_KEY,
+  doesChainSupportEIP7702,
+  generateEIP7702BatchTransaction,
+  isAccountUpgradedToEIP7702,
+} from './eip7702';
+import {
+  getEIP7702SupportedChains,
+  getEIP7702UpgradeContractAddress,
+} from './feature-flags';
+import { simulateGasBatch } from './gas';
+import { determineTransactionType } from './transaction-type';
+import { validateBatchRequest } from './validation';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');

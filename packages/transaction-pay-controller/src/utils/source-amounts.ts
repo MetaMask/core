@@ -2,8 +2,6 @@ import { TransactionType } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getTokenFiatRate, isSameToken } from './token';
-import { getTransaction } from './transaction';
 import type {
   TransactionPayControllerMessenger,
   TransactionPaymentToken,
@@ -17,6 +15,8 @@ import type {
   TransactionData,
   TransactionPayRequiredToken,
 } from '../types';
+import { getTokenFiatRate, isSameToken } from './token';
+import { getTransaction } from './transaction';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
 

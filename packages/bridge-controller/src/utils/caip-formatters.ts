@@ -18,6 +18,8 @@ import {
 } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
+import type { GenericQuoteRequest } from '../types';
+import { ChainId } from '../types';
 import {
   getNativeAssetForChainId,
   isBitcoinChainId,
@@ -25,8 +27,6 @@ import {
   isSolanaChainId,
   isTronChainId,
 } from './bridge';
-import type { GenericQuoteRequest } from '../types';
-import { ChainId } from '../types';
 
 /**
  * Converts a chainId to a CaipChainId

@@ -1,10 +1,10 @@
+import type { DeployedContractsByName, PermissionRule } from '../types';
+import { getChecksumEnforcersByChainId } from '../utils';
 import { makeErc20TokenPeriodicRule } from './erc20TokenPeriodic';
 import { makeErc20TokenRevocationRule } from './erc20TokenRevocation';
 import { makeErc20TokenStreamRule } from './erc20TokenStream';
 import { makeNativeTokenPeriodicRule } from './nativeTokenPeriodic';
 import { makeNativeTokenStreamRule } from './nativeTokenStream';
-import type { DeployedContractsByName, PermissionRule } from '../types';
-import { getChecksumEnforcersByChainId } from '../utils';
 
 /**
  * Builds the canonical set of permission matching rules for a chain.

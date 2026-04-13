@@ -3,8 +3,8 @@ import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import { parseTypedMessage } from './normalize';
 import type { WalletMiddlewareContext } from '../wallet';
+import { parseTypedMessage } from './normalize';
 
 /**
  * Validates and normalizes a keyholder address for transaction- and

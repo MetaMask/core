@@ -32,6 +32,10 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import {
+  getAccountTreeControllerMessenger,
+  getRootMessenger,
+} from '../tests/mockMessenger';
+import {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController';
@@ -40,10 +44,6 @@ import { BackupAndSyncService } from './backup-and-sync/service';
 import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import type { AccountTreeControllerState } from './types';
-import {
-  getAccountTreeControllerMessenger,
-  getRootMessenger,
-} from '../tests/mockMessenger';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {

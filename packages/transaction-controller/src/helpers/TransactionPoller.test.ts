@@ -1,10 +1,10 @@
 import type { Transaction } from '@metamask/core-backend';
 import type { BlockTracker } from '@metamask/network-controller';
 
-import { TransactionPoller } from './TransactionPoller';
 import { flushPromises } from '../../../../tests/helpers';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
+import { TransactionPoller } from './TransactionPoller';
 
 jest.useFakeTimers();
 

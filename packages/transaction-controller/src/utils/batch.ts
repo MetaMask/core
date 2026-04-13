@@ -18,21 +18,6 @@ import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
-import {
-  ERROR_MESSGE_PUBLIC_KEY,
-  doesChainSupportEIP7702,
-  generateEIP7702BatchTransaction,
-  isAccountUpgradedToEIP7702,
-} from './eip7702';
-import {
-  getBatchSizeLimit,
-  getEIP7702SupportedChains,
-  getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { getChainId } from './provider';
-import { determineTransactionType } from './transaction-type';
-import { validateBatchRequest } from './validation';
 import { GasFeeEstimateLevel, TransactionStatus } from '..';
 import type {
   BatchTransactionParams,
@@ -64,6 +49,21 @@ import type {
   TransactionBatchMeta,
 } from '../types';
 import type { TransactionBatchResult, TransactionParams } from '../types';
+import {
+  ERROR_MESSGE_PUBLIC_KEY,
+  doesChainSupportEIP7702,
+  generateEIP7702BatchTransaction,
+  isAccountUpgradedToEIP7702,
+} from './eip7702';
+import {
+  getBatchSizeLimit,
+  getEIP7702SupportedChains,
+  getEIP7702UpgradeContractAddress,
+} from './feature-flags';
+import { simulateGasBatch } from './gas';
+import { getChainId } from './provider';
+import { determineTransactionType } from './transaction-type';
+import { validateBatchRequest } from './validation';
 
 type UpdateStateCallback = (
   callback: (

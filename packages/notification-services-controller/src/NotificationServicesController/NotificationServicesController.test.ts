@@ -15,6 +15,12 @@ import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 import type nock from 'nock';
 
+import type {
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerSubscribeToPushNotificationsAction,
+} from '../NotificationServicesPushController';
 import { ADDRESS_1, ADDRESS_2, ADDRESS_3 } from './__fixtures__/mockAddresses';
 import {
   mockGetOnChainNotificationsConfig,
@@ -46,12 +52,6 @@ import { processNotification } from './processors/process-notifications';
 import { processSnapNotification } from './processors/process-snap-notifications';
 import { notificationsConfigCache } from './services/notification-config-cache';
 import type { INotification, OrderInput } from './types';
-import type {
-  NotificationServicesPushControllerDisablePushNotificationsAction,
-  NotificationServicesPushControllerDeletePushNotificationLinksAction,
-  NotificationServicesPushControllerEnablePushNotificationsAction,
-  NotificationServicesPushControllerSubscribeToPushNotificationsAction,
-} from '../NotificationServicesPushController';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

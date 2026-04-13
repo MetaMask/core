@@ -1,8 +1,3 @@
-import {
-  MOCK_ENCRYPTED_STORAGE_DATA,
-  MOCK_STORAGE_DATA,
-  MOCK_STORAGE_KEY,
-} from './mockStorage';
 import { Env, getEnvUrls } from '../../../sdk';
 import type {
   UserStorageGenericPathWithFeatureAndKey,
@@ -16,6 +11,11 @@ import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
 } from '../types';
+import {
+  MOCK_ENCRYPTED_STORAGE_DATA,
+  MOCK_STORAGE_DATA,
+  MOCK_STORAGE_KEY,
+} from './mockStorage';
 
 type MockResponse = {
   url: string;

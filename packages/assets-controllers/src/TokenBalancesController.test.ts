@@ -16,6 +16,9 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import type nock from 'nock';
 
+import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
 import { waitFor } from './__fixtures__/test-utils';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
@@ -37,9 +40,6 @@ import {
   parseAssetType,
 } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
-import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
-import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 
 type AllTokenBalancesControllerActions =
   MessengerActions<TokenBalancesControllerMessenger>;

@@ -6,7 +6,6 @@ import type {
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
@@ -15,6 +14,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateType, TransactionStatus } from '../types';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

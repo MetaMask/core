@@ -8,6 +8,11 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
+import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionStatus } from '../types';
+import type { AuthorizationList } from '../types';
+import type { TransactionMeta } from '../types';
 import {
   DELEGATION_PREFIX,
   doesChainSupportEIP7702,
@@ -21,11 +26,6 @@ import {
   getEIP7702SupportedChains,
 } from './feature-flags';
 import { rpcRequest } from './provider';
-import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { AuthorizationList } from '../types';
-import type { TransactionMeta } from '../types';
 
 jest.mock('../utils/feature-flags');
 

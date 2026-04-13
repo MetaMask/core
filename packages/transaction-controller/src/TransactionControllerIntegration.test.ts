@@ -35,13 +35,6 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
 
-import type {
-  TransactionControllerMessenger,
-  TransactionControllerOptions,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
-import type { InternalAccount } from './types';
-import { TransactionStatus, TransactionType } from './types';
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
@@ -61,6 +54,13 @@ import {
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
 } from '../tests/JsonRpcRequestMocks';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerOptions,
+} from './TransactionController';
+import { TransactionController } from './TransactionController';
+import type { InternalAccount } from './types';
+import { TransactionStatus, TransactionType } from './types';
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');

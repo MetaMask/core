@@ -40,6 +40,12 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { v4 } from 'uuid';
 
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import type {
   AssetsContractControllerGetERC1155TokenURIAction,
   AssetsContractControllerGetERC721AssetNameAction,
@@ -59,12 +65,6 @@ import type {
 } from './NftController';
 import { NftController } from './NftController';
 import type { Collection } from './NftDetectionController';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockFindNetworkClientIdByChainId,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 type AllActions =
   | MessengerActions<NftControllerMessenger>

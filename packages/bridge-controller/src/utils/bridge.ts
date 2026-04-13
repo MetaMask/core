@@ -6,11 +6,6 @@ import { isCaipChainId, isStrictHexString } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
-  formatChainIdToCaip,
-  formatChainIdToDec,
-  formatChainIdToHex,
-} from './caip-formatters';
-import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
@@ -30,6 +25,11 @@ import type {
   TxData,
 } from '../types';
 import { ChainId } from '../types';
+import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+  formatChainIdToHex,
+} from './caip-formatters';
 
 /**
  * Checks whether the transaction is a cross-chain transaction by comparing the source and destination chainIds

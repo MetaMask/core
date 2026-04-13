@@ -1,13 +1,13 @@
 import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
-import { createMultichainAccountGroupsBatch } from './group';
-import { performLegacyAccountSyncing } from './legacy';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
 import { getLocalGroupsForEntropyWallet } from '../utils';
+import { createMultichainAccountGroupsBatch } from './group';
+import { performLegacyAccountSyncing } from './legacy';
 
 jest.mock('@metamask/accounts-controller');
 jest.mock('../user-storage');

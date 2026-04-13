@@ -4,10 +4,6 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getAcrossQuotes } from './across-quotes';
-import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps';
-import * as acrossTransactions from './transactions';
-import type { AcrossSwapApprovalResponse } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   ARBITRUM_USDC_ADDRESS,
@@ -21,6 +17,10 @@ import { getGasBuffer, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import * as quoteGasUtils from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
+import { getAcrossQuotes } from './across-quotes';
+import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps';
+import * as acrossTransactions from './transactions';
+import type { AcrossSwapApprovalResponse } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas', () => ({

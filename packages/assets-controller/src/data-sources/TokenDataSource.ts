@@ -8,10 +8,6 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
-import {
-  isStakingContractAssetId,
-  reduceInBatchesSerially,
-} from './evm-rpc-services';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
@@ -21,6 +17,10 @@ import type {
   Middleware,
   FungibleAssetMetadata,
 } from '../types';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from './evm-rpc-services';
 
 // ============================================================================
 // CONSTANTS

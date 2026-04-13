@@ -4,15 +4,15 @@ import { SnapControllerState } from '@metamask/snaps-controllers';
 import { createDeferredPromise } from '@metamask/utils';
 
 import {
-  DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS,
-  SnapPlatformWatcher,
-} from './SnapPlatformWatcher';
-import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from '../tests';
 import type { RootMessenger } from '../tests';
 import { MultichainAccountServiceMessenger } from '../types';
+import {
+  DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS,
+  SnapPlatformWatcher,
+} from './SnapPlatformWatcher';
 
 function setup(
   {

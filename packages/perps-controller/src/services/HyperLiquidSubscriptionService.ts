@@ -16,8 +16,6 @@ import type {
   OpenOrdersWsEvent,
 } from '@nktkas/hyperliquid';
 
-import type { HyperLiquidClientService } from './HyperLiquidClientService';
-import type { HyperLiquidWalletService } from './HyperLiquidWalletService';
 import { TP_SL_CONFIG, PERPS_CONSTANTS } from '../constants/perpsConfig';
 import { WebSocketConnectionState } from '../types';
 import type {
@@ -48,6 +46,8 @@ import {
 } from '../utils/hyperLiquidAdapter';
 import { processBboData } from '../utils/hyperLiquidOrderBookProcessor';
 import { calculateOpenInterestUSD } from '../utils/marketDataTransform';
+import type { HyperLiquidClientService } from './HyperLiquidClientService';
+import type { HyperLiquidWalletService } from './HyperLiquidWalletService';
 
 /**
  * Service for managing HyperLiquid WebSocket subscriptions

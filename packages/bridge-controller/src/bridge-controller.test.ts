@@ -15,6 +15,13 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
+import { flushPromises } from '../../../tests/helpers';
+import { handleFetch } from '../../controller-utils/src';
+import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json';
+import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
+import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
+import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
 import { BridgeController } from './bridge-controller';
 import {
   BridgeClientId,
@@ -42,13 +49,6 @@ import {
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
 import { FeatureId } from './utils/validators';
-import { flushPromises } from '../../../tests/helpers';
-import { handleFetch } from '../../controller-utils/src';
-import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json';
-import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
-import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
-import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
-import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 

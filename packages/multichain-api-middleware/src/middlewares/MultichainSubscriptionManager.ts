@@ -6,8 +6,8 @@ import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 
-import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 import { MultichainApiNotifications } from '../handlers/types';
+import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 
 export type SubscriptionManager = {
   events: SafeEventEmitter;

@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import type { ServiceContext } from './ServiceContext';
 import type { CandlePeriod } from '../constants/chartConfig';
 import { PerpsMeasurementName } from '../constants/performanceMetrics';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
@@ -34,6 +33,7 @@ import type {
 } from '../types';
 import type { CandleData } from '../types/perps-types';
 import { ensureError } from '../utils/errorUtils';
+import type { ServiceContext } from './ServiceContext';
 
 /**
  * MarketDataService

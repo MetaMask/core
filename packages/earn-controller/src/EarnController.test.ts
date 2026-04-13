@@ -20,6 +20,11 @@ import type {
   LendingMarket,
 } from '@metamask/stake-sdk';
 
+import type { TransactionMeta } from '../../transaction-controller/src';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '../../transaction-controller/src';
 import {
   EarnController,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
@@ -28,11 +33,6 @@ import type {
   EarnControllerState,
   EarnControllerMessenger,
 } from './EarnController';
-import type { TransactionMeta } from '../../transaction-controller/src';
-import {
-  TransactionStatus,
-  TransactionType,
-} from '../../transaction-controller/src';
 
 type AllEarnControllerActions = MessengerActions<EarnControllerMessenger>;
 

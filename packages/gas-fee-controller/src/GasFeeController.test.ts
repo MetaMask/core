@@ -19,6 +19,10 @@ import type {
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
+import {
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+} from '../../network-controller/tests/helpers';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   fetchGasEstimates,
@@ -34,10 +38,6 @@ import type {
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
 } from './GasFeeController';
-import {
-  buildCustomNetworkConfiguration,
-  buildCustomRpcEndpoint,
-} from '../../network-controller/tests/helpers';
 
 jest.mock('./determineGasFeeCalculations');
 

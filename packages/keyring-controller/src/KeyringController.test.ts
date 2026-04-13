@@ -26,6 +26,19 @@ import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import MockEncryptor, {
+  DECRYPTION_ERROR,
+  MOCK_ENCRYPTION_KEY,
+  SALT,
+} from '../tests/mocks/mockEncryptor';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
+import {
+  HardwareWalletError,
+  MockHardwareKeyring,
+} from '../tests/mocks/mockHardwareKeyring';
+import { MockKeyring } from '../tests/mocks/mockKeyring';
+import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
+import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
 import type {
@@ -46,19 +59,6 @@ import {
   isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController';
-import MockEncryptor, {
-  DECRYPTION_ERROR,
-  MOCK_ENCRYPTION_KEY,
-  SALT,
-} from '../tests/mocks/mockEncryptor';
-import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
-import {
-  HardwareWalletError,
-  MockHardwareKeyring,
-} from '../tests/mocks/mockHardwareKeyring';
-import { MockKeyring } from '../tests/mocks/mockKeyring';
-import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
-import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 
 type AllKeyringControllerActions = MessengerActions<KeyringControllerMessenger>;
 

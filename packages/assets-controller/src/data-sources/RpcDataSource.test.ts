@@ -4,6 +4,15 @@ import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import {
+  createMockAssetControllerMessenger,
+  MockRootMessenger,
+  registerRpcDataSourceActions,
+} from '../__fixtures__/MockAssetControllerMessenger';
+import { getDefaultAssetsControllerState } from '../AssetsController';
+import type { AssetsControllerMessenger } from '../AssetsController';
+import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types';
+import { normalizeAssetId } from '../utils';
 import { BalanceFetcher, TokenDetector } from './evm-rpc-services';
 import type {
   Address,
@@ -16,15 +25,6 @@ import {
   caipChainIdToHex,
   createRpcDataSource,
 } from './RpcDataSource';
-import {
-  createMockAssetControllerMessenger,
-  MockRootMessenger,
-  registerRpcDataSourceActions,
-} from '../__fixtures__/MockAssetControllerMessenger';
-import { getDefaultAssetsControllerState } from '../AssetsController';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types';
-import { normalizeAssetId } from '../utils';
 
 const MOCK_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1' as ChainId;

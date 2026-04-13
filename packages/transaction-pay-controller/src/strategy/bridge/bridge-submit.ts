@@ -8,8 +8,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { refreshQuote } from './bridge-quotes';
-import type { TransactionPayBridgeQuote } from './types';
 import { projectLogger } from '../../logger';
 import type {
   TransactionPayControllerMessenger,
@@ -20,6 +18,8 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { refreshQuote } from './bridge-quotes';
+import type { TransactionPayBridgeQuote } from './types';
 
 const log = createModuleLogger(projectLogger, 'bridge-strategy');
 

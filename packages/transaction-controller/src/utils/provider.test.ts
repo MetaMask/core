@@ -1,8 +1,8 @@
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getProvider, rpcRequest } from './provider';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { getProvider, rpcRequest } from './provider';
 
 describe('provider utils', () => {
   const requestMock = jest.fn();
