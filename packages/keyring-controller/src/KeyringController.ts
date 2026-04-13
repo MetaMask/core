@@ -1943,7 +1943,9 @@ export class KeyringController<
         entries: Iterable<KeyringEntry>,
       ): Promise<void> => {
         await Promise.all(
-          [...entries].map(({ keyring }) => this.#destroyKeyring(keyring)),
+          [...entries].map(({ keyring, keyringV2 }) =>
+            this.#destroyKeyring(keyring, keyringV2),
+          ),
         );
       };
 
