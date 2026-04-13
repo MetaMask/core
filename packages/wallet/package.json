@@ -60,7 +60,7 @@
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/transaction-controller": "^64.0.0",
-    "@metamask/utils": "^11.11.0"
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
