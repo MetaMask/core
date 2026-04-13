@@ -7,7 +7,8 @@ import type {
   MessengerActions,
 } from '@metamask/messenger';
 
-import { RootMessenger, WalletOptions } from '../types';
+import type { WalletOptions } from '../types';
+import type { RootMessenger } from './defaults';
 
 export type InstanceState<Instance> = Instance extends { state: unknown }
   ? Instance['state']

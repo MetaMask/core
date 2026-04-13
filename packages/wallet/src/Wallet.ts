@@ -1,5 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import type { Json } from '@metamask/utils';
+import { hasProperty, type Json } from '@metamask/utils';
 
 import type {
   DefaultInstances,
@@ -40,7 +40,9 @@ export class Wallet {
   async destroy(): Promise<void> {
     await Promise.all(
       Object.values(this.#instances).map((instance) => {
+        // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
+          // @ts-expect-error Accessing protected property.
           return instance.destroy();
         }
         return undefined;
