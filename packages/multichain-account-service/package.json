@@ -72,7 +72,7 @@
     "@metamask/account-api": "^1.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/eth-hd-keyring": "^13.0.0",
+    "@metamask/eth-hd-keyring": "^13.1.1",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
