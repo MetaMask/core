@@ -452,24 +452,26 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      // Determine duration and failure data based on the event shape:
+      // Two event shapes reach here:
       // - Slow-success: data is { duration: number }
-      // - Retries-exhausted: data is FailureReason (has error/value)
-      let duration: number | undefined;
-      let failureData: Record<string, unknown> = {};
-      if (hasProperty(data, 'duration')) {
-        duration =
-          typeof data.duration === 'number' ? data.duration : undefined;
-      } else {
-        failureData = data;
-      }
-      listener({
-        ...failureData,
+      // - Retries-exhausted: data is FailureReason ({ error } or { value })
+      const commonFields = {
         endpointUrl: this.endpointUrl.toString(),
         rpcMethodName: this.#currentRpcMethodName,
-        duration,
         traceId: this.#currentTraceId,
-      });
+      };
+      if (hasProperty(data, 'duration')) {
+        listener({
+          ...commonFields,
+          duration: data.duration as number,
+        });
+      } else {
+        listener({
+          ...data,
+          ...commonFields,
+          duration: undefined,
+        });
+      }
     });
   }
 
