@@ -98,6 +98,11 @@ export type TransactionConfig = {
    * go back to that account rather than the EOA.
    */
   refundTo?: Hex;
+
+  /** Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, used as the delegator for the transaction. */
+  accountOverride?: Hex;
 };
 
 /** Callback to update transaction config. */
@@ -180,6 +185,9 @@ export type TransactionData = {
    * request.
    */
   refundTo?: Hex;
+
+  /** Optional address to override the default account used by the transaction. */
+  accountOverride?: Hex;
 
   /**
    * Token selected for the transaction.
@@ -343,6 +351,9 @@ export type QuoteRequest = {
    * request.
    */
   refundTo?: Hex;
+
+  /** Optional address to override the default account used by the transaction. */
+  accountOverride?: Hex;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;

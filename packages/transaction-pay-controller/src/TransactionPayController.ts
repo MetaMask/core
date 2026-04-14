@@ -119,6 +119,7 @@ export class TransactionPayController extends BaseController<
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         refundTo: transactionData.refundTo,
+        accountOverride: transactionData.accountOverride,
       };
 
       callback(config);
@@ -127,6 +128,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
+      transactionData.accountOverride = config.accountOverride;
     });
   }
 

@@ -1583,6 +1583,32 @@ describe('Across Quotes', () => {
       expect(params.get('recipient')).toBe(FROM_MOCK);
     });
 
+    it('uses accountOverride as recipient for post-quote when provided', async () => {
+      const accountOverride =
+        '0xrecipient0000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            accountOverride,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(accountOverride);
+    });
+
     it('throws when nested transactions mix a transfer with unsupported calldata', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 

@@ -68,6 +68,7 @@ export async function updateQuotes(
   log('Updating quotes', { transactionId });
 
   const {
+    accountOverride,
     isMaxAmount,
     isPostQuote,
     isHyperliquidSource,
@@ -77,7 +78,8 @@ export async function updateQuotes(
     tokens,
   } = transactionData;
 
-  const from = transaction.txParams.from as Hex;
+  const txFrom = transaction.txParams.from as Hex;
+  const from = !isPostQuote && accountOverride ? accountOverride : txFrom;
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
@@ -93,6 +95,7 @@ export async function updateQuotes(
     });
 
     const requests = buildQuoteRequests({
+      accountOverride,
       from,
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
@@ -266,6 +269,7 @@ export async function refreshQuotes(
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
+  accountOverride,
   from,
   isMaxAmount,
   isPostQuote,
@@ -276,6 +280,7 @@ function buildQuoteRequests({
   tokens,
   transactionId,
 }: {
+  accountOverride?: Hex;
   from: Hex;
   isMaxAmount: boolean;
   isPostQuote?: boolean;
@@ -292,6 +297,7 @@ function buildQuoteRequests({
 
   if (isPostQuote) {
     return buildPostQuoteRequests({
+      accountOverride,
       from,
       isMaxAmount,
       isHyperliquidSource,
@@ -344,6 +350,7 @@ function buildQuoteRequests({
  * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
+  accountOverride,
   from,
   isMaxAmount,
   isHyperliquidSource,
@@ -352,6 +359,7 @@ function buildPostQuoteRequests({
   sourceAmounts,
   transactionId,
 }: {
+  accountOverride?: Hex;
   from: Hex;
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
@@ -380,6 +388,7 @@ function buildPostQuoteRequests({
   }
 
   const request: QuoteRequest = {
+    accountOverride,
     from,
     isMaxAmount,
     isPostQuote: true,

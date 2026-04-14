@@ -234,7 +234,9 @@ async function getSingleQuote(
       ...(useExecute
         ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
         : {}),
-      recipient: from,
+      recipient: request.isPostQuote && request.accountOverride
+        ? request.accountOverride
+        : from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,

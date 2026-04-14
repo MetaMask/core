@@ -212,6 +212,20 @@ describe('TransactionPayController', () => {
       ).toBeUndefined();
     });
 
+    it('updates accountOverride in state', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].accountOverride,
+      ).toBe(accountOverride);
+    });
+
     it('updates multiple config properties at once', () => {
       const controller = createController();
       const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
