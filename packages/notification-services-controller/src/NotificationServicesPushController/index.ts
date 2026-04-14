@@ -12,6 +12,7 @@ export * as Mocks from './mocks';
 export type {
   NotificationServicesPushControllerSubscribeToPushNotificationsAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerAddPushNotificationLinksAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
   NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
   NotificationServicesPushControllerDeletePushNotificationLinksAction,

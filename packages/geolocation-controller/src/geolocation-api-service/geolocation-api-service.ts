@@ -6,8 +6,8 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { IDisposable } from 'cockatiel';
 
-import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
 import { Env } from '../types';
+import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 

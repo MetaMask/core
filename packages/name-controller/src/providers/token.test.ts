@@ -1,6 +1,6 @@
-import { TokenNameProvider } from './token';
 import { NameType } from '../types';
 import { handleFetch } from '../util';
+import { TokenNameProvider } from './token';
 
 jest.mock('../util');
 

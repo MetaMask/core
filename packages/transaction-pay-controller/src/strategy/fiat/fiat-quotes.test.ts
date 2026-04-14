@@ -6,9 +6,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionPayFiatAsset } from './constants';
-import { getFiatQuotes } from './fiat-quotes';
-import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
 import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyGetQuotesRequest,
@@ -18,6 +15,9 @@ import type {
 import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
+import type { TransactionPayFiatAsset } from './constants';
+import { getFiatQuotes } from './fiat-quotes';
+import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
 
 jest.mock('../relay/relay-quotes');
 jest.mock('../../utils/token');

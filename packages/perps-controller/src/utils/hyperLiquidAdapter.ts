@@ -1,9 +1,5 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
 
-import {
-  countSignificantFigures,
-  roundToSignificantFigures,
-} from './significantFigures';
 import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig';
 import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig';
 import type {
@@ -23,6 +19,10 @@ import type {
   MetaResponse,
   SDKOrderParams,
 } from '../types/hyperliquid-types';
+import {
+  countSignificantFigures,
+  roundToSignificantFigures,
+} from './significantFigures';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
   takeProfitPrice?: unknown;

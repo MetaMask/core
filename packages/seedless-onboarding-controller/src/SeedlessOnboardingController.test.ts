@@ -42,6 +42,24 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
 
+import type {
+  MockKeyringControllerMessenger,
+  RootMessenger,
+} from '../tests/__fixtures__/mockMessenger';
+import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
+import {
+  handleMockSecretDataGet,
+  handleMockSecretDataAdd,
+  handleMockCommitment,
+  handleMockAuthenticate,
+} from '../tests/__fixtures__/topfClient';
+import {
+  createMockSecretDataGetResponse,
+  MULTIPLE_MOCK_SECRET_METADATA,
+} from '../tests/mocks/toprf';
+import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
+import { createMockJWTToken } from '../tests/mocks/utils';
+import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
 import {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
@@ -63,24 +81,6 @@ import type {
   SeedlessOnboardingControllerState,
   VaultEncryptor,
 } from './types';
-import type {
-  MockKeyringControllerMessenger,
-  RootMessenger,
-} from '../tests/__fixtures__/mockMessenger';
-import { mockSeedlessOnboardingMessenger } from '../tests/__fixtures__/mockMessenger';
-import {
-  handleMockSecretDataGet,
-  handleMockSecretDataAdd,
-  handleMockCommitment,
-  handleMockAuthenticate,
-} from '../tests/__fixtures__/topfClient';
-import {
-  createMockSecretDataGetResponse,
-  MULTIPLE_MOCK_SECRET_METADATA,
-} from '../tests/mocks/toprf';
-import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
-import { createMockJWTToken } from '../tests/mocks/utils';
-import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';

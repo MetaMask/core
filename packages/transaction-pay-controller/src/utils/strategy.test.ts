@@ -1,10 +1,10 @@
-import { getStrategiesByName, getStrategyByName } from './strategy';
 import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
+import { getStrategiesByName, getStrategyByName } from './strategy';
 
 describe('Strategy Utils', () => {
   describe('getStrategyByName', () => {

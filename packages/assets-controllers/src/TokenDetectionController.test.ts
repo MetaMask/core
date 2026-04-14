@@ -30,6 +30,12 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
 import { TOKEN_END_POINT_API } from './token-service';
 import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
@@ -46,12 +52,6 @@ import type {
   TokensControllerState,
 } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
-import {
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 
 const DEFAULT_INTERVAL = 180000;
 

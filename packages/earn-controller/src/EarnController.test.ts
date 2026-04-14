@@ -20,6 +20,11 @@ import type {
   LendingMarket,
 } from '@metamask/stake-sdk';
 
+import type { TransactionMeta } from '../../transaction-controller/src';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '../../transaction-controller/src';
 import {
   EarnController,
   DEFAULT_POOLED_STAKING_CHAIN_STATE,
@@ -28,11 +33,6 @@ import type {
   EarnControllerState,
   EarnControllerMessenger,
 } from './EarnController';
-import type { TransactionMeta } from '../../transaction-controller/src';
-import {
-  TransactionStatus,
-  TransactionType,
-} from '../../transaction-controller/src';
 
 type AllEarnControllerActions = MessengerActions<EarnControllerMessenger>;
 
@@ -125,12 +125,14 @@ function getEarnControllerMessenger(
   rootMessenger.delegate({
     messenger: earnControllerMessenger,
     actions: [
+      'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     ],
     events: [
       'NetworkController:networkDidChange',
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
   });
@@ -682,22 +684,29 @@ const setupController = async ({
     },
   })),
 
+  mockGetNetworkControllerState = jest.fn(() => ({
+    ...getDefaultNetworkControllerState(),
+    selectedNetworkClientId: '1',
+  })),
+
   mockGetAccountsFromSelectedAccountGroup = jest.fn(() => [
     mockInternalAccount1,
   ]),
 
   addTransactionFn = jest.fn(),
-  selectedNetworkClientId = '1',
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
   mockGetNetworkClientById?: jest.Mock;
   mockGetNetworkControllerState?: jest.Mock;
   mockGetAccountsFromSelectedAccountGroup?: jest.Mock;
   addTransactionFn?: jest.Mock;
-  selectedNetworkClientId?: string;
-} = {}) => {
+} = {}): Promise<{ controller: EarnController; messenger: RootMessenger }> => {
   const messenger = buildMessenger();
 
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    mockGetNetworkControllerState,
+  );
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById,
@@ -713,20 +722,24 @@ const setupController = async ({
     messenger: earnControllerMessenger,
     ...options,
     addTransactionFn,
-    selectedNetworkClientId,
   });
 
-  // We create a promise here and wait for it to resolve.
-  // We do this to try and ensure that the controller is fully initialized before we start testing.
-  // This is a hack; really we should implement an async 'init' method on the controller which does required async setup
-  // rather than having async calls in the constructor which is an anti-pattern.
+  await controller.init();
+
+  // Wait for fire-and-forget async operations started by init() to settle.
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   return { controller, messenger };
 };
 
 const EarnApiServiceMock = jest.mocked(EarnApiService);
-let mockedEarnApiService: Partial<EarnApiService>;
+
+type MockedEarnApiService = {
+  pooledStaking?: Partial<jest.Mocked<PooledStakingApiService>>;
+  lending?: Partial<jest.Mocked<LendingApiService>>;
+};
+
+let mockedEarnApiService: MockedEarnApiService;
 
 const isSupportedLendingChainMock = jest.requireMock(
   '@metamask/stake-sdk',
@@ -741,7 +754,7 @@ describe('EarnController', () => {
 
     isSupportedLendingChainMock.mockReturnValue(true);
     isSupportedPooledStakingChainMock.mockReturnValue(true);
-    // Apply EarnSdk mock before initializing EarnController
+    // Apply EarnSdk mock before initializing EarnController`
     (EarnSdk.create as jest.Mock).mockImplementation(() => ({
       contracts: {
         pooledStaking: null,
@@ -766,7 +779,7 @@ describe('EarnController', () => {
           .fn()
           .mockResolvedValue(mockPooledStakingVaultApyAverages),
         getUserDailyRewards: jest.fn().mockResolvedValue(mockUserDailyRewards),
-      } as Partial<PooledStakingApiService>,
+      } as Partial<jest.Mocked<PooledStakingApiService>>,
       lending: {
         getMarkets: jest.fn().mockResolvedValue(mockLendingMarkets),
         getPositions: jest.fn().mockResolvedValue(mockLendingPositions),
@@ -776,8 +789,8 @@ describe('EarnController', () => {
         getHistoricMarketApys: jest
           .fn()
           .mockResolvedValue(mockLendingHistoricMarketApys),
-      } as Partial<LendingApiService>,
-    } as Partial<EarnApiService>;
+      } as Partial<jest.Mocked<LendingApiService>>,
+    };
 
     EarnApiServiceMock.mockImplementation(
       () => mockedEarnApiService as EarnApiService,
@@ -844,6 +857,287 @@ describe('EarnController', () => {
       expect(EarnSdk.create).toHaveBeenCalledWith(expect.any(Object), {
         chainId: 1,
         env: EarnEnvironments.DEV,
+      });
+    });
+  });
+
+  describe('init', () => {
+    it('does not re-run initialization when called again after init has already completed', async () => {
+      const { controller } = await setupController();
+
+      // init() was already called once inside setupController; call it again after it settled.
+      await controller.init();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // EarnSdk.create and data-fetch calls should not have increased beyond
+      // the single init() call made during setupController.
+      expect(EarnSdk.create).toHaveBeenCalledTimes(1);
+      expect(
+        mockedEarnApiService?.pooledStaking?.getPooledStakes,
+      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI) from the first init()
+    });
+
+    it('does not re-run initialization when called concurrently before init has completed', async () => {
+      // Build the controller without calling init() so we can control the race ourselves.
+      // Reuse the same mock factories that setupController defaults to.
+      const rootMessenger = buildMessenger();
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        jest.fn(() => ({
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '1',
+        })),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn(() => ({
+          configuration: { chainId: toHex(1) },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        })) as unknown as jest.Mock,
+      );
+      rootMessenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        jest.fn(() => [mockInternalAccount1]),
+      );
+
+      const earnControllerMessenger = getEarnControllerMessenger(rootMessenger);
+      const controller = new EarnController({
+        messenger: earnControllerMessenger,
+        addTransactionFn: jest.fn(),
+      });
+
+      // Fire two concurrent init() calls — neither has settled yet.
+      await Promise.all([controller.init(), controller.init()]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // SDK should only have been created once despite two concurrent calls.
+      expect(EarnSdk.create).toHaveBeenCalledTimes(1);
+      expect(
+        mockedEarnApiService?.pooledStaking?.getPooledStakes,
+      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI), not doubled to 4
+    });
+
+    it('allows retry when init fails', async () => {
+      const rootMessenger = buildMessenger();
+
+      // First call to NetworkController:getState throws, second succeeds.
+      const mockGetState = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('NetworkController not ready');
+        })
+        .mockReturnValue({
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '1',
+        });
+
+      rootMessenger.registerActionHandler(
+        'NetworkController:getState',
+        mockGetState,
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn(() => ({
+          configuration: { chainId: toHex(1) },
+          provider: {
+            request: jest.fn(),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+          },
+        })) as unknown as jest.Mock,
+      );
+      rootMessenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        jest.fn(() => [mockInternalAccount1]),
+      );
+
+      const earnControllerMessenger = getEarnControllerMessenger(rootMessenger);
+      const controller = new EarnController({
+        messenger: earnControllerMessenger,
+        addTransactionFn: jest.fn(),
+      });
+
+      // First init() should reject and clear #initPromise.
+      await expect(controller.init()).rejects.toThrow(
+        'NetworkController not ready',
+      );
+
+      // Second init() should succeed and trigger data fetches.
+      await controller.init();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(EarnSdk.create).toHaveBeenCalledTimes(1);
+      expect(
+        mockedEarnApiService?.pooledStaking?.getPooledStakes,
+      ).toHaveBeenCalledTimes(2); // 2 chains (ETH + HOODI)
+    });
+
+    describe('when no EVM account is available at init time', () => {
+      // Minimal AccountTreeControllerState shape used to trigger the stateChange event
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockAccountTreeStateWithGroup: any = {
+        selectedAccountGroup: 'keyring:test/0',
+        accountTree: { wallets: {} },
+        isAccountTreeSyncingInProgress: false,
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
+        accountGroupsMetadata: {},
+        accountWalletsMetadata: {},
+      };
+
+      it('defers portfolio refresh until AccountTreeController:stateChange fires with a non-empty selectedAccountGroup', async () => {
+        const mockGetAccounts = jest
+          .fn()
+          .mockReturnValueOnce([]) // No account during init
+          .mockReturnValue([mockInternalAccount1]); // Account available after stateChange
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // No eligibility or staking refresh should have happened during init
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).not.toHaveBeenCalled();
+
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).toHaveBeenCalledWith([mockAccount1Address]);
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenCalled();
+      });
+
+      it('does not trigger portfolio refresh when selectedAccountGroup is empty', async () => {
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          {
+            ...mockAccountTreeStateWithGroup,
+            selectedAccountGroup: '',
+          },
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('does not trigger portfolio refresh when selectedAccountGroup only contains non-EVM accounts', async () => {
+        // Always returns no accounts, simulating a non-EVM-only group (e.g. Bitcoin-only)
+        const mockGetAccounts = jest.fn(() => []);
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // Publish with a non-empty selectedAccountGroup but no EVM account resolvable
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('stays subscribed and fires when an EVM account eventually appears after a non-EVM-only state change', async () => {
+        const mockGetAccounts = jest
+          .fn()
+          .mockReturnValueOnce([]) // No account during init
+          .mockReturnValueOnce([]) // Still no EVM account on first stateChange (non-EVM group)
+          .mockReturnValue([mockInternalAccount1]); // EVM account available on second stateChange
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // First publish: group is non-empty but still no EVM account — should not refresh
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
+
+        // Second publish: EVM account is now available — deferred refresh should fire
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).toHaveBeenCalledWith([mockAccount1Address]);
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakes,
+        ).toHaveBeenCalled();
+      });
+
+      it('unsubscribes after the first non-empty selectedAccountGroup event', async () => {
+        const mockGetAccounts = jest
+          .fn()
+          .mockReturnValueOnce([]) // No account during init
+          .mockReturnValue([mockInternalAccount1]); // Account available after stateChange
+
+        const { messenger } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: mockGetAccounts,
+        });
+
+        // First publish triggers the deferred refresh
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const eligibilityCallCount =
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility?.mock
+            .calls.length ?? 0;
+
+        // Second publish should be ignored – handler was already unsubscribed
+        messenger.publish(
+          'AccountTreeController:stateChange',
+          mockAccountTreeStateWithGroup,
+          [],
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).toHaveBeenCalledTimes(eligibilityCallCount);
       });
     });
   });
@@ -1018,7 +1312,7 @@ describe('EarnController', () => {
             getVaultApyAverages: jest.fn().mockImplementation(() => {
               throw new Error('API Error getVaultApyAverages');
             }),
-          } as unknown as PooledStakingApiService,
+          } as Partial<jest.Mocked<PooledStakingApiService>>,
         };
 
         EarnApiServiceMock.mockImplementation(
@@ -1028,7 +1322,7 @@ describe('EarnController', () => {
         const { controller } = await setupController();
 
         await expect(controller.refreshPooledStakingData()).rejects.toThrow(
-          'Failed to refresh some staking data: API Error getPooledStakingEligibility, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
+          'Failed to refresh some staking data: API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages, API Error getPooledStakes, API Error getVaultData, API Error getVaultDailyApys, API Error getVaultApyAverages',
         );
         expect(consoleErrorSpy).toHaveBeenCalled();
         consoleErrorSpy.mockRestore();
@@ -1200,7 +1494,19 @@ describe('EarnController', () => {
         // Assertion on second call since the first is part of controller setup.
         expect(
           mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenNthCalledWith(3, [mockAccount2Address]);
+        ).toHaveBeenNthCalledWith(2, [mockAccount2Address]);
+      });
+
+      it('returns early without fetching when no address is available', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.refreshEarnEligibility();
+
+        expect(
+          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
+        ).not.toHaveBeenCalled();
       });
     });
 
@@ -1601,31 +1907,6 @@ describe('EarnController', () => {
   });
 
   describe('Lending', () => {
-    describe('refreshLendingEligibility', () => {
-      it('fetches lending eligibility using active account (default)', async () => {
-        const { controller } = await setupController();
-
-        await controller.refreshLendingEligibility();
-
-        // Assertion on third call since the first and second calls are part of controller setup.
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenNthCalledWith(3, [mockAccount1Address]);
-      });
-
-      it('fetches lending eligibility using options.address override', async () => {
-        const { controller } = await setupController();
-        await controller.refreshLendingEligibility({
-          address: mockAccount2Address,
-        });
-
-        // Assertion on third call since the first and second calls are part of controller setup.
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenNthCalledWith(3, [mockAccount2Address]);
-      });
-    });
-
     describe('refreshLendingPositions', () => {
       it('fetches using active account (default)', async () => {
         const { controller } = await setupController();
@@ -1647,6 +1928,18 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.lending?.getPositions,
         ).toHaveBeenNthCalledWith(2, mockAccount2Address);
+      });
+
+      it('returns early without fetching when no address is available', async () => {
+        const { controller } = await setupController({
+          mockGetAccountsFromSelectedAccountGroup: jest.fn(() => []),
+        });
+
+        await controller.refreshLendingPositions();
+
+        expect(
+          mockedEarnApiService?.lending?.getPositions,
+        ).not.toHaveBeenCalled();
       });
     });
 
@@ -1674,9 +1967,6 @@ describe('EarnController', () => {
         expect(
           mockedEarnApiService?.lending?.getPositions,
         ).toHaveBeenCalledTimes(2);
-        expect(
-          mockedEarnApiService?.pooledStaking?.getPooledStakingEligibility,
-        ).toHaveBeenCalledTimes(3); // Additionally called once in controller setup by refreshPooledStakingData
       });
     });
 
@@ -1995,7 +2285,10 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          mockGetNetworkControllerState: jest.fn(() => ({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '',
+          })),
         });
 
         await expect(
@@ -2186,7 +2479,10 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          mockGetNetworkControllerState: jest.fn(() => ({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '',
+          })),
         });
 
         await expect(
@@ -2377,7 +2673,10 @@ describe('EarnController', () => {
         }));
 
         const { controller } = await setupController({
-          selectedNetworkClientId: '',
+          mockGetNetworkControllerState: jest.fn(() => ({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '',
+          })),
         });
 
         await expect(

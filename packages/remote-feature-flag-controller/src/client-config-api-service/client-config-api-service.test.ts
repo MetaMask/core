@@ -1,4 +1,3 @@
-import { ClientConfigApiService } from './client-config-api-service';
 import { BASE_URL } from '../constants';
 import type {
   ApiDataResponse,
@@ -9,6 +8,7 @@ import {
   DistributionType,
   EnvironmentType,
 } from '../remote-feature-flag-controller-types';
+import { ClientConfigApiService } from './client-config-api-service';
 
 import Mock = jest.Mock;
 

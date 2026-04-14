@@ -4,9 +4,9 @@ import {
   EOACodeEIP7702Transaction,
 } from '@ethereumjs/tx';
 
-import { prepareTransaction, serializeTransaction } from './prepare';
 import { TransactionEnvelopeType } from '../types';
 import type { Authorization, TransactionParams } from '../types';
+import { prepareTransaction, serializeTransaction } from './prepare';
 
 const CHAIN_ID_MOCK = '0x123';
 

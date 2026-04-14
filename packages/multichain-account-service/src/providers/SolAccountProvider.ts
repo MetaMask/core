@@ -16,15 +16,15 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
+import { traceFallback } from '../analytics';
+import { TraceName } from '../analytics/traces';
+import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
 import type {
   RestrictedSnapKeyring,
   SnapAccountProviderConfig,
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../analytics/traces';
-import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
 

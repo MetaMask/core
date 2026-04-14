@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
+import type { SortOrder, StatusTypes } from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
@@ -8,7 +9,6 @@ import type {
   MetricsSwapType,
   PollingStatus,
 } from './constants';
-import type { SortOrder, StatusTypes } from '../../types';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml
@@ -163,7 +163,7 @@ type RequiredEventContextFromClientBase = {
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
-    (TradeData &
+      (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<
           RequestMetadata,

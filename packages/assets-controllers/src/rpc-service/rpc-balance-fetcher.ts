@@ -98,8 +98,8 @@ export class RpcBalanceFetcher implements BalanceFetcher {
           )
         : Boolean(
             unprocessedTokens?.[selectedAccount.toLowerCase()]?.[chainId] &&
-              unprocessedTokens[selectedAccount.toLowerCase()][chainId].length >
-                0,
+            unprocessedTokens[selectedAccount.toLowerCase()][chainId].length >
+              0,
           );
 
       const tokensState = this.#getTokensState();

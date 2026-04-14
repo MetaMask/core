@@ -1,12 +1,12 @@
-import { getFiatQuotes } from './fiat-quotes';
-import { submitFiatQuotes } from './fiat-submit';
-import type { FiatQuote } from './types';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types';
+import { getFiatQuotes } from './fiat-quotes';
+import { submitFiatQuotes } from './fiat-submit';
+import type { FiatQuote } from './types';
 
 export class FiatStrategy implements PayStrategy<FiatQuote> {
   async getQuotes(

@@ -20,15 +20,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
 
-import { BtcAccountProvider } from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
-import {
-  isSnapAccountProvider,
-  SnapAccountProvider,
-} from './SnapAccountProvider';
-import { SolAccountProvider } from './SolAccountProvider';
-import { TrxAccountProvider } from './TrxAccountProvider';
-import { TimeoutError } from './utils';
 import { traceFallback } from '../analytics';
 import type { DeepPartial, RootMessenger } from '../tests';
 import {
@@ -40,6 +31,15 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { BtcAccountProvider } from './BtcAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import {
+  isSnapAccountProvider,
+  SnapAccountProvider,
+} from './SnapAccountProvider';
+import { SolAccountProvider } from './SolAccountProvider';
+import { TrxAccountProvider } from './TrxAccountProvider';
+import { TimeoutError } from './utils';
 
 jest.mock('../analytics', () => {
   const actual = jest.requireActual('../analytics');

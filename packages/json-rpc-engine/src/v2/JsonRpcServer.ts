@@ -8,6 +8,7 @@ import type {
 } from '@metamask/utils';
 import { hasProperty, isObject } from '@metamask/utils';
 
+import { getUniqueId } from '../getUniqueId';
 import type {
   HandleOptions,
   JsonRpcMiddleware,
@@ -17,7 +18,6 @@ import type {
 } from './JsonRpcEngineV2';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import type { JsonRpcCall } from './utils';
-import { getUniqueId } from '../getUniqueId';
 
 type OnError = (error: unknown) => void;
 

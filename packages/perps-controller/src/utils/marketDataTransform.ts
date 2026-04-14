@@ -6,7 +6,6 @@
  */
 import { hasProperty } from '@metamask/utils';
 
-import { parseAssetName } from './hyperLiquidAdapter';
 import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import type {
@@ -20,6 +19,7 @@ import type {
   PerpsAssetCtx,
   PredictedFunding,
 } from '../types/hyperliquid-types';
+import { parseAssetName } from './hyperLiquidAdapter';
 
 /**
  * Calculate open interest in USD

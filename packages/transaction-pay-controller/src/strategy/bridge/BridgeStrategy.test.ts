@@ -2,6 +2,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
+import type { TransactionPayControllerMessenger } from '../..';
+import type {
+  PayStrategyGetBatchRequest,
+  TransactionPayQuote,
+} from '../../types';
 import {
   getBridgeBatchTransactions,
   getBridgeQuotes,
@@ -10,11 +15,6 @@ import {
 import { submitBridgeQuotes } from './bridge-submit';
 import { BridgeStrategy } from './BridgeStrategy';
 import type { TransactionPayBridgeQuote } from './types';
-import type { TransactionPayControllerMessenger } from '../..';
-import type {
-  PayStrategyGetBatchRequest,
-  TransactionPayQuote,
-} from '../../types';
 
 jest.mock('./bridge-quotes');
 jest.mock('./bridge-submit');

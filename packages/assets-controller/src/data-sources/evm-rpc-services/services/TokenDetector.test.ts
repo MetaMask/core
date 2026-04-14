@@ -1,8 +1,3 @@
-import { TokenDetector } from './TokenDetector';
-import type {
-  TokenDetectorConfig,
-  DetectionPollingInput,
-} from './TokenDetector';
 import type { MulticallClient } from '../clients';
 import type { TokensApiClient } from '../clients/TokensApiClient';
 import type {
@@ -11,6 +6,11 @@ import type {
   ChainId,
   TokenListEntry,
 } from '../types';
+import { TokenDetector } from './TokenDetector';
+import type {
+  TokenDetectorConfig,
+  DetectionPollingInput,
+} from './TokenDetector';
 
 // =============================================================================
 // CONSTANTS

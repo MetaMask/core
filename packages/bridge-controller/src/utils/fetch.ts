@@ -2,6 +2,15 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
+import type {
+  QuoteResponse,
+  FetchFunction,
+  GenericQuoteRequest,
+  QuoteRequest,
+  BridgeAsset,
+  TokenFeature,
+  QuoteStreamCompleteData,
+} from '../types';
 import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToCaipReference,
@@ -16,15 +25,6 @@ import {
   validateTokenFeature,
   validateQuoteStreamComplete,
 } from './validators';
-import type {
-  QuoteResponse,
-  FetchFunction,
-  GenericQuoteRequest,
-  QuoteRequest,
-  BridgeAsset,
-  TokenFeature,
-  QuoteStreamCompleteData,
-} from '../types';
 
 export const getClientHeaders = ({
   clientId,
