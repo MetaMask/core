@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "Data service for fetching Money account balances, exchange rates, and vault APY",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/money-account-balance-service#readme",
   "bugs": {
@@ -60,7 +60,7 @@
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
