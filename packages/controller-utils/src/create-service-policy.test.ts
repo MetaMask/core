@@ -1500,6 +1500,25 @@ describe('createServicePolicy', () => {
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
 
+            it('calls onDegraded listeners with { duration } when the request succeeds but is slow', async () => {
+              jest.useFakeTimers();
+              const policy = createServicePolicy({
+                degradedThreshold: 2000,
+              });
+              const onDegradedListener = jest.fn();
+
+              policy.onDegraded(onDegradedListener);
+              await policy.execute(async () => {
+                jest.advanceTimersByTime(2001);
+                return 'result';
+              });
+
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledWith({
+                duration: expect.any(Number),
+              });
+            });
+
             it('does not call onAvailable listeners', async () => {
               let invocationCounter = 0;
               const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
