@@ -4241,6 +4241,15 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
+  #isBalanceChangesSkipped(transactionMeta: TransactionMeta): boolean {
+    return (
+      this.#skipSimulationTransactionIds.has(transactionMeta.id) ||
+      transactionMeta.containerTypes?.includes(
+        TransactionContainerType.EnforcedSimulations,
+      ) === true
+    );
+  }
+
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
     {
@@ -4253,7 +4262,6 @@ export class TransactionController extends BaseController<
   ): Promise<void> {
     const {
       chainId,
-      containerTypes,
       id: transactionId,
       nestedTransactions,
       networkClientId,
@@ -4273,10 +4281,7 @@ export class TransactionController extends BaseController<
     let isGasFeeSponsored = false;
 
     const isBalanceChangesSkipped =
-      this.#skipSimulationTransactionIds.has(transactionId) ||
-      Boolean(
-        containerTypes?.includes(TransactionContainerType.EnforcedSimulations),
-      );
+      this.#isBalanceChangesSkipped(transactionMeta);
 
     if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
       const balanceChangesResult = await this.#trace(
@@ -4340,15 +4345,7 @@ export class TransactionController extends BaseController<
         txMeta.isGasFeeSponsored = isGasFeeSponsored;
         txMeta.gasUsed = gasUsed;
 
-        const skipBalanceChanges =
-          this.#skipSimulationTransactionIds.has(transactionId) ||
-          Boolean(
-            txMeta.containerTypes?.includes(
-              TransactionContainerType.EnforcedSimulations,
-            ),
-          );
-
-        if (!skipBalanceChanges) {
+        if (!this.#isBalanceChangesSkipped(txMeta)) {
           txMeta.simulationData = simulationData;
         }
       },
