@@ -11,9 +11,7 @@ import { readFile } from 'node:fs/promises';
 export function isErrorWithCode(error: unknown, code: string): boolean {
   return (
     // TODO: use Error.isError()
-    error instanceof Error &&
-    hasProperty(error, 'code') &&
-    (error).code === code
+    error instanceof Error && hasProperty(error, 'code') && error.code === code
   );
 }
 

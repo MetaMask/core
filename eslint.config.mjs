@@ -308,6 +308,13 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/wallet-cli/src/**/*.test.{js,ts}'],
+    rules: {
+      'n/no-process-env': 'off',
+      'n/no-sync': 'off',
+    },
+  },
+  {
     files: ['packages/wallet-cli/bin/**/*.mjs'],
     rules: {
       'import-x/no-unresolved': 'off',

@@ -14,6 +14,9 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // TODO: Add tests for commands
+  coveragePathIgnorePatterns: ['.*/commands/.*'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

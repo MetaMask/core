@@ -1,8 +1,8 @@
+import { rpcErrors } from '@metamask/rpc-errors';
+import { hasProperty } from '@metamask/utils';
 import { unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server } from 'node:net';
-import { rpcErrors } from '@metamask/rpc-errors';
-import { hasProperty } from '@metamask/utils';
 
 import type { RpcHandlerMap } from './types';
 
@@ -178,7 +178,7 @@ function isRpcError(error: unknown): error is { code: number } {
     typeof error === 'object' &&
     error !== null &&
     hasProperty(error, 'code') &&
-    typeof (error).code === 'number'
+    typeof error.code === 'number'
   );
 }
 
