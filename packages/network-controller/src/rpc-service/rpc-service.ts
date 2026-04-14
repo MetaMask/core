@@ -636,6 +636,10 @@ export class RpcService implements AbstractRpcService {
       );
       const jsonDecodedResponse = await this.#policy.execute(
         async (context) => {
+          // Reset response so that if this attempt throws before
+          // assigning a new response, the finally block does not read
+          // a stale response from a previous attempt.
+          response = undefined;
           try {
             log(
               'REQUEST INITIATED:',
