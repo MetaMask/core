@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- Release 901.0.0 ([#8373](https://github.com/MetaMask/core/pull/8373))
-- Release/897.0.0 ([#8364](https://github.com/MetaMask/core/pull/8364))
-- fix: add missing @metamask/messenger dependency ([#8318](https://github.com/MetaMask/core/pull/8318))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))

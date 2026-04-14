@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Uncategorized
 
 - chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
@@ -141,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.1.0...@metamask/delegation-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.2...@metamask/delegation-controller@2.1.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.1...@metamask/delegation-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.0...@metamask/delegation-controller@2.0.1
