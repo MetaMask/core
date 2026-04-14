@@ -77,5 +77,6 @@
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
   "metamask/config-registry-controller": "team-networks",
-  "metamask/money-account-controller": "team-accounts-framework"
+  "metamask/money-account-controller": "team-accounts-framework",
+  "metamask/money-account-upgrade-controller": "team-earn"
 }
