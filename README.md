@@ -65,6 +65,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
 - [`@metamask/messenger-cli`](packages/messenger-cli)
+- [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
