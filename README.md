@@ -339,6 +339,7 @@ linkStyle default opacity:0.5
   gas_fee_controller --> polling_controller;
   gator_permissions_controller --> base_controller;
   gator_permissions_controller --> messenger;
+  gator_permissions_controller --> network_controller;
   gator_permissions_controller --> transaction_controller;
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
