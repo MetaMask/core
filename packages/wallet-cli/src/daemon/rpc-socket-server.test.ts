@@ -214,10 +214,12 @@ describe('startRpcSocketServer', () => {
 
       await flushPromises();
 
-      expect(getResponse(socket).error).toStrictEqual({
-        code: -32600,
-        message: 'Invalid request: missing method',
-      });
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32600,
+          message: 'Invalid request: missing method',
+        }),
+      );
     });
 
     it('returns -32601 for unknown method', async () => {
@@ -237,10 +239,12 @@ describe('startRpcSocketServer', () => {
 
       await flushPromises();
 
-      expect(getResponse(socket).error).toStrictEqual({
-        code: -32601,
-        message: 'Method not found: nonexistent',
-      });
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32601,
+          message: 'Method not found: nonexistent',
+        }),
+      );
     });
 
     it('returns -32603 when handler throws an Error', async () => {
@@ -260,20 +264,19 @@ describe('startRpcSocketServer', () => {
 
       await flushPromises();
 
-      expect(getResponse(socket).error).toStrictEqual({
-        code: -32603,
-        message: 'handler failed',
-      });
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32603,
+          message: 'handler failed',
+        }),
+      );
     });
 
-    it('uses error code when handler throws an RPC error', async () => {
+    it('passes through RPC error objects when handler throws one', async () => {
       const { simulateConnection } = createMockServer();
+      const rpcError = { code: -32001, message: 'custom rpc' };
       const handlers: RpcHandlerMap = {
-        failing: jest
-          .fn()
-          .mockRejectedValue(
-            Object.assign(new Error('custom rpc'), { code: -32001 }),
-          ),
+        failing: jest.fn().mockRejectedValue(rpcError),
       };
 
       await startRpcSocketServer({
@@ -310,10 +313,12 @@ describe('startRpcSocketServer', () => {
 
       await flushPromises();
 
-      expect(getResponse(socket).error).toStrictEqual({
-        code: -32603,
-        message: 'Internal error',
-      });
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32603,
+          message: 'Internal error',
+        }),
+      );
     });
 
     it('intercepts shutdown method and calls onShutdown', async () => {

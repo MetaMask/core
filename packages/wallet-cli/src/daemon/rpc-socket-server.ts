@@ -58,9 +58,11 @@ export async function startRpcSocketServer({
         socket.end(
           `${JSON.stringify({
             jsonrpc: '2.0',
-            error: rpcErrors.invalidRequest({
-              message: 'Only one request per connection is allowed',
-            }),
+            error: rpcErrors
+              .invalidRequest({
+                message: 'Only one request per connection is allowed',
+              })
+              .serialize(),
           })}\n`,
         );
         return;
@@ -75,7 +77,9 @@ export async function startRpcSocketServer({
           socket.end(
             `${JSON.stringify({
               jsonrpc: '2.0',
-              error: rpcErrors.internal({ message: 'Internal error' }),
+              error: rpcErrors
+                .internal({ message: 'Internal error' })
+                .serialize(),
             })}\n`,
           );
         });
@@ -132,7 +136,9 @@ async function handleRequest(
       return {
         jsonrpc: '2.0',
         id,
-        error: { code: -32600, message: 'Invalid request: missing method' },
+        error: rpcErrors
+          .invalidRequest({ message: 'Invalid request: missing method' })
+          .serialize(),
       };
     }
 
@@ -153,7 +159,9 @@ async function handleRequest(
       return {
         jsonrpc: '2.0',
         id,
-        error: { code: -32601, message: `Method not found: ${method}` },
+        error: rpcErrors
+          .methodNotFound({ message: `Method not found: ${method}` })
+          .serialize(),
       };
     }
 
@@ -161,9 +169,15 @@ async function handleRequest(
     const result = await handler(params);
     return { jsonrpc: '2.0', id, result: result ?? null };
   } catch (error) {
-    const code = isRpcError(error) ? error.code : -32603;
+    if (isRpcError(error)) {
+      return { jsonrpc: '2.0', id, error };
+    }
     const message = error instanceof Error ? error.message : 'Internal error';
-    return { jsonrpc: '2.0', id, error: { code, message } };
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: rpcErrors.internal({ message }).serialize(),
+    };
   }
 }
 
