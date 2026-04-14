@@ -424,5 +424,21 @@ describe('daemon-entry', () => {
         'A handler for Unknown:action has not been registered',
       );
     });
+
+    it('throws when params is null', async () => {
+      const { callHandler } = await setupCallHandler();
+
+      await expect(callHandler(null)).rejects.toThrow(
+        'Expected params to be an array with an action name',
+      );
+    });
+
+    it('throws when params is an empty array', async () => {
+      const { callHandler } = await setupCallHandler();
+
+      await expect(callHandler([])).rejects.toThrow(
+        'Expected params to be an array with an action name',
+      );
+    });
   });
 });

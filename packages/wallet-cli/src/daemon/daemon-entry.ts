@@ -62,6 +62,9 @@ async function main(): Promise<void> {
     // messenger surface over a local Unix socket.  Access control is enforced
     // at the socket level (only local users can connect).
     call: async (params) => {
+      if (!Array.isArray(params) || params.length === 0) {
+        throw new Error('Expected params to be an array with an action name');
+      }
       const [action, ...args] = params as [string, ...Json[]];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.
       const result = (wallet.messenger as any).call(action, ...args);
