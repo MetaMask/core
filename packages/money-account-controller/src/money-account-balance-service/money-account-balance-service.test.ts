@@ -461,6 +461,49 @@ describe('MoneyAccountBalanceService', () => {
         'No provider found for chain 0xa4b1',
       );
     });
+
+    it('returns the cached rate when called without options within the default stale window', async () => {
+      const mockGetRate = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(
+        () => ({ getRate: mockGetRate }) as unknown as Contract,
+      );
+      const { service } = createService();
+
+      // Seed the cache
+      await service.getExchangeRate();
+
+      mockGetRate.mockResolvedValue({ toString: () => '1100000' });
+
+      // Get cached value
+      const result = await service.getExchangeRate();
+
+      expect(result).toStrictEqual({ rate: '1050000' });
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+    });
+
+    it('refetches when called with staleTime: 0 even if a cached value exists', async () => {
+      const mockGetRate = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(
+        () => ({ getRate: mockGetRate }) as unknown as Contract,
+      );
+      const { service } = createService();
+
+      // Seed the cache
+      const firstResult = await service.getExchangeRate();
+      expect(firstResult).toStrictEqual({ rate: '1050000' });
+
+      mockGetRate.mockResolvedValue({ toString: () => '1100000' });
+
+      // Refetch the value
+      const freshResult = await service.getExchangeRate({ staleTime: 0 });
+
+      expect(freshResult).toStrictEqual({ rate: '1100000' });
+      expect(mockGetRate).toHaveBeenCalledTimes(2);
+    });
   });
 
   // ----------------------------------------------------------

@@ -306,9 +306,13 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * RPC. The rate represents the conversion factor from musdSHFvd shares to
    * the underlying mUSD asset.
    *
+   * @param options - The options for the query.
+   * @param options.staleTime - The stale time for the query. Defaults to 30 seconds.
    * @returns The exchange rate as a raw uint256 string.
    */
-  async getExchangeRate(): Promise<ExchangeRateResponse> {
+  async getExchangeRate(options?: {
+    staleTime?: number;
+  }): Promise<ExchangeRateResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getExchangeRate`],
       queryFn: async () => {
@@ -321,7 +325,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         const rate = await contract.getRate();
         return { rate: rate.toString() };
       },
-      staleTime: inMilliseconds(30, Duration.Second),
+      staleTime: options?.staleTime ?? inMilliseconds(30, Duration.Second),
     });
   }
 
