@@ -122,7 +122,6 @@ import type {
   TransactionBatchMeta,
   AfterSimulateHook,
   BeforeSignHook,
-  TransactionContainerType,
   GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
@@ -131,6 +130,7 @@ import type {
 } from './types';
 import {
   GasFeeEstimateLevel,
+  TransactionContainerType,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
@@ -4241,6 +4241,15 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
+  #isBalanceChangesSkipped(transactionMeta: TransactionMeta): boolean {
+    return (
+      this.#skipSimulationTransactionIds.has(transactionMeta.id) ||
+      transactionMeta.containerTypes?.includes(
+        TransactionContainerType.EnforcedSimulations,
+      ) === true
+    );
+  }
+
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
     {
@@ -4272,7 +4281,7 @@ export class TransactionController extends BaseController<
     let isGasFeeSponsored = false;
 
     const isBalanceChangesSkipped =
-      this.#skipSimulationTransactionIds.has(transactionId);
+      this.#isBalanceChangesSkipped(transactionMeta);
 
     if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
       const balanceChangesResult = await this.#trace(
@@ -4336,7 +4345,7 @@ export class TransactionController extends BaseController<
         txMeta.isGasFeeSponsored = isGasFeeSponsored;
         txMeta.gasUsed = gasUsed;
 
-        if (!isBalanceChangesSkipped) {
+        if (!this.#isBalanceChangesSkipped(txMeta)) {
           txMeta.simulationData = simulationData;
         }
       },

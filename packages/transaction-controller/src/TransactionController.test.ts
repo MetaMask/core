@@ -2345,6 +2345,37 @@ describe('TransactionController', () => {
       });
     });
 
+    it('skips simulation when containerTypes includes EnforcedSimulations', async () => {
+      const { controller } = setupController();
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      await flushPromises();
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+
+      shouldResimulateMock.mockReturnValue({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(transactionMeta.id, {
+        containerTypes: [TransactionContainerType.EnforcedSimulations],
+      });
+
+      await flushPromises();
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+    });
+
     describe('with beforeSign hook', () => {
       it('calls beforeSign hook', async () => {
         const beforeSignHook = jest.fn().mockResolvedValueOnce({});
