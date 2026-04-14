@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `SecretMetadata.matchesType` for filtering
 - **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
 - **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8451](https://github.com/MetaMask/core/pull/8451))
 
 ### Fixed
 
