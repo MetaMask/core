@@ -420,7 +420,7 @@ export class AccountTreeController extends BaseController<
 
     // We always fire the current selected group after init, even if it did not change, to ensure that
     // all subscribers are aware of it and can react accordingly (e.g. by fetching accounts from
-    // the selected group).
+    // the selected group on startup).
     log(`Selected (initial) group is: [${this.state.selectedAccountGroup}]`);
     this.messenger.publish(
       `${controllerName}:selectedAccountGroupChange`,
