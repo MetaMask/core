@@ -255,9 +255,16 @@ export class PasskeyController extends BaseController<
    * @param authenticationResponse - Authentication result JSON from the browser ceremony.
    * @returns Serialized vault encryption key for `submitEncryptionKey` (or equivalent).
    */
-  async unwrapVaultEncryptionKey(
+  /**
+   * Verifies the WebAuthn authentication challenge and derives the wrapping key
+   * for the enrolled credential (same material as {@link unwrapVaultEncryptionKey}).
+   *
+   * @param authenticationResponse - Authentication result JSON from the browser ceremony.
+   * @returns Wrapping key and passkey record for unwrap/re-wrap.
+   */
+  async #getWrappingKey(
     authenticationResponse: PasskeyAuthenticationResponse,
-  ): Promise<string> {
+  ): Promise<CryptoKey> {
     const session = this.#authenticationSession;
     if (!session) {
       throw new Error('No active passkey authentication session');
@@ -267,7 +274,6 @@ export class PasskeyController extends BaseController<
       throw new Error('Passkey is not enrolled');
     }
 
-    // verify challenge
     const ok = verifyChallengeInClientData(
       authenticationResponse.response.clientDataJSON,
       session.challenge,
@@ -280,7 +286,6 @@ export class PasskeyController extends BaseController<
     const prfFirst =
       authenticationResponse.clientExtensionResults?.prf?.results?.first;
 
-    // derive wrapping key
     let ikm: ArrayBuffer;
     if (record.derivationMethod === 'prf') {
       ikm = base64UrlStringToArrayBuffer(prfFirst as PasskeyBase64URLString);
@@ -293,15 +298,86 @@ export class PasskeyController extends BaseController<
       ikm,
       base64UrlStringToArrayBuffer(record.credentialId),
     );
+
+    return wrappingKey;
+  }
+
+  async unwrapVaultEncryptionKey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<string> {
+    const record = this.#getPasskeyRecord();
+    if (!record) {
+      throw new Error('Passkey is not enrolled');
+    }
+    const wrappingKey = await this.#getWrappingKey(authenticationResponse);
     const encryptionKey = await unwrapKey(
       record.wrappedEncryptionKey,
       record.iv,
       wrappingKey,
     );
 
-    // clear session
     this.#authenticationSession = null;
     return encryptionKey;
+  }
+
+  /**
+   * After the keyring vault encryption key has changed (e.g. wallet password change),
+   * re-wraps the new serialized encryption key with the same passkey-derived wrapping key
+   * from a verified WebAuthn authentication response.
+   *
+   * Verifies the auth challenge, checks that the stored passkey wrap still decrypts to
+   * `encryptionKeyBeforePasswordChange`, clears the auth session, then persists a new
+   * wrap for `encryptionKeyAfterPasswordChange` and `encryptionSaltAfterPasswordChange`.
+   *
+   * @param input - Re-wrap parameters.
+   * @param input.authenticationResponse - Authentication result JSON from the browser ceremony.
+   * @param input.oldEncryptionKey - Serialized vault encryption key before password change.
+   * @param input.newEncryptionKey - Serialized vault encryption key after password change.
+   * @param input.newEncryptionSalt - Keyring encryption salt after password change.
+   */
+  async changeVaultEncryptionKey(input: {
+    authenticationResponse: PasskeyAuthenticationResponse;
+    oldEncryptionKey: string;
+    newEncryptionKey: string;
+    newEncryptionSalt: string;
+  }): Promise<void> {
+    const {
+      authenticationResponse,
+      oldEncryptionKey,
+      newEncryptionKey,
+      newEncryptionSalt,
+    } = input;
+
+    const record = this.#getPasskeyRecord();
+    if (!record) {
+      throw new Error('Passkey is not enrolled');
+    }
+    const wrappingKey = await this.#getWrappingKey(authenticationResponse);
+
+    // TODO: why we need to do this?
+    const decryptedKey = await unwrapKey(
+      record.wrappedEncryptionKey,
+      record.iv,
+      wrappingKey,
+    );
+    if (decryptedKey !== oldEncryptionKey) {
+      this.#authenticationSession = null;
+      throw new Error(
+        'Passkey authentication does not match the current vault encryption key',
+      );
+    }
+
+    this.#authenticationSession = null;
+
+    const { ciphertext, iv } = await wrapKey(newEncryptionKey, wrappingKey);
+
+    const nextRecord: PasskeyRecord = {
+      ...record,
+      wrappedEncryptionKey: ciphertext,
+      iv,
+      encryptionSalt: newEncryptionSalt,
+    };
+    this.#setPasskeyRecord(nextRecord);
   }
 
   removePasskey(): void {

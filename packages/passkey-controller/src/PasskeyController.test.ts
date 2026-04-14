@@ -390,6 +390,87 @@ describe('PasskeyController', () => {
     });
   });
 
+  describe('rewrapVaultEncryptionKeyAfterPasswordChange', () => {
+    it('updates the passkey wrap when before/after encryption keys match the ceremony', async () => {
+      const controller = new PasskeyController({
+        messenger: getPasskeyMessenger(),
+      });
+      const regOptions = controller.generatePasskeyRegistrationOptions();
+      const credentialId = 'UmV3cmFwQ3JlZGVudGlhbA==';
+      const beforeKey = 'encryption-key-before-password';
+
+      await controller.completePasskeyRegistration({
+        registrationResponse: minimalRegistrationResponse(
+          regOptions.challenge,
+          credentialId,
+        ),
+        encryptionKey: beforeKey,
+        encryptionSalt: 'salt-before',
+      });
+
+      const authOptions = controller.generatePasskeyAuthenticationOptions();
+      const authResponse = minimalAuthenticationResponse(
+        authOptions.challenge,
+        credentialId,
+        regOptions.user.id,
+      );
+      const afterKey = 'encryption-key-after-password';
+
+      await controller.changeVaultEncryptionKey({
+        authenticationResponse: authResponse,
+        oldEncryptionKey: beforeKey,
+        newEncryptionKey: afterKey,
+        newEncryptionSalt: 'salt-after',
+      });
+
+      expect(controller.state.passkeyRecord?.encryptionSalt).toBe('salt-after');
+
+      const authOptions2 = controller.generatePasskeyAuthenticationOptions();
+      const unwrapped = await controller.unwrapVaultEncryptionKey(
+        minimalAuthenticationResponse(
+          authOptions2.challenge,
+          credentialId,
+          regOptions.user.id,
+        ),
+      );
+      expect(unwrapped).toBe(afterKey);
+    });
+
+    it('throws when the live vault key does not match the passkey unwrap', async () => {
+      const controller = new PasskeyController({
+        messenger: getPasskeyMessenger(),
+      });
+      const regOptions = controller.generatePasskeyRegistrationOptions();
+      const credentialId = 'bWlzbWF0Y2hLZXk=';
+
+      await controller.completePasskeyRegistration({
+        registrationResponse: minimalRegistrationResponse(
+          regOptions.challenge,
+          credentialId,
+        ),
+        encryptionKey: 'actual-wrapped-key',
+        encryptionSalt: 's',
+      });
+
+      const authOptions = controller.generatePasskeyAuthenticationOptions();
+
+      await expect(
+        controller.changeVaultEncryptionKey({
+          authenticationResponse: minimalAuthenticationResponse(
+            authOptions.challenge,
+            credentialId,
+            regOptions.user.id,
+          ),
+          oldEncryptionKey: 'wrong-expected-key',
+          newEncryptionKey: 'new-key',
+          newEncryptionSalt: 'new-salt',
+        }),
+      ).rejects.toThrow(
+        'Passkey authentication does not match the current vault encryption key',
+      );
+    });
+  });
+
   describe('removePasskey', () => {
     it('clears stored record and resets enrollment', async () => {
       const controller = new PasskeyController({

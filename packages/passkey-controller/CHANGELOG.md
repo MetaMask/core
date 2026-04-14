@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`PasskeyController.rewrapVaultEncryptionKeyAfterPasswordChange`** — verifies a WebAuthn authentication response, confirms the stored passkey wrap decrypts to the pre-rotation vault encryption key, then re-wraps and persists the record for a new serialized encryption key and encryption salt (e.g. after `KeyringController.changePassword`).
 - Initial release of `@metamask/passkey-controller`, a controller and helper library for passkey-based wallet unlock (WebAuthn registration/authentication, optional PRF extension, and encrypted vault key wrapping).
 - **`PasskeyController`** (`PasskeyController.ts`): extends `BaseController` with persisted `passkeyRecord` and in-memory registration/authentication sessions (challenge and PRF salt material are not part of controller `state`).
   - `generatePasskeyRegistrationOptions` — starts registration, stores session data, returns WebAuthn creation options JSON (platform authenticator, `userVerification: preferred`, `residentKey: preferred`, attestation `direct`, Ed25519 (-8) + ES256 (-7) + RS256 (-257), L3 credential `hints` default `client-device` then `hybrid`, PRF `eval` with a random salt).
@@ -24,5 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WebAuthn** (`webauthn.ts`): `webauthnWireBinaryToBytes`, `verifyChallengeInClientData`.
 - **Types** (`types.ts`): `PasskeyRecord`, registration/authentication options and response JSON shapes, PRF extension types, and related WebAuthn wire aliases.
 - **Unit tests** for `PasskeyController`, `crypto`, `encoding`, and `webauthn`.
+
+### Changed
+
+- Refactored authentication handling so `unwrapVaultEncryptionKey` shares challenge verification and wrapping-key derivation with the new re-wrap path.
 
 [Unreleased]: https://github.com/MetaMask/core/
