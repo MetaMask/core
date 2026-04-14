@@ -94,7 +94,6 @@
     "yargs": "^17.7.2"
   },
   "resolutions": {
-    "@metamask/auto-changelog": "npm:@metamask-previews/auto-changelog@6.0.0-preview-b0fc35a",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"
