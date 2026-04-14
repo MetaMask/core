@@ -513,10 +513,18 @@ function createService({
   messenger: ChompApiServiceMessenger;
 } {
   const rootMessenger = createRootMessenger();
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    async () => MOCK_TOKEN,
+  );
   const messenger = createServiceMessenger(rootMessenger);
+  rootMessenger.delegate({
+    messenger,
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+  });
   const service = new ChompApiService({
     baseUrl: BASE_URL,
-    getAccessToken: async (): Promise<string> => MOCK_TOKEN,
     messenger,
     ...options,
   });

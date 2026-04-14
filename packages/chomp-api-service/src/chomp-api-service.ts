@@ -7,6 +7,7 @@ import type {
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import {
   array,
   boolean,
@@ -76,7 +77,7 @@ export type ChompApiServiceActions =
 /**
  * Actions from other messengers that {@link ChompApiService} calls.
  */
-type AllowedActions = never;
+type AllowedActions = AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Published when {@link ChompApiService}'s cache is updated.
@@ -175,7 +176,7 @@ const CreateWithdrawalResponseStruct = type({
  * This service is responsible for communicating with the CHOMP API.
  *
  * All requests are authenticated via JWT Bearer tokens obtained from the
- * `getAccessToken` callback provided at construction time.
+ * {@link AuthenticationControllerGetBearerTokenAction} messenger action.
  */
 export class ChompApiService extends BaseDataService<
   typeof serviceName,
@@ -183,16 +184,12 @@ export class ChompApiService extends BaseDataService<
 > {
   readonly #baseUrl: string;
 
-  readonly #getAccessToken: () => Promise<string>;
-
   /**
    * Constructs a new ChompApiService.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.baseUrl - The base URL of the CHOMP API.
-   * @param args.getAccessToken - An async callback that returns a valid JWT
-   * access token for authenticating requests.
    * @param args.queryClientConfig - Configuration for the underlying TanStack
    * Query client.
    * @param args.policyOptions - Options to pass to `createServicePolicy`.
@@ -200,13 +197,11 @@ export class ChompApiService extends BaseDataService<
   constructor({
     messenger,
     baseUrl,
-    getAccessToken,
     queryClientConfig = {},
     policyOptions = {},
   }: {
     messenger: ChompApiServiceMessenger;
     baseUrl: string;
-    getAccessToken: () => Promise<string>;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
   }) {
@@ -218,7 +213,6 @@ export class ChompApiService extends BaseDataService<
     });
 
     this.#baseUrl = baseUrl;
-    this.#getAccessToken = getAccessToken;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -232,7 +226,9 @@ export class ChompApiService extends BaseDataService<
    * @returns Headers including Authorization and Content-Type.
    */
   async #authHeaders(): Promise<Record<string, string>> {
-    const token = await this.#getAccessToken();
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
     return {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
