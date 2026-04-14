@@ -152,6 +152,9 @@
       "path": "./packages/money-account-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/money-account-upgrade-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
     },
     {
