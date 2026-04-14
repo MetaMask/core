@@ -1,10 +1,12 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcResponse } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 import { unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server } from 'node:net';
 
 import type { RpcHandlerMap } from './types';
+import { isErrorWithCode } from './utils';
 
 const CONNECTION_TIMEOUT_MS = 30_000;
 
@@ -95,8 +97,12 @@ export async function startRpcSocketServer({
     };
     socket.on('data', onData);
 
-    socket.on('error', () => {
-      // Ignore client socket errors (e.g. broken pipe from probe connections).
+    socket.on('error', (socketError: NodeJS.ErrnoException) => {
+      const { code } = socketError;
+      if (code === 'EPIPE' || code === 'ECONNRESET') {
+        return; // Expected during probe/disconnect.
+      }
+      process.stderr.write(`Unexpected socket error: ${String(socketError)}\n`);
     });
   });
 
@@ -129,8 +135,9 @@ async function handleRequest(
   handlers: RpcHandlerMap,
   line: string,
   onShutdown?: () => Promise<void>,
-): Promise<Record<string, unknown>> {
-  let id: unknown = null;
+): Promise<JsonRpcResponse> {
+  type JsonRpcId = string | number | null;
+  let id: JsonRpcId = null;
   let request: { id?: unknown; method?: string; params?: unknown };
 
   try {
@@ -143,7 +150,7 @@ async function handleRequest(
     };
   }
 
-  id = request.id ?? null;
+  id = (request.id ?? null) as JsonRpcId;
 
   try {
     const { method } = request;
@@ -162,8 +169,10 @@ async function handleRequest(
     if (method === 'shutdown') {
       if (onShutdown) {
         setTimeout(() => {
-          onShutdown().catch(() => {
-            // Best-effort shutdown.
+          onShutdown().catch((error: unknown) => {
+            process.stderr.write(
+              `onShutdown callback failed: ${String(error)}\n`,
+            );
           });
         }, 0);
       }
@@ -225,8 +234,10 @@ function isRpcError(
 async function listen(server: Server, socketPath: string): Promise<void> {
   try {
     await unlink(socketPath);
-  } catch {
-    // Ignore — file may not exist.
+  } catch (error) {
+    if (!isErrorWithCode(error, 'ENOENT')) {
+      throw error;
+    }
   }
 
   return new Promise((resolve, reject) => {

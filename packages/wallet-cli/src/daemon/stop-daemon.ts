@@ -36,8 +36,8 @@ export async function stopDaemon(
   if (socketResponsive) {
     try {
       await sendCommand({ socketPath, method: 'shutdown' });
-    } catch {
-      // Socket became unresponsive.
+    } catch (error) {
+      log?.(`Graceful shutdown request failed: ${String(error)}`);
     }
     stopped = await waitFor(async () => !(await pingDaemon(socketPath)), 5_000);
   }
@@ -50,8 +50,8 @@ export async function stopDaemon(
       } else {
         stopped = true; // Process already gone (ESRCH).
       }
-    } catch {
-      // Permission error — fall through to next strategy.
+    } catch (error) {
+      log?.(`SIGTERM failed: ${String(error)}`);
     }
   }
 
@@ -63,13 +63,16 @@ export async function stopDaemon(
       } else {
         stopped = true; // Process already gone (ESRCH).
       }
-    } catch {
-      // Permission error — cannot kill process.
+    } catch (error) {
+      log?.(`SIGKILL failed: ${String(error)}`);
     }
   }
 
   if (stopped) {
-    await rm(pidPath, { force: true });
+    await Promise.all([
+      rm(pidPath, { force: true }),
+      rm(socketPath, { force: true }),
+    ]);
     log?.('Daemon stopped.');
   }
 

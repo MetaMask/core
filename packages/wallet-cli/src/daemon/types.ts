@@ -2,8 +2,10 @@ import type { Json } from '@metamask/utils';
 
 /**
  * A function that handles a JSON-RPC method call.
+ *
+ * The `params` argument will be `null` if the client did not provide params.
  */
-export type RpcHandler = (params: Json) => Promise<Json>;
+export type RpcHandler = (params: Json) => Promise<Json | void>;
 
 /**
  * A map of RPC method names to their handler functions.
@@ -20,11 +22,18 @@ export type DaemonPaths = {
 };
 
 /**
+ * Status information returned by the daemon's `getStatus` RPC method.
+ */
+export type DaemonStatusInfo = {
+  pid: number;
+  uptime: number;
+};
+
+/**
  * Configuration passed to the daemon spawner.
  */
 export type DaemonSpawnConfig = {
   dataDir: string;
-  socketPath: string;
   infuraProjectId: string;
   password: string;
   srp: string;

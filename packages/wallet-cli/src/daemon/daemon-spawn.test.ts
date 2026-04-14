@@ -3,19 +3,21 @@ import { existsSync } from 'node:fs';
 
 import { pingDaemon } from './daemon-client';
 import { ensureDaemon } from './daemon-spawn';
+import { getDaemonPaths } from './paths';
 import type { DaemonSpawnConfig } from './types';
 
 jest.mock('node:child_process');
 jest.mock('node:fs');
 jest.mock('./daemon-client');
+jest.mock('./paths');
 
 const mockSpawn = jest.mocked(spawn);
 const mockExistsSync = jest.mocked(existsSync);
 const mockPingDaemon = jest.mocked(pingDaemon);
+const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
-  socketPath: '/tmp/test.sock',
   infuraProjectId: 'test-key',
   password: 'test-pass',
   srp: 'test test test test test test test test test test test ball',
@@ -25,8 +27,14 @@ const CONFIG: DaemonSpawnConfig = {
 describe('ensureDaemon', () => {
   beforeEach(() => {
     jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    mockGetDaemonPaths.mockReturnValue({
+      socketPath: '/tmp/test.sock',
+      pidPath: '/tmp/test.pid',
+      logPath: '/tmp/test.log',
+    });
     mockSpawn.mockReturnValue({
       unref: jest.fn(),
+      on: jest.fn(),
     } as never);
   });
 
@@ -51,7 +59,6 @@ describe('ensureDaemon', () => {
         stdio: 'ignore',
         env: expect.objectContaining({
           MM_DAEMON_DATA_DIR: '/tmp/data',
-          MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
           MM_WALLET_SRP:
@@ -118,14 +125,38 @@ describe('ensureDaemon', () => {
     jest.useRealTimers();
   });
 
-  it('calls unref on spawned child', async () => {
+  it('calls unref on spawned child and registers error handler', async () => {
     const unref = jest.fn();
+    const on = jest.fn();
     mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     mockExistsSync.mockReturnValue(true);
-    mockSpawn.mockReturnValue({ unref } as never);
+    mockSpawn.mockReturnValue({ unref, on } as never);
 
     await ensureDaemon(CONFIG);
 
     expect(unref).toHaveBeenCalled();
+    expect(on).toHaveBeenCalledWith('error', expect.any(Function));
+  });
+
+  it('writes spawn errors to stderr', async () => {
+    const unref = jest.fn();
+    let errorHandler: ((error: Error) => void) | undefined;
+    const on = jest.fn(
+      (event: string, handler: (error: Error) => void): void => {
+        if (event === 'error') {
+          errorHandler = handler;
+        }
+      },
+    );
+    mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mockExistsSync.mockReturnValue(true);
+    mockSpawn.mockReturnValue({ unref, on } as never);
+
+    await ensureDaemon(CONFIG);
+    errorHandler?.(new Error('spawn ENOENT'));
+
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to spawn daemon process'),
+    );
   });
 });

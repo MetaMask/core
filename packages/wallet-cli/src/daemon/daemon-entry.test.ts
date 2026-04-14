@@ -1,5 +1,5 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { rm, writeFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { appendFile, rm, writeFile } from 'node:fs/promises';
 
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
@@ -13,16 +13,12 @@ jest.mock('./rpc-socket-server');
 jest.mock('./wallet-factory');
 
 const mockMkdirSync = jest.mocked(mkdirSync);
-const mockAppendFileSync = jest.mocked(appendFileSync);
+const mockAppendFile = jest.mocked(appendFile);
 const mockWriteFile = jest.mocked(writeFile);
 const mockRm = jest.mocked(rm);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 const mockStartRpcSocketServer = jest.mocked(startRpcSocketServer);
 const mockCreateWallet = jest.mocked(createWallet);
-
-// The module under test calls main() at top level on import.
-// We use jest.isolateModules to re-import it fresh in each test
-// after setting up mocks and env vars.
 
 const ORIGINAL_ENV = process.env;
 
@@ -70,6 +66,7 @@ describe('daemon-entry', () => {
     });
     mockWriteFile.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
+    mockAppendFile.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -83,6 +80,9 @@ describe('daemon-entry', () => {
    * Returns after main() settles.
    */
   async function importDaemonEntry(): Promise<void> {
+    // The module under test calls main() at top level on import.
+    // We use jest.isolateModules to re-import it fresh in each test
+    // after setting up mocks and env vars.
     await jest.isolateModulesAsync(async () => {
       await import('./daemon-entry');
       // Flush microtasks so main()'s .catch() handler settles
@@ -229,10 +229,27 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    // makeLogger writes via appendFileSync to the log path
-    expect(mockAppendFileSync).toHaveBeenCalledWith(
+    // makeLogger writes via appendFile to the log path
+    expect(mockAppendFile).toHaveBeenCalledWith(
       '/tmp/daemon.log',
       expect.stringContaining('Starting daemon...'),
+    );
+  });
+
+  it('writes to stderr when appendFile fails in makeLogger', async () => {
+    mockAppendFile.mockRejectedValue(new Error('disk full'));
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    // Flush the appendFile rejection handler
+    for (let i = 0; i < 10; i++) {
+      await new Promise((resolve) => process.nextTick(resolve));
+    }
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('log write failed'),
     );
   });
 
@@ -249,35 +266,32 @@ describe('daemon-entry', () => {
     expect(registeredEvents).toContain('SIGINT');
   });
 
-  it('sIGTERM handler calls shutdown and sets exitCode on failure', async () => {
+  it('triggers shutdown when SIGTERM handler is called', async () => {
     const wallet = createMockWallet();
     mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
-    (handle.close as jest.Mock).mockRejectedValue(new Error('close failed'));
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
     const onSpy = jest.spyOn(process, 'on');
 
     await importDaemonEntry();
 
-    // Find the SIGTERM handler and invoke it
     const sigTermCall = onSpy.mock.calls.find(([event]) => event === 'SIGTERM');
     const sigTermHandler = sigTermCall?.[1] as () => void;
     sigTermHandler();
 
-    // Flush promise chain
     for (let i = 0; i < 10; i++) {
       await new Promise((resolve) => process.nextTick(resolve));
     }
 
-    expect(process.exitCode).toBe(1);
+    expect(handle.close).toHaveBeenCalled();
+    expect(wallet.destroy).toHaveBeenCalled();
   });
 
-  it('sIGINT handler calls shutdown and sets exitCode on failure', async () => {
+  it('triggers shutdown when SIGINT handler is called', async () => {
     const wallet = createMockWallet();
     mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
-    (handle.close as jest.Mock).mockRejectedValue(new Error('close failed'));
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
     const onSpy = jest.spyOn(process, 'on');
@@ -292,7 +306,49 @@ describe('daemon-entry', () => {
       await new Promise((resolve) => process.nextTick(resolve));
     }
 
-    expect(process.exitCode).toBe(1);
+    expect(handle.close).toHaveBeenCalled();
+    expect(wallet.destroy).toHaveBeenCalled();
+  });
+
+  it('shutdown still calls wallet.destroy when handle.close fails', async () => {
+    const wallet = createMockWallet();
+    mockCreateWallet.mockResolvedValue(wallet);
+    const handle = createMockHandle();
+    (handle.close as jest.Mock).mockRejectedValue(new Error('close failed'));
+    mockStartRpcSocketServer.mockResolvedValue(handle);
+
+    await importDaemonEntry();
+
+    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+    const onShutdown = callArgs.onShutdown as () => Promise<void>;
+    await onShutdown();
+
+    expect(wallet.destroy).toHaveBeenCalled();
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('handle.close() failed'),
+    );
+  });
+
+  it('shutdown logs wallet.destroy failure', async () => {
+    const wallet = createMockWallet();
+    (wallet.destroy as jest.Mock).mockRejectedValue(
+      new Error('destroy failed'),
+    );
+    mockCreateWallet.mockResolvedValue(wallet);
+    const handle = createMockHandle();
+    mockStartRpcSocketServer.mockResolvedValue(handle);
+
+    await importDaemonEntry();
+
+    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+    const onShutdown = callArgs.onShutdown as () => Promise<void>;
+    await onShutdown();
+
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('wallet.destroy() failed'),
+    );
   });
 
   it('handles rm rejection during shutdown cleanup gracefully', async () => {

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { pingDaemon } from './daemon-client';
+import { getDaemonPaths } from './paths';
 import type { DaemonSpawnConfig } from './types';
 
 const POLL_INTERVAL_MS = 100;
@@ -15,7 +16,7 @@ const MAX_POLLS = 300; // 30 seconds
  * @param config - Spawn configuration.
  */
 export async function ensureDaemon(config: DaemonSpawnConfig): Promise<void> {
-  const { socketPath } = config;
+  const { socketPath } = getDaemonPaths(config.dataDir);
   if (await pingDaemon(socketPath)) {
     return;
   }
@@ -30,11 +31,13 @@ export async function ensureDaemon(config: DaemonSpawnConfig): Promise<void> {
     env: {
       ...process.env,
       MM_DAEMON_DATA_DIR: config.dataDir,
-      MM_DAEMON_SOCKET_PATH: socketPath,
       INFURA_PROJECT_ID: config.infuraProjectId,
       MM_WALLET_PASSWORD: config.password,
       MM_WALLET_SRP: config.srp,
     },
+  });
+  child.on('error', (error) => {
+    process.stderr.write(`Failed to spawn daemon process: ${String(error)}\n`);
   });
   child.unref();
 

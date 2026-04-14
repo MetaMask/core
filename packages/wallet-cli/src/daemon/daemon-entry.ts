@@ -1,11 +1,11 @@
 import type { Json } from '@metamask/utils';
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { rm, writeFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { appendFile, rm, writeFile } from 'node:fs/promises';
 
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
-import type { RpcHandlerMap } from './types';
+import type { DaemonStatusInfo, RpcHandlerMap } from './types';
 import { createWallet } from './wallet-factory';
 
 const startTime = Date.now();
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const wallet = await createWallet({ infuraProjectId, password, srp });
 
   const handlers: RpcHandlerMap = {
-    getStatus: async () => ({
+    getStatus: async (): Promise<DaemonStatusInfo> => ({
       pid: process.pid,
       uptime: Math.floor((Date.now() - startTime) / 1000),
     }),
@@ -84,10 +84,12 @@ async function main(): Promise<void> {
   } catch (error) {
     try {
       await wallet.destroy();
-    } catch {
-      // Best-effort cleanup.
+    } catch (destroyError) {
+      log(`wallet.destroy() failed during cleanup: ${String(destroyError)}`);
     }
-    await rm(pidPath, { force: true }).catch(() => undefined);
+    await rm(pidPath, { force: true }).catch((rmError: unknown) => {
+      log(`Failed to remove PID file during cleanup: ${String(rmError)}`);
+    });
     throw error;
   }
 
@@ -107,23 +109,32 @@ async function main(): Promise<void> {
       shutdownPromise = (async (): Promise<void> => {
         try {
           await handle.close();
-          await wallet.destroy();
-        } finally {
-          await Promise.all([
-            rm(pidPath, { force: true }).catch(() => undefined),
-            rm(socketPath, { force: true }).catch(() => undefined),
-          ]);
+        } catch (closeError) {
+          log(`handle.close() failed: ${String(closeError)}`);
         }
+        try {
+          await wallet.destroy();
+        } catch (destroyError) {
+          log(`wallet.destroy() failed: ${String(destroyError)}`);
+        }
+        await Promise.all([
+          rm(pidPath, { force: true }).catch((rmError: unknown) => {
+            log(`Failed to remove PID file: ${String(rmError)}`);
+          }),
+          rm(socketPath, { force: true }).catch((rmError: unknown) => {
+            log(`Failed to remove socket file: ${String(rmError)}`);
+          }),
+        ]);
       })();
     }
     return shutdownPromise;
   }
 
   process.on('SIGTERM', () => {
-    shutdown('SIGTERM').catch(() => (process.exitCode = 1));
+    shutdown('SIGTERM').catch(() => undefined);
   });
   process.on('SIGINT', () => {
-    shutdown('SIGINT').catch(() => (process.exitCode = 1));
+    shutdown('SIGINT').catch(() => undefined);
   });
 }
 
@@ -136,6 +147,8 @@ async function main(): Promise<void> {
 function makeLogger(logPath: string): (message: string) => void {
   return (message: string): void => {
     const line = `[${new Date().toISOString()}] ${message}\n`;
-    appendFileSync(logPath, line);
+    appendFile(logPath, line).catch((error: unknown) => {
+      process.stderr.write(`[log write failed: ${String(error)}] ${message}\n`);
+    });
   };
 }

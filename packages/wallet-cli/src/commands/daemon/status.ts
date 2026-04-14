@@ -3,6 +3,7 @@ import { Command } from '@oclif/core';
 
 import { pingDaemon, sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
+import type { DaemonStatusInfo } from '../../daemon/types';
 import { isProcessAlive, readPidFile } from '../../daemon/utils';
 
 export default class DaemonStatus extends Command {
@@ -36,8 +37,10 @@ export default class DaemonStatus extends Command {
         method: 'getStatus',
         timeoutMs: 5_000,
       });
-    } catch {
-      this.log('Daemon socket is responsive but status request failed.');
+    } catch (error) {
+      this.log(
+        `Daemon socket is responsive but status request failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return;
     }
 
@@ -48,7 +51,7 @@ export default class DaemonStatus extends Command {
       return;
     }
 
-    const status = response.result as { pid: number; uptime: number };
+    const status = response.result as DaemonStatusInfo;
     this.log(
       `Daemon is running. PID: ${status.pid}, Uptime: ${status.uptime}s`,
     );

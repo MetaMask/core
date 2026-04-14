@@ -37,17 +37,15 @@ export default class DaemonStart extends Command {
     const infuraProjectId = flags['infura-project-id'];
     const { password, srp } = flags;
 
-    const { socketPath } = getDaemonPaths(this.config.dataDir);
-
     await ensureDaemon({
       dataDir: this.config.dataDir,
-      socketPath,
       infuraProjectId,
       password,
       srp,
       packageRoot: this.config.root,
     });
 
+    const { socketPath } = getDaemonPaths(this.config.dataDir);
     this.log(`Daemon running. Socket: ${socketPath}`);
   }
 }

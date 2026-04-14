@@ -108,8 +108,10 @@ describe('startRpcSocketServer', () => {
     expect(mockUnlink).toHaveBeenCalledWith('/tmp/test.sock');
   });
 
-  it('ignores unlink errors for missing files', async () => {
-    mockUnlink.mockRejectedValue(new Error('ENOENT'));
+  it('ignores ENOENT unlink errors for missing files', async () => {
+    mockUnlink.mockRejectedValue(
+      Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+    );
     createMockServer();
 
     const handle = await startRpcSocketServer({
@@ -117,6 +119,20 @@ describe('startRpcSocketServer', () => {
       handlers: {},
     });
     expect(handle).toBeDefined();
+  });
+
+  it('propagates non-ENOENT unlink errors', async () => {
+    mockUnlink.mockRejectedValue(
+      Object.assign(new Error('EACCES'), { code: 'EACCES' }),
+    );
+    createMockServer();
+
+    await expect(
+      startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers: {},
+      }),
+    ).rejects.toThrow('EACCES');
   });
 
   it('returns a handle with close()', async () => {
@@ -345,8 +361,11 @@ describe('startRpcSocketServer', () => {
       jest.useRealTimers();
     });
 
-    it('handles onShutdown rejection gracefully', async () => {
+    it('handles onShutdown rejection and logs to stderr', async () => {
       jest.useFakeTimers();
+      const stderrSpy = jest
+        .spyOn(process.stderr, 'write')
+        .mockImplementation(() => true);
       const { simulateConnection } = createMockServer();
       const onShutdown = jest.fn().mockRejectedValue(new Error('shutdown err'));
 
@@ -365,7 +384,11 @@ describe('startRpcSocketServer', () => {
       expect(getResponse(socket).result).toStrictEqual({
         status: 'shutting down',
       });
+      expect(stderrSpy).toHaveBeenCalledWith(
+        expect.stringContaining('onShutdown callback failed'),
+      );
       jest.useRealTimers();
+      stderrSpy.mockRestore();
     });
 
     it('responds to shutdown even without onShutdown callback', async () => {
@@ -441,7 +464,10 @@ describe('startRpcSocketServer', () => {
       expect(getResponse(socket).result).toBe('ok');
     });
 
-    it('ignores socket errors', async () => {
+    it('silently ignores EPIPE and ECONNRESET socket errors', async () => {
+      const stderrSpy = jest
+        .spyOn(process.stderr, 'write')
+        .mockImplementation(() => true);
       const { simulateConnection } = createMockServer();
       await startRpcSocketServer({
         socketPath: '/tmp/test.sock',
@@ -451,10 +477,41 @@ describe('startRpcSocketServer', () => {
       const socket = createMockSocket();
       simulateConnection(socket);
 
-      // Should not throw
-      expect(() =>
-        socket.emit('error', new Error('broken pipe')),
-      ).not.toThrow();
+      socket.emit(
+        'error',
+        Object.assign(new Error('broken pipe'), { code: 'EPIPE' }),
+      );
+      socket.emit(
+        'error',
+        Object.assign(new Error('reset'), { code: 'ECONNRESET' }),
+      );
+
+      expect(stderrSpy).not.toHaveBeenCalled();
+      stderrSpy.mockRestore();
+    });
+
+    it('logs unexpected socket errors to stderr', async () => {
+      const stderrSpy = jest
+        .spyOn(process.stderr, 'write')
+        .mockImplementation(() => true);
+      const { simulateConnection } = createMockServer();
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers: {},
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+
+      socket.emit(
+        'error',
+        Object.assign(new Error('unexpected'), { code: 'ENOMEM' }),
+      );
+
+      expect(stderrSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unexpected socket error'),
+      );
+      stderrSpy.mockRestore();
     });
 
     it('sends internal error when response serialization fails', async () => {

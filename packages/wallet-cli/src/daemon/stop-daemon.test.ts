@@ -64,6 +64,8 @@ describe('stopDaemon', () => {
     });
     expect(log).toHaveBeenCalledWith('Stopping daemon...');
     expect(log).toHaveBeenCalledWith('Daemon stopped.');
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.pid', { force: true });
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.sock', { force: true });
   });
 
   it('falls through to SIGTERM when graceful shutdown times out', async () => {

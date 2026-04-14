@@ -6,6 +6,8 @@ import type { Socket } from 'node:net';
 
 import { readLine, writeLine } from './socket-line';
 
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 /**
  * Options for {@link sendCommand}.
  */
@@ -16,7 +18,7 @@ type SendCommandOptions = {
   method: string;
   /** Optional method parameters (object or positional array). */
   params?: Record<string, unknown> | unknown[] | undefined;
-  /** Read timeout in milliseconds (default: no timeout). */
+  /** Response read timeout in milliseconds (default: 30 000). */
   timeoutMs?: number | undefined;
 };
 
@@ -42,7 +44,7 @@ async function connectSocket(socketPath: string): Promise<Socket> {
  *
  * Opens a connection, writes one JSON-RPC request line, reads one JSON-RPC
  * response line, then closes the connection. Retries once after a short delay
- * if the connection is rejected.
+ * on transient connection errors (ECONNREFUSED, ECONNRESET).
  *
  * @param options - Command options.
  * @param options.socketPath - The Unix socket path.
@@ -65,11 +67,13 @@ export async function sendCommand({
     ...(params === undefined ? {} : { params }),
   };
 
+  const effectiveTimeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
   const attempt = async (): Promise<JsonRpcResponse> => {
     const socket = await connectSocket(socketPath);
     try {
       await writeLine(socket, JSON.stringify(request));
-      const responseLine = await readLine(socket, timeoutMs);
+      const responseLine = await readLine(socket, effectiveTimeout);
       const parsed: unknown = JSON.parse(responseLine);
       assertIsJsonRpcResponse(parsed);
       return parsed;
