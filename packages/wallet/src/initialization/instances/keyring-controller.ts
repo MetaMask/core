@@ -1,3 +1,8 @@
+import type {
+  DetailedEncryptionResult,
+  EncryptionKey,
+  KeyDerivationOptions,
+} from '@metamask/browser-passworder';
 import {
   encrypt,
   encryptWithDetail,
@@ -10,9 +15,8 @@ import {
   importKey,
   exportKey,
   generateSalt,
-  EncryptionKey,
-  KeyDerivationOptions,
 } from '@metamask/browser-passworder';
+import type { Encryptor } from '@metamask/keyring-controller';
 import {
   KeyringController,
   KeyringControllerMessenger,
@@ -35,7 +39,7 @@ const encryptFactory =
     data: unknown,
     key?: EncryptionKey | CryptoKey,
     salt?: string,
-  ) =>
+  ): Promise<string> =>
     encrypt(password, data, key, salt, {
       algorithm: 'PBKDF2',
       params: {
@@ -52,7 +56,11 @@ const encryptFactory =
  */
 const encryptWithDetailFactory =
   (iterations: number) =>
-  async (password: string, object: unknown, salt?: string) =>
+  async (
+    password: string,
+    object: unknown,
+    salt?: string,
+  ): Promise<DetailedEncryptionResult> =>
     encryptWithDetail(password, object, salt, {
       algorithm: 'PBKDF2',
       params: {
@@ -77,7 +85,7 @@ const keyFromPasswordFactory =
     salt: string,
     exportable?: boolean,
     opts?: KeyDerivationOptions,
-  ) =>
+  ): Promise<EncryptionKey> =>
     keyFromPassword(
       password,
       salt,
@@ -97,13 +105,15 @@ const keyFromPasswordFactory =
  * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
  * @returns A function that checks if the vault was encrypted with the given number of iterations.
  */
-const isVaultUpdatedFactory = (iterations: number) => (vault: string) =>
-  isVaultUpdated(vault, {
-    algorithm: 'PBKDF2',
-    params: {
-      iterations,
-    },
-  });
+const isVaultUpdatedFactory =
+  (iterations: number) =>
+  (vault: string): boolean =>
+    isVaultUpdated(vault, {
+      algorithm: 'PBKDF2',
+      params: {
+        iterations,
+      },
+    });
 
 /**
  * A factory function that returns an encryptor with the given number of iterations.
@@ -114,7 +124,7 @@ const isVaultUpdatedFactory = (iterations: number) => (vault: string) =>
  * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
  * @returns An encryptor set with the given number of iterations.
  */
-const encryptorFactory = (iterations: number) => ({
+const encryptorFactory = (iterations: number): Encryptor => ({
   encrypt: encryptFactory(iterations),
   encryptWithKey,
   encryptWithDetail: encryptWithDetailFactory(iterations),

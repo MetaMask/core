@@ -1,16 +1,9 @@
-import {
-  ActionConstraint,
-  EventConstraint,
-  Messenger,
-} from '@metamask/messenger';
-
-export type RootMessenger<
-  AllowedActions extends ActionConstraint = ActionConstraint,
-  AllowedEvents extends EventConstraint = EventConstraint,
-> = Messenger<'Root', AllowedActions, AllowedEvents>;
+import type { ClientConfigApiService } from '@metamask/remote-feature-flag-controller';
 
 export type WalletOptions = {
   infuraProjectId: string;
   clientVersion: string;
   showApprovalRequest: () => void;
+  clientConfigApiService: ClientConfigApiService;
+  getMetaMetricsId: () => string;
 };
