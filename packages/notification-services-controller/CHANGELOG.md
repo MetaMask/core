@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add backend push token links for newly added notification accounts using the existing device token, so account additions trigger additive `POST /api/v2/token` registration for both primary and imported SRPs
+- Add backend push token links for newly added notification accounts using the existing device token, so account additions trigger additive `POST /api/v2/token` registration for both primary and imported SRPs ([#8449](https://github.com/MetaMask/core/pull/8449))
 
 ### Changed
 
