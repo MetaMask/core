@@ -240,6 +240,7 @@ describe('SocialService', () => {
         winRate7d: 0.7,
         roiPercent7d: 1.2,
         tradeCount7d: 15,
+        avgHoldMinutes: 120,
       },
       perChainBreakdown: {
         perChainPnl: { base: 30000 },

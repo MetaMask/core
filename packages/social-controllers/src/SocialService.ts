@@ -120,6 +120,7 @@ const TraderStatsStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  avgHoldMinutes: optional(nullable(number())),
 });
 
 const PerChainBreakdownStruct = structType({
