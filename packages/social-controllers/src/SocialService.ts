@@ -548,8 +548,10 @@ export class SocialService extends BaseDataService<
         page ?? null,
       ],
       queryFn: async () => {
+        const baseUrl =
+          status === 'open' ? this.#v2Url : this.#v1Url;
         const url = new URL(
-          `${this.#v2Url}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
+          `${baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
         );
         if (chain) {
           url.searchParams.append('chain', chain);

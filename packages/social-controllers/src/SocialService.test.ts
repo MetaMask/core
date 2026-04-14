@@ -479,7 +479,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${V2_URL}/traders/0x1234/positions/closed`,
+        `${V1_URL}/traders/0x1234/positions/closed`,
       );
     });
 

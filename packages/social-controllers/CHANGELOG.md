@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export `TradeStruct` superstruct schema; derive `Trade` type via `Infer` ([#8410](https://github.com/MetaMask/core/pull/8410))
 - Narrow `direction` to `'buy' | 'sell'` and `intent` to `'enter' | 'exit'` on `Trade` type ([#8410](https://github.com/MetaMask/core/pull/8410))
 
+### Fixed
+
+- Fix `fetchClosedPositions` using v2 URL instead of v1, which caused 404 errors since the closed positions endpoint only exists on v1
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.0` to `^1.1.1` ([#8373](https://github.com/MetaMask/core/pull/8373))
