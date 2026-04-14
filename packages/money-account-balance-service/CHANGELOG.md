@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MoneyAccountBalanceService` data service ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `MoneyAccountBalanceService` data service ([#8428](https://github.com/MetaMask/core/pull/8428))
   - Fetch mUSD ERC-20 balance via RPC (`getMusdBalance`)
   - Fetch musdSHFvd vault share balance via RPC (`getMusdSHFvdBalance`)
   - Fetch Veda Accountant exchange rate via RPC (`getExchangeRate`)
