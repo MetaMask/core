@@ -40,6 +40,12 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "oclif": {
+    "bin": "mm",
+    "commands": "./dist/commands",
+    "dirname": "mm",
+    "topicSeparator": " "
+  },
   "dependencies": {
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/rpc-errors": "^7.0.2",
@@ -65,11 +71,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "oclif": {
-    "bin": "mm",
-    "commands": "./dist/commands",
-    "dirname": "mm",
-    "topicSeparator": " "
   }
 }
