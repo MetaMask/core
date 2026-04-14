@@ -68,7 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Tempo Mainnet (`4217`/`0x1079`) and Tempo Moderato Testnet (`42431`/`0xa5bf`) support ([#8258](https://github.com/MetaMask/core/pull/8258))
-
   - Add `0x1079` and `0xa5bf` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
   - Add `0x1079` and `0xa5bf` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
   - Add `0xa5bf` (only Tempo Testnet) to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`

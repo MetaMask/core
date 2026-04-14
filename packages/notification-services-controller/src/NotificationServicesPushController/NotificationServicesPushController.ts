@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
+import type { Types } from '../NotificationServicesController';
 import type { NotificationServicesPushControllerMethodActions } from './NotificationServicesPushController-method-action-types';
 import type { ENV } from './services/endpoints';
 import {
@@ -17,7 +18,6 @@ import {
 } from './services/services';
 import type { PushNotificationEnv } from './types';
 import type { PushService } from './types/push-service-interface';
-import type { Types } from '../NotificationServicesController';
 
 const controllerName = 'NotificationServicesPushController';
 

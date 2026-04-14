@@ -6,6 +6,11 @@ import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import type {
+  FiatRates,
+  TransactionPayControllerMessenger,
+  TransactionPayRequiredToken,
+} from '../types';
 import {
   computeTokenAmounts,
   getNativeToken,
@@ -13,11 +18,6 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from './token';
-import type {
-  FiatRates,
-  TransactionPayControllerMessenger,
-  TransactionPayRequiredToken,
-} from '../types';
 
 const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
 

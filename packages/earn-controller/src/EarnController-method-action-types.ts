@@ -117,19 +117,6 @@ export type EarnControllerRefreshLendingPositionsAction = {
 };
 
 /**
- * Refreshes the lending eligibility status for the current account.
- * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
- *
- * @param options - Optional arguments
- * @param [options.address] - The address to refresh lending eligibility for (optional).
- * @returns A promise that resolves when the eligibility status has been updated
- */
-export type EarnControllerRefreshLendingEligibilityAction = {
-  type: `EarnController:refreshLendingEligibility`;
-  handler: EarnController['refreshLendingEligibility'];
-};
-
-/**
  * Refreshes all lending related data including markets, positions, and eligibility.
  * This method allows partial success, meaning some data may update while other requests fail.
  * All errors are collected and thrown as a single error message.
@@ -302,7 +289,6 @@ export type EarnControllerMethodActions =
   | EarnControllerRefreshPooledStakingDataAction
   | EarnControllerRefreshLendingMarketsAction
   | EarnControllerRefreshLendingPositionsAction
-  | EarnControllerRefreshLendingEligibilityAction
   | EarnControllerRefreshLendingDataAction
   | EarnControllerRefreshTronStakingApyAction
   | EarnControllerGetTronStakingApyAction

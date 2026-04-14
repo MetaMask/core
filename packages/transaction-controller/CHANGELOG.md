@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `atomic` property to `TransactionBatchRequest` to configure whether EIP-7702 batch calls revert together or can fail independently ([#8320](https://github.com/MetaMask/core/pull/8320))
+
 ## [64.1.0]
 
 ### Added

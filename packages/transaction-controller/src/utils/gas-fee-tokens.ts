@@ -3,10 +3,6 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { isNativeBalanceSufficientForGas } from './balance';
-import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
-import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type {
   GasFeeToken,
   TransactionControllerMessenger,
@@ -20,6 +16,10 @@ import type {
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
+import { isNativeBalanceSufficientForGas } from './balance';
+import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
+import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
+import { getEIP7702UpgradeContractAddress } from './feature-flags';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 

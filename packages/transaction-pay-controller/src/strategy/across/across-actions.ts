@@ -3,9 +3,9 @@ import type { TransactionDescription } from '@ethersproject/abi';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import type { QuoteRequest } from '../../types';
 import { isSupportedAcrossPerpsDepositRequest } from './perps';
 import type { AcrossAction, AcrossActionArg } from './types';
-import type { QuoteRequest } from '../../types';
 
 export const TOKEN_TRANSFER_SIGNATURE =
   'function transfer(address to, uint256 value)';

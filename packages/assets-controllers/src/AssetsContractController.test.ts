@@ -27,15 +27,15 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
+import { SECONDS } from '../../../tests/constants';
+import { mockNetwork } from '../../../tests/mock-network';
+import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 import type { AssetsContractControllerMessenger } from './AssetsContractController';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
-import { SECONDS } from '../../../tests/constants';
-import { mockNetwork } from '../../../tests/mock-network';
-import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 
 type AllAssetsContractControllerActions =
   MessengerActions<AssetsContractControllerMessenger>;

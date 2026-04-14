@@ -9,6 +9,19 @@ import type {
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 
+import { flushPromises } from '../../../tests/helpers';
+import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
+import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
+import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import {
+  advanceToNthTimer,
+  advanceToNthTimerThenFlush,
+  mockSseEventSource,
+  mockSseEventSourceWithComplete,
+  mockSseEventSourceWithMultipleDelays,
+  mockSseEventSourceWithWarnings,
+  mockSseServerError,
+} from '../tests/mock-sse';
 import { BridgeController } from './bridge-controller';
 import {
   BridgeClientId,
@@ -26,19 +39,6 @@ import {
   TokenFeatureType,
   QuoteStreamCompleteReason,
 } from './utils/validators';
-import { flushPromises } from '../../../tests/helpers';
-import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
-import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
-import {
-  advanceToNthTimer,
-  advanceToNthTimerThenFlush,
-  mockSseEventSource,
-  mockSseEventSourceWithComplete,
-  mockSseEventSourceWithMultipleDelays,
-  mockSseEventSourceWithWarnings,
-  mockSseServerError,
-} from '../tests/mock-sse';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

@@ -1,5 +1,12 @@
 import { SDK } from '@metamask/profile-sync-controller';
 
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types';
 import {
   USER_STORAGE_WALLETS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
@@ -22,13 +29,6 @@ import {
   getAllLegacyUserStorageAccounts,
 } from './network-operations';
 import { executeWithRetry } from './network-utils';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type {
-  BackupAndSyncContext,
-  UserStorageSyncedWallet,
-  UserStorageSyncedWalletGroup,
-} from '../types';
 
 jest.mock('./format-utils');
 jest.mock('./network-utils');

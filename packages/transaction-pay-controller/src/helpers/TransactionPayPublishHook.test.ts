@@ -3,7 +3,6 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
-import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 import { TransactionPayStrategy } from '..';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
@@ -11,6 +10,7 @@ import type {
   TransactionPayQuote,
 } from '../types';
 import { getStrategyByName } from '../utils/strategy';
+import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 
 jest.mock('../utils/strategy');
 

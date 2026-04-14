@@ -22,6 +22,11 @@ import { debounce } from 'lodash';
 import log from 'loglevel';
 
 import type { NormalisedAPINotification } from '.';
+import type {
+  NotificationServicesPushControllerStateChangeEvent,
+  NotificationServicesPushControllerOnNewNotificationEvent,
+} from '../NotificationServicesPushController';
+import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
 import { TRIGGER_TYPES } from './constants/notification-schema';
 import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types';
 import {
@@ -42,11 +47,6 @@ import type {
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
 import type { OrderInput } from './types/perps';
-import type {
-  NotificationServicesPushControllerStateChangeEvent,
-  NotificationServicesPushControllerOnNewNotificationEvent,
-} from '../NotificationServicesPushController';
-import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';

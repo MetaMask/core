@@ -1,13 +1,13 @@
-import {
-  formatFeatureFlags,
-  getBridgeFeatureFlags,
-  hasMinimumRequiredVersion,
-} from './feature-flags';
 import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
 import type {
   FeatureFlagsPlatformConfig,
   BridgeControllerMessenger,
 } from '../types';
+import {
+  formatFeatureFlags,
+  getBridgeFeatureFlags,
+  hasMinimumRequiredVersion,
+} from './feature-flags';
 
 describe('feature-flags', () => {
   describe('formatFeatureFlags', () => {

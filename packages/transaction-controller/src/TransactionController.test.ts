@@ -43,6 +43,14 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { flushPromises } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
@@ -118,14 +126,6 @@ import {
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
 import { ErrorCode } from './utils/validation';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockFindNetworkClientIdByChainId,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 type AllTransactionControllerActions =
   MessengerActions<TransactionControllerMessenger>;

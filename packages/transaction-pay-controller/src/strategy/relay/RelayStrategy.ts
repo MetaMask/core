@@ -1,6 +1,3 @@
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -8,6 +5,9 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { getRelayQuotes } from './relay-quotes';
+import { submitRelayQuotes } from './relay-submit';
+import type { RelayQuote } from './types';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {

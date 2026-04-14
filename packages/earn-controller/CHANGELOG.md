@@ -7,11 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
+### Added
+
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- Release/895.0.0 ([#8359](https://github.com/MetaMask/core/pull/8359))
+
 ### Changed
 
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- **BREAKING:** `EarnController` constructor no longer accepts `selectedNetworkClientId` and no longer performs async work during construction. Consumers must call `init()` after construction. The messenger must now allow `AccountTreeController:stateChange` and `NetworkController:getState` ([#8421](https://github.com/MetaMask/core/pull/8421))
+- **BREAKING:** `refreshPooledStakingData` and `refreshLendingData` no longer call eligibility checks internally. Eligibility is fetched once during `init()`. Consumers that relied on these methods to keep eligibility state current must call `refreshEarnEligibility` separately ([#8421](https://github.com/MetaMask/core/pull/8421))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
+
+### Removed
+
+- **BREAKING:** Removed `EarnController:refreshLendingEligibility` messenger action and `EarnControllerRefreshLendingEligibilityAction` type. Use `EarnController:refreshEarnEligibility` instead ([#8421](https://github.com/MetaMask/core/pull/8421))
 
 ## [11.2.1]
 
@@ -409,7 +423,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...@metamask/earn-controller@12.0.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.0...@metamask/earn-controller@11.2.1
 [11.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.2...@metamask/earn-controller@11.2.0
 [11.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...@metamask/earn-controller@11.1.2

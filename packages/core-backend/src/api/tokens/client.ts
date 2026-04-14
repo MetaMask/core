@@ -11,15 +11,15 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
+import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
+import { getQueryOptionsOverrides } from '../shared-types';
+import type { FetchOptions } from '../shared-types';
 import type {
   V1TokenSupportedNetworksResponse,
   V2TokenSupportedNetworksResponse,
   V3AssetResponse,
   V3AssetsQueryOptions,
 } from './types';
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
 
 /**
  * Tokens API Client.

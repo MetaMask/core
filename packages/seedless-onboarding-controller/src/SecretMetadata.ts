@@ -67,9 +67,9 @@ type SecretMetadataOptions = {
   storageVersion?: SecretDataItemOutput['version'];
 };
 
-export class SecretMetadata<DataType extends SecretDataType = Uint8Array>
-  implements ISecretMetadata<DataType>
-{
+export class SecretMetadata<
+  DataType extends SecretDataType = Uint8Array,
+> implements ISecretMetadata<DataType> {
   readonly #data: DataType;
 
   readonly #timestamp: number;

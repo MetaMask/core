@@ -1,5 +1,7 @@
 import { SiweMessage } from 'siwe';
 
+import { ValidationError } from '../errors';
+import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   SIWE_LOGIN_URL,
   authenticate,
@@ -16,8 +18,6 @@ import type {
   UserProfile,
   UserProfileLineage,
 } from './types';
-import { ValidationError } from '../errors';
-import { validateLoginResponse } from '../utils/validate-login-response';
 
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;

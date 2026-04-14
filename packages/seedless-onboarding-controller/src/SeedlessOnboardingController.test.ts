@@ -46,24 +46,6 @@ import { managedNonce } from '@noble/ciphers/webcrypto';
 import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
 
-import {
-  Web3AuthNetwork,
-  SeedlessOnboardingControllerErrorMessage,
-  SeedlessOnboardingMigrationVersion,
-  AuthConnection,
-  SecretType,
-} from './constants';
-import { PasswordSyncError, RecoveryError } from './errors';
-import { SecretMetadata } from './SecretMetadata';
-import type {
-  SeedlessOnboardingControllerMessenger,
-  SeedlessOnboardingControllerOptions,
-} from './SeedlessOnboardingController';
-import {
-  getInitialSeedlessOnboardingControllerStateWithDefaults,
-  SeedlessOnboardingController,
-} from './SeedlessOnboardingController';
-import type { SeedlessOnboardingControllerState } from './types';
 import type {
   MockKeyringControllerMessenger,
   RootMessenger,
@@ -82,6 +64,23 @@ import {
 import { MockToprfEncryptorDecryptor } from '../tests/mocks/toprfEncryptor';
 import { createMockJWTToken } from '../tests/mocks/utils';
 import MockVaultEncryptor from '../tests/mocks/vaultEncryptor';
+import {
+  Web3AuthNetwork,
+  SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
+  AuthConnection,
+  SecretType,
+} from './constants';
+import { PasswordSyncError, RecoveryError } from './errors';
+import { SecretMetadata } from './SecretMetadata';
+import type {
+  SeedlessOnboardingControllerMessenger,
+  SeedlessOnboardingControllerOptions,
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
+  SeedlessOnboardingController,
+} from './SeedlessOnboardingController';
+
+import type { SeedlessOnboardingControllerState } from './types';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';

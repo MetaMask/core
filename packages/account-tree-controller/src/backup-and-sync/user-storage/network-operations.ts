@@ -1,5 +1,15 @@
 import { SDK } from '@metamask/profile-sync-controller';
 
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type {
+  BackupAndSyncContext,
+  LegacyUserStorageSyncedAccount,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types';
+import { toErrorMessage } from '../utils/errors';
 import {
   USER_STORAGE_GROUPS_FEATURE_KEY,
   USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY,
@@ -13,16 +23,6 @@ import {
   parseLegacyAccountFromUserStorageResponse,
 } from './format-utils';
 import { executeWithRetry } from './network-utils';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type {
-  BackupAndSyncContext,
-  LegacyUserStorageSyncedAccount,
-  UserStorageSyncedWallet,
-  UserStorageSyncedWalletGroup,
-} from '../types';
-import { toErrorMessage } from '../utils/errors';
 
 /**
  * Retrieves the wallet from user storage.

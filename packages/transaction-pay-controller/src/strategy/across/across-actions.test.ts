@@ -2,6 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import type { QuoteRequest } from '../../types';
 import {
   buildAcrossActionFromCall,
   CREATE_PROXY_SIGNATURE,
@@ -11,7 +12,6 @@ import {
   SAFE_EXEC_TRANSACTION_SIGNATURE,
   TOKEN_TRANSFER_SIGNATURE,
 } from './across-actions';
-import type { QuoteRequest } from '../../types';
 
 const TOKEN_TRANSFER_INTERFACE = new Interface([TOKEN_TRANSFER_SIGNATURE]);
 const CREATE_PROXY_INTERFACE = new Interface([CREATE_PROXY_SIGNATURE]);

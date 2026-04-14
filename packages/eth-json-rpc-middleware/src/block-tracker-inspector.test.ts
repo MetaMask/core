@@ -3,11 +3,11 @@ import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { Hex, Json } from '@metamask/utils';
 
-import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
 import {
   createFinalMiddlewareWithDefaultResult,
   createRequest,
 } from '../test/util/helpers';
+import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
 
 const createMockBlockTracker = (): PollingBlockTracker => {
   return {

@@ -6,6 +6,7 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll, isDone } from 'nock';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
@@ -16,7 +17,6 @@ import {
   TransakOrderIdTransformer,
   TransakApiError,
 } from './TransakService';
-import { flushPromises } from '../../../tests/helpers';
 
 // === Test Constants ===
 

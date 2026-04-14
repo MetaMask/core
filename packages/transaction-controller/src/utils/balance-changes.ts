@@ -7,7 +7,6 @@ import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { getNativeBalance } from './balance';
 import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
@@ -38,6 +37,7 @@ import type {
   GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
+import { getNativeBalance } from './balance';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
