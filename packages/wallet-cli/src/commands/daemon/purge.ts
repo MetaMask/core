@@ -8,18 +8,32 @@ export default class DaemonPurge extends Command {
   static override description =
     'Stop the daemon and delete all daemon state files';
 
-  static override examples = ['<%= config.bin %> daemon purge --force'];
+  static override examples = [
+    '<%= config.bin %> daemon purge',
+    '<%= config.bin %> daemon purge --force',
+  ];
 
   static override flags = {
     force: Flags.boolean({
       char: 'f',
-      description: 'Required to confirm purge',
-      required: true,
+      description: 'Skip confirmation prompt',
     }),
   };
 
   public async run(): Promise<void> {
-    await this.parse(DaemonPurge);
+    const { flags } = await this.parse(DaemonPurge);
+
+    if (!flags.force) {
+      const { default: confirm } = await import('@inquirer/confirm');
+      const confirmed = await confirm({
+        message: 'This will stop the daemon and delete all state. Continue?',
+        default: false,
+      });
+      if (!confirmed) {
+        this.log('Aborted.');
+        return;
+      }
+    }
 
     const { socketPath, pidPath } = getDaemonPaths(this.config.dataDir);
 
