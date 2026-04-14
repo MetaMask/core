@@ -298,6 +298,15 @@ export class RpcService implements AbstractRpcService {
   #currentRpcMethodName = '';
 
   /**
+   * The trace ID from the `x-trace-id` response header of the most recent
+   * request. Passed to `onDegraded` event listeners for debugging.
+   *
+   * `undefined` when no response has been received yet or when the response
+   * did not include the header.
+   */
+  #currentTraceId: string | undefined;
+
+  /**
    * The function used to make an HTTP request.
    */
   readonly #fetch: typeof fetch;
@@ -443,18 +452,21 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      if (data === undefined) {
-        listener({
-          endpointUrl: this.endpointUrl.toString(),
-          rpcMethodName: this.#currentRpcMethodName,
-        });
-      } else {
-        listener({
-          ...data,
-          endpointUrl: this.endpointUrl.toString(),
-          rpcMethodName: this.#currentRpcMethodName,
-        });
-      }
+      // Determine duration: only present when data is { duration: number }
+      // (slow-success case from service policy). FailureReason has { error } or { value }.
+      const duration =
+        data !== undefined && 'duration' in data ? data.duration : undefined;
+      // For retries-exhausted, data is FailureReason (has error/value).
+      // For slow-success, data is { duration } — we don't spread it.
+      const failureData =
+        data !== undefined && !('duration' in data) ? data : {};
+      listener({
+        ...failureData,
+        endpointUrl: this.endpointUrl.toString(),
+        rpcMethodName: this.#currentRpcMethodName,
+        duration,
+        traceId: this.#currentTraceId,
+      });
     });
   }
 
@@ -655,6 +667,8 @@ export class RpcService implements AbstractRpcService {
             // before `onDegraded` gets called, no matter the outcome of the
             // request.
             this.#currentRpcMethodName = rpcMethodName;
+            this.#currentTraceId =
+              response?.headers.get('x-trace-id') ?? undefined;
           }
         },
       );

@@ -1,4 +1,5 @@
 import {
+  ConstantBackoff,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
   HttpError,
@@ -1030,6 +1031,8 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1094,10 +1097,14 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_blockNumber',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_gasPrice',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1169,6 +1176,183 @@ describe('RpcService', () => {
         expect.objectContaining({
           rpcMethodName: 'eth_gasPrice',
         }),
+      );
+    });
+
+    it('forwards the x-trace-id response header as traceId in the slow-success case', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(
+          200,
+          () => {
+            jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+            return {
+              id: 1,
+              jsonrpc: '2.0',
+              result: '0x1',
+            };
+          },
+          { 'x-trace-id': 'abc-123-trace' },
+        );
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onDegraded(onDegradedListener);
+
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          traceId: 'abc-123-trace',
+          duration: expect.any(Number),
+        }),
+      );
+    });
+
+    it('forwards traceId as undefined when the x-trace-id response header is missing', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, () => {
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onDegraded(onDegradedListener);
+
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith(
+        expect.objectContaining({ traceId: undefined }),
+      );
+    });
+
+    it('forwards the traceId from the last retry attempt when retries are exhausted', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      for (let i = 0; i < DEFAULT_MAX_RETRIES; i++) {
+        nock(endpointUrl)
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_chainId',
+            params: [],
+          })
+          .reply(503, '', { 'x-trace-id': `trace-attempt-${i}` });
+      }
+      // Last attempt
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(503, '', { 'x-trace-id': 'trace-last-attempt' });
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        policyOptions: {
+          backoff: new ConstantBackoff(0),
+        },
+        isOffline: (): boolean => false,
+      });
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+      service.onDegraded(onDegradedListener);
+
+      await ignoreRejection(
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        }),
+      );
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith(
+        expect.objectContaining({ traceId: 'trace-last-attempt' }),
+      );
+    });
+
+    it('forwards duration as undefined in the retries-exhausted case', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(503);
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        policyOptions: {
+          backoff: new ConstantBackoff(0),
+        },
+        isOffline: (): boolean => false,
+      });
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+      service.onDegraded(onDegradedListener);
+
+      await ignoreRejection(
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        }),
+      );
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith(
+        expect.objectContaining({ duration: undefined }),
       );
     });
 
@@ -1494,6 +1678,8 @@ function testsForRetriableFetchErrors({
       endpointUrl: `${endpointUrl}/`,
       error: expectedError,
       rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: undefined,
     });
   });
 
