@@ -127,8 +127,8 @@
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/wallet                                @MetaMask/core-platform @rekmarks @FrederikBolding
-/packages/wallet-cli                            @MetaMask/core-platform @rekmarks @FrederikBolding
+/packages/wallet                                @MetaMask/core-platform
+/packages/wallet-cli                            @MetaMask/core-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform

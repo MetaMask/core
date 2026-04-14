@@ -82,5 +82,6 @@
   "metamask/money-account-controller": "team-accounts-framework",
   "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework",
-  "metamask/wallet": "team-core-platform"
+  "metamask/wallet": "team-core-platform",
+  "metamask/wallet-cli": "team-core-platform"
 }
