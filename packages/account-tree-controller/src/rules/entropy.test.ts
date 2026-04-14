@@ -15,12 +15,12 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { AccountWalletEntropyObject } from 'src/wallet';
 
-import { EntropyRule } from './entropy';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
+import { EntropyRule } from './entropy';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

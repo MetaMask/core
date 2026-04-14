@@ -3,16 +3,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAcrossDestination } from './across-actions';
-import { normalizeAcrossRequest } from './perps';
-import { getAcrossOrderedTransactions } from './transactions';
-import type {
-  AcrossAction,
-  AcrossActionRequestBody,
-  AcrossGasLimits,
-  AcrossQuote,
-  AcrossSwapApprovalResponse,
-} from './types';
 import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -28,6 +18,16 @@ import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
+import { getAcrossDestination } from './across-actions';
+import { normalizeAcrossRequest } from './perps';
+import { getAcrossOrderedTransactions } from './transactions';
+import type {
+  AcrossAction,
+  AcrossActionRequestBody,
+  AcrossGasLimits,
+  AcrossQuote,
+  AcrossSwapApprovalResponse,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 

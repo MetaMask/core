@@ -21,6 +21,8 @@ export type {
   KeyringControllerSignUserOperationAction,
   KeyringControllerWithKeyringAction,
   KeyringControllerWithKeyringUnsafeAction,
+  KeyringControllerWithKeyringV2Action,
+  KeyringControllerWithKeyringV2UnsafeAction,
 } from './KeyringController-method-action-types';
 export type * from './types';
 export * from './errors';

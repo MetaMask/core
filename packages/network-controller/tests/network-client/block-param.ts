@@ -1,6 +1,8 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
+import { NetworkClientType } from '../../src/types';
 import type { MockRequest, ProviderType } from './helpers';
 import {
   buildMockParams,
@@ -10,8 +12,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;

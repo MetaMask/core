@@ -1,5 +1,6 @@
 import type { Eip1193Provider } from 'ethers';
 
+import { Env, Platform } from '../shared/env';
 import { arrangeAuthAPIs } from './__fixtures__/auth';
 import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
@@ -15,7 +16,6 @@ import {
 } from './errors';
 import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth';
 import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider';
-import { Env, Platform } from '../shared/env';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';

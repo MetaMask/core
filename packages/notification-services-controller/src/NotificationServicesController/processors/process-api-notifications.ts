@@ -1,5 +1,5 @@
-import type { INotification } from '../types/notification/notification';
 import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
+import type { INotification } from '../types/notification/notification';
 import { shouldAutoExpire } from '../utils/should-auto-expire';
 
 /**

@@ -1,8 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { PriceDataSourceOptions } from './PriceDataSource';
-import { PriceDataSource } from './PriceDataSource';
 import type {
   ChainId,
   DataRequest,
@@ -10,6 +8,8 @@ import type {
   Caip19AssetId,
   AssetsControllerStateInternal,
 } from '../types';
+import type { PriceDataSourceOptions } from './PriceDataSource';
+import { PriceDataSource } from './PriceDataSource';
 
 jest.useFakeTimers();
 

@@ -16,8 +16,8 @@ import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
-import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 import { jestAdvanceTime } from '../../../../tests/helpers';
+import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 
 type AllMultichainAssetsRateControllerActions =
   MessengerActions<MultichainAssetsRatesControllerMessenger>;

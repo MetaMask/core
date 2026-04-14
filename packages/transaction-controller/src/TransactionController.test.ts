@@ -43,6 +43,14 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { flushPromises } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
@@ -118,14 +126,6 @@ import {
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
 import { ErrorCode } from './utils/validation';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockFindNetworkClientIdByChainId,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 type AllTransactionControllerActions =
   MessengerActions<TransactionControllerMessenger>;
@@ -2901,6 +2901,51 @@ describe('TransactionController', () => {
             submittedTime: expect.any(Number),
           }),
         });
+      });
+
+      it('preserves submittedTime if already set by publish hook', async () => {
+        const presetSubmittedTime = 1000000;
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              publish: async (txMeta) => {
+                const existing = controller.state.transactions.find(
+                  (transaction) => transaction.id === txMeta.id,
+                );
+
+                if (existing) {
+                  controller.updateTransaction(
+                    { ...existing, submittedTime: presetSubmittedTime },
+                    'Set submittedTime in publish hook',
+                  );
+                }
+                return { transactionHash: '0x123' };
+              },
+            },
+          },
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(controller.state.transactions[0].submittedTime).toBe(
+          presetSubmittedTime,
+        );
       });
 
       it('throws with data message if publish fails', async () => {

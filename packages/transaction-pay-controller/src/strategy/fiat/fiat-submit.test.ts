@@ -1,9 +1,9 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { submitFiatQuotes } from './fiat-submit';
-import type { FiatQuote } from './types';
 import type { TransactionPayControllerMessenger } from '../..';
 import type { TransactionPayQuote } from '../../types';
+import { submitFiatQuotes } from './fiat-submit';
+import type { FiatQuote } from './types';
 
 describe('submitFiatQuotes', () => {
   it('returns empty transaction hash placeholder', async () => {

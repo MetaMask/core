@@ -7,6 +7,8 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types';
 import type {
   SnapDataSourceOptions,
   AccountBalancesUpdatedEventPayload,
@@ -21,8 +23,6 @@ import {
   KEYRING_PERMISSION,
   ASSETS_PERMISSION,
 } from './SnapDataSource';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types';
 
 // Test chain IDs
 const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;

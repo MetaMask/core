@@ -10,9 +10,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
-import { getGasFeeFlow } from './gas-flow';
-import { rpcRequest } from './provider';
-import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -23,6 +20,9 @@ import type {
   GasFeeFlow,
 } from '../types';
 import { GasFeeEstimateType, UserFeeLevel } from '../types';
+import { getGasFeeFlow } from './gas-flow';
+import { rpcRequest } from './provider';
+import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
