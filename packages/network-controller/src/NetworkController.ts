@@ -518,21 +518,28 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  *
  * @param payload - The event payload.
  * @param payload.chainId - The target network's chain ID.
+ * @param payload.duration - The duration in milliseconds of the policy
+ * execution when the request succeeded but was slow. `undefined` when retries
+ * were exhausted.
  * @param payload.error - The last error produced by the endpoint (or
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
  * when the chain became degraded.
+ * @param payload.traceId - The value of the `x-trace-id` response header from
+ * the last request attempt, or `undefined` if the header was not present.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
   type: 'NetworkController:rpcEndpointChainDegraded';
   payload: [
     {
       chainId: Hex;
+      duration?: number;
       error: unknown;
       networkClientId: NetworkClientId;
       retryReason?: RetryReason;
       rpcMethodName: string;
+      traceId?: string;
       type: DegradedEventType;
     },
   ];
@@ -553,6 +560,9 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  *
  * @param payload - The event payload.
  * @param payload.chainId - The target network's chain ID.
+ * @param payload.duration - The duration in milliseconds of the policy
+ * execution when the request succeeded but was slow. `undefined` when retries
+ * were exhausted.
  * @param payload.endpointUrl - The URL of the endpoint for which requests
  * failed or were slow to complete. You can compare this to `primaryEndpointUrl`
  * to know whether it was a failover or a primary.
@@ -562,18 +572,22 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
  * when the endpoint became degraded.
+ * @param payload.traceId - The value of the `x-trace-id` response header from
+ * the last request attempt, or `undefined` if the header was not present.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
   payload: [
     {
       chainId: Hex;
+      duration?: number;
       endpointUrl: string;
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
       retryReason?: RetryReason;
       rpcMethodName: string;
+      traceId?: string;
       type: DegradedEventType;
     },
   ];
