@@ -153,7 +153,8 @@ export type SeedlessOnboardingControllerOptions<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
   EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
+    EncryptionResultConstraint<SupportedKeyDerivationParams> =
+    DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -388,7 +389,8 @@ export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
   EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationOptions> = DefaultEncryptionResult<SupportedKeyDerivationOptions>,
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> =
+    DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,

@@ -79,7 +79,6 @@ import type {
   getInitialSeedlessOnboardingControllerStateWithDefaults,
   SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
-
 import type { SeedlessOnboardingControllerState } from './types';
 
 const authConnection = AuthConnection.Google;

@@ -9,14 +9,11 @@ import {
 import type { Json } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
-export default class MockVaultEncryptor
-  implements
-    Encryptor<
-      EncryptionKey | webcrypto.CryptoKey,
-      KeyDerivationOptions,
-      DefaultEncryptionResult<KeyDerivationOptions>
-    >
-{
+export default class MockVaultEncryptor implements Encryptor<
+  EncryptionKey | webcrypto.CryptoKey,
+  KeyDerivationOptions,
+  DefaultEncryptionResult<KeyDerivationOptions>
+> {
   defaultDerivationParams: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {
