@@ -35,6 +35,8 @@ export async function ensureDaemon(
       MM_DAEMON_DATA_DIR: config.dataDir,
       MM_DAEMON_SOCKET_PATH: socketPath,
       INFURA_PROJECT_ID: config.infuraProjectId,
+      MM_WALLET_PASSWORD: config.password,
+      MM_WALLET_SRP: config.srp,
     },
   });
   child.unref();

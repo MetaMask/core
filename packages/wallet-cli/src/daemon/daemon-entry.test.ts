@@ -31,12 +31,12 @@ const ORIGINAL_ENV = process.env;
  *
  * @returns A mock wallet object.
  */
-function createMockWallet(): ReturnType<typeof createWallet> {
+function createMockWallet(): Awaited<ReturnType<typeof createWallet>> {
   return {
     messenger: {} as never,
     state: {} as never,
     destroy: jest.fn().mockResolvedValue(undefined),
-  } as unknown as ReturnType<typeof createWallet>;
+  } as unknown as Awaited<ReturnType<typeof createWallet>>;
 }
 
 /**
@@ -53,6 +53,11 @@ describe('daemon-entry', () => {
 
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
+    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
+    process.env.INFURA_PROJECT_ID = 'key';
+    process.env.MM_WALLET_PASSWORD = 'pass';
+    process.env.MM_WALLET_SRP =
+      'test test test test test test test test test test test ball';
     process.exitCode = undefined;
     stderrSpy = jest
       .spyOn(process.stderr, 'write')
@@ -89,7 +94,6 @@ describe('daemon-entry', () => {
 
   it('writes to stderr and sets exitCode when MM_DAEMON_DATA_DIR is missing', async () => {
     delete process.env.MM_DAEMON_DATA_DIR;
-    process.env.INFURA_PROJECT_ID = 'key';
 
     await importDaemonEntry();
 
@@ -100,7 +104,6 @@ describe('daemon-entry', () => {
   });
 
   it('writes to stderr and sets exitCode when INFURA_PROJECT_ID is missing', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
     delete process.env.INFURA_PROJECT_ID;
 
     await importDaemonEntry();
@@ -111,12 +114,31 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('creates data dir, wallet, server, and writes PID on successful startup', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
+  it('writes to stderr and sets exitCode when MM_WALLET_PASSWORD is missing', async () => {
+    delete process.env.MM_WALLET_PASSWORD;
 
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('MM_WALLET_PASSWORD'),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('writes to stderr and sets exitCode when MM_WALLET_SRP is missing', async () => {
+    delete process.env.MM_WALLET_SRP;
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('MM_WALLET_SRP'),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('creates data dir, wallet, server, and writes PID on successful startup', async () => {
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
@@ -125,7 +147,11 @@ describe('daemon-entry', () => {
     expect(mockMkdirSync).toHaveBeenCalledWith('/tmp/data', {
       recursive: true,
     });
-    expect(mockCreateWallet).toHaveBeenCalledWith({ infuraProjectId: 'key' });
+    expect(mockCreateWallet).toHaveBeenCalledWith({
+      infuraProjectId: 'key',
+      password: 'pass',
+      srp: 'test test test test test test test test test test test ball',
+    });
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',
       String(process.pid),
@@ -139,11 +165,9 @@ describe('daemon-entry', () => {
   });
 
   it('uses MM_DAEMON_SOCKET_PATH override when set', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
     process.env.MM_DAEMON_SOCKET_PATH = '/custom/sock';
 
-    mockCreateWallet.mockReturnValue(createMockWallet());
+    mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
@@ -156,11 +180,8 @@ describe('daemon-entry', () => {
   });
 
   it('cleans up wallet and PID file when server fails to start', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
 
     await importDaemonEntry();
@@ -171,14 +192,11 @@ describe('daemon-entry', () => {
   });
 
   it('still cleans up PID when wallet.destroy fails during error cleanup', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
     (wallet.destroy as jest.Mock).mockRejectedValue(
       new Error('destroy failed'),
     );
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
 
     await importDaemonEntry();
@@ -188,10 +206,7 @@ describe('daemon-entry', () => {
   });
 
   it('exposes getStatus handler that returns pid and uptime', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
-    mockCreateWallet.mockReturnValue(createMockWallet());
+    mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
@@ -209,10 +224,7 @@ describe('daemon-entry', () => {
   });
 
   it('logs to file via makeLogger', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
-    mockCreateWallet.mockReturnValue(createMockWallet());
+    mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
@@ -225,10 +237,7 @@ describe('daemon-entry', () => {
   });
 
   it('registers SIGTERM and SIGINT handlers', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
-    mockCreateWallet.mockReturnValue(createMockWallet());
+    mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     const onSpy = jest.spyOn(process, 'on');
@@ -241,11 +250,8 @@ describe('daemon-entry', () => {
   });
 
   it('sIGTERM handler calls shutdown and sets exitCode on failure', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
     (handle.close as jest.Mock).mockRejectedValue(new Error('close failed'));
     mockStartRpcSocketServer.mockResolvedValue(handle);
@@ -268,11 +274,8 @@ describe('daemon-entry', () => {
   });
 
   it('sIGINT handler calls shutdown and sets exitCode on failure', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
     (handle.close as jest.Mock).mockRejectedValue(new Error('close failed'));
     mockStartRpcSocketServer.mockResolvedValue(handle);
@@ -293,11 +296,8 @@ describe('daemon-entry', () => {
   });
 
   it('handles rm rejection during shutdown cleanup gracefully', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
     // rm rejects but cleanup should not fail
@@ -315,11 +315,8 @@ describe('daemon-entry', () => {
   });
 
   it('handles rm rejection in error cleanup path gracefully', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
     mockRm.mockRejectedValue(new Error('rm failed'));
 
@@ -329,11 +326,8 @@ describe('daemon-entry', () => {
   });
 
   it('onShutdown closes server and destroys wallet', async () => {
-    process.env.MM_DAEMON_DATA_DIR = '/tmp/data';
-    process.env.INFURA_PROJECT_ID = 'key';
-
     const wallet = createMockWallet();
-    mockCreateWallet.mockReturnValue(wallet);
+    mockCreateWallet.mockResolvedValue(wallet);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
 

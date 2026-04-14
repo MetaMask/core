@@ -18,6 +18,8 @@ const CONFIG: DaemonSpawnConfig = {
   socketPath: '/tmp/test.sock',
   logPath: '/tmp/daemon.log',
   infuraProjectId: 'test-key',
+  password: 'test-pass',
+  srp: 'test test test test test test test test test test test ball',
   packageRoot: '/pkg',
 };
 
@@ -52,6 +54,9 @@ describe('ensureDaemon', () => {
           MM_DAEMON_DATA_DIR: '/tmp/data',
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
+          MM_WALLET_PASSWORD: 'test-pass',
+          MM_WALLET_SRP:
+            'test test test test test test test test test test test ball',
         }),
       }),
     );

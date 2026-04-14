@@ -28,6 +28,16 @@ async function main(): Promise<void> {
     throw new Error('INFURA_PROJECT_ID environment variable is required');
   }
 
+  const password = process.env.MM_WALLET_PASSWORD;
+  if (!password) {
+    throw new Error('MM_WALLET_PASSWORD environment variable is required');
+  }
+
+  const srp = process.env.MM_WALLET_SRP;
+  if (!srp) {
+    throw new Error('MM_WALLET_SRP environment variable is required');
+  }
+
   mkdirSync(dataDir, { recursive: true });
 
   const {
@@ -40,7 +50,7 @@ async function main(): Promise<void> {
   const log = makeLogger(logPath);
   log('Starting daemon...');
 
-  const wallet = createWallet({ infuraProjectId });
+  const wallet = await createWallet({ infuraProjectId, password, srp });
 
   const handlers: RpcHandlerMap = {
     getStatus: async () => ({

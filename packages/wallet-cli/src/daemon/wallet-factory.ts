@@ -4,21 +4,27 @@ import {
   DistributionType,
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
-import { Wallet } from '@metamask/wallet';
+import { importSecretRecoveryPhrase, Wallet } from '@metamask/wallet';
 
 /**
  * Create a configured Wallet instance for daemon use.
  *
  * @param config - Wallet configuration.
  * @param config.infuraProjectId - The Infura project ID for network access.
- * @returns A new Wallet instance.
+ * @param config.password - The wallet password.
+ * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
+ * @returns A new Wallet instance with the SRP imported.
  */
-export function createWallet({
+export async function createWallet({
   infuraProjectId,
+  password,
+  srp,
 }: {
   infuraProjectId: string;
-}): Wallet {
-  return new Wallet({
+  password: string;
+  srp: string;
+}): Promise<Wallet> {
+  const wallet = new Wallet({
     options: {
       infuraProjectId,
       clientVersion: '0.0.0',
@@ -35,4 +41,8 @@ export function createWallet({
       getMetaMetricsId: () => 'cli',
     },
   });
+
+  await importSecretRecoveryPhrase(wallet, password, srp);
+
+  return wallet;
 }

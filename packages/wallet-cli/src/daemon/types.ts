@@ -27,5 +27,7 @@ export type DaemonSpawnConfig = {
   socketPath: string;
   logPath: string;
   infuraProjectId: string;
+  password: string;
+  srp: string;
   packageRoot: string;
 };
