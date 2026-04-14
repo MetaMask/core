@@ -350,7 +350,7 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded(({ rpcMethodName, ...rest }) => {
+  rpcServiceChain.onDegraded(({ rpcMethodName, duration, traceId, ...rest }) => {
     const error = getError(rest);
     const type: DegradedEventType =
       error === undefined ? 'slow_success' : 'retries_exhausted';
@@ -359,6 +359,8 @@ function createRpcServiceChain({
       networkClientId: id,
       error,
       rpcMethodName,
+      duration,
+      traceId,
       type,
       retryReason: error === undefined ? undefined : classifyRetryReason(error),
     });
@@ -369,6 +371,8 @@ function createRpcServiceChain({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
       rpcMethodName,
+      duration,
+      traceId,
       ...rest
     }) => {
       const error = getError(rest);
@@ -382,6 +386,8 @@ function createRpcServiceChain({
         endpointUrl,
         error,
         rpcMethodName,
+        duration,
+        traceId,
         type,
         retryReason:
           error === undefined ? undefined : classifyRetryReason(error),
