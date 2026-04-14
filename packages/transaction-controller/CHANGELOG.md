@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Skip simulation when transaction `containerTypes` includes `EnforcedSimulations` ([#8431](https://github.com/MetaMask/core/pull/8431))
 - Preserve `submittedTime` if already set by a publish hook instead of overwriting it ([#8439](https://github.com/MetaMask/core/pull/8439))
 
 ## [64.1.0]
