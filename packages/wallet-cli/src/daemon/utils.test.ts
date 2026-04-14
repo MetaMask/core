@@ -6,7 +6,6 @@ import {
   readPidFile,
   sendSignal,
   waitFor,
-  withTimeout,
 } from './utils';
 
 jest.mock('node:fs/promises');
@@ -156,27 +155,5 @@ describe('waitFor', () => {
     const promise = waitFor(check, 5000);
     await jest.advanceTimersByTimeAsync(500);
     expect(await promise).toBe(true);
-  });
-});
-
-describe('withTimeout', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('resolves with value if promise resolves before timeout', async () => {
-    expect(await withTimeout(Promise.resolve('result'), 1000)).toBe('result');
-  });
-
-  it('rejects with timeout error if timeout fires first', async () => {
-    const neverResolves = new Promise(() => undefined);
-    const promise = withTimeout(neverResolves, 500);
-
-    jest.advanceTimersByTime(500);
-    await expect(promise).rejects.toThrow('promise timed out after 500ms');
   });
 });

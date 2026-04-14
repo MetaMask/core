@@ -2,7 +2,7 @@ import { rm } from 'node:fs/promises';
 
 import { pingDaemon, sendCommand } from './daemon-client';
 import { stopDaemon } from './stop-daemon';
-import { isProcessAlive, readPidFile, waitFor } from './utils';
+import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
 
 jest.mock('node:fs/promises');
 jest.mock('./daemon-client');
@@ -13,6 +13,7 @@ const mockPingDaemon = jest.mocked(pingDaemon);
 const mockSendCommand = jest.mocked(sendCommand);
 const mockReadPidFile = jest.mocked(readPidFile);
 const mockIsProcessAlive = jest.mocked(isProcessAlive);
+const mockSendSignal = jest.mocked(sendSignal);
 const mockWaitFor = jest.mocked(waitFor);
 
 describe('stopDaemon', () => {
@@ -74,6 +75,7 @@ describe('stopDaemon', () => {
       id: '1',
       result: null,
     });
+    mockSendSignal.mockReturnValue(true);
     // First waitFor (graceful) invokes cb and fails, second (SIGTERM) invokes cb and succeeds
     mockWaitFor
       .mockImplementationOnce(async (check) => {
@@ -84,11 +86,10 @@ describe('stopDaemon', () => {
         await check();
         return true;
       });
-    jest.spyOn(process, 'kill').mockImplementation(() => true);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
-    expect(process.kill).toHaveBeenCalledWith(123, 'SIGTERM');
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGTERM');
   });
 
   it('falls through to SIGKILL when SIGTERM times out', async () => {
@@ -100,6 +101,7 @@ describe('stopDaemon', () => {
       id: '1',
       result: null,
     });
+    mockSendSignal.mockReturnValue(true);
     // All three waitFor calls invoke check, graceful + SIGTERM fail, SIGKILL succeeds
     mockWaitFor
       .mockImplementationOnce(async (check) => {
@@ -114,11 +116,10 @@ describe('stopDaemon', () => {
         await check();
         return true;
       });
-    jest.spyOn(process, 'kill').mockImplementation(() => true);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
-    expect(process.kill).toHaveBeenCalledWith(123, 'SIGKILL');
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGKILL');
   });
 
   it('returns false when all strategies fail', async () => {
@@ -130,48 +131,62 @@ describe('stopDaemon', () => {
       id: '1',
       result: null,
     });
+    mockSendSignal.mockReturnValue(true);
     mockWaitFor.mockResolvedValue(false);
-    jest.spyOn(process, 'kill').mockImplementation(() => true);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(false);
   });
 
-  it('treats process.kill throw on SIGTERM as stopped', async () => {
+  it('treats ESRCH on SIGTERM as stopped', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
     mockPingDaemon.mockResolvedValue(false);
-    jest.spyOn(process, 'kill').mockImplementation(() => {
-      throw new Error('process gone');
-    });
+    mockSendSignal.mockReturnValue(false);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
   });
 
-  it('treats process.kill throw on SIGKILL as stopped', async () => {
+  it('treats ESRCH on SIGKILL as stopped', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(true);
-    mockSendCommand.mockResolvedValue({
-      jsonrpc: '2.0',
-      id: '1',
-      result: null,
-    });
-    // Graceful fails, SIGTERM fails, then SIGKILL throw
-    mockWaitFor.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
-    let callCount = 0;
-    jest.spyOn(process, 'kill').mockImplementation(() => {
-      callCount += 1;
-      if (callCount === 2) {
-        // SIGKILL call
-        throw new Error('process gone');
-      }
-      return true;
-    });
+    mockPingDaemon.mockResolvedValue(false);
+    // SIGTERM signal sent but process doesn't die, SIGKILL finds it gone
+    mockSendSignal.mockReturnValueOnce(true).mockReturnValueOnce(false);
+    mockWaitFor.mockResolvedValueOnce(false);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGKILL');
+  });
+
+  it('falls through to SIGKILL when SIGTERM throws EPERM', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockPingDaemon.mockResolvedValue(false);
+    mockSendSignal
+      .mockImplementationOnce(() => {
+        throw Object.assign(new Error('eperm'), { code: 'EPERM' });
+      })
+      .mockReturnValueOnce(true);
+    mockWaitFor.mockResolvedValueOnce(true);
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+    expect(result).toBe(true);
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGKILL');
+  });
+
+  it('returns false when both SIGTERM and SIGKILL throw EPERM', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockPingDaemon.mockResolvedValue(false);
+    mockSendSignal.mockImplementation(() => {
+      throw Object.assign(new Error('eperm'), { code: 'EPERM' });
+    });
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+    expect(result).toBe(false);
   });
 
   it('treats sendCommand error as socket unresponsive', async () => {

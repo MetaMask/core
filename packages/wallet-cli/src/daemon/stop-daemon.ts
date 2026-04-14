@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 
 import { pingDaemon, sendCommand } from './daemon-client';
-import { isProcessAlive, readPidFile, waitFor } from './utils';
+import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
 
 /**
  * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
@@ -45,24 +45,26 @@ export async function stopDaemon(
   // Strategy 2: SIGTERM.
   if (!stopped && pid !== undefined) {
     try {
-      process.kill(pid, 'SIGTERM');
+      if (sendSignal(pid, 'SIGTERM')) {
+        stopped = await waitFor(() => !isProcessAlive(pid), 5_000);
+      } else {
+        stopped = true; // Process already gone (ESRCH).
+      }
     } catch {
-      stopped = true;
-    }
-    if (!stopped) {
-      stopped = await waitFor(() => !isProcessAlive(pid), 5_000);
+      // Permission error — fall through to next strategy.
     }
   }
 
   // Strategy 3: SIGKILL.
   if (!stopped && pid !== undefined) {
     try {
-      process.kill(pid, 'SIGKILL');
+      if (sendSignal(pid, 'SIGKILL')) {
+        stopped = await waitFor(() => !isProcessAlive(pid), 2_000);
+      } else {
+        stopped = true; // Process already gone (ESRCH).
+      }
     } catch {
-      stopped = true;
-    }
-    if (!stopped) {
-      stopped = await waitFor(() => !isProcessAlive(pid), 2_000);
+      // Permission error — cannot kill process.
     }
   }
 
