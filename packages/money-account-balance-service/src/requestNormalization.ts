@@ -1,6 +1,6 @@
 import { Infer } from '@metamask/superstruct';
 
-import { VaultApyResponse } from './response.types';
+import type { VaultApyResponse } from './response.types';
 import { VaultApyResponseStruct } from './structs';
 
 /**
