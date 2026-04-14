@@ -49,6 +49,7 @@ import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
   isCaipChainId,
@@ -289,11 +290,11 @@ type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
   // RpcDataSource, StakedBalanceDataSource
   | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | TransactionControllerIncomingTransactionsReceivedEvent
-  | TransactionControllerUnapprovedTransactionAddedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
   // SnapDataSource
@@ -906,6 +907,44 @@ export class AssetsController extends BaseController<
     this.messenger.subscribe('KeyringController:lock', () => {
       this.#keyringUnlocked = false;
       this.#updateActive();
+    });
+
+    // Subscribe to unapproved transactions - TXs that need confirmation
+    // Ensures that balances for the account making transaction are updated (e.g. for gas estimations)
+    this.messenger.subscribe(
+      'TransactionController:unapprovedTransactionAdded',
+      (transactionMeta: TransactionMeta) => {
+        this.#onUnapprovedTransactionAdded(transactionMeta);
+      },
+    );
+  }
+
+  #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
+    const hexChainId = transactionMeta.chainId;
+    if (!hexChainId) {
+      return;
+    }
+
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
+    if (!fromAddress) {
+      return;
+    }
+
+    const matchedAccount = this.#selectedAccounts.find(
+      (account) => account.address.toLowerCase() === fromAddress,
+    );
+    if (!matchedAccount) {
+      return;
+    }
+
+    this.getAssets([matchedAccount], {
+      chainIds: [caipChainId],
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to refresh assets after unapproved transaction added', {
+        error,
+      });
     });
   }
 
