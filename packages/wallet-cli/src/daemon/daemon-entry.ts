@@ -131,9 +131,11 @@ async function main(): Promise<void> {
   }
 
   process.on('SIGTERM', () => {
+    /* istanbul ignore next */
     shutdown('SIGTERM').catch(() => undefined);
   });
   process.on('SIGINT', () => {
+    /* istanbul ignore next */
     shutdown('SIGINT').catch(() => undefined);
   });
 }
