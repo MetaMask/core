@@ -20,6 +20,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/money-account-controller';
 import type { Hex } from '@metamask/utils';
+import { webcrypto } from 'node:crypto';
 
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
 import type { AccountUpgradeEntry, UpgradeConfig } from './types';
@@ -242,8 +243,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    */
   async #verifyDelegation(address: Hex, chainId: Hex): Promise<void> {
     const salt: Hex = `0x${Array.from(
-      // TODO: do I need to read this off of globalThis?
-      globalThis.crypto.getRandomValues(new Uint8Array(32)),
+      webcrypto.getRandomValues(new Uint8Array(32)),
     )
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')}`;
@@ -293,7 +293,9 @@ export class MoneyAccountUpgradeController extends BaseController<
 
     if (!result.valid) {
       throw new Error(
-        `Delegation verification failed: ${result.errors?.join(', ') ?? 'unknown error'}`,
+        `Delegation verification failed: ${
+          result.errors?.join(', ') ?? 'unknown error'
+        }`,
       );
     }
 
