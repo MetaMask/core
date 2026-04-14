@@ -917,6 +917,11 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
+      // Reset mock call counts after construction: the constructor calls
+      // #initTreeContext which seeds the fast-index Maps from persisted state,
+      // incrementing the call counters before we even call init().
+      jest.clearAllMocks();
+
       controller.init();
       expect(
         mocks.AccountsController.listMultichainAccounts,
@@ -941,6 +946,11 @@ describe('AccountTreeController', () => {
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
       });
+
+      // Reset mock call counts after construction: the constructor calls
+      // #initTreeContext which seeds the fast-index Maps from persisted state,
+      // incrementing the call counters before we even call init().
+      jest.clearAllMocks();
 
       controller.init();
       expect(

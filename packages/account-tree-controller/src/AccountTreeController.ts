@@ -287,6 +287,11 @@ export class AccountTreeController extends BaseController<
    * @param tree The account tree state to initialize from.
    */
   #initTreeContext(tree: AccountTreeControllerState['accountTree']): void {
+    // Fetch persisted accounts from the `AccountsController`.
+    const accounts = new Map(
+      this.#listAccounts().map((account) => [account.id, account]),
+    );
+
     for (const [walletId, wallet] of Object.entries(tree.wallets) as [
       AccountWalletId,
       AccountWalletObject,
@@ -299,12 +304,7 @@ export class AccountTreeController extends BaseController<
 
         // We still need to go through accounts for the sort order.
         for (const accountId of group.accounts) {
-          // The `AccountsController` also persists its accounts, so we
-          // can fetch them too!
-          const account = this.messenger.call(
-            'AccountsController:getAccount',
-            accountId,
-          );
+          const account = accounts.get(accountId);
 
           // NOTE: The account should always be available, but if it is not, we
           // still let it inside the tree with a max sort order to avoid blocking
