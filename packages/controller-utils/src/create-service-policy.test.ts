@@ -1517,6 +1517,8 @@ describe('createServicePolicy', () => {
               expect(onDegradedListener).toHaveBeenCalledWith({
                 duration: expect.any(Number),
               });
+              const { duration } = onDegradedListener.mock.calls[0][0];
+              expect(duration).toBeGreaterThan(2000);
             });
 
             it('does not call onAvailable listeners', async () => {
