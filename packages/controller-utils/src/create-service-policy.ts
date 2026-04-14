@@ -117,7 +117,9 @@ export type ServicePolicy = IPolicy & {
    * never succeeds before the retry policy gives up and before the maximum
    * number of consecutive failures has been reached.
    */
-  onDegraded: CockatielEvent<FailureReason<unknown> | { duration: number } | void>;
+  onDegraded: CockatielEvent<
+    FailureReason<unknown> | { duration: number } | void
+  >;
   /**
    * A function which is called when the service succeeds for the first time,
    * or when the service fails enough times to cause the circuit to break and
@@ -321,8 +323,9 @@ export function createServicePolicy(
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
-  const onDegradedEventEmitter =
-    new CockatielEventEmitter<FailureReason<unknown> | { duration: number } | void>();
+  const onDegradedEventEmitter = new CockatielEventEmitter<
+    FailureReason<unknown> | { duration: number } | void
+  >();
   const onDegraded = onDegradedEventEmitter.addListener;
 
   const onAvailableEventEmitter = new CockatielEventEmitter<void>();
