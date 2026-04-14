@@ -39,7 +39,7 @@
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
-/packages/money-account-balance-service     @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-balance-service     @MetaMask/earn
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
