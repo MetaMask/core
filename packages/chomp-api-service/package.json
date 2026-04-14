@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "Data service for the Chomp API",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/chomp-api-service#readme",
   "bugs": {
@@ -50,13 +50,12 @@
     "@metamask/base-data-service": "^0.1.1",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/messenger": "^1.1.1",
-    "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^4.43.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

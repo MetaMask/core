@@ -7,7 +7,6 @@ import type {
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import {
   array,
   boolean,
@@ -77,7 +76,10 @@ export type ChompApiServiceActions =
 /**
  * Actions from other messengers that {@link ChompApiService} calls.
  */
-type AllowedActions = AuthenticationControllerGetBearerTokenAction;
+type AllowedActions = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
 
 /**
  * Published when {@link ChompApiService}'s cache is updated.
@@ -176,7 +178,7 @@ const CreateWithdrawalResponseStruct = type({
  * This service is responsible for communicating with the CHOMP API.
  *
  * All requests are authenticated via JWT Bearer tokens obtained from the
- * {@link AuthenticationControllerGetBearerTokenAction} messenger action.
+ * `AuthenticationController:getBearerToken` messenger action.
  */
 export class ChompApiService extends BaseDataService<
   typeof serviceName,
