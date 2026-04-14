@@ -142,6 +142,8 @@ export type Position = {
   costBasis: number;
   trades: Trade[];
   lastTradeAt: number;
+  /** Daylight-hosted token image URL. */
+  tokenImageUrl?: string | null;
   /** Current USD value of the remaining position (open positions only). */
   currentValueUSD?: number | null;
   /** Unrealized + realized PnL in USD. */

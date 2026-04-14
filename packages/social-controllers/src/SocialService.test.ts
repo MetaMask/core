@@ -44,6 +44,7 @@ const mockPosition = {
   costBasis: 3000,
   trades: [mockTrade],
   lastTradeAt: 1700000000,
+  tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
 };
 
 function createMessenger(): SocialServiceMessenger {

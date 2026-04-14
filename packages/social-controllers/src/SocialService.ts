@@ -69,6 +69,7 @@ const PositionStruct = structType({
   costBasis: number(),
   trades: array(TradeStruct),
   lastTradeAt: number(),
+  tokenImageUrl: optional(nullable(string())),
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
