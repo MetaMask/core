@@ -25,7 +25,6 @@ export type DaemonPaths = {
 export type DaemonSpawnConfig = {
   dataDir: string;
   socketPath: string;
-  logPath: string;
   infuraProjectId: string;
   password: string;
   srp: string;

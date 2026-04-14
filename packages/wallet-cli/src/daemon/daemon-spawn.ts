@@ -12,13 +12,10 @@ const MAX_POLLS = 300; // 30 seconds
  * Ensure the daemon is running. If it is not, spawn it as a detached process
  * and wait until the socket becomes responsive.
  *
- * @param socketPath - The Unix socket path.
  * @param config - Spawn configuration.
  */
-export async function ensureDaemon(
-  socketPath: string,
-  config: DaemonSpawnConfig,
-): Promise<void> {
+export async function ensureDaemon(config: DaemonSpawnConfig): Promise<void> {
+  const { socketPath } = config;
   if (await pingDaemon(socketPath)) {
     return;
   }

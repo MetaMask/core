@@ -11,6 +11,7 @@ export default class DaemonStart extends Command {
     'INFURA_PROJECT_ID=<key> MM_WALLET_PASSWORD=<pw> MM_WALLET_SRP=<phrase> <%= config.bin %> daemon start',
   ];
 
+  // TODO: Delete unsafe flags
   static override flags = {
     'infura-project-id': Flags.string({
       description: 'Infura project ID for network access',
@@ -18,12 +19,14 @@ export default class DaemonStart extends Command {
       required: true,
     }),
     password: Flags.string({
-      description: 'Wallet password',
+      description:
+        'Wallet password (testing only — use MM_WALLET_PASSWORD env var in production)',
       env: 'MM_WALLET_PASSWORD',
       required: true,
     }),
     srp: Flags.string({
-      description: 'Secret recovery phrase (BIP-39 mnemonic)',
+      description:
+        'Secret recovery phrase (testing only — use MM_WALLET_SRP env var in production)',
       env: 'MM_WALLET_SRP',
       required: true,
     }),
@@ -34,12 +37,11 @@ export default class DaemonStart extends Command {
     const infuraProjectId = flags['infura-project-id'];
     const { password, srp } = flags;
 
-    const { logPath, socketPath } = getDaemonPaths(this.config.dataDir);
+    const { socketPath } = getDaemonPaths(this.config.dataDir);
 
-    await ensureDaemon(socketPath, {
+    await ensureDaemon({
       dataDir: this.config.dataDir,
       socketPath,
-      logPath,
       infuraProjectId,
       password,
       srp,

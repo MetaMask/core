@@ -396,6 +396,8 @@ describe('startRpcSocketServer', () => {
 
       const socket = createMockSocket();
       simulateConnection(socket);
+
+      // Send a valid request followed by extra data after the newline.
       socket.emit(
         'data',
         Buffer.from(
@@ -403,9 +405,13 @@ describe('startRpcSocketServer', () => {
         ),
       );
 
-      const endCall = (socket.end as jest.Mock).mock.calls[0][0] as string;
-      const response = JSON.parse(endCall.trim()) as Record<string, unknown>;
-      expect(response.error).toBeDefined();
+      const response = getResponse(socket);
+      expect(response.error).toStrictEqual(
+        expect.objectContaining({
+          code: -32600,
+          message: 'Only one request per connection is allowed',
+        }),
+      );
     });
 
     it('accumulates partial data across multiple events', async () => {
@@ -505,6 +511,53 @@ describe('startRpcSocketServer', () => {
       await flushPromises();
 
       expect(getResponse(socket).id).toBeNull();
+    });
+
+    it('destroys socket when no complete request arrives within timeout', async () => {
+      jest.useFakeTimers();
+      const { simulateConnection } = createMockServer();
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers: {},
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+
+      // Send partial data (no newline).
+      socket.emit('data', Buffer.from('partial'));
+
+      expect(socket.destroy).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(30_000);
+
+      expect(socket.destroy).toHaveBeenCalled();
+      jest.useRealTimers();
+    });
+
+    it('wraps thrown object with code but no message as internal error', async () => {
+      const { simulateConnection } = createMockServer();
+      const handlers: RpcHandlerMap = {
+        failing: jest.fn().mockRejectedValue({ code: 42 }),
+      };
+
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers,
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+      sendRequest(socket, { jsonrpc: '2.0', id: '1', method: 'failing' });
+
+      await flushPromises();
+
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32603,
+          message: 'Internal error',
+        }),
+      );
     });
   });
 });

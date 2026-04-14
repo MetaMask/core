@@ -16,7 +16,6 @@ const mockPingDaemon = jest.mocked(pingDaemon);
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   socketPath: '/tmp/test.sock',
-  logPath: '/tmp/daemon.log',
   infuraProjectId: 'test-key',
   password: 'test-pass',
   srp: 'test test test test test test test test test test test ball',
@@ -34,7 +33,7 @@ describe('ensureDaemon', () => {
   it('returns immediately if daemon is already running', async () => {
     mockPingDaemon.mockResolvedValue(true);
 
-    await ensureDaemon('/tmp/test.sock', CONFIG);
+    await ensureDaemon(CONFIG);
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
@@ -42,7 +41,7 @@ describe('ensureDaemon', () => {
     mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     mockExistsSync.mockReturnValue(true);
 
-    await ensureDaemon('/tmp/test.sock', CONFIG);
+    await ensureDaemon(CONFIG);
 
     expect(mockSpawn).toHaveBeenCalledWith(
       process.execPath,
@@ -66,7 +65,7 @@ describe('ensureDaemon', () => {
     mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     mockExistsSync.mockReturnValue(true);
 
-    await ensureDaemon('/tmp/test.sock', CONFIG);
+    await ensureDaemon(CONFIG);
 
     const spawnArgs = mockSpawn.mock.calls[0][1] as string[];
     expect(spawnArgs).toStrictEqual(['/pkg/dist/daemon/daemon-entry.mjs']);
@@ -76,7 +75,7 @@ describe('ensureDaemon', () => {
     mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     mockExistsSync.mockReturnValue(false);
 
-    await ensureDaemon('/tmp/test.sock', CONFIG);
+    await ensureDaemon(CONFIG);
 
     const spawnArgs = mockSpawn.mock.calls[0][1] as string[];
     expect(spawnArgs).toStrictEqual([
@@ -94,7 +93,7 @@ describe('ensureDaemon', () => {
       .mockResolvedValueOnce(true); // poll 3
     mockExistsSync.mockReturnValue(true);
 
-    await ensureDaemon('/tmp/test.sock', CONFIG);
+    await ensureDaemon(CONFIG);
 
     expect(mockPingDaemon).toHaveBeenCalledTimes(4);
     expect(process.stderr.write).toHaveBeenCalledWith('Daemon ready.\n');
@@ -105,7 +104,7 @@ describe('ensureDaemon', () => {
     mockPingDaemon.mockResolvedValue(false);
     mockExistsSync.mockReturnValue(true);
 
-    const promise = ensureDaemon('/tmp/test.sock', CONFIG);
+    const promise = ensureDaemon(CONFIG);
     // Attach rejection handler before advancing timers to avoid unhandled rejection
     const rejection = promise.catch((thrown: unknown) => thrown);
 
@@ -125,7 +124,7 @@ describe('ensureDaemon', () => {
     mockExistsSync.mockReturnValue(true);
     mockSpawn.mockReturnValue({ unref } as never);
 
-    await ensureDaemon('/tmp/test.sock', CONFIG);
+    await ensureDaemon(CONFIG);
 
     expect(unref).toHaveBeenCalled();
   });

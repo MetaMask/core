@@ -58,6 +58,9 @@ async function main(): Promise<void> {
       pid: process.pid,
       uptime: Math.floor((Date.now() - startTime) / 1000),
     }),
+    // Arbitrary messenger dispatch is intentional: the CLI exposes the full
+    // messenger surface over a local Unix socket.  Access control is enforced
+    // at the socket level (only local users can connect).
     call: async (params) => {
       const [action, ...args] = params as [string, ...Json[]];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.

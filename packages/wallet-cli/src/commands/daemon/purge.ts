@@ -21,9 +21,7 @@ export default class DaemonPurge extends Command {
   public async run(): Promise<void> {
     await this.parse(DaemonPurge);
 
-    const { socketPath, pidPath, logPath } = getDaemonPaths(
-      this.config.dataDir,
-    );
+    const { socketPath, pidPath } = getDaemonPaths(this.config.dataDir);
 
     const stopped = await stopDaemon(socketPath, pidPath, (message) =>
       this.log(message),
@@ -33,11 +31,7 @@ export default class DaemonPurge extends Command {
       this.error('Refusing to delete state while the daemon is still running.');
     }
 
-    await Promise.all([
-      rm(socketPath, { force: true }),
-      rm(pidPath, { force: true }),
-      rm(logPath, { force: true }),
-    ]);
+    await rm(this.config.dataDir, { recursive: true, force: true });
 
     this.log('All daemon state deleted.');
   }

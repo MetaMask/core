@@ -28,6 +28,8 @@ export type RpcSocketServerHandle = {
  * @param options.onShutdown - Callback invoked when a `shutdown` RPC is received.
  * @returns A handle with a `close()` function for cleanup.
  */
+const CONNECTION_TIMEOUT_MS = 30_000;
+
 export async function startRpcSocketServer({
   socketPath,
   handlers,
@@ -40,12 +42,19 @@ export async function startRpcSocketServer({
   const server = createServer((socket) => {
     let buffer = '';
 
+    // Destroy connections that never send a complete request line.
+    const timer = setTimeout(() => {
+      socket.destroy();
+    }, CONNECTION_TIMEOUT_MS);
+
     const onData = (data: Buffer): void => {
       buffer += data.toString();
       const idx = buffer.indexOf('\n');
       if (idx === -1) {
         return;
       }
+
+      clearTimeout(timer);
 
       // One request per connection.
       socket.removeListener('data', onData);
@@ -187,12 +196,16 @@ async function handleRequest(
  * @param error - The error to check.
  * @returns True if the error has a numeric code property.
  */
-function isRpcError(error: unknown): error is { code: number } {
+function isRpcError(
+  error: unknown,
+): error is { code: number; message: string } {
   return (
     typeof error === 'object' &&
     error !== null &&
     hasProperty(error, 'code') &&
-    typeof error.code === 'number'
+    typeof error.code === 'number' &&
+    hasProperty(error, 'message') &&
+    typeof error.message === 'string'
   );
 }
 

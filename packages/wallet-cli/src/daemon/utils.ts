@@ -92,5 +92,5 @@ export async function waitFor(
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  return await check();
+  return false;
 }

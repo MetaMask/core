@@ -29,11 +29,17 @@ export default class DaemonStatus extends Command {
       return;
     }
 
-    const response = await sendCommand({
-      socketPath,
-      method: 'getStatus',
-      timeoutMs: 5_000,
-    });
+    let response;
+    try {
+      response = await sendCommand({
+        socketPath,
+        method: 'getStatus',
+        timeoutMs: 5_000,
+      });
+    } catch {
+      this.log('Daemon socket is responsive but status request failed.');
+      return;
+    }
 
     if (isJsonRpcFailure(response)) {
       this.log(
