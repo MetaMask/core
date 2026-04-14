@@ -456,7 +456,7 @@ export class RpcService implements AbstractRpcService {
       // (slow-success case from service policy). FailureReason has { error } or { value }.
       const duration =
         data !== undefined && hasProperty(data, 'duration')
-          ? data.duration
+          ? (data.duration as number)
           : undefined;
       // For retries-exhausted, data is FailureReason (has error/value).
       // For slow-success, data is { duration } — we don't spread it.
