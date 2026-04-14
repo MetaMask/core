@@ -87,7 +87,7 @@ async function main(): Promise<void> {
     } catch {
       // Best-effort cleanup.
     }
-    rm(pidPath, { force: true }).catch(() => undefined);
+    await rm(pidPath, { force: true }).catch(() => undefined);
     throw error;
   }
 
@@ -109,8 +109,10 @@ async function main(): Promise<void> {
           await handle.close();
           await wallet.destroy();
         } finally {
-          rm(pidPath, { force: true }).catch(() => undefined);
-          rm(socketPath, { force: true }).catch(() => undefined);
+          await Promise.all([
+            rm(pidPath, { force: true }).catch(() => undefined),
+            rm(socketPath, { force: true }).catch(() => undefined),
+          ]);
         }
       })();
     }

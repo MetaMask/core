@@ -1,5 +1,5 @@
 {
-  "entryPoints": ["./src/index.ts"],
+  "entryPoints": ["./src/daemon/daemon-client.ts", "./src/daemon/types.ts"],
   "excludePrivate": true,
   "hideGenerator": true,
   "out": "docs",

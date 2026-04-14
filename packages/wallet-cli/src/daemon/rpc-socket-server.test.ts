@@ -494,7 +494,7 @@ describe('startRpcSocketServer', () => {
 
       await flushPromises();
 
-      expect((getResponse(socket).error as { code: number }).code).toBe(-32603);
+      expect((getResponse(socket).error as { code: number }).code).toBe(-32700);
     });
 
     it('uses null id when request has no id', async () => {

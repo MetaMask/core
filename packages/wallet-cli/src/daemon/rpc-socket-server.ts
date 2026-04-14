@@ -6,6 +6,8 @@ import type { Server } from 'node:net';
 
 import type { RpcHandlerMap } from './types';
 
+const CONNECTION_TIMEOUT_MS = 30_000;
+
 /**
  * Handle returned by {@link startRpcSocketServer}.
  */
@@ -28,8 +30,6 @@ export type RpcSocketServerHandle = {
  * @param options.onShutdown - Callback invoked when a `shutdown` RPC is received.
  * @returns A handle with a `close()` function for cleanup.
  */
-const CONNECTION_TIMEOUT_MS = 30_000;
-
 export async function startRpcSocketServer({
   socketPath,
   handlers,
@@ -131,14 +131,21 @@ async function handleRequest(
   onShutdown?: () => Promise<void>,
 ): Promise<Record<string, unknown>> {
   let id: unknown = null;
+  let request: { id?: unknown; method?: string; params?: unknown };
 
   try {
-    const request = JSON.parse(line) as {
-      id?: unknown;
-      method?: string;
-      params?: unknown;
+    request = JSON.parse(line) as typeof request;
+  } catch {
+    return {
+      jsonrpc: '2.0',
+      id: null,
+      error: rpcErrors.parse({ message: 'Parse error' }).serialize(),
     };
-    id = request.id ?? null;
+  }
+
+  id = request.id ?? null;
+
+  try {
     const { method } = request;
 
     if (typeof method !== 'string') {
