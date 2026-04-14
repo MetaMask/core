@@ -63,7 +63,7 @@
     "@metamask/account-tree-controller": "^7.0.0",
     "@metamask/accounts-controller": "^37.2.0",
     "@metamask/approval-controller": "^9.0.1",
-    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-controller": "^9.0.1",
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/core-backend": "^6.2.1",
