@@ -6,14 +6,14 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { jestAdvanceTime } from '../../../../tests/helpers';
+import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import {
   Cryptocurrency,
   RatesController,
   name as ratesControllerName,
 } from './RatesController';
 import type { RatesControllerMessenger, RatesControllerState } from './types';
-import { jestAdvanceTime } from '../../../../tests/helpers';
-import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 
 type AllActions = MessengerActions<RatesControllerMessenger>;
 

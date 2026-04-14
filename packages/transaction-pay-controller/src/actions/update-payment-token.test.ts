@@ -1,7 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { noop } from 'lodash';
 
-import { updatePaymentToken } from './update-payment-token';
 import type { TransactionData, TransactionPaymentToken } from '../types';
 import {
   getTokenBalance,
@@ -9,6 +8,7 @@ import {
   getTokenInfo,
 } from '../utils/token';
 import { getTransaction } from '../utils/transaction';
+import { updatePaymentToken } from './update-payment-token';
 
 jest.mock('../utils/token', () => ({
   ...jest.createMockFromModule<typeof import('../utils/token')>(

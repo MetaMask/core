@@ -1,4 +1,3 @@
-import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -11,6 +10,7 @@ import {
   getTermsByEnforcer,
   ZERO_32_BYTES,
 } from '../utils';
+import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-revocation permission rule.

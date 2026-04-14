@@ -1,9 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
+import { getMessengerMock } from '../tests/messenger-mock';
 import { getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 import { estimateQuoteGasLimits } from './quote-gas';
-import { getMessengerMock } from '../tests/messenger-mock';
 
 jest.mock('./feature-flags', () => ({
   ...jest.requireActual('./feature-flags'),

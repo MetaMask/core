@@ -23,6 +23,22 @@ import {
 import type { Hex } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
 
+import type {
+  AssetsControllerGetStateAction,
+  AssetsControllerMessenger,
+} from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  ChainId,
+  Caip19AssetId,
+  AssetBalance,
+  AssetMetadata,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
+import { normalizeAssetId } from '../utils';
+import { ZERO_ADDRESS } from '../utils/constants';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
@@ -45,22 +61,6 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
-import type {
-  AssetsControllerGetStateAction,
-  AssetsControllerMessenger,
-} from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  ChainId,
-  Caip19AssetId,
-  AssetBalance,
-  AssetMetadata,
-  DataRequest,
-  DataResponse,
-  Middleware,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import { ZERO_ADDRESS } from '../utils/constants';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds

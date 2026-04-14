@@ -32,6 +32,10 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import {
+  getAccountTreeControllerMessenger,
+  getRootMessenger,
+} from '../tests/mockMessenger';
+import {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController';
@@ -40,10 +44,6 @@ import { BackupAndSyncService } from './backup-and-sync/service';
 import { isAccountGroupNameUnique } from './group';
 import { getAccountWalletNameFromKeyringType } from './rules/keyring';
 import type { AccountTreeControllerState } from './types';
-import {
-  getAccountTreeControllerMessenger,
-  getRootMessenger,
-} from '../tests/mockMessenger';
 
 // Local mock of EMPTY_ACCOUNT to avoid circular dependency
 const EMPTY_ACCOUNT_MOCK: InternalAccount = {
@@ -234,6 +234,46 @@ const MOCK_HARDWARE_ACCOUNT_1: InternalAccount = {
 };
 
 const mockGetSelectedMultichainAccountActionHandler = jest.fn();
+
+const MOCK_PREPOPULATED_WALLET_ID = toMultichainAccountWalletId(
+  MOCK_HD_KEYRING_1.metadata.id,
+);
+const MOCK_PREPOPULATED_GROUP_ID = toMultichainAccountGroupId(
+  MOCK_PREPOPULATED_WALLET_ID,
+  MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+);
+const MOCK_PREPOPULATED_STATE: Partial<AccountTreeControllerState> = {
+  selectedAccountGroup: MOCK_PREPOPULATED_GROUP_ID,
+  accountTree: {
+    wallets: {
+      [MOCK_PREPOPULATED_WALLET_ID]: {
+        id: MOCK_PREPOPULATED_WALLET_ID,
+        type: AccountWalletType.Entropy,
+        status: 'ready',
+        groups: {
+          [MOCK_PREPOPULATED_GROUP_ID]: {
+            id: MOCK_PREPOPULATED_GROUP_ID,
+            type: AccountGroupType.MultichainAccount,
+            accounts: [MOCK_HD_ACCOUNT_1.id],
+            metadata: {
+              name: 'Account 1',
+              entropy: {
+                groupIndex: MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+              },
+              pinned: false,
+              hidden: false,
+              lastSelected: 0,
+            },
+          },
+        },
+        metadata: {
+          name: 'Wallet 1',
+          entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
+        },
+      },
+    },
+  },
+};
 
 /**
  * Sets up the AccountTreeController for testing.
@@ -877,6 +917,11 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
+      // Reset mock call counts after construction: the constructor calls
+      // #initTreeContext which seeds the fast-index Maps from persisted state,
+      // incrementing the call counters before we even call init().
+      jest.clearAllMocks();
+
       controller.init();
       expect(
         mocks.AccountsController.listMultichainAccounts,
@@ -901,6 +946,11 @@ describe('AccountTreeController', () => {
         accounts: [MOCK_HD_ACCOUNT_1],
         keyrings: [MOCK_HD_KEYRING_1],
       });
+
+      // Reset mock call counts after construction: the constructor calls
+      // #initTreeContext which seeds the fast-index Maps from persisted state,
+      // incrementing the call counters before we even call init().
+      jest.clearAllMocks();
 
       controller.init();
       expect(
@@ -1076,6 +1126,27 @@ describe('AccountTreeController', () => {
         toMultichainAccountWalletId(MOCK_HD_KEYRING_2.metadata.id),
       );
     });
+
+    it('populates reverse mappings from persisted tree state without calling init()', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // init() is NOT called — reverse mappings must be populated from the persisted tree.
+      const context = controller.getAccountContext(MOCK_HD_ACCOUNT_1.id);
+      expect(context).toBeDefined();
+      expect(context?.walletId).toBe(MOCK_PREPOPULATED_WALLET_ID);
+      expect(context?.groupId).toBe(MOCK_PREPOPULATED_GROUP_ID);
+      expect(context?.sortOrder).toBeDefined();
+
+      const group = controller.getAccountGroupObject(
+        MOCK_PREPOPULATED_GROUP_ID,
+      );
+      expect(group).toBeDefined();
+      expect(group?.id).toBe(MOCK_PREPOPULATED_GROUP_ID);
+    });
   });
 
   describe('getAccountsFromSelectAccountGroup', () => {
@@ -1146,6 +1217,19 @@ describe('AccountTreeController', () => {
       controller.init();
 
       expect(controller.getAccountsFromSelectedAccountGroup()).toHaveLength(0);
+    });
+
+    it('returns accounts from persisted state without calling init()', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // init() is NOT called — accounts must be served from the persisted state.
+      expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1,
+      ]);
     });
   });
 
@@ -4502,6 +4586,48 @@ describe('AccountTreeController', () => {
       );
     });
 
+    it('always emits selectedAccountGroupChange on init even if the selected group did not change', () => {
+      const { controller, messenger, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.AccountsController.getSelectedMultichainAccount.mockImplementation(
+        () => MOCK_HD_ACCOUNT_1,
+      );
+
+      controller.init();
+
+      const defaultAccountGroupId = toMultichainAccountGroupId(
+        toMultichainAccountWalletId(MOCK_HD_ACCOUNT_1.options.entropy.id),
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
+        defaultAccountGroupId,
+      );
+
+      const selectedAccountGroupChangeListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        selectedAccountGroupChangeListener,
+      );
+
+      // Re-init with the same accounts — the selected group still exists and has not changed.
+      controller.reinit();
+
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
+        defaultAccountGroupId,
+      );
+      // The event must fire even though the group did not change, so that
+      // subscribers that missed the first init can still react accordingly.
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
+        defaultAccountGroupId,
+        defaultAccountGroupId,
+      );
+      expect(selectedAccountGroupChangeListener).toHaveBeenCalledTimes(1);
+    });
+
     it('emits selectedAccountGroupChange when setSelectedAccountGroup is called', () => {
       // Use different keyring types to ensure different groups
       const { controller, messenger } = setup({
@@ -4863,6 +4989,9 @@ describe('AccountTreeController', () => {
       ).toMatchInlineSnapshot(`
         {
           "accountGroupsMetadata": {},
+          "accountTree": {
+            "wallets": {},
+          },
           "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
           "selectedAccountGroup": "",

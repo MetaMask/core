@@ -1,8 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
-import { StakedBalanceDataSource } from './StakedBalanceDataSource';
 import {
   MockRootMessenger,
   createMockAssetControllerMessenger,
@@ -16,6 +14,8 @@ import type {
   Context,
   DataRequest,
 } from '../types';
+import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
+import { StakedBalanceDataSource } from './StakedBalanceDataSource';
 
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MAINNET_CHAIN_ID_CAIP = 'eip155:1' as ChainId;

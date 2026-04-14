@@ -1,7 +1,3 @@
-import {
-  AccountsApiRemoteTransactionSource,
-  SUPPORTED_CHAIN_IDS,
-} from './AccountsApiRemoteTransactionSource';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
@@ -10,6 +6,10 @@ import { getAccountTransactions } from '../api/accounts-api';
 import { TransactionType } from '../types';
 import type { RemoteTransactionSourceRequest } from '../types';
 import { determineTransactionType } from '../utils/transaction-type';
+import {
+  AccountsApiRemoteTransactionSource,
+  SUPPORTED_CHAIN_IDS,
+} from './AccountsApiRemoteTransactionSource';
 
 jest.mock('../api/accounts-api');
 jest.mock('../utils/transaction-type');

@@ -1,15 +1,15 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
 
+import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
+import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
+import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
   fetchAssetPrices,
 } from './fetch';
 import { FeatureId } from './validators';
-import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
-import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
 
 const mockFetchFn = jest.fn();
 

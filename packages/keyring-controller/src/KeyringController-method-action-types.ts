@@ -311,6 +311,71 @@ export type KeyringControllerWithKeyringUnsafeAction = {
 };
 
 /**
+ * Select a keyring using its `KeyringV2` adapter, and execute
+ * the given operation with the wrapped keyring as a mutually
+ * exclusive atomic operation.
+ *
+ * The cached `KeyringV2` adapter is retrieved from the keyring
+ * entry.
+ *
+ * A `KeyringV2Builder` for the selected keyring's type must exist
+ * (either as a default or registered via the `keyringV2Builders`
+ * constructor option); otherwise an error is thrown.
+ *
+ * The method automatically persists changes at the end of the
+ * function execution, or rolls back the changes if an error
+ * is thrown.
+ *
+ * @param selector - Keyring selector object.
+ * @param operation - Function to execute with the wrapped V2 keyring.
+ * @returns Promise resolving to the result of the function execution.
+ * @template CallbackResult - The type of the value resolved by the callback function.
+ */
+export type KeyringControllerWithKeyringV2Action = {
+  type: `KeyringController:withKeyringV2`;
+  handler: KeyringController['withKeyringV2'];
+};
+
+/**
+ * Select a keyring, wrap it in a `KeyringV2` adapter, and execute
+ * the given read-only operation **without** acquiring the controller's
+ * mutual exclusion lock.
+ *
+ * ## When to use this method
+ *
+ * This method is an escape hatch for read-only access to keyring data that
+ * is immutable once the keyring is initialized. A typical safe use case is
+ * reading immutable fields from a `KeyringV2` adapter: data that is set
+ * during initialization and never mutated afterwards.
+ *
+ * ## Why it is "unsafe"
+ *
+ * The "unsafe" designation mirrors the semantics of `unsafe { }` blocks in
+ * Rust: the method itself does not enforce thread-safety guarantees. By
+ * calling this method the **caller** explicitly takes responsibility for
+ * ensuring that:
+ *
+ * - The operation is **read-only** — no state is mutated.
+ * - The data being read is **immutable** after the keyring is initialized,
+ * so concurrent locked operations cannot alter it while this callback
+ * runs.
+ *
+ * Do **not** use this method to:
+ * - Mutate keyring state (add accounts, sign, etc.) — use `withKeyringV2`.
+ * - Read mutable fields that could change during concurrent operations.
+ *
+ * @param selector - Keyring selector object.
+ * @param operation - Read-only function to execute with the wrapped V2 keyring.
+ * @returns Promise resolving to the result of the function execution.
+ * @template SelectedKeyring - The type of the selected V2 keyring.
+ * @template CallbackResult - The type of the value resolved by the callback function.
+ */
+export type KeyringControllerWithKeyringV2UnsafeAction = {
+  type: `KeyringController:withKeyringV2Unsafe`;
+  handler: KeyringController['withKeyringV2Unsafe'];
+};
+
+/**
  * Union of all KeyringController action types.
  */
 export type KeyringControllerMethodActions =
@@ -334,4 +399,6 @@ export type KeyringControllerMethodActions =
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
   | KeyringControllerWithKeyringAction
-  | KeyringControllerWithKeyringUnsafeAction;
+  | KeyringControllerWithKeyringUnsafeAction
+  | KeyringControllerWithKeyringV2Action
+  | KeyringControllerWithKeyringV2UnsafeAction;

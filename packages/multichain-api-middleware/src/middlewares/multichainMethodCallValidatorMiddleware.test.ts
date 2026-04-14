@@ -4,8 +4,8 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware';
 import { MultichainApiNotifications } from '../handlers/types';
+import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware';
 
 describe('multichainMethodCallValidatorMiddleware', () => {
   const mockNext = jest.fn();

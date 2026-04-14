@@ -26,8 +26,8 @@ import {
 import type { Call } from './multicall';
 import { multicallOrFallback } from './multicall';
 import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 
 /**
  * Check if token detection is enabled for certain networks

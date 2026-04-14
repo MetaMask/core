@@ -34,6 +34,12 @@ import type { CaipChainId } from '@metamask/utils';
 import type { V4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
 
+import {
+  createExpectedInternalAccount,
+  createMockInternalAccount,
+  createMockInternalAccountOptions,
+  ETH_EOA_METHODS,
+} from '../tests/mocks';
 import type {
   AccountsControllerMessenger,
   AccountsControllerState,
@@ -43,12 +49,6 @@ import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
 } from './utils';
-import {
-  createExpectedInternalAccount,
-  createMockInternalAccount,
-  createMockInternalAccountOptions,
-  ETH_EOA_METHODS,
-} from '../tests/mocks';
 
 type AllAccountsControllerActions =
   MessengerActions<AccountsControllerMessenger>;

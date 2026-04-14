@@ -1,9 +1,3 @@
-import {
-  createLocalGroupsFromUserStorage,
-  syncGroupMetadata,
-  syncGroupsMetadata,
-} from './group';
-import * as metadataExports from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
@@ -16,6 +10,12 @@ import {
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
 import { getLocalGroupsForEntropyWallet } from '../utils';
+import {
+  createLocalGroupsFromUserStorage,
+  syncGroupMetadata,
+  syncGroupsMetadata,
+} from './group';
+import * as metadataExports from './metadata';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');

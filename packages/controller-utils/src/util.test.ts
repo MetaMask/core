@@ -4,9 +4,9 @@ import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 import * as util from './util';
-import { FakeProvider } from '../../../tests/fake-provider';
 
 type EverythingButNull =
   | string

@@ -25,10 +25,10 @@ import type {
 import { createProjectLogger, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAccountByAddress } from './accounts';
-import { getNetworkClientIdByChainId } from './network';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
+import { getAccountByAddress } from './accounts';
+import { getNetworkClientIdByChainId } from './network';
 
 export const getGasFeeEstimates = async (
   messenger: BridgeStatusControllerMessenger,

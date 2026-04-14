@@ -6,8 +6,8 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { CandleData, OrderType } from './perps-types';
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig';
+import type { CandleData, OrderType } from './perps-types';
 
 /**
  * Connection states for WebSocket management.

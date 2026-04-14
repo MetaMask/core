@@ -1,5 +1,7 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { TraceName } from '../constants';
 import { canPerformContactSyncing } from './sync-utils';
 import type { ContactSyncingOptions } from './types';
 import type { UserStorageContactEntry } from './types';
@@ -9,8 +11,6 @@ import {
   mapUserStorageEntryToAddressBookEntry,
 } from './utils';
 import { isContactBridgedFromAccounts } from './utils';
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { TraceName } from '../constants';
 
 export type SyncContactsWithUserStorageConfig = {
   onContactSyncErroneousSituation?: (
