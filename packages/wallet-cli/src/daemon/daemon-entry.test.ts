@@ -440,5 +440,13 @@ describe('daemon-entry', () => {
         'Expected params to be an array with an action name',
       );
     });
+
+    it('throws when action name is not a string', async () => {
+      const { callHandler } = await setupCallHandler();
+
+      await expect(callHandler([42])).rejects.toThrow(
+        'Expected params to be an array with an action name',
+      );
+    });
   });
 });

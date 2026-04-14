@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     // messenger surface over a local Unix socket.  Access control is enforced
     // at the socket level (only local users can connect).
     call: async (params) => {
-      if (!Array.isArray(params) || params.length === 0) {
+      if (!Array.isArray(params) || typeof params[0] !== 'string') {
         throw new Error('Expected params to be an array with an action name');
       }
       const [action, ...args] = params as [string, ...Json[]];
