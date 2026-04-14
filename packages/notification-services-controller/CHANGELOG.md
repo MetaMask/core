@@ -7,16 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Add backend push token links for newly added notification accounts using the existing device token, so account additions trigger additive `POST /api/v2/token` registration for both primary and imported SRPs ([#8449](https://github.com/MetaMask/core/pull/8449))
-
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+### Fixed
+
+- Add backend push token links for newly added notification accounts using the existing device token, so account additions trigger additive `POST /api/v2/token` registration for both primary and imported SRPs ([#8449](https://github.com/MetaMask/core/pull/8449))
+  - Add the `NotificationServicesPushController:addPushNotificationLinks` messenger action and export the corresponding `NotificationServicesPushControllerAddPushNotificationLinksAction` type so clients can allow and type the new additive push-link flow.
 
 ## [23.0.1]
 
