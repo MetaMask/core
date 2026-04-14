@@ -150,8 +150,8 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
 export type SeedlessOnboardingControllerOptions<
-  EncryptionKey,
-  SupportedKeyDerivationParams,
+  EncryptionKey = encryptionUtils.EncryptionKey,
+  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
   EncryptionResult extends
     EncryptionResultConstraint<SupportedKeyDerivationParams> = DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
