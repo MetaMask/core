@@ -38,3 +38,8 @@ packages/*/*.tsbuildinfo
 
 # AI
 .sisyphus/
+
+# Wallet
+.claude/
+.env
+!.env.example

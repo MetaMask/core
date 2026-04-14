@@ -1,42 +1,76 @@
+import type { KeyringControllerSignTransactionAction } from '@metamask/keyring-controller';
 import {
   Messenger,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type {
+  NetworkControllerGetEIP1559CompatibilityAction,
+  NetworkControllerGetNetworkClientRegistryAction,
+  NetworkControllerGetStateAction,
+} from '@metamask/network-controller';
+import type { TransactionControllerOptions } from '@metamask/transaction-controller';
 import {
   TransactionController,
   TransactionControllerMessenger,
 } from '@metamask/transaction-controller';
 
-import { InitializationConfiguration } from '../types';
+import { bindMessengerAction, InitializationConfiguration } from '../types';
 
-type AllowedActions = MessengerActions<TransactionControllerMessenger>;
+type InitActions =
+  | NetworkControllerGetNetworkClientRegistryAction
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerGetStateAction
+  | KeyringControllerSignTransactionAction;
+
+type AllowedActions =
+  | MessengerActions<TransactionControllerMessenger>
+  | InitActions;
 
 type AllowedEvents = MessengerEvents<TransactionControllerMessenger>;
 
+type WalletTransactionControllerMessenger = Messenger<
+  'TransactionController',
+  AllowedActions,
+  AllowedEvents
+>;
+
 export const transactionController: InitializationConfiguration<
   TransactionController,
-  TransactionControllerMessenger
+  WalletTransactionControllerMessenger
 > = {
   name: 'TransactionController',
   init: ({ state, messenger }) => {
     // TODO: Add the rest of the arguments.
     const instance = new TransactionController({
       state,
-      messenger,
-      getNetworkClientRegistry: messenger.call.bind(
+      messenger: messenger as unknown as TransactionControllerMessenger,
+      disableHistory: true,
+      disableSendFlowHistory: true,
+      disableSwaps: false,
+      hooks: {},
+      getNetworkClientRegistry: bindMessengerAction(
         messenger,
         'NetworkController:getNetworkClientRegistry',
       ),
-      getCurrentNetworkEIP1559Compatibility: messenger.call.bind(
+      getCurrentNetworkEIP1559Compatibility: bindMessengerAction(
         messenger,
         'NetworkController:getEIP1559Compatibility',
-      ),
-      getNetworkState: messenger.call.bind(
+      ) as () => Promise<boolean>,
+      getNetworkState: bindMessengerAction(
         messenger,
         'NetworkController:getState',
       ),
-      sign: messenger.call.bind(messenger, 'KeyringController:signTransaction'),
+      // KeyringController.signTransaction is typed as returning
+      // Promise<TypedTxData> (a plain data object), but the actual keyring
+      // implementations return the full TypedTransaction class instance.
+      // TransactionController expects Promise<TypedTransaction> here. The
+      // cast bridges a stale return-type declaration in KeyringController,
+      // not a real runtime mismatch.
+      sign: bindMessengerAction(
+        messenger,
+        'KeyringController:signTransaction',
+      ) as unknown as TransactionControllerOptions['sign'],
     });
 
     return {

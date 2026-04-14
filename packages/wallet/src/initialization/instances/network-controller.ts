@@ -5,6 +5,7 @@ import {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { NetworkControllerOptions } from '@metamask/network-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
@@ -24,36 +25,38 @@ export const networkController: InitializationConfiguration<
   name: 'NetworkController',
   init: ({ state, messenger, options }) => {
     // TODO: This was gutted to simplify implementation for now.
-    const getRpcServiceOptions = () => {
-      const maxRetries = DEFAULT_MAX_RETRIES;
+    const getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'] =
+      () => {
+        const maxRetries = DEFAULT_MAX_RETRIES;
 
-      const isOffline = (): boolean => {
-        const connectivityState = messenger.call(
-          'ConnectivityController:getState',
-        );
-        return (
-          connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
-        );
-      };
+        const isOffline = (): boolean => {
+          const connectivityState = messenger.call(
+            'ConnectivityController:getState',
+          );
+          return (
+            connectivityState.connectivityStatus ===
+            CONNECTIVITY_STATUSES.Offline
+          );
+        };
 
-      return {
-        fetch: globalThis.fetch.bind(globalThis),
-        btoa: globalThis.btoa.bind(globalThis),
-        isOffline,
-        policyOptions: {
-          // Ensure that the "cooldown" period after breaking the circuit is short.
-          circuitBreakDuration: inMilliseconds(30, Duration.Second),
-          maxRetries,
-          // Ensure that if the endpoint continually responds with errors, we
-          // break the circuit relatively fast (but not prematurely).
-          //
-          // Note that the circuit will break much faster if the errors are
-          // retriable (e.g. 503) than if not (e.g. 500), so we attempt to strike
-          // a balance here.
-          maxConsecutiveFailures: (maxRetries + 1) * 3,
-        },
+        return {
+          fetch: globalThis.fetch.bind(globalThis),
+          btoa: globalThis.btoa.bind(globalThis),
+          isOffline,
+          policyOptions: {
+            // Ensure that the "cooldown" period after breaking the circuit is short.
+            circuitBreakDuration: inMilliseconds(30, Duration.Second),
+            maxRetries,
+            // Ensure that if the endpoint continually responds with errors, we
+            // break the circuit relatively fast (but not prematurely).
+            //
+            // Note that the circuit will break much faster if the errors are
+            // retriable (e.g. 503) than if not (e.g. 500), so we attempt to strike
+            // a balance here.
+            maxConsecutiveFailures: (maxRetries + 1) * 3,
+          },
+        };
       };
-    };
 
     // TODO: Add the rest of the arguments.
     const instance = new NetworkController({
