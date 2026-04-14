@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MantleLayer1GasFeeFlow` with `tokenRatio` conversion for accurate MNT-denominated gas estimates for Mantle and MantleSepolia ([#8386](https://github.com/MetaMask/core/pull/8386))
+
 ## [64.2.0]
 
 ### Added
@@ -22,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `getAccountAddressRelationship` function and `GetAccountAddressRelationshipRequest` type from the public API ([#8402](https://github.com/MetaMask/core/pull/8402))
-- Add `MantleLayer1GasFeeFlow` with `tokenRatio` conversion for accurate MNT-denominated gas estimates for Mantle and MantleSepolia ([#8386](https://github.com/MetaMask/core/pull/8386))
 
 ### Changed
 
