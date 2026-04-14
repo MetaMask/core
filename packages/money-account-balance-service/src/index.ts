@@ -6,6 +6,7 @@ export type {
   MoneyAccountBalanceServiceActions,
   MoneyAccountBalanceServiceEvents,
   MoneyAccountBalanceServiceMessenger,
+  MoneyAccountBalanceServiceConfig,
 } from './money-account-balance-service';
 export type {
   MoneyAccountBalanceServiceGetMusdBalanceAction,

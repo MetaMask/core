@@ -1,12 +1,4 @@
 /**
- * Response from {@link MoneyAccountBalanceService.#fetchErc20Balance}.
- * Balance is a raw uint256 string (no decimal normalization).
- */
-export type Erc20BalanceResponse = {
-  balance: string;
-};
-
-/**
  * Response from {@link MoneyAccountBalanceService.getExchangeRate}.
  * Rate is the raw uint256 string returned by the Accountant's `getRate()`.
  */
