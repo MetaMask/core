@@ -20,7 +20,7 @@
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
-    "create-release": "yarn create-release-branch --interactive --formatter oxfmt",
+    "create-release-branch": "create-release-branch --formatter oxfmt",
     "create-package": "tsx scripts/create-package",
     "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check",
     "lint:dependencies": "depcheck && yarn dedupe --check",
