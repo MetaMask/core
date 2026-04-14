@@ -24,7 +24,7 @@ export type MusdEquivalentValueResponse = {
  * Only `apy` and `timestamp` are guaranteed to be present — all other fields
  * are optional because the Veda API omits them when the vault has no activity.
  */
-export type VaultApyResponse = {
+export type NormalizedVaultApyResponse = {
   aggregationPeriod?: string; // E.g. "7 days"
   apy: number;
   chainAllocation?: {

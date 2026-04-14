@@ -1,12 +1,8 @@
-export {
-  MoneyAccountBalanceService,
-  serviceName as moneyAccountBalanceServiceName,
-} from './money-account-balance-service';
+export { MoneyAccountBalanceService } from './money-account-balance-service';
 export type {
   MoneyAccountBalanceServiceActions,
   MoneyAccountBalanceServiceEvents,
   MoneyAccountBalanceServiceMessenger,
-  MoneyAccountBalanceServiceConfig,
 } from './money-account-balance-service';
 export type {
   MoneyAccountBalanceServiceGetMusdBalanceAction,
@@ -18,5 +14,5 @@ export type {
 export type {
   ExchangeRateResponse,
   MusdEquivalentValueResponse,
-  VaultApyResponse,
+  NormalizedVaultApyResponse,
 } from './response.types';

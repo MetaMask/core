@@ -8,7 +8,7 @@ import {
 } from '@metamask/superstruct';
 
 /**
- * Superstruct schema for {@link VaultApyResponse}.
+ * Superstruct schema for {@link NormalizedVaultApyResponse}.
  *
  * Uses `type()` (loose validation) so that unknown fields returned by the
  * Veda API do not cause validation failures.
@@ -16,7 +16,7 @@ import {
  * Only `apy` and `timestamp` are required — all other fields are optional
  * because the Veda API omits some fields when the vault has no activity.
  */
-export const VaultApyResponseStruct = type({
+export const VaultApyRawResponseStruct = type({
   Response: type({
     aggregation_period: optional(string()),
     apy: number(),

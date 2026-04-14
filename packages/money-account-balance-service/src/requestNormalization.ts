@@ -1,7 +1,7 @@
 import { Infer } from '@metamask/superstruct';
 
-import type { VaultApyResponse } from './response.types';
-import { VaultApyResponseStruct } from './structs';
+import type { NormalizedVaultApyResponse } from './response.types';
+import { VaultApyRawResponseStruct } from './structs';
 
 /**
  * Normalizes the raw response from the Veda performance API into the expected
@@ -11,8 +11,8 @@ import { VaultApyResponseStruct } from './structs';
  * @returns The normalized response.
  */
 export function normalizeVaultApyResponse(
-  rawResponse: Infer<typeof VaultApyResponseStruct>,
-): VaultApyResponse {
+  rawResponse: Infer<typeof VaultApyRawResponseStruct>,
+): NormalizedVaultApyResponse {
   const { Response: response } = rawResponse;
 
   return {

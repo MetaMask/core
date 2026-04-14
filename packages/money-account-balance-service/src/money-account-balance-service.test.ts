@@ -10,10 +10,7 @@ import type {
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import { VedaResponseValidationError } from './errors';
-import type {
-  MoneyAccountBalanceServiceConfig,
-  MoneyAccountBalanceServiceMessenger,
-} from './money-account-balance-service';
+import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service';
 import {
   MoneyAccountBalanceService,
   serviceName,
@@ -144,16 +141,13 @@ function createServiceMessenger(
  * Builds the service under test with messenger action stubs for the two
  * NetworkController dependencies.
  *
- * @param args - Optional overrides for the service config and constructor options.
- * @param args.config - Partial config merged over {@link DEFAULT_CONFIG}.
- * @param args.options - Partial constructor options passed to the service.
+ * @param args - Optional overrides for the service constructor options.
+ * @param args.options - Partial constructor options merged over {@link DEFAULT_CONFIG}.
  * @returns The constructed service together with messenger instances and mock stubs.
  */
 function createService({
-  config = {},
   options = {},
 }: {
-  config?: Partial<MoneyAccountBalanceServiceConfig>;
   options?: Partial<
     ConstructorParameters<typeof MoneyAccountBalanceService>[0]
   >;
@@ -192,7 +186,7 @@ function createService({
 
   const service = new MoneyAccountBalanceService({
     messenger,
-    config: { ...DEFAULT_CONFIG, ...config },
+    ...DEFAULT_CONFIG,
     ...options,
   });
 
@@ -567,20 +561,6 @@ describe('MoneyAccountBalanceService', () => {
       expect(result).toStrictEqual(MOCK_VAULT_APY_NORMALIZED);
     });
 
-    it('uses a custom vedaApiBaseUrl when provided', async () => {
-      nock('https://custom-veda-api.example.com')
-        .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
-        .reply(200, MOCK_VAULT_APY_RAW_RESPONSE);
-
-      const { service } = createService({
-        config: { vedaApiBaseUrl: 'https://custom-veda-api.example.com' },
-      });
-
-      const result = await service.getVaultApy();
-
-      expect(result).toStrictEqual(MOCK_VAULT_APY_NORMALIZED);
-    });
-
     it('throws HttpError on a non-200 response', async () => {
       nock('https://api.sevenseas.capital')
         .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
@@ -725,7 +705,7 @@ describe('MoneyAccountBalanceService', () => {
         .reply(200, MOCK_VAULT_APY_RAW_RESPONSE);
 
       const { service } = createService({
-        config: { vaultChainId: '0x1' as const },
+        options: { vaultChainId: '0x1' as const },
       });
 
       const result = await service.getVaultApy();
