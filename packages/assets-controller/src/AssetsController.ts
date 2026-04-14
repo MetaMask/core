@@ -48,6 +48,7 @@ import type {
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
 import {
   isCaipChainId,
@@ -292,6 +293,7 @@ type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | TransactionControllerIncomingTransactionsReceivedEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
   // SnapDataSource

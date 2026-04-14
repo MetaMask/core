@@ -12,6 +12,7 @@ import type { NetworkEnablementControllerGetStateAction } from '@metamask/networ
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
@@ -79,7 +80,8 @@ export type RpcDataSourceAllowedActions =
 export type RpcDataSourceAllowedEvents =
   | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerIncomingTransactionsReceivedEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -214,6 +216,8 @@ export class RpcDataSource extends AbstractDataSource<
   #unsubscribeTransactionConfirmed: (() => void) | undefined = undefined;
 
   #unsubscribeIncomingTransactions: (() => void) | undefined = undefined;
+
+  #unsubscribeUnapprovedTransactionAdded: (() => void) | undefined = undefined;
 
   // Rpc-datasource components
   readonly #multicallClient: MulticallClient;
@@ -537,6 +541,13 @@ export class RpcDataSource extends AbstractDataSource<
     );
     this.#unsubscribeIncomingTransactions =
       typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
+
+    const unsubUnapproved = this.#messenger.subscribe(
+      'TransactionController:unapprovedTransactionAdded',
+      this.#onUnapprovedTransactionAdded.bind(this),
+    );
+    this.#unsubscribeUnapprovedTransactionAdded =
+      typeof unsubUnapproved === 'function' ? unsubUnapproved : undefined;
   }
 
   #onTransactionConfirmed(payload: TransactionMeta): void {
@@ -565,6 +576,19 @@ export class RpcDataSource extends AbstractDataSource<
       caipChainIds.length > 0 ? caipChainIds : [...this.#activeChains];
     this.#refreshBalanceForChains(toRefresh).catch((error) => {
       log('Failed to refresh balance after incoming transactions', { error });
+    });
+  }
+
+  #onUnapprovedTransactionAdded(payload: TransactionMeta): void {
+    const hexChainId = payload?.chainId;
+    if (!hexChainId) {
+      return;
+    }
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    this.#refreshBalanceForChains([caipChainId]).catch((error) => {
+      log('Failed to refresh balance after unapproved transaction added', {
+        error,
+      });
     });
   }
 
@@ -1377,6 +1401,7 @@ export class RpcDataSource extends AbstractDataSource<
 
     this.#unsubscribeTransactionConfirmed?.();
     this.#unsubscribeIncomingTransactions?.();
+    this.#unsubscribeUnapprovedTransactionAdded?.();
 
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();
