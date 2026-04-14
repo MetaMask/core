@@ -29,7 +29,7 @@ export async function createWallet({
       infuraProjectId,
       clientVersion: '0.0.0',
       // TODO: Implement showApprovalRequest
-      showApprovalRequest: () => undefined,
+      showApprovalRequest: (): undefined => undefined,
       clientConfigApiService: new ClientConfigApiService({
         fetch: globalThis.fetch,
         config: {
@@ -38,7 +38,7 @@ export async function createWallet({
           environment: EnvironmentType.Production,
         },
       }),
-      getMetaMetricsId: () => 'cli',
+      getMetaMetricsId: (): string => 'cli',
     },
   });
 

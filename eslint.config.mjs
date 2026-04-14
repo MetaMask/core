@@ -310,6 +310,7 @@ const config = createConfig([
   {
     files: ['packages/wallet-cli/src/**/*.test.{js,ts}'],
     rules: {
+      'jest/unbound-method': 'off',
       'n/no-process-env': 'off',
       'n/no-sync': 'off',
     },

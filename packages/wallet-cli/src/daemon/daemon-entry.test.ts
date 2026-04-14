@@ -33,7 +33,7 @@ const ORIGINAL_ENV = process.env;
  */
 function createMockWallet(): Awaited<ReturnType<typeof createWallet>> {
   return {
-    messenger: {} as never,
+    messenger: { call: jest.fn() } as never,
     state: {} as never,
     destroy: jest.fn().mockResolvedValue(undefined),
   } as unknown as Awaited<ReturnType<typeof createWallet>>;
@@ -342,5 +342,87 @@ describe('daemon-entry', () => {
     expect(handle.close).toHaveBeenCalled();
     expect(wallet.destroy).toHaveBeenCalled();
     expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
+  });
+
+  describe('call handler', () => {
+    /**
+     * Import the daemon entry and extract the `call` handler from the
+     * handlers map, along with the mock wallet for assertions.
+     *
+     * @returns The call handler function and mock wallet.
+     */
+    async function setupCallHandler(): Promise<{
+      callHandler: (params: unknown) => Promise<unknown>;
+      wallet: Awaited<ReturnType<typeof createWallet>>;
+    }> {
+      const wallet = createMockWallet();
+      mockCreateWallet.mockResolvedValue(wallet);
+      mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+      await importDaemonEntry();
+
+      const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+      const callHandler = callArgs.handlers.call as (
+        params: unknown,
+      ) => Promise<unknown>;
+      return { callHandler, wallet };
+    }
+
+    it('registers a call handler', async () => {
+      mockCreateWallet.mockResolvedValue(createMockWallet());
+      mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+      await importDaemonEntry();
+
+      const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+      expect(typeof callArgs.handlers.call).toBe('function');
+    });
+
+    it('forwards action and args to messenger.call', async () => {
+      const { callHandler, wallet } = await setupCallHandler();
+      const mockCall = wallet.messenger.call as jest.Mock;
+      mockCall.mockReturnValue({ accounts: [] });
+
+      const result = await callHandler(['Controller:action', 'arg1', 'arg2']);
+
+      expect(mockCall).toHaveBeenCalledWith(
+        'Controller:action',
+        'arg1',
+        'arg2',
+      );
+      expect(result).toStrictEqual({ accounts: [] });
+    });
+
+    it('calls messenger.call with no extra args when only action is provided', async () => {
+      const { callHandler, wallet } = await setupCallHandler();
+      const mockCall = wallet.messenger.call as jest.Mock;
+      mockCall.mockReturnValue('ok');
+
+      await callHandler(['Controller:action']);
+
+      expect(mockCall).toHaveBeenCalledWith('Controller:action');
+    });
+
+    it('awaits async messenger.call results', async () => {
+      const { callHandler, wallet } = await setupCallHandler();
+      const mockCall = wallet.messenger.call as jest.Mock;
+      mockCall.mockResolvedValue({ async: true });
+
+      const result = await callHandler(['Controller:asyncAction']);
+
+      expect(result).toStrictEqual({ async: true });
+    });
+
+    it('propagates errors thrown by messenger.call', async () => {
+      const { callHandler, wallet } = await setupCallHandler();
+      const mockCall = wallet.messenger.call as jest.Mock;
+      mockCall.mockImplementation(() => {
+        throw new Error('A handler for Unknown:action has not been registered');
+      });
+
+      await expect(callHandler(['Unknown:action'])).rejects.toThrow(
+        'A handler for Unknown:action has not been registered',
+      );
+    });
   });
 });

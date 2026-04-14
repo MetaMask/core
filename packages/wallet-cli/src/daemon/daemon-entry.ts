@@ -1,3 +1,4 @@
+import type { Json } from '@metamask/utils';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { rm, writeFile } from 'node:fs/promises';
 
@@ -57,6 +58,12 @@ async function main(): Promise<void> {
       pid: process.pid,
       uptime: Math.floor((Date.now() - startTime) / 1000),
     }),
+    call: async (params) => {
+      const [action, ...args] = params as [string, ...Json[]];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.
+      const result = (wallet.messenger as any).call(action, ...args);
+      return (result instanceof Promise ? await result : result) as Json;
+    },
   };
 
   let handle: RpcSocketServerHandle;
