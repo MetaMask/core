@@ -38,6 +38,3 @@ packages/*/*.tsbuildinfo
 
 # AI
 .sisyphus/
-
-# IDE
-.idea/
