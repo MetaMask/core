@@ -32,6 +32,7 @@ import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionFailedEvent,
   TransactionControllerUpdateTransactionAction,
+  TransactionControllerTransactionSubmittedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
@@ -310,7 +311,8 @@ type AllowedActions =
  */
 type AllowedEvents =
   | TransactionControllerTransactionFailedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

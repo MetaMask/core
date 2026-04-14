@@ -9,6 +9,7 @@ import type {
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
+  getClientHeaders,
   isNonEvmChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
@@ -23,6 +24,7 @@ import {
   PollingStatus,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
   TransactionStatus,
@@ -136,6 +138,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
+  // Tracks txMetaIds whose SUBMITTED status report was rejected with 400 (tx
+  // data mismatch). Maps txMetaId -> { requestId, srcTxHash } so that the
+  // final outcome (FINALIZED_SUCCESS / FINALISED_FAILURE) can be reported when
+  // the transaction confirms or fails.
+  #pendingTxStatusUpdates: Record<
+    string,
+    { requestId: string; srcTxHash: string }
+  > = {};
+
   readonly #intentManager: IntentManager;
 
   readonly #clientId: BridgeClientId;
@@ -224,6 +235,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
+          this.#reportTxFinalised(txMetaId, false).catch((e) => console.error('FAILWED 1', e));
           // Track failed event
           if (status !== TransactionStatus.rejected) {
             // Look up history by txMetaId first, then by actionId (for pre-submission failures)
@@ -256,6 +268,37 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
         if (type === TransactionType.bridge && !isNonEvmChainId(chainId)) {
           this.#startPollingForTxId(txMetaId);
+        }
+        if (
+          type &&
+          [TransactionType.bridge, TransactionType.swap].includes(type)
+        ) {
+          this.#reportTxFinalised(txMetaId, true).catch((e) =>
+            console.error('FAILED HERE 1: ' + e),
+          );
+        }
+      },
+    );
+
+    // For batch EVM transactions (STX / gasIncluded7702) the tx hash is not
+    // available when submitTx returns, so we report the submitted status here
+    // once the TransactionController has broadcast the tx and assigned a hash.
+    this.messenger.subscribe(
+      'TransactionController:transactionSubmitted',
+      ({ transactionMeta }) => {
+        const { type, id: txMetaId, hash } = transactionMeta;
+        if (
+          hash &&
+          type &&
+          [TransactionType.bridge, TransactionType.swap].includes(type)
+        ) {
+          const historyItem = this.state.txHistory[txMetaId];
+          const requestId = historyItem?.quote?.requestId;
+          if (requestId) {
+            this.#reportTxSubmitted(requestId, hash, txMetaId).catch((e) =>
+              console.error('FAILED HERE 2: ' + e),
+            );
+          }
         }
       },
     );
@@ -843,6 +886,76 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
+  readonly #updateQuoteStatus = async (
+    requestId: string,
+    srcTxHash: string,
+    newStatus: string,
+  ): Promise<void> => {
+    await this.#fetchFn(
+      `${this.#config.customBridgeApiBaseUrl}/quote/updateStatus`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getClientHeaders({
+            clientId: this.#clientId,
+            jwt: await getJwt(this.messenger),
+          }),
+        },
+        body: JSON.stringify({
+          requestId,
+          newStatus,
+          srcTxHash,
+        }),
+      },
+    );
+  };
+
+  /**
+   * Reports the SUBMITTED status to the Bridge API. If the API rejects with
+   * HTTP 400 (tx data mismatch), the txMetaId is recorded so that the final
+   * outcome can be reported via {@link #reportTxFinalised}.
+   *
+   * @param requestId - The quote requestId
+   * @param srcTxHash - The source transaction hash
+   * @param txMetaId - The transaction meta id used to track finalization
+   */
+  readonly #reportTxSubmitted = async (
+    requestId: string,
+    srcTxHash: string,
+    txMetaId?: string,
+  ): Promise<void> => {
+    try {
+      await this.#updateQuoteStatus(requestId, srcTxHash, 'SUBMITTED');
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 400 && txMetaId) {
+        this.#pendingTxStatusUpdates[txMetaId] = { requestId, srcTxHash };
+      }
+    }
+  };
+
+  readonly #reportTxFinalised = async (
+    txMetaId: string,
+    success: boolean,
+  ): Promise<void> => {
+    const pending = this.#pendingTxStatusUpdates[txMetaId];
+    if (!pending) {
+      return;
+    }
+    delete this.#pendingTxStatusUpdates[txMetaId];
+
+    const newStatus = success ? 'FINALISED_SUCCESS' : 'FINALISED_FAILURE';
+    try {
+      await this.#updateQuoteStatus(
+        pending.requestId,
+        pending.srcTxHash,
+        newStatus,
+      );
+    } catch {
+      // Non-fatal: best-effort status reporting
+    }
+  };
+
   /**
    * ******************************************************
    * TX SUBMISSION HANDLING
@@ -1170,6 +1283,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         !isStxEnabledOnClient &&
         !quoteResponse.quote.gasIncluded7702 &&
         !isDelegatedAccount;
+
+      // Report submitted status to the Bridge API.
+      // For non-batch EVM and non-EVM, the hash is available now.
+      // For batch EVM (STX/gasIncluded7702), the hash arrives later via the
+      // TransactionController:transactionSubmitted event subscriber.
+      if (txMeta.hash) {
+        await this.#reportTxSubmitted(
+          quoteResponse.quote.requestId,
+          txMeta.hash,
+          txMeta.id,
+        );
+      }
 
       if (!isNonBatchEvm) {
         // Add swap or bridge tx to history
