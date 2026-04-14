@@ -4144,6 +4144,18 @@ describe('KeyringController', () => {
         );
       });
 
+      it('populates keyringV2 when a V2 builder is registered for the type', async () => {
+        await withController(async ({ controller }) => {
+          await controller.withController(async (restrictedController) => {
+            const entry = await restrictedController.addNewKeyring(
+              KeyringTypes.simple,
+            );
+
+            expect(entry.keyringV2).toBeDefined();
+          });
+        });
+      });
+
       it('appears immediately in restrictedController.keyrings', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
