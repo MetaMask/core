@@ -16,6 +16,7 @@ import log from 'loglevel';
 import type nock from 'nock';
 
 import type {
+  NotificationServicesPushControllerAddPushNotificationLinksAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
   NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
@@ -819,7 +820,11 @@ describe('NotificationServicesController', () => {
     };
 
     it('enables notifications for given accounts', async () => {
-      const { messenger, mockUpdateNotifications } = arrangeMocks();
+      const {
+        messenger,
+        mockAddPushNotificationLinks,
+        mockUpdateNotifications,
+      } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -828,6 +833,7 @@ describe('NotificationServicesController', () => {
       await controller.enableAccounts([ADDRESS_1]);
 
       expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(mockAddPushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
     });
 
     it('throws errors when invalid auth', async () => {
@@ -1712,6 +1718,7 @@ function mockNotificationMessenger(): {
   mockGetBearerToken: jest.Mock;
   mockIsSignedIn: jest.Mock;
   mockAuthPerformSignIn: jest.Mock;
+  mockAddPushNotificationLinks: jest.Mock;
   mockDisablePushNotifications: jest.Mock;
   mockDeletePushNotificationLinks: jest.Mock;
   mockEnablePushNotifications: jest.Mock;
@@ -1737,6 +1744,7 @@ function mockNotificationMessenger(): {
       'AuthenticationController:getBearerToken',
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
+      'NotificationServicesPushController:addPushNotificationLinks',
       'NotificationServicesPushController:disablePushNotifications',
       'NotificationServicesPushController:deletePushNotificationLinks',
       'NotificationServicesPushController:enablePushNotifications',
@@ -1764,6 +1772,11 @@ function mockNotificationMessenger(): {
   const mockAuthPerformSignIn =
     typedMockAction<AuthenticationController.AuthenticationControllerPerformSignInAction>().mockResolvedValue(
       ['New Access Token'],
+    );
+
+  const mockAddPushNotificationLinks =
+    typedMockAction<NotificationServicesPushControllerAddPushNotificationLinksAction>().mockResolvedValue(
+      true,
     );
 
   const mockDisablePushNotifications =
@@ -1817,6 +1830,13 @@ function mockNotificationMessenger(): {
 
     if (
       actionType ===
+      'NotificationServicesPushController:addPushNotificationLinks'
+    ) {
+      return mockAddPushNotificationLinks(params[0]);
+    }
+
+    if (
+      actionType ===
       'NotificationServicesPushController:disablePushNotifications'
     ) {
       return mockDisablePushNotifications();
@@ -1854,6 +1874,7 @@ function mockNotificationMessenger(): {
     mockGetBearerToken,
     mockIsSignedIn,
     mockAuthPerformSignIn,
+    mockAddPushNotificationLinks,
     mockDisablePushNotifications,
     mockDeletePushNotificationLinks,
     mockEnablePushNotifications,

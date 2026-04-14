@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add backend push token links for newly added notification accounts using the existing device token, so account additions trigger additive `POST /api/v2/token` registration for both primary and imported SRPs
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))

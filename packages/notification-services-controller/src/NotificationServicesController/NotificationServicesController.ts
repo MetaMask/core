@@ -342,6 +342,16 @@ export class NotificationServicesController extends BaseController<
         // Do nothing, failing silently.
       }
     },
+    addPushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:addPushNotificationLinks',
+          addresses,
+        );
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
     disablePushNotifications: async (): Promise<void> => {
       try {
         await this.messenger.call(
@@ -983,6 +993,8 @@ export class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: true })),
         this.#env,
       );
+
+      await this.#pushNotifications.addPushNotificationLinks(accounts);
     } catch (error) {
       log.error('Failed to update OnChain triggers', error);
       throw new Error('Failed to update OnChain triggers');
