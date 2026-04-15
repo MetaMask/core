@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolve the effective transaction type from `nestedTransactions` when the parent is a batch transaction ([#8469](https://github.com/MetaMask/core/pull/8469))
+
 ## [19.1.2]
 
 ### Changed
