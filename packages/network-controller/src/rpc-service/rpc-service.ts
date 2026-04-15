@@ -274,7 +274,7 @@ function stripCredentialsFromUrl(url: URL): URL {
  * failures, retrying requests using exponential backoff. It also offers a hook
  * which can used to respond to slow requests.
  */
-export class RpcService implements AbstractRpcService {
+export class RpcService {
   /**
    * The URL of the RPC endpoint.
    */
