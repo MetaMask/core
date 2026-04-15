@@ -13,7 +13,7 @@ import { getJwt } from './utils/authentication';
 enum QuoteStatusUpdateType {
   Submitted = 'SUBMITTED',
   FinalizedSuccess = 'FINALISED_SUCCESS',
-  FinalizedFailure = 'FINALISED_FAILURE'
+  FinalizedFailure = 'FINALISED_FAILURE',
 }
 
 /**
@@ -79,9 +79,19 @@ export class QuoteStatusUpdateManager {
     });
 
     retryPolicy
-      .execute(() => this.#updateQuoteStatus(quoteId, srcTxHash, QuoteStatusUpdateType.Submitted))
+      .execute(() =>
+        this.#updateQuoteStatus(
+          quoteId,
+          srcTxHash,
+          QuoteStatusUpdateType.Submitted,
+        ),
+      )
       .catch((error) => {
-        if (error instanceof HttpError && error.httpStatus === 400 && txMetaId) {
+        if (
+          error instanceof HttpError &&
+          error.httpStatus === 400 &&
+          txMetaId
+        ) {
           // Tx data mismatch – defer reporting to finalization
           this.#pendingTxStatusUpdates.set(txMetaId, { quoteId, srcTxHash });
         }
@@ -104,9 +114,15 @@ export class QuoteStatusUpdateManager {
     }
     this.#pendingTxStatusUpdates.delete(txMetaId);
 
-    const newStatus = success ? QuoteStatusUpdateType.FinalizedSuccess : QuoteStatusUpdateType.FinalizedFailure;
+    const newStatus = success
+      ? QuoteStatusUpdateType.FinalizedSuccess
+      : QuoteStatusUpdateType.FinalizedFailure;
     try {
-      await this.#updateQuoteStatus(pending.quoteId, pending.srcTxHash, newStatus);
+      await this.#updateQuoteStatus(
+        pending.quoteId,
+        pending.srcTxHash,
+        newStatus,
+      );
     } catch {
       // Non-fatal: best-effort status reporting
     }

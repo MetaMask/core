@@ -34,7 +34,6 @@ import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { IntentManager } from './bridge-status-controller.intent';
-import { QuoteStatusUpdateManager } from './quote-status-update-manager';
 import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
@@ -42,6 +41,7 @@ import {
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
 } from './constants';
+import { QuoteStatusUpdateManager } from './quote-status-update-manager';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
