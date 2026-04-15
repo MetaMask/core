@@ -211,10 +211,9 @@ const config = createConfig([
     },
   },
   {
-    files: ['scripts/**/*.ts', 'packages/messenger-docs/src/cli.ts'],
+    files: ['scripts/*.ts', 'packages/messenger-docs/src/cli.ts'],
     rules: {
-      // Scripts and CLI entry points may have hashbangs that n/hashbang
-      // cannot correlate with the bin field (source vs dist path).
+      // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
     },
   },
