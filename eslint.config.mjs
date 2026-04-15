@@ -122,14 +122,6 @@ const config = createConfig([
     extends: [nodejs],
   },
   {
-    files: ['packages/messenger-docs/src/cli.ts'],
-    rules: {
-      // The bin field points to dist/docs/cli.mjs but the source is src/docs/cli.ts.
-      // Without convertPath, n/hashbang cannot correlate the two.
-      'n/hashbang': 'off',
-    },
-  },
-  {
     files: ['**/*.{js,cjs}'],
     languageOptions: {
       sourceType: 'script',
@@ -219,9 +211,10 @@ const config = createConfig([
     },
   },
   {
-    files: ['scripts/**/*.ts'],
+    files: ['scripts/**/*.ts', 'packages/messenger-docs/src/cli.ts'],
     rules: {
-      // Scripts may be self-executable and thus have hashbangs.
+      // Scripts and CLI entry points may have hashbangs that n/hashbang
+      // cannot correlate with the bin field (source vs dist path).
       'n/hashbang': 'off',
     },
   },
