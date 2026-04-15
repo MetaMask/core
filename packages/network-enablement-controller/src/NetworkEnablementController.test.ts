@@ -14,6 +14,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
 import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
 import type {
@@ -21,7 +22,6 @@ import type {
   NativeAssetIdentifiersMap,
 } from './NetworkEnablementController';
 import { Slip44Service } from './services';
-import { jestAdvanceTime } from '../../../tests/helpers';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {

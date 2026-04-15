@@ -1,12 +1,12 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { UpdateGasFeesRequest } from './gas-fees';
-import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
-import { rpcRequest } from './provider';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
 import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
+import type { UpdateGasFeesRequest } from './gas-fees';
+import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
+import { rpcRequest } from './provider';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),

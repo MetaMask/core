@@ -2,13 +2,13 @@ import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
-import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 import {
   BaseDataService,
   DataServiceInvalidateQueriesAction,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
 } from '../src/BaseDataService';
+import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 
 export const serviceName = 'ExampleDataService';
 

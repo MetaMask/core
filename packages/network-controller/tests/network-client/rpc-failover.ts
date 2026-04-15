@@ -1,10 +1,10 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import type { MockRequest, MockResponse, ProviderType } from './helpers';
-import { withMockedCommunications, withNetworkClient } from './helpers';
 import { ignoreRejection } from '../../../../tests/helpers';
 import { buildRootMessenger } from '../helpers';
+import type { MockRequest, MockResponse, ProviderType } from './helpers';
+import { withMockedCommunications, withNetworkClient } from './helpers';
 
 /**
  * Tests for RPC failover behavior.

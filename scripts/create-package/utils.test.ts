@@ -159,7 +159,7 @@ describe('create-package/utils', () => {
       expect(execa).toHaveBeenCalledWith('yarn', ['install'], {
         cwd: expect.any(String),
       });
-      expect(execa).toHaveBeenCalledWith('yarn', ['update-readme-content'], {
+      expect(execa).toHaveBeenCalledWith('yarn', ['readme-content:update'], {
         cwd: expect.any(String),
       });
     });

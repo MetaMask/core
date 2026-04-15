@@ -4,8 +4,6 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -22,6 +20,8 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+import type { RelayQuote } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');

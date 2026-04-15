@@ -6,11 +6,6 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -22,6 +17,11 @@ import type {
   AssetsControllerStateInternal,
 } from '../types';
 import { normalizeAssetId } from '../utils';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
+import { AbstractDataSource } from './AbstractDataSource';
 
 // ============================================================================
 // CONSTANTS

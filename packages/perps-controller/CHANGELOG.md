@@ -9,8 +9,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [3.0.0]
+
+### Added
+
+- Export `PerpsControllerGetStateAction` type ([#8352](https://github.com/MetaMask/core/pull/8352))
+- Expose missing public `PerpsController` methods through its messenger ([#8352](https://github.com/MetaMask/core/pull/8352))
+  - The following actions are now available:
+    - `PerpsController:calculateLiquidationPrice`
+    - `PerpsController:calculateMaintenanceMargin`
+    - `PerpsController:clearDepositResult`
+    - `PerpsController:clearWithdrawResult`
+    - `PerpsController:completeWithdrawalFromHistory`
+    - `PerpsController:depositWithConfirmation`
+    - `PerpsController:depositWithOrder`
+    - `PerpsController:fetchHistoricalCandles`
+    - `PerpsController:flipPosition`
+    - `PerpsController:getActiveProvider`
+    - `PerpsController:getActiveProviderOrNull`
+    - `PerpsController:getAvailableDexs`
+    - `PerpsController:getBlockExplorerUrl`
+    - `PerpsController:getCachedMarketDataForActiveProvider`
+    - `PerpsController:getCachedUserDataForActiveProvider`
+    - `PerpsController:getCurrentNetwork`
+    - `PerpsController:getMarketDataWithPrices`
+    - `PerpsController:getMaxLeverage`
+    - `PerpsController:getWatchlistMarkets`
+    - `PerpsController:getWebSocketConnectionState`
+    - `PerpsController:getWithdrawalProgress`
+    - `PerpsController:getWithdrawalRoutes`
+    - `PerpsController:init`
+    - `PerpsController:isCurrentlyReinitializing`
+    - `PerpsController:isFirstTimeUserOnCurrentNetwork`
+    - `PerpsController:isWatchlistMarket`
+    - `PerpsController:reconnect`
+    - `PerpsController:setLiveDataConfig`
+    - `PerpsController:startMarketDataPreload`
+    - `PerpsController:stopMarketDataPreload`
+    - `PerpsController:subscribeToAccount`
+    - `PerpsController:subscribeToCandles`
+    - `PerpsController:subscribeToConnectionState`
+    - `PerpsController:subscribeToOICaps`
+    - `PerpsController:subscribeToOrderBook`
+    - `PerpsController:subscribeToOrderFills`
+    - `PerpsController:subscribeToOrders`
+    - `PerpsController:subscribeToPositions`
+    - `PerpsController:subscribeToPrices`
+    - `PerpsController:switchProvider`
+    - `PerpsController:toggleWatchlistMarket`
+    - `PerpsController:updateMargin`
+    - `PerpsController:updatePositionTPSL`
+    - `PerpsController:updateWithdrawalProgress`
+    - `PerpsController:updateWithdrawalStatus`
+    - `PerpsController:validateClosePosition`
+    - `PerpsController:validateOrder`
+    - `PerpsController:validateWithdrawal`
+  - Corresponding action types are available as well.
+- Add `completeWithdrawalFromHistory` method for FIFO-based withdrawal completion matching ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Add `lastCompletedWithdrawalTimestamp` and `lastCompletedWithdrawalTxHashes` state fields ([#8333](https://github.com/MetaMask/core/pull/8333))
+
+### Changed
+
+- Refactor pending withdraw/deposit tracking to FIFO queue design ([#8333](https://github.com/MetaMask/core/pull/8333))
+
+- Centralize Arbitrum network check in deposit hooks to prevent missing network errors ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Provider credentials, builder fee injection, and env var centralization ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Reduce max order amount by 0.5% buffer to avoid insufficient margin rejections ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Bump `@metamask/account-tree-controller` from `^6.0.0` to `^7.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
 - Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Move `@myx-trade/sdk` from `dependencies` to `optionalDependencies` so consumers (extension, mobile) do not install it automatically ([#8398](https://github.com/MetaMask/core/pull/8398))
+  - Combined with the MYX adapter export removal below, this prevents `@myx-trade/sdk` from entering the consumer's static webpack/metro import graph
+  - `MYXProvider` continues to load `@myx-trade/sdk` via dynamic `import()` when `MM_PERPS_MYX_PROVIDER_ENABLED=true`
+- Add `/* webpackIgnore: true */` magic comment to the `MYXProvider` dynamic import so webpack (extension) skips static resolution of the intentionally-unshipped module ([#8398](https://github.com/MetaMask/core/pull/8398))
+
+### Removed
+
+- **BREAKING:** Remove `adaptMarketFromMYX`, `adaptPriceFromMYX`, `adaptMarketDataFromMYX`, `filterMYXExclusiveMarkets`, `isOverlappingMarket`, `buildPoolSymbolMap`, `buildSymbolPoolsMap`, and `extractSymbolFromPoolId` from the public package exports to prevent `@myx-trade/sdk` from being included in the static webpack bundle ([#8398](https://github.com/MetaMask/core/pull/8398))
+  - These functions are still used internally by `MYXProvider`, which is loaded via dynamic import
+  - Consumers that imported these utilities directly should instead import from `@metamask/perps-controller/src/utils/myxAdapter` or duplicate the logic locally
+
+### Fixed
+
+- Preserve `/* webpackIgnore: true */` magic comment in built dist files by using a variable for the MYXProvider dynamic import path, preventing ts-bridge from rewriting the AST node and stripping the comment ([#8424](https://github.com/MetaMask/core/pull/8424))
+- Fix incorrect fee estimate when flipping a position ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix incorrect PnL and order size displayed after SL execution ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix stop loss not showing up in recent activity ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix incorrect market categories ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix TP/SL decimal precision for PUMP ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix missing decimal on price input when using preset on limit price ([#8333](https://github.com/MetaMask/core/pull/8333))
 
 ## [2.0.0]
 
@@ -87,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@2.0.0...@metamask/perps-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.3.0...@metamask/perps-controller@2.0.0
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.2.0...@metamask/perps-controller@1.3.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.1.0...@metamask/perps-controller@1.2.0

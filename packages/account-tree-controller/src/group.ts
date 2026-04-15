@@ -162,5 +162,5 @@ export function isAccountGroupNameUnique(
     }
   }
 
-  throw new Error(`Account group with ID "${groupId}" not found in tree`);
+  throw new Error('Account group not found in tree');
 }

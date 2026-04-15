@@ -1,5 +1,15 @@
 import type { Eip1193Provider } from 'ethers';
 
+import type { MetaMetricsAuth } from '../../shared/types/services';
+import { ValidationError, RateLimitedError } from '../errors';
+import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
+import {
+  MESSAGE_SIGNING_SNAP,
+  assertMessageStartsWithMetamask,
+  connectSnap,
+  isSnapConnected,
+} from '../utils/messaging-signing-snap-requests';
+import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   authenticate,
   authorizeOIDC,
@@ -17,16 +27,6 @@ import type {
   UserProfileLineage,
 } from './types';
 import * as timeUtils from './utils/time';
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError, RateLimitedError } from '../errors';
-import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
-import {
-  MESSAGE_SIGNING_SNAP,
-  assertMessageStartsWithMetamask,
-  connectSnap,
-  isSnapConnected,
-} from '../utils/messaging-signing-snap-requests';
-import { validateLoginResponse } from '../utils/validate-login-response';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;

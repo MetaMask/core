@@ -36,7 +36,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { BridgeStatusController } from './bridge-status-controller';
+import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
 
@@ -165,6 +165,10 @@ export type BridgeHistoryItem = {
   };
 };
 
+/**
+ * @deprecated Use the separate action types instead (e.g.
+ * `BridgeStatusControllerStartPollingForBridgeTxStatusAction`).
+ */
 export enum BridgeStatusAction {
   StartPollingForBridgeTxStatus = 'StartPollingForBridgeTxStatus',
   WipeBridgeStatus = 'WipeBridgeStatus',
@@ -254,49 +258,14 @@ export type BridgeStatusControllerState = {
 };
 
 // Actions
-type BridgeStatusControllerAction<
-  FunctionName extends keyof BridgeStatusController,
-> = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:${FunctionName}`;
-  handler: BridgeStatusController[FunctionName];
-};
-
 export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState
 >;
 
-// Maps to BridgeController function names
-export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
-  BridgeStatusControllerAction<'startPollingForBridgeTxStatus'>;
-
-export type BridgeStatusControllerWipeBridgeStatusAction =
-  BridgeStatusControllerAction<'wipeBridgeStatus'>;
-
-export type BridgeStatusControllerResetStateAction =
-  BridgeStatusControllerAction<'resetState'>;
-
-export type BridgeStatusControllerSubmitTxAction =
-  BridgeStatusControllerAction<'submitTx'>;
-
-export type BridgeStatusControllerSubmitIntentAction =
-  BridgeStatusControllerAction<'submitIntent'>;
-
-export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
-  BridgeStatusControllerAction<'restartPollingForFailedAttempts'>;
-
-export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
-  BridgeStatusControllerAction<'getBridgeHistoryItemByTxMetaId'>;
-
 export type BridgeStatusControllerActions =
-  | BridgeStatusControllerStartPollingForBridgeTxStatusAction
-  | BridgeStatusControllerWipeBridgeStatusAction
-  | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerSubmitIntentAction
-  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
+  | BridgeStatusControllerMethodActions;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<

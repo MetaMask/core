@@ -4,13 +4,6 @@ import type { TxData } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import {
-  getBridgeBatchTransactions,
-  getBridgeQuotes,
-  getBridgeRefreshInterval,
-  refreshQuote,
-} from './bridge-quotes';
-import type { TransactionPayBridgeQuote } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
@@ -21,6 +14,13 @@ import type {
 import type { QuoteRequest } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
+import {
+  getBridgeBatchTransactions,
+  getBridgeQuotes,
+  getBridgeRefreshInterval,
+  refreshQuote,
+} from './bridge-quotes';
+import type { TransactionPayBridgeQuote } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');

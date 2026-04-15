@@ -23,8 +23,7 @@ export type GroupState =
  */
 export class MultichainAccountGroup<
   Account extends Bip44Account<KeyringAccount>,
-> implements MultichainAccountGroupDefinition<Account>
-{
+> implements MultichainAccountGroupDefinition<Account> {
   readonly #id: MultichainAccountGroupId;
 
   readonly #wallet: MultichainAccountWallet<Account>;

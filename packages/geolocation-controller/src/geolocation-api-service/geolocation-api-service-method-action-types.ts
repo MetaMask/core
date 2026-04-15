@@ -11,10 +11,11 @@ import type { GeolocationApiService } from './geolocation-api-service';
  * deduplicated to a single in-flight request.
  *
  * @param options - Optional fetch options.
- * @param options.bypassCache - When true, invalidates the cache and forces a
- * fresh network request.
+ * @param options.bypassCache - When true, invalidates the TTL cache. If a
+ * request is already in-flight it will be reused (deduplication always
+ * applies).
  * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
- * `UNKNOWN_LOCATION` when the API returns an empty or invalid body.
+ * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
  */
 export type GeolocationApiServiceFetchGeolocationAction = {
   type: `GeolocationApiService:fetchGeolocation`;

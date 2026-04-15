@@ -144,6 +144,7 @@ const createMessengerHarness = (
 
   const messenger = {
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(), // REQUIRED by BaseController
     subscribe: jest.fn(),
     publish: jest.fn(),

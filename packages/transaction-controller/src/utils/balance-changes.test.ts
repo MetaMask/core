@@ -3,9 +3,6 @@ import { Interface } from '@ethersproject/abi';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { GetBalanceChangesRequest } from './balance-changes';
-import { getBalanceChanges, SupportedToken } from './balance-changes';
-import { rpcRequest } from './provider';
 import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
@@ -19,6 +16,9 @@ import {
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GetSimulationConfig } from '../types';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
+import type { GetBalanceChangesRequest } from './balance-changes';
+import { getBalanceChanges, SupportedToken } from './balance-changes';
+import { rpcRequest } from './provider';
 
 jest.mock('../api/simulation-api');
 

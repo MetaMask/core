@@ -15,6 +15,7 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
+import type { MarketDataDetails } from '../TokenRatesController';
 import type {
   AbstractTokenPricesService,
   EvmAssetAddressWithChain,
@@ -23,7 +24,6 @@ import type {
   ExchangeRatesByCurrency,
   NativeAssetIdentifiersMap,
 } from './abstract-token-prices-service';
-import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -568,9 +568,10 @@ export function resetSupportedCurrenciesCache(): void {
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
-export class CodefiTokenPricesServiceV2
-  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
-{
+export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
+  SupportedChainId,
+  SupportedCurrency
+> {
   readonly #policy: ServicePolicy;
 
   /**

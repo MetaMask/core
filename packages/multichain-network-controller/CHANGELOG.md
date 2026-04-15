@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Stellar mainnet and testnet to multichain network configuration and supported CAIP chain IDs ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- Export `MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction` ([#8391](https://github.com/MetaMask/core/pull/8391))
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.2.0` ([#8325](https://github.com/MetaMask/core/pull/8325), [#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [3.0.6]
 

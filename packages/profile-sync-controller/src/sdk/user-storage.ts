@@ -1,5 +1,3 @@
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
@@ -12,6 +10,8 @@ import type {
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
 import type { NativeScrypt } from '../shared/types/encryption';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
+import { NotFoundError, UserStorageError } from './errors';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;

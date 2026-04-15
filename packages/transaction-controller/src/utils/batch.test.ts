@@ -5,24 +5,6 @@ import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash';
 
 import {
-  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
-  addTransactionBatch,
-  isAtomicBatchSupported,
-} from './batch';
-import {
-  ERROR_MESSGE_PUBLIC_KEY,
-  doesChainSupportEIP7702,
-  generateEIP7702BatchTransaction,
-  isAccountUpgradedToEIP7702,
-} from './eip7702';
-import {
-  getEIP7702SupportedChains,
-  getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { determineTransactionType } from './transaction-type';
-import { validateBatchRequest } from './validation';
-import {
   TransactionEnvelopeType,
   TransactionType,
   GasFeeEstimateLevel,
@@ -43,6 +25,24 @@ import type {
   RequiredAsset,
   TransactionBatchSingleRequest,
 } from '../types';
+import {
+  ERROR_MESSAGE_NO_UPGRADE_CONTRACT,
+  addTransactionBatch,
+  isAtomicBatchSupported,
+} from './batch';
+import {
+  ERROR_MESSGE_PUBLIC_KEY,
+  doesChainSupportEIP7702,
+  generateEIP7702BatchTransaction,
+  isAccountUpgradedToEIP7702,
+} from './eip7702';
+import {
+  getEIP7702SupportedChains,
+  getEIP7702UpgradeContractAddress,
+} from './feature-flags';
+import { simulateGasBatch } from './gas';
+import { determineTransactionType } from './transaction-type';
+import { validateBatchRequest } from './validation';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -894,6 +894,56 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('passes atomic option to generateEIP7702BatchTransaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      request.request.atomic = false;
+
+      await addTransactionBatch(request);
+
+      expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        expect.any(Array),
+        { atomic: false },
+      );
+    });
+
+    it('passes atomic as undefined to generateEIP7702BatchTransaction by default', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce(
+        TRANSACTION_BATCH_PARAMS_MOCK,
+      );
+
+      await addTransactionBatch(request);
+
+      expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(
+        FROM_MOCK,
+        expect.any(Array),
+        { atomic: undefined },
+      );
+    });
+
     it('throws if chain not supported', async () => {
       doesChainSupportEIP7702Mock.mockReturnValue(false);
 
@@ -1024,6 +1074,56 @@ describe('Batch Utils', () => {
           securityAlertResponse: {
             securityAlertId: SECURITY_ALERT_ID_MOCK,
           },
+        }),
+      );
+    });
+
+    /*
+     * This ensures that Tempo-related additions keep things unchanged
+     * as long as input parameters are unchanged.
+     */
+    it('defaults to no excludeNativeTokenForFee in transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.not.objectContaining({
+          excludeNativeTokenForFee: expect.anything(),
+        }),
+      );
+    });
+
+    it('adds excludeNativeTokenForFee to transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      request.request.excludeNativeTokenForFee = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
         }),
       );
     });

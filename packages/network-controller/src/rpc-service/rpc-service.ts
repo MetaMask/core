@@ -20,9 +20,9 @@ import { CircuitState, IDisposable } from 'cockatiel';
 import deepmerge from 'deepmerge';
 import type { Logger } from 'loglevel';
 
+import { projectLogger, createModuleLogger } from '../logger';
 import type { AbstractRpcService } from './abstract-rpc-service';
 import type { FetchOptions } from './shared';
-import { projectLogger, createModuleLogger } from '../logger';
 
 /**
  * Options for the RpcService constructor.

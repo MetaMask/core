@@ -43,6 +43,14 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { flushPromises } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
@@ -118,14 +126,6 @@ import {
 } from './utils/swaps';
 import * as transactionTypeUtils from './utils/transaction-type';
 import { ErrorCode } from './utils/validation';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockFindNetworkClientIdByChainId,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 type AllTransactionControllerActions =
   MessengerActions<TransactionControllerMessenger>;
@@ -144,6 +144,7 @@ const TRANSACTION_HASH_MOCK = '0x123456';
 const DATA_MOCK = '0x12345678';
 const VALUE_MOCK = '0xabcd';
 const ORIGIN_MOCK = 'test.com';
+const GAS_FEE_TOKEN_ADDRESS_MOCK = '0x20c0000000000000000000000000000000000000';
 
 jest.mock('./api/accounts-api');
 jest.mock('./gas-flows/DefaultGasFeeFlow');
@@ -1477,6 +1478,125 @@ describe('TransactionController', () => {
       expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
     });
 
+    it('adds unapproved transaction to state with gas fee token', async () => {
+      const { controller } = setupController();
+
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+      const mockSecurityAlertResponse = {
+        result_type: 'Malicious',
+        reason: 'blur_farming',
+        description:
+          'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
+        args: {
+          contract: '0xa7206d878c5c3871826dfdb42191c49b1d11f466',
+          operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
+        },
+      };
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          securityAlertResponse: mockSecurityAlertResponse,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          gasFeeToken: GAS_FEE_TOKEN_ADDRESS_MOCK,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
+      expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
+      expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
+      expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
+      expect(transactionMeta.origin).toBe(mockOrigin);
+      expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      expect(transactionMeta.securityAlertResponse).toStrictEqual(
+        mockSecurityAlertResponse,
+      );
+      // Because gasFeeToken has been passed
+      expect(transactionMeta.isGasFeeTokenIgnoredIfBalance).toBe(true);
+      expect(transactionMeta.selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_ADDRESS_MOCK,
+      );
+      expect(transactionMeta).not.toHaveProperty('excludeNativeTokenForFee');
+      expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds unapproved transaction to state with gas fee token and excludeNativeTokenForFee', async () => {
+      const { controller } = setupController();
+
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+      const mockSecurityAlertResponse = {
+        result_type: 'Malicious',
+        reason: 'blur_farming',
+        description:
+          'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
+        args: {
+          contract: '0xa7206d878c5c3871826dfdb42191c49b1d11f466',
+          operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
+        },
+      };
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          assetsFiatValues: {
+            sending: '100',
+            receiving: '50',
+          },
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          securityAlertResponse: mockSecurityAlertResponse,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          gasFeeToken: GAS_FEE_TOKEN_ADDRESS_MOCK,
+          excludeNativeTokenForFee: true,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
+      expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.assetsFiatValues).toStrictEqual({
+        sending: '100',
+        receiving: '50',
+      });
+      expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
+      expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
+      expect(transactionMeta.origin).toBe(mockOrigin);
+      expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      expect(transactionMeta.securityAlertResponse).toStrictEqual(
+        mockSecurityAlertResponse,
+      );
+      // Because gasFeeToken has been passed AND excludeNativeTokenForFee is true
+      expect(transactionMeta.isGasFeeTokenIgnoredIfBalance).toBe(false);
+      expect(transactionMeta.selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_ADDRESS_MOCK,
+      );
+      expect(transactionMeta.excludeNativeTokenForFee).toBe(true);
+      expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
+    });
+
     it('persists requiredAssets on transaction meta', async () => {
       const { controller } = setupController();
 
@@ -2225,6 +2345,37 @@ describe('TransactionController', () => {
       });
     });
 
+    it('skips simulation when containerTypes includes EnforcedSimulations', async () => {
+      const { controller } = setupController();
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      await flushPromises();
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+
+      shouldResimulateMock.mockReturnValue({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(transactionMeta.id, {
+        containerTypes: [TransactionContainerType.EnforcedSimulations],
+      });
+
+      await flushPromises();
+
+      expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
+    });
+
     describe('with beforeSign hook', () => {
       it('calls beforeSign hook', async () => {
         const beforeSignHook = jest.fn().mockResolvedValueOnce({});
@@ -2781,6 +2932,51 @@ describe('TransactionController', () => {
             submittedTime: expect.any(Number),
           }),
         });
+      });
+
+      it('preserves submittedTime if already set by publish hook', async () => {
+        const presetSubmittedTime = 1000000;
+
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              publish: async (txMeta) => {
+                const existing = controller.state.transactions.find(
+                  (transaction) => transaction.id === txMeta.id,
+                );
+
+                if (existing) {
+                  controller.updateTransaction(
+                    { ...existing, submittedTime: presetSubmittedTime },
+                    'Set submittedTime in publish hook',
+                  );
+                }
+                return { transactionHash: '0x123' };
+              },
+            },
+          },
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await result;
+
+        expect(controller.state.transactions[0].submittedTime).toBe(
+          presetSubmittedTime,
+        );
       });
 
       it('throws with data message if publish fails', async () => {

@@ -88,7 +88,7 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 const RelatedAssetStruct = structType({
   name: string(),
   symbol: string(),
-  caip19: array(string()),
+  caip19: optional(array(string())),
   sourceAssetId: string(),
   hlPerpsMarket: optional(array(string())),
 });
@@ -113,13 +113,24 @@ const MarketOverviewReportEnvelopeStruct = structType({
   report: MarketOverviewStruct,
 });
 
+const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
+  ...raw,
+  trends: raw.trends.map((trend) => ({
+    ...trend,
+    relatedAssets: trend.relatedAssets.map((asset) => ({
+      ...asset,
+      caip19: asset.caip19 ?? [],
+    })),
+  })),
+});
+
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
   if (is(value, MarketOverviewStruct)) {
-    return value;
+    return normalizeRelatedAssets(value);
   }
 
   if (is(value, MarketOverviewReportEnvelopeStruct)) {
-    return value.report;
+    return normalizeRelatedAssets(value.report);
   }
 
   return null;

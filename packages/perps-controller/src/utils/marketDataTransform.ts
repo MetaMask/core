@@ -4,7 +4,8 @@
  * Portable: no mobile-specific imports.
  * Formatters are injected via MarketDataFormatters interface.
  */
-import { parseAssetName } from './hyperLiquidAdapter';
+import { hasProperty } from '@metamask/utils';
+
 import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import type {
@@ -18,6 +19,7 @@ import type {
   PerpsAssetCtx,
   PredictedFunding,
 } from '../types/hyperliquid-types';
+import { parseAssetName } from './hyperLiquidAdapter';
 
 /**
  * Calculate open interest in USD
@@ -221,7 +223,7 @@ export function transformMarketData(
     // Get current funding rate from assetCtx - this is the actual current funding rate
     let fundingRate: number | undefined;
 
-    if (assetCtx && 'funding' in assetCtx) {
+    if (assetCtx && hasProperty(assetCtx, 'funding')) {
       fundingRate = parseFloat(assetCtx.funding);
     }
 

@@ -15,11 +15,6 @@ import {
 } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
 
-import { AbstractDataSource } from './AbstractDataSource';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
@@ -29,6 +24,11 @@ import type {
   AssetBalance,
   DataResponse,
 } from '../types';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 
 // ============================================================================
 // CONSTANTS
