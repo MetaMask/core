@@ -1,16 +1,18 @@
 export type PasskeyDerivationMethod = 'prf' | 'userHandle';
 
+export type Base64String = string;
+
 export type PasskeyRecord = {
+  /** WebAuthn credential ID */
   credentialId: Base64URLString;
+  /** PRF or userHandle */
   derivationMethod: PasskeyDerivationMethod;
-  /** base64 — vault encryption key wrapped with passkey-derived key */
-  wrappedEncryptionKey: string;
-  /** base64 — AES-GCM IV for the wrapping operation */
-  iv: string;
-  /** base64 — PRF eval salt (present when derivationMethod === 'prf') */
+  /** AES-GCM IV for the encryption operation */
+  iv: Base64String;
+  /** PRF salt (present when derivationMethod === 'prf') */
   prfSalt?: Base64URLString;
-  /** Vault encryption salt at time of enrollment (needed for submitEncryptionKey) */
-  encryptionSalt?: string;
+  /** vault key encrypted with passkey-derived key */
+  encryptedVaultKey: Base64String;
 };
 
 /** In-memory registration session: creation material + RP challenge bytes. */
@@ -20,11 +22,12 @@ export type PasskeyRegistrationSession = {
   challenge: Base64URLString;
 };
 
+/** In-memory authentication session: challenge bytes. */
 export type PasskeyAuthenticationSession = {
   challenge: Base64URLString;
 };
 
-/** WebAuthn JSON wire types (base64url for binary fields). */
+/** WebAuthn types */
 
 export type Base64URLString = string;
 
@@ -143,5 +146,16 @@ export type PasskeyAuthenticationResponse = {
       enabled?: boolean;
       results?: { first?: Base64URLString };
     };
+  };
+};
+
+export type ClientDataJSON = {
+  type: string;
+  challenge: string;
+  origin: string;
+  crossOrigin?: boolean;
+  tokenBinding?: {
+    id?: string;
+    status: 'present' | 'supported' | 'not-supported';
   };
 };

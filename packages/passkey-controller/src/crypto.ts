@@ -1,64 +1,65 @@
+import { bytesToBase64, base64ToBytes } from '@metamask/utils';
+import { gcm } from '@noble/ciphers/aes';
+import { randomBytes } from '@noble/ciphers/webcrypto';
+import { hkdf } from '@noble/hashes/hkdf';
+import { sha256 } from '@noble/hashes/sha2';
+
 import { PASSKEY_HKDF_INFO } from './constants';
-import { arrayBufferToBase64, base64ToArrayBuffer } from './encoding';
 
-export async function deriveWrappingKey(
-  ikm: ArrayBuffer,
-  credentialId: ArrayBuffer,
-): Promise<CryptoKey> {
-  const rawKey = await globalThis.crypto.subtle.importKey(
-    'raw',
-    ikm,
-    { name: 'HKDF' },
-    false,
-    ['deriveKey'],
-  );
+const AES_GCM_IV_LENGTH = 12;
 
-  return globalThis.crypto.subtle.deriveKey(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: credentialId,
-      info: new TextEncoder().encode(PASSKEY_HKDF_INFO),
-    },
-    rawKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
-  );
+/**
+ * Derives an AES-256 encryption key from input key material and a credential ID
+ * using HKDF-SHA256.
+ *
+ * @param ikm - Input key material (e.g. PRF output or userHandle).
+ * @param salt - HKDF salt.
+ * @returns 32-byte derived encryption key.
+ */
+export function deriveEncryptionKey(
+  ikm: Uint8Array,
+  salt: Uint8Array,
+): Uint8Array {
+  return hkdf(sha256, ikm, salt, PASSKEY_HKDF_INFO, 32);
 }
 
-export async function wrapKey(
-  encryptionKey: string,
-  wrappingKey: CryptoKey,
-): Promise<{ ciphertext: string; iv: string }> {
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(encryptionKey);
-
-  const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, tagLength: 128 },
-    wrappingKey,
-    encoded,
-  );
+/**
+ * Encrypts plaintext with an AES-256-GCM key.
+ *
+ * @param plaintext - UTF-8 string to encrypt.
+ * @param key - 32-byte AES-256 key from {@link deriveEncryptionKey}.
+ * @returns Base64-encoded ciphertext and IV.
+ */
+export function encryptWithKey(
+  plaintext: string,
+  key: Uint8Array,
+): { ciphertext: string; iv: string } {
+  const iv = randomBytes(AES_GCM_IV_LENGTH);
+  const encoded = new TextEncoder().encode(plaintext);
+  const ciphertextBytes = gcm(key, iv).encrypt(encoded);
 
   return {
-    ciphertext: arrayBufferToBase64(ciphertextBuffer),
-    iv: arrayBufferToBase64(iv.buffer),
+    ciphertext: bytesToBase64(ciphertextBytes),
+    iv: bytesToBase64(iv),
   };
 }
 
-export async function unwrapKey(
+/**
+ * Decrypts AES-256-GCM ciphertext with the given key.
+ *
+ * @param ciphertext - Base64-encoded ciphertext.
+ * @param iv - Base64-encoded initialization vector.
+ * @param key - 32-byte AES-256 key from {@link deriveEncryptionKey}.
+ * @returns Decrypted UTF-8 string.
+ */
+export function decryptWithKey(
   ciphertext: string,
   iv: string,
-  wrappingKey: CryptoKey,
-): Promise<string> {
-  const ciphertextBuffer = base64ToArrayBuffer(ciphertext);
-  const ivBuffer = new Uint8Array(base64ToArrayBuffer(iv));
-
-  const plaintext = await globalThis.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: ivBuffer, tagLength: 128 },
-    wrappingKey,
-    ciphertextBuffer,
-  );
+  key: Uint8Array,
+): string {
+  const ciphertextBytes = base64ToBytes(ciphertext);
+  const ivBytes = base64ToBytes(iv);
+  const plaintext = gcm(key, ivBytes).decrypt(ciphertextBytes);
 
   return new TextDecoder().decode(plaintext);
 }

@@ -80,9 +80,8 @@ describe('PasskeyController', () => {
       const record: PasskeyRecord = {
         credentialId: 'QUJDREVGR2hJSktM',
         derivationMethod: 'userHandle',
-        wrappedEncryptionKey: 'YQ==',
+        encryptedVaultKey: 'YQ==',
         iv: 'YWFhYWFhYWFhYQ==',
-        encryptionSalt: 'salt',
       };
       const messenger = getPasskeyMessenger();
       const controller = new PasskeyController({
@@ -109,23 +108,23 @@ describe('PasskeyController', () => {
     });
   });
 
-  describe('generatePasskeyAuthenticationOptions', () => {
+  describe('generateAuthenticationOptions', () => {
     it('throws when passkey is not enrolled', () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      expect(() => controller.generatePasskeyAuthenticationOptions()).toThrow(
+      expect(() => controller.generateAuthenticationOptions()).toThrow(
         'Passkey is not enrolled',
       );
     });
   });
 
-  describe('generatePasskeyRegistrationOptions', () => {
+  describe('generateRegistrationOptions', () => {
     it('returns options whose challenge matches a subsequent completion flow', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const options = controller.generatePasskeyRegistrationOptions({
+      const options = controller.generateRegistrationOptions({
         rp: { name: 'Test RP', id: 'example.com' },
       });
       expect(options.rp.name).toBe('Test RP');
@@ -140,13 +139,12 @@ describe('PasskeyController', () => {
 
       const credentialId = 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=';
 
-      await controller.completePasskeyRegistration({
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           options.challenge,
           credentialId,
         ),
-        encryptionKey: 'user-encryption-key-test',
-        encryptionSalt: 'enc-salt',
+        vaultKey: 'user-encryption-key-test',
       });
 
       expect(controller.isPasskeyEnrolled()).toBe(true);
@@ -157,16 +155,15 @@ describe('PasskeyController', () => {
     });
   });
 
-  describe('completePasskeyRegistration', () => {
+  describe('protectVaultKeyWithPasskey', () => {
     it('throws when there is no active registration session', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
       await expect(
-        controller.completePasskeyRegistration({
+        controller.protectVaultKeyWithPasskey({
           registrationResponse: minimalRegistrationResponse('x', 'y'),
-          encryptionKey: 'k',
-          encryptionSalt: 's',
+          vaultKey: 'k',
         }),
       ).rejects.toThrow('No active passkey registration session');
     });
@@ -175,15 +172,14 @@ describe('PasskeyController', () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const options = controller.generatePasskeyRegistrationOptions();
+      const options = controller.generateRegistrationOptions();
       await expect(
-        controller.completePasskeyRegistration({
+        controller.protectVaultKeyWithPasskey({
           registrationResponse: minimalRegistrationResponse(
             'wrong-challenge',
             'QUJD',
           ),
-          encryptionKey: 'k',
-          encryptionSalt: 's',
+          vaultKey: 'k',
         }),
       ).rejects.toThrow('Passkey registration challenge verification failed');
       expect(options.challenge).not.toBe('wrong-challenge');
@@ -193,10 +189,10 @@ describe('PasskeyController', () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const options = controller.generatePasskeyRegistrationOptions();
+      const options = controller.generateRegistrationOptions();
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(9));
 
-      await controller.completePasskeyRegistration({
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           options.challenge,
           'UFJGRW5jcnlwdGlvbktleUlkMTI=',
@@ -206,8 +202,7 @@ describe('PasskeyController', () => {
             },
           },
         ),
-        encryptionKey: 'vault-key-prf-path',
-        encryptionSalt: 'salt-prf',
+        vaultKey: 'vault-key-prf-path',
       });
 
       expect(controller.state.passkeyRecord?.derivationMethod).toBe('prf');
@@ -217,14 +212,22 @@ describe('PasskeyController', () => {
     });
   });
 
-  describe('unwrapVaultEncryptionKey', () => {
+  describe('retrieveVaultKeyWithPasskey', () => {
     it('throws when there is no authentication session', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          regOpts.challenge,
+          'bm9TZXNzaW9u',
+        ),
+        vaultKey: 'k',
+      });
       await expect(
-        controller.unwrapVaultEncryptionKey(
-          minimalAuthenticationResponse('c', 'id', 'uh'),
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse('c', 'bm9TZXNzaW9u', 'uh'),
         ),
       ).rejects.toThrow('No active passkey authentication session');
     });
@@ -233,19 +236,18 @@ describe('PasskeyController', () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOpts = controller.generatePasskeyRegistrationOptions();
-      await controller.completePasskeyRegistration({
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOpts.challenge,
           'dmVyaWZ5Q3JlZA==',
         ),
-        encryptionKey: 'k',
-        encryptionSalt: 's',
+        vaultKey: 'k',
       });
-      const authOpts = controller.generatePasskeyAuthenticationOptions();
+      const authOpts = controller.generateAuthenticationOptions();
 
       await expect(
-        controller.unwrapVaultEncryptionKey(
+        controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse(
             'wrong-challenge',
             'dmVyaWZ5Q3JlZA==',
@@ -260,19 +262,18 @@ describe('PasskeyController', () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOpts = controller.generatePasskeyRegistrationOptions();
-      await controller.completePasskeyRegistration({
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOpts.challenge,
           'dXNlckhhbmRsZUlk',
         ),
-        encryptionKey: 'k',
-        encryptionSalt: 's',
+        vaultKey: 'k',
       });
-      const authOpts = controller.generatePasskeyAuthenticationOptions();
+      const authOpts = controller.generateAuthenticationOptions();
 
       await expect(
-        controller.unwrapVaultEncryptionKey(
+        controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse(
             authOpts.challenge,
             'dXNlckhhbmRsZUlk',
@@ -282,21 +283,20 @@ describe('PasskeyController', () => {
       ).rejects.toThrow('Passkey assertion missing required key material');
     });
 
-    it('clears the authentication session after a successful unwrap', async () => {
+    it('clears the authentication session after a successful retrieval', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOpts = controller.generatePasskeyRegistrationOptions();
-      await controller.completePasskeyRegistration({
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOpts.challenge,
           'c2Vzc2lvbkNsZWFy',
         ),
-        encryptionKey: 'secret',
-        encryptionSalt: 's',
+        vaultKey: 'secret',
       });
-      const authOpts = controller.generatePasskeyAuthenticationOptions();
-      await controller.unwrapVaultEncryptionKey(
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.retrieveVaultKeyWithPasskey(
         minimalAuthenticationResponse(
           authOpts.challenge,
           'c2Vzc2lvbkNsZWFy',
@@ -305,7 +305,7 @@ describe('PasskeyController', () => {
       );
 
       await expect(
-        controller.unwrapVaultEncryptionKey(
+        controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse(
             'x',
             'c2Vzc2lvbkNsZWFy',
@@ -317,25 +317,24 @@ describe('PasskeyController', () => {
   });
 
   describe('registration and authentication round-trip (userHandle)', () => {
-    it('unwraps the same encryption key that was supplied at registration', async () => {
+    it('retrieves the same vault key that was supplied at registration', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOptions = controller.generatePasskeyRegistrationOptions();
+      const regOptions = controller.generateRegistrationOptions();
       const credentialId = 'Um91bmR0cmlwQ3JlZA==';
-      const encryptionKey = 'roundtrip-encryption-key-value';
+      const vaultKey = 'roundtrip-vault-key-value';
 
-      await controller.completePasskeyRegistration({
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOptions.challenge,
           credentialId,
         ),
-        encryptionKey,
-        encryptionSalt: 'roundtrip-salt',
+        vaultKey,
       });
 
-      const authOptions = controller.generatePasskeyAuthenticationOptions();
-      const out = await controller.unwrapVaultEncryptionKey(
+      const authOptions = controller.generateAuthenticationOptions();
+      const out = await controller.retrieveVaultKeyWithPasskey(
         minimalAuthenticationResponse(
           authOptions.challenge,
           credentialId,
@@ -343,22 +342,22 @@ describe('PasskeyController', () => {
         ),
       );
 
-      expect(out).toBe(encryptionKey);
+      expect(out).toBe(vaultKey);
       expect(controller.state.passkeyRecord).not.toBeNull();
     });
   });
 
   describe('registration and authentication round-trip (prf)', () => {
-    it('unwraps when auth response repeats the same PRF output', async () => {
+    it('retrieves vault key when auth response repeats the same PRF output', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOptions = controller.generatePasskeyRegistrationOptions();
+      const regOptions = controller.generateRegistrationOptions();
       const credentialId = 'UFJGUm91bmR0cmlwSWQ=';
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
-      const encryptionKey = 'prf-roundtrip-key';
+      const vaultKey = 'prf-roundtrip-key';
 
-      await controller.completePasskeyRegistration({
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOptions.challenge,
           credentialId,
@@ -368,12 +367,11 @@ describe('PasskeyController', () => {
             },
           },
         ),
-        encryptionKey,
-        encryptionSalt: 'ps',
+        vaultKey,
       });
 
-      const authOptions = controller.generatePasskeyAuthenticationOptions();
-      const out = await controller.unwrapVaultEncryptionKey(
+      const authOptions = controller.generateAuthenticationOptions();
+      const out = await controller.retrieveVaultKeyWithPasskey(
         minimalAuthenticationResponse(
           authOptions.challenge,
           credentialId,
@@ -386,47 +384,43 @@ describe('PasskeyController', () => {
         ),
       );
 
-      expect(out).toBe(encryptionKey);
+      expect(out).toBe(vaultKey);
     });
   });
 
-  describe('rewrapVaultEncryptionKeyAfterPasswordChange', () => {
-    it('updates the passkey wrap when before/after encryption keys match the ceremony', async () => {
+  describe('renewVaultKeyProtection', () => {
+    it('updates the passkey wrap when before/after vault keys match the ceremony', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOptions = controller.generatePasskeyRegistrationOptions();
+      const regOptions = controller.generateRegistrationOptions();
       const credentialId = 'UmV3cmFwQ3JlZGVudGlhbA==';
-      const beforeKey = 'encryption-key-before-password';
+      const beforeKey = 'vault-key-before-password';
 
-      await controller.completePasskeyRegistration({
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOptions.challenge,
           credentialId,
         ),
-        encryptionKey: beforeKey,
-        encryptionSalt: 'salt-before',
+        vaultKey: beforeKey,
       });
 
-      const authOptions = controller.generatePasskeyAuthenticationOptions();
+      const authOptions = controller.generateAuthenticationOptions();
       const authResponse = minimalAuthenticationResponse(
         authOptions.challenge,
         credentialId,
         regOptions.user.id,
       );
-      const afterKey = 'encryption-key-after-password';
+      const afterKey = 'vault-key-after-password';
 
-      await controller.changeVaultEncryptionKey({
+      await controller.renewVaultKeyProtection({
         authenticationResponse: authResponse,
-        oldEncryptionKey: beforeKey,
-        newEncryptionKey: afterKey,
-        newEncryptionSalt: 'salt-after',
+        oldVaultKey: beforeKey,
+        newVaultKey: afterKey,
       });
 
-      expect(controller.state.passkeyRecord?.encryptionSalt).toBe('salt-after');
-
-      const authOptions2 = controller.generatePasskeyAuthenticationOptions();
-      const unwrapped = await controller.unwrapVaultEncryptionKey(
+      const authOptions2 = controller.generateAuthenticationOptions();
+      const unwrapped = await controller.retrieveVaultKeyWithPasskey(
         minimalAuthenticationResponse(
           authOptions2.challenge,
           credentialId,
@@ -436,37 +430,35 @@ describe('PasskeyController', () => {
       expect(unwrapped).toBe(afterKey);
     });
 
-    it('throws when the live vault key does not match the passkey unwrap', async () => {
+    it('throws when the live vault key does not match the protected vault key', async () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const regOptions = controller.generatePasskeyRegistrationOptions();
+      const regOptions = controller.generateRegistrationOptions();
       const credentialId = 'bWlzbWF0Y2hLZXk=';
 
-      await controller.completePasskeyRegistration({
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           regOptions.challenge,
           credentialId,
         ),
-        encryptionKey: 'actual-wrapped-key',
-        encryptionSalt: 's',
+        vaultKey: 'actual-wrapped-key',
       });
 
-      const authOptions = controller.generatePasskeyAuthenticationOptions();
+      const authOptions = controller.generateAuthenticationOptions();
 
       await expect(
-        controller.changeVaultEncryptionKey({
+        controller.renewVaultKeyProtection({
           authenticationResponse: minimalAuthenticationResponse(
             authOptions.challenge,
             credentialId,
             regOptions.user.id,
           ),
-          oldEncryptionKey: 'wrong-expected-key',
-          newEncryptionKey: 'new-key',
-          newEncryptionSalt: 'new-salt',
+          oldVaultKey: 'wrong-expected-key',
+          newVaultKey: 'new-key',
         }),
       ).rejects.toThrow(
-        'Passkey authentication does not match the current vault encryption key',
+        'Passkey authentication does not match the current vault key',
       );
     });
   });
@@ -476,14 +468,13 @@ describe('PasskeyController', () => {
       const controller = new PasskeyController({
         messenger: getPasskeyMessenger(),
       });
-      const opts = controller.generatePasskeyRegistrationOptions();
-      await controller.completePasskeyRegistration({
+      const opts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
         registrationResponse: minimalRegistrationResponse(
           opts.challenge,
           'Y2xlYXI=',
         ),
-        encryptionKey: 'k',
-        encryptionSalt: 's',
+        vaultKey: 'k',
       });
       expect(controller.isPasskeyEnrolled()).toBe(true);
 
