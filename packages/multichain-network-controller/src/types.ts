@@ -45,7 +45,7 @@ export type SupportedCaipChainId =
   | TrxScope.Mainnet
   | TrxScope.Nile
   | TrxScope.Shasta
-  | XlmScope.Mainnet
+  | XlmScope.Pubnet
   | XlmScope.Testnet;
 
 export type CommonNetworkConfiguration = {

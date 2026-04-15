@@ -6,10 +6,8 @@ import {
   TrxScope,
   XlmScope,
 } from '@metamask/keyring-api';
-import type {
-  KeyringAccount,
-  KeyringCapabilities,
-} from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
 import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
 import { GroupIndexRange } from '../utils';

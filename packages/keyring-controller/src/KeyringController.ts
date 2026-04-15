@@ -2,7 +2,8 @@ import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptorUtils from '@metamask/browser-passworder';
-import { HdKeyring, HdKeyringV2 } from '@metamask/eth-hd-keyring';
+import { HdKeyring } from '@metamask/eth-hd-keyring';
+import { HdKeyring as HdKeyringV2 } from '@metamask/eth-hd-keyring/v2';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring, { SimpleKeyringV2 } from '@metamask/eth-simple-keyring';
 import type {
@@ -11,9 +12,11 @@ import type {
   EthBaseUserOperation,
   EthUserOperation,
   EthUserOperationPatch,
-  KeyringV2,
+
   KeyringAccount,
 } from '@metamask/keyring-api';
+
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -564,7 +567,7 @@ const hdKeyringV2Builder: KeyringV2Builder = Object.assign(
 
 const simpleKeyringV2Builder: KeyringV2Builder = Object.assign(
   (keyring: Keyring): KeyringV2 =>
-    new SimpleKeyringV2({
+    new (require('./SimpleKeyringV2').SimpleKeyringV2)({
       legacyKeyring: keyring as SimpleKeyring,
     }),
   { type: KeyringTypes.simple as string },

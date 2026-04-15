@@ -184,7 +184,7 @@ const getDefaultNetworkEnablementControllerState =
         [TrxScope.Shasta]: false,
       },
       [KnownCaipNamespace.Stellar]: {
-        [XlmScope.Mainnet]: true,
+        [XlmScope.Pubnet]: true,
         [XlmScope.Testnet]: false,
       },
     },
@@ -424,10 +424,10 @@ export class NetworkEnablementController extends BaseController<
       }
 
       // Enable Stellar mainnet if it exists in MultichainNetworkController configurations
-      const stellarKeys = deriveKeys(XlmScope.Mainnet as CaipChainId);
+      const stellarKeys = deriveKeys(XlmScope.Pubnet as CaipChainId);
       if (
         multichainState.multichainNetworkConfigurationsByChainId[
-          XlmScope.Mainnet
+          XlmScope.Pubnet
         ]
       ) {
         this.#ensureNamespaceBucket(state, stellarKeys.namespace);
@@ -798,7 +798,7 @@ export class NetworkEnablementController extends BaseController<
       BtcScope.Mainnet,
       SolScope.Mainnet,
       TrxScope.Mainnet,
-      XlmScope.Mainnet,
+      XlmScope.Pubnet,
     ] as const;
     return multichainMainnets.filter(
       (chainId) =>

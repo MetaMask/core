@@ -167,7 +167,7 @@ export const MOCK_XLM_ACCOUNT_1: Bip44Account<InternalAccount> = {
   },
   methods: XLM_METHODS,
   type: XlmAccountType.Account,
-  scopes: [XlmScope.Mainnet, XlmScope.Testnet],
+  scopes: [XlmScope.Pubnet, XlmScope.Testnet],
   metadata: {
     name: 'Stellar Account 1',
     keyring: { type: KeyringTypes.snap },
@@ -215,7 +215,7 @@ export const MOCK_TRX_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
 
 export const MOCK_XLM_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
   type: 'bip44',
-  scopes: [XlmScope.Mainnet],
+  scopes: [XlmScope.Pubnet],
   derivationPath: `m/44'/148'/0'`,
 };
 

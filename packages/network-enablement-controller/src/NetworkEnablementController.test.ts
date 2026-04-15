@@ -83,7 +83,7 @@ const defaultMultichainGetState = (): MultichainGetStateReturn => ({
     [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
     [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
     [TrxScope.Mainnet]: { chainId: TrxScope.Mainnet, name: 'Tron' },
-    [XlmScope.Mainnet]: { chainId: XlmScope.Mainnet, name: 'Stellar' },
+    [XlmScope.Pubnet]: { chainId: XlmScope.Pubnet, name: 'Stellar' },
   },
   selectedMultichainNetworkChainId: 'eip155:1',
   isEvmSelected: true,
@@ -213,7 +213,7 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
         [KnownCaipNamespace.Stellar]: {
-          [XlmScope.Mainnet]: true,
+          [XlmScope.Pubnet]: true,
           [XlmScope.Testnet]: false,
         },
       },
@@ -273,7 +273,7 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
         [KnownCaipNamespace.Stellar]: {
-          [XlmScope.Mainnet]: true,
+          [XlmScope.Pubnet]: true,
           [XlmScope.Testnet]: false,
         },
       },
@@ -340,7 +340,7 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
         [KnownCaipNamespace.Stellar]: {
-          [XlmScope.Mainnet]: true,
+          [XlmScope.Pubnet]: true,
           [XlmScope.Testnet]: false,
         },
       },
@@ -485,7 +485,7 @@ describe('NetworkEnablementController', () => {
           [TrxScope.Shasta]: false,
         },
         [KnownCaipNamespace.Stellar]: {
-          [XlmScope.Mainnet]: true,
+          [XlmScope.Pubnet]: true,
           [XlmScope.Testnet]: false,
         },
       },
@@ -589,7 +589,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: true,
+            [XlmScope.Pubnet]: true,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1193,8 +1193,8 @@ describe('NetworkEnablementController', () => {
                   chainId: TrxScope.Mainnet,
                   name: 'Tron Mainnet',
                 },
-                [XlmScope.Mainnet]: {
-                  chainId: XlmScope.Mainnet,
+                [XlmScope.Pubnet]: {
+                  chainId: XlmScope.Pubnet,
                   name: 'Stellar Mainnet',
                 },
               },
@@ -1239,7 +1239,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: true,
+            [XlmScope.Pubnet]: true,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1277,7 +1277,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: true,
+            [XlmScope.Pubnet]: true,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1363,7 +1363,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1548,7 +1548,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: true,
+            [XlmScope.Pubnet]: true,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1586,7 +1586,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1644,7 +1644,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1686,7 +1686,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1728,7 +1728,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1781,7 +1781,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1826,7 +1826,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1884,7 +1884,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: false,
+            [XlmScope.Pubnet]: false,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1934,7 +1934,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: true,
+            [XlmScope.Pubnet]: true,
             [XlmScope.Testnet]: false,
           },
         },
@@ -1986,7 +1986,7 @@ describe('NetworkEnablementController', () => {
             [TrxScope.Shasta]: false,
           },
           [KnownCaipNamespace.Stellar]: {
-            [XlmScope.Mainnet]: true,
+            [XlmScope.Pubnet]: true,
             [XlmScope.Testnet]: false,
           },
         },
@@ -2232,7 +2232,7 @@ describe('NetworkEnablementController', () => {
       expect(result).toContain(BtcScope.Mainnet);
       expect(result).toContain(SolScope.Mainnet);
       expect(result).toContain(TrxScope.Mainnet);
-      expect(result).toContain(XlmScope.Mainnet);
+      expect(result).toContain(XlmScope.Pubnet);
       expect(result).toHaveLength(7);
     });
 
@@ -2253,7 +2253,7 @@ describe('NetworkEnablementController', () => {
       expect(result).not.toContain(BtcScope.Mainnet);
       expect(result).not.toContain(SolScope.Mainnet);
       expect(result).not.toContain(TrxScope.Mainnet);
-      expect(result).not.toContain(XlmScope.Mainnet);
+      expect(result).not.toContain(XlmScope.Pubnet);
       expect(result).toHaveLength(3);
     });
 
@@ -2308,7 +2308,7 @@ describe('NetworkEnablementController', () => {
       expect(result).toContain(BtcScope.Mainnet);
       expect(result).toContain(SolScope.Mainnet);
       expect(result).toContain(TrxScope.Mainnet);
-      expect(result).toContain(XlmScope.Mainnet);
+      expect(result).toContain(XlmScope.Pubnet);
       expect(result).toHaveLength(4);
     });
 

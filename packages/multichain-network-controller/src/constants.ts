@@ -21,7 +21,7 @@ export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
 export const TRX_NATIVE_ASSET = `${TrxScope.Mainnet}/slip44:195`;
 export const TRX_NILE_NATIVE_ASSET = `${TrxScope.Nile}/slip44:195`;
 export const TRX_SHASTA_NATIVE_ASSET = `${TrxScope.Shasta}/slip44:195`;
-export const XLM_NATIVE_ASSET = `${XlmScope.Mainnet}/slip44:148`;
+export const XLM_NATIVE_ASSET = `${XlmScope.Pubnet}/slip44:148`;
 export const XLM_TESTNET_NATIVE_ASSET = `${XlmScope.Testnet}/slip44:148`;
 
 /**
@@ -97,8 +97,8 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     nativeCurrency: TRX_SHASTA_NATIVE_ASSET,
     isEvm: false,
   },
-  [XlmScope.Mainnet]: {
-    chainId: XlmScope.Mainnet,
+  [XlmScope.Pubnet]: {
+    chainId: XlmScope.Pubnet,
     name: 'Stellar',
     nativeCurrency: XLM_NATIVE_ASSET,
     isEvm: false,
@@ -144,7 +144,7 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
     features: [],
     status: NetworkStatus.Available,
   },
-  [XlmScope.Mainnet]: {
+  [XlmScope.Pubnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
@@ -214,7 +214,7 @@ export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
   [TrxScope.Mainnet]: 'TRX',
   [TrxScope.Nile]: 'tTRX',
   [TrxScope.Shasta]: 'sTRX',
-  [XlmScope.Mainnet]: 'XLM',
+  [XlmScope.Pubnet]: 'XLM',
   [XlmScope.Testnet]: 'tXLM',
 } as const;
 
@@ -234,6 +234,6 @@ export const MULTICHAIN_NETWORK_DECIMAL_PLACES: Record<CaipChainId, number> = {
   [TrxScope.Mainnet]: 6,
   [TrxScope.Nile]: 6,
   [TrxScope.Shasta]: 6,
-  [XlmScope.Mainnet]: 7,
+  [XlmScope.Pubnet]: 7,
   [XlmScope.Testnet]: 7,
 } as const;

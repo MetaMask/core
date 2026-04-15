@@ -30,8 +30,8 @@ describe('utils', () => {
     });
 
     it('returns Stellar chain ID for Stellar scopes', () => {
-      const scopes = [XlmScope.Mainnet, XlmScope.Testnet];
-      expect(getChainIdForNonEvm(scopes)).toBe(XlmScope.Mainnet);
+      const scopes = [XlmScope.Pubnet, XlmScope.Testnet];
+      expect(getChainIdForNonEvm(scopes)).toBe(XlmScope.Pubnet);
     });
 
     it('throws error if network is not found', () => {
@@ -46,7 +46,7 @@ describe('utils', () => {
     it('returns true for supported CAIP chain IDs', () => {
       expect(checkIfSupportedCaipChainId(SolScope.Mainnet)).toBe(true);
       expect(checkIfSupportedCaipChainId(BtcScope.Mainnet)).toBe(true);
-      expect(checkIfSupportedCaipChainId(XlmScope.Mainnet)).toBe(true);
+      expect(checkIfSupportedCaipChainId(XlmScope.Pubnet)).toBe(true);
       expect(checkIfSupportedCaipChainId(XlmScope.Testnet)).toBe(true);
     });
 

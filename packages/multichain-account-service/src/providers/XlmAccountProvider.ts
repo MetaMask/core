@@ -3,8 +3,8 @@ import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import {
   AccountCreationType,
   XlmAccountType,
@@ -51,7 +51,7 @@ export class XlmAccountProvider extends SnapAccountProvider {
   static XLM_SNAP_ID = 'npm:@metamask/stellar-wallet-snap' as SnapId;
 
   readonly capabilities: KeyringCapabilities = {
-    scopes: [XlmScope.Mainnet, XlmScope.Testnet],
+    scopes: [XlmScope.Pubnet, XlmScope.Testnet],
     bip44: {
       deriveIndex: true,
       deriveIndexRange: true,
@@ -88,7 +88,7 @@ export class XlmAccountProvider extends SnapAccountProvider {
       entropySource,
       index: groupIndex,
       addressType: XlmAccountType.Account,
-      scope: XlmScope.Mainnet,
+      scope: XlmScope.Pubnet,
     });
   }
 
@@ -117,7 +117,7 @@ export class XlmAccountProvider extends SnapAccountProvider {
               withTimeout(
                 () =>
                   client.discoverAccounts(
-                    [XlmScope.Mainnet],
+                    [XlmScope.Pubnet],
                     entropySource,
                     groupIndex,
                   ),
