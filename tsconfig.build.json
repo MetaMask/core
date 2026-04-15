@@ -143,10 +143,10 @@
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-controller/tsconfig.build.json"
+      "path": "./packages/money-account-balance-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-balance-service/tsconfig.build.json"
+      "path": "./packages/money-account-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
