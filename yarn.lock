@@ -2523,7 +2523,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-tree-controller@npm:^7.0.1, @metamask/account-tree-controller@npm:^7.1.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
+"@metamask/account-tree-controller@npm:^7.1.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
@@ -4846,7 +4846,7 @@ __metadata:
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/account-tree-controller": "npm:^7.0.1"
+    "@metamask/account-tree-controller": "npm:^7.1.0"
     "@metamask/auto-changelog": "npm:^6.0.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^11.20.0"
