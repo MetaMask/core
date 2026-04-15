@@ -23,6 +23,7 @@ import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRa
 import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
 import {
   SPOT_PRICES_SUPPORT_INFO,
+  ZERO_ADDRESS,
   getNativeTokenAddress,
 } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
@@ -239,7 +240,12 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           assetId:
             SPOT_PRICES_SUPPORT_INFO[
               chainId as keyof typeof SPOT_PRICES_SUPPORT_INFO
-            ] ?? `eip155:${hexToNumber(chainId)}/erc20:0x0000000000000000000000000000000000000000`,
+            ] ?? toCaipAssetType(
+              KnownCaipNamespace.Eip155,
+              hexToNumber(chainId).toString(),
+              'erc20',
+              ZERO_ADDRESS,
+            ),
           isNative: true,
           address: nativeToken.address,
           image: nativeToken.image,
