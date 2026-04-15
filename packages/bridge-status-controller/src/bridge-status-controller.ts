@@ -903,7 +903,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           }),
         },
         body: JSON.stringify({
-          requestId,
+          quoteId: requestId,
           newStatus,
           srcTxHash,
         }),
