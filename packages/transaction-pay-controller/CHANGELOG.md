@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.3]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^5.0.1` to `^6.0.0` ([#8474](https://github.com/MetaMask/core/pull/8474))
+- Bump `@metamask/bridge-controller` from `^70.1.0` to `^70.1.1` ([#8474](https://github.com/MetaMask/core/pull/8474))
+
 ### Fixed
 
 - Resolve the effective transaction type from `nestedTransactions` when the parent is a batch transaction ([#8469](https://github.com/MetaMask/core/pull/8469))
@@ -657,7 +664,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.3...HEAD
+[19.1.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.2...@metamask/transaction-pay-controller@19.1.3
 [19.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.1...@metamask/transaction-pay-controller@19.1.2
 [19.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.0...@metamask/transaction-pay-controller@19.1.1
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.3...@metamask/transaction-pay-controller@19.1.0
