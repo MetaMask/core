@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `MantleLayer1GasFeeFlow` with `tokenRatio` conversion for accurate MNT-denominated gas estimates for Mantle and MantleSepolia ([#8386](https://github.com/MetaMask/core/pull/8386))
+- Add `musdRelayDeposit` to `TransactionType` enum ([#8469](https://github.com/MetaMask/core/pull/8469))
 
 ### Changed
 
