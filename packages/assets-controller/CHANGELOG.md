@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.2.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.0` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^10.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-snap-client` from `^8.2.0` to `^9.0.0` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/assets-controllers` from `^103.1.1` to `^104.0.0` ([#8466](https://github.com/MetaMask/core/pull/8466))
 
 ### Fixed
 
@@ -302,7 +305,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.0...@metamask/assets-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@4.0.0...@metamask/assets-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.3.0...@metamask/assets-controller@4.0.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.2.1...@metamask/assets-controller@3.3.0
