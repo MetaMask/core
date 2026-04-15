@@ -7,19 +7,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from './gas-station';
-import { fetchRelayQuote } from './relay-api';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import type {
-  RelayQuote,
-  RelayQuoteMetamask,
-  RelayQuoteRequest,
-  RelayTransactionStep,
-} from './types';
 import { TransactionPayStrategy } from '../..';
 import {
   ARBITRUM_USDC_ADDRESS,
@@ -60,6 +47,19 @@ import {
   TokenAddressTarget,
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from './gas-station';
+import { fetchRelayQuote } from './relay-api';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+import type {
+  RelayQuote,
+  RelayQuoteMetamask,
+  RelayQuoteRequest,
+  RelayTransactionStep,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 

@@ -17,6 +17,12 @@ import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildInfuraNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import * as tokenService from './token-service';
 import type {
   TokenListMap,
@@ -25,12 +31,6 @@ import type {
   DataCache,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildInfuraNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();

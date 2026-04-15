@@ -19,24 +19,6 @@ import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
-import {
-  buildAddNetworkCustomRpcEndpointFields,
-  buildAddNetworkFields,
-  buildCustomNetworkClientConfiguration,
-  buildCustomNetworkConfiguration,
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkClientConfiguration,
-  buildInfuraNetworkConfiguration,
-  buildInfuraRpcEndpoint,
-  buildNetworkConfiguration,
-  buildNetworkControllerMessenger,
-  buildRootMessenger,
-  buildUpdateNetworkCustomRpcEndpointFields,
-  INFURA_NETWORKS,
-  TESTNET,
-  withController,
-} from './helpers';
-import type { RootMessenger } from './helpers';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -67,6 +49,24 @@ import {
 import type { RpcServiceOptions } from '../src/rpc-service/rpc-service';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
+import {
+  buildAddNetworkCustomRpcEndpointFields,
+  buildAddNetworkFields,
+  buildCustomNetworkClientConfiguration,
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkClientConfiguration,
+  buildInfuraNetworkConfiguration,
+  buildInfuraRpcEndpoint,
+  buildNetworkConfiguration,
+  buildNetworkControllerMessenger,
+  buildRootMessenger,
+  buildUpdateNetworkCustomRpcEndpointFields,
+  INFURA_NETWORKS,
+  TESTNET,
+  withController,
+} from './helpers';
+import type { RootMessenger } from './helpers';
 
 jest.mock('../src/create-network-client');
 

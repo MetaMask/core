@@ -1,14 +1,18 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
+import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionStatus } from '../types';
+import type { AuthorizationList } from '../types';
+import type { TransactionMeta } from '../types';
 import {
   DELEGATION_PREFIX,
   doesChainSupportEIP7702,
@@ -21,17 +25,12 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
 } from './feature-flags';
-import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { AuthorizationList } from '../types';
-import type { TransactionMeta } from '../types';
+import { rpcRequest } from './provider';
 
 jest.mock('../utils/feature-flags');
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
 const CHAIN_ID_MOCK = '0xab12';
@@ -40,10 +39,13 @@ const ADDRESS_MOCK = '0x1234567890123456789012345678901234567890';
 const ADDRESS_2_MOCK = '0x0987654321098765432109876543210987654321';
 const ADDRESS_3_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
 const PUBLIC_KEY_MOCK = '0x112233';
-const ETH_QUERY_MOCK = {} as EthQuery;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
 
 const DATA_MOCK =
   '0xe9ae5c530100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000009876543210987654321098765432109876543210000000000000000000000000000000000000000000000000000000000005678000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000021234000000000000000000000000000000000000000000000000000000000000000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd000000000000000000000000000000000000000000000000000000000000def0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000029abc000000000000000000000000000000000000000000000000000000000000';
+
+const DATA_NON_ATOMIC_MOCK =
+  '0xe9ae5c530101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000009876543210987654321098765432109876543210000000000000000000000000000000000000000000000000000000000005678000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000021234000000000000000000000000000000000000000000000000000000000000000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd000000000000000000000000000000000000000000000000000000000000def0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000029abc000000000000000000000000000000000000000000000000000000000000';
 
 const DATA_EMPTY_MOCK =
   '0xe9ae5c5301000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000';
@@ -84,7 +86,7 @@ describe('EIP-7702 Utils', () => {
     MessengerEvents<TransactionControllerMessenger>
   >;
 
-  const getCodeMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
   let controllerMessenger: TransactionControllerMessenger;
 
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
@@ -272,7 +274,7 @@ describe('EIP-7702 Utils', () => {
     it('returns true if delegation matches feature flag', async () => {
       getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_2_MOCK]);
 
-      getCodeMock.mockResolvedValueOnce(
+      rpcRequestMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_2_MOCK)}`,
       );
 
@@ -282,7 +284,7 @@ describe('EIP-7702 Utils', () => {
           CHAIN_ID_MOCK,
           PUBLIC_KEY_MOCK,
           controllerMessenger,
-          ETH_QUERY_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
         ),
       ).toStrictEqual({
         delegationAddress: ADDRESS_2_MOCK,
@@ -295,7 +297,7 @@ describe('EIP-7702 Utils', () => {
         ADDRESS_3_MOCK.toUpperCase() as Hex,
       ]);
 
-      getCodeMock.mockResolvedValueOnce(
+      rpcRequestMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_3_MOCK)}`,
       );
 
@@ -305,7 +307,7 @@ describe('EIP-7702 Utils', () => {
           CHAIN_ID_MOCK.toUpperCase() as Hex,
           PUBLIC_KEY_MOCK,
           controllerMessenger,
-          ETH_QUERY_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
         ),
       ).toStrictEqual({
         delegationAddress: ADDRESS_3_MOCK,
@@ -316,7 +318,7 @@ describe('EIP-7702 Utils', () => {
     it('returns false if delegation does not match feature flag', async () => {
       getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
-      getCodeMock.mockResolvedValueOnce(
+      rpcRequestMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_2_MOCK)}`,
       );
 
@@ -326,7 +328,7 @@ describe('EIP-7702 Utils', () => {
           CHAIN_ID_MOCK,
           PUBLIC_KEY_MOCK,
           controllerMessenger,
-          ETH_QUERY_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
         ),
       ).toStrictEqual({
         delegationAddress: ADDRESS_2_MOCK,
@@ -337,7 +339,7 @@ describe('EIP-7702 Utils', () => {
     it('returns false if empty code', async () => {
       getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
-      getCodeMock.mockResolvedValueOnce('0x');
+      rpcRequestMock.mockResolvedValueOnce('0x');
 
       expect(
         await isAccountUpgradedToEIP7702(
@@ -345,7 +347,7 @@ describe('EIP-7702 Utils', () => {
           CHAIN_ID_MOCK,
           PUBLIC_KEY_MOCK,
           controllerMessenger,
-          ETH_QUERY_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
         ),
       ).toStrictEqual({
         delegationAddress: undefined,
@@ -356,7 +358,7 @@ describe('EIP-7702 Utils', () => {
     it('returns false if no code', async () => {
       getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
-      getCodeMock.mockResolvedValueOnce(undefined);
+      rpcRequestMock.mockResolvedValueOnce(undefined);
 
       expect(
         await isAccountUpgradedToEIP7702(
@@ -364,7 +366,7 @@ describe('EIP-7702 Utils', () => {
           CHAIN_ID_MOCK,
           PUBLIC_KEY_MOCK,
           controllerMessenger,
-          ETH_QUERY_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
         ),
       ).toStrictEqual({
         delegationAddress: undefined,
@@ -375,7 +377,7 @@ describe('EIP-7702 Utils', () => {
     it('returns false if not delegation code', async () => {
       getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
-      getCodeMock.mockResolvedValueOnce(
+      rpcRequestMock.mockResolvedValueOnce(
         '0x1234567890123456789012345678901234567890123456789012345678901234567890',
       );
 
@@ -385,7 +387,7 @@ describe('EIP-7702 Utils', () => {
           CHAIN_ID_MOCK,
           PUBLIC_KEY_MOCK,
           controllerMessenger,
-          ETH_QUERY_MOCK,
+          NETWORK_CLIENT_ID_MOCK,
         ),
       ).toStrictEqual({
         delegationAddress: undefined,
@@ -432,42 +434,126 @@ describe('EIP-7702 Utils', () => {
         to: ADDRESS_MOCK,
       });
     });
+
+    it('uses atomic mode by default', () => {
+      const result = generateEIP7702BatchTransaction(ADDRESS_MOCK, [
+        {
+          data: '0x1234',
+          to: ADDRESS_2_MOCK,
+          value: '0x5678',
+        },
+        {
+          data: '0x9abc',
+          to: ADDRESS_3_MOCK,
+          value: '0xdef0',
+        },
+      ]);
+
+      expect(result).toStrictEqual({
+        data: DATA_MOCK,
+        to: ADDRESS_MOCK,
+      });
+    });
+
+    it('uses atomic mode when atomic is true', () => {
+      const result = generateEIP7702BatchTransaction(
+        ADDRESS_MOCK,
+        [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        { atomic: true },
+      );
+
+      expect(result).toStrictEqual({
+        data: DATA_MOCK,
+        to: ADDRESS_MOCK,
+      });
+    });
+
+    it('uses non-atomic mode when atomic is false', () => {
+      const result = generateEIP7702BatchTransaction(
+        ADDRESS_MOCK,
+        [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        { atomic: false },
+      );
+
+      expect(result).toStrictEqual({
+        data: DATA_NON_ATOMIC_MOCK,
+        to: ADDRESS_MOCK,
+      });
+    });
   });
 
   describe('getDelegationAddress', () => {
     it('returns the delegation address', async () => {
-      getCodeMock.mockResolvedValueOnce(
+      rpcRequestMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_2_MOCK)}`,
       );
 
       expect(
-        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+        await getDelegationAddress(
+          ADDRESS_MOCK,
+          controllerMessenger,
+          NETWORK_CLIENT_ID_MOCK,
+        ),
       ).toStrictEqual(ADDRESS_2_MOCK);
     });
 
     it('returns undefined if no code', async () => {
-      getCodeMock.mockResolvedValueOnce(undefined);
+      rpcRequestMock.mockResolvedValueOnce(undefined);
 
       expect(
-        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+        await getDelegationAddress(
+          ADDRESS_MOCK,
+          controllerMessenger,
+          NETWORK_CLIENT_ID_MOCK,
+        ),
       ).toBeUndefined();
     });
 
     it('returns undefined if empty code', async () => {
-      getCodeMock.mockResolvedValueOnce('0x');
+      rpcRequestMock.mockResolvedValueOnce('0x');
 
       expect(
-        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+        await getDelegationAddress(
+          ADDRESS_MOCK,
+          controllerMessenger,
+          NETWORK_CLIENT_ID_MOCK,
+        ),
       ).toBeUndefined();
     });
 
     it('returns undefined if not delegation code', async () => {
-      getCodeMock.mockResolvedValueOnce(
+      rpcRequestMock.mockResolvedValueOnce(
         '0x1234567890123456789012345678901234567890123456789012345678901234567890',
       );
 
       expect(
-        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+        await getDelegationAddress(
+          ADDRESS_MOCK,
+          controllerMessenger,
+          NETWORK_CLIENT_ID_MOCK,
+        ),
       ).toBeUndefined();
     });
   });

@@ -12,8 +12,8 @@ import type {
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getCapabilities } from './getCapabilities';
 import type { EIP5792Messenger } from '../types';
+import { getCapabilities } from './getCapabilities';
 
 const CHAIN_ID_MOCK = '0x123';
 const FROM_MOCK = '0xabc123';

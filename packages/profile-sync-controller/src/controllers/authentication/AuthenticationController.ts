@@ -10,15 +10,9 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
-import {
-  createSnapPublicKeyRequest,
-  createSnapAllPublicKeysRequest,
-  createSnapSignMessageRequest,
-} from './auth-snap-requests';
-import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
 import type {
   LoginResponse,
   SRPInterface,
@@ -32,6 +26,12 @@ import {
   JwtBearerAuth,
 } from '../../sdk';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import {
+  createSnapPublicKeyRequest,
+  createSnapAllPublicKeysRequest,
+  createSnapSignMessageRequest,
+} from './auth-snap-requests';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
 
 const controllerName = 'AuthenticationController';
 
@@ -111,7 +111,9 @@ export type AuthenticationControllerStateChangeEvent =
 export type Events = AuthenticationControllerStateChangeEvent;
 
 // Allowed Actions
-type AllowedActions = HandleSnapRequest | KeyringControllerGetStateAction;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | SnapControllerHandleRequestAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 

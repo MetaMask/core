@@ -1,9 +1,9 @@
+import { Env, Platform } from '../../shared/env';
+import { RateLimitedError } from '../errors';
 import { SRPJwtBearerAuth } from './flow-srp';
 import { AuthType } from './types';
 import type { AuthConfig, LoginResponse, UserProfile } from './types';
 import * as timeUtils from './utils/time';
-import { Env, Platform } from '../../shared/env';
-import { RateLimitedError } from '../errors';
 
 jest.setTimeout(15000);
 

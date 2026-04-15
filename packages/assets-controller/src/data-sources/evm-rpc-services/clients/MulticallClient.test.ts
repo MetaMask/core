@@ -1,12 +1,12 @@
 import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import type { Hex } from '@metamask/utils';
 
+import type { Address, BalanceOfRequest, ChainId, Provider } from '../types';
 import {
   decodeAggregate3Response,
   encodeAggregate3,
   MulticallClient,
 } from './MulticallClient';
-import type { Address, BalanceOfRequest, ChainId, Provider } from '../types';
 
 // =============================================================================
 // MOCK PROVIDER

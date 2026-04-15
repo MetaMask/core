@@ -1,21 +1,26 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "18.1.0",
+  "version": "19.1.1",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/transaction-pay-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,18 +34,18 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-pay-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-pay-controller",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -52,19 +57,19 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/assets-controller": "^3.1.1",
-    "@metamask/assets-controllers": "^101.0.1",
-    "@metamask/base-controller": "^9.0.0",
-    "@metamask/bridge-controller": "^69.2.1",
-    "@metamask/bridge-status-controller": "^70.0.1",
-    "@metamask/controller-utils": "^11.19.0",
-    "@metamask/gas-fee-controller": "^26.1.0",
-    "@metamask/messenger": "^0.3.0",
+    "@metamask/assets-controller": "^5.0.0",
+    "@metamask/assets-controllers": "^103.1.1",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/bridge-controller": "^70.0.1",
+    "@metamask/bridge-status-controller": "^70.0.5",
+    "@metamask/controller-utils": "^11.20.0",
+    "@metamask/gas-fee-controller": "^26.1.1",
+    "@metamask/messenger": "^1.1.1",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^30.0.0",
-    "@metamask/ramps-controller": "^12.0.1",
-    "@metamask/remote-feature-flag-controller": "^4.1.0",
-    "@metamask/transaction-controller": "^63.2.0",
+    "@metamask/network-controller": "^30.0.1",
+    "@metamask/ramps-controller": "^13.1.0",
+    "@metamask/remote-feature-flag-controller": "^4.2.0",
+    "@metamask/transaction-controller": "^64.2.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
@@ -72,7 +77,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
@@ -85,9 +90,5 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

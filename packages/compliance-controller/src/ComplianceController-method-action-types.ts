@@ -6,18 +6,10 @@
 import type { ComplianceController } from './ComplianceController';
 
 /**
- * Initializes the controller by fetching the blocked wallets list if it
- * is missing or stale. Call once after construction to ensure the blocklist
- * is ready for `selectIsWalletBlocked` lookups.
- */
-export type ComplianceControllerInitAction = {
-  type: `ComplianceController:init`;
-  handler: ComplianceController['init'];
-};
-
-/**
  * Checks compliance status for a single wallet address via the API and
- * persists the result to state.
+ * persists the result to state. If the API call fails and a previously
+ * cached result exists for the address, the cached result is returned as a
+ * fallback. If no cached result exists, the error is re-thrown.
  *
  * @param address - The wallet address to check.
  * @returns The compliance status of the wallet.
@@ -29,7 +21,10 @@ export type ComplianceControllerCheckWalletComplianceAction = {
 
 /**
  * Checks compliance status for multiple wallet addresses via the API and
- * persists the results to state.
+ * persists the results to state. If the API call fails and every requested
+ * address has a previously cached result, those cached results are returned
+ * as a fallback. If any address lacks a cached result, the error is
+ * re-thrown.
  *
  * @param addresses - The wallet addresses to check.
  * @returns The compliance statuses of the wallets.
@@ -37,17 +32,6 @@ export type ComplianceControllerCheckWalletComplianceAction = {
 export type ComplianceControllerCheckWalletsComplianceAction = {
   type: `ComplianceController:checkWalletsCompliance`;
   handler: ComplianceController['checkWalletsCompliance'];
-};
-
-/**
- * Fetches the full list of blocked wallets from the API and persists the
- * data to state. This also updates the `blockedWalletsLastFetched` timestamp.
- *
- * @returns The blocked wallets information.
- */
-export type ComplianceControllerUpdateBlockedWalletsAction = {
-  type: `ComplianceController:updateBlockedWallets`;
-  handler: ComplianceController['updateBlockedWallets'];
 };
 
 /**
@@ -62,8 +46,6 @@ export type ComplianceControllerClearComplianceStateAction = {
  * Union of all ComplianceController action types.
  */
 export type ComplianceControllerMethodActions =
-  | ComplianceControllerInitAction
   | ComplianceControllerCheckWalletComplianceAction
   | ComplianceControllerCheckWalletsComplianceAction
-  | ComplianceControllerUpdateBlockedWalletsAction
   | ComplianceControllerClearComplianceStateAction;

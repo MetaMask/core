@@ -29,12 +29,12 @@ import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
 } from '.';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 import type {
   AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
-import { jestAdvanceTime } from '../../../../tests/helpers';
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
@@ -266,7 +266,7 @@ const setupController = ({
     actions: [
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
-      'SnapController:getAll',
+      'SnapController:getRunnableSnaps',
       'PermissionController:getPermissions',
       'PhishingController:bulkScanTokens',
     ],
@@ -296,7 +296,7 @@ const setupController = ({
 
   const mockGetAllSnaps = jest.fn();
   messenger.registerActionHandler(
-    'SnapController:getAll',
+    'SnapController:getRunnableSnaps',
     mockGetAllSnaps.mockReturnValue(
       mocks?.getAllReturnValue ?? mockGetAllSnapsReturnValue,
     ),

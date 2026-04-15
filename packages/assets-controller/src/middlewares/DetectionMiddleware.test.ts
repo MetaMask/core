@@ -1,13 +1,13 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger } from '@metamask/messenger';
 
-import { DetectionMiddleware } from './DetectionMiddleware';
 import type {
   Context,
   DataRequest,
   Caip19AssetId,
   AssetsControllerStateInternal,
 } from '../types';
+import { DetectionMiddleware } from './DetectionMiddleware';
 
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_ACCOUNT_ID = 'mock-account-id';

@@ -16,6 +16,8 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { APPROVAL_DELAY_MS } from '../constants';
+import type { BridgeStatusControllerMessenger } from '../types';
 import { getStatusRequestParams } from './bridge-status';
 import * as snaps from './snaps';
 import {
@@ -26,8 +28,6 @@ import {
   waitForTxConfirmation,
   toBatchTxParams,
 } from './transaction';
-import { APPROVAL_DELAY_MS } from '../constants';
-import type { BridgeStatusControllerMessenger } from '../types';
 
 describe('Bridge Status Controller Transaction Utils', () => {
   describe('waitForTxConfirmation', () => {

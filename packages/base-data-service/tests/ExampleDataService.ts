@@ -8,22 +8,12 @@ import {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
 } from '../src/BaseDataService';
+import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 
 export const serviceName = 'ExampleDataService';
 
-export type ExampleDataServiceGetAssetsAction = {
-  type: `${typeof serviceName}:getAssets`;
-  handler: ExampleDataService['getAssets'];
-};
-
-export type ExampleDataServiceGetActivityAction = {
-  type: `${typeof serviceName}:getActivity`;
-  handler: ExampleDataService['getActivity'];
-};
-
 export type ExampleDataServiceActions =
-  | ExampleDataServiceGetAssetsAction
-  | ExampleDataServiceGetActivityAction
+  | ExampleDataServiceMethodActions
   | DataServiceInvalidateQueriesAction<typeof serviceName>;
 
 export type ExampleDataServiceEvents =
@@ -60,6 +50,8 @@ export type PageParam =
     }
   | { after: string };
 
+const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
+
 export class ExampleDataService extends BaseDataService<
   typeof serviceName,
   ExampleMessenger
@@ -79,14 +71,9 @@ export class ExampleDataService extends BaseDataService<
       },
     });
 
-    messenger.registerActionHandler(
-      `${this.name}:getAssets`,
-      this.getAssets.bind(this),
-    );
-
-    messenger.registerActionHandler(
-      `${this.name}:getActivity`,
-      this.getActivity.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

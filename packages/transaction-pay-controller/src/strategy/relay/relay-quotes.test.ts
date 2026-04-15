@@ -7,8 +7,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { getRelayQuotes } from './relay-quotes';
-import type { RelayQuote, RelayTransactionStep } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   ARBITRUM_USDC_ADDRESS,
@@ -37,6 +35,8 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token';
+import { getRelayQuotes } from './relay-quotes';
+import type { RelayQuote, RelayTransactionStep } from './types';
 
 jest.mock('../../utils/token', () => ({
   ...jest.createMockFromModule<typeof import('../../utils/token')>(

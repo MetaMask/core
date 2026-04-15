@@ -17,6 +17,7 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { add0x, KnownCaipNamespace } from '@metamask/utils';
 import type { Patch } from 'immer';
 
+import { flushPromises } from '../../../tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
@@ -32,7 +33,6 @@ import type {
 } from './TokenRatesController';
 import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
-import { flushPromises } from '../../../tests/helpers';
 
 const defaultSelectedAddress = '0x1111111111111111111111111111111111111111';
 

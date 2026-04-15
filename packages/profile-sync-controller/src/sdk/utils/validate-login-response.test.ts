@@ -1,5 +1,5 @@
-import { validateLoginResponse } from './validate-login-response';
 import type { LoginResponse } from '../authentication';
+import { validateLoginResponse } from './validate-login-response';
 
 /**
  * Creates a minimal JWT string with the given payload claims.

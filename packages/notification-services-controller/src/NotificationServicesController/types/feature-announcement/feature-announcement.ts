@@ -1,5 +1,5 @@
-import type { TypeFeatureAnnouncement } from './type-feature-announcement';
 import type { TRIGGER_TYPES } from '../../constants/notification-schema';
+import type { TypeFeatureAnnouncement } from './type-feature-announcement';
 
 export type FeatureAnnouncementRawNotificationData = Omit<
   TypeFeatureAnnouncement['fields'],

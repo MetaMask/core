@@ -118,6 +118,17 @@ type SrcTxMetaId = string;
 export type FetchBridgeTxStatusArgs = {
   bridgeTxMetaId: string;
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'startPollingForBridgeTxStatus',
+  'wipeBridgeStatus',
+  'resetState',
+  'submitTx',
+  'submitIntent',
+  'restartPollingForFailedAttempts',
+  'getBridgeHistoryItemByTxMetaId',
+] as const;
+
 export class BridgeStatusController extends StaticIntervalPollingController<BridgeStatusPollingInput>()<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState,
@@ -184,33 +195,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
 
     // Register action handlers
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:startPollingForBridgeTxStatus`,
-      this.startPollingForBridgeTxStatus.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:wipeBridgeStatus`,
-      this.wipeBridgeStatus.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:resetState`,
-      this.resetState.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
-      this.submitTx.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:submitIntent`,
-      this.submitIntent.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:restartPollingForFailedAttempts`,
-      this.restartPollingForFailedAttempts.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_STATUS_CONTROLLER_NAME}:getBridgeHistoryItemByTxMetaId`,
-      this.getBridgeHistoryItemByTxMetaId.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
     // Set interval

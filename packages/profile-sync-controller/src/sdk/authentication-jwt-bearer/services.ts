@@ -1,10 +1,3 @@
-import type {
-  AccessToken,
-  ErrorMessage,
-  UserProfile,
-  UserProfileLineage,
-} from './types';
-import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
@@ -16,6 +9,13 @@ import {
   ValidationError,
   RateLimitedError,
 } from '../errors';
+import type {
+  AccessToken,
+  ErrorMessage,
+  UserProfile,
+  UserProfileLineage,
+} from './types';
+import { AuthType } from './types';
 
 /**
  * Parse Retry-After header into milliseconds if possible.

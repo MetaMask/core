@@ -3,12 +3,12 @@ import { providerErrors } from '@metamask/rpc-errors';
 import type { StructError } from '@metamask/superstruct';
 import { any, validate } from '@metamask/superstruct';
 
+import type { WalletMiddlewareKeyValues } from '../wallet';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
 } from './validation';
-import type { WalletMiddlewareKeyValues } from '../wallet';
 
 jest.mock('@metamask/superstruct', () => ({
   ...jest.requireActual('@metamask/superstruct'),

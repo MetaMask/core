@@ -6,12 +6,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
+import { Env } from '../types';
 import type { GeolocationApiServiceMessenger } from './geolocation-api-service';
 import {
   GeolocationApiService,
   UNKNOWN_LOCATION,
 } from './geolocation-api-service';
-import { Env } from '../types';
 
 describe('GeolocationApiService', () => {
   beforeEach(() => {

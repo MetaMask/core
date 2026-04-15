@@ -1,8 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import { sumAmounts } from './amounts';
-import { calculateTransactionGasCost } from './gas';
 import type {
   FiatValue,
   TransactionPayControllerMessenger,
@@ -10,6 +8,8 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayTotals,
 } from '../types';
+import { sumAmounts } from './amounts';
+import { calculateTransactionGasCost } from './gas';
 
 /**
  * Calculate totals for a list of quotes and tokens.

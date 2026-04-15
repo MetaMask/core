@@ -2,7 +2,12 @@
 import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers';
-import type { QuoteResponse, TokenFeature, Trade } from '../src';
+import type {
+  QuoteResponse,
+  QuoteStreamCompleteData,
+  TokenFeature,
+  Trade,
+} from '../src';
 
 type MockSseResponse = { status: number; ok: boolean; body: ReadableStream };
 
@@ -131,6 +136,51 @@ export const mockSseEventSourceWithWarnings = (
             emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
             emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
           });
+          controller.close();
+        }, delay);
+      },
+    }),
+  };
+};
+
+/**
+ * Simulates an SSE stream that emits quote, token_warning, and complete events
+ *
+ * @param mockQuotes - a list of quotes to stream
+ * @param mockWarnings - a list of token warnings to stream
+ * @param mockComplete - the complete event data to emit
+ * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes, token warnings, and a complete event
+ */
+export const mockSseEventSourceWithComplete = (
+  mockQuotes: QuoteResponse[],
+  mockWarnings: TokenFeature[],
+  mockComplete: QuoteStreamCompleteData,
+  delay: number = 3000,
+): MockSseResponse => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller): void {
+        setTimeout(() => {
+          let eventIndex = 0;
+          mockWarnings.forEach((warning) => {
+            emitLine(controller, `event: token_warning\n`);
+            // eslint-disable-next-line no-plusplus
+            emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(warning)}\n\n`);
+          });
+          mockQuotes.forEach((quote) => {
+            emitLine(controller, `event: quote\n`);
+            // eslint-disable-next-line no-plusplus
+            emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
+          });
+          emitLine(controller, `event: complete\n`);
+          // eslint-disable-next-line no-plusplus
+          emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+          emitLine(controller, `data: ${JSON.stringify(mockComplete)}\n\n`);
           controller.close();
         }, delay);
       },

@@ -2,11 +2,6 @@
  * Prices API Client Tests - price.api.cx.metamask.io
  */
 
-import type {
-  PriceSupportedNetworksResponse,
-  V1ExchangeRatesResponse,
-  V3SpotPricesResponse,
-} from './types';
 import type { ApiPlatformClient } from '../ApiPlatformClient';
 import { API_URLS } from '../shared-types';
 import type { FetchOptions } from '../shared-types';
@@ -15,6 +10,11 @@ import {
   mockFetch,
   setupTestEnvironment,
 } from '../test-utils';
+import type {
+  PriceSupportedNetworksResponse,
+  V1ExchangeRatesResponse,
+  V3SpotPricesResponse,
+} from './types';
 
 describe('PricesApiClient', () => {
   let client: ApiPlatformClient;

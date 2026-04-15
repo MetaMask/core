@@ -4,12 +4,6 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import type { UpdateQuotesRequest } from './quotes';
-import { refreshQuotes, updateQuotes } from './quotes';
-import { getStrategiesByName, getStrategyByName } from './strategy';
-import { getLiveTokenBalance, getTokenFiatRate } from './token';
-import { calculateTotals } from './totals';
-import { getTransaction, updateTransaction } from './transaction';
 import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
@@ -20,6 +14,12 @@ import type {
   TransactionPaymentToken,
   TransactionPayRequiredToken,
 } from '../types';
+import type { UpdateQuotesRequest } from './quotes';
+import { refreshQuotes, updateQuotes } from './quotes';
+import { getStrategiesByName, getStrategyByName } from './strategy';
+import { getLiveTokenBalance, getTokenFiatRate } from './token';
+import { calculateTotals } from './totals';
+import { getTransaction, updateTransaction } from './transaction';
 
 jest.mock('./strategy');
 jest.mock('./transaction');

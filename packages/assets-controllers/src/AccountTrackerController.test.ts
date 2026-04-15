@@ -19,10 +19,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
-import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
@@ -30,6 +26,10 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import { getTokenBalancesForMultipleAddresses } from './multicall';
 
 type AllAccountTrackerControllerActions =
   MessengerActions<AccountTrackerControllerMessenger>;
@@ -1642,6 +1642,62 @@ describe('AccountTrackerController', () => {
           ]);
           expect(result[ADDRESS_1].balance).toBe('0x10');
           expect(result[ADDRESS_2].balance).toBe('0x20');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Mainnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-mainnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0x1079',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-mainnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Testnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-testnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0xa5bf',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-testnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
         },
       );
     });
