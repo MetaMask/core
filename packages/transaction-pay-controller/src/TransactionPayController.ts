@@ -124,11 +124,11 @@ export class TransactionPayController extends BaseController<
 
       callback(config);
 
+      transactionData.accountOverride = config.accountOverride;
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
-      transactionData.accountOverride = config.accountOverride;
     });
   }
 

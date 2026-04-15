@@ -85,13 +85,13 @@ export function getAcrossDestination(
     };
   }
 
-  const { accountOverride, from } = request;
+  const { from } = request;
   const destinationCalls = getDestinationCalls(transaction);
   const swapRecipientTransferCallIndex = destinationCalls.findIndex((call) =>
     isExtractableOutputTokenTransferCall(call, request),
   );
   const callsForActions = [...destinationCalls];
-  let recipient = accountOverride ?? from;
+  let recipient = from;
 
   if (swapRecipientTransferCallIndex !== -1) {
     const [swapRecipientTransferCall] = callsForActions.splice(

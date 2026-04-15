@@ -103,7 +103,8 @@ export type TransactionConfig = {
 
   /** Optional address to override the default account used by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
-   * When `isPostQuote` is false, used as the delegator for the transaction. */
+   * When `isPostQuote` is false, used as the delegator for the transaction, it provides the funds and pays for gas.
+   */
   accountOverride?: Hex;
 };
 
@@ -188,7 +189,10 @@ export type TransactionData = {
    */
   refundTo?: Hex;
 
-  /** Optional address to override the default account used by the transaction. */
+  /** Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, used as the delegator for the transaction, it provides the funds and pays for gas.
+   */
   accountOverride?: Hex;
 
   /**
@@ -354,7 +358,10 @@ export type QuoteRequest = {
    */
   refundTo?: Hex;
 
-  /** Optional address to override the default account used by the transaction. */
+  /** Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, used as the delegator for the transaction, it provides the funds and pays for gas.
+   */
   accountOverride?: Hex;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
