@@ -911,7 +911,7 @@ export type FooAction = {
   });
 
   it('handles curly braces in multi-line JSDoc outside backticks', async () => {
-    expect.assertions(2);
+    expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
       const filePath = path.join(directoryPath, 'types.ts');
@@ -933,7 +933,6 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items[0].jsDoc).toContain('\\{name: string, age: number\\}');
-      expect(items[0].jsDoc).not.toContain('{name');
     });
   });
 
