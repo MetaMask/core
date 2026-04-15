@@ -7,45 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- chore(lint): Fix suppressed ESLint errors in `json-rpc-middleware-stream` package ([#7463](https://github.com/MetaMask/core/pull/7463))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Release/297.0.0 ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- Fix "Uncategorized" heading left in changelog ([#4740](https://github.com/MetaMask/core/pull/4740))
-- Release 202.0.0 ([#4704](https://github.com/MetaMask/core/pull/4704))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Release/173.0.0 ([#4519](https://github.com/MetaMask/core/pull/4519))
-- Release 158.0.0 ([#4351](https://github.com/MetaMask/core/pull/4351))
-- Revert "Release 158.0.0 (#4342)" ([#4342](https://github.com/MetaMask/core/pull/4342))
-- Release 158.0.0 ([#4342](https://github.com/MetaMask/core/pull/4342))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-- Release 125.0.0 ([#4048](https://github.com/MetaMask/core/pull/4048))
-- Release 123.0.0 ([#4007](https://github.com/MetaMask/core/pull/4007))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-- fix(devDeps/json-rpc-middleware-stream): Bump extension-port-stream from ^2.0.1 to ^3.0.0 ([#3806](https://github.com/MetaMask/core/pull/3806))
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Release 90.0.0 ([#2014](https://github.com/MetaMask/core/pull/2014))
-- Revert "Release 90.0.0" ([#2012](https://github.com/MetaMask/core/pull/2012))
-- Release 90.0.0 ([#2011](https://github.com/MetaMask/core/pull/2011))
-- Record CHANGELOG entries from `@metamask/json-rpc-{engine,middleware-stream}` migrations ([#2003](https://github.com/MetaMask/core/pull/2003))
-
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
@@ -263,13 +224,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...@metamask/json-rpc-middleware-stream@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...@metamask/json-rpc-middleware-stream@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.0...@metamask/json-rpc-middleware-stream@6.0.1
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0
-[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@5.0.0...@metamask/json-rpc-middleware-stream@5.0.1
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.3...@metamask/json-rpc-middleware-stream@5.0.0
-[4.2.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.2...@metamask/json-rpc-middleware-stream@4.2.3
-[4.2.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.1...@metamask/json-rpc-middleware-stream@4.2.2
-[4.2.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.2.0...@metamask/json-rpc-middleware-stream@4.2.1
-[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.1.0...@metamask/json-rpc-middleware-stream@4.2.0
-[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@4.0.0...@metamask/json-rpc-middleware-stream@4.1.0
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@3.0.0...@metamask/json-rpc-middleware-stream@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-middleware-stream@3.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.0...json-rpc-middleware-stream@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.3...json-rpc-middleware-stream@5.0.0
+[4.2.3]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.2...json-rpc-middleware-stream@4.2.3
+[4.2.2]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.1...json-rpc-middleware-stream@4.2.2
+[4.2.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.2.0...json-rpc-middleware-stream@4.2.1
+[4.2.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.1.0...json-rpc-middleware-stream@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.0.0...json-rpc-middleware-stream@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@3.0.0...json-rpc-middleware-stream@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-middleware-stream@3.0.0

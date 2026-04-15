@@ -7,50 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- chore(lint): Fix suppressed ESLint errors in `eth-json-rpc-provider` package ([#7497](https://github.com/MetaMask/core/pull/7497))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- deps(eth-json-rpc-provider): @metamask/rpc-errors@^6.3.1->^7.0.0 ([#4799](https://github.com/MetaMask/core/pull/4799))
-- Release 202.0.0 ([#4704](https://github.com/MetaMask/core/pull/4704))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Release 184.0.0 ([#4607](https://github.com/MetaMask/core/pull/4607))
-- Release 180.0.0 ([#4548](https://github.com/MetaMask/core/pull/4548))
-- Release/173.0.0 ([#4519](https://github.com/MetaMask/core/pull/4519))
-- Release/171.0.0 ([#4508](https://github.com/MetaMask/core/pull/4508))
-- Bump Yarn to v4 ([#3612](https://github.com/MetaMask/core/pull/3612))
-- Release 125.0.0 ([#4048](https://github.com/MetaMask/core/pull/4048))
-- Release 123.0.0 ([#4007](https://github.com/MetaMask/core/pull/4007))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Check for unused dependencies in lint pipeline ([#2046](https://github.com/MetaMask/core/pull/2046))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Release 90.0.0 ([#2014](https://github.com/MetaMask/core/pull/2014))
-- Revert "Release 90.0.0" ([#2012](https://github.com/MetaMask/core/pull/2012))
-- Release 90.0.0 ([#2011](https://github.com/MetaMask/core/pull/2011))
-- Record CHANGELOG entries from `@metamask/json-rpc-{engine,middleware-stream}` migrations ([#2003](https://github.com/MetaMask/core/pull/2003))
-- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
-- Remove unused prepack scripts ([#1902](https://github.com/MetaMask/core/pull/1902))
-- Add missing TS dep to eth-json-rpc-provider ([#1879](https://github.com/MetaMask/core/pull/1879))
-- Record CHANGELOG entries from `eth-json-rpc-provider` migration ([#1855](https://github.com/MetaMask/core/pull/1855))
-- Remove outdated `eth-json-rpc-provider` README content ([#1847](https://github.com/MetaMask/core/pull/1847))
-
 ## [6.0.1]
 
 ### Changed

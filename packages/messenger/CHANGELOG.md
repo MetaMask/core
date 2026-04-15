@@ -7,31 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- Release 901.0.0 ([#8373](https://github.com/MetaMask/core/pull/8373))
-- Release/897.0.0 ([#8364](https://github.com/MetaMask/core/pull/8364))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore(messenger): replace `Sinon` with `Jest` mocks ([#7959](https://github.com/MetaMask/core/pull/7959))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- chore: Fix suppressed lint errors in `@metamask/messenger` ([#7421](https://github.com/MetaMask/core/pull/7421))
-- chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- Release 558.0.0 ([#6632](https://github.com/MetaMask/core/pull/6632))
-- Release 532.0.0 ([#6465](https://github.com/MetaMask/core/pull/6465))
-- test: Add additional tests for delegated action unregistration ([#6419](https://github.com/MetaMask/core/pull/6419))
-- chore: Organize Messenger tests ([#6418](https://github.com/MetaMask/core/pull/6418))
-- Release 508.0.0 ([#6355](https://github.com/MetaMask/core/pull/6355))
-- chore: Refactor subscription metadata ([#6294](https://github.com/MetaMask/core/pull/6294))
-- chore: Add `clearSubscriptions` test and reorganize ([#6293](https://github.com/MetaMask/core/pull/6293))
-- chore: Add missing TSDoc template directives ([#6257](https://github.com/MetaMask/core/pull/6257))
-
 ### Deprecated
 
 - Deprecate `generate-action-types` CLI tool and `messenger-generate-action-types` binary ([#8378](https://github.com/MetaMask/core/pull/8378))

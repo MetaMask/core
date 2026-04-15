@@ -7,39 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- chore: remove `@metamask/error-reporting-service` package ([#8323](https://github.com/MetaMask/core/pull/8323))
-- fix: Clone `JsonRpcEngineV2` results to prevent returning frozen objects ([#8077](https://github.com/MetaMask/core/pull/8077))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- Release/825.0.0 ([#7996](https://github.com/MetaMask/core/pull/7996))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- Release/782.0.0 ([#7810](https://github.com/MetaMask/core/pull/7810))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- Release/751.0.0 ([#7634](https://github.com/MetaMask/core/pull/7634))
-- Release 748.0.0 ([#7604](https://github.com/MetaMask/core/pull/7604))
-- Release/741.0.0 ([#7583](https://github.com/MetaMask/core/pull/7583))
-- chore: Replace deprecated error reporting service calls with `Messenger.captureException` ([#7542](https://github.com/MetaMask/core/pull/7542))
-- Release 733.0.0 ([#7541](https://github.com/MetaMask/core/pull/7541))
-- Release 732.0.0 ([#7534](https://github.com/MetaMask/core/pull/7534))
-- chore(lint): Fix suppressed ESLint errors in `eth-json-rpc-middleware` package ([#7475](https://github.com/MetaMask/core/pull/7475))
-- Release/714.0.0 ([#7330](https://github.com/MetaMask/core/pull/7330))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- Release/699.0.0 ([#7258](https://github.com/MetaMask/core/pull/7258))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- test(eth-json-rpc-middleware): Round out test suite ([#6967](https://github.com/MetaMask/core/pull/6967))
-- Release/642.0.0 ([#6962](https://github.com/MetaMask/core/pull/6962))
-- Release 641.0.0 ([#6940](https://github.com/MetaMask/core/pull/6940))
-
 ## [23.1.1]
 
 ### Changed

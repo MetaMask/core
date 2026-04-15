@@ -7,26 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat: adopt messenger-cli pattern for 4 controller packages ([#8391](https://github.com/MetaMask/core/pull/8391))
-- Release/891.0.0 ([#8327](https://github.com/MetaMask/core/pull/8327))
-- Release/886.0.0 ([#8309](https://github.com/MetaMask/core/pull/8309))
-- Release/882.0.0 ([#8293](https://github.com/MetaMask/core/pull/8293))
-- Release/876.0.0 ([#8270](https://github.com/MetaMask/core/pull/8270))
-- Release/867.0.0 ([#8220](https://github.com/MetaMask/core/pull/8220))
-- Release/862.0.0 ([#8191](https://github.com/MetaMask/core/pull/8191))
-- Release/850.0.0 ([#8114](https://github.com/MetaMask/core/pull/8114))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- Release/821.0.0 ([#7982](https://github.com/MetaMask/core/pull/7982))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))

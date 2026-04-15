@@ -7,36 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- Release/896.0.0 ([#8363](https://github.com/MetaMask/core/pull/8363))
-- chore: mark getAccounts → getPermittedAccountsForOrigin rename as breaking in eip-5792-middleware changelog ([#8060](https://github.com/MetaMask/core/pull/8060))
-- Release/838.0.0 ([#8059](https://github.com/MetaMask/core/pull/8059))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- Release/763.0.0 ([#7713](https://github.com/MetaMask/core/pull/7713))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- Release/624.0.0 ([#6845](https://github.com/MetaMask/core/pull/6845))
-- Release/609.0.0 ([#6807](https://github.com/MetaMask/core/pull/6807))
-- Release/586.0.0 ([#6733](https://github.com/MetaMask/core/pull/6733))
-- Release/566.0.0 ([#6659](https://github.com/MetaMask/core/pull/6659))
-- Release/549.0.0 ([#6590](https://github.com/MetaMask/core/pull/6590))
-- Release/541.0.0 ([#6549](https://github.com/MetaMask/core/pull/6549))
-- Revert "Release/531.0.0 (#6453)" ([#6453](https://github.com/MetaMask/core/pull/6453))
-- Release/531.0.0 ([#6453](https://github.com/MetaMask/core/pull/6453))
-- `@metamask/eip-5792-middleware` init version to 0.0.0 ([#6449](https://github.com/MetaMask/core/pull/6449))
-- feat: migrate eip-5792 & capabilities middleware handlers into monorepo ([#6422](https://github.com/MetaMask/core/pull/6422))
-
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))

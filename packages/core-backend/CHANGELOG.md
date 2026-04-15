@@ -7,46 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-- Release/870.0.0 ([#8232](https://github.com/MetaMask/core/pull/8232))
-- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- Release/823.0.0 ([#7993](https://github.com/MetaMask/core/pull/7993))
-- chore: Update `generate-method-action-types` script to be used in a single package ([#7983](https://github.com/MetaMask/core/pull/7983))
-- chore: remove unused `sinon` `devDependency` from 4 packages ([#7915](https://github.com/MetaMask/core/pull/7915))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- Release/783.0.0 ([#7817](https://github.com/MetaMask/core/pull/7817))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- Reorganize contributor docs ([#7586](https://github.com/MetaMask/core/pull/7586))
-- chore(lint): Fix suppressed ESLint errors in `core-backend` package ([#7490](https://github.com/MetaMask/core/pull/7490))
-- chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
-- fix: `generate-method-action-types` works for services as well ([#7200](https://github.com/MetaMask/core/pull/7200))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- test(core-backend): remove tests and lower coverageThreshold ([#7184](https://github.com/MetaMask/core/pull/7184))
-- fix(core-backend): connection timeout test ([#7176](https://github.com/MetaMask/core/pull/7176))
-- Release/681.0.0 ([#7168](https://github.com/MetaMask/core/pull/7168))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
-- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
-- fix(core-backend): control randomness to fix flaky test ([#6936](https://github.com/MetaMask/core/pull/6936))
-- Release/638.0.0 ([#6923](https://github.com/MetaMask/core/pull/6923))
-- Release/623.0.0 ([#6843](https://github.com/MetaMask/core/pull/6843))
-- Release/619.0.0 ([#6834](https://github.com/MetaMask/core/pull/6834))
-- Release/606.0.0 ([#6800](https://github.com/MetaMask/core/pull/6800))
-- Revert "Update Release 606.0.0 (#6798)" ([#6798](https://github.com/MetaMask/core/pull/6798))
-- Update Release 606.0.0 ([#6798](https://github.com/MetaMask/core/pull/6798))
-
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.2.0` ([#8325](https://github.com/MetaMask/core/pull/8325), [#8363](https://github.com/MetaMask/core/pull/8363))

@@ -7,37 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
-- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
-- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- Release/778.0.0 ([#7781](https://github.com/MetaMask/core/pull/7781))
-- Release/763.0.0 ([#7713](https://github.com/MetaMask/core/pull/7713))
-- Release/738.0.0 ([#7570](https://github.com/MetaMask/core/pull/7570))
-- Release/735.0.0 ([#7558](https://github.com/MetaMask/core/pull/7558))
-- Release/729.0.0 ([#7524](https://github.com/MetaMask/core/pull/7524))
-- Release/726.0.0 ([#7510](https://github.com/MetaMask/core/pull/7510))
-- Chore/w3a controllers linting ([#7455](https://github.com/MetaMask/core/pull/7455))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
-- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
-- chore: cleanup changelog uncategorized sections ([#7136](https://github.com/MetaMask/core/pull/7136))
-- Release/668.0.0 ([#7112](https://github.com/MetaMask/core/pull/7112))
-- ci: Fix `claims-controller` errors in `tsconfig.json` ([#7092](https://github.com/MetaMask/core/pull/7092))
-- Release/665.0.0 ([#7090](https://github.com/MetaMask/core/pull/7090))
-- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
-
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
