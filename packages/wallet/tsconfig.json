@@ -23,6 +23,9 @@
       "path": "../messenger/tsconfig.json"
     },
     {
+      "path": "../multichain-account-service/tsconfig.json"
+    },
+    {
       "path": "../network-controller/tsconfig.json"
     },
     {

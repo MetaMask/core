@@ -66,6 +66,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^37.2.0",
     "@metamask/approval-controller": "^9.0.1",
+    "@metamask/bitcoin-wallet-snap": "^1.10.1",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/connectivity-controller": "^0.2.0",
     "@metamask/controller-utils": "^11.20.0",
@@ -76,7 +77,9 @@
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/snaps-controllers": "^20.0.1",
+    "@metamask/solana-wallet-snap": "^2.8.0",
     "@metamask/transaction-controller": "^65.0.0",
+    "@metamask/tron-wallet-snap": "^1.25.2",
     "@metamask/utils": "^11.9.0",
     "better-sqlite3": "^12.9.0"
   },

@@ -8,4 +8,5 @@ export type WalletOptions = {
   showApprovalRequest: () => void;
   clientConfigApiService: ClientConfigApiService;
   getMetaMetricsId: () => string;
+  ensureOnboardingComplete: () => Promise<void>;
 };

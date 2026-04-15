@@ -36,6 +36,7 @@ async function setupWallet(): Promise<Wallet> {
       },
     }),
     getMetaMetricsId: (): string => 'fake-metrics-id',
+    ensureOnboardingComplete: () => Promise.resolve(),
   });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_PHRASE);

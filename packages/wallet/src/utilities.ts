@@ -23,10 +23,12 @@ export async function importSecretRecoveryPhrase(
   const indices = phrase.split(' ').map((word) => wordlist.indexOf(word));
   const mnemonic = new Uint8Array(new Uint16Array(indices).buffer);
 
-  await wallet.messenger.call(
+  const walletGroup = await wallet.messenger.call(
     'MultichainAccountService:createMultichainAccountWallet',
     { type: 'restore', password, mnemonic }
   );
+
+  await walletGroup.discoverAccounts();
 }
 
 /**
@@ -39,10 +41,12 @@ export async function createSecretRecoveryPhrase(
   wallet: Wallet,
   password: string,
 ): Promise<void> {
-  await wallet.messenger.call(
+  const walletGroup = await wallet.messenger.call(
     'MultichainAccountService:createMultichainAccountWallet',
     { type: 'create', password },
   );
+
+  await walletGroup.discoverAccounts();
 }
 
 /**
