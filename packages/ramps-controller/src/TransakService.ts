@@ -481,7 +481,10 @@ export class TransakService {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
-    this.#noRetryPolicy = createServicePolicy({ ...policyOptions, maxRetries: 0 });
+    this.#noRetryPolicy = createServicePolicy({
+      ...policyOptions,
+      maxRetries: 0,
+    });
     this.#environment = environment;
     this.#context = context;
     this.#apiKey = apiKey ?? null;
@@ -622,7 +625,7 @@ export class TransakService {
   async #transakPost<ResponseType>(
     path: string,
     body?: Record<string, unknown>,
-    options: { policy?: ServicePolicy } = { },
+    options: { policy?: ServicePolicy } = {},
   ): Promise<ResponseType> {
     const apiKey = this.#ensureApiKey();
     const baseUrl = getTransakApiBaseUrl(this.#environment);
@@ -764,11 +767,15 @@ export class TransakService {
       accessToken: string;
       ttl: number;
       created: string;
-    }>('/api/v2/auth/verify', {
-      email,
-      otp: verificationCode,
-      stateToken,
-    }, { policy: this.#noRetryPolicy });
+    }>(
+      '/api/v2/auth/verify',
+      {
+        email,
+        otp: verificationCode,
+        stateToken,
+      },
+      { policy: this.#noRetryPolicy },
+    );
 
     const accessToken: TransakAccessToken = {
       accessToken: responseData.accessToken,
