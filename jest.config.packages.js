@@ -83,6 +83,16 @@ module.exports = {
     '^@metamask/json-rpc-engine/v2$': [
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
+    // Required for the keyring API v2 transition until `/v2` is merged with the top-level: {
+    '^@metamask/eth-hd-keyring/v2$': require.resolve(
+      '@metamask/eth-hd-keyring/v2',
+    ),
+    '^@metamask/eth-simple-keyring/v2$': require.resolve(
+      '@metamask/eth-simple-keyring/v2',
+    ),
+    '^@metamask/keyring-api/v2$': require.resolve('@metamask/keyring-api/v2'),
+    '^@metamask/keyring-sdk/v2$': require.resolve('@metamask/keyring-sdk/v2'),
+    // }
     '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
