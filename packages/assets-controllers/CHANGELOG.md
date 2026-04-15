@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Restore `checkAndUpdateSingleNftOwnershipStatus` to `NftController` to fix a regression where consumers (e.g. the MetaMask extension) that call this method individually were broken by its removal in [#8281](https://github.com/MetaMask/core/pull/8281) ([#8435](https://github.com/MetaMask/core/pull/8435))
+- Used the `removed` property coming from `MultichainAssetsController:accountAssetListUpdated` event body to manage stale balances ([#]())
 
 ## [103.1.1]
 
