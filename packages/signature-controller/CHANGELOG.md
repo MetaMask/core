@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.2.0]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -752,7 +754,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.0...HEAD
+[39.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.2...@metamask/signature-controller@39.2.0
 [39.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.1...@metamask/signature-controller@39.1.2
 [39.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...@metamask/signature-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...@metamask/signature-controller@39.1.0
