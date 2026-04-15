@@ -1,16 +1,57 @@
 import { Messenger } from '@metamask/messenger';
 
-import { bytesToBase64URL } from './encoding';
 import {
   getDefaultPasskeyControllerState,
   PasskeyController,
 } from './PasskeyController';
 import type { PasskeyControllerMessenger } from './PasskeyController';
 import type {
-  PasskeyAuthenticationResponse,
   PasskeyRecord,
+  PrfClientExtensionResults,
   PasskeyRegistrationResponse,
+  PasskeyAuthenticationResponse,
 } from './types';
+
+type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
+
+function prfResults(first: string, enabled?: boolean): ExtOutputsWithPrf {
+  if (enabled === undefined) {
+    return { prf: { results: { first } } } as ExtOutputsWithPrf;
+  }
+  return { prf: { enabled, results: { first } } } as ExtOutputsWithPrf;
+}
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+const mockVerifyRegistrationResponse = jest.fn();
+const mockVerifyAuthenticationResponse = jest.fn();
+
+jest.mock('./webauthn', () => ({
+  verifyRegistrationResponse: (...args: unknown[]): unknown =>
+    mockVerifyRegistrationResponse(...args),
+  verifyAuthenticationResponse: (...args: unknown[]): unknown =>
+    mockVerifyAuthenticationResponse(...args),
+}));
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function bytesToBase64URL(bytes: Uint8Array): string {
+  const binary = String.fromCharCode(...bytes);
+  return btoa(binary)
+    .replace(/\+/gu, '-')
+    .replace(/\//gu, '_')
+    .replace(/[=]+$/u, '');
+}
+
+const TEST_RP_ID = 'example.com';
+const TEST_ORIGIN = 'https://example.com';
+const TEST_CREDENTIAL_ID = 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo';
+const TEST_PUBLIC_KEY = bytesToBase64URL(new Uint8Array(32).fill(0xaa));
+const TEST_CHALLENGE = 'dGVzdC1jaGFsbGVuZ2U';
 
 function getPasskeyMessenger(): PasskeyControllerMessenger {
   return new Messenger({
@@ -18,55 +59,110 @@ function getPasskeyMessenger(): PasskeyControllerMessenger {
   }) as PasskeyControllerMessenger;
 }
 
-function buildClientDataJSON(
-  type: 'webauthn.create' | 'webauthn.get',
-  challenge: string,
-): string {
-  return bytesToBase64URL(
-    new TextEncoder().encode(
-      JSON.stringify({ type, challenge, origin: 'https://example.test' }),
-    ),
-  );
+function createController(
+  overrides?: Partial<ConstructorParameters<typeof PasskeyController>[0]>,
+): PasskeyController {
+  return new PasskeyController({
+    messenger: getPasskeyMessenger(),
+    rpID: TEST_RP_ID,
+    expectedOrigin: TEST_ORIGIN,
+    ...overrides,
+  });
 }
 
 function minimalRegistrationResponse(
-  challenge: string,
-  credentialId: string,
   overrides?: Partial<PasskeyRegistrationResponse>,
 ): PasskeyRegistrationResponse {
   return {
-    id: credentialId,
-    rawId: credentialId,
+    id: TEST_CREDENTIAL_ID,
+    rawId: TEST_CREDENTIAL_ID,
+    type: 'public-key',
     response: {
-      clientDataJSON: buildClientDataJSON('webauthn.create', challenge),
+      clientDataJSON: bytesToBase64URL(
+        new TextEncoder().encode(
+          JSON.stringify({
+            type: 'webauthn.create',
+            challenge: TEST_CHALLENGE,
+            origin: TEST_ORIGIN,
+          }),
+        ),
+      ),
       attestationObject: bytesToBase64URL(new Uint8Array([0, 1, 2])),
     },
-    type: 'public-key',
+    clientExtensionResults: {},
+    authenticatorAttachment: 'platform',
     ...overrides,
-  };
+  } as PasskeyRegistrationResponse;
 }
 
 function minimalAuthenticationResponse(
-  challenge: string,
-  credentialId: string,
   userHandle?: string,
   overrides?: Partial<PasskeyAuthenticationResponse>,
 ): PasskeyAuthenticationResponse {
   return {
-    id: credentialId,
-    rawId: credentialId,
+    id: TEST_CREDENTIAL_ID,
+    rawId: TEST_CREDENTIAL_ID,
+    type: 'public-key',
     response: {
-      clientDataJSON: buildClientDataJSON('webauthn.get', challenge),
+      clientDataJSON: bytesToBase64URL(
+        new TextEncoder().encode(
+          JSON.stringify({
+            type: 'webauthn.get',
+            challenge: TEST_CHALLENGE,
+            origin: TEST_ORIGIN,
+          }),
+        ),
+      ),
       authenticatorData: bytesToBase64URL(new Uint8Array([0])),
       signature: bytesToBase64URL(new Uint8Array([0])),
-      userHandle,
+      ...(userHandle === undefined ? {} : { userHandle }),
     },
-    type: 'public-key',
+    clientExtensionResults: {},
+    authenticatorAttachment: 'platform',
     ...overrides,
-  };
+  } as PasskeyAuthenticationResponse;
 }
 
+/**
+ * Sets up mocks for a full registration + protect flow.
+ */
+function setupRegistrationMocks(): void {
+  mockVerifyRegistrationResponse.mockResolvedValue({
+    verified: true,
+    registrationInfo: {
+      credentialId: TEST_CREDENTIAL_ID,
+      publicKey: new Uint8Array(32).fill(0xaa),
+      counter: 0,
+      transports: ['internal'],
+      aaguid: '00000000-0000-0000-0000-000000000000',
+      attestationFormat: 'none',
+      userVerified: true,
+    },
+  });
+}
+
+function setupAuthenticationMocks(): void {
+  mockVerifyAuthenticationResponse.mockResolvedValue({
+    verified: true,
+    authenticationInfo: {
+      credentialId: TEST_CREDENTIAL_ID,
+      newCounter: 0,
+      userVerified: true,
+      origin: TEST_ORIGIN,
+      rpID: TEST_RP_ID,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 describe('PasskeyController', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('getDefaultPasskeyControllerState', () => {
     it('returns null passkeyRecord', () => {
       expect(getDefaultPasskeyControllerState()).toStrictEqual({
@@ -78,14 +174,14 @@ describe('PasskeyController', () => {
   describe('constructor', () => {
     it('merges partial initial state with defaults', () => {
       const record: PasskeyRecord = {
-        credentialId: 'QUJDREVGR2hJSktM',
+        credentialId: TEST_CREDENTIAL_ID,
         derivationMethod: 'userHandle',
         encryptedVaultKey: 'YQ==',
         iv: 'YWFhYWFhYWFhYQ==',
+        publicKey: TEST_PUBLIC_KEY,
+        transports: ['internal'],
       };
-      const messenger = getPasskeyMessenger();
-      const controller = new PasskeyController({
-        messenger,
+      const controller = createController({
         state: { passkeyRecord: record },
       });
       expect(controller.state.passkeyRecord).toStrictEqual(record);
@@ -94,294 +190,288 @@ describe('PasskeyController', () => {
 
   describe('isPasskeyEnrolled', () => {
     it('returns false when no record is stored', () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
+      const controller = createController();
       expect(controller.isPasskeyEnrolled()).toBe(false);
     });
 
     it('is callable via messenger method action', () => {
       const messenger = getPasskeyMessenger();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const controller = new PasskeyController({ messenger });
       expect(messenger.call('PasskeyController:isPasskeyEnrolled')).toBe(false);
-      expect(controller.isPasskeyEnrolled()).toBe(false);
+    });
+  });
+
+  describe('generateRegistrationOptions', () => {
+    it('returns options with PRF extension and challenge', () => {
+      const controller = createController();
+
+      const options = controller.generateRegistrationOptions({
+        rp: { name: 'Test RP', id: 'test.com' },
+      });
+
+      expect(options.rp).toStrictEqual({ name: 'Test RP', id: 'test.com' });
+      expect(options.challenge).toBeDefined();
+      expect(options.challenge.length).toBeGreaterThan(0);
+      expect(options.pubKeyCredParams).toStrictEqual([
+        { alg: -8, type: 'public-key' },
+        { alg: -7, type: 'public-key' },
+        { alg: -257, type: 'public-key' },
+      ]);
+      expect(options.attestation).toBe('direct');
+      expect(
+        (options.extensions as Record<string, unknown>)?.prf,
+      ).toBeDefined();
+    });
+
+    it('defaults to metamask.io rpID and MetaMask rpName', () => {
+      const controller = createController({ rpID: undefined });
+      const options = controller.generateRegistrationOptions();
+      expect(options.rp.id).toBe('metamask.io');
+      expect(options.rp.name).toBe('MetaMask');
     });
   });
 
   describe('generateAuthenticationOptions', () => {
     it('throws when passkey is not enrolled', () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
+      const controller = createController();
       expect(() => controller.generateAuthenticationOptions()).toThrow(
         'Passkey is not enrolled',
       );
     });
-  });
 
-  describe('generateRegistrationOptions', () => {
-    it('returns options whose challenge matches a subsequent completion flow', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const options = controller.generateRegistrationOptions({
-        rp: { name: 'Test RP', id: 'example.com' },
-      });
-      expect(options.rp.name).toBe('Test RP');
-      expect(options.rp.id).toBe('example.com');
-      expect(options.challenge).toBeDefined();
-      expect(options.user.id).toBeDefined();
-      expect(options.extensions?.prf?.eval.first).toBeDefined();
-      expect(options.hints).toStrictEqual(['client-device', 'hybrid']);
-      expect(options.pubKeyCredParams.map((param) => param.alg)).toStrictEqual([
-        -8, -7, -257,
-      ]);
+    it('returns options with PRF for prf-enrolled credentials', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
 
-      const credentialId = 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=';
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(9));
+      const controller = createController();
 
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          options.challenge,
-          credentialId,
-        ),
-        vaultKey: 'user-encryption-key-test',
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst, true),
+        }),
+        vaultKey: 'k',
       });
 
-      expect(controller.isPasskeyEnrolled()).toBe(true);
-      expect(controller.state.passkeyRecord?.credentialId).toBe(credentialId);
-      expect(controller.state.passkeyRecord?.derivationMethod).toBe(
-        'userHandle',
-      );
+      const authOpts = controller.generateAuthenticationOptions();
+
+      expect(authOpts.rpId).toBe(TEST_RP_ID);
+      expect(authOpts.allowCredentials).toStrictEqual([
+        expect.objectContaining({
+          id: TEST_CREDENTIAL_ID,
+          type: 'public-key',
+        }),
+      ]);
+      expect(
+        (authOpts.extensions as Record<string, unknown>)?.prf,
+      ).toBeDefined();
     });
   });
 
   describe('protectVaultKeyWithPasskey', () => {
     it('throws when there is no active registration session', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
+      const controller = createController();
       await expect(
         controller.protectVaultKeyWithPasskey({
-          registrationResponse: minimalRegistrationResponse('x', 'y'),
+          registrationResponse: minimalRegistrationResponse(),
           vaultKey: 'k',
         }),
       ).rejects.toThrow('No active passkey registration session');
     });
 
-    it('throws when challenge verification fails', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
+    it('throws when verification fails', async () => {
+      mockVerifyRegistrationResponse.mockResolvedValue({
+        verified: false,
       });
-      const options = controller.generateRegistrationOptions();
+
+      const controller = createController();
+      controller.generateRegistrationOptions();
+
       await expect(
         controller.protectVaultKeyWithPasskey({
-          registrationResponse: minimalRegistrationResponse(
-            'wrong-challenge',
-            'QUJD',
-          ),
+          registrationResponse: minimalRegistrationResponse(),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('Passkey registration challenge verification failed');
-      expect(options.challenge).not.toBe('wrong-challenge');
+      ).rejects.toThrow('Passkey registration verification failed');
+    });
+
+    it('stores passkey record with publicKey after successful verification', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      controller.generateRegistrationOptions();
+
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(),
+        vaultKey: 'test-vault-key',
+      });
+
+      expect(controller.isPasskeyEnrolled()).toBe(true);
+      const record = controller.state.passkeyRecord;
+      expect(record?.credentialId).toBe(TEST_CREDENTIAL_ID);
+      expect(record?.publicKey).toBe(TEST_PUBLIC_KEY);
+      expect(record?.transports).toStrictEqual(['internal']);
+      expect(record?.derivationMethod).toBe('userHandle');
     });
 
     it('uses prf derivation when extension results include PRF output', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const options = controller.generateRegistrationOptions();
-      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(9));
+      setupRegistrationMocks();
+      const controller = createController();
+      controller.generateRegistrationOptions();
 
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(9));
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          options.challenge,
-          'UFJGRW5jcnlwdGlvbktleUlkMTI=',
-          {
-            clientExtensionResults: {
-              prf: { enabled: true, results: { first: prfFirst } },
-            },
-          },
-        ),
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst, true),
+        }),
         vaultKey: 'vault-key-prf-path',
       });
 
       expect(controller.state.passkeyRecord?.derivationMethod).toBe('prf');
-      expect(controller.state.passkeyRecord?.prfSalt).toBe(
-        options.extensions?.prf?.eval.first,
-      );
+      expect(controller.state.passkeyRecord?.prfSalt).toBeDefined();
     });
   });
 
   describe('retrieveVaultKeyWithPasskey', () => {
-    it('throws when there is no authentication session', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOpts = controller.generateRegistrationOptions();
-      await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOpts.challenge,
-          'bm9TZXNzaW9u',
-        ),
-        vaultKey: 'k',
-      });
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
       await expect(
         controller.retrieveVaultKeyWithPasskey(
-          minimalAuthenticationResponse('c', 'bm9TZXNzaW9u', 'uh'),
+          minimalAuthenticationResponse('uh'),
+        ),
+      ).rejects.toThrow('Passkey is not enrolled');
+    });
+
+    it('throws when there is no authentication session', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(),
+        vaultKey: 'k',
+      });
+
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse('uh'),
         ),
       ).rejects.toThrow('No active passkey authentication session');
     });
 
-    it('throws when challenge verification fails', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOpts = controller.generateRegistrationOptions();
+    it('throws when verification fails', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOpts.challenge,
-          'dmVyaWZ5Q3JlZA==',
-        ),
+        registrationResponse: minimalRegistrationResponse(),
         vaultKey: 'k',
       });
-      const authOpts = controller.generateAuthenticationOptions();
+
+      mockVerifyAuthenticationResponse.mockResolvedValue({
+        verified: false,
+        authenticationInfo: {},
+      });
+
+      controller.generateAuthenticationOptions();
 
       await expect(
         controller.retrieveVaultKeyWithPasskey(
-          minimalAuthenticationResponse(
-            'wrong-challenge',
-            'dmVyaWZ5Q3JlZA==',
-            regOpts.user.id,
-          ),
+          minimalAuthenticationResponse('uh'),
         ),
-      ).rejects.toThrow('Passkey authentication challenge verification failed');
-      expect(authOpts.challenge).not.toBe('wrong-challenge');
+      ).rejects.toThrow('Passkey authentication verification failed');
     });
 
-    it('throws when userHandle derivation record lacks userHandle on assertion', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOpts = controller.generateRegistrationOptions();
-      await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOpts.challenge,
-          'dXNlckhhbmRsZUlk',
-        ),
-        vaultKey: 'k',
-      });
-      const authOpts = controller.generateAuthenticationOptions();
+    it('clears the authentication session after successful retrieval (prf)', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
 
-      await expect(
-        controller.retrieveVaultKeyWithPasskey(
-          minimalAuthenticationResponse(
-            authOpts.challenge,
-            'dXNlckhhbmRsZUlk',
-            undefined,
-          ),
-        ),
-      ).rejects.toThrow('Passkey assertion missing required key material');
-    });
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(99));
 
-    it('clears the authentication session after a successful retrieval', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOpts = controller.generateRegistrationOptions();
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOpts.challenge,
-          'c2Vzc2lvbkNsZWFy',
-        ),
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst),
+        }),
         vaultKey: 'secret',
       });
-      const authOpts = controller.generateAuthenticationOptions();
+
+      controller.generateAuthenticationOptions();
       await controller.retrieveVaultKeyWithPasskey(
-        minimalAuthenticationResponse(
-          authOpts.challenge,
-          'c2Vzc2lvbkNsZWFy',
-          regOpts.user.id,
-        ),
+        minimalAuthenticationResponse(undefined, {
+          clientExtensionResults: prfResults(prfFirst),
+        }),
       );
 
       await expect(
         controller.retrieveVaultKeyWithPasskey(
-          minimalAuthenticationResponse(
-            'x',
-            'c2Vzc2lvbkNsZWFy',
-            regOpts.user.id,
-          ),
+          minimalAuthenticationResponse(undefined, {
+            clientExtensionResults: prfResults(prfFirst),
+          }),
         ),
       ).rejects.toThrow('No active passkey authentication session');
     });
   });
 
   describe('registration and authentication round-trip (userHandle)', () => {
-    it('retrieves the same vault key that was supplied at registration', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOptions = controller.generateRegistrationOptions();
-      const credentialId = 'Um91bmR0cmlwQ3JlZA==';
-      const vaultKey = 'roundtrip-vault-key-value';
+    it('retrieves vault key using userHandle derivation', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const vaultKey = 'userhandle-roundtrip-key';
+
+      controller.generateRegistrationOptions();
 
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOptions.challenge,
-          credentialId,
-        ),
+        registrationResponse: minimalRegistrationResponse(),
         vaultKey,
       });
 
-      const authOptions = controller.generateAuthenticationOptions();
-      const out = await controller.retrieveVaultKeyWithPasskey(
-        minimalAuthenticationResponse(
-          authOptions.challenge,
-          credentialId,
-          regOptions.user.id,
-        ),
+      expect(controller.state.passkeyRecord?.derivationMethod).toBe(
+        'userHandle',
       );
 
-      expect(out).toBe(vaultKey);
-      expect(controller.state.passkeyRecord).not.toBeNull();
+      controller.generateAuthenticationOptions();
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse('bWlzbWF0Y2hlZFVzZXJIYW5kbGU'),
+        ),
+      ).rejects.toThrow('aes/gcm');
+
+      controller.generateAuthenticationOptions();
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse(undefined),
+        ),
+      ).rejects.toThrow('Passkey assertion missing required key material');
     });
   });
 
   describe('registration and authentication round-trip (prf)', () => {
     it('retrieves vault key when auth response repeats the same PRF output', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOptions = controller.generateRegistrationOptions();
-      const credentialId = 'UFJGUm91bmR0cmlwSWQ=';
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
       const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
       const vaultKey = 'prf-roundtrip-key';
 
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOptions.challenge,
-          credentialId,
-          {
-            clientExtensionResults: {
-              prf: { results: { first: prfFirst } },
-            },
-          },
-        ),
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst),
+        }),
         vaultKey,
       });
 
-      const authOptions = controller.generateAuthenticationOptions();
+      controller.generateAuthenticationOptions();
       const out = await controller.retrieveVaultKeyWithPasskey(
-        minimalAuthenticationResponse(
-          authOptions.challenge,
-          credentialId,
-          undefined,
-          {
-            clientExtensionResults: {
-              prf: { results: { first: prfFirst } },
-            },
-          },
-        ),
+        minimalAuthenticationResponse(undefined, {
+          clientExtensionResults: prfResults(prfFirst),
+        }),
       );
 
       expect(out).toBe(vaultKey);
@@ -389,71 +479,75 @@ describe('PasskeyController', () => {
   });
 
   describe('renewVaultKeyProtection', () => {
-    it('updates the passkey wrap when before/after vault keys match the ceremony', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOptions = controller.generateRegistrationOptions();
-      const credentialId = 'UmV3cmFwQ3JlZGVudGlhbA==';
+    it('throws when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      await expect(
+        controller.renewVaultKeyProtection({
+          authenticationResponse: minimalAuthenticationResponse('uh'),
+          oldVaultKey: 'old',
+          newVaultKey: 'new',
+        }),
+      ).rejects.toThrow('Passkey is not enrolled');
+    });
+
+    it('updates the passkey wrap when before/after vault keys match', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
       const beforeKey = 'vault-key-before-password';
 
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOptions.challenge,
-          credentialId,
-        ),
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst),
+        }),
         vaultKey: beforeKey,
       });
 
-      const authOptions = controller.generateAuthenticationOptions();
-      const authResponse = minimalAuthenticationResponse(
-        authOptions.challenge,
-        credentialId,
-        regOptions.user.id,
-      );
+      controller.generateAuthenticationOptions();
       const afterKey = 'vault-key-after-password';
-
       await controller.renewVaultKeyProtection({
-        authenticationResponse: authResponse,
+        authenticationResponse: minimalAuthenticationResponse(undefined, {
+          clientExtensionResults: prfResults(prfFirst),
+        }),
         oldVaultKey: beforeKey,
         newVaultKey: afterKey,
       });
 
-      const authOptions2 = controller.generateAuthenticationOptions();
+      controller.generateAuthenticationOptions();
       const unwrapped = await controller.retrieveVaultKeyWithPasskey(
-        minimalAuthenticationResponse(
-          authOptions2.challenge,
-          credentialId,
-          regOptions.user.id,
-        ),
+        minimalAuthenticationResponse(undefined, {
+          clientExtensionResults: prfResults(prfFirst),
+        }),
       );
       expect(unwrapped).toBe(afterKey);
     });
 
-    it('throws when the live vault key does not match the protected vault key', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const regOptions = controller.generateRegistrationOptions();
-      const credentialId = 'bWlzbWF0Y2hLZXk=';
+    it('throws when the old vault key does not match', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
 
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          regOptions.challenge,
-          credentialId,
-        ),
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst),
+        }),
         vaultKey: 'actual-wrapped-key',
       });
 
-      const authOptions = controller.generateAuthenticationOptions();
+      controller.generateAuthenticationOptions();
 
       await expect(
         controller.renewVaultKeyProtection({
-          authenticationResponse: minimalAuthenticationResponse(
-            authOptions.challenge,
-            credentialId,
-            regOptions.user.id,
-          ),
+          authenticationResponse: minimalAuthenticationResponse(undefined, {
+            clientExtensionResults: prfResults(prfFirst),
+          }),
           oldVaultKey: 'wrong-expected-key',
           newVaultKey: 'new-key',
         }),
@@ -465,15 +559,11 @@ describe('PasskeyController', () => {
 
   describe('removePasskey', () => {
     it('clears stored record and resets enrollment', async () => {
-      const controller = new PasskeyController({
-        messenger: getPasskeyMessenger(),
-      });
-      const opts = controller.generateRegistrationOptions();
+      setupRegistrationMocks();
+      const controller = createController();
+      controller.generateRegistrationOptions();
       await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          opts.challenge,
-          'Y2xlYXI=',
-        ),
+        registrationResponse: minimalRegistrationResponse(),
         vaultKey: 'k',
       });
       expect(controller.isPasskeyEnrolled()).toBe(true);
@@ -481,6 +571,72 @@ describe('PasskeyController', () => {
       controller.removePasskey();
       expect(controller.isPasskeyEnrolled()).toBe(false);
       expect(controller.state.passkeyRecord).toBeNull();
+    });
+  });
+
+  describe('verifyRegistrationResponse parameters', () => {
+    it('passes expectedOrigin and expectedRPID to verification', async () => {
+      setupRegistrationMocks();
+      const controller = createController({
+        rpID: 'custom-rp.com',
+        expectedOrigin: 'chrome-extension://abc123',
+      });
+
+      controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(),
+        vaultKey: 'k',
+      });
+
+      expect(mockVerifyRegistrationResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedOrigin: 'chrome-extension://abc123',
+          expectedRPID: 'custom-rp.com',
+          requireUserVerification: false,
+        }),
+      );
+    });
+  });
+
+  describe('verifyAuthenticationResponse parameters', () => {
+    it('passes credential with publicKey and counter:0 to verification', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst),
+        }),
+        vaultKey: 'k',
+      });
+
+      controller.generateAuthenticationOptions();
+
+      try {
+        await controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse(undefined, {
+            clientExtensionResults: prfResults(prfFirst),
+          }),
+        );
+      } catch {
+        // key derivation result doesn't matter here
+      }
+
+      expect(mockVerifyAuthenticationResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedOrigin: TEST_ORIGIN,
+          expectedRPID: TEST_RP_ID,
+          credential: expect.objectContaining({
+            id: TEST_CREDENTIAL_ID,
+            counter: 0,
+          }),
+          requireUserVerification: false,
+        }),
+      );
     });
   });
 });

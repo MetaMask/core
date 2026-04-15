@@ -25,7 +25,7 @@ describe('crypto', () => {
         new Uint8Array(8).fill(4),
       );
       const { ciphertext, iv } = encryptWithKey('secret', keyA);
-      expect(() => decryptWithKey(ciphertext, iv, keyB)).toThrow();
+      expect(() => decryptWithKey(ciphertext, iv, keyB)).toThrow('aes/gcm');
     });
   });
 });

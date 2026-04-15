@@ -6,7 +6,6 @@ export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
 } from './PasskeyController';
-export * from './constants';
-export * from './encoding';
 export type * from './types';
-export * from './webauthn';
+export { bytesToBase64URL, base64URLToBytes } from './encoding';
+export { COSEALG, COSEKEYS, COSEKTY, COSECRV } from './constants';

@@ -4,7 +4,7 @@ import { randomBytes } from '@noble/ciphers/webcrypto';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 
-import { PASSKEY_HKDF_INFO } from './constants';
+const PASSKEY_HKDF_INFO = 'metamask:passkey:encryption-key:v1';
 
 const AES_GCM_IV_LENGTH = 12;
 
