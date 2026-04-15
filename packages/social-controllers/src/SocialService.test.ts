@@ -44,6 +44,7 @@ const mockPosition = {
   costBasis: 3000,
   trades: [mockTrade],
   lastTradeAt: 1700000000,
+  tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
 };
 
 function createMessenger(): SocialServiceMessenger {
@@ -239,6 +240,7 @@ describe('SocialService', () => {
         winRate7d: 0.7,
         roiPercent7d: 1.2,
         tradeCount7d: 15,
+        medianHoldMinutes: 120,
       },
       perChainBreakdown: {
         perChainPnl: { base: 30000 },
@@ -477,7 +479,7 @@ describe('SocialService', () => {
 
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${V2_URL}/traders/0x1234/positions/closed`,
+        `${V1_URL}/traders/0x1234/positions/closed`,
       );
     });
 
