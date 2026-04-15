@@ -16,13 +16,18 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
-import { CircuitState, IDisposable } from 'cockatiel';
+import { CircuitState } from 'cockatiel';
 import deepmerge from 'deepmerge';
 import type { Logger } from 'loglevel';
 
 import { projectLogger, createModuleLogger } from '../logger';
-import type { AbstractRpcService } from './abstract-rpc-service';
-import type { FetchOptions } from './shared';
+import type {
+  CockatielEventToEventListenerWithData,
+  ExcludeCockatielEventData,
+  ExtendCockatielEventData,
+  ExtractCockatielEventData,
+  FetchOptions,
+} from './shared';
 
 /**
  * Options for the RpcService constructor.
@@ -395,7 +400,12 @@ export class RpcService {
    * @returns What {@link ServicePolicy.onRetry} returns.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<AbstractRpcService['onRetry']>[0]): IDisposable {
+  onRetry(
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onRetry'],
+      { endpointUrl: string }
+    >,
+  ): ReturnType<ServicePolicy['onRetry']> {
     return this.#policy.onRetry((data) => {
       listener({ ...data, endpointUrl: this.endpointUrl.toString() });
     });
@@ -409,7 +419,17 @@ export class RpcService {
    * @returns What {@link ServicePolicy.onBreak} returns.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<AbstractRpcService['onBreak']>[0]): IDisposable {
+  onBreak(
+    listener: (
+      data: ExcludeCockatielEventData<
+        ExtendCockatielEventData<
+          ExtractCockatielEventData<ServicePolicy['onBreak']>,
+          { endpointUrl: string }
+        >,
+        'isolated'
+      >,
+    ) => void,
+  ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak((data) => {
       // `{ isolated: true }` is a special object that shows up when `isolate`
       // is called on the circuit breaker. Usually `isolate` is used to hold the
@@ -440,8 +460,11 @@ export class RpcService {
    * @see {@link createServicePolicy}
    */
   onDegraded(
-    listener: Parameters<AbstractRpcService['onDegraded']>[0],
-  ): IDisposable {
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onDegraded'],
+      { endpointUrl: string; rpcMethodName: string }
+    >,
+  ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded((data) => {
       if (data === undefined) {
         listener({
@@ -466,8 +489,11 @@ export class RpcService {
    * @see {@link createServicePolicy}
    */
   onAvailable(
-    listener: Parameters<AbstractRpcService['onAvailable']>[0],
-  ): IDisposable {
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onAvailable'],
+      { endpointUrl: string }
+    >,
+  ): ReturnType<ServicePolicy['onAvailable']> {
     return this.#policy.onAvailable(() => {
       listener({ endpointUrl: this.endpointUrl.toString() });
     });
