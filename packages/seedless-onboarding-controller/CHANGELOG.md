@@ -33,8 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `SecretMetadata.matchesType` for filtering
 - **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
 - **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
-- **BREAKING:** Remove `VaultEncryptor` type alias; use `Encryptor` from `@metamask/keyring-controller` with encryption key, key derivation params, and encryption result types ([#8411](https://github.com/MetaMask/core/pull/8411))
-- **BREAKING:** `SeedlessOnboardingControllerOptions` no longer supplies default type parameters for `EncryptionKey` and `SupportedKeyDerivationParams`; pass both explicitly when referencing the type ([#8411](https://github.com/MetaMask/core/pull/8411))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ### Fixed
 

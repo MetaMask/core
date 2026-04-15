@@ -311,5 +311,57 @@ describe('OracleLayer1GasFeeFlow', () => {
         layer1Fee: LAYER_1_FEE_MOCK,
       });
     });
+
+    it('applies transformOracleFee before adding operator fee', async () => {
+      const gasUsed = '0x5208';
+      request = {
+        ...request,
+        transactionMeta: {
+          ...request.transactionMeta,
+          gasUsed,
+        },
+      };
+
+      const multiplier = new BN(2);
+      contractGetOperatorFeeMock.mockResolvedValueOnce(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      jest
+        .spyOn(TransactionFactory, 'fromTxData')
+        .mockReturnValueOnce(
+          createMockTypedTransaction(
+            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+          ),
+        );
+
+      class TransformingFlow extends OracleLayer1GasFeeFlow {
+        async matchesTransaction(): Promise<boolean> {
+          return true;
+        }
+
+        protected override async transformOracleFee(
+          oracleFee: BN,
+        ): Promise<BN> {
+          return oracleFee.mul(multiplier);
+        }
+
+        protected override getOracleAddressForChain(): Hex {
+          return ORACLE_ADDRESS_MOCK;
+        }
+      }
+
+      const flow = new TransformingFlow();
+      const response = await flow.getLayer1Fee(request);
+
+      const expectedTransformed = bnFromHex(LAYER_1_FEE_MOCK).mul(multiplier);
+      const expectedTotal = expectedTransformed.add(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      expect(response).toStrictEqual({
+        layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
+      });
+    });
   });
 });
