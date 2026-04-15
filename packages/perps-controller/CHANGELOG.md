@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve the `webpackIgnore` safeguard on the `MYXProvider` dynamic import in built dist files so extension consumers do not statically resolve the intentionally-unpublished MYX provider module ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Preserve the `webpackIgnore` safeguard on the `MYXProvider` dynamic import in built dist files so extension consumers do not statically resolve the intentionally-unpublished MYX provider module ([#8473](https://github.com/MetaMask/core/pull/8473))
 
 ## [3.1.0]
 
