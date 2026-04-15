@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** `AssetsControllerMessenger` now requires the `AccountsControllerGetSelectedAccountAction` allowed action ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Used as a fallback in `#getSelectedAccounts()` when `AccountTreeController` has not yet initialized.
+  - Consumers must register `AccountsController:getSelectedAccount` on the messenger.
+- **BREAKING:** `AssetsControllerMessenger` now requires the `TransactionControllerUnapprovedTransactionAddedEvent` allowed event ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - `AssetsController` subscribes to `TransactionController:unapprovedTransactionAdded` to refresh balances for the account initiating a transaction (e.g. for gas estimations).
+  - Consumers must allow `TransactionController:unapprovedTransactionAdded` on the messenger.
 - Added `isOnboarded` option to `AssetsControllerOptions` and `RpcDataSourceConfig` ([#8430](https://github.com/MetaMask/core/pull/8430))
   - When `isOnboarded` returns `false`, `RpcDataSource` skips `fetch` and `subscribe` calls, preventing on-chain RPC calls before onboarding is complete.
   - Defaults to `() => true` so existing consumers are unaffected.
