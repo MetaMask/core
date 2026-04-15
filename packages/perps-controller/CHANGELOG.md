@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release/910.0.0 ([#8447](https://github.com/MetaMask/core/pull/8447))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-
 ### Added
 
 - Add disk-backed cold-start cache for instant data display on launch ([#8460](https://github.com/MetaMask/core/pull/8460))
