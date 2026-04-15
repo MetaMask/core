@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `messenger-docs` CLI binary for generating Messenger API documentation
-
 ## [0.1.0]
 
 ### Added

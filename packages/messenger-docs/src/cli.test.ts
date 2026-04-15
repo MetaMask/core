@@ -3,14 +3,13 @@ import execa from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const ROOT_DIR = path.resolve(__dirname, '..', '..', '..', '..');
+const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
 const TSX_PATH = path.join(ROOT_DIR, 'node_modules', '.bin', 'tsx');
 const CLI_PATH = path.join(
   ROOT_DIR,
   'packages',
-  'messenger-cli',
+  'messenger-docs',
   'src',
-  'docs',
   'cli.ts',
 );
 

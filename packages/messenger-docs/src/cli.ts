@@ -42,7 +42,7 @@ async function runDocusaurus(command: string, cwd: string): Promise<void> {
  * @param outDir - The output directory to set up.
  */
 async function setupSite(outDir: string): Promise<void> {
-  const templateDir = path.resolve(__dirname, '..', '..', 'template');
+  const templateDir = path.resolve(__dirname, '..', 'template');
   const skip = new Set(['node_modules', 'docs']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);

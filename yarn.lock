@@ -7231,6 +7231,32 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/messenger-cli@workspace:packages/messenger-cli"
   dependencies:
+    "@metamask/auto-changelog": "npm:^6.0.0"
+    "@metamask/utils": "npm:^11.9.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    "@types/yargs": "npm:^17.0.32"
+    deepmerge: "npm:^4.2.2"
+    eslint: "npm:^9.39.1"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    typescript: "npm:~5.3.3"
+    yargs: "npm:^17.7.2"
+  peerDependencies:
+    eslint: ">=8"
+    typescript: ">=5.0.0"
+  peerDependenciesMeta:
+    eslint:
+      optional: true
+  bin:
+    messenger-action-types: ./dist/cli.mjs
+  languageName: unknown
+  linkType: soft
+
+"@metamask/messenger-docs@workspace:packages/messenger-docs":
+  version: 0.0.0-use.local
+  resolution: "@metamask/messenger-docs@workspace:packages/messenger-docs"
+  dependencies:
     "@docusaurus/core": "npm:^3.9.0"
     "@docusaurus/preset-classic": "npm:^3.9.0"
     "@docusaurus/theme-common": "npm:^3.9.0"
@@ -7245,7 +7271,6 @@ __metadata:
     "@types/react": "npm:^18.3.0"
     "@types/yargs": "npm:^17.0.32"
     deepmerge: "npm:^4.2.2"
-    eslint: "npm:^9.39.1"
     execa: "npm:^5.0.0"
     jest: "npm:^29.7.0"
     prism-react-renderer: "npm:^2.4.1"
@@ -7255,14 +7280,9 @@ __metadata:
     typescript: "npm:~5.3.3"
     yargs: "npm:^17.7.2"
   peerDependencies:
-    eslint: ">=8"
     typescript: ">=5.0.0"
-  peerDependenciesMeta:
-    eslint:
-      optional: true
   bin:
-    messenger-action-types: ./dist/cli.mjs
-    messenger-docs: ./dist/docs/cli.mjs
+    messenger-docs: ./dist/cli.mjs
   languageName: unknown
   linkType: soft
 
