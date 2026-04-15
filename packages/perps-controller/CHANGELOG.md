@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve the `webpackIgnore` safeguard on the `MYXProvider` dynamic import in built dist files so extension consumers do not statically resolve the intentionally-unpublished MYX provider module ([#8473](https://github.com/MetaMask/core/pull/8473))
+- Use HTTP transport for HyperLiquid candle snapshots and refresh DEX discovery cache handling to avoid rapid market-switching 429s after syncing the latest mobile perps controller state ([#8473](https://github.com/MetaMask/core/pull/8473))
+
 ## [3.1.0]
 
 ### Added
