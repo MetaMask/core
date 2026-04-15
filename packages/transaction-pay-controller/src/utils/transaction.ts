@@ -7,12 +7,12 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { parseRequiredTokens } from './required-tokens';
 import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
   UpdateTransactionDataCallback,
 } from '../types';
+import { parseRequiredTokens } from './required-tokens';
 
 const log = createModuleLogger(projectLogger, 'transaction');
 

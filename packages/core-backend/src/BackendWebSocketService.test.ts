@@ -5,6 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { flushPromises } from '../../../tests/helpers';
 import {
   BackendWebSocketService,
   getCloseReason,
@@ -15,7 +16,6 @@ import type {
   BackendWebSocketServiceOptions,
   BackendWebSocketServiceMessenger,
 } from './BackendWebSocketService';
-import { flushPromises } from '../../../tests/helpers';
 
 // =====================================================
 // TYPES

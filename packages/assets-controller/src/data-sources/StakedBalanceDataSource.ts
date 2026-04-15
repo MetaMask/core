@@ -10,6 +10,18 @@ import {
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  AccountId,
+  ChainId,
+  Caip19AssetId,
+  AssetBalance,
+  AssetMetadata,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -24,18 +36,6 @@ import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  AccountId,
-  ChainId,
-  Caip19AssetId,
-  AssetBalance,
-  AssetMetadata,
-  DataRequest,
-  DataResponse,
-  Middleware,
-} from '../types';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
 const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes

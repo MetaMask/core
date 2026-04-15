@@ -7,9 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolve the effective transaction type from `nestedTransactions` when the parent is a batch transaction ([#8469](https://github.com/MetaMask/core/pull/8469))
+
+## [19.1.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/assets-controller` from `^5.0.0` to `^5.0.1` ([#8466](https://github.com/MetaMask/core/pull/8466))
+- Bump `@metamask/assets-controllers` from `^103.1.1` to `^104.0.0` ([#8466](https://github.com/MetaMask/core/pull/8466))
+- Bump `@metamask/bridge-controller` from `^70.0.1` to `^70.1.0` ([#8466](https://github.com/MetaMask/core/pull/8466))
+
+## [19.1.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^13.0.0` to `^13.1.0` ([#8407](https://github.com/MetaMask/core/pull/8407))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.2.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447))
+
+### Fixed
+
+- Set `submittedTime` at the start of `TransactionPayPublishHook` before strategy execution for accurate `mm_pay_time_to_complete_s` metrics in intent-based flows ([#8439](https://github.com/MetaMask/core/pull/8439))
+
+## [19.1.0]
+
 ### Added
 
 - Support for perps deposit for Across ([#8334](https://github.com/MetaMask/core/pull/8334))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^4.0.0` to `^5.0.0` ([#8406](https://github.com/MetaMask/core/pull/8406))
 
 ### Fixed
 
@@ -627,7 +657,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.2...HEAD
+[19.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.1...@metamask/transaction-pay-controller@19.1.2
+[19.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.0...@metamask/transaction-pay-controller@19.1.1
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.3...@metamask/transaction-pay-controller@19.1.0
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.2...@metamask/transaction-pay-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.1...@metamask/transaction-pay-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.0.0...@metamask/transaction-pay-controller@19.0.1

@@ -1,13 +1,13 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { updateSourceAmounts } from './source-amounts';
-import { getTokenFiatRate } from './token';
-import { getTransaction } from './transaction';
 import { TransactionPayStrategy } from '..';
 import type { TransactionPaymentToken } from '..';
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
+import { updateSourceAmounts } from './source-amounts';
+import { getTokenFiatRate } from './token';
+import { getTransaction } from './transaction';
 
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),

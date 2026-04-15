@@ -7,6 +7,7 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 
+import type { TransactionControllerMessenger } from '..';
 import type { TransactionControllerFeatureFlags } from './feature-flags';
 import {
   getAcceleratedPollingParams,
@@ -25,7 +26,6 @@ import {
   isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
-import type { TransactionControllerMessenger } from '..';
 
 jest.mock('./signature');
 

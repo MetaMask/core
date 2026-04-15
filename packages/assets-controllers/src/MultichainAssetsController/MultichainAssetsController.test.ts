@@ -29,12 +29,12 @@ import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
 } from '.';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 import type {
   AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
-import { jestAdvanceTime } from '../../../../tests/helpers';
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',

@@ -190,8 +190,13 @@ export class PhishingDetector {
       }
     }
 
-    for (const { blocklist, fuzzylist, name, tolerance, version } of this
-      .#configs) {
+    for (const {
+      blocklist,
+      fuzzylist,
+      name,
+      tolerance,
+      version,
+    } of this.#configs) {
       // if source matches blocklist hostname (or subdomain thereof), FAIL
       const blocklistMatch = matchPartsAgainstList(source, blocklist);
       if (blocklistMatch) {

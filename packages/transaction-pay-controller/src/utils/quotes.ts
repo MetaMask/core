@@ -4,14 +4,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { getStrategiesByName, getStrategyByName } from './strategy';
-import {
-  computeTokenAmounts,
-  getLiveTokenBalance,
-  getTokenFiatRate,
-} from './token';
-import { calculateTotals } from './totals';
-import { getTransaction, updateTransaction } from './transaction';
 import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
@@ -25,6 +17,14 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
+import { getStrategiesByName, getStrategyByName } from './strategy';
+import {
+  computeTokenAmounts,
+  getLiveTokenBalance,
+  getTokenFiatRate,
+} from './token';
+import { calculateTotals } from './totals';
+import { getTransaction, updateTransaction } from './transaction';
 
 const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 

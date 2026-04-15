@@ -30,6 +30,12 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { v1 as uuidV1 } from 'uuid';
 
+import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -40,12 +46,6 @@ import type {
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({

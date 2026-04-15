@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.0` to `^1.1.1` ([#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [2.0.0]
 
@@ -36,7 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1]
 
-## [1.0.0]
+### Fixed
+
+- Fix package to include files, which were accidentally omitted in 1.0.0 ([#8016](https://github.com/MetaMask/core/pull/8016))
+
+## [1.0.0] [DEPRECATED]
 
 ### Added
 

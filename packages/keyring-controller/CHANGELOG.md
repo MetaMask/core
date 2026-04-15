@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
+- Persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
+  - If a keyring's serialized state differs after deserialization (e.g. a migration ran, or metadata was missing), the vault is now re-persisted so the change is not lost on the next unlock.
+- Added `KeyringV2` support ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - The controller now maintains a list of `KeyringV2` instance in memory alongside previous `Keyring` instance.
+  - This new keyring interface is more generic and will become the new standard to interact with keyring (creating accounts, executing logic that involves accounts like signing, etc...).
+  - For now, most `KeyringV2` are wrappers (read adapters) around existing `Keyring` instance.
+- Added `withKeyringV2Unsafe` method and `KeyringController:withKeyringV2Unsafe` messenger action for lock-free read-only access to `KeyringV2` adapters ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - Mirrors `withKeyringUnsafe` semantics: no mutex acquired, no persistence or rollback.
+  - Caller is responsible for ensuring the operation is read-only and accesses only immutable keyring data.
+- Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - Accepts a `KeyringSelectorV2` to select keyrings by `type`, `address`, `id`, or `filter`.
+  - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [25.2.0]
 
@@ -949,9 +966,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/keyring`
 
     All changes listed after this point were applied to this package following the monorepo conversion.

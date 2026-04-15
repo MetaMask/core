@@ -1,3 +1,12 @@
+import type { Infer } from '@metamask/superstruct';
+import {
+  enums,
+  number,
+  optional,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
+
 // ---------------------------------------------------------------------------
 // Shared sub-types
 // ---------------------------------------------------------------------------
@@ -26,21 +35,17 @@ export type SocialHandles = {
   lens?: string | null;
 };
 
-/**
- * A single trade within a position.
- */
-export type Trade = {
-  /** "buy" or "sell". */
-  direction: string;
-  /** Quantity traded. */
-  tokenAmount: number;
-  /** USD value of the trade. */
-  usdCost: number;
-  /** Unix timestamp. */
-  timestamp: number;
-  /** On-chain transaction hash. */
-  transactionHash: string;
-};
+export const TradeStruct = structType({
+  direction: enums(['buy', 'sell']),
+  intent: enums(['enter', 'exit']),
+  category: optional(string()),
+  tokenAmount: number(),
+  usdCost: number(),
+  timestamp: number(),
+  transactionHash: string(),
+});
+
+export type Trade = Infer<typeof TradeStruct>;
 
 // ---------------------------------------------------------------------------
 // Leaderboard
@@ -100,6 +105,8 @@ export type TraderStats = {
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
+  /** Median holding time in minutes. */
+  medianHoldMinutes?: number | null;
 };
 
 export type PerChainBreakdown = {
@@ -137,6 +144,8 @@ export type Position = {
   costBasis: number;
   trades: Trade[];
   lastTradeAt: number;
+  /** Daylight-hosted token image URL. */
+  tokenImageUrl?: string | null;
   /** Current USD value of the remaining position (open positions only). */
   currentValueUSD?: number | null;
   /** Unrealized + realized PnL in USD. */
@@ -265,6 +274,8 @@ export type UnfollowOptions = {
 export type SocialControllerState = {
   /** Cached ranked trader list from the last `updateLeaderboard` call. */
   leaderboardEntries: LeaderboardEntry[];
-  /** Addresses the current user follows — drives Follow/Following button state. */
+  /** Wallet addresses the current user follows. */
   followingAddresses: string[];
+  /** Clicker profile IDs the current user follows — used by mobile UI. */
+  followingProfileIds: string[];
 };

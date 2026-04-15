@@ -1,6 +1,5 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
 
-import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -13,6 +12,7 @@ import {
   splitHex,
   ZERO_32_BYTES,
 } from '../utils';
+import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-stream permission rule.

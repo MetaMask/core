@@ -5,8 +5,6 @@ import type {
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { SubscriptionRequest } from './AbstractDataSource';
-import { reduceInBatchesSerially } from './evm-rpc-services';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
@@ -17,6 +15,8 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
+import type { SubscriptionRequest } from './AbstractDataSource';
+import { reduceInBatchesSerially } from './evm-rpc-services';
 
 // ============================================================================
 // CONSTANTS

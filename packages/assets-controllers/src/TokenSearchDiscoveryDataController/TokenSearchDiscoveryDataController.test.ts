@@ -9,6 +9,12 @@ import type {
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 
+import type {
+  AbstractTokenPricesService,
+  EvmAssetWithMarketData,
+} from '../token-prices-service/abstract-token-prices-service';
+import { fetchTokenMetadata } from '../token-service';
+import type { Token } from '../TokenRatesController';
 import {
   getDefaultTokenSearchDiscoveryDataControllerState,
   TokenSearchDiscoveryDataController,
@@ -20,12 +26,6 @@ import type {
   TokenSearchDiscoveryDataControllerState,
 } from './TokenSearchDiscoveryDataController';
 import type { NotFoundTokenDisplayData, FoundTokenDisplayData } from './types';
-import type {
-  AbstractTokenPricesService,
-  EvmAssetWithMarketData,
-} from '../token-prices-service/abstract-token-prices-service';
-import { fetchTokenMetadata } from '../token-service';
-import type { Token } from '../TokenRatesController';
 
 jest.mock('../token-service', () => {
   const mockFetchTokenMetadata = jest.fn();

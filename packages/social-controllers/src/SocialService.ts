@@ -36,6 +36,7 @@ import type {
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types';
+import { TradeStruct } from './social-types';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types';
 
 // ---------------------------------------------------------------------------
@@ -56,14 +57,6 @@ const ProfileSummaryStruct = structType({
   imageUrl: optional(nullable(string())),
 });
 
-const TradeStruct = structType({
-  direction: string(),
-  tokenAmount: number(),
-  usdCost: number(),
-  timestamp: number(),
-  transactionHash: string(),
-});
-
 const PositionStruct = structType({
   tokenSymbol: string(),
   tokenName: string(),
@@ -76,6 +69,7 @@ const PositionStruct = structType({
   costBasis: number(),
   trades: array(TradeStruct),
   lastTradeAt: number(),
+  tokenImageUrl: optional(nullable(string())),
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
@@ -126,6 +120,7 @@ const TraderStatsStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  medianHoldMinutes: optional(nullable(number())),
 });
 
 const PerChainBreakdownStruct = structType({
@@ -553,8 +548,9 @@ export class SocialService extends BaseDataService<
         page ?? null,
       ],
       queryFn: async () => {
+        const baseUrl = status === 'open' ? this.#v2Url : this.#v1Url;
         const url = new URL(
-          `${this.#v2Url}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
+          `${baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
         );
         if (chain) {
           url.searchParams.append('chain', chain);

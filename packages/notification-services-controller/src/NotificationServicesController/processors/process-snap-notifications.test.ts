@@ -1,7 +1,7 @@
-import { processSnapNotification } from './process-snap-notifications';
 import type { INotification } from '..';
 import { TRIGGER_TYPES } from '../constants';
 import { createMockSnapNotification } from '../mocks';
+import { processSnapNotification } from './process-snap-notifications';
 
 describe('process-snap-notifications - processSnapNotification()', () => {
   it('processes a Raw Snap Notification to a shared Notification Type', () => {

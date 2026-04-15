@@ -2,6 +2,7 @@ import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
+import { createMockJWTToken } from '../tests/mocks/utils';
 import type { DecodedNodeAuthToken } from './types';
 import {
   compareTimeuuid,
@@ -11,7 +12,6 @@ import {
   getSecretTypeFromDataType,
   getTimestampFromTimeuuid,
 } from './utils';
-import { createMockJWTToken } from '../tests/mocks/utils';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {

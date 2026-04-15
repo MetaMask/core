@@ -5,13 +5,13 @@ import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
-import { isEIP1559Transaction } from './utils';
 import { TransactionEnvelopeType, TransactionType } from '../types';
 import type {
   Authorization,
   TransactionBatchRequest,
   TransactionParams,
 } from '../types';
+import { isEIP1559Transaction } from './utils';
 
 export enum ErrorCode {
   DuplicateBundleId = 5720,

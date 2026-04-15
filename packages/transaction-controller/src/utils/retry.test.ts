@@ -1,5 +1,5 @@
-import { getTransactionParamsWithIncreasedGasFee } from './retry';
 import type { TransactionParams } from '../types';
+import { getTransactionParamsWithIncreasedGasFee } from './retry';
 
 const RATE_MOCK = 16;
 const VALUE_MOCK = '0x111';

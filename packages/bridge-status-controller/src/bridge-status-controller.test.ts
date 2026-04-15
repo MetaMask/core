@@ -36,6 +36,7 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
+import { flushPromises } from '../../../tests/helpers';
 import { BridgeStatusController } from './bridge-status-controller';
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
@@ -53,7 +54,6 @@ import type {
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
-import { flushPromises } from '../../../tests/helpers';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;

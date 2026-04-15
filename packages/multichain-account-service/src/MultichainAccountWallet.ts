@@ -63,8 +63,7 @@ type DiscoveredGroupsState = WalletState;
  */
 export class MultichainAccountWallet<
   Account extends Bip44Account<KeyringAccount>,
-> implements MultichainAccountWalletDefinition<Account>
-{
+> implements MultichainAccountWalletDefinition<Account> {
   readonly #lock = new Mutex();
 
   readonly #id: MultichainAccountWalletId;

@@ -8,10 +8,6 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
-import {
-  isStakingContractAssetId,
-  reduceInBatchesSerially,
-} from './evm-rpc-services';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
@@ -21,6 +17,10 @@ import type {
   Middleware,
   FungibleAssetMetadata,
 } from '../types';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from './evm-rpc-services';
 
 // ============================================================================
 // CONSTANTS
@@ -305,8 +305,13 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
+
+      // Custom assets are user-imported — exempt from spam filtering.
+      const customAssetIds = new Set<string>(
+        Object.values(customAssets ?? {}).flat(),
+      );
 
       // Always include native asset IDs from NetworkEnablementController
       for (const nativeAssetId of this.#getNativeAssetIds()) {
@@ -409,17 +414,24 @@ export class TokenDataSource {
         // EVM: require minimum occurrence count to suppress low-signal tokens.
         // Tokens with no occurrence data (undefined) are treated the same as
         // zero occurrences and filtered out.
+        // Custom assets (user-imported) bypass the occurrence filter.
         const allowedEvmIds = new Set(
           evmErc20Ids.filter(
             (id) =>
+              customAssetIds.has(id) ||
               (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES,
           ),
         );
 
         // Non-EVM: Blockaid bulk scan.
-        const allowedNonEvmIds = new Set(
-          await this.#filterBlockaidSpamTokens(nonEvmTokenIds),
+        // Custom assets (user-imported) bypass Blockaid filtering.
+        const nonEvmToScan = nonEvmTokenIds.filter(
+          (id) => !customAssetIds.has(id),
         );
+        const allowedNonEvmIds = new Set([
+          ...nonEvmTokenIds.filter((id) => customAssetIds.has(id)),
+          ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
+        ]);
 
         // Start with every asset the API returned; only remove those that
         // fail their respective filter (EVM occurrences / non-EVM Blockaid).

@@ -2,6 +2,7 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   createTimestampTerms,
   createNativeTokenStreamingTerms,
+  encodeDelegations,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import {
@@ -24,21 +25,60 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { flushPromises } from '../../../tests/helpers';
+import {
+  mockGatorPermissionsStorageEntriesFactory,
+  mockNativeTokenStreamStorageEntry,
+} from '../tests/mocks';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import { GatorPermissionsFetchError } from './errors';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
 import { GatorPermissionsController } from './GatorPermissionsController';
 import type {
   PermissionInfoWithMetadata,
+  GatorPermissionStatus,
   StoredGatorPermission,
   RevocationParams,
   SupportedPermissionType,
 } from './types';
-import { flushPromises } from '../../../tests/helpers';
-import {
-  mockGatorPermissionsStorageEntriesFactory,
-  mockNativeTokenStreamStorageEntry,
-} from '../tests/mocks';
+
+const PERMISSION_STATUSES: GatorPermissionStatus[] = [
+  'Active',
+  'Revoked',
+  'Expired',
+];
+
+/**
+ * Default JSON-RPC behavior for permission status sync tests (disabled = false,
+ * latest block far in the future).
+ *
+ * @returns A Jest mock function suitable as a provider `request` implementation.
+ */
+function createDefaultPermissionStatusProviderRequest(): jest.MockedFunction<
+  (args: { method: string; params?: unknown[] }) => Promise<unknown>
+> {
+  return jest.fn(async (req) => {
+    if (req.method === 'eth_call') {
+      return '0x0000000000000000000000000000000000000000000000000000000000000000';
+    }
+    if (req.method === 'eth_getBlockByNumber') {
+      return { timestamp: '0x77359400' };
+    }
+    throw new Error(`Unexpected RPC method in tests: ${req.method}`);
+  });
+}
+
+/**
+ * Handlers last wired by {@link getRootMessenger} for NetworkController actions
+ * (assertable when sync must resolve on-chain permission status).
+ */
+let lastNetworkControllerTestMocks: {
+  findNetworkClientIdByChainId: jest.Mock;
+  getNetworkClientById: jest.Mock;
+  permissionStatusProviderRequest: jest.MockedFunction<
+    (args: { method: string; params?: unknown[] }) => Promise<unknown>
+  >;
+} | null = null;
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
@@ -217,6 +257,7 @@ describe('GatorPermissionsController', () => {
       grantedPermissions.forEach((entry) => {
         expect(entry.permissionResponse).toBeDefined();
         expect(entry.siteOrigin).toBeDefined();
+        expect(PERMISSION_STATUSES).toContain(entry.status);
         // Sanitized response omits internal fields (to, dependencies)
         expect(
           (entry.permissionResponse as Record<string, unknown>).to,
@@ -243,6 +284,142 @@ describe('GatorPermissionsController', () => {
           },
         },
       ]);
+    });
+
+    it('calls NetworkController to resolve on-chain status when snap returns a single-delegation context', async () => {
+      const frameworkContracts =
+        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];
+      const { NativeTokenStreamingEnforcer, DelegationManager } =
+        frameworkContracts;
+
+      const delegation = {
+        delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
+        delegator: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        authority: ROOT_AUTHORITY,
+        caveats: [
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms({
+              initialAmount: hexToBigInt('0x6f05b59d3b20000'),
+              maxAmount: hexToBigInt('0x22b1c8c1227a0000'),
+              amountPerSecond: hexToBigInt('0x6f05b59d3b20000'),
+              startTime: 1747699200,
+            }),
+            args: '0x',
+          },
+        ],
+        salt: 0n,
+        signature: '0x' as Hex,
+      };
+      const encodedContext = encodeDelegations([delegation]);
+      const base = mockNativeTokenStreamStorageEntry(MOCK_CHAIN_ID_1);
+      const storedEntry = {
+        ...base,
+        permissionResponse: {
+          ...base.permissionResponse,
+          context: encodedContext,
+          delegationManager: DelegationManager,
+        },
+      };
+
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: jest
+          .fn()
+          .mockResolvedValue([storedEntry]),
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+      });
+
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
+
+      expect(lastNetworkControllerTestMocks).not.toBeNull();
+      expect(
+        lastNetworkControllerTestMocks?.findNetworkClientIdByChainId,
+      ).toHaveBeenCalledWith(MOCK_CHAIN_ID_1);
+      expect(
+        lastNetworkControllerTestMocks?.getNetworkClientById,
+      ).toHaveBeenCalledWith('test-network-client-id');
+      expect(
+        lastNetworkControllerTestMocks?.permissionStatusProviderRequest,
+      ).toHaveBeenCalled();
+
+      expect(controller.state.grantedPermissions).toHaveLength(1);
+      expect(controller.state.grantedPermissions[0].status).toBe('Active');
+    });
+
+    it('defaults merged status to Active when persisted row omits status for the same context', async () => {
+      const frameworkContracts =
+        DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][CHAIN_ID.sepolia];
+      const { NativeTokenStreamingEnforcer, DelegationManager } =
+        frameworkContracts;
+
+      const delegation = {
+        delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
+        delegator: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
+        authority: ROOT_AUTHORITY,
+        caveats: [
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: createNativeTokenStreamingTerms({
+              initialAmount: hexToBigInt('0x6f05b59d3b20000'),
+              maxAmount: hexToBigInt('0x22b1c8c1227a0000'),
+              amountPerSecond: hexToBigInt('0x6f05b59d3b20000'),
+              startTime: 1747699200,
+            }),
+            args: '0x',
+          },
+        ],
+        salt: 0n,
+        signature: '0x' as Hex,
+      };
+      const encodedContext = encodeDelegations([delegation]);
+      const base = mockNativeTokenStreamStorageEntry(MOCK_CHAIN_ID_1);
+      const storedEntry = {
+        ...base,
+        permissionResponse: {
+          ...base.permissionResponse,
+          context: encodedContext,
+          delegationManager: DelegationManager,
+        },
+      };
+
+      const persistedRowMissingStatus = {
+        permissionResponse: {
+          chainId: storedEntry.permissionResponse.chainId,
+          from: storedEntry.permissionResponse.from,
+          permission: storedEntry.permissionResponse.permission,
+          context: encodedContext,
+          delegationManager: DelegationManager,
+        },
+        siteOrigin: storedEntry.siteOrigin,
+      } as PermissionInfoWithMetadata;
+
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: jest
+          .fn()
+          .mockResolvedValue([storedEntry]),
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+        state: {
+          grantedPermissions: [persistedRowMissingStatus],
+          lastSyncedTimestamp: 1,
+        },
+      });
+
+      await rootMessenger.call(
+        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
+      );
+
+      expect(controller.state.grantedPermissions).toHaveLength(1);
+      expect(controller.state.grantedPermissions[0].status).toBe('Active');
     });
 
     it('categorizes erc20-token-revocation permissions into its own bucket', async () => {
@@ -285,6 +462,7 @@ describe('GatorPermissionsController', () => {
         'erc20-token-revocation',
       );
       expect(grantedPermissions[0].permissionResponse.chainId).toBe(chainId);
+      expect(PERMISSION_STATUSES).toContain(grantedPermissions[0].status);
     });
 
     it('handles null permissions data', async () => {
@@ -1902,6 +2080,20 @@ function getRootMessenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
+  const permissionStatusProviderRequest =
+    createDefaultPermissionStatusProviderRequest();
+  const findNetworkClientIdByChainId = jest
+    .fn()
+    .mockReturnValue('test-network-client-id');
+  const getNetworkClientById = jest.fn().mockReturnValue({
+    provider: { request: permissionStatusProviderRequest },
+  });
+  lastNetworkControllerTestMocks = {
+    findNetworkClientIdByChainId,
+    getNetworkClientById,
+    permissionStatusProviderRequest,
+  };
+
   rootMessenger.registerActionHandler(
     'SnapController:handleRequest',
     snapControllerHandleRequestActionHandler,
@@ -1909,6 +2101,14 @@ function getRootMessenger({
   rootMessenger.registerActionHandler(
     'SnapController:hasSnap',
     snapControllerHasActionHandler,
+  );
+  rootMessenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    findNetworkClientIdByChainId,
+  );
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    getNetworkClientById,
   );
   return rootMessenger;
 }
@@ -1934,7 +2134,12 @@ function getGatorPermissionsControllerMessenger(
   });
   rootMessenger.delegate({
     messenger: gatorPermissionsControllerMessenger,
-    actions: ['SnapController:handleRequest', 'SnapController:hasSnap'],
+    actions: [
+      'SnapController:handleRequest',
+      'SnapController:hasSnap',
+      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
+    ],
     events: [
       'TransactionController:transactionApproved',
       'TransactionController:transactionRejected',

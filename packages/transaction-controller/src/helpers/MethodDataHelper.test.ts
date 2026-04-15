@@ -1,11 +1,11 @@
 import { MethodRegistry } from 'eth-method-registry';
 
-import { MethodDataHelper } from './MethodDataHelper';
 import type {
   MethodData,
   TransactionControllerMessenger,
 } from '../TransactionController';
 import { getProvider } from '../utils/provider';
+import { MethodDataHelper } from './MethodDataHelper';
 
 jest.mock('eth-method-registry');
 

@@ -7,6 +7,7 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
+import { flushPromises } from '../../../tests/helpers';
 import { AccountActivityService } from './AccountActivityService';
 import type {
   AccountActivityServiceMessenger,
@@ -16,7 +17,6 @@ import type { ServerNotificationMessage } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { Transaction, BalanceUpdate } from './types';
 import type { AccountActivityMessage } from './types';
-import { flushPromises } from '../../../tests/helpers';
 
 type AllAccountActivityServiceActions =
   MessengerActions<AccountActivityServiceMessenger>;
