@@ -1,6 +1,6 @@
+import type { ChainId } from '../types';
 import { TokensApiClient } from './TokensApiClient';
 import type { TokensApiClientConfig } from './TokensApiClient';
-import type { ChainId } from '../types';
 
 // =============================================================================
 // CONSTANTS

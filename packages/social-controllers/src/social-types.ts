@@ -270,6 +270,8 @@ export type UnfollowOptions = {
 export type SocialControllerState = {
   /** Cached ranked trader list from the last `updateLeaderboard` call. */
   leaderboardEntries: LeaderboardEntry[];
-  /** Addresses the current user follows — drives Follow/Following button state. */
+  /** Wallet addresses the current user follows. */
   followingAddresses: string[];
+  /** Clicker profile IDs the current user follows — used by mobile UI. */
+  followingProfileIds: string[];
 };

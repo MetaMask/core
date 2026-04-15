@@ -26,10 +26,6 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
-import { BACKUPANDSYNC_FEATURES } from './constants';
-import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
-import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
-import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -45,6 +41,10 @@ import type {
   AuthenticationControllerIsSignedInAction,
   AuthenticationControllerPerformSignInAction,
 } from '../authentication/AuthenticationController-method-action-types';
+import { BACKUPANDSYNC_FEATURES } from './constants';
+import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
+import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
 
 const controllerName = 'UserStorageController';
 

@@ -1,6 +1,5 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
 
-import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -8,6 +7,7 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
+import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the native-token-periodic permission rule.

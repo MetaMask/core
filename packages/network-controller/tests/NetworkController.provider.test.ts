@@ -4,12 +4,12 @@ import {
 } from '@metamask/controller-utils';
 import nock from 'nock';
 
+import { NetworkStatus } from '../src/constants';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
   withController,
 } from './helpers';
-import { NetworkStatus } from '../src/constants';
 
 describe('NetworkController provider tests', () => {
   beforeEach(() => {

@@ -8,7 +8,6 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
@@ -17,6 +16,7 @@ import {
   isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
 import { caip2ToHex } from '../utils/utils';
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 
 export enum WebSocketState {
   CONNECTED = 'connected',

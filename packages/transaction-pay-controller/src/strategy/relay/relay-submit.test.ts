@@ -4,9 +4,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { RELAY_STATUS_URL } from './constants';
-import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
@@ -26,6 +23,9 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { RELAY_STATUS_URL } from './constants';
+import { submitRelayQuotes } from './relay-submit';
+import type { RelayQuote } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');

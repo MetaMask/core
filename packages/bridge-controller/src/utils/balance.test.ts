@@ -5,9 +5,9 @@ import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 
+import { FakeProvider } from '../../../../tests/fake-provider';
 import * as balanceUtils from './balance';
 import { fetchTokenBalance } from './balance';
-import { FakeProvider } from '../../../../tests/fake-provider';
 
 declare global {
   var ethereumProvider: Provider;

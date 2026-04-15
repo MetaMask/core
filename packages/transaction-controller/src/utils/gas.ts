@@ -9,9 +9,6 @@ import type { Hex, Json } from '@metamask/utils';
 import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
-import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import { getChainId, rpcRequest } from './provider';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -26,6 +23,9 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '../types';
+import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
+import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
+import { getChainId, rpcRequest } from './provider';
 
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;

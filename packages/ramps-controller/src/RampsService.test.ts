@@ -6,10 +6,10 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
-import type { RampsServiceMessenger } from './RampsService';
-import { RampsService, RampsEnvironment } from './RampsService';
 import { flushPromises } from '../../../tests/helpers';
 import packageJson from '../package.json';
+import type { RampsServiceMessenger } from './RampsService';
+import { RampsService, RampsEnvironment } from './RampsService';
 
 const CONTROLLER_VERSION = packageJson.version;
 

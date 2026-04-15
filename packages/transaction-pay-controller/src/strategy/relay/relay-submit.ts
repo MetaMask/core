@@ -9,19 +9,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  RELAY_DEPOSIT_TYPES,
-  RELAY_FAILURE_STATUSES,
-  RELAY_PENDING_STATUSES,
-} from './constants';
-import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
-import type {
-  RelayExecuteRequest,
-  RelayQuote,
-  RelayStatusResponse,
-  RelayTransactionStep,
-} from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -44,6 +31,19 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import {
+  RELAY_DEPOSIT_TYPES,
+  RELAY_FAILURE_STATUSES,
+  RELAY_PENDING_STATUSES,
+} from './constants';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+import { getRelayStatus, submitRelayExecute } from './relay-api';
+import type {
+  RelayExecuteRequest,
+  RelayQuote,
+  RelayStatusResponse,
+  RelayTransactionStep,
+} from './types';
 
 const FALLBACK_HASH = '0x0' as Hex;
 

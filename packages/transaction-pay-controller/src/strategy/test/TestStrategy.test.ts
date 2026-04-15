@@ -1,12 +1,12 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { TestStrategy } from './TestStrategy';
 import { TransactionPayStrategy } from '../..';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { TestStrategy } from './TestStrategy';
 
 jest.useFakeTimers();
 

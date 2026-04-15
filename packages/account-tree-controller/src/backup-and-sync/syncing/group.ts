@@ -1,6 +1,5 @@
 import { toMultichainAccountWalletId } from '@metamask/account-api';
 
-import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
@@ -18,6 +17,7 @@ import {
 } from '../user-storage/network-operations';
 import { getLocalGroupsForEntropyWallet } from '../utils';
 import { toErrorMessage } from '../utils/errors';
+import { compareAndSyncMetadata } from './metadata';
 
 /**
  * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).

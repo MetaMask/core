@@ -1,11 +1,6 @@
 /* eslint-disable no-new */
 import type { Hex } from '@metamask/utils';
 
-import {
-  GasFeePoller,
-  updateTransactionGasProperties,
-  updateTransactionGasEstimates,
-} from './GasFeePoller';
 import { flushPromises } from '../../../../tests/helpers';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -23,6 +18,11 @@ import type {
 } from '../types';
 import type { GasFeeFlow, GasFeeEstimates, TransactionMeta } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
+import {
+  GasFeePoller,
+  updateTransactionGasProperties,
+  updateTransactionGasEstimates,
+} from './GasFeePoller';
 
 jest.mock('../utils/feature-flags');
 jest.mock('../utils/layer1-gas-fee-flow', () => ({

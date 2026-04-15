@@ -33,6 +33,8 @@ export const CHAIN_IDS = {
   SCROLL_SEPOLIA: '0x8274f',
   MEGAETH_TESTNET: '0x18c6',
   SEI: '0x531',
+  MANTLE: '0x1388',
+  MANTLE_SEPOLIA: '0x138b',
 } as const;
 
 /** Extract of the Wrapped ERC-20 ABI required for simulation. */

@@ -7,11 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [104.0.0]
+
 ### Changed
 
+- **BREAKING:** `NftController` no longer uses the `AssetsContractController:getERC721OwnerOf` and `AssetsContractController:getERC1155BalanceOf` messenger actions for ownership checks; these have been removed from `AllowedActions` ([#8281](https://github.com/MetaMask/core/pull/8281))
+  - Consumers that construct the `NftController` messenger and register handlers for these two actions must remove them from their allowed actions list.
+- **BREAKING:** `checkAndUpdateSingleNftOwnershipStatus` no longer accepts a `batch` boolean as its second argument; the signature is now `(nft, networkClientId, { userAddress }?)` ([#8281](https://github.com/MetaMask/core/pull/8281), [#8435](https://github.com/MetaMask/core/pull/8435))
+  - The method now always writes the updated NFT to state and returns it. Remove the `batch` argument from all call sites.
+- **BREAKING:** `checkAndUpdateAllNftsOwnershipStatus` now removes NFTs confirmed as unowned from state instead of setting `isCurrentlyOwned: false` on them ([#8281](https://github.com/MetaMask/core/pull/8281))
+  - The `isCurrentlyOwned: false` flag was originally used to power a "Previously Owned" NFTs section in MetaMask, which is no longer supported. NFTs that are confirmed as no longer owned are now removed from state immediately rather than being retained with a stale flag.
+- `NftController` NFT ownership checks (`isNftOwner`, `checkAndUpdateSingleNftOwnershipStatus`, `checkAndUpdateAllNftsOwnershipStatus`) now use Multicall3 to batch ERC-721 `ownerOf` and ERC-1155 `balanceOf` calls into fewer RPC requests, falling back to individual calls on unsupported chains ([#8281](https://github.com/MetaMask/core/pull/8281))
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.2.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Fixed
+
+- Restore `checkAndUpdateSingleNftOwnershipStatus` to `NftController` to fix a regression where consumers (e.g. the MetaMask extension) that call this method individually were broken by its removal in [#8281](https://github.com/MetaMask/core/pull/8281) ([#8435](https://github.com/MetaMask/core/pull/8435))
 
 ## [103.1.1]
 
@@ -56,7 +71,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Tempo Mainnet (`4217`/`0x1079`) and Tempo Moderato Testnet (`42431`/`0xa5bf`) support ([#8258](https://github.com/MetaMask/core/pull/8258))
-
   - Add `0x1079` and `0xa5bf` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
   - Add `0x1079` and `0xa5bf` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
   - Add `0xa5bf` (only Tempo Testnet) to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`
@@ -2921,7 +2935,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...HEAD
+[104.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...@metamask/assets-controllers@104.0.0
 [103.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...@metamask/assets-controllers@103.1.1
 [103.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...@metamask/assets-controllers@103.1.0
 [103.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@102.0.0...@metamask/assets-controllers@103.0.0

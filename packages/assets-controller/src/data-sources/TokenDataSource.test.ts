@@ -7,10 +7,10 @@ import type {
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 
-import type { TokenDataSourceOptions } from './TokenDataSource';
-import { TokenDataSource } from './TokenDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types';
+import type { TokenDataSourceOptions } from './TokenDataSource';
+import { TokenDataSource } from './TokenDataSource';
 
 type AllActions = PhishingControllerBulkScanTokensAction;
 type AllEvents = never;

@@ -1,5 +1,5 @@
-import type { FiatQuote } from './types';
 import type { PayStrategy, PayStrategyExecuteRequest } from '../../types';
+import type { FiatQuote } from './types';
 
 /**
  * Submit Fiat quotes.

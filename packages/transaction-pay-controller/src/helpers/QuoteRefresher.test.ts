@@ -2,7 +2,6 @@
 
 import { createDeferredPromise } from '@metamask/utils';
 
-import { QuoteRefresher } from './QuoteRefresher';
 import { flushPromises } from '../../../../tests/helpers';
 import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -11,6 +10,7 @@ import type {
   TransactionPayControllerMessenger,
 } from '../types';
 import { refreshQuotes } from '../utils/quotes';
+import { QuoteRefresher } from './QuoteRefresher';
 
 jest.mock('../utils/quotes');
 

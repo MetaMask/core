@@ -1,16 +1,16 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import {
-  getInternalScopesObject,
-  getPermittedAccountsForScopes,
-  getSessionScopes,
-} from './caip-permission-operator-session-scopes';
-import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from '../scope/constants';
+import {
+  getInternalScopesObject,
+  getPermittedAccountsForScopes,
+  getSessionScopes,
+} from './caip-permission-operator-session-scopes';
 
 describe('CAIP-25 session scopes adapters', () => {
   describe('getInternalScopesObject', () => {

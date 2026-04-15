@@ -8,7 +8,6 @@ import type { Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep, merge } from 'lodash';
 
-import { TransactionPoller } from './TransactionPoller';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
@@ -18,6 +17,7 @@ import {
   getTimeoutAttempts,
 } from '../utils/feature-flags';
 import { getChainId, rpcRequest } from '../utils/provider';
+import { TransactionPoller } from './TransactionPoller';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event

@@ -9,13 +9,6 @@ import type {
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
-import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
-import {
-  TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
-  TRX_ACCOUNT_PROVIDER_NAME,
-  TrxAccountProvider,
-} from './TrxAccountProvider';
 import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
@@ -28,6 +21,13 @@ import {
   toGroupIndexRangeArray,
 } from '../tests';
 import type { RootMessenger, DeepPartial } from '../tests';
+import { AccountProviderWrapper } from './AccountProviderWrapper';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import {
+  TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
+} from './TrxAccountProvider';
 
 function asConfig(
   partial: DeepPartial<SnapAccountProviderConfig>,

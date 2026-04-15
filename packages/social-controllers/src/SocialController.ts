@@ -91,6 +91,7 @@ export function getDefaultSocialControllerState(): SocialControllerState {
   return {
     leaderboardEntries: [],
     followingAddresses: [],
+    followingProfileIds: [],
   };
 }
 
@@ -104,6 +105,12 @@ const socialControllerMetadata: StateMetadata<SocialControllerState> = {
     usedInUi: true,
   },
   followingAddresses: {
+    persist: true,
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  followingProfileIds: {
     persist: true,
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
@@ -181,6 +188,9 @@ export class SocialController extends BaseController<
     const newAddresses = [
       ...new Set(followResponse.followed.map((profile) => profile.address)),
     ];
+    const newProfileIds = [
+      ...new Set(followResponse.followed.map((profile) => profile.profileId)),
+    ];
 
     this.update((state) => {
       const existing = new Set(state.followingAddresses);
@@ -188,6 +198,10 @@ export class SocialController extends BaseController<
         (address) => !existing.has(address),
       );
       state.followingAddresses.push(...uniqueNewAddresses);
+
+      const existingIds = new Set(state.followingProfileIds);
+      const uniqueNewIds = newProfileIds.filter((id) => !existingIds.has(id));
+      state.followingProfileIds.push(...uniqueNewIds);
     });
 
     return followResponse;
@@ -210,10 +224,16 @@ export class SocialController extends BaseController<
     const removedAddresses = new Set(
       unfollowResponse.unfollowed.map((profile) => profile.address),
     );
+    const removedProfileIds = new Set(
+      unfollowResponse.unfollowed.map((profile) => profile.profileId),
+    );
 
     this.update((state) => {
       state.followingAddresses = state.followingAddresses.filter(
         (address) => !removedAddresses.has(address),
+      );
+      state.followingProfileIds = state.followingProfileIds.filter(
+        (id) => !removedProfileIds.has(id),
       );
     });
 
@@ -239,6 +259,9 @@ export class SocialController extends BaseController<
     this.update((state) => {
       state.followingAddresses = followingResponse.following.map(
         (profile) => profile.address,
+      );
+      state.followingProfileIds = followingResponse.following.map(
+        (profile) => profile.profileId,
       );
     });
 

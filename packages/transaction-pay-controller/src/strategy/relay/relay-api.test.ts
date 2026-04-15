@@ -1,5 +1,7 @@
 import { successfulFetch } from '@metamask/controller-utils';
 
+import type { FeatureFlags } from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import { RELAY_STATUS_URL } from './constants';
 import {
   fetchRelayQuote,
@@ -7,8 +9,6 @@ import {
   submitRelayExecute,
 } from './relay-api';
 import type { RelayQuoteRequest } from './types';
-import type { FeatureFlags } from '../../utils/feature-flags';
-import { getFeatureFlags } from '../../utils/feature-flags';
 
 jest.mock('../../utils/feature-flags');
 

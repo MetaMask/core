@@ -5,10 +5,6 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { AcrossStrategy } from './AcrossStrategy';
-import type { AcrossQuote } from './types';
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants';
 import type {
   PayStrategyExecuteRequest,
@@ -16,6 +12,10 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { getAcrossQuotes } from './across-quotes';
+import { submitAcrossQuotes } from './across-submit';
+import { AcrossStrategy } from './AcrossStrategy';
+import type { AcrossQuote } from './types';
 
 jest.mock('./across-quotes');
 jest.mock('./across-submit');

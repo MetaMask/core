@@ -1,12 +1,12 @@
+import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
+import { BridgeClientId } from '../types';
+import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 import {
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
   shouldSkipFetchDueToFetchFailures,
 } from './bridge-status';
-import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
-import { BridgeClientId } from '../types';
-import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 
 describe('utils', () => {
   const mockStatusRequest: StatusRequestWithSrcTxHash = {
