@@ -101,7 +101,8 @@ export type TransactionConfig = {
    */
   refundTo?: Hex;
 
-  /** Optional address to override the default account used by the transaction.
+  /**
+   * Optional address to override the default account used by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
    * When `isPostQuote` is false, used as the delegator for the transaction, it provides the funds and pays for gas.
    */
@@ -189,7 +190,8 @@ export type TransactionData = {
    */
   refundTo?: Hex;
 
-  /** Optional address to override the default account used by the transaction.
+  /**
+   * Optional address to override the default account used by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
    * When `isPostQuote` is false, used as the delegator for the transaction, it provides the funds and pays for gas.
    */
