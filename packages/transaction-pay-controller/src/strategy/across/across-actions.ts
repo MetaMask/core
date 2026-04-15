@@ -77,13 +77,13 @@ export function getAcrossDestination(
   transaction: TransactionMeta,
   request: QuoteRequest,
 ): AcrossDestination {
-  const { from } = request;
+  const { accountOverride, from } = request;
   const destinationCalls = getDestinationCalls(transaction);
   const swapRecipientTransferCallIndex = destinationCalls.findIndex((call) =>
     isExtractableOutputTokenTransferCall(call, request),
   );
   const callsForActions = [...destinationCalls];
-  let recipient = from;
+  let recipient = accountOverride ?? from;
 
   if (swapRecipientTransferCallIndex !== -1) {
     const [swapRecipientTransferCall] = callsForActions.splice(

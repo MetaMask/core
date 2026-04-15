@@ -100,10 +100,7 @@ async function getSingleQuote(
 
   const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
-  const destination =
-    request.isPostQuote && request.accountOverride
-      ? { actions: [] as AcrossAction[], recipient: request.accountOverride }
-      : getAcrossDestination(transaction, request);
+  const destination = getAcrossDestination(transaction, request);
   const quote = await requestAcrossApproval({
     actions: destination.actions,
     amount,
