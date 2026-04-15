@@ -85,11 +85,13 @@ module.exports = {
     ],
     // Required for the keyring API v2 transition until `/v2` is merged with the top-level: {
     '^@metamask/eth-hd-keyring/v2$':
-      require.resolve('@metamask/eth-hd-keyring/v2'),
+      '<rootDir>/../../node_modules/@metamask/eth-hd-keyring/dist/v2/index.cjs',
     '^@metamask/eth-simple-keyring/v2$':
-      require.resolve('@metamask/eth-simple-keyring/v2'),
-    '^@metamask/keyring-api/v2$': require.resolve('@metamask/keyring-api/v2'),
-    '^@metamask/keyring-sdk/v2$': require.resolve('@metamask/keyring-sdk/v2'),
+      '<rootDir>/../../node_modules/@metamask/eth-simple-keyring/dist/v2/index.cjs',
+    '^@metamask/keyring-api/v2$':
+      '<rootDir>/../../node_modules/@metamask/keyring-api/dist/v2/index.cjs',
+    '^@metamask/keyring-sdk/v2$':
+      '<rootDir>/../../node_modules/@metamask/keyring-sdk/dist/v2/index.cjs',
     // }
     '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
     '^@metamask/(.+)$': [
