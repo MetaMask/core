@@ -142,8 +142,7 @@ describe('across-actions', () => {
   });
 
   it('uses accountOverride as recipient when provided', () => {
-    const accountOverride =
-      '0xrecipient0000000000000000000000000000001' as Hex;
+    const accountOverride = '0xrecipient0000000000000000000000000000001' as Hex;
 
     expect(
       getAcrossDestination(
