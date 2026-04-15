@@ -73,11 +73,13 @@ import {
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
+import {
+  SeedlessOnboardingController,
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
+} from './SeedlessOnboardingController';
 import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
-  getInitialSeedlessOnboardingControllerStateWithDefaults,
-  SeedlessOnboardingController,
 } from './SeedlessOnboardingController';
 import type { SeedlessOnboardingControllerState } from './types';
 
