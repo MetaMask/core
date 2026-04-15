@@ -40,7 +40,6 @@ import type {
 
 import type { MessengerItemDoc, MethodInfo } from './types';
 
-
 /**
  * Extract string constants from top-level variable declarations in a source file.
  * Only looks at top-level `const x = 'string'` or `const x = 'string' as const`.
@@ -125,7 +124,10 @@ async function resolveControllerName(
           path.join(dir, `${bareSpec}.d.ts`),
           path.join(dir, bareSpec, 'index.d.ts'),
         ]
-      : [path.join(dir, `${bareSpec}.ts`), path.join(dir, bareSpec, 'index.ts')];
+      : [
+          path.join(dir, `${bareSpec}.ts`),
+          path.join(dir, bareSpec, 'index.ts'),
+        ];
 
     for (const candidate of candidates) {
       if (!(await fileExists(candidate))) {

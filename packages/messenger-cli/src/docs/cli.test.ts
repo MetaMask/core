@@ -73,11 +73,7 @@ export type BarDoAction = {
 `,
       );
 
-      const result = await runCLI([
-        directoryPath,
-        '--scan-dir',
-        'app',
-      ]);
+      const result = await runCLI([directoryPath, '--scan-dir', 'app']);
 
       expect(result.exitCode).toBe(0);
       expect(result.all).toContain('Found 1 messenger item');
@@ -101,11 +97,7 @@ export type BazAction = {
       );
 
       const outputDir = path.join(directoryPath, 'custom-output');
-      const result = await runCLI([
-        directoryPath,
-        '--output',
-        outputDir,
-      ]);
+      const result = await runCLI([directoryPath, '--output', outputDir]);
 
       expect(result.exitCode).toBe(0);
 

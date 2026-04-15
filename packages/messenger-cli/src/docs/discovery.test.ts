@@ -18,9 +18,7 @@ describe('findTsFiles', () => {
 
       const files = await findTsFiles(directoryPath);
 
-      expect(files).toStrictEqual([
-        path.join(directoryPath, 'Controller.ts'),
-      ]);
+      expect(files).toStrictEqual([path.join(directoryPath, 'Controller.ts')]);
     });
   });
 
@@ -82,10 +80,7 @@ describe('findTsFiles', () => {
       for (const dir of ['__tests__', 'tests', 'test', '__mocks__']) {
         const testDir = path.join(directoryPath, dir);
         await fs.promises.mkdir(testDir);
-        await fs.promises.writeFile(
-          path.join(testDir, 'file.ts'),
-          'export {}',
-        );
+        await fs.promises.writeFile(path.join(testDir, 'file.ts'), 'export {}');
       }
 
       const files = await findTsFiles(directoryPath);
@@ -155,9 +150,7 @@ describe('findDtsFiles', () => {
 
       const files = await findDtsFiles(directoryPath);
 
-      expect(files).toStrictEqual([
-        path.join(directoryPath, 'index.d.cts'),
-      ]);
+      expect(files).toStrictEqual([path.join(directoryPath, 'index.d.cts')]);
     });
   });
 

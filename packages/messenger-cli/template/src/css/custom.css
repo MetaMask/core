@@ -9,7 +9,8 @@
 
 @font-face {
   font-family: 'MM Sans Mono';
-  src: url('../../static/fonts/MM-Sans/MM_Sans_Mono-Regular.woff2') format('woff2');
+  src: url('../../static/fonts/MM-Sans/MM_Sans_Mono-Regular.woff2')
+    format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -69,9 +70,11 @@
   --ifm-color-primary-lightest: #eac2ff;
 
   --ifm-heading-color: var(--general-black);
-  --ifm-font-family-monospace: 'MM Sans Mono', 'Andale Mono', AndaleMono, monospace;
+  --ifm-font-family-monospace:
+    'MM Sans Mono', 'Andale Mono', AndaleMono, monospace;
   --ifm-heading-font-family: var(--ifm-font-family-monospace);
-  --ifm-font-family-base: 'Geist', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --ifm-font-family-base:
+    'Geist', Arial, 'Helvetica Neue', Helvetica, sans-serif;
   --ifm-code-font-size: 90%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 
@@ -165,15 +168,29 @@
   --ifm-color-warning: var(--developer-purple);
   --ifm-color-danger: var(--developer-orange);
 
-  --ifm-color-secondary-contrast-background: var(--general-black-light) !important;
+  --ifm-color-secondary-contrast-background: var(
+    --general-black-light
+  ) !important;
   --ifm-color-info-contrast-background: var(--consumer-blue-dark) !important;
   --ifm-color-info-contrast-foreground: var(--consumer-blue-light) !important;
-  --ifm-color-success-contrast-background: var(--consumer-green-dark) !important;
-  --ifm-color-success-contrast-foreground: var(--consumer-green-light) !important;
-  --ifm-color-warning-contrast-background: var(--consumer-orange-dark) !important;
-  --ifm-color-warning-contrast-foreground: var(--consumer-orange-light) !important;
-  --ifm-color-danger-contrast-background: var(--consumer-orange-dark) !important;
-  --ifm-color-danger-contrast-foreground: var(--consumer-orange-light) !important;
+  --ifm-color-success-contrast-background: var(
+    --consumer-green-dark
+  ) !important;
+  --ifm-color-success-contrast-foreground: var(
+    --consumer-green-light
+  ) !important;
+  --ifm-color-warning-contrast-background: var(
+    --consumer-orange-dark
+  ) !important;
+  --ifm-color-warning-contrast-foreground: var(
+    --consumer-orange-light
+  ) !important;
+  --ifm-color-danger-contrast-background: var(
+    --consumer-orange-dark
+  ) !important;
+  --ifm-color-danger-contrast-foreground: var(
+    --consumer-orange-light
+  ) !important;
 
   --ifm-background-color: var(--general-gray-dark);
   --ifm-heading-color: var(--general-white);
@@ -204,7 +221,12 @@ body {
 
 /* ── Typography ─────────────────────────────────────────────────────── */
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--ifm-font-family-base);
   font-weight: 500;
 }

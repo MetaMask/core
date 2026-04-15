@@ -1,10 +1,10 @@
-import type { MessengerItemDoc, NamespaceGroup } from './types';
 import {
   generateIndexPage,
   generateItemMarkdown,
   generateNamespacePage,
   generateSidebars,
 } from './markdown';
+import type { MessengerItemDoc, NamespaceGroup } from './types';
 
 const makeItem = (
   overrides: Partial<MessengerItemDoc> = {},
@@ -90,9 +90,7 @@ describe('generateItemMarkdown', () => {
   });
 
   it('linkifies references via namespace prefix lookup', () => {
-    const known = new Map([
-      ['FooController:reset', '#foocontrollerreset'],
-    ]);
+    const known = new Map([['FooController:reset', '#foocontrollerreset']]);
     const item = makeItem({ jsDoc: 'Call `reset` to clear state.' });
     const result = generateItemMarkdown(item, 'FooController', known, null);
 
@@ -100,9 +98,7 @@ describe('generateItemMarkdown', () => {
   });
 
   it('linkifies references via anchor fallback', () => {
-    const known = new Map([
-      ['irrelevant', './actions#foocontrollerreset'],
-    ]);
+    const known = new Map([['irrelevant', './actions#foocontrollerreset']]);
     const item = makeItem({ jsDoc: 'Call `reset` to clear.' });
     const result = generateItemMarkdown(item, 'FooController', known, null);
 

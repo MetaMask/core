@@ -1,8 +1,7 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-
 import type * as Preset from '@docusaurus/preset-classic';
 import type { Config } from '@docusaurus/types';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { themes } from 'prism-react-renderer';
 
 const codeTheme = themes.dracula;
