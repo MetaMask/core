@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `isOnboarded` option to `AssetsControllerOptions` and `RpcDataSourceConfig` ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - When `isOnboarded` returns `false`, `RpcDataSource` skips `fetch` and `subscribe` calls, preventing on-chain RPC calls before onboarding is complete.
+  - Defaults to `() => true` so existing consumers are unaffected.
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.0.0` to `^7.1.0` ([#8472](https://github.com/MetaMask/core/pull/8472))
@@ -21,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AssetsController` now re-subscribes to all data sources when `AccountTreeController` state changes after initial startup, ensuring snap accounts and their chains are included ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Previously, `#start()` would create subscriptions before snap accounts were available, and its idempotency guard prevented re-subscription when the full account list arrived.
+  - Added `#handleAccountTreeStateChange()` which forces a full re-subscription and re-fetch when the account tree updates, picking up all accounts including snaps.
+  - Added `AccountsController:getSelectedAccount` as a fallback in `#getSelectedAccounts()` for when the account tree is not yet initialized.
+- `TokenDataSource` no longer filters out user-imported custom assets with the `MIN_TOKEN_OCCURRENCES` spam filter or Blockaid bulk scan ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Tokens present in `customAssets` state now bypass the EVM occurrence threshold and non-EVM Blockaid scan, ensuring manually imported assets always appear.
+- `BackendWebsocketDataSource` now properly releases chains to `AccountsApiDataSource` when the websocket is disconnected or disabled ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Previously, `BackendWebsocketDataSource` eagerly claimed all supported chains on initialization regardless of connection state, preventing `AccountsApiDataSource` from polling.
+  - Chains are now only claimed when the websocket is connected. On disconnect, chains are released so the chain-claiming loop assigns them to `AccountsApiDataSource` for polling fallback. On reconnect, chains are reclaimed.
 - `AssetsController` no longer silently skips asset fetching on startup for returning users ([#8412](https://github.com/MetaMask/core/pull/8412))
   - Previously, `#start()` was called at keyring unlock before `AccountTreeController.init()` had built the account tree, causing `#selectedAccounts` to return an empty array and all subscriptions and fetches to be skipped. `selectedAccountGroupChange` does not fire when the persisted selected group is unchanged, leaving the controller idle.
   - Now subscribes to `AccountTreeController:stateChange` (the base-controller event guaranteed to fire when `init()` calls `this.update()`), so the controller re-evaluates its active state once accounts are available.
