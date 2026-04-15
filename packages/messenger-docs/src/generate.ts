@@ -235,10 +235,18 @@ export async function generate(
       const ns = item.typeString.split(':')[0];
       const group = byNamespace.get(ns);
       if (group) {
-        const list = existing.kind === 'action' ? group.actions : group.events;
-        const idx = list.indexOf(existing);
+        const oldList =
+          existing.kind === 'action' ? group.actions : group.events;
+        const idx = oldList.indexOf(existing);
         if (idx !== -1) {
-          list[idx] = item;
+          if (existing.kind === item.kind) {
+            oldList[idx] = item;
+          } else {
+            oldList.splice(idx, 1);
+            const newList =
+              item.kind === 'action' ? group.actions : group.events;
+            newList.push(item);
+          }
         }
       }
       seen.set(item.typeString, item);

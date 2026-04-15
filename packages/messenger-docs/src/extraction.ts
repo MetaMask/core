@@ -272,6 +272,11 @@ function extractJsDocText(node: TsNode, sourceFile: SourceFile): string {
   const singleLineMatch = raw.match(/^\/\*\*\s*(.*?)\s*\*\/$/u);
   if (singleLineMatch) {
     let text = singleLineMatch[1].replace(/^\*\s*/u, '');
+    // Handle @deprecated in single-line JSDoc
+    if (text.startsWith('@deprecated')) {
+      const depText = text.slice('@deprecated'.length).trim();
+      text = depText ? `**Deprecated:** ${depText}` : '';
+    }
     // Apply same escaping as multi-line path
     text = text.replace(/\{@link\s+([^}]+)\}/gu, '`$1`');
     text = text.replace(/`[^`]*`|(\{)|(\})/gu, (match, open, close) => {
