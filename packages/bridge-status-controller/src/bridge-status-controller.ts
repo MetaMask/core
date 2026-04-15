@@ -235,7 +235,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
-          this.#reportTxFinalised(txMetaId, false).catch((e) => console.error('FAILWED 1', e));
+          this.#reportTxFinalised(txMetaId, false).catch((error) => console.error(`FAILED 1: ${error}`));
           // Track failed event
           if (status !== TransactionStatus.rejected) {
             // Look up history by txMetaId first, then by actionId (for pre-submission failures)
@@ -273,8 +273,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           type &&
           [TransactionType.bridge, TransactionType.swap].includes(type)
         ) {
-          this.#reportTxFinalised(txMetaId, true).catch((e) =>
-            console.error('FAILED HERE 1: ' + e),
+          this.#reportTxFinalised(txMetaId, true).catch((error) =>
+            console.error(`FAILED 2: ${error}`),
           );
         }
       },
@@ -295,8 +295,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const historyItem = this.state.txHistory[txMetaId];
           const requestId = historyItem?.quote?.requestId;
           if (requestId) {
-            this.#reportTxSubmitted(requestId, hash, txMetaId).catch((e) =>
-              console.error('FAILED HERE 2: ' + e),
+            this.#reportTxSubmitted(requestId, hash, txMetaId).catch((error) =>
+              console.error(`FAILED 3: ${error}`),
             );
           }
         }
