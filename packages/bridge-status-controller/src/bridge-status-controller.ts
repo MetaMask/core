@@ -137,7 +137,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
-
   readonly #intentManager: IntentManager;
 
   readonly #quoteStatusUpdateManager: QuoteStatusUpdateManager;
@@ -234,9 +233,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
-          this.#quoteStatusUpdateManager.reportFinalised(txMetaId, false).catch((error) =>
-            console.error(`FAILED 1: ${error}`),
-          );
+          this.#quoteStatusUpdateManager
+            .reportFinalised(txMetaId, false)
+            .catch((error) => console.error(`FAILED 1: ${error}`));
           // Track failed event
           if (status !== TransactionStatus.rejected) {
             // Look up history by txMetaId first, then by actionId (for pre-submission failures)
@@ -274,9 +273,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           type &&
           [TransactionType.bridge, TransactionType.swap].includes(type)
         ) {
-          this.#quoteStatusUpdateManager.reportFinalised(txMetaId, true).catch((error) =>
-            console.error(`FAILED 2: ${error}`),
-          );
+          this.#quoteStatusUpdateManager
+            .reportFinalised(txMetaId, true)
+            .catch((error) => console.error(`FAILED 2: ${error}`));
         }
       },
     );
@@ -296,7 +295,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const historyItem = this.state.txHistory[txMetaId];
           const requestId = historyItem?.quote?.requestId;
           if (requestId) {
-            this.#quoteStatusUpdateManager.reportSubmitted(requestId, hash, txMetaId);
+            this.#quoteStatusUpdateManager.reportSubmitted(
+              requestId,
+              hash,
+              txMetaId,
+            );
           }
         }
       },
@@ -1213,7 +1216,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         !quoteResponse.quote.gasIncluded7702 &&
         !isDelegatedAccount;
 
-      console.log('wefwefwe', JSON.stringify(txMeta, null, 2))
+      console.log('wefwefwe', JSON.stringify(txMeta, null, 2));
       // Report submitted status to the Bridge API.
       // For non-batch EVM and non-EVM, the hash is available now.
       // For batch EVM (STX/gasIncluded7702), the hash arrives later via the
