@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.0.1]
+## [7.1.0]
 
 ### Changed
 
@@ -526,8 +526,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.1...HEAD
-[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...@metamask/account-tree-controller@7.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...@metamask/account-tree-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@6.0.0...@metamask/account-tree-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.1...@metamask/account-tree-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.0...@metamask/account-tree-controller@5.0.1
