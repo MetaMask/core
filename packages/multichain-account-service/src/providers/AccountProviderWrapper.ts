@@ -4,9 +4,7 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type {
-  KeyringCapabilities,
-} from '@metamask/keyring-api/v2';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceMessenger } from '../types';

@@ -15,9 +15,7 @@ import type {
   EthUserOperationPatch,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type {
-  Keyring as KeyringV2,
-} from '@metamask/keyring-api/v2';
+import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
