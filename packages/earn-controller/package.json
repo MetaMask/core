@@ -55,7 +55,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^7.0.0",
+    "@metamask/account-tree-controller": "^7.1.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/keyring-api": "^21.6.0",

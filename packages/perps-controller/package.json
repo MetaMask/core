@@ -67,7 +67,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/account-tree-controller": "^7.0.0",
+    "@metamask/account-tree-controller": "^7.1.0",
     "@metamask/auto-changelog": "^6.0.0",
     "@metamask/geolocation-controller": "^0.1.2",
     "@metamask/keyring-controller": "^25.2.0",
