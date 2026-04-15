@@ -23,11 +23,9 @@ export async function importSecretRecoveryPhrase(
   const indices = phrase.split(' ').map((word) => wordlist.indexOf(word));
   const mnemonic = new Uint8Array(new Uint16Array(indices).buffer);
 
-  // TODO: This should use the new MultichainAccountService.
   await wallet.messenger.call(
-    'KeyringController:createNewVaultAndRestore',
-    password,
-    mnemonic,
+    'MultichainAccountService:createMultichainAccountWallet',
+    { type: 'restore', password, mnemonic }
   );
 }
 
@@ -41,10 +39,9 @@ export async function createSecretRecoveryPhrase(
   wallet: Wallet,
   password: string,
 ): Promise<void> {
-  // TODO: This should use the new MultichainAccountService.
   await wallet.messenger.call(
-    'KeyringController:createNewVaultAndKeychain',
-    password,
+    'MultichainAccountService:createMultichainAccountWallet',
+    { type: 'create', password },
   );
 }
 

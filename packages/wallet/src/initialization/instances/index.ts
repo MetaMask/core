@@ -5,3 +5,5 @@ export * from './keyring-controller';
 export * from './network-controller';
 export * from './remote-feature-flag-controller';
 export * from './transaction-controller';
+export * from './snap-controller';
+export * from './multichain-account-service';
