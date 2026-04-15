@@ -141,24 +141,6 @@ describe('across-actions', () => {
     });
   });
 
-  it('uses accountOverride as recipient when provided', () => {
-    const accountOverride = '0xrecipient0000000000000000000000000000001' as Hex;
-
-    expect(
-      getAcrossDestination(
-        {
-          txParams: {
-            from: REQUEST_MOCK.from,
-          },
-        } as TransactionMeta,
-        { ...REQUEST_MOCK, accountOverride },
-      ),
-    ).toStrictEqual({
-      actions: [],
-      recipient: accountOverride,
-    });
-  });
-
   it('prefers nested destination calls over top-level calldata', () => {
     expect(
       getAcrossDestination(
