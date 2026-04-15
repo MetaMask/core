@@ -1731,7 +1731,7 @@ export class PerpsController extends BaseController<
       // require() is synchronous and bundlers include it in the main bundle.
       // import() enables true code splitting so MYX is excluded when not enabled.
       // NOTE: Keep the path in a variable so ts-bridge does not rewrite the
-      // import argument and strip the webpackIgnore magic comment in built dist.
+      // import argument and strip the webpackIgnore magic comment in core dist.
       const myxModulePath = './providers/MYXProvider';
       this.#myxRegistrationPromise = import(
         /* webpackIgnore: true */ myxModulePath
