@@ -4,8 +4,10 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
+import type {
+  KeyringCapabilities,
+} from '@metamask/keyring-api/v2';
 import type {
   KeyringMetadata,
   KeyringSelector,
