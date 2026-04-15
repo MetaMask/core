@@ -9,7 +9,6 @@ import type {
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
-  getClientHeaders,
   isNonEvmChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
@@ -24,7 +23,6 @@ import {
   PollingStatus,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { HttpError } from '@metamask/controller-utils';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
   TransactionStatus,
@@ -36,6 +34,7 @@ import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { IntentManager } from './bridge-status-controller.intent';
+import { QuoteStatusUpdateManager } from './quote-status-update-manager';
 import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
@@ -138,16 +137,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
-  // Tracks txMetaIds whose SUBMITTED status report was rejected with 400 (tx
-  // data mismatch). Maps txMetaId -> { requestId, srcTxHash } so that the
-  // final outcome (FINALIZED_SUCCESS / FINALISED_FAILURE) can be reported when
-  // the transaction confirms or fails.
-  #pendingTxStatusUpdates: Record<
-    string,
-    { requestId: string; srcTxHash: string }
-  > = {};
 
   readonly #intentManager: IntentManager;
+
+  readonly #quoteStatusUpdateManager: QuoteStatusUpdateManager;
 
   readonly #clientId: BridgeClientId;
 
@@ -204,6 +197,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
       fetchFn: this.#fetchFn,
     });
+    this.#quoteStatusUpdateManager = new QuoteStatusUpdateManager({
+      messenger: this.messenger,
+      fetchFn: this.#fetchFn,
+      clientId: this.#clientId,
+      apiBaseUrl: this.#config.customBridgeApiBaseUrl,
+    });
 
     // Register action handlers
     this.messenger.registerMethodActionHandlers(
@@ -235,7 +234,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
-          this.#reportTxFinalised(txMetaId, false).catch((error) =>
+          this.#quoteStatusUpdateManager.reportFinalised(txMetaId, false).catch((error) =>
             console.error(`FAILED 1: ${error}`),
           );
           // Track failed event
@@ -275,7 +274,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           type &&
           [TransactionType.bridge, TransactionType.swap].includes(type)
         ) {
-          this.#reportTxFinalised(txMetaId, true).catch((error) =>
+          this.#quoteStatusUpdateManager.reportFinalised(txMetaId, true).catch((error) =>
             console.error(`FAILED 2: ${error}`),
           );
         }
@@ -297,9 +296,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const historyItem = this.state.txHistory[txMetaId];
           const requestId = historyItem?.quote?.requestId;
           if (requestId) {
-            this.#reportTxSubmitted(requestId, hash, txMetaId).catch((error) =>
-              console.error(`FAILED 3: ${error}`),
-            );
+            this.#quoteStatusUpdateManager.reportSubmitted(requestId, hash, txMetaId);
           }
         }
       },
@@ -888,76 +885,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 
-  readonly #updateQuoteStatus = async (
-    requestId: string,
-    srcTxHash: string,
-    newStatus: string,
-  ): Promise<void> => {
-    await this.#fetchFn(
-      `${this.#config.customBridgeApiBaseUrl}/quote/updateStatus`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getClientHeaders({
-            clientId: this.#clientId,
-            jwt: await getJwt(this.messenger),
-          }),
-        },
-        body: JSON.stringify({
-          quoteId: requestId,
-          newStatus,
-          srcTxHash,
-        }),
-      },
-    );
-  };
-
-  /**
-   * Reports the SUBMITTED status to the Bridge API. If the API rejects with
-   * HTTP 400 (tx data mismatch), the txMetaId is recorded so that the final
-   * outcome can be reported via {@link #reportTxFinalised}.
-   *
-   * @param requestId - The quote requestId
-   * @param srcTxHash - The source transaction hash
-   * @param txMetaId - The transaction meta id used to track finalization
-   */
-  readonly #reportTxSubmitted = async (
-    requestId: string,
-    srcTxHash: string,
-    txMetaId?: string,
-  ): Promise<void> => {
-    try {
-      await this.#updateQuoteStatus(requestId, srcTxHash, 'SUBMITTED');
-    } catch (error) {
-      if (error instanceof HttpError && error.httpStatus === 400 && txMetaId) {
-        this.#pendingTxStatusUpdates[txMetaId] = { requestId, srcTxHash };
-      }
-    }
-  };
-
-  readonly #reportTxFinalised = async (
-    txMetaId: string,
-    success: boolean,
-  ): Promise<void> => {
-    const pending = this.#pendingTxStatusUpdates[txMetaId];
-    if (!pending) {
-      return;
-    }
-    delete this.#pendingTxStatusUpdates[txMetaId];
-
-    const newStatus = success ? 'FINALISED_SUCCESS' : 'FINALISED_FAILURE';
-    try {
-      await this.#updateQuoteStatus(
-        pending.requestId,
-        pending.srcTxHash,
-        newStatus,
-      );
-    } catch {
-      // Non-fatal: best-effort status reporting
-    }
-  };
-
   /**
    * ******************************************************
    * TX SUBMISSION HANDLING
@@ -1286,13 +1213,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         !quoteResponse.quote.gasIncluded7702 &&
         !isDelegatedAccount;
 
+      console.log('wefwefwe', JSON.stringify(txMeta, null, 2))
       // Report submitted status to the Bridge API.
       // For non-batch EVM and non-EVM, the hash is available now.
       // For batch EVM (STX/gasIncluded7702), the hash arrives later via the
       // TransactionController:transactionSubmitted event subscriber.
       if (txMeta.hash) {
-        await this.#reportTxSubmitted(
-          quoteResponse.quote.requestId,
+        this.#quoteStatusUpdateManager.reportSubmitted(
+          quoteResponse.quoteId,
           txMeta.hash,
           txMeta.id,
         );
