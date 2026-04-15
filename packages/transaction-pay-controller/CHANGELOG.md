@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add HyperLiquid source quote support for Relay strategy ([#8285](https://github.com/MetaMask/core/pull/8285))
+- Add support for transaction config parameter accountOverride ([#8454](https://github.com/MetaMask/core/pull/8454))
 
 ### Changed
 
