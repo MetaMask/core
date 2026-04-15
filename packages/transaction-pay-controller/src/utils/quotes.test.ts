@@ -931,7 +931,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('includes accountOverride in post-quote request when set', async () => {
+    it('uses accountOverride as from for post-quote flow', async () => {
       const accountOverride =
         '0xrecipient0000000000000000000000000000001' as Hex;
 
@@ -947,7 +947,7 @@ describe('Quotes Utils', () => {
           requests: [
             expect.objectContaining({
               isPostQuote: true,
-              accountOverride,
+              from: accountOverride,
             }),
           ],
         }),

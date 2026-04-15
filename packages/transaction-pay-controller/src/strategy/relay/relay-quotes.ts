@@ -225,10 +225,6 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
-    const recipient = request.isPostQuote && request.accountOverride
-      ? request.accountOverride
-      : from;
-
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
@@ -238,10 +234,10 @@ async function getSingleQuote(
       ...(useExecute
         ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
         : {}),
-      recipient,
+      recipient: from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
-      user: recipient,
+      user: from,
     };
 
     // Skip transaction processing for post-quote flows - the original transaction
