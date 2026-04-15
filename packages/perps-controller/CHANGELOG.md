@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add disk-backed cold-start cache for instant data display on launch ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add `skipTTL` option to `getCachedMarketDataForActiveProvider` and `getCachedUserDataForActiveProvider` ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add perps decimal formatters (`perpsFormatters`) for shared formatting utilities ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add `FUNDING_RATE_CONFIG` constants for funding rate display formatting ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add `buildProviderCacheKey` and `getProviderNetworkKey` helper exports ([#8460](https://github.com/MetaMask/core/pull/8460))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Fixed
+
+- Fix TP/SL orders disappearing after creating a market order by filtering on `isPositionTpsl` ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Fix missing latest funding payments by using paginated fetch with auto-split ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Fix WebSocket reconnection on foreground return when socket is still alive ([#8460](https://github.com/MetaMask/core/pull/8460))
 
 ## [3.0.0]
 
