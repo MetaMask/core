@@ -463,4 +463,550 @@ export type MyCtrlFetchAction = {
       expect(items[0].handlerOrPayload).toContain('(id: number)');
     });
   });
+
+  it('extracts const with as const assertion', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+const cn = 'AsConst' as const;
+
+export type AsConstGetAction = {
+  type: \`\${typeof cn}:get\`;
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('AsConst:get');
+    });
+  });
+
+  it('extracts declare const from .d.cts files', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'index.d.cts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+declare const controllerName: "DeclaredConst";
+
+export type DeclaredConstGetAction = {
+  type: \`\${typeof controllerName}:get\`;
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('DeclaredConst:get');
+    });
+  });
+
+  it('resolves imported constants from .d.cts files', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'constants.d.cts'),
+        `export declare const CN: "ImportedDts";`,
+      );
+
+      const filePath = path.join(directoryPath, 'types.d.cts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+import { CN } from './constants.cjs';
+
+export type ImportedDtsGetAction = {
+  type: \`\${typeof CN}:get\`;
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('ImportedDts:get');
+    });
+  });
+
+  it('extracts ControllerGetStateAction pattern', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+const controllerName = 'MyCtrl';
+
+type ControllerGetStateAction<T, S> = {
+  type: \`\${T & string}:getState\`;
+  handler: () => S;
+};
+
+export type MyCtrlGetStateAction = ControllerGetStateAction<typeof controllerName, MyState>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('MyCtrl:getState');
+      expect(items[0].kind).toBe('action');
+    });
+  });
+
+  it('extracts ControllerGetStateAction with string literal arg', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+type ControllerGetStateAction<T, S> = {
+  type: \`\${T & string}:getState\`;
+  handler: () => S;
+};
+
+export type LitGetStateAction = ControllerGetStateAction<'LitCtrl', LitState>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('LitCtrl:getState');
+    });
+  });
+
+  it('extracts ControllerStateChangeEvent pattern', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+const controllerName = 'MyCtrl';
+
+type ControllerStateChangeEvent<T, S> = {
+  type: \`\${T & string}:stateChange\`;
+  payload: [S, Patch[]];
+};
+
+export type MyCtrlStateChangeEvent = ControllerStateChangeEvent<typeof controllerName, MyState>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('MyCtrl:stateChange');
+      expect(items[0].kind).toBe('event');
+    });
+  });
+
+  it('extracts ControllerStateChangeEvent with string literal arg', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+type ControllerStateChangeEvent<T, S> = {
+  type: \`\${T & string}:stateChange\`;
+  payload: [S, Patch[]];
+};
+
+export type LitStateChangeEvent = ControllerStateChangeEvent<'LitCtrl', LitState>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('LitCtrl:stateChange');
+    });
+  });
+
+  it('handles JSDoc with @see and @throws tags (stripped)', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Does something.
+ *
+ * @see OtherController
+ * @throws Error if invalid.
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('Does something.');
+      expect(items[0].jsDoc).not.toContain('@see');
+      expect(items[0].jsDoc).not.toContain('@throws');
+    });
+  });
+
+  it('handles multi-line deprecated text', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Old action.
+ *
+ * @deprecated Use newAction instead.
+ * This will be removed in v2.
+ */
+export type OldAction = {
+  type: 'Old:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain(
+        '**Deprecated:** Use newAction instead. This will be removed in v2.',
+      );
+    });
+  });
+
+  it('handles JSDoc with empty * lines', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * First paragraph.
+ *
+ * Second paragraph.
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('First paragraph.');
+    });
+  });
+
+  it('handles JSDoc with asterisk-only lines', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        [
+          '',
+          '/**',
+          ' *Some text without space after asterisk.',
+          ' */',
+          "export type FooAction = { type: 'Foo:do'; handler: () => void; };",
+          '',
+        ].join('\n'),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain(
+        'Some text without space after asterisk.',
+      );
+    });
+  });
+
+  it('skips class members that are not methods', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+class MyCtrl {
+  name = 'foo';
+  doStuff(): void {}
+}
+
+export type MyCtrlDoAction = {
+  type: 'MyCtrl:doStuff';
+  handler: MyCtrl['doStuff'];
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+    });
+  });
+
+  it('handles curly braces inside backtick spans (not escaped)', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Returns \`{foo: bar}\` result.
+ */
+export type FooAction = {
+  type: 'Foo:get';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      // Braces inside backticks should NOT be escaped
+      expect(items[0].jsDoc).toContain('`{foo: bar}`');
+    });
+  });
+
+  it('handles deprecated tag followed by empty line', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * @deprecated Use v2.
+ *
+ * Some remaining text.
+ */
+export type OldAction = {
+  type: 'Old:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('**Deprecated:** Use v2.');
+      expect(items[0].jsDoc).toContain('Some remaining text.');
+    });
+  });
+
+  it('skips non-relative imports when resolving constants', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+import { something } from 'external-package';
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+    });
+  });
+
+  it('handles skipped tag continuation lines', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Main description.
+ *
+ * @param foo - First param that
+ *   spans multiple lines.
+ * @param bar - Second param.
+ *
+ * After params.
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('Main description.');
+      expect(items[0].jsDoc).toContain('After params.');
+    });
+  });
+
+  it('handles deprecated followed by another tag', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * @deprecated Use v2.
+ * @param x - Input.
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('**Deprecated:** Use v2.');
+      expect(items[0].jsDoc).not.toContain('@param');
+    });
+  });
+
+  it('handles curly braces in multi-line JSDoc outside backticks', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Returns an object.
+ *
+ * Shape: {name: string, age: number}
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('\\{name: string, age: number\\}');
+      expect(items[0].jsDoc).not.toContain('{name');
+    });
+  });
+
+  it('handles JSDoc with only asterisk line', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        [
+          '/**',
+          ' *',
+          ' * Text after empty asterisk.',
+          ' */',
+          "export type FooAction = { type: 'Foo:do'; handler: () => void; };",
+        ].join('\n'),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('Text after empty asterisk.');
+    });
+  });
+
+  it('skips class members that are not methods', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+class MyCtrl {
+  name = 'foo';
+  doStuff(): void {}
+}
+
+export type MyCtrlDoAction = {
+  type: 'MyCtrl:doStuff';
+  handler: MyCtrl['doStuff'];
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+    });
+  });
+
+  it('handles curly braces inside backtick spans (not escaped)', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+/**
+ * Returns \`{foo: bar}\` result.
+ */
+export type FooAction = {
+  type: 'Foo:get';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      // Braces inside backticks should NOT be escaped
+      expect(items[0].jsDoc).toContain('`{foo: bar}`');
+    });
+  });
 });
