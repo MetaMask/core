@@ -30,3 +30,6 @@ ignores:
   - 'eslint-import-resolver-typescript'
   # Ignore dependencies which plug into the NPM lifecycle
   - '@lavamoat/preinstall-always-fail'
+ignore-patterns:
+  # Ignore local mapping resolutions (e.g for keyring API v2 with the new `/v2` exports)
+  - 'jest.config.packages.js'
