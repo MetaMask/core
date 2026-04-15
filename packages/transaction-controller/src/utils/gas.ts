@@ -140,15 +140,17 @@ export async function estimateGas({
   let estimatedGas = fallback;
   let simulationFails: TransactionMeta['simulationFails'];
 
-  const isUpgradeWithDataToSelf =
+  const isUpgradeWithData =
     txParams.type === TransactionEnvelopeType.setCode &&
     Boolean(authorizationList?.length) &&
     Boolean(data) &&
-    data !== '0x' &&
+    data !== '0x';
+
+  const isUpgradeWithDataToSelf = isUpgradeWithData &&
     from?.toLowerCase() === to?.toLowerCase();
 
   try {
-    if (isSimulationEnabled && isUpgradeWithDataToSelf) {
+    if (isSimulationEnabled && isUpgradeWithData) {
       estimatedGas = await estimateGasUpgradeWithDataToSelf(
         request,
         messenger,
@@ -570,6 +572,7 @@ async function estimateGasUpgradeWithDataToSelf(
     params: [
       {
         ...txParams,
+        to: txParams.from,
         data: '0x',
       },
     ],
