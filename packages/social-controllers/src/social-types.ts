@@ -106,7 +106,7 @@ export type TraderStats = {
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
   /** Median holding time in minutes. */
-medianHoldMinutes?: number | null;
+  medianHoldMinutes?: number | null;
 };
 
 export type PerChainBreakdown = {
