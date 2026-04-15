@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `money-account-balance-service` to the root `tsconfig.json` and `tsconfig.build.json` files so that it is usable ([#8477](https://github.com/MetaMask/core/pull/8477))
+
 ## [0.1.0]
 
 ### Added
