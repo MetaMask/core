@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "1f90a9b7a957356c02dcd201ea650c9a779a0bda",
-  "lastSyncedMobileBranch": "feat/tat-2863-sync-controller-code-extension",
-  "lastSyncedCoreCommit": "c275531d934cb592fe27c545a73b08c11f50dfa3",
-  "lastSyncedCoreBranch": "feat/perps/another-sync",
-  "lastSyncedDate": "2026-04-08T11:07:13Z",
-  "sourceChecksum": "5eea712091624d82e569300f9679e6595f2e77aa9e1ced15db14d3d8cce15746"
+  "lastSyncedMobileCommit": "c8f5e5aa6470a017c5165e6525bb2396bf9b7070",
+  "lastSyncedMobileBranch": "feat/tat-2956-create-a-sync-skill-to-migrate",
+  "lastSyncedCoreCommit": "59412376fb3eb4972b6c7a11f45eece5d96a40f2",
+  "lastSyncedCoreBranch": "feat/perps/new-sync",
+  "lastSyncedDate": "2026-04-15T09:32:27Z",
+  "sourceChecksum": "32ada16094f0fdd1b1bf29863518fb222210479fa03bcaa41cf8d5f41f3474b4"
 }
