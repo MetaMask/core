@@ -235,7 +235,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
-          this.#reportTxFinalised(txMetaId, false).catch((error) => console.error(`FAILED 1: ${error}`));
+          this.#reportTxFinalised(txMetaId, false).catch((error) =>
+            console.error(`FAILED 1: ${error}`),
+          );
           // Track failed event
           if (status !== TransactionStatus.rejected) {
             // Look up history by txMetaId first, then by actionId (for pre-submission failures)
