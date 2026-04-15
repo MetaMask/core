@@ -98,6 +98,7 @@ describe('SocialController', () => {
       expect(getDefaultSocialControllerState()).toStrictEqual({
         leaderboardEntries: [],
         followingAddresses: [],
+        followingProfileIds: [],
       });
     });
   });
@@ -109,6 +110,7 @@ describe('SocialController', () => {
       expect(controller.state).toStrictEqual({
         leaderboardEntries: [],
         followingAddresses: [],
+        followingProfileIds: [],
       });
     });
 
@@ -120,6 +122,21 @@ describe('SocialController', () => {
       expect(controller.state).toStrictEqual({
         leaderboardEntries: [],
         followingAddresses: ['0xaaaa'],
+        followingProfileIds: [],
+      });
+    });
+
+    it('merges partial initial followingProfileIds with defaults', () => {
+      const { controller } = createController({
+        state: {
+          followingProfileIds: ['550e8400-e29b-41d4-a716-446655440000'],
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        leaderboardEntries: [],
+        followingAddresses: [],
+        followingProfileIds: ['550e8400-e29b-41d4-a716-446655440000'],
       });
     });
   });
@@ -210,7 +227,7 @@ describe('SocialController', () => {
   });
 
   describe('followTrader', () => {
-    it('calls service via messenger and appends new addresses to state', async () => {
+    it('calls service via messenger and appends new addresses and profile IDs to state', async () => {
       const rootMessenger = getRootMessenger();
       const follow = jest
         .fn()
@@ -232,9 +249,12 @@ describe('SocialController', () => {
       expect(controller.state.followingAddresses).toStrictEqual([
         '0x1111111111111111111111111111111111111111',
       ]);
+      expect(controller.state.followingProfileIds).toStrictEqual([
+        '550e8400-e29b-41d4-a716-446655440000',
+      ]);
     });
 
-    it('appends multiple new addresses', async () => {
+    it('appends multiple new addresses and profile IDs', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
@@ -258,9 +278,13 @@ describe('SocialController', () => {
         '0x1111111111111111111111111111111111111111',
         '0x2222222222222222222222222222222222222222',
       ]);
+      expect(controller.state.followingProfileIds).toStrictEqual([
+        '550e8400-e29b-41d4-a716-446655440000',
+        '660e8400-e29b-41d4-a716-446655440001',
+      ]);
     });
 
-    it('deduplicates addresses within the same batch', async () => {
+    it('deduplicates addresses and profile IDs within the same batch', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
@@ -279,6 +303,36 @@ describe('SocialController', () => {
 
       expect(controller.state.followingAddresses).toStrictEqual([
         '0x1111111111111111111111111111111111111111',
+      ]);
+      expect(controller.state.followingProfileIds).toStrictEqual([
+        '550e8400-e29b-41d4-a716-446655440000',
+      ]);
+    });
+
+    it('does not duplicate existing addresses or profile IDs across calls', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:follow',
+        jest.fn().mockResolvedValue({ followed: [mockProfileSummary] }),
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await controller.followTrader({
+        addressOrUid: '0xuser',
+        targets: ['0x1111111111111111111111111111111111111111'],
+      });
+      await controller.followTrader({
+        addressOrUid: '0xuser',
+        targets: ['0x1111111111111111111111111111111111111111'],
+      });
+
+      expect(controller.state.followingAddresses).toStrictEqual([
+        '0x1111111111111111111111111111111111111111',
+      ]);
+      expect(controller.state.followingProfileIds).toStrictEqual([
+        '550e8400-e29b-41d4-a716-446655440000',
       ]);
     });
 
@@ -302,7 +356,7 @@ describe('SocialController', () => {
   });
 
   describe('unfollowTrader', () => {
-    it('calls service via messenger and removes addresses from state', async () => {
+    it('calls service via messenger and removes addresses and profile IDs from state', async () => {
       const rootMessenger = getRootMessenger();
       const unfollow = jest
         .fn()
@@ -315,6 +369,10 @@ describe('SocialController', () => {
           followingAddresses: [
             '0x1111111111111111111111111111111111111111',
             '0x2222222222222222222222222222222222222222',
+          ],
+          followingProfileIds: [
+            '550e8400-e29b-41d4-a716-446655440000',
+            '660e8400-e29b-41d4-a716-446655440001',
           ],
         },
       });
@@ -332,6 +390,9 @@ describe('SocialController', () => {
       expect(controller.state.followingAddresses).toStrictEqual([
         '0x2222222222222222222222222222222222222222',
       ]);
+      expect(controller.state.followingProfileIds).toStrictEqual([
+        '660e8400-e29b-41d4-a716-446655440001',
+      ]);
     });
 
     it('handles unfollowing an address not in state gracefully', async () => {
@@ -344,7 +405,7 @@ describe('SocialController', () => {
 
       const { controller } = createController({
         rootMessenger,
-        state: { followingAddresses: [] },
+        state: { followingAddresses: [], followingProfileIds: [] },
       });
 
       await controller.unfollowTrader({
@@ -353,6 +414,7 @@ describe('SocialController', () => {
       });
 
       expect(controller.state.followingAddresses).toStrictEqual([]);
+      expect(controller.state.followingProfileIds).toStrictEqual([]);
     });
 
     it('is callable via messenger action', async () => {
@@ -375,7 +437,7 @@ describe('SocialController', () => {
   });
 
   describe('updateFollowing', () => {
-    it('calls service via messenger and replaces followingAddresses in state', async () => {
+    it('calls service via messenger and replaces followingAddresses and followingProfileIds in state', async () => {
       const rootMessenger = getRootMessenger();
       const fetchFollowing = jest.fn().mockResolvedValue({
         following: [mockProfileSummary],
@@ -389,7 +451,10 @@ describe('SocialController', () => {
 
       const { controller } = createController({
         rootMessenger,
-        state: { followingAddresses: ['0xold'] },
+        state: {
+          followingAddresses: ['0xold'],
+          followingProfileIds: ['old-profile-id'],
+        },
       });
 
       const result = await controller.updateFollowing({
@@ -403,9 +468,12 @@ describe('SocialController', () => {
       expect(controller.state.followingAddresses).toStrictEqual([
         '0x1111111111111111111111111111111111111111',
       ]);
+      expect(controller.state.followingProfileIds).toStrictEqual([
+        '550e8400-e29b-41d4-a716-446655440000',
+      ]);
     });
 
-    it('clears followingAddresses when response is empty', async () => {
+    it('clears followingAddresses and followingProfileIds when response is empty', async () => {
       const rootMessenger = getRootMessenger();
       mockServiceAction(
         rootMessenger,
@@ -415,12 +483,16 @@ describe('SocialController', () => {
 
       const { controller } = createController({
         rootMessenger,
-        state: { followingAddresses: ['0xold'] },
+        state: {
+          followingAddresses: ['0xold'],
+          followingProfileIds: ['old-profile-id'],
+        },
       });
 
       await controller.updateFollowing({ addressOrUid: '0xuser' });
 
       expect(controller.state.followingAddresses).toStrictEqual([]);
+      expect(controller.state.followingProfileIds).toStrictEqual([]);
     });
 
     it('is callable via messenger action', async () => {

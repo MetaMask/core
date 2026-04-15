@@ -105,6 +105,8 @@ export type TraderStats = {
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
+  /** Median holding time in minutes. */
+  medianHoldMinutes?: number | null;
 };
 
 export type PerChainBreakdown = {
@@ -142,6 +144,8 @@ export type Position = {
   costBasis: number;
   trades: Trade[];
   lastTradeAt: number;
+  /** Daylight-hosted token image URL. */
+  tokenImageUrl?: string | null;
   /** Current USD value of the remaining position (open positions only). */
   currentValueUSD?: number | null;
   /** Unrealized + realized PnL in USD. */
@@ -270,6 +274,8 @@ export type UnfollowOptions = {
 export type SocialControllerState = {
   /** Cached ranked trader list from the last `updateLeaderboard` call. */
   leaderboardEntries: LeaderboardEntry[];
-  /** Addresses the current user follows — drives Follow/Following button state. */
+  /** Wallet addresses the current user follows. */
   followingAddresses: string[];
+  /** Clicker profile IDs the current user follows — used by mobile UI. */
+  followingProfileIds: string[];
 };

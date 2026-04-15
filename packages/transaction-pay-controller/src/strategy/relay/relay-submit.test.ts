@@ -270,6 +270,66 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('uses musdRelayDeposit type when parent transaction is musdConversion', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.musdConversion,
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.musdRelayDeposit,
+        }),
+      );
+    });
+
+    it.each([
+      [TransactionType.predictDeposit, TransactionType.predictRelayDeposit],
+      [TransactionType.perpsDeposit, TransactionType.perpsRelayDeposit],
+      [TransactionType.musdConversion, TransactionType.musdRelayDeposit],
+    ])(
+      'resolves %s from nestedTransactions when type is batch',
+      async (nestedType, expectedType) => {
+        request.transaction = {
+          ...request.transaction,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: nestedType }],
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            type: expectedType,
+          }),
+        );
+      },
+    );
+
+    it('falls back to relayDeposit when type is batch and nestedTransactions have no mapped type', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.batch,
+        nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.relayDeposit,
+        }),
+      );
+    });
+
     it('adds transaction with gas fee token if isSourceGasFeeToken', async () => {
       request.quotes[0].fees.isSourceGasFeeToken = true;
 
