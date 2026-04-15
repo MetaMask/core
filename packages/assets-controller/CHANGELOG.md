@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- Release/904.0.0 ([#8406](https://github.com/MetaMask/core/pull/8406))
+- Revert "Update Release 905.0.0 (#8399) and release 904.0.0 (#8397)" ([#8399](https://github.com/MetaMask/core/pull/8399))
+- Release/904.0.0 ([#8397](https://github.com/MetaMask/core/pull/8397))
+- fix(assets-controller): hardened error handling ([#8389](https://github.com/MetaMask/core/pull/8389))
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- Release/883.0.0 ([#8298](https://github.com/MetaMask/core/pull/8298))
+- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
+- Release/878.0.0 ([#8276](https://github.com/MetaMask/core/pull/8276))
+- Release/842.0.0 ([#8083](https://github.com/MetaMask/core/pull/8083))
+- Release/836.0.0 ([#8046](https://github.com/MetaMask/core/pull/8046))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+- chore: Update `generate-method-action-types` script to be used in a single package ([#7983](https://github.com/MetaMask/core/pull/7983))
+- Release/815.0.0 ([#7953](https://github.com/MetaMask/core/pull/7953))
+- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
+- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+- Release/800.0.0 ([#7874](https://github.com/MetaMask/core/pull/7874))
+- Release/789.0.0 ([#7848](https://github.com/MetaMask/core/pull/7848))
+- Release/786.0.0 ([#7833](https://github.com/MetaMask/core/pull/7833))
+- fix(AssetController): refactor Snap data source ([#7764](https://github.com/MetaMask/core/pull/7764))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- fix(AssetController): switch price from Controller to state ([#7744](https://github.com/MetaMask/core/pull/7744))
+- fix(AssetController): get relevant metadata ([#7735](https://github.com/MetaMask/core/pull/7735))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.2.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447))

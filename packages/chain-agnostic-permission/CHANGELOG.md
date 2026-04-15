@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- Release/880.0.0 ([#8290](https://github.com/MetaMask/core/pull/8290))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
+- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+- feat: bump `accounts` deps + use new `AccountProvider.createAccounts` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- Release 737.0.0 ([#7567](https://github.com/MetaMask/core/pull/7567))
+- Release/711.0.0 ([#7322](https://github.com/MetaMask/core/pull/7322))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
+- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
+- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
+- chore: Remove unused ESLint directives about enum comparisons ([#7160](https://github.com/MetaMask/core/pull/7160))
+- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Release/645.0.0 ([#6986](https://github.com/MetaMask/core/pull/6986))
+- chore: bump multichain accounts deps ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Release 506.0.0 ([#6345](https://github.com/MetaMask/core/pull/6345))
+- chore: bump accounts dependencies ([#6248](https://github.com/MetaMask/core/pull/6248))
+- Release/486.0.0 ([#6241](https://github.com/MetaMask/core/pull/6241))
+- chore: update accounts deps ([#6146](https://github.com/MetaMask/core/pull/6146))
+- refactor: rename adapters to operators ([#6008](https://github.com/MetaMask/core/pull/6008))
+- Release/444.0.0 ([#6004](https://github.com/MetaMask/core/pull/6004))
+- Release/439.0.0 ([#5982](https://github.com/MetaMask/core/pull/5982))
+- Release/401.0.0 ([#5818](https://github.com/MetaMask/core/pull/5818))
+- Release/387.0.0 ([#5760](https://github.com/MetaMask/core/pull/5760))
+- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Release/377.0.0 ([#5715](https://github.com/MetaMask/core/pull/5715))
+- Release/370.0.0 ([#5674](https://github.com/MetaMask/core/pull/5674))
+- export Caip25Errors from @metamask/chain-agnostic-permission package ([#5566](https://github.com/MetaMask/core/pull/5566))
+- Release/345.0.0 ([#5550](https://github.com/MetaMask/core/pull/5550))
+- Release/333.0.0 ([#5499](https://github.com/MetaMask/core/pull/5499))
+- Split up `multichain` package into 3 packages ([#5476](https://github.com/MetaMask/core/pull/5476))
+
 ### Changed
 
 - Bump `@metamask/permission-controller` from `^12.2.1` to `^12.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317))

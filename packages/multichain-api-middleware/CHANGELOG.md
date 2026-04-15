@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- Release/855.0.0 ([#8140](https://github.com/MetaMask/core/pull/8140))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
+- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- Release/713.0.0 ([#7327](https://github.com/MetaMask/core/pull/7327))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
+- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
+- chore: Fix all auto-fixable ESLint warnings ([#7105](https://github.com/MetaMask/core/pull/7105))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- Release/650.0.0 ([#7003](https://github.com/MetaMask/core/pull/7003))
+- Release/611.0.0 ([#6810](https://github.com/MetaMask/core/pull/6810))
+- Release/591.0.0 ([#6751](https://github.com/MetaMask/core/pull/6751))
+- Release/576.0.0 ([#6701](https://github.com/MetaMask/core/pull/6701))
+- Release/492.0.0 ([#6273](https://github.com/MetaMask/core/pull/6273))
+- Release/476.0.0 ([#6171](https://github.com/MetaMask/core/pull/6171))
+- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Release/410.0.0 ([#5864](https://github.com/MetaMask/core/pull/5864))
+- add missing `promptToCreateSolanaAccount` flag ([#5856](https://github.com/MetaMask/core/pull/5856))
+- Release 402.0.0 ([#5820](https://github.com/MetaMask/core/pull/5820))
+- Release 397.0.0 ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Release 388.0.0 ([#5763](https://github.com/MetaMask/core/pull/5763))
+- Release 381.0.0 ([#5729](https://github.com/MetaMask/core/pull/5729))
+- Release/345.0.0 ([#5550](https://github.com/MetaMask/core/pull/5550))
+- Release/333.0.0 ([#5499](https://github.com/MetaMask/core/pull/5499))
+- Split up `multichain` package into 3 packages ([#5476](https://github.com/MetaMask/core/pull/5476))
+
 ### Changed
 
 - Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
+- Release 868.0.0 ([#8222](https://github.com/MetaMask/core/pull/8222))
+- Release 865.0.0 ([#8213](https://github.com/MetaMask/core/pull/8213))
+- perf: Add `accountIdByAddress` to `AccountsController` state ([#7893](https://github.com/MetaMask/core/pull/7893))
+- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+- chore: Update `generate-method-action-types` script to be used in a single package ([#7983](https://github.com/MetaMask/core/pull/7983))
+- chore(profile-metrics-controller): replace `Sinon` with `Jest` in `ProfileMetricsService` tests ([#7916](https://github.com/MetaMask/core/pull/7916))
+- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
+- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+- feat: bump `accounts` deps + use new `AccountProvider.createAccounts` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- Release 753.0.0 ([#7649](https://github.com/MetaMask/core/pull/7649))
+- Release 722.0.0 ([#7472](https://github.com/MetaMask/core/pull/7472))
+- Release 720.0.0 ([#7451](https://github.com/MetaMask/core/pull/7451))
+- chore(lint): Fix suppressed ESLint errors in `profile-metrics-controller` package ([#7432](https://github.com/MetaMask/core/pull/7432))
+- chore: Re-enable `@typescript-eslint/prefer-optional-chain` ([#7314](https://github.com/MetaMask/core/pull/7314))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))

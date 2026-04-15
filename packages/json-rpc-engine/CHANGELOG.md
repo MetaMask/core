@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- Release/889.0.0 ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Release 840.0.0 ([#8078](https://github.com/MetaMask/core/pull/8078))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
+- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+- Release 795.0.0 ([#7856](https://github.com/MetaMask/core/pull/7856))
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- Release/752.0.0 ([#7642](https://github.com/MetaMask/core/pull/7642))
+- chore(lint): Fix suppressed ESLint errors in `json-rpc-engine` package ([#7459](https://github.com/MetaMask/core/pull/7459))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- chore: Re-enable `@typescript-eslint/no-unnecessary-type-assertions` ([#7296](https://github.com/MetaMask/core/pull/7296))
+- chore: Improve `makeRequest` test utility function ([#7297](https://github.com/MetaMask/core/pull/7297))
+- Release/687.0.0 ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Revert "Release 687.0.0" ([#7201](https://github.com/MetaMask/core/pull/7201))
+- Release 687.0.0 ([#7190](https://github.com/MetaMask/core/pull/7190))
+- chore: Remove unused ESLint ignore directives ([#7154](https://github.com/MetaMask/core/pull/7154))
+- chore: Update `typescript` to v5.3 ([#7081](https://github.com/MetaMask/core/pull/7081))
+- chore: Disable ESLint cache by default ([#7082](https://github.com/MetaMask/core/pull/7082))
+- fix: Fix build script not working because of missing `@ts-bridge/cli` dependency ([#7040](https://github.com/MetaMask/core/pull/7040))
+- Release/609.0.0 ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Release/573.0.0 ([#6678](https://github.com/MetaMask/core/pull/6678))
+- chore: update accounts/snaps deps ([#5871](https://github.com/MetaMask/core/pull/5871))
+- fix: typos in documentation files ([#5114](https://github.com/MetaMask/core/pull/5114))
+- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+- Release 274.0.0 ([#5082](https://github.com/MetaMask/core/pull/5082))
+- Fix peer dependency warnings ([#4974](https://github.com/MetaMask/core/pull/4974))
+- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Release 220.0.0 ([#4798](https://github.com/MetaMask/core/pull/4798))
+- Release 202.0.0 ([#4704](https://github.com/MetaMask/core/pull/4704))
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
+- Release 180.0.0 ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
+- json-rpc-engine: Wildcard exports -> named exports ([#4462](https://github.com/MetaMask/core/pull/4462))
+- Bump Yarn to v4 ([#3612](https://github.com/MetaMask/core/pull/3612))
+- Release 159.0.0 ([#4352](https://github.com/MetaMask/core/pull/4352))
+- chore(devDependencies): @lavamoat/allow-scripts@^3.0.2>^3.0.4 ([#4292](https://github.com/MetaMask/core/pull/4292))
+- Release 147.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Release 125.0.0 ([#4048](https://github.com/MetaMask/core/pull/4048))
+- Release 124.0.0 ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Release 123.0.0 ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
+- devDeps: @lavamoat/allow-scripts@^2.3.1->^3.0.2 ([#3940](https://github.com/MetaMask/core/pull/3940))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+- Release 111.0.0 ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Release 104.0.0 ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
+- Check for unused dependencies in lint pipeline ([#2046](https://github.com/MetaMask/core/pull/2046))
+- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
+- Release 90.0.0 ([#2014](https://github.com/MetaMask/core/pull/2014))
+- Revert "Release 90.0.0" ([#2012](https://github.com/MetaMask/core/pull/2012))
+- Release 90.0.0 ([#2011](https://github.com/MetaMask/core/pull/2011))
+- Record CHANGELOG entries from `@metamask/json-rpc-{engine,middleware-stream}` migrations ([#2003](https://github.com/MetaMask/core/pull/2003))
+- Update `@metamask/json-rpc-engine` README to reflect migration into monorepo subpackage ([#1990](https://github.com/MetaMask/core/pull/1990))
+
 ## [10.2.4]
 
 ### Fixed
@@ -308,9 +370,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.0...@metamask/json-rpc-engine@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.0.0...@metamask/json-rpc-engine@7.1.0
-[7.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
-[6.1.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.0.0...json-rpc-engine@6.1.0
-[6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.4.0...json-rpc-engine@6.0.0
-[5.4.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.3.0...json-rpc-engine@5.4.0
-[5.3.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.2.0...json-rpc-engine@5.3.0
-[5.2.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-engine@5.2.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.0.0...@metamask/json-rpc-engine@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.4.0...@metamask/json-rpc-engine@6.0.0
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.3.0...@metamask/json-rpc-engine@5.4.0
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.2.0...@metamask/json-rpc-engine@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-engine@5.2.0

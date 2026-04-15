@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- Release 887.0.0 ([#8311](https://github.com/MetaMask/core/pull/8311))
+- chore: Initialize `react-data-query` package ([#8243](https://github.com/MetaMask/core/pull/8243))
+
 ### Changed
 
 - Bump `@metamask/base-data-service` from `^0.1.0` to `^0.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
