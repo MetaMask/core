@@ -471,27 +471,21 @@ export class RpcService {
   onDegraded(
     listener: CockatielEventToEventListenerWithData<
       ServicePolicy['onDegraded'],
-      { endpointUrl: string; rpcMethodName: string }
+      {
+        duration?: number;
+        endpointUrl: string;
+        rpcMethodName: string;
+        traceId?: string;
+      }
     >,
   ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded((data) => {
-      const commonFields = {
+      listener({
+        ...data,
         endpointUrl: this.endpointUrl.toString(),
         rpcMethodName: this.#currentRpcMethodName,
         traceId: this.#currentTraceId,
-      };
-      if (hasProperty(data, 'duration') && typeof data.duration === 'number') {
-        listener({
-          ...commonFields,
-          duration: data.duration,
-        });
-      } else {
-        listener({
-          ...data,
-          ...commonFields,
-          duration: undefined,
-        });
-      }
+      });
     });
   }
 

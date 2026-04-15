@@ -70,12 +70,7 @@ export type RpcServiceRequestable = {
   onDegraded(
     listener: CockatielEventToEventListenerWithData<
       ServicePolicy['onDegraded'],
-      {
-        endpointUrl: string;
-        rpcMethodName: string;
-        duration?: number;
-        traceId?: string;
-      }
+      { endpointUrl: string; rpcMethodName: string }
     >,
   ): ReturnType<ServicePolicy['onDegraded']>;
 
