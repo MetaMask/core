@@ -1500,7 +1500,7 @@ describe('createServicePolicy', () => {
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
 
-            it('calls onDegraded listeners with { duration } when the request succeeds but is slow', async () => {
+            it('calls onDegraded listeners with duration when the request succeeds but is slow', async () => {
               jest.useFakeTimers();
               const policy = createServicePolicy({
                 degradedThreshold: 2000,

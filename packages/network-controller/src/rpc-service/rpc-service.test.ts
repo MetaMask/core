@@ -1315,6 +1315,58 @@ describe('RpcService', () => {
       );
     });
 
+    it('does not leak a stale traceId when the last retry attempt throws before receiving a response', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      // First attempts return 503 with a trace ID header
+      for (let i = 0; i < DEFAULT_MAX_RETRIES; i++) {
+        nock(endpointUrl)
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_chainId',
+            params: [],
+          })
+          .reply(503, '', { 'x-trace-id': `trace-attempt-${i}` });
+      }
+      // Last attempt throws a network error before a response is received
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .replyWithError('Connection refused');
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        policyOptions: {
+          backoff: new ConstantBackoff(0),
+        },
+        isOffline: (): boolean => false,
+      });
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+      service.onDegraded(onDegradedListener);
+
+      await ignoreRejection(
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        }),
+      );
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith(
+        expect.objectContaining({ traceId: undefined }),
+      );
+    });
+
     it('forwards duration as undefined in the retries-exhausted case', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)

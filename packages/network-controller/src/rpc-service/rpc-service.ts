@@ -452,18 +452,15 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      // Two event shapes reach here:
-      // - Slow-success: data is { duration: number }
-      // - Retries-exhausted: data is FailureReason ({ error } or { value })
       const commonFields = {
         endpointUrl: this.endpointUrl.toString(),
         rpcMethodName: this.#currentRpcMethodName,
         traceId: this.#currentTraceId,
       };
-      if (hasProperty(data, 'duration')) {
+      if (hasProperty(data, 'duration') && typeof data.duration === 'number') {
         listener({
           ...commonFields,
-          duration: data.duration as number,
+          duration: data.duration,
         });
       } else {
         listener({
@@ -661,20 +658,21 @@ export class RpcService implements AbstractRpcService {
             );
             return await response.json();
           } finally {
-            // Track the RPC method for the request that has just taken place.
-            // We pass this property to `onDegraded` event listeners.
+            // Track the RPC method and trace ID for the request that has just
+            // taken place. We pass these properties to `onDegraded` event
+            // listeners.
             //
-            // We set this property after the request completes and not before
-            // the request starts to account for race conditions. That is, if
-            // there are two requests that are being performed concurrently, and
-            // the second request fails fast but the first request succeeds
-            // slowly, when `onDegraded` is called we want it to include the
-            // first request as the RPC method, not the second.
+            // We set these properties after the request completes and not
+            // before the request starts to account for race conditions. That
+            // is, if there are two requests that are being performed
+            // concurrently, and the second request fails fast but the first
+            // request succeeds slowly, when `onDegraded` is called we want it
+            // to include the first request as the RPC method, not the second.
             //
-            // Also, we set this property within a `finally` block inside of the
-            // function passed to `policy.execute` to ensure that it is set
-            // before `onDegraded` gets called, no matter the outcome of the
-            // request.
+            // Also, we set these properties within a `finally` block inside of
+            // the function passed to `policy.execute` to ensure that they are
+            // set before `onDegraded` gets called, no matter the outcome of
+            // the request.
             this.#currentRpcMethodName = rpcMethodName;
             this.#currentTraceId =
               response?.headers.get('x-trace-id') ?? undefined;
