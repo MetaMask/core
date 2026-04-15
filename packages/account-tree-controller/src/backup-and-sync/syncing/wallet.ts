@@ -1,4 +1,3 @@
-import { compareAndSyncMetadata } from './metadata';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
@@ -6,6 +5,7 @@ import type { ProfileId } from '../authentication';
 import { UserStorageSyncedWalletSchema } from '../types';
 import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
+import { compareAndSyncMetadata } from './metadata';
 
 /**
  * Syncs wallet metadata fields and determines if the wallet needs to be pushed to user storage.

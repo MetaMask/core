@@ -2,10 +2,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { TransactionController } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 
-import { isNonEvmChainId, sumHexes } from './bridge';
-import { formatChainIdToCaip } from './caip-formatters';
-import { computeFeeRequest } from './snaps';
-import { extractTradeData, isTronTrade } from './trade-utils';
 import { CHAIN_IDS } from '../constants/chains';
 import type {
   QuoteResponse,
@@ -14,6 +10,10 @@ import type {
   TxData,
   BridgeControllerMessenger,
 } from '../types';
+import { isNonEvmChainId, sumHexes } from './bridge';
+import { formatChainIdToCaip } from './caip-formatters';
+import { computeFeeRequest } from './snaps';
+import { extractTradeData, isTronTrade } from './trade-utils';
 
 /**
  * Appends transaction fees for EVM chains to quotes

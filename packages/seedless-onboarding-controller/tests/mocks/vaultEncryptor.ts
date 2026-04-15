@@ -8,10 +8,10 @@ import { webcrypto } from 'node:crypto';
 
 import type { VaultEncryptor } from '../../src/types';
 
-export default class MockVaultEncryptor
-  implements
-    VaultEncryptor<EncryptionKey | webcrypto.CryptoKey, KeyDerivationOptions>
-{
+export default class MockVaultEncryptor implements VaultEncryptor<
+  EncryptionKey | webcrypto.CryptoKey,
+  KeyDerivationOptions
+> {
   defaultDerivationParams: KeyDerivationOptions = {
     algorithm: 'PBKDF2',
     params: {

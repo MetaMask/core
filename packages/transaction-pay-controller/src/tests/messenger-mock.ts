@@ -2,7 +2,10 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type { BridgeStatusControllerGetStateAction } from '@metamask/bridge-status-controller';
+import type {
+  BridgeStatusControllerGetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+} from '@metamask/bridge-status-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -23,7 +26,6 @@ import type {
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
 import type { TransactionPayControllerMessenger } from '..';
-import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,

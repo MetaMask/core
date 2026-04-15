@@ -14,13 +14,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createBytes } from '@metamask/utils';
 
-import {
-  EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
-  EVM_ACCOUNT_PROVIDER_NAME,
-  EvmAccountProvider,
-  EvmAccountProviderConfig,
-} from './EvmAccountProvider';
-import { TimeoutError } from './utils';
 import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
@@ -33,6 +26,13 @@ import {
   mockAsInternalAccount,
   RootMessenger,
 } from '../tests';
+import {
+  EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+  EVM_ACCOUNT_PROVIDER_NAME,
+  EvmAccountProvider,
+  EvmAccountProviderConfig,
+} from './EvmAccountProvider';
+import { TimeoutError } from './utils';
 
 jest.mock('@ethereumjs/util', () => {
   const actual = jest.requireActual('@ethereumjs/util');

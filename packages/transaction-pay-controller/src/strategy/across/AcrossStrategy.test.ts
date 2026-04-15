@@ -5,16 +5,17 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { AcrossStrategy } from './AcrossStrategy';
-import type { AcrossQuote } from './types';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { getAcrossQuotes } from './across-quotes';
+import { submitAcrossQuotes } from './across-submit';
+import { AcrossStrategy } from './AcrossStrategy';
+import type { AcrossQuote } from './types';
 
 jest.mock('./across-quotes');
 jest.mock('./across-submit');
@@ -91,7 +92,32 @@ describe('AcrossStrategy', () => {
     expect(strategy.supports(baseRequest)).toBe(false);
   });
 
-  it('returns true for perps deposits when other constraints are met', () => {
+  it('returns true for supported perps direct deposits', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for unsupported perps deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({
@@ -101,10 +127,10 @@ describe('AcrossStrategy', () => {
           type: TransactionType.perpsDeposit,
         } as TransactionMeta,
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('returns false for perps across deposits', () => {
+  it('applies generic cross-chain handling to perps across deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({
@@ -114,7 +140,7 @@ describe('AcrossStrategy', () => {
           type: TransactionType.perpsAcrossDeposit,
         } as TransactionMeta,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('returns false for same-chain swaps', () => {

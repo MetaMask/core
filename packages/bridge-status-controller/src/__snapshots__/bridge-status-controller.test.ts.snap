@@ -145,19 +145,6 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
 }
 `;
 
-exports[`BridgeStatusController constructor should setup correctly 1`] = `
-[
-  [
-    "TransactionController:transactionFailed",
-    [Function],
-  ],
-  [
-    "TransactionController:transactionConfirmed",
-    [Function],
-  ],
-]
-`;
-
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [

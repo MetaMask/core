@@ -1,11 +1,11 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { parseRequiredTokens } from './required-tokens';
-import { getTokenBalance, getTokenFiatRate, getTokenInfo } from './token';
 import { toHex } from '../../../controller-utils/src';
 import { NATIVE_TOKEN_ADDRESS } from '../constants';
 import type { TransactionPayControllerMessenger } from '../types';
+import { parseRequiredTokens } from './required-tokens';
+import { getTokenBalance, getTokenFiatRate, getTokenInfo } from './token';
 
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),

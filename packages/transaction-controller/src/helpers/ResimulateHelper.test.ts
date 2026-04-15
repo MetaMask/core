@@ -2,6 +2,15 @@ import { NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
 
+import { CHAIN_IDS } from '../constants';
+import type {
+  TransactionMeta,
+  SecurityAlertResponse,
+  SimulationData,
+  SimulationTokenBalanceChange,
+} from '../types';
+import { TransactionStatus, SimulationTokenStandard } from '../types';
+import { getPercentageChange } from '../utils/utils';
 import {
   ResimulateHelper,
   BLOCK_TIME_ADDITIONAL_SECONDS,
@@ -13,15 +22,6 @@ import {
   RESIMULATE_INTERVAL_MS,
 } from './ResimulateHelper';
 import type { ResimulateHelperOptions } from './ResimulateHelper';
-import { CHAIN_IDS } from '../constants';
-import type {
-  TransactionMeta,
-  SecurityAlertResponse,
-  SimulationData,
-  SimulationTokenBalanceChange,
-} from '../types';
-import { TransactionStatus, SimulationTokenStandard } from '../types';
-import { getPercentageChange } from '../utils/utils';
 
 const CURRENT_TIME_MOCK = 1234567890;
 const CURRENT_TIME_SECONDS_MOCK = 1234567;

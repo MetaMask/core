@@ -1,12 +1,5 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
-import { MetricsSwapType } from './constants';
-import type {
-  InputKeys,
-  InputValues,
-  QuoteWarning,
-  RequestParams,
-} from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import { ChainId } from '../../types';
 import type {
@@ -21,6 +14,13 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters';
+import { MetricsSwapType } from './constants';
+import type {
+  InputKeys,
+  InputValues,
+  QuoteWarning,
+  RequestParams,
+} from './types';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>

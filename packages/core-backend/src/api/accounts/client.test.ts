@@ -2,12 +2,6 @@
  * Accounts API Client Tests - accounts.api.cx.metamask.io
  */
 
-import type {
-  V1SupportedNetworksResponse,
-  V2SupportedNetworksResponse,
-  V2BalancesResponse,
-  V5BalancesResponse,
-} from './types';
 import type { ApiPlatformClient } from '../ApiPlatformClient';
 import { API_URLS, HttpError } from '../shared-types';
 import {
@@ -15,6 +9,12 @@ import {
   createMockResponse,
   setupTestEnvironment,
 } from '../test-utils';
+import type {
+  V1SupportedNetworksResponse,
+  V2SupportedNetworksResponse,
+  V2BalancesResponse,
+  V5BalancesResponse,
+} from './types';
 
 describe('AccountsApiClient', () => {
   let client: ApiPlatformClient;

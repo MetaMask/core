@@ -2,14 +2,14 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import { numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
-import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
-import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
 import type {
   AssetBalance,
   AssetMetadata,
   AssetPrice,
   Caip19AssetId,
 } from '../types';
+import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
+import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
 
 /** Account with id and address for mapping state to legacy format. */
 export type AccountForLegacyFormat = { id: string; address: string };

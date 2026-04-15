@@ -6,8 +6,6 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isNonEvmChainId } from './bridge';
-import { FeatureId } from './validators';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -19,6 +17,8 @@ import type {
   NonEvmFees,
   TxData,
 } from '../types';
+import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { FeatureId } from './validators';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,

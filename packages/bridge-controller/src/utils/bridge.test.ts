@@ -2,6 +2,13 @@ import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import {
+  ETH_USDT_ADDRESS,
+  METABRIDGE_ETHEREUM_ADDRESS,
+} from '../constants/bridge';
+import { CHAIN_IDS } from '../constants/chains';
+import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
+import { ChainId } from '../types';
+import {
   getNativeAssetForChainId,
   isBitcoinChainId,
   isCrossChain,
@@ -12,13 +19,6 @@ import {
   isSwapsDefaultTokenSymbol,
   sumHexes,
 } from './bridge';
-import {
-  ETH_USDT_ADDRESS,
-  METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
-import { ChainId } from '../types';
 
 describe('Bridge utils', () => {
   beforeEach(() => {

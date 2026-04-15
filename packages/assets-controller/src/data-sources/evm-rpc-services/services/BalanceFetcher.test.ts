@@ -1,11 +1,5 @@
 import type { CaipAssetType } from '@metamask/utils';
 
-import { BalanceFetcher } from './BalanceFetcher';
-import type {
-  BalanceFetcherConfig,
-  BalanceFetcherMessenger,
-  BalancePollingInput,
-} from './BalanceFetcher';
 import type { MulticallClient } from '../clients';
 import type {
   Address,
@@ -14,6 +8,12 @@ import type {
   BalanceOfResponse,
   ChainId,
 } from '../types';
+import { BalanceFetcher } from './BalanceFetcher';
+import type {
+  BalanceFetcherConfig,
+  BalanceFetcherMessenger,
+  BalancePollingInput,
+} from './BalanceFetcher';
 
 // =============================================================================
 // CONSTANTS

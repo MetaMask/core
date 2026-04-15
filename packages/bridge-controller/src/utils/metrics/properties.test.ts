@@ -1,6 +1,9 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
+import type { QuoteResponse } from '../../types';
+import { getNativeAssetForChainId } from '../bridge';
+import { formatChainIdToCaip } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
 import {
   toInputChangedPropertyKey,
@@ -10,9 +13,6 @@ import {
   getRequestParams,
   getQuotesReceivedProperties,
 } from './properties';
-import type { QuoteResponse } from '../../types';
-import { getNativeAssetForChainId } from '../bridge';
-import { formatChainIdToCaip } from '../caip-formatters';
 
 describe('properties', () => {
   beforeEach(() => {

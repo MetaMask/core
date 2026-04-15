@@ -4,11 +4,6 @@ import type {
 } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
-import {
-  IncomingTransactionHelper,
-  WebSocketState,
-} from './IncomingTransactionHelper';
 import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { TransactionStatus, TransactionType } from '../types';
@@ -17,6 +12,11 @@ import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
+import {
+  IncomingTransactionHelper,
+  WebSocketState,
+} from './IncomingTransactionHelper';
 
 jest.useFakeTimers();
 

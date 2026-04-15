@@ -11,8 +11,6 @@ import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import { selectAssetsBySelectedAccountGroup } from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
@@ -21,6 +19,8 @@ import type { MultichainBalancesControllerState } from '../MultichainBalancesCon
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
+import { selectAssetsBySelectedAccountGroup } from './token-selectors';
 
 const mockTokensControllerState: TokensControllerState = {
   allTokens: {

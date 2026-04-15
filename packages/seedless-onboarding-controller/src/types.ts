@@ -2,11 +2,7 @@ import type { Encryptor } from '@metamask/keyring-controller';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type {
-  AuthConnection,
-  SecretMetadataVersion,
-  SecretType,
-} from './constants';
+import type { AuthConnection, SecretType } from './constants';
 
 /**
  * The backup state of the secret data.
@@ -175,6 +171,12 @@ export type SeedlessOnboardingControllerState =
        * Whether the user is authenticated with social login and TOPRF service.
        */
       isSeedlessOnboardingUserAuthenticated: boolean;
+
+      /**
+       * Tracks which seedless onboarding migrations have been applied.
+       * Used to prevent re-running migrations.
+       */
+      migrationVersion: number;
     };
 
 /**
@@ -274,24 +276,6 @@ export type DeserializedVaultData = Pick<
 };
 
 export type SecretDataType = Uint8Array | string | number;
-
-/**
- * The constructor options for the seed phrase metadata.
- */
-export type SecretMetadataOptions = {
-  /**
-   * The timestamp when the seed phrase was created.
-   */
-  timestamp: number;
-  /**
-   * The type of the seed phrase.
-   */
-  type: SecretType;
-  /**
-   * The version of the seed phrase metadata.
-   */
-  version: SecretMetadataVersion;
-};
 
 export type DecodedNodeAuthToken = {
   /**

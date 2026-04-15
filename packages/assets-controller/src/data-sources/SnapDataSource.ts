@@ -16,11 +16,6 @@ import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { AbstractDataSource } from './AbstractDataSource';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
@@ -31,6 +26,11 @@ import type {
   DataResponse,
   Middleware,
 } from '../types';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES

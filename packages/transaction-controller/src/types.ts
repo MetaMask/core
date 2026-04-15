@@ -802,6 +802,11 @@ export enum TransactionType {
   musdConversion = 'musdConversion',
 
   /**
+   * Deposit funds for a Relay quote when the parent transaction is an mUSD conversion.
+   */
+  musdRelayDeposit = 'musdRelayDeposit',
+
+  /**
    * Deposit funds for Across quote via Perps.
    */
   perpsAcrossDeposit = 'perpsAcrossDeposit',
@@ -1808,6 +1813,14 @@ export type TransactionBatchSingleRequest = {
  * Currently only atomic batches are supported via EIP-7702.
  */
 export type TransactionBatchRequest = {
+  /**
+   * Whether the EIP-7702 batch transaction should be executed atomically.
+   * When `true` (default), all calls in the batch either succeed or revert together.
+   * When `false`, calls are independent — individual calls can fail without
+   * reverting the entire batch.
+   */
+  atomic?: boolean;
+
   batchId?: Hex;
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */

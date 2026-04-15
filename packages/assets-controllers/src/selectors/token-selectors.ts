@@ -16,10 +16,6 @@ import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 import { TokenRwaData } from 'src/token-service';
 
-import {
-  parseBalanceWithDecimals,
-  stringifyBalanceWithDecimals,
-} from './stringify-balance';
 import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
@@ -32,6 +28,10 @@ import {
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import {
+  parseBalanceWithDecimals,
+  stringifyBalanceWithDecimals,
+} from './stringify-balance';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {

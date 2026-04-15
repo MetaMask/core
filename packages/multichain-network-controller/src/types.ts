@@ -23,7 +23,7 @@ import type {
 } from '@metamask/network-controller';
 
 import type { ActiveNetworksByAddress } from './api/accounts-api';
-import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
+import type { MultichainNetworkControllerMethodActions } from './MultichainNetworkController/MultichainNetworkController-method-action-types';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -132,21 +132,6 @@ export type MultichainNetworkControllerGetStateAction =
     MultichainNetworkControllerState
   >;
 
-export type SetActiveNetworkMethod = (
-  id: SupportedCaipChainId | NetworkClientId,
-) => Promise<void>;
-
-export type MultichainNetworkControllerSetActiveNetworkAction = {
-  type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:setActiveNetwork`;
-  handler: SetActiveNetworkMethod;
-};
-
-export type MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction =
-  {
-    type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithTransactionActivityByAccounts`;
-    handler: MultichainNetworkController['getNetworksWithTransactionActivityByAccounts'];
-  };
-
 /**
  * Event emitted when the state of the {@link MultichainNetworkController} changes.
  */
@@ -165,8 +150,7 @@ export type MultichainNetworkControllerNetworkDidChangeEvent = {
  */
 export type MultichainNetworkControllerActions =
   | MultichainNetworkControllerGetStateAction
-  | MultichainNetworkControllerSetActiveNetworkAction
-  | MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction;
+  | MultichainNetworkControllerMethodActions;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.

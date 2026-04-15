@@ -21,8 +21,6 @@ import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { Semaphore } from 'async-mutex';
 
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
-import { withTimeout } from './utils';
 import {
   toCreateAccountsV2DataTraces,
   traceFallback,
@@ -31,6 +29,8 @@ import {
 import { reportError } from '../errors';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { withTimeout } from './utils';
 
 export type RestrictedSnapKeyring = {
   createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;

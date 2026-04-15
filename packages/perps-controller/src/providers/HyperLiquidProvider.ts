@@ -1,4 +1,4 @@
-import { CaipAccountId } from '@metamask/utils';
+import { CaipAccountId, hasProperty } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -1968,14 +1968,19 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Check order status
       const status = result.response?.data?.statuses?.[0];
-      if (isStatusObject(status) && 'error' in status) {
+      if (isStatusObject(status) && hasProperty(status, 'error')) {
         return { success: false, error: String(status.error) };
       }
 
+      // Note: `in` narrows the HyperLiquid SDK discriminated union to the
+      // branch that has `filled`; `hasProperty` only narrows the key and
+      // types `status.filled` as `unknown`, which loses access to `.totalSz`.
+      /* eslint-disable no-restricted-syntax */
       const filledSize =
         isStatusObject(status) && 'filled' in status
           ? parseFloat(status.filled?.totalSz ?? '0')
           : 0;
+      /* eslint-enable no-restricted-syntax */
 
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: USDC→USDH swap completed',
@@ -3426,10 +3431,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const status = result.response?.data?.statuses?.[0];
+      // Note: `in` narrows the HyperLiquid SDK discriminated union to the
+      // branch that has the property; `hasProperty` types the property as
+      // `unknown`, losing downstream access to `.oid`, `.totalSz`, `.avgPx`.
+      /* eslint-disable no-restricted-syntax */
       const restingOrder =
         isStatusObject(status) && 'resting' in status ? status.resting : null;
       const filledOrder =
         isStatusObject(status) && 'filled' in status ? status.filled : null;
+      /* eslint-enable no-restricted-syntax */
 
       // Success - auto-rebalance excess funds
       if (isHip3Order && transferInfo && dexName) {
@@ -4143,7 +4153,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       const { statuses } = result.response.data;
       const successCount = statuses.filter(
         (stat) =>
-          isStatusObject(stat) && ('filled' in stat || 'resting' in stat),
+          isStatusObject(stat) &&
+          (hasProperty(stat, 'filled') || hasProperty(stat, 'resting')),
       ).length;
       const failureCount = statuses.length - successCount;
 
@@ -4153,7 +4164,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           const status = statuses[i];
           const isSuccess =
             isStatusObject(status) &&
-            ('filled' in status || 'resting' in status);
+            (hasProperty(status, 'filled') || hasProperty(status, 'resting'));
 
           if (isSuccess && hip3Transfers[i]) {
             const { sourceDex, freedMargin } = hip3Transfers[i];
@@ -4179,9 +4190,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           symbol: positionsToClose[index].symbol,
           success:
             isStatusObject(status) &&
-            ('filled' in status || 'resting' in status),
+            (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
           error:
-            isStatusObject(status) && 'error' in status
+            isStatusObject(status) && hasProperty(status, 'error')
               ? String(status.error)
               : undefined,
         })),
@@ -4339,21 +4350,24 @@ export class HyperLiquidProvider implements PerpsProvider {
           { cachedOrdersCount: cachedOrders.length },
         );
 
-        // Filter using normalized Order type properties
-        // Note: Cached orders don't have isPositionTpsl, but we identify TP/SL orders by:
+        // Filter using normalized Order type properties, matching the REST fallback criteria:
+        // - symbol matches
         // - isTrigger === true
         // - reduceOnly === true
+        // - isPositionTpsl matches the configured mode (only cancel position-bound TP/SL,
+        //   not normalTpsl children that belong to pending limit orders)
         // - detailedOrderType contains 'Take Profit' or 'Stop'
         const tpslOrders = cachedOrders.filter(
           (order) =>
             order.symbol === symbol &&
             order.reduceOnly === true &&
             order.isTrigger === true &&
+            order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
             order.detailedOrderType &&
             (order.detailedOrderType.includes('Take Profit') ||
               order.detailedOrderType.includes('Stop')),
         );
-
         cancelRequests = tpslOrders.map((order) => ({
           a: assetId,
           o: parseInt(order.orderId, 10),
@@ -4942,11 +4956,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
             // Find TP/SL orders for this position
             // First check direct trigger orders (raw SDK uses 'coin', adapted position uses 'symbol')
+            // Only match position-bound TP/SL orders when UsePositionBoundTpsl is enabled,
+            // to avoid picking up normalTpsl children from pending limit orders
             const positionOrders = allOrders.filter(
               (order) =>
                 order.coin === position.symbol &&
                 order.isTrigger &&
-                order.reduceOnly,
+                order.reduceOnly &&
+                order.isPositionTpsl ===
+                  Boolean(TP_SL_CONFIG.UsePositionBoundTpsl),
             );
 
             // Also check for parent orders that might have TP/SL children
@@ -5411,38 +5429,99 @@ export class HyperLiquidProvider implements PerpsProvider {
         params?.accountId,
       );
 
-      // HyperLiquid API requires startTime to be a number (not undefined)
-      // Default to configured days ago to get recent funding payments
-      // Using 0 (epoch) would return oldest 500 records, missing latest payments
-      const defaultStartTime =
-        Date.now() -
-        PERPS_TRANSACTIONS_HISTORY_CONSTANTS.DEFAULT_FUNDING_HISTORY_DAYS *
-          24 *
-          60 *
-          60 *
-          1000;
-      const rawFunding = await infoClient.userFunding({
-        user: userAddress,
-        startTime: params?.startTime ?? defaultStartTime,
-        endTime: params?.endTime,
+      // On-demand loading: the default window is one 30-day page so the
+      // initial fetch costs exactly 1 API call (~24 weight vs 312 previously).
+      // When loadMoreFunding in usePerpsTransactionHistory passes explicit
+      // startTime/endTime for an older 30-day page the while-loop below still
+      // produces exactly 1 chunk. The 365-day max lookback is enforced by the
+      // caller.
+      //
+      // Each chunk is fetched via fetchWindowWithAutoSplit: if a call returns
+      // FUNDING_HISTORY_API_LIMIT records the window has hit the API cap and
+      // the oldest records would be silently dropped. The function splits the
+      // window in half and recurses until every sub-window is under the cap,
+      // guaranteeing complete results regardless of position count or activity.
+      const finalEndTime = params?.endTime ?? Date.now();
+      const pageWindowMs =
+        PERPS_TRANSACTIONS_HISTORY_CONSTANTS.FUNDING_HISTORY_PAGE_WINDOW_DAYS *
+        24 *
+        60 *
+        60 *
+        1000;
+      const finalStartTime = params?.startTime ?? finalEndTime - pageWindowMs; // Default: most recent 30-day window only
+
+      const minSplitWindowMs =
+        PERPS_TRANSACTIONS_HISTORY_CONSTANTS.MIN_SPLIT_WINDOW_MS;
+      const apiLimit =
+        PERPS_TRANSACTIONS_HISTORY_CONSTANTS.FUNDING_HISTORY_API_LIMIT;
+
+      // Fetches a single window. If the result hits the API cap the window is
+      // split in half and both halves are fetched in parallel, recursively,
+      // until every sub-window is under the cap.
+      const fetchWindowWithAutoSplit = async (
+        windowStart: number,
+        windowEnd: number,
+      ): Promise<Awaited<ReturnType<typeof infoClient.userFunding>>> => {
+        const result = await infoClient.userFunding({
+          user: userAddress,
+          startTime: windowStart,
+          endTime: windowEnd,
+        });
+        const records = result ?? [];
+        if (
+          records.length >= apiLimit &&
+          windowEnd - windowStart > minSplitWindowMs
+        ) {
+          const mid = windowStart + Math.floor((windowEnd - windowStart) / 2);
+          const [left, right] = await Promise.all([
+            fetchWindowWithAutoSplit(windowStart, mid),
+            fetchWindowWithAutoSplit(mid, windowEnd),
+          ]);
+          return [...(left ?? []), ...(right ?? [])];
+        }
+        return records;
+      };
+
+      const chunks: { start: number; end: number }[] = [];
+      let chunkEnd = finalEndTime;
+      while (chunkEnd > finalStartTime) {
+        const chunkStart = Math.max(finalStartTime, chunkEnd - pageWindowMs);
+        chunks.push({ start: chunkStart, end: chunkEnd });
+        chunkEnd = chunkStart;
+      }
+
+      const pages = await Promise.all(
+        chunks.map((chunk) => fetchWindowWithAutoSplit(chunk.start, chunk.end)),
+      );
+
+      // Deduplicate at chunk boundaries — adjacent windows share their boundary
+      // timestamp (chunkEnd of N === chunkStart of N+1) and the API is
+      // inclusive on both sides, so a record can appear in both adjacent calls.
+      // Funding records share a zero hash, so we key on time + coin instead.
+      const seen = new Set<string>();
+      const allRaw = pages.flat().filter((record) => {
+        const key = `${record.time}-${record.delta.coin}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
       });
+      allRaw.sort((a, b) => a.time - b.time);
 
       this.#deps.debugLogger.log('User funding received:', {
-        count: rawFunding?.length ?? 0,
+        count: allRaw.length,
+        chunks: chunks.length,
       });
 
       // Transform HyperLiquid funding to abstract Funding type
-      const funding: Funding[] = (rawFunding || []).map((rawFundingItem) => {
-        const { delta, hash, time } = rawFundingItem;
-
-        return {
-          symbol: delta.coin,
-          amountUsd: delta.usdc,
-          rate: delta.fundingRate,
-          timestamp: time,
-          transactionHash: hash,
-        };
-      });
+      const funding: Funding[] = allRaw.map(({ delta, hash, time }) => ({
+        symbol: delta.coin,
+        amountUsd: delta.usdc,
+        rate: delta.fundingRate,
+        timestamp: time,
+        transactionHash: hash,
+      }));
 
       return funding;
     } catch (error) {
@@ -5998,7 +6077,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Extract HIP-3 DEX names (filter out null which is main DEX)
       const hip3DexNames: string[] = [];
       allDexs.forEach((dex) => {
-        if (dex !== null && 'name' in dex) {
+        if (dex !== null && hasProperty(dex, 'name')) {
           hip3DexNames.push(dex.name);
         }
       });

@@ -1,10 +1,5 @@
 import { mask } from '@metamask/superstruct';
 
-import {
-  assertValidUserStorageWallet,
-  assertValidUserStorageGroup,
-  assertValidLegacyUserStorageAccount,
-} from './validation';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
@@ -16,6 +11,11 @@ import type {
 } from '../types';
 import { UserStorageSyncedWalletGroupSchema } from '../types';
 import { toErrorMessage } from '../utils/errors';
+import {
+  assertValidUserStorageWallet,
+  assertValidUserStorageGroup,
+  assertValidLegacyUserStorageAccount,
+} from './validation';
 
 /**
  * Formats the wallet for user storage usage.

@@ -1,5 +1,11 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
 
+import type { AccountTreeController } from '../../AccountTreeController';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletKeyringObject,
+} from '../../wallet';
+import type { BackupAndSyncContext } from '../types';
 import {
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
@@ -8,12 +14,6 @@ import {
   getLocalGroupForEntropyWallet,
 } from './controller';
 import type { StateSnapshot } from './controller';
-import type { AccountTreeController } from '../../AccountTreeController';
-import type {
-  AccountWalletEntropyObject,
-  AccountWalletKeyringObject,
-} from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
 
 describe('BackupAndSyncUtils - Controller', () => {
   let mockContext: BackupAndSyncContext;

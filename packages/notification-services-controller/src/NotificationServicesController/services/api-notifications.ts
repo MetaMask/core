@@ -1,6 +1,5 @@
 import log from 'loglevel';
 
-import { notificationsConfigCache } from './notification-config-cache';
 import { toRawAPINotification } from '../../shared/to-raw-notification';
 import type {
   NormalisedAPINotification,
@@ -8,6 +7,7 @@ import type {
   UnprocessedRawNotification,
 } from '../types/notification-api';
 import { makeApiCall } from '../utils/utils';
+import { notificationsConfigCache } from './notification-config-cache';
 
 export type NotificationTrigger = {
   id: string;

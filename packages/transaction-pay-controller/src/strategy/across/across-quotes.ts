@@ -3,15 +3,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAcrossDestination } from './across-actions';
-import { getAcrossOrderedTransactions } from './transactions';
-import type {
-  AcrossAction,
-  AcrossActionRequestBody,
-  AcrossGasLimits,
-  AcrossQuote,
-  AcrossSwapApprovalResponse,
-} from './types';
 import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -27,6 +18,16 @@ import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
+import { getAcrossDestination } from './across-actions';
+import { normalizeAcrossRequest } from './perps';
+import { getAcrossOrderedTransactions } from './transactions';
+import type {
+  AcrossAction,
+  AcrossActionRequestBody,
+  AcrossGasLimits,
+  AcrossQuote,
+  AcrossSwapApprovalResponse,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
@@ -80,6 +81,7 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, transaction } = fullRequest;
+  const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
   const {
     from,
     isMaxAmount,
@@ -89,7 +91,7 @@ async function getSingleQuote(
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
-  } = request;
+  } = normalizedRequest;
 
   const config = getPayStrategiesConfig(messenger);
   const slippageDecimal = getSlippage(
@@ -123,7 +125,7 @@ async function getSingleQuote(
     },
   };
 
-  return await normalizeQuote(originalQuote, request, fullRequest);
+  return await normalizeQuote(originalQuote, normalizedRequest, fullRequest);
 }
 
 type AcrossApprovalRequest = {

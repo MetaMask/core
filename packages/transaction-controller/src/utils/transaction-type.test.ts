@@ -8,14 +8,14 @@ import {
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionType } from '../types';
 import { DELEGATION_PREFIX } from './eip7702';
 import { rpcRequest } from './provider';
 import {
   decodeTransactionData,
   determineTransactionType,
 } from './transaction-type';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionType } from '../types';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),

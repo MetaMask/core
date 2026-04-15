@@ -1,8 +1,8 @@
+import type { AssetBalance, AssetMetadata, FungibleAssetPrice } from '../types';
 import {
   formatStateForTransactionPay,
   AccountForLegacyFormat,
 } from './formatStateForTransactionPay';
-import type { AssetBalance, AssetMetadata, FungibleAssetPrice } from '../types';
 
 function price(
   overrides: Partial<FungibleAssetPrice> & { price: number },

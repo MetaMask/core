@@ -631,10 +631,10 @@ export type PermissionControllerOptions<
  * caveat specifications available to the controller.
  */
 export class PermissionController<
-  ControllerPermissionSpecification extends
-    PermissionSpecificationConstraint = PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends
-    CaveatSpecificationConstraint = CaveatSpecificationConstraint,
+  ControllerPermissionSpecification extends PermissionSpecificationConstraint =
+    PermissionSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint =
+    CaveatSpecificationConstraint,
 > extends BaseController<
   typeof controllerName,
   PermissionControllerState<

@@ -11,11 +11,6 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 
-import type {
-  BridgeFeatureFlags,
-  TransactionPayBridgeQuote,
-  BridgeQuoteRequest,
-} from './types';
 import { TransactionPayStrategy } from '../..';
 import { projectLogger } from '../../logger';
 import type {
@@ -29,6 +24,11 @@ import type {
 } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
+import type {
+  BridgeFeatureFlags,
+  TransactionPayBridgeQuote,
+  BridgeQuoteRequest,
+} from './types';
 
 const ERROR_MESSAGE_NO_QUOTES = 'No quotes found';
 const ERROR_MESSAGE_ALL_QUOTES_UNDER_MINIMUM = 'All quotes under minimum';
