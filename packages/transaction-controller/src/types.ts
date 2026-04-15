@@ -802,6 +802,11 @@ export enum TransactionType {
   musdConversion = 'musdConversion',
 
   /**
+   * Deposit funds for a Relay quote when the parent transaction is an mUSD conversion.
+   */
+  musdRelayDeposit = 'musdRelayDeposit',
+
+  /**
    * Deposit funds for Across quote via Perps.
    */
   perpsAcrossDeposit = 'perpsAcrossDeposit',
