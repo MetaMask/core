@@ -958,5 +958,4 @@ export type FooAction = {
       expect(items[0].jsDoc).toContain('Text after empty asterisk.');
     });
   });
-
 });
