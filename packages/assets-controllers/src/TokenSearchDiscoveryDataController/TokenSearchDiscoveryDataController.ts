@@ -7,7 +7,6 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { TokenDisplayData } from './types';
 import { formatIconUrlWithProxy } from '../assetsUtil';
 import type { GetCurrencyRateState } from '../CurrencyRateController';
 import type { AbstractTokenPricesService } from '../token-prices-service';
@@ -16,6 +15,7 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from '../token-service';
 import type { TokenListToken } from '../TokenListController';
+import type { TokenDisplayData } from './types';
 
 // === GENERAL ===
 

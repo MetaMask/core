@@ -5,16 +5,16 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createDeferredPromise } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { refreshQuote } from './bridge-quotes';
-import type { SubmitBridgeQuotesRequest } from './bridge-submit';
-import { submitBridgeQuotes } from './bridge-submit';
-import type { TransactionPayBridgeQuote } from './types';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type { TransactionPayQuote } from '../../types';
 import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { refreshQuote } from './bridge-quotes';
+import type { SubmitBridgeQuotesRequest } from './bridge-submit';
+import { submitBridgeQuotes } from './bridge-submit';
+import type { TransactionPayBridgeQuote } from './types';
 
 jest.mock('./bridge-quotes');
 

@@ -1,9 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
-import { SequentialPublishBatchHook } from './SequentialPublishBatchHook';
 import { flushPromises } from '../../../../tests/helpers';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import type { PublishBatchHookTransaction, TransactionMeta } from '../types';
+import { SequentialPublishBatchHook } from './SequentialPublishBatchHook';
 
 const TRANSACTION_HASH_MOCK = '0x123';
 const TRANSACTION_HASH_2_MOCK = '0x456';

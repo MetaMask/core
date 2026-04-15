@@ -12,8 +12,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { getAcrossOrderedTransactions } from './transactions';
-import type { AcrossQuote } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -27,6 +25,8 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { getAcrossOrderedTransactions } from './transactions';
+import type { AcrossQuote } from './types';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 const ACROSS_STATUS_POLL_INTERVAL = 1000;

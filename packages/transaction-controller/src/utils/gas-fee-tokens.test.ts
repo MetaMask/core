@@ -1,6 +1,13 @@
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import type {
+  GasFeeToken,
+  GetSimulationConfig,
+  TransactionControllerMessenger,
+  TransactionMeta,
+} from '..';
+import { simulateTransactions } from '../api/simulation-api';
 import { isNativeBalanceSufficientForGas } from './balance';
 import { doesChainSupportEIP7702 } from './eip7702';
 import { getEIP7702UpgradeContractAddress } from './feature-flags';
@@ -9,13 +16,6 @@ import {
   checkGasFeeTokenBeforePublish,
   getGasFeeTokens,
 } from './gas-fee-tokens';
-import type {
-  GasFeeToken,
-  GetSimulationConfig,
-  TransactionControllerMessenger,
-  TransactionMeta,
-} from '..';
-import { simulateTransactions } from '../api/simulation-api';
 
 jest.mock('../api/simulation-api');
 jest.mock('./eip7702');

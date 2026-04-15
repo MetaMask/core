@@ -1,11 +1,11 @@
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 
+import type { WalletMiddlewareParams } from '../wallet';
 import type {
   GetSupportedExecutionPermissionsResult,
   ProcessGetSupportedExecutionPermissionsHook,
 } from './wallet-get-supported-execution-permissions';
 import { createWalletGetSupportedExecutionPermissionsHandler } from './wallet-get-supported-execution-permissions';
-import type { WalletMiddlewareParams } from '../wallet';
 
 const RESULT_MOCK: GetSupportedExecutionPermissionsResult = {
   'native-token-allowance': {

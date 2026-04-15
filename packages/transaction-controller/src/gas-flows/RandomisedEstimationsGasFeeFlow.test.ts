@@ -2,11 +2,6 @@ import { toHex } from '@metamask/controller-utils';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import {
-  RandomisedEstimationsGasFeeFlow,
-  randomiseDecimalGWEIAndConvertToHex,
-} from './RandomisedEstimationsGasFeeFlow';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
@@ -20,6 +15,11 @@ import {
   TransactionStatus,
 } from '../types';
 import { getGasFeeRandomisation } from '../utils/feature-flags';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+import {
+  RandomisedEstimationsGasFeeFlow,
+  randomiseDecimalGWEIAndConvertToHex,
+} from './RandomisedEstimationsGasFeeFlow';
 
 jest.mock('./DefaultGasFeeFlow');
 jest.mock('../utils/feature-flags');

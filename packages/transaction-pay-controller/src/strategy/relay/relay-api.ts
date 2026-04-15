@@ -1,5 +1,7 @@
 import { successfulFetch } from '@metamask/controller-utils';
 
+import type { TransactionPayControllerMessenger } from '../../types';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import { RELAY_STATUS_URL } from './constants';
 import type {
   RelayExecuteRequest,
@@ -8,8 +10,6 @@ import type {
   RelayQuoteRequest,
   RelayStatusResponse,
 } from './types';
-import type { TransactionPayControllerMessenger } from '../../types';
-import { getFeatureFlags } from '../../utils/feature-flags';
 
 /**
  * Fetch a quote from the Relay API.

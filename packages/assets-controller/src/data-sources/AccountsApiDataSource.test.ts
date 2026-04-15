@@ -5,6 +5,12 @@ import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type {
+  ChainId,
+  DataRequest,
+  Context,
+  AssetsControllerStateInternal,
+} from '../types';
+import type {
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceAllowedActions,
 } from './AccountsApiDataSource';
@@ -12,12 +18,6 @@ import {
   AccountsApiDataSource,
   filterResponseToKnownAssets,
 } from './AccountsApiDataSource';
-import type {
-  ChainId,
-  DataRequest,
-  Context,
-  AssetsControllerStateInternal,
-} from '../types';
 
 type AllActions = AccountsApiDataSourceAllowedActions;
 type AllEvents = never;

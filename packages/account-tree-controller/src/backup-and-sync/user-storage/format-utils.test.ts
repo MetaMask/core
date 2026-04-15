@@ -1,3 +1,7 @@
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import {
   formatWalletForUserStorageUsage,
   formatGroupForUserStorageUsage,
@@ -10,10 +14,6 @@ import {
   assertValidUserStorageGroup,
   assertValidLegacyUserStorageAccount,
 } from './validation';
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 
 jest.mock('./validation');
 jest.mock('../../logger');

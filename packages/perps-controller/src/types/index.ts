@@ -1,3 +1,4 @@
+import { hasProperty } from '@metamask/utils';
 import type {
   CaipAccountId,
   CaipChainId,
@@ -5,8 +6,8 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { CandleData, OrderType } from './perps-types';
 import type { CandlePeriod, TimeDuration } from '../constants/chartConfig';
+import type { CandleData, OrderType } from './perps-types';
 
 /**
  * Connection states for WebSocket management.
@@ -1643,8 +1644,8 @@ export function isVersionGatedFeatureFlag(
   return (
     typeof value === 'object' &&
     value !== null &&
-    'enabled' in value &&
-    'minimumVersion' in value &&
+    hasProperty(value, 'enabled') &&
+    hasProperty(value, 'minimumVersion') &&
     typeof (value as { enabled: unknown }).enabled === 'boolean' &&
     typeof (value as { minimumVersion: unknown }).minimumVersion === 'string'
   );

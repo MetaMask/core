@@ -3,6 +3,19 @@ import { remove0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
+} from '../api/simulation-api';
+import { simulateTransactions } from '../api/simulation-api';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionEnvelopeType } from '../types';
+import type { TransactionMeta } from '../types';
+import type {
+  AuthorizationList,
+  BatchTransactionParams,
+  TransactionBatchSingleRequest,
+} from '../types';
 import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import type { UpdateGasRequest } from './gas';
@@ -19,19 +32,6 @@ import {
   simulateGasBatch,
 } from './gas';
 import { rpcRequest } from './provider';
-import type {
-  SimulationResponse,
-  SimulationResponseTransaction,
-} from '../api/simulation-api';
-import { simulateTransactions } from '../api/simulation-api';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType } from '../types';
-import type { TransactionMeta } from '../types';
-import type {
-  AuthorizationList,
-  BatchTransactionParams,
-  TransactionBatchSingleRequest,
-} from '../types';
 
 jest.mock('./provider', () => ({
   ...jest.requireActual('./provider'),

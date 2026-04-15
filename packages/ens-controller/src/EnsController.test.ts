@@ -17,15 +17,15 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 
+import {
+  buildMockGetNetworkClientById,
+  buildCustomNetworkClientConfiguration,
+} from '../../network-controller/tests/helpers';
 import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
 import type {
   EnsControllerState,
   EnsControllerMessenger,
 } from './EnsController';
-import {
-  buildMockGetNetworkClientById,
-  buildCustomNetworkClientConfiguration,
-} from '../../network-controller/tests/helpers';
 
 const defaultState: EnsControllerState = {
   ensEntries: {},

@@ -4,10 +4,10 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getGasBuffer } from './feature-flags';
-import { estimateGasLimit } from './gas';
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
+import { getGasBuffer } from './feature-flags';
+import { estimateGasLimit } from './gas';
 
 const log = createModuleLogger(projectLogger, 'quote-gas');
 

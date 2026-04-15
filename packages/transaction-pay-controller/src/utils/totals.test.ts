@@ -1,7 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { calculateTransactionGasCost } from './gas';
-import { calculateTotals } from './totals';
 import { TransactionPayStrategy } from '..';
 import type { TransactionPayControllerMessenger } from '..';
 import type {
@@ -9,6 +7,8 @@ import type {
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../types';
+import { calculateTransactionGasCost } from './gas';
+import { calculateTotals } from './totals';
 
 jest.mock('./gas');
 

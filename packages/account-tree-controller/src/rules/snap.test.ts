@@ -10,13 +10,13 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 
-import { SnapRule } from './snap';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
 import type { AccountWalletObjectOf, AccountWalletSnapObject } from '../wallet';
+import { SnapRule } from './snap';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,

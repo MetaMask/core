@@ -1,12 +1,12 @@
 import { StatusTypes } from '@metamask/bridge-controller';
 import type { Quote } from '@metamask/bridge-controller';
 
-import { getHistoryKey, rekeyHistoryItemInState } from './history';
 import type {
   BridgeStatusControllerState,
   BridgeHistoryItem,
   StatusResponse,
 } from '../types';
+import { getHistoryKey, rekeyHistoryItemInState } from './history';
 
 describe('History Utils', () => {
   describe('rekeyHistoryItemInState', () => {

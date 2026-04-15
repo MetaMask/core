@@ -173,6 +173,16 @@ type BridgePollingInput = {
     >[UnifiedSwapBridgeEventName.QuotesRequested];
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'updateBridgeQuoteRequestParams',
+  'fetchQuotes',
+  'stopPollingForQuotes',
+  'setLocation',
+  'resetState',
+  'setChainIntervalLength',
+  'trackUnifiedSwapBridgeEvent',
+] as const;
+
 export class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
   typeof BRIDGE_CONTROLLER_NAME,
   BridgeControllerState,
@@ -278,30 +288,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
 
-    // Register action handlers
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
-      this.setChainIntervalLength.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
-      this.updateBridgeQuoteRequestParams.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:resetState`,
-      this.resetState.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
-      this.trackUnifiedSwapBridgeEvent.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
-      this.stopPollingForQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
-      this.fetchQuotes.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

@@ -1,7 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import type { RewardsIntegrationService } from './RewardsIntegrationService';
-import type { ServiceContext } from './ServiceContext';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
@@ -33,6 +31,8 @@ import type {
   PerpsPlatformDependencies,
 } from '../types';
 import { ensureError } from '../utils/errorUtils';
+import type { RewardsIntegrationService } from './RewardsIntegrationService';
+import type { ServiceContext } from './ServiceContext';
 
 /**
  * Controller-level dependencies for TradingService.
@@ -1516,7 +1516,6 @@ export class TradingService {
 
       this.#deps.debugLogger.log('[closePositions] Batch method check', {
         providerType: provider.protocolId,
-        hasBatchMethod: 'closePositions' in provider,
         providerKeys: Object.keys(provider).filter((key) =>
           key.includes('close'),
         ),

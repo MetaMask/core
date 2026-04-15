@@ -36,8 +36,8 @@ type ExtendedJsonRpcRequest = {
 type InternalListener = (value: string) => void;
 
 export class PollingBlockTracker<
-    Context extends ContextConstraint = MiddlewareContext,
-  >
+  Context extends ContextConstraint = MiddlewareContext,
+>
   extends SafeEventEmitter
   implements BlockTracker
 {

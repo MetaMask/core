@@ -1694,7 +1694,12 @@ export class PerpsController extends BaseController<
       // IMPORTANT: Must use import() — NOT require() — for core/extension tree-shaking.
       // require() is synchronous and bundlers include it in the main bundle.
       // import() enables true code splitting so MYX is excluded when not enabled.
-      this.#myxRegistrationPromise = import('./providers/MYXProvider')
+      // NOTE: Uses a variable so ts-bridge does not rewrite the import
+      // specifier (which would strip the webpackIgnore magic comment).
+      const myxModulePath = './providers/MYXProvider';
+      this.#myxRegistrationPromise = import(
+        /* webpackIgnore: true */ myxModulePath
+      )
         .then(({ MYXProvider }) => {
           this.registerMYXProvider(MYXProvider);
           return undefined;

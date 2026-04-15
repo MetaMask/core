@@ -6,6 +6,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import type { LoginResponse } from '../../sdk';
+import { Platform } from '../../sdk';
+import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
+import { MOCK_USER_PROFILE_LINEAGE_RESPONSE } from '../../sdk/mocks/auth';
 import { AuthenticationController } from './AuthenticationController';
 import type {
   AuthenticationControllerMessenger,
@@ -15,10 +19,6 @@ import {
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
 } from './mocks/mockResponses';
-import type { LoginResponse } from '../../sdk';
-import { Platform } from '../../sdk';
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
-import { MOCK_USER_PROFILE_LINEAGE_RESPONSE } from '../../sdk/mocks/auth';
 
 const MOCK_ENTROPY_SOURCE_IDS = [
   'MOCK_ENTROPY_SOURCE_ID',

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [13.1.0]
+
+### Added
+
+- Add optional provider fiat/payment buy limits to `Provider` so consumers can validate quote amounts before requesting quotes ([#8405](https://github.com/MetaMask/core/pull/8405))
+
 ## [13.0.0]
 
 ### Changed
@@ -305,7 +315,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...@metamask/ramps-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...@metamask/ramps-controller@12.1.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...@metamask/ramps-controller@12.0.1

@@ -34,8 +34,6 @@ import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
-import { MAP_CAIP_CURRENCIES } from './constant';
-import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types';
 import type {
   CurrencyRateState,
   CurrencyRateStateChange,
@@ -45,6 +43,8 @@ import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
+import { MAP_CAIP_CURRENCIES } from './constant';
+import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types';
 
 /**
  * The name of the MultichainAssetsRatesController.
