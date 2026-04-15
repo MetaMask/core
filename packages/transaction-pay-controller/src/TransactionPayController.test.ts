@@ -182,6 +182,26 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
+    it('triggers source amounts and quotes update when accountOverride changes', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('updates refundTo in state', () => {
       const controller = createController();
       const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;

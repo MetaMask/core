@@ -217,6 +217,7 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalAccountOverride = current?.accountOverride;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -238,12 +239,15 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
+      const isAccountOverrideUpdated =
+        current.accountOverride !== originalAccountOverride;
 
       if (
         isPaymentTokenUpdated ||
         isIsMaxUpdated ||
         isTokensUpdated ||
-        isPostQuoteUpdated
+        isPostQuoteUpdated ||
+        isAccountOverrideUpdated
       ) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
