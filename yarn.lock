@@ -2919,7 +2919,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/auto-changelog@npm:^6.0.0, @metamask/auto-changelog@npm:^6.1.0":
+"@metamask/auto-changelog@npm:^6.1.0":
   version: 6.1.0
   resolution: "@metamask/auto-changelog@npm:6.1.0"
   dependencies:
@@ -4429,7 +4429,7 @@ __metadata:
   dependencies:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/auto-changelog": "npm:^6.0.0"
+    "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-data-service": "npm:^0.1.1"
     "@metamask/controller-utils": "npm:^11.20.0"
     "@metamask/messenger": "npm:^1.1.1"
