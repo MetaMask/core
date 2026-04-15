@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^103.1.1` to `^104.0.0` ([#8465](https://github.com/MetaMask/core/pull/8465))
+- Bump `@metamask/assets-controller` from `^5.0.0` to `^5.0.1` ([#8465](https://github.com/MetaMask/core/pull/8465))
 - Bump `@metamask/assets-controller` from `^4.0.0` to `^5.0.0` ([#8406](https://github.com/MetaMask/core/pull/8406))
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
