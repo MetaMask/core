@@ -1,15 +1,5 @@
-import { base64URLToBytes } from '../encoding';
-
-export type ClientDataJSON = {
-  type: string;
-  challenge: string;
-  origin: string;
-  crossOrigin?: boolean;
-  tokenBinding?: {
-    id?: string;
-    status: 'present' | 'supported' | 'not-supported';
-  };
-};
+import type { ClientDataJSON } from './types';
+import { base64URLToBytes } from '../utils/encoding';
 
 /**
  * Decode an authenticator's base64url-encoded clientDataJSON to JSON.

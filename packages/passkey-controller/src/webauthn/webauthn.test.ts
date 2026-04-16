@@ -2,18 +2,16 @@ import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { ed25519 } from '@noble/curves/ed25519';
 import { p256 } from '@noble/curves/p256';
 import { p384 } from '@noble/curves/p384';
-import { sha256 } from '@noble/hashes/sha2';
+import { sha256, sha384 } from '@noble/hashes/sha2';
 
 import { COSEALG, COSEKEYS, COSEKTY, COSECRV } from './constants';
-import { bytesToBase64URL } from './encoding';
 import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
 } from './types';
-import {
-  verifyRegistrationResponse,
-  verifyAuthenticationResponse,
-} from './webauthn';
+import { verifyAuthenticationResponse } from './verifyAuthenticationResponse';
+import { verifyRegistrationResponse } from './verifyRegistrationResponse';
+import { bytesToBase64URL } from '../utils/encoding';
 
 // ---------------------------------------------------------------------------
 // Test Helpers
@@ -944,6 +942,65 @@ describe('verifyAuthenticationResponse', () => {
 
     expect(result.verified).toBe(true);
   });
+
+  it('skips counter check when both counters are zero', async () => {
+    const { privateKey, cosePublicKeyCBOR } = generateES256KeyPair();
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x01,
+      counter: 0,
+    });
+
+    const clientDataJSONStr = makeAuthClientDataJSON();
+    const clientDataBytes = Uint8Array.from(
+      atob(
+        clientDataJSONStr.replace(/-/gu, '+').replace(/_/gu, '/') +
+          '='.repeat((4 - (clientDataJSONStr.length % 4)) % 4),
+      ),
+      (ch) => ch.charCodeAt(0),
+    );
+    const clientDataHash = sha256(clientDataBytes);
+
+    const signatureBase = new Uint8Array(
+      authData.length + clientDataHash.length,
+    );
+    signatureBase.set(authData, 0);
+    signatureBase.set(clientDataHash, authData.length);
+
+    const sigHash = sha256(signatureBase);
+    const ecdsaSig = p256.sign(sigHash, privateKey);
+
+    const credentialIdB64 = bytesToBase64URL(new Uint8Array(16).fill(0x63));
+
+    const response: PasskeyAuthenticationResponse = {
+      id: credentialIdB64,
+      rawId: credentialIdB64,
+      type: 'public-key',
+      response: {
+        clientDataJSON: clientDataJSONStr,
+        authenticatorData: bytesToBase64URL(authData),
+        signature: bytesToBase64URL(new Uint8Array(ecdsaSig.toDERRawBytes())),
+      },
+      clientExtensionResults: {},
+    };
+
+    const result = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge: TEST_CHALLENGE,
+      expectedOrigin: TEST_ORIGIN,
+      expectedRPID: TEST_RP_ID,
+      credential: {
+        id: credentialIdB64,
+        publicKey: cosePublicKeyCBOR,
+        counter: 0,
+      },
+    });
+
+    expect(result.verified).toBe(true);
+    expect(result.authenticationInfo.newCounter).toBe(0);
+  });
 });
 
 describe('verifyRegistrationResponse edge cases', () => {
@@ -1090,10 +1147,6 @@ describe('verifyRegistrationResponse edge cases', () => {
   it('rejects missing public key', async () => {
     const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
 
-    // Build authData with AT flag but missing credential data by building manually
-    // flags: UP (0x01) | AT (0x40) = 0x41 but credentialID present, no pubkey
-    // This is tested via the "no credential ID" path with no AT flag
-    // Instead, let's test for missing AAGUID
     const authData = buildAuthenticatorData({
       rpIdHash,
       flags: 0x01,
@@ -1111,6 +1164,80 @@ describe('verifyRegistrationResponse edge cases', () => {
         expectedRPID: TEST_RP_ID,
       }),
     ).rejects.toThrow('No credential ID was provided');
+  });
+
+  it('rejects packed attestation with missing alg', async () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    const credentialID = new Uint8Array(16).fill(0x61);
+    const aaguid = new Uint8Array(16).fill(0);
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x41,
+      counter: 0,
+      aaguid,
+      credentialID,
+      credentialPublicKey: cosePublicKeyCBOR,
+    });
+
+    const attStmt = new Map<string, unknown>();
+    attStmt.set('sig', new Uint8Array(64));
+    // no 'alg' set
+
+    const credentialIdB64 = bytesToBase64URL(credentialID);
+    const response = buildRegistrationResponse(
+      authData,
+      credentialIdB64,
+      'packed',
+      attStmt,
+    );
+
+    await expect(
+      verifyRegistrationResponse({
+        response,
+        expectedChallenge: TEST_CHALLENGE,
+        expectedOrigin: TEST_ORIGIN,
+        expectedRPID: TEST_RP_ID,
+      }),
+    ).rejects.toThrow('Packed attestation statement missing alg');
+  });
+
+  it('rejects packed attestation with mismatched alg', async () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    const credentialID = new Uint8Array(16).fill(0x62);
+    const aaguid = new Uint8Array(16).fill(0);
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x41,
+      counter: 0,
+      aaguid,
+      credentialID,
+      credentialPublicKey: cosePublicKeyCBOR,
+    });
+
+    const attStmt = new Map<string, unknown>();
+    attStmt.set('alg', COSEALG.RS256); // doesn't match ES256
+    attStmt.set('sig', new Uint8Array(64));
+
+    const credentialIdB64 = bytesToBase64URL(credentialID);
+    const response = buildRegistrationResponse(
+      authData,
+      credentialIdB64,
+      'packed',
+      attStmt,
+    );
+
+    await expect(
+      verifyRegistrationResponse({
+        response,
+        expectedChallenge: TEST_CHALLENGE,
+        expectedOrigin: TEST_ORIGIN,
+        expectedRPID: TEST_RP_ID,
+      }),
+    ).rejects.toThrow('does not match credential alg');
   });
 
   it('rejects packed attestation with x5c certificates', async () => {
@@ -1310,7 +1437,7 @@ describe('verifyRegistrationResponse edge cases', () => {
 
 describe('verifySignature', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require
-  const { verifySignature } = require('./helpers/verifySignature');
+  const { verifySignature } = require('./verifySignature');
 
   it('verifies P-384 EC2 signature', async () => {
     const privateKey = p384.utils.randomPrivateKey();
@@ -1324,7 +1451,7 @@ describe('verifySignature', () => {
     coseMap.set(COSEKEYS.Y, publicKeyRaw.slice(49, 97));
 
     const data = new Uint8Array(32).fill(0xcc);
-    const hash = sha256(data);
+    const hash = sha384(data);
     const ecdsaSig = p384.sign(hash, privateKey);
 
     const result = await verifySignature({
@@ -1525,9 +1652,7 @@ describe('verifySignature', () => {
 
 describe('parseAuthenticatorData edge cases', () => {
   /* eslint-disable @typescript-eslint/no-require-imports, n/global-require */
-  const {
-    parseAuthenticatorData,
-  } = require('./helpers/parseAuthenticatorData');
+  const { parseAuthenticatorData } = require('./parseAuthenticatorData');
   /* eslint-enable @typescript-eslint/no-require-imports, n/global-require */
 
   it('throws for authenticator data shorter than 37 bytes', () => {
@@ -1559,11 +1684,48 @@ describe('parseAuthenticatorData edge cases', () => {
     expect(result.extensionsData).toBeDefined();
     expect(result.extensionsData?.get('credProtect')).toBe(2);
   });
+
+  it('throws on leftover bytes after parsing', () => {
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+    // flags: UP only (0x01) -- no AT, no ED
+    const authData = new Uint8Array(37 + 5);
+    authData.set(rpIdHash, 0);
+    authData[32] = 0x01;
+    // counter = 0 (bytes 33-36 are already zero)
+    // 5 extra bytes after the 37-byte minimum
+    authData.set(new Uint8Array([0xde, 0xad, 0xbe, 0xef, 0x00]), 37);
+
+    expect(() => parseAuthenticatorData(authData)).toThrow(
+      'Leftover bytes detected while parsing authenticator data',
+    );
+  });
+
+  it('parses authenticator data without attested credential or extensions', () => {
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+    // flags: UP (0x01) | UV (0x04) = 0x05
+    const authData = new Uint8Array(37);
+    authData.set(rpIdHash, 0);
+    authData[32] = 0x05;
+    // counter = 42
+    const counterView = new DataView(authData.buffer, 33, 4);
+    counterView.setUint32(0, 42, false);
+
+    const result = parseAuthenticatorData(authData);
+    expect(result.flags.up).toBe(true);
+    expect(result.flags.uv).toBe(true);
+    expect(result.flags.at).toBe(false);
+    expect(result.flags.ed).toBe(false);
+    expect(result.counter).toBe(42);
+    expect(result.aaguid).toBeUndefined();
+    expect(result.credentialID).toBeUndefined();
+    expect(result.credentialPublicKey).toBeUndefined();
+    expect(result.extensionsData).toBeUndefined();
+  });
 });
 
 describe('matchExpectedRPID edge cases', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require
-  const { matchExpectedRPID } = require('./helpers/matchExpectedRPID');
+  const { matchExpectedRPID } = require('./matchExpectedRPID');
 
   it('throws when no RP ID matches', () => {
     const rpIdHash = sha256(new TextEncoder().encode('example.com'));
@@ -1578,9 +1740,18 @@ describe('matchExpectedRPID edge cases', () => {
   });
 
   it('constant-time compare rejects different lengths', () => {
-    const rpIdHash = sha256(new TextEncoder().encode('example.com'));
-    expect(() => matchExpectedRPID(rpIdHash, ['x.com'])).toThrow(
+    // Pass a 16-byte rpIdHash to trigger the areEqual length-mismatch branch
+    // (sha256 always produces 32 bytes, so the comparison short-circuits)
+    const shortHash = new Uint8Array(16).fill(0xaa);
+    expect(() => matchExpectedRPID(shortHash, ['example.com'])).toThrow(
       'Unexpected RP ID hash',
+    );
+  });
+
+  it('matches second candidate in array', () => {
+    const rpIdHash = sha256(new TextEncoder().encode('example.com'));
+    expect(matchExpectedRPID(rpIdHash, ['wrong.com', 'example.com'])).toBe(
+      'example.com',
     );
   });
 });
@@ -1628,7 +1799,7 @@ describe('verifySignature RSA hash variants', () => {
   /* eslint-disable @typescript-eslint/no-require-imports, n/global-require */
   const {
     verifySignature: verifySignatureHelper,
-  } = require('./helpers/verifySignature');
+  } = require('./verifySignature');
   /* eslint-enable @typescript-eslint/no-require-imports, n/global-require */
 
   async function generateRSAKeyPairAndSign(

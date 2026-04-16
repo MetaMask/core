@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2';
 
-import { bytesToHex } from '../encoding';
+import { bytesToHex } from '../utils/encoding';
 
 /**
  * Compare two Uint8Arrays for equality in constant time.

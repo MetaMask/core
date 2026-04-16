@@ -1,9 +1,9 @@
 import { ed25519 } from '@noble/curves/ed25519';
 import { p256, p384 } from '@noble/curves/nist';
-import { sha256 } from '@noble/hashes/sha2';
+import { sha256, sha384 } from '@noble/hashes/sha2';
 
-import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from '../constants';
-import { bytesToBase64URL } from '../encoding';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
+import { bytesToBase64URL } from '../utils/encoding';
 
 type COSEPublicKey = Map<number, number | Uint8Array>;
 
@@ -41,6 +41,9 @@ function getKeyType(cosePublicKey: COSEPublicKey): number {
 /**
  * Verify an EC2 (P-256, P-384) signature using @noble/curves.
  *
+ * ECDSA requires the data to be hashed with the curve-appropriate
+ * algorithm before verification: SHA-256 for P-256 and SHA-384 for P-384.
+ *
  * @param cosePublicKey - COSE-encoded EC2 public key.
  * @param signature - DER-encoded ECDSA signature.
  * @param data - Data that was signed.
@@ -60,13 +63,12 @@ function verifyEC2(
   }
 
   const uncompressed = concatBytes(new Uint8Array([0x04]), xCoord, yCoord);
-  const hash = sha256(data);
 
   switch (crv) {
     case COSECRV.P256:
-      return p256.verify(signature, hash, uncompressed);
+      return p256.verify(signature, sha256(data), uncompressed);
     case COSECRV.P384:
-      return p384.verify(signature, hash, uncompressed);
+      return p384.verify(signature, sha384(data), uncompressed);
     default:
       throw new Error(`Unsupported EC2 curve: ${crv}`);
   }

@@ -1,25 +1,6 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 
-export type AuthenticatorDataFlags = {
-  up: boolean;
-  uv: boolean;
-  be: boolean;
-  bs: boolean;
-  at: boolean;
-  ed: boolean;
-  flagsByte: number;
-};
-
-export type ParsedAuthenticatorData = {
-  rpIdHash: Uint8Array;
-  flags: AuthenticatorDataFlags;
-  counter: number;
-  aaguid?: Uint8Array;
-  credentialID?: Uint8Array;
-  credentialPublicKey?: Uint8Array;
-  extensionsData?: Map<string, unknown>;
-  extensionsDataBuffer?: Uint8Array;
-};
+import type { ParsedAuthenticatorData, AuthenticatorDataFlags } from './types';
 
 /* eslint-disable no-bitwise */
 
@@ -99,13 +80,18 @@ export function parseAuthenticatorData(
   }
 
   if (flags.ed) {
-    const extensionsDataBuffer = authData.slice(pointer);
-    const [decoded] = decodePartialCBOR(
-      new Uint8Array(extensionsDataBuffer),
+    const remaining = authData.slice(pointer);
+    const [decoded, consumed] = decodePartialCBOR(
+      new Uint8Array(remaining),
       0,
     ) as [Map<string, unknown>, number];
     result.extensionsData = decoded;
-    result.extensionsDataBuffer = extensionsDataBuffer;
+    result.extensionsDataBuffer = remaining.slice(0, consumed);
+    pointer += consumed;
+  }
+
+  if (authData.byteLength > pointer) {
+    throw new Error('Leftover bytes detected while parsing authenticator data');
   }
 
   return result;

@@ -26,6 +26,8 @@ export type PasskeyRecord = {
   encryptedVaultKey: Base64String;
   /** Credential public key for signature verification (base64url-encoded COSE key) */
   publicKey: Base64URLString;
+  /** Authenticator signature counter for replay detection */
+  counter: number;
   /** Authenticator transports for allowCredentials hints */
   transports?: AuthenticatorTransportFuture[];
 };
@@ -56,72 +58,4 @@ export type PrfClientExtensionResults = {
     enabled?: boolean;
     results?: { first?: Base64URLString };
   };
-};
-
-// ─── WebAuthn Options/Response JSON types ────────────────────────────────────
-
-export type PublicKeyCredentialDescriptorJSON = {
-  id: Base64URLString;
-  type: 'public-key';
-  transports?: AuthenticatorTransportFuture[];
-};
-
-export type PasskeyRegistrationOptions = {
-  rp: { name: string; id: string };
-  user: {
-    id: Base64URLString;
-    name: string;
-    displayName: string;
-  };
-  challenge: Base64URLString;
-  pubKeyCredParams: { alg: number; type: 'public-key' }[];
-  timeout?: number;
-  excludeCredentials?: PublicKeyCredentialDescriptorJSON[];
-  authenticatorSelection?: {
-    authenticatorAttachment?: 'cross-platform' | 'platform';
-    residentKey?: 'discouraged' | 'preferred' | 'required';
-    requireResidentKey?: boolean;
-    userVerification?: 'discouraged' | 'preferred' | 'required';
-  };
-  attestation?: 'direct' | 'enterprise' | 'indirect' | 'none';
-  extensions?: Record<string, unknown>;
-};
-
-export type PasskeyRegistrationResponse = {
-  id: Base64URLString;
-  rawId: Base64URLString;
-  type: 'public-key';
-  response: {
-    clientDataJSON: Base64URLString;
-    attestationObject: Base64URLString;
-    transports?: string[];
-    publicKeyAlgorithm?: number;
-    publicKey?: Base64URLString;
-    authenticatorData?: Base64URLString;
-  };
-  authenticatorAttachment?: 'cross-platform' | 'platform';
-  clientExtensionResults: Record<string, unknown>;
-};
-
-export type PasskeyAuthenticationOptions = {
-  challenge: Base64URLString;
-  timeout?: number;
-  rpId?: string;
-  allowCredentials?: PublicKeyCredentialDescriptorJSON[];
-  userVerification?: 'discouraged' | 'preferred' | 'required';
-  extensions?: Record<string, unknown>;
-};
-
-export type PasskeyAuthenticationResponse = {
-  id: Base64URLString;
-  rawId: Base64URLString;
-  type: 'public-key';
-  response: {
-    clientDataJSON: Base64URLString;
-    authenticatorData: Base64URLString;
-    signature: Base64URLString;
-    userHandle?: Base64URLString;
-  };
-  authenticatorAttachment?: 'cross-platform' | 'platform';
-  clientExtensionResults: Record<string, unknown>;
 };

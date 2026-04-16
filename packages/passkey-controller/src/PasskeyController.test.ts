@@ -5,12 +5,11 @@ import {
   PasskeyController,
 } from './PasskeyController';
 import type { PasskeyControllerMessenger } from './PasskeyController';
+import type { PasskeyRecord, PrfClientExtensionResults } from './types';
 import type {
-  PasskeyRecord,
-  PrfClientExtensionResults,
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
-} from './types';
+} from './webauthn';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
@@ -29,6 +28,7 @@ const mockVerifyRegistrationResponse = jest.fn();
 const mockVerifyAuthenticationResponse = jest.fn();
 
 jest.mock('./webauthn', () => ({
+  ...jest.requireActual('./webauthn'),
   verifyRegistrationResponse: (...args: unknown[]): unknown =>
     mockVerifyRegistrationResponse(...args),
   verifyAuthenticationResponse: (...args: unknown[]): unknown =>
@@ -179,6 +179,7 @@ describe('PasskeyController', () => {
         encryptedVaultKey: 'YQ==',
         iv: 'YWFhYWFhYWFhYQ==',
         publicKey: TEST_PUBLIC_KEY,
+        counter: 0,
         transports: ['internal'],
       };
       const controller = createController({
@@ -599,7 +600,7 @@ describe('PasskeyController', () => {
   });
 
   describe('verifyAuthenticationResponse parameters', () => {
-    it('passes credential with publicKey and counter:0 to verification', async () => {
+    it('passes credential with publicKey and stored counter to verification', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
@@ -637,6 +638,69 @@ describe('PasskeyController', () => {
           requireUserVerification: false,
         }),
       );
+    });
+
+    it('persists newCounter from authentication and passes it on next auth', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse({
+          clientExtensionResults: prfResults(prfFirst),
+        }),
+        vaultKey: 'k',
+      });
+
+      expect(controller.state.passkeyRecord?.counter).toBe(0);
+
+      mockVerifyAuthenticationResponse.mockResolvedValue({
+        verified: true,
+        authenticationInfo: {
+          credentialId: TEST_CREDENTIAL_ID,
+          newCounter: 5,
+          userVerified: true,
+          origin: TEST_ORIGIN,
+          rpID: TEST_RP_ID,
+        },
+      });
+
+      controller.generateAuthenticationOptions();
+      await controller.retrieveVaultKeyWithPasskey(
+        minimalAuthenticationResponse(undefined, {
+          clientExtensionResults: prfResults(prfFirst),
+        }),
+      );
+
+      expect(controller.state.passkeyRecord?.counter).toBe(5);
+
+      mockVerifyAuthenticationResponse.mockResolvedValue({
+        verified: true,
+        authenticationInfo: {
+          credentialId: TEST_CREDENTIAL_ID,
+          newCounter: 10,
+          userVerified: true,
+          origin: TEST_ORIGIN,
+          rpID: TEST_RP_ID,
+        },
+      });
+
+      controller.generateAuthenticationOptions();
+      await controller.retrieveVaultKeyWithPasskey(
+        minimalAuthenticationResponse(undefined, {
+          clientExtensionResults: prfResults(prfFirst),
+        }),
+      );
+
+      expect(mockVerifyAuthenticationResponse).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          credential: expect.objectContaining({
+            counter: 5,
+          }),
+        }),
+      );
+      expect(controller.state.passkeyRecord?.counter).toBe(10);
     });
   });
 });
