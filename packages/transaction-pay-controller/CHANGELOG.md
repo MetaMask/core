@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Route Across status polling through the configured Across API base and support `depositTxnRef`/`fillTxnRef` for Across status responses ([#8512](https://github.com/MetaMask/core/pull/8512))
+- Support Across quotes for the Arbitrum native-token gas top-up leg of perps deposits ([#8493](https://github.com/MetaMask/core/pull/8493))
 
 ## [19.2.1]
 

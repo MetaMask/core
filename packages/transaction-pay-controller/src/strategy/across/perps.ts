@@ -7,6 +7,7 @@ import {
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   HYPERCORE_USDC_DECIMALS,
+  NATIVE_TOKEN_ADDRESS,
   USDC_DECIMALS,
 } from '../../constants';
 import type { QuoteRequest } from '../../types';
@@ -14,18 +15,40 @@ import type { QuoteRequest } from '../../types';
 export const ACROSS_HYPERCORE_USDC_PERPS_ADDRESS =
   '0x2100000000000000000000000000000000000000' as Hex;
 
+function isAcrossPerpsDirectDepositRequest(
+  request: Pick<QuoteRequest, 'targetChainId' | 'targetTokenAddress'>,
+): boolean {
+  return (
+    request.targetChainId === CHAIN_ID_ARBITRUM &&
+    request.targetTokenAddress.toLowerCase() ===
+      ARBITRUM_USDC_ADDRESS.toLowerCase()
+  );
+}
+
+function isAcrossPerpsGasTopUpRequest(
+  request: Pick<QuoteRequest, 'targetChainId' | 'targetTokenAddress'>,
+): boolean {
+  return (
+    request.targetChainId === CHAIN_ID_ARBITRUM &&
+    request.targetTokenAddress.toLowerCase() ===
+      NATIVE_TOKEN_ADDRESS.toLowerCase()
+  );
+}
+
 /**
- * Detect the quote-time parent transaction shape that Across can map to the
- * new HyperCore USDC-PERPS direct-deposit route.
+ * Detect the quote-time parent transaction shape that Across can support for
+ * HyperCore perps deposits.
  *
  * The parent transaction remains `perpsDeposit` while quotes are being
  * selected. `perpsAcrossDeposit` is only assigned later to the generated
- * Across submission transaction(s).
+ * Across submission transaction(s). At quote time Across can support:
+ * - the direct HyperCore USDC deposit leg
+ * - the destination-chain native gas top-up leg
  *
  * @param request - Transaction pay quote request.
  * @param parentTransactionType - Parent transaction type before Across
  * execution.
- * @returns Whether the request matches the supported direct-deposit path.
+ * @returns Whether the request matches a supported perps deposit leg.
  */
 export function isSupportedAcrossPerpsDepositRequest(
   request: Pick<
@@ -37,9 +60,8 @@ export function isSupportedAcrossPerpsDepositRequest(
   return (
     parentTransactionType === TransactionType.perpsDeposit &&
     request.isPostQuote !== true &&
-    request.targetChainId === CHAIN_ID_ARBITRUM &&
-    request.targetTokenAddress.toLowerCase() ===
-      ARBITRUM_USDC_ADDRESS.toLowerCase()
+    (isAcrossPerpsDirectDepositRequest(request) ||
+      isAcrossPerpsGasTopUpRequest(request))
   );
 }
 
@@ -48,8 +70,8 @@ export function isSupportedAcrossPerpsDepositRequest(
  * direct perps deposits.
  *
  * Transaction pay starts from the required on-chain asset identity
- * (Arbitrum USDC, 6 decimals), while Across now expects the HyperCore
- * USDC-PERPS destination token (8 decimals).
+ * (Arbitrum USDC, 6 decimals), while Across expects the HyperCore
+ * USDC-PERPS destination token (8 decimals) for the USDC deposit leg.
  *
  * @param request - Transaction pay quote request.
  * @param parentTransactionType - Parent transaction type before Across
@@ -60,7 +82,10 @@ export function normalizeAcrossRequest(
   request: QuoteRequest,
   parentTransactionType?: TransactionType,
 ): QuoteRequest {
-  if (!isSupportedAcrossPerpsDepositRequest(request, parentTransactionType)) {
+  if (
+    parentTransactionType !== TransactionType.perpsDeposit ||
+    !isAcrossPerpsDirectDepositRequest(request)
+  ) {
     return request;
   }
 
