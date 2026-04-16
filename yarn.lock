@@ -2920,7 +2920,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/auto-changelog@npm:^6.0.0, @metamask/auto-changelog@npm:^6.1.0":
+"@metamask/auto-changelog@npm:^6.1.0":
   version: 6.1.0
   resolution: "@metamask/auto-changelog@npm:6.1.0"
   dependencies:
@@ -3123,7 +3123,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/chomp-api-service@workspace:packages/chomp-api-service"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.0.0"
+    "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-data-service": "npm:^0.1.1"
     "@metamask/controller-utils": "npm:^11.20.0"
     "@metamask/messenger": "npm:^1.1.1"

@@ -464,19 +464,16 @@ describe('ChompApiService', () => {
       },
       chains: {
         '0xa4b1': {
-          autoDepositDelegate:
-            '0xb4827a2a066cd2ef88560efdf063dd05c6c41cc7',
+          autoDepositDelegate: '0xb4827a2a066cd2ef88560efdf063dd05c6c41cc7',
           protocol: {
             vedaProtocol: {
               supportedTokens: [
                 {
-                  tokenAddress:
-                    '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+                  tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
                   tokenDecimals: 6,
                 },
               ],
-              adapterAddress:
-                '0x4839b1BA117BdFFA986FCfA4E5fE6b9027b8f8B1',
+              adapterAddress: '0x4839b1BA117BdFFA986FCfA4E5fE6b9027b8f8B1',
               intentTypes: ['cash-deposit', 'cash-withdrawal'],
             },
           },
@@ -516,9 +513,7 @@ describe('ChompApiService', () => {
     it('throws when a chainId is not a valid hex string', async () => {
       const { service } = createService();
 
-      await expect(
-        service.getServiceDetails(['not-hex']),
-      ).rejects.toThrow(
+      await expect(service.getServiceDetails(['not-hex'])).rejects.toThrow(
         "Invalid chainId: expected a 0x-prefixed hex string, got 'not-hex'",
       );
     });
@@ -531,9 +526,9 @@ describe('ChompApiService', () => {
         .reply(400);
       const { service } = createService();
 
-      await expect(
-        service.getServiceDetails(['0xa4b1']),
-      ).rejects.toThrow("GET /v1/chomp failed with status '400'");
+      await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
+        "GET /v1/chomp failed with status '400'",
+      );
     });
 
     it('throws on malformed response', async () => {
@@ -543,9 +538,9 @@ describe('ChompApiService', () => {
         .reply(200, JSON.stringify({ bad: 'data' }));
       const { service } = createService();
 
-      await expect(
-        service.getServiceDetails(['0xa4b1']),
-      ).rejects.toThrow('At path: auth -- Expected an object');
+      await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
+        'At path: auth -- Expected an object',
+      );
     });
   });
 });
