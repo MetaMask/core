@@ -11,13 +11,13 @@ import Sqlite from 'better-sqlite3';
 export class KeyValueStore {
   readonly #db: Sqlite.Database;
 
-  readonly #getStmt: Sqlite.Statement;
+  readonly #getStmt: Sqlite.Statement<[string], { value: string } | undefined>;
 
-  readonly #setStmt: Sqlite.Statement;
+  readonly #setStmt: Sqlite.Statement<[string, string], void>;
 
-  readonly #deleteStmt: Sqlite.Statement;
+  readonly #deleteStmt: Sqlite.Statement<[string], void>;
 
-  readonly #getAllStmt: Sqlite.Statement;
+  readonly #getAllStmt: Sqlite.Statement<[], { key: string; value: string }>;
 
   constructor(databasePath: string) {
     this.#db = new Sqlite(databasePath);
@@ -35,8 +35,8 @@ export class KeyValueStore {
   }
 
   get(key: string): Json | undefined {
-    const row = this.#getStmt.get(key) as { value: string } | undefined;
-    return row ? (JSON.parse(row.value) as Json) : undefined;
+    const row = this.#getStmt.get(key);
+    return row ? JSON.parse(row.value) : undefined;
   }
 
   set(key: string, value: Json): void {
@@ -44,10 +44,10 @@ export class KeyValueStore {
   }
 
   getAll(): Record<string, Json> {
-    const rows = this.#getAllStmt.all() as { key: string; value: string }[];
+    const rows = this.#getAllStmt.all();
     const result: Record<string, Json> = {};
     for (const row of rows) {
-      result[row.key] = JSON.parse(row.value) as Json;
+      result[row.key] = JSON.parse(row.value);
     }
     return result;
   }

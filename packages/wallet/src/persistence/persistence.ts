@@ -38,24 +38,7 @@ export function loadState(store: KeyValueStore): Record<string, Json> {
     state[controllerName][propertyName] = value;
   }
 
-  return state as Record<string, Json>;
-}
-
-/**
- * Extracts the set of top-level property names that changed from an
- * array of Immer patches.
- *
- * @param patches - Immer patches from a state update.
- * @returns A set of top-level property names that were modified.
- */
-function getChangedProperties(patches: Patch[]): Set<string> {
-  const changed = new Set<string>();
-  for (const patch of patches) {
-    if (patch.path.length > 0) {
-      changed.add(String(patch.path[0]));
-    }
-  }
-  return changed;
+  return state;
 }
 
 /**
@@ -110,14 +93,12 @@ export function subscribeToChanges(
       }
     };
 
-    // Type assertion needed: the event type string is dynamically constructed,
-    // and the messenger's type system expects a literal from DefaultEvents.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messenger.subscribe(eventType as any, handler as any);
+    // @ts-expect-error Event type is dynamically constructed, but we know it's valid.
+    messenger.subscribe(eventType, handler);
 
     unsubscribers.push(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messenger.unsubscribe(eventType as any, handler as any);
+      // @ts-expect-error Event type is dynamically constructed, but we know it's valid.
+      messenger.unsubscribe(eventType, handler);
     });
   }
 
@@ -145,4 +126,21 @@ function getPersistPropertyNames(
     }
   }
   return names;
+}
+
+/**
+ * Extracts the set of top-level property names that changed from an
+ * array of Immer patches.
+ *
+ * @param patches - Immer patches from a state update.
+ * @returns A set of top-level property names that were modified.
+ */
+function getChangedProperties(patches: Patch[]): Set<string> {
+  const changed = new Set<string>();
+  for (const patch of patches) {
+    if (patch.path.length > 0) {
+      changed.add(String(patch.path[0]));
+    }
+  }
+  return changed;
 }

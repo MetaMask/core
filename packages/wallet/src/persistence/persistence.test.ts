@@ -59,23 +59,11 @@ describe('subscribeToChanges', () => {
   });
 
   it('writes persist-flagged properties on state change', () => {
-    const { messenger, instances } = createMockSetup({
-      TestController: {
-        metadata: {
-          persisted: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-          transient: {
-            persist: false,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([
+        ['persisted', true],
+        ['transient', false],
+      ]),
     });
 
     subscribeToChanges(messenger, instances, store);
@@ -93,23 +81,11 @@ describe('subscribeToChanges', () => {
   });
 
   it('only writes properties that are in the patches', () => {
-    const { messenger, instances } = createMockSetup({
-      TestController: {
-        metadata: {
-          propA: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-          propB: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([
+        ['propA', true],
+        ['propB', true],
+      ]),
     });
 
     subscribeToChanges(messenger, instances, store);
@@ -127,17 +103,8 @@ describe('subscribeToChanges', () => {
     const deriver = (value: never): Json =>
       (value as unknown as string).toUpperCase();
 
-    const { messenger, instances } = createMockSetup({
-      TestController: {
-        metadata: {
-          derived: {
-            persist: deriver,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([['derived', deriver]]),
     });
 
     subscribeToChanges(messenger, instances, store);
@@ -151,17 +118,8 @@ describe('subscribeToChanges', () => {
   });
 
   it('handles nested property changes by extracting the top-level key', () => {
-    const { messenger, instances } = createMockSetup({
-      TestController: {
-        metadata: {
-          nested: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([['nested', true]]),
     });
 
     subscribeToChanges(messenger, instances, store);
@@ -179,17 +137,8 @@ describe('subscribeToChanges', () => {
   });
 
   it('skips controllers with no persisted properties', () => {
-    const { messenger, instances } = createMockSetup({
-      TestController: {
-        metadata: {
-          transientOnly: {
-            persist: false,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([['transientOnly', false]]),
     });
 
     const unsubscribe = subscribeToChanges(messenger, instances, store);
@@ -204,17 +153,8 @@ describe('subscribeToChanges', () => {
   });
 
   it('returns an unsubscribe function that stops persistence', () => {
-    const { messenger, instances } = createMockSetup({
-      TestController: {
-        metadata: {
-          prop: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([['prop', true]]),
     });
 
     const unsubscribe = subscribeToChanges(messenger, instances, store);
@@ -237,27 +177,9 @@ describe('subscribeToChanges', () => {
   });
 
   it('handles multiple controllers independently', () => {
-    const { messenger, instances } = createMockSetup({
-      ControllerA: {
-        metadata: {
-          data: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
-      ControllerB: {
-        metadata: {
-          data: {
-            persist: true,
-            includeInDebugSnapshot: false,
-            includeInStateLogs: false,
-            usedInUi: false,
-          },
-        },
-      },
+    const { messenger, instances } = createMockControllers({
+      ControllerA: createStateMetadata([['data', true]]),
+      ControllerB: createStateMetadata([['data', true]]),
     });
 
     subscribeToChanges(messenger, instances, store);
@@ -277,8 +199,6 @@ describe('subscribeToChanges', () => {
   });
 });
 
-// --- Test helpers ---
-
 type MockControllerConfig = {
   metadata: Record<
     string,
@@ -291,10 +211,34 @@ type MockControllerConfig = {
   >;
 };
 
-type MockSetup = {
+type MockControllers = {
   messenger: RootMessenger;
   instances: DefaultInstances;
 };
+
+/**
+ * Creates a state metadata object for a mock controller.
+ *
+ * @param properties - An array of [property name, persist value] pairs.
+ * @returns A state metadata object.
+ */
+function createStateMetadata(
+  properties: [string, boolean | ((value: never) => Json)][],
+): MockControllerConfig {
+  return {
+    metadata: Object.fromEntries(
+      properties.map(([name, persist]) => [
+        name,
+        {
+          persist,
+          includeInDebugSnapshot: false,
+          includeInStateLogs: false,
+          usedInUi: false,
+        },
+      ]),
+    ),
+  };
+}
 
 /**
  * Creates a mock messenger and instances map for testing persistence wiring.
@@ -303,9 +247,9 @@ type MockSetup = {
  * @param controllers - Map of controller names to their mock configurations.
  * @returns A mock messenger and instances map.
  */
-function createMockSetup(
+function createMockControllers(
   controllers: Record<string, MockControllerConfig>,
-): MockSetup {
+): MockControllers {
   const handlers = new Map<string, Set<(...args: unknown[]) => void>>();
 
   const messenger = {
@@ -341,15 +285,15 @@ function createMockSetup(
  *
  * @param messenger - The mock messenger to publish on.
  * @param controllerName - The name of the controller whose state changed.
- * @param options0 - The state and patches to publish.
- * @param options0.state - The new controller state.
- * @param options0.patches - The Immer patches describing the state change.
+ * @param options - The state and patches to publish.
+ * @param options.state - The new controller state.
+ * @param options.patches - The Immer patches describing the state change.
  */
 function publishStateChanged(
   messenger: RootMessenger,
   controllerName: string,
   { state, patches }: { state: Record<string, Json>; patches: unknown[] },
 ): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).publish(`${controllerName}:stateChanged`, state, patches);
+  // @ts-expect-error Event type is dynamically constructed, but we know it's valid.
+  messenger.publish(`${controllerName}:stateChanged`, state, patches);
 }
