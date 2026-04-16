@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix Across deposit status polling to query `/deposit/status` with `depositTxnRef=<source transaction hash>` and return `fillTxnRef` when Across omits the destination hash ([#8489](https://github.com/MetaMask/core/pull/8489))
+
 ## [19.2.0]
 
 ### Changed
