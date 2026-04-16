@@ -59,12 +59,15 @@ function getPasskeyMessenger(): PasskeyControllerMessenger {
   }) as PasskeyControllerMessenger;
 }
 
+const TEST_RP_NAME = 'Test RP';
+
 function createController(
   overrides?: Partial<ConstructorParameters<typeof PasskeyController>[0]>,
 ): PasskeyController {
   return new PasskeyController({
     messenger: getPasskeyMessenger(),
     rpID: TEST_RP_ID,
+    rpName: TEST_RP_NAME,
     expectedOrigin: TEST_ORIGIN,
     ...overrides,
   });
@@ -198,7 +201,12 @@ describe('PasskeyController', () => {
     it('is callable via messenger method action', () => {
       const messenger = getPasskeyMessenger();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const controller = new PasskeyController({ messenger });
+      const controller = new PasskeyController({
+        messenger,
+        rpID: TEST_RP_ID,
+        rpName: TEST_RP_NAME,
+        expectedOrigin: TEST_ORIGIN,
+      });
       expect(messenger.call('PasskeyController:isPasskeyEnrolled')).toBe(false);
     });
   });
@@ -207,11 +215,12 @@ describe('PasskeyController', () => {
     it('returns options with PRF extension and challenge', () => {
       const controller = createController();
 
-      const options = controller.generateRegistrationOptions({
-        rp: { name: 'Test RP', id: 'test.com' },
-      });
+      const options = controller.generateRegistrationOptions();
 
-      expect(options.rp).toStrictEqual({ name: 'Test RP', id: 'test.com' });
+      expect(options.rp).toStrictEqual({
+        name: TEST_RP_NAME,
+        id: TEST_RP_ID,
+      });
       expect(options.challenge).toBeDefined();
       expect(options.challenge.length).toBeGreaterThan(0);
       expect(options.pubKeyCredParams).toStrictEqual([
@@ -225,11 +234,14 @@ describe('PasskeyController', () => {
       ).toBeDefined();
     });
 
-    it('defaults to metamask.io rpID and MetaMask rpName', () => {
-      const controller = createController({ rpID: undefined });
+    it('uses rpID and rpName from constructor', () => {
+      const controller = createController({
+        rpID: 'custom-rp.io',
+        rpName: 'Custom RP',
+      });
       const options = controller.generateRegistrationOptions();
-      expect(options.rp.id).toBe('metamask.io');
-      expect(options.rp.name).toBe('MetaMask');
+      expect(options.rp.id).toBe('custom-rp.io');
+      expect(options.rp.name).toBe('Custom RP');
     });
 
     it('includes PRF extension when prfAvailable is true', () => {

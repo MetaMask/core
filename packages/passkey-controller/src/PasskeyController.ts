@@ -108,18 +108,22 @@ export class PasskeyController extends BaseController<
 
   readonly #rpID: string;
 
+  readonly #rpName: string;
+
   readonly #expectedOrigin: string | string[];
 
   constructor({
     messenger,
     state,
     rpID,
+    rpName,
     expectedOrigin,
   }: {
     messenger: PasskeyControllerMessenger;
     state?: Partial<PasskeyControllerState>;
-    rpID?: string;
-    expectedOrigin?: string | string[];
+    rpID: string;
+    rpName: string;
+    expectedOrigin: string | string[];
   }) {
     super({
       messenger,
@@ -128,8 +132,9 @@ export class PasskeyController extends BaseController<
       state: { ...getDefaultPasskeyControllerState(), ...state },
     });
 
-    this.#rpID = rpID ?? 'metamask.io';
-    this.#expectedOrigin = expectedOrigin ?? [];
+    this.#rpID = rpID;
+    this.#rpName = rpName;
+    this.#expectedOrigin = expectedOrigin;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -161,19 +166,13 @@ export class PasskeyController extends BaseController<
    *
    * Must be called before {@link protectVaultKeyWithPasskey}.
    *
-   * @param creationOptionsConfig - Optional configuration overrides.
-   * @param creationOptionsConfig.rp - Relying party identity overrides.
-   * @param creationOptionsConfig.rp.name - RP display name (defaults to
-   *   `"MetaMask"`).
-   * @param creationOptionsConfig.rp.id - RP ID domain (defaults to the
-   *   value passed to the constructor).
+   * @param creationOptionsConfig - Optional configuration.
    * @param creationOptionsConfig.prfAvailable - Whether the client
    *   supports the WebAuthn PRF extension. When `false`, the PRF
    *   extension is omitted. Defaults to `true`.
    * @returns Options JSON for `navigator.credentials.create()`.
    */
   generateRegistrationOptions(creationOptionsConfig?: {
-    rp?: { name?: string; id?: string };
     prfAvailable?: boolean;
   }): PasskeyRegistrationOptions {
     const includePrf = creationOptionsConfig?.prfAvailable !== false;
@@ -183,16 +182,13 @@ export class PasskeyController extends BaseController<
     const userHandle = bytesToBase64URL(randomBytes(64).slice());
     const challenge = bytesToBase64URL(randomBytes(32).slice());
 
-    const rpID = creationOptionsConfig?.rp?.id ?? this.#rpID;
-    const rpName = creationOptionsConfig?.rp?.name ?? 'MetaMask';
-
     const extensions: Record<string, unknown> = {};
     if (prfSalt) {
       extensions.prf = { eval: { first: prfSalt } };
     }
 
     const options: PasskeyRegistrationOptions = {
-      rp: { name: rpName, id: rpID },
+      rp: { name: this.#rpName, id: this.#rpID },
       user: {
         id: userHandle,
         name: 'MetaMask Wallet',
