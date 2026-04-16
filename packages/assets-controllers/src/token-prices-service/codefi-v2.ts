@@ -285,6 +285,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
   '0x505': 'eip155:1285/slip44:1285', // Moonriver - Native symbol: MOVR
   '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet - Native symbol: SEI
+  '0x6f0': 'eip155:1776/slip44:22000119', // Injective Mainnet - Native symbol: INJ
   '0x74c': 'eip155:1868/erc20:0x0000000000000000000000000000000000000000', // Soneium - Native symbol: ETH
   '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
   '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
