@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replace `siwe` with `@signinwithethereum/siwe` ^4.2.0 ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Replace `siwe` with `@signinwithethereum/siwe` ^4.2.0 ([#8497](https://github.com/MetaMask/core/pull/8497))
   - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
