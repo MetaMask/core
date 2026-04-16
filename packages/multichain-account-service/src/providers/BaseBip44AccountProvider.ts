@@ -8,7 +8,7 @@ import type {
 } from '@metamask/keyring-api';
 import type {
   KeyringMetadata,
-  KeyringSelector,
+  KeyringSelectorV2,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -156,7 +156,7 @@ export abstract class BaseBip44AccountProvider<
   }
 
   protected async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelector,
+    selector: KeyringSelectorV2,
     operation: ({
       keyring,
       metadata,
@@ -166,7 +166,7 @@ export abstract class BaseBip44AccountProvider<
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
     const result = await this.messenger.call(
-      'KeyringController:withKeyring',
+      'KeyringController:withKeyringV2',
       selector,
       ({ keyring, metadata }) =>
         operation({

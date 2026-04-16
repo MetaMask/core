@@ -212,7 +212,7 @@ function setup({
   );
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     async (_, operation) =>
       operation({
         // We type-cast here, since `withKeyring` defaults to `EthKeyring` and the

@@ -231,7 +231,7 @@ const setup = ({
   };
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     jest
       .fn()
       .mockImplementation(
