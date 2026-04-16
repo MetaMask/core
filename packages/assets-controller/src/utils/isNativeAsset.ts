@@ -6,12 +6,12 @@ import { ZERO_ADDRESS } from './constants';
 export function isNativeAsset(assetId: Caip19AssetId): boolean {
   const { assetNamespace, assetReference } = parseCaipAssetType(assetId);
 
-  // Consider all SLIP44 assets
+  // All SLIP44 assets are native assets
   if (assetNamespace === 'slip44') {
     return true;
   }
 
-  // Consider assets in the list of native assets
+  // All assets in this list are native assets
   if (
     Object.values(SPOT_PRICES_SUPPORT_INFO).some(
       (nativeAssetId) => nativeAssetId.toLowerCase() === assetId.toLowerCase(),
@@ -20,11 +20,11 @@ export function isNativeAsset(assetId: Caip19AssetId): boolean {
     return true;
   }
 
-  // Consider assets with a zero address
-  if (assetReference === ZERO_ADDRESS) {
+  // ERC20 assets with a zero address are native assets
+  if (assetNamespace === 'erc20' && assetReference === ZERO_ADDRESS) {
     return true;
   }
 
-  // Otherwise, not a native asset
+  // Not a native asset
   return false;
 }
