@@ -1,13 +1,12 @@
-import { publicToAddress } from '@ethereumjs/util';
 import type { Bip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
   KeyringCapabilities,
+  KeyringV2,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
@@ -16,13 +15,10 @@ import {
   EthScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { AccountId } from '@metamask/keyring-utils';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { traceFallback } from '../analytics';
@@ -155,18 +151,18 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   async #createAccount({
     entropySource,
     groupIndex,
-    throwOnGap = false,
+    throwOnGap,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-    throwOnGap?: boolean;
+    throwOnGap: boolean;
   }): Promise<[Hex, boolean]> {
-    const result = await this.withKeyring<EthKeyring, [Hex, boolean]>(
+    const result = await this.withKeyring<KeyringV2, [Hex, boolean]>(
       { id: entropySource },
       async ({ keyring }) => {
         const existing = await keyring.getAccounts();
         if (groupIndex < existing.length) {
-          return [existing[groupIndex], false];
+          return [existing[groupIndex].address as Hex, false];
         }
 
         // If the throwOnGap flag is set, we throw an error to prevent index gaps.
@@ -174,8 +170,12 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           throw new Error('Trying to create too many accounts');
         }
 
-        const [added] = await keyring.addAccounts(1);
-        return [added, true];
+        const [added] = await keyring.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource,
+          groupIndex,
+        });
+        return [added.address as Hex, true];
       },
     );
 
@@ -202,7 +202,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       const { range } = options;
 
       // Use a single withKeyring call for the entire range.
-      const accountIds = await this.withKeyring<EthKeyring, AccountId[]>(
+      const accountIds = await this.withKeyring<KeyringV2, AccountId[]>(
         { id: entropySource },
         async ({ keyring }) => {
           const existing = await keyring.getAccounts();
@@ -224,21 +224,25 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           ) {
             if (groupIndex < existing.length) {
               // Account already exists.
-              result.push(this.#getAccountId(existing[groupIndex]));
+              result.push(
+                this.#getAccountId(existing[groupIndex].address as Hex),
+              );
             }
           }
 
-          // Determine if we need to create new accounts.
-          const from = Math.max(range.from, existing.length);
-          if (from <= range.to) {
-            // Calculate how many new accounts to create.
-            const accountsToCreate = range.to - existing.length + 1;
-
-            // Create all new accounts in one call.
-            const newAccounts = await keyring.addAccounts(accountsToCreate);
-            result.push(
-              ...newAccounts.map((address) => this.#getAccountId(address)),
-            );
+          // Create new accounts one-by-one since HdKeyringV2 only supports
+          // bip44:derive-index (not bip44:derive-index-range).
+          for (
+            let groupIndex = Math.max(range.from, existing.length);
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            const [created] = await keyring.createAccounts({
+              type: AccountCreationType.Bip44DeriveIndex,
+              entropySource,
+              groupIndex,
+            });
+            result.push(this.#getAccountId(created.address as Hex));
           }
 
           return result;
@@ -328,38 +332,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return parseInt(response, 16);
   }
 
-  async #getAddressFromGroupIndex({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Hex> {
-    // NOTE: To avoid exposing this function at keyring level, we just re-use its internal state
-    // and compute the derivation here.
-    return await this.withKeyring<HdKeyring, Hex>(
-      { id: entropySource },
-      async ({ keyring }) => {
-        // If the account already exist, do not re-derive and just re-use that account.
-        const existing = await keyring.getAccounts();
-        if (groupIndex < existing.length) {
-          return existing[groupIndex];
-        }
-
-        // If not, then we just "peek" the next address to avoid creating the account.
-        assert(keyring.root, 'Expected HD keyring.root to be set');
-        const hdKey = keyring.root.deriveChild(groupIndex);
-        assert(hdKey.publicKey, 'Expected public key to be set');
-
-        return add0x(
-          bytesToHex(publicToAddress(hdKey.publicKey, true)).toLowerCase(),
-        );
-      },
-    );
-  }
-
   /**
    * Discover and create accounts for the EVM provider.
+   *
+   * Uses a single withKeyringV2 callback to create the account, check for
+   * on-chain activity, and delete it if inactive — all atomically. This
+   * ensures that when no activity is found, the net keyring state change is
+   * zero (no vault write, no stateChange event).
    *
    * @param opts - The options for the discovery and creation of accounts.
    * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
@@ -385,39 +364,52 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         const provider = this.getEvmProvider();
         const { entropySource, groupIndex } = opts;
 
-        const addressFromGroupIndex = await this.#getAddressFromGroupIndex({
-          entropySource,
-          groupIndex,
-        });
+        // Everything happens inside a single withKeyringV2 callback so that
+        // a create+delete for inactive accounts results in zero net state
+        // change (no vault write, no events fired).
+        return await this.withKeyring<KeyringV2, Bip44Account<KeyringAccount>[]>(
+          { id: entropySource },
+          async ({ keyring }) => {
+            const existing = await keyring.getAccounts();
 
-        const count = await this.#getTransactionCount(
-          provider,
-          addressFromGroupIndex,
+            let address: Hex;
+            let created: KeyringAccount | undefined;
+
+            if (groupIndex < existing.length) {
+              // Account already exists — use its address.
+              address = existing[groupIndex].address as Hex;
+            } else {
+              // Account doesn't exist — create it to discover the address.
+              [created] = await keyring.createAccounts({
+                type: AccountCreationType.Bip44DeriveIndex,
+                entropySource,
+                groupIndex,
+              });
+              address = created.address as Hex;
+            }
+
+            const count = await this.#getTransactionCount(provider, address);
+            if (count === 0) {
+              // No activity. If we created the account, undo it within this
+              // same callback so the net state change is zero.
+              if (created) {
+                await keyring.deleteAccount(created.id);
+              }
+              return [];
+            }
+
+            const accountId = this.#getAccountId(address);
+
+            const account = this.messenger.call(
+              'AccountsController:getAccount',
+              accountId,
+            );
+            assertInternalAccountExists(account);
+            assertIsBip44Account(account);
+            this.accounts.add(account.id);
+            return [account];
+          },
         );
-        if (count === 0) {
-          return [];
-        }
-
-        // We have some activity on this address, we try to create the account.
-        const [address] = await this.#createAccount({
-          entropySource,
-          groupIndex,
-        });
-        assert(
-          addressFromGroupIndex === address,
-          'Created account does not match address from group index.',
-        );
-
-        const accoundId = this.#getAccountId(address);
-
-        const account = this.messenger.call(
-          'AccountsController:getAccount',
-          accoundId,
-        );
-        assertInternalAccountExists(account);
-        assertIsBip44Account(account);
-        this.accounts.add(account.id);
-        return [account];
       },
     );
   }

@@ -1,18 +1,13 @@
-import { publicToAddress } from '@ethereumjs/util';
 import { isBip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { AccountCreationType } from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
-import { createBytes } from '@metamask/utils';
 
 import { TraceName } from '../analytics/traces';
 import {
@@ -34,38 +29,26 @@ import {
 } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
 
-jest.mock('@ethereumjs/util', () => {
-  const actual = jest.requireActual('@ethereumjs/util');
+/**
+ * Converts an InternalAccount to a minimal KeyringAccount shape
+ * that satisfies what the controller accesses from the V2 keyring.
+ *
+ * @param account - The internal account to convert.
+ * @returns A KeyringAccount-shaped object.
+ */
+function toKeyringAccount(account: InternalAccount): KeyringAccount {
   return {
-    ...actual,
-    publicToAddress: jest.fn(),
-  };
-});
-
-function mockNextDiscoveryAddress(address: string): void {
-  jest.mocked(publicToAddress).mockReturnValue(createBytes(address as Hex));
+    id: account.id,
+    address: account.address,
+    type: account.type,
+    options: account.options,
+    methods: account.methods,
+    scopes: account.scopes ?? [],
+  } as unknown as KeyringAccount;
 }
 
-function mockNextDiscoveryAddressOnce(address: string): void {
-  jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
-}
-
-type MockHdKey = {
-  deriveChild: jest.Mock;
-};
-
-function mockHdKey(): MockHdKey {
-  return {
-    deriveChild: jest.fn().mockImplementation(() => {
-      return {
-        publicKey: new Uint8Array(65),
-      };
-    }),
-  };
-}
-
-class MockEthKeyring implements EthKeyring {
-  readonly type = 'MockEthKeyring';
+class MockKeyringV2 {
+  readonly type = 'MockKeyringV2';
 
   readonly metadata: KeyringMetadata = {
     id: 'mock-eth-keyring-id',
@@ -74,46 +57,43 @@ class MockEthKeyring implements EthKeyring {
 
   readonly accounts: InternalAccount[];
 
-  readonly root: MockHdKey;
-
   constructor(accounts: InternalAccount[]) {
     this.accounts = accounts;
-    this.root = mockHdKey();
-  }
-
-  async serialize(): Promise<string> {
-    return 'serialized';
-  }
-
-  async deserialize(_: string): Promise<void> {
-    // Not required.
   }
 
   getAccounts = jest
     .fn()
-    .mockImplementation(() => this.accounts.map((account) => account.address));
+    .mockImplementation(() => this.accounts.map(toKeyringAccount));
 
-  addAccounts = jest.fn().mockImplementation((numberOfAccounts: number) => {
-    const newAccountsIndex = this.accounts.length;
+  createAccounts = jest.fn().mockImplementation((options: Record<string, unknown>) => {
+    const newAccounts: InternalAccount[] = [];
 
-    // Just generate a new address by appending the number of accounts owned by that fake keyring.
-    for (let i = 0; i < numberOfAccounts; i++) {
-      this.accounts.push(
-        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+    if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
+      const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withUuid()
+        .withAddressSuffix(`${this.accounts.length}`)
+        .withGroupIndex(this.accounts.length)
+        .get();
+      this.accounts.push(account);
+      newAccounts.push(account);
+    } else if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
+      const { range } = options;
+      for (let i = range.from; i <= range.to; i++) {
+        const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
           .withUuid()
           .withAddressSuffix(`${this.accounts.length}`)
           .withGroupIndex(this.accounts.length)
-          .get(),
-      );
+          .get();
+        this.accounts.push(account);
+        newAccounts.push(account);
+      }
     }
 
-    return this.accounts
-      .slice(newAccountsIndex)
-      .map((account) => account.address);
+    return newAccounts.map(toKeyringAccount);
   });
 
-  removeAccount = jest.fn().mockImplementation((address: string) => {
-    const index = this.accounts.findIndex((a) => a.address === address);
+  deleteAccount = jest.fn().mockImplementation((accountId: string) => {
+    const index = this.accounts.findIndex((a) => a.id === accountId);
     if (index >= 0) {
       this.accounts.splice(index, 1);
     }
@@ -146,13 +126,13 @@ function setup({
 } = {}): {
   provider: EvmAccountProvider;
   messenger: RootMessenger;
-  keyring: MockEthKeyring;
+  keyring: MockKeyringV2;
   mocks: {
     mockProviderRequest: jest.Mock;
     mockGetAccount: jest.Mock;
   };
 } {
-  const keyring = new MockEthKeyring(accounts);
+  const keyring = new MockKeyringV2(accounts);
 
   messenger.registerActionHandler(
     'AccountsController:getAccounts',
@@ -196,7 +176,7 @@ function setup({
   });
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     async (_, operation) => operation({ keyring, metadata: keyring.metadata }),
   );
 
@@ -217,8 +197,6 @@ function setup({
       } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
     },
   );
-
-  mockNextDiscoveryAddress('0x123');
 
   const provider = new EvmAccountProvider(
     getMultichainAccountServiceMessenger(messenger),
@@ -326,8 +304,9 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(3);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
-    expect(keyring.addAccounts).toHaveBeenCalledWith(3);
+    // HdKeyringV2 only supports bip44:derive-index, so range creation
+    // calls createAccounts once per new index.
+    expect(keyring.createAccounts).toHaveBeenCalledTimes(3);
 
     // Verify each account has the correct group index.
     for (const [index, account] of newAccounts.entries()) {
@@ -351,8 +330,12 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(3);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
-    expect(keyring.addAccounts).toHaveBeenCalledWith(3);
+    expect(keyring.createAccounts).toHaveBeenCalledTimes(3);
+    expect(keyring.createAccounts).toHaveBeenCalledWith({
+      type: AccountCreationType.Bip44DeriveIndex,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
   });
 
   it('creates a single account when range from equals to', async () => {
@@ -381,7 +364,8 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(1);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(2); // 1 call for range 0-4, 1 call for account 5.
+    // 5 calls for range 0-4 + 1 call for account 5.
+    expect(keyring.createAccounts).toHaveBeenCalledTimes(6);
     expect(
       isBip44Account(newAccounts[0]) &&
         newAccounts[0].options.entropy.groupIndex,
@@ -429,9 +413,8 @@ describe('EvmAccountProvider', () => {
     expect(newAccounts).toHaveLength(4);
     expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
     expect(newAccounts[1]).toStrictEqual(MOCK_HD_ACCOUNT_2);
-    // Only 2 new accounts should be created (indices 2 and 3) in a single batched call.
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
-    expect(keyring.addAccounts).toHaveBeenCalledWith(2);
+    // Only new accounts (indices 2 and 3) should be created — one call each.
+    expect(keyring.createAccounts).toHaveBeenCalledTimes(2);
   });
 
   it('throws if the created account is not BIP-44 compatible', async () => {
@@ -516,7 +499,6 @@ describe('EvmAccountProvider', () => {
       id: expect.any(String),
     };
 
-    mockNextDiscoveryAddressOnce(account.address);
 
     expect(
       await provider.discoverAccounts({
@@ -550,19 +532,13 @@ describe('EvmAccountProvider', () => {
     );
   });
 
-  it('stops discovery if there is no transaction activity', async () => {
-    const { provider } = setup({
+  it('stops discovery if there is no transaction activity and deletes the created account', async () => {
+    const { provider, keyring } = setup({
       accounts: [],
       discovery: {
         transactionCount: '0x0',
       },
     });
-
-    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withAddressSuffix('0')
-      .get();
-
-    mockNextDiscoveryAddressOnce(account.address);
 
     expect(
       await provider.discoverAccounts({
@@ -572,6 +548,9 @@ describe('EvmAccountProvider', () => {
     ).toStrictEqual([]);
 
     expect(provider.getAccounts()).toStrictEqual([]);
+    // The account was created to peek at the address, then deleted
+    // because there was no on-chain activity.
+    expect(keyring.deleteAccount).toHaveBeenCalledTimes(1);
   });
 
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
@@ -657,7 +636,6 @@ describe('EvmAccountProvider', () => {
       id: expect.any(String),
     };
 
-    mockNextDiscoveryAddressOnce(account.address);
 
     // Create provider with custom trace callback
     const providerWithTrace = new EvmAccountProvider(
@@ -695,7 +673,6 @@ describe('EvmAccountProvider', () => {
       id: expect.any(String),
     };
 
-    mockNextDiscoveryAddressOnce(account.address);
 
     const result = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -720,12 +697,6 @@ describe('EvmAccountProvider', () => {
         transactionCount: '0x0', // No transactions, should return empty
       },
     });
-
-    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withAddressSuffix('0')
-      .get();
-
-    mockNextDiscoveryAddressOnce(account.address);
 
     const providerWithTrace = new EvmAccountProvider(
       getMultichainAccountServiceMessenger(messenger),
