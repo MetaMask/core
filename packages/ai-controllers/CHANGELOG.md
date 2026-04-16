@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
+- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- feat: adopt messenger-cli pattern for 4 controller packages ([#8391](https://github.com/MetaMask/core/pull/8391))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
@@ -16,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `RelatedAsset.caip19` is now optional (`string[] | undefined`) to match the live API, which omits the field for perps-only synthetic assets (e.g. ETHFI). `AiDigestService.fetchMarketOverview` normalises absent `caip19` values to `[]` so consumers always receive a `string[]` ([#8326](https://github.com/MetaMask/core/pull/8326)).
+- `RelatedAsset.caip19` is now optional (`string[] | undefined`) to match the live API, which omits the field for perps-only synthetic assets (e.g. ETHFI). `AiDigestService.fetchMarketOverview` normalises absent `caip19` values to `[]` so consumers always receive a `string[]`. ([#8326](https://github.com/MetaMask/core/pull/8326))
 
 ## [0.6.2]
 
@@ -29,57 +38,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `RelatedAsset.hlPerpsMarket` is now `string[]` (optional) instead of `string` to match the `/market-overview` API payload shape. `AiDigestService.fetchMarketOverview` now validates `hlPerpsMarket` as an array of strings and rejects string values ([#8308](https://github.com/MetaMask/core/pull/8308)).
+- `RelatedAsset.hlPerpsMarket` is now `string[]` (optional) instead of `string` to match the `/market-overview` API payload shape. `AiDigestService.fetchMarketOverview` now validates `hlPerpsMarket` as an array of strings and rejects string values. ([#8308](https://github.com/MetaMask/core/pull/8308))
 
 ## [0.6.0]
 
 ### Added
 
-- `MarketInsightsReport` now includes a required `digestId` field containing the unique UUID returned in the `/asset-summary` API response envelope ([#8283](https://github.com/MetaMask/core/pull/8283)).
-- `AiDigestService` now requires the `{ id, digest }` / `{ id, report }` envelope shape and exposes `id` as `digestId` on the returned report objects; bare (non-enveloped) responses are no longer accepted ([#8283](https://github.com/MetaMask/core/pull/8283)).
+- `MarketInsightsReport` now includes a required `digestId` field containing the unique UUID returned in the `/asset-summary` API response envelope. ([#8283](https://github.com/MetaMask/core/pull/8283))
+- `AiDigestService` now requires the `{ id, digest }` / `{ id, report }` envelope shape and exposes `id` as `digestId` on the returned report objects; bare (non-enveloped) responses are no longer accepted. ([#8283](https://github.com/MetaMask/core/pull/8283))
 
 ## [0.5.0]
 
 ### Changed
 
-- `AiDigestService.searchDigest` now uses the universal `asset` query parameter instead of the previous `caipAssetType` / `hlPerpsMarket` branching logic. The public TypeScript API is unchanged; any identifier (CAIP-19, ticker, name, perps market id) can be passed as before ([#8263](https://github.com/MetaMask/core/pull/8263)).
-- `RelatedAsset.hlPerpsMarket` now covers all HyperLiquid market identifiers — both regular crypto tokens (`BTC`, `ETH`) and purely synthetic perps assets (`xyz:TSLA`). No separate field is needed; clients use `caip19` presence to decide the icon resolution strategy ([#8263](https://github.com/MetaMask/core/pull/8263)).
+- `AiDigestService.searchDigest` now uses the universal `asset` query parameter instead of the previous `caipAssetType` / `hlPerpsMarket` branching logic. The public TypeScript API is unchanged; any identifier (CAIP-19, ticker, name, perps market id) can be passed as before. ([#8263](https://github.com/MetaMask/core/pull/8263))
+- `RelatedAsset.hlPerpsMarket` now covers all HyperLiquid market identifiers — both regular crypto tokens (`BTC`, `ETH`) and purely synthetic perps assets (`xyz:TSLA`). No separate field is needed; clients use `caip19` presence to decide the icon resolution strategy. ([#8263](https://github.com/MetaMask/core/pull/8263))
 
 ## [0.4.0]
 
 ### Added
 
-- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets` ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets`. ([#8218](https://github.com/MetaMask/core/pull/8218))
 
 ### Changed
 
-- `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields ([#8218](https://github.com/MetaMask/core/pull/8218)).
-- `MarketOverview.headline`, `summary`, and `sources` have been removed; they are not part of the `/market-overview` API response ([#8218](https://github.com/MetaMask/core/pull/8218)).
-- `MarketOverviewTrend.category` and `impact` are now optional to match the live API response shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
-- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields. ([#8218](https://github.com/MetaMask/core/pull/8218))
+- `MarketOverview.headline`, `summary`, and `sources` have been removed; they are not part of the `/market-overview` API response. ([#8218](https://github.com/MetaMask/core/pull/8218))
+- `MarketOverviewTrend.category` and `impact` are now optional to match the live API response shape. ([#8218](https://github.com/MetaMask/core/pull/8218))
+- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape. ([#8218](https://github.com/MetaMask/core/pull/8218))
 
 ## [0.3.0]
 
 ### Changed
 
-- `AiDigestService.searchDigest` and `AiDigestController.fetchMarketInsights` now accept any string identifier rather than only CAIP-19 asset types. CAIP-19 identifiers continue to use the `caipAssetType` query parameter; all other strings (e.g. perps market symbols like `ETH`) use the new `hlPerpsMarket` query parameter ([#8182](https://github.com/MetaMask/core/pull/8182)).
-- Rename `caip19Id` parameter to `assetIdentifier` in `DigestService.searchDigest`, `MarketInsightsEntry`, and `AiDigestController.fetchMarketInsights` ([#8182](https://github.com/MetaMask/core/pull/8182)).
-- Replace `INVALID_CAIP_ASSET_TYPE` error message constant with `INVALID_ASSET_IDENTIFIER` in `AiDigestControllerErrorMessage` ([#8182](https://github.com/MetaMask/core/pull/8182)).
+- `AiDigestService.searchDigest` and `AiDigestController.fetchMarketInsights` now accept any string identifier rather than only CAIP-19 asset types. CAIP-19 identifiers continue to use the `caipAssetType` query parameter; all other strings (e.g. perps market symbols like `ETH`) use the new `hlPerpsMarket` query parameter. ([#8182](https://github.com/MetaMask/core/pull/8182))
+- Rename `caip19Id` parameter to `assetIdentifier` in `DigestService.searchDigest`, `MarketInsightsEntry`, and `AiDigestController.fetchMarketInsights`. ([#8182](https://github.com/MetaMask/core/pull/8182))
+- Replace `INVALID_CAIP_ASSET_TYPE` error message constant with `INVALID_ASSET_IDENTIFIER` in `AiDigestControllerErrorMessage`. ([#8182](https://github.com/MetaMask/core/pull/8182))
 
 ## [0.2.0]
 
 ### Added
 
-- Add `fetchMarketOverview` method to `AiDigestService`, with superstruct validation of the `MarketOverview` response shape ([#8109](https://github.com/MetaMask/core/pull/8109)).
-- Export new shared sub-types `Article`, `Tweet`, `Source`, `AIResponseMetadata`, `MarketOverview`, `MarketOverviewEntry`, `MarketOverviewTrend`, and `AiDigestControllerFetchMarketOverviewAction` ([#8109](https://github.com/MetaMask/core/pull/8109)).
+- Add `fetchMarketOverview` method to `AiDigestService`, with superstruct validation of the `MarketOverview` response shape. ([#8109](https://github.com/MetaMask/core/pull/8109))
+- Export new shared sub-types `Article`, `Tweet`, `Source`, `AIResponseMetadata`, `MarketOverview`, `MarketOverviewEntry`, `MarketOverviewTrend`, and `AiDigestControllerFetchMarketOverviewAction`. ([#8109](https://github.com/MetaMask/core/pull/8109))
 
 ### Changed
 
-- Strengthen `AiDigestService` response validation using nested `superstruct` schemas for market insights payloads, including deep validation of `trends`/`sources` items and support for optional top-level `social` entries while allowing additional unknown API fields for forward compatibility ([#8006](https://github.com/MetaMask/core/pull/8006)).
-- Rename shared sub-types `MarketInsightsArticle`, `MarketInsightsTweet`, and `MarketInsightsSource` to `Article`, `Tweet`, and `Source`; original names are kept as type aliases for backward compatibility ([#8109](https://github.com/MetaMask/core/pull/8109)).
-- Tighten `MarketInsightsTrend.category` and `MarketInsightsTrend.impact` to closed string unions matching the API spec; `Source.type` is also now a closed union (`'news' | 'data' | 'social'`) ([#8109](https://github.com/MetaMask/core/pull/8109)).
-- Update `searchDigest` endpoint from `/digests` to `/asset-summary` ([#8109](https://github.com/MetaMask/core/pull/8109)).
-- Add optional `metadata` field to `MarketInsightsReport` ([#8109](https://github.com/MetaMask/core/pull/8109)).
+- Strengthen `AiDigestService` response validation using nested `superstruct` schemas for market insights payloads, including deep validation of `trends`/`sources` items and support for optional top-level `social` entries while allowing additional unknown API fields for forward compatibility. ([#8006](https://github.com/MetaMask/core/pull/8006))
+- Rename shared sub-types `MarketInsightsArticle`, `MarketInsightsTweet`, and `MarketInsightsSource` to `Article`, `Tweet`, and `Source`; original names are kept as type aliases for backward compatibility. ([#8109](https://github.com/MetaMask/core/pull/8109))
+- Tighten `MarketInsightsTrend.category` and `MarketInsightsTrend.impact` to closed string unions matching the API spec; `Source.type` is also now a closed union (`'news' | 'data' | 'social'`). ([#8109](https://github.com/MetaMask/core/pull/8109))
+- Update `searchDigest` endpoint from `/digests` to `/asset-summary`. ([#8109](https://github.com/MetaMask/core/pull/8109))
+- Add optional `metadata` field to `MarketInsightsReport`. ([#8109](https://github.com/MetaMask/core/pull/8109))
 
 ## [0.1.0]
 

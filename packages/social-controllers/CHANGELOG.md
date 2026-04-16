@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
+
 ### Changed
 
 - **BREAKING:** `SocialServiceMessenger` now requires `AuthenticationController:getBearerToken` as an allowed action — all consumers must provide this action via messenger delegation
