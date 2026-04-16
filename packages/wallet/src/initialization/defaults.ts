@@ -12,12 +12,12 @@ import type { InitializationConfiguration, InstanceState } from './types';
 export { defaultConfigurations };
 
 type ExtractInstance<Config> =
-  Config extends InitializationConfiguration<infer Instance, infer _>
+  Config extends InitializationConfiguration<infer Instance, unknown>
     ? Instance
     : never;
 
 type ExtractInstanceMessenger<Config> =
-  Config extends InitializationConfiguration<infer _, infer InferredMessenger>
+  Config extends InitializationConfiguration<unknown, infer InferredMessenger>
     ? InferredMessenger
     : never;
 
