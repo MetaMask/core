@@ -8,15 +8,10 @@ set -o pipefail
 # script is invoked.
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 
-if ! output=$(mm-foundryup --binaries anvil 2>&1); then
+# Run foundryup's TypeScript entry point directly via tsx. This avoids having
+# to build @metamask/foundryup first, which matters in CI where workspace deps
+# aren't built before tests run.
+if ! output=$(yarn tsx ../foundryup/src/cli.ts --binaries anvil 2>&1); then
   echo "$output" >&2
-  exit 1
-fi
-
-if [ ! -e "node_modules/.bin/anvil" ]; then
-  echo "mm-foundryup completed but node_modules/.bin/anvil is missing" >&2
-  echo "cwd: $(pwd)" >&2
-  echo "contents of node_modules/.bin:" >&2
-  ls -la node_modules/.bin >&2 || true
   exit 1
 fi
