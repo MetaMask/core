@@ -99,13 +99,8 @@ async function main(): Promise<void> {
   );
 
   if (generate) {
-    const success = await generateAllActionTypesFiles(sources, formatter);
-    if (success) {
-      console.log('\n🎉 All action types generated successfully!');
-    } else {
-      // eslint-disable-next-line no-restricted-globals
-      process.exitCode = 1;
-    }
+    await generateAllActionTypesFiles(sources, formatter);
+    console.log('\n🎉 All action types generated successfully!');
   } else {
     const success = await checkActionTypesFiles(sources, formatter);
     if (!success) {
