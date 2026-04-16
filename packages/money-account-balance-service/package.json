@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-balance-service",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Data service for fetching Money account balances, exchange rates, and vault APY",
   "keywords": [
     "Ethereum",
