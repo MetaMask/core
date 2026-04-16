@@ -8,6 +8,7 @@ import type {
   ChompApiServiceAssociateAddressAction,
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceCreateUpgradeAction,
+  ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceGetUpgradeAction,
   ChompApiServiceVerifyDelegationAction,
   SignedDelegation,
@@ -23,7 +24,7 @@ import type { Hex } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
-import type { AccountUpgradeEntry, UpgradeConfig } from './types';
+import type { AccountUpgradeEntry, InitConfig, UpgradeConfig } from './types';
 
 export const controllerName = 'MoneyAccountUpgradeController';
 
@@ -72,6 +73,7 @@ type AllowedActions =
   | ChompApiServiceGetUpgradeAction
   | ChompApiServiceVerifyDelegationAction
   | ChompApiServiceCreateIntentsAction
+  | ChompApiServiceGetServiceDetailsAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignEip7702AuthorizationAction
   | DelegationControllerSignDelegationAction
@@ -102,7 +104,11 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerMessenger
 > {
-  readonly #config: UpgradeConfig;
+  #config: UpgradeConfig | undefined;
+
+  #chainId: Hex | undefined;
+
+  initialized: boolean;
 
   /**
    * Constructor for the MoneyAccountUpgradeController.
@@ -110,16 +116,13 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param options - The options for constructing the controller.
    * @param options.messenger - The messenger to use for inter-controller communication.
    * @param options.state - The initial state of the controller.
-   * @param options.config - Contract addresses and configuration for the upgrade sequence.
    */
   constructor({
     messenger,
     state,
-    config,
   }: {
     messenger: MoneyAccountUpgradeControllerMessenger;
     state?: Partial<MoneyAccountUpgradeControllerState>;
-    config: UpgradeConfig;
   }) {
     super({
       messenger,
@@ -131,12 +134,67 @@ export class MoneyAccountUpgradeController extends BaseController<
       },
     });
 
-    this.#config = config;
+    this.initialized = false;
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Fetches service details and builds the upgrade config.
+   *
+   * @param chainId - The chain to initialize for.
+   * @param initConfig - Contract addresses not available from the service details API.
+   */
+  async init(chainId: Hex, initConfig: InitConfig): Promise<void> {
+    const response = await this.messenger.call(
+      'ChompApiService:getServiceDetails',
+      [chainId],
+    );
+
+    const chain = response.chains[chainId];
+    if (!chain) {
+      throw new Error(`Chain ${chainId} not found in service details response`);
+    }
+
+    const { vedaProtocol } = chain.protocol;
+    if (!vedaProtocol) {
+      throw new Error(
+        `vedaProtocol not found for chain ${chainId} in service details response`,
+      );
+    }
+
+    const [firstToken] = vedaProtocol.supportedTokens;
+    if (!firstToken) {
+      throw new Error(
+        `No supported tokens found for vedaProtocol on chain ${chainId}`,
+      );
+    }
+
+    this.#config = {
+      delegateAddress: chain.autoDepositDelegate as Hex,
+      erc20TransferAmountEnforcer: firstToken.tokenAddress as Hex,
+      vedaVaultAdapterAddress: vedaProtocol.adapterAddress as Hex,
+      ...initConfig,
+    };
+    this.#chainId = chainId;
+    this.initialized = true;
+  }
+
+  /**
+   * Returns the upgrade config, throwing if the controller has not been initialized.
+   *
+   * @returns The upgrade config.
+   */
+  #requireConfig(): UpgradeConfig {
+    if (!this.#config) {
+      throw new Error(
+        'MoneyAccountUpgradeController is not initialized. Call init() first.',
+      );
+    }
+    return this.#config;
   }
 
   /**
@@ -147,6 +205,16 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param chainId - The target chain for the upgrade.
    */
   async upgradeAccount(address: Hex, chainId: Hex): Promise<void> {
+    // Validates that init() has been called, throwing if not.
+    this.#requireConfig();
+
+    if (chainId !== this.#chainId) {
+      throw new Error(
+        `Chain ID mismatch: controller was initialized for ${
+          this.#chainId
+        } but upgradeAccount was called with ${chainId}`,
+      );
+    }
     await this.#associateAddress(address);
     await this.#submitAuthorization(address, chainId);
     await this.#verifyDelegation(address, chainId);
@@ -203,11 +271,12 @@ export class MoneyAccountUpgradeController extends BaseController<
     const nonce = 0;
     const chainIdDecimal = parseInt(chainId, 16);
 
+    const config = this.#requireConfig();
     const signature = await this.messenger.call(
       'KeyringController:signEip7702Authorization',
       {
         chainId: chainIdDecimal,
-        contractAddress: this.#config.delegatorImplAddress,
+        contractAddress: config.delegatorImplAddress,
         nonce,
         from: address,
       },
@@ -248,26 +317,25 @@ export class MoneyAccountUpgradeController extends BaseController<
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')}`;
 
+    const config = this.#requireConfig();
+
     const delegation = {
-      delegate: this.#config.delegateAddress,
+      delegate: config.delegateAddress,
       delegator: address,
       authority: ROOT_AUTHORITY,
       caveats: [
         {
-          enforcer: this.#config.erc20TransferAmountEnforcer,
-          terms: this.#encodeCaveatTerms(
-            MAX_UINT256,
-            this.#config.musdTokenAddress,
-          ),
+          enforcer: config.erc20TransferAmountEnforcer,
+          terms: this.#encodeCaveatTerms(MAX_UINT256, config.musdTokenAddress),
           args: '0x' as Hex,
         },
         {
-          enforcer: this.#config.redeemerEnforcer,
-          terms: this.#encodeCaveatTerms(this.#config.vedaVaultAdapterAddress),
+          enforcer: config.redeemerEnforcer,
+          terms: this.#encodeCaveatTerms(config.vedaVaultAdapterAddress),
           args: '0x' as Hex,
         },
         {
-          enforcer: this.#config.valueLteEnforcer,
+          enforcer: config.valueLteEnforcer,
           terms:
             '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex,
           args: '0x' as Hex,
@@ -334,6 +402,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       );
     }
 
+    const config = this.#requireConfig();
     await this.messenger.call('ChompApiService:createIntents', [
       {
         account: address,
@@ -342,7 +411,7 @@ export class MoneyAccountUpgradeController extends BaseController<
         metadata: {
           allowance: MAX_UINT256,
           tokenSymbol: 'mUSD',
-          tokenAddress: this.#config.musdTokenAddress,
+          tokenAddress: config.musdTokenAddress,
           type: 'cash-deposit',
         },
       },
@@ -353,7 +422,7 @@ export class MoneyAccountUpgradeController extends BaseController<
         metadata: {
           allowance: MAX_UINT256,
           tokenSymbol: 'mUSD',
-          tokenAddress: this.#config.musdTokenAddress,
+          tokenAddress: config.musdTokenAddress,
           type: 'cash-withdrawal',
         },
       },
@@ -369,7 +438,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @returns The concatenated hex string.
    */
   #encodeCaveatTerms(...values: Hex[]): Hex {
-    return `0x${values.map((v) => v.slice(2).padStart(64, '0')).join('')}`;
+    return `0x${values.map((val) => val.slice(2).padStart(64, '0')).join('')}`;
   }
 
   /**

@@ -22,6 +22,18 @@ export type UpgradeConfig = {
 };
 
 /**
+ * Configuration values passed to {@link MoneyAccountUpgradeController.init}
+ * that cannot be derived from the service details API.
+ */
+export type InitConfig = Pick<
+  UpgradeConfig,
+  | 'delegatorImplAddress'
+  | 'musdTokenAddress'
+  | 'redeemerEnforcer'
+  | 'valueLteEnforcer'
+>;
+
+/**
  * The discrete steps of the upgrade sequence, in order.
  */
 export type UpgradeStep =
