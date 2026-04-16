@@ -55,7 +55,7 @@ async function getAnvilBinaryPath(): Promise<string> {
   }
 
   throw new Error(
-    `Anvil binary not found. Run: yarn workspace @metamask/wallet run pretest`,
+    `Anvil binary not found. Run: yarn workspace @metamask/wallet run test:prepare`,
   );
 }
 
