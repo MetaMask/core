@@ -1,5 +1,4 @@
 import { Messenger } from '@metamask/messenger';
-import type { Json } from '@metamask/utils';
 
 import type {
   DefaultActions,
@@ -9,11 +8,12 @@ import type {
   RootMessenger,
 } from './initialization';
 import { initialize } from './initialization';
+import { KeyValueStore, loadState, subscribeToChanges } from './persistence';
 import type { WalletOptions } from './types';
 
 export type WalletConstructorArgs = {
-  state?: Record<string, Json>;
   options: WalletOptions;
+  databasePath?: string;
 };
 
 export class Wallet {
@@ -22,12 +22,30 @@ export class Wallet {
 
   readonly #instances: DefaultInstances;
 
-  constructor({ state = {}, options }: WalletConstructorArgs) {
+  readonly #store: KeyValueStore;
+
+  readonly #unsubscribePersistence: () => void;
+
+  constructor({ options, databasePath = ':memory:' }: WalletConstructorArgs) {
     this.messenger = new Messenger({
       namespace: 'Root',
     });
 
-    this.#instances = initialize({ state, messenger: this.messenger, options });
+    this.#store = new KeyValueStore(databasePath);
+
+    const state = loadState(this.#store);
+
+    this.#instances = initialize({
+      state,
+      messenger: this.messenger,
+      options,
+    });
+
+    this.#unsubscribePersistence = subscribeToChanges(
+      this.messenger,
+      this.#instances,
+      this.#store,
+    );
   }
 
   get state(): DefaultState {
@@ -41,16 +59,18 @@ export class Wallet {
   }
 
   async destroy(): Promise<void> {
+    this.#unsubscribePersistence();
+
     await Promise.all(
       Object.values(this.#instances).map((instance) => {
-        // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
-          // @ts-expect-error Accessing protected property.
           return instance.destroy();
         }
         /* istanbul ignore next */
         return undefined;
       }),
     );
+
+    this.#store.close();
   }
 }
