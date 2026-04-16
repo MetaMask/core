@@ -24,13 +24,28 @@ import type { Hex } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
-import type { AccountUpgradeEntry, InitConfig, UpgradeConfig } from './types';
+import type {
+  AccountUpgradeEntry,
+  InitConfig,
+  UpgradeConfig,
+  UpgradeStep,
+} from './types';
 
 export const controllerName = 'MoneyAccountUpgradeController';
 
 // The root authority constant for top-level delegations.
 const ROOT_AUTHORITY =
   '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex;
+
+// The ordered list of upgrade steps, used to determine whether a step
+// has already been completed during a previous (possibly interrupted) run.
+const STEP_ORDER: UpgradeStep[] = [
+  'associate-address',
+  'submit-authorization',
+  'verify-delegation',
+  'save-delegation',
+  'register-intents',
+];
 
 // Maximum uint256 — used as the allowance for the ERC20TransferAmountEnforcer.
 const MAX_UINT256 =
@@ -223,6 +238,22 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
+   * Returns true if the persisted upgrade entry for the given address
+   * shows a step at or past the target step.
+   *
+   * @param address - The account address.
+   * @param step - The step to check.
+   * @returns Whether the step has already been completed.
+   */
+  #isStepCompleted(address: Hex, step: UpgradeStep): boolean {
+    const entry = this.state.upgrades[address];
+    if (!entry) {
+      return false;
+    }
+    return STEP_ORDER.indexOf(entry.step) >= STEP_ORDER.indexOf(step);
+  }
+
+  /**
    * Step 0: Associate the Money Account address with the user's CHOMP profile.
    *
    * Signs "CHOMP Authentication {timestamp}" via personal_sign and submits
@@ -231,6 +262,10 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param address - The Money Account address.
    */
   async #associateAddress(address: Hex): Promise<void> {
+    if (this.#isStepCompleted(address, 'associate-address')) {
+      return;
+    }
+
     const timestamp = Date.now().toString();
     const message = `CHOMP Authentication ${timestamp}`;
 
@@ -257,6 +292,10 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param chainId - The target chain.
    */
   async #submitAuthorization(address: Hex, chainId: Hex): Promise<void> {
+    if (this.#isStepCompleted(address, 'submit-authorization')) {
+      return;
+    }
+
     const existing = await this.messenger.call(
       'ChompApiService:getUpgrade',
       address,
@@ -311,6 +350,10 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param chainId - The target chain.
    */
   async #verifyDelegation(address: Hex, chainId: Hex): Promise<void> {
+    if (this.#isStepCompleted(address, 'verify-delegation')) {
+      return;
+    }
+
     const salt: Hex = `0x${Array.from(
       webcrypto.getRandomValues(new Uint8Array(32)),
     )
@@ -381,6 +424,10 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param _chainId - The target chain (unused in stub).
    */
   async #saveDelegation(address: Hex, _chainId: Hex): Promise<void> {
+    if (this.#isStepCompleted(address, 'save-delegation')) {
+      return;
+    }
+
     // TODO: Save delegation to Authenticated User Storage once the
     // @metamask/authenticated-user-storage wrapper is available.
     this.#updateUpgrade(address, { step: 'save-delegation' });
@@ -393,6 +440,10 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param chainId - The target chain.
    */
   async #registerIntents(address: Hex, chainId: Hex): Promise<void> {
+    if (this.#isStepCompleted(address, 'register-intents')) {
+      return;
+    }
+
     const entry = this.state.upgrades[address];
     const delegationHash = entry?.delegationHash;
 

@@ -382,6 +382,104 @@ describe('MoneyAccountUpgradeController', () => {
       });
     });
 
+    it('skips all steps when upgrade is already complete', async () => {
+      const { controller, mocks } = await setupInitialized({
+        state: {
+          upgrades: {
+            [MOCK_ADDRESS]: {
+              step: 'register-intents',
+              chainId: MOCK_CHAIN_ID,
+              delegationHash: MOCK_DELEGATION_HASH,
+            },
+          },
+        },
+      });
+
+      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.associateAddress).not.toHaveBeenCalled();
+      expect(mocks.getUpgrade).not.toHaveBeenCalled();
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+      expect(mocks.createIntents).not.toHaveBeenCalled();
+    });
+
+    it('resumes from submit-authorization, skipping steps 0-1', async () => {
+      const { controller, mocks } = await setupInitialized({
+        state: {
+          upgrades: {
+            [MOCK_ADDRESS]: {
+              step: 'submit-authorization',
+              chainId: MOCK_CHAIN_ID,
+            },
+          },
+        },
+      });
+
+      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.associateAddress).not.toHaveBeenCalled();
+      expect(mocks.getUpgrade).not.toHaveBeenCalled();
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+      // Steps 2-4 run
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+    });
+
+    it('resumes from verify-delegation, skipping steps 0-2', async () => {
+      const { controller, mocks } = await setupInitialized({
+        state: {
+          upgrades: {
+            [MOCK_ADDRESS]: {
+              step: 'verify-delegation',
+              chainId: MOCK_CHAIN_ID,
+              delegationHash: MOCK_DELEGATION_HASH,
+            },
+          },
+        },
+      });
+
+      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.associateAddress).not.toHaveBeenCalled();
+      expect(mocks.getUpgrade).not.toHaveBeenCalled();
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+      // Steps 3-4 run
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+    });
+
+    it('resumes from save-delegation, skipping steps 0-3', async () => {
+      const { controller, mocks } = await setupInitialized({
+        state: {
+          upgrades: {
+            [MOCK_ADDRESS]: {
+              step: 'save-delegation',
+              chainId: MOCK_CHAIN_ID,
+              delegationHash: MOCK_DELEGATION_HASH,
+            },
+          },
+        },
+      });
+
+      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.associateAddress).not.toHaveBeenCalled();
+      expect(mocks.getUpgrade).not.toHaveBeenCalled();
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+      // Only step 4 runs
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+    });
+
     it('is callable via the messenger', async () => {
       const { rootMessenger } = await setupInitialized();
 
@@ -415,6 +513,24 @@ describe('MoneyAccountUpgradeController', () => {
           timestamp: expect.stringMatching(/^\d+$/u),
         }),
       );
+    });
+
+    it('skips signing when address already has an upgrade entry', async () => {
+      const { controller, mocks } = await setupInitialized({
+        state: {
+          upgrades: {
+            [MOCK_ADDRESS]: {
+              step: 'associate-address',
+              chainId: MOCK_CHAIN_ID,
+            },
+          },
+        },
+      });
+
+      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.associateAddress).not.toHaveBeenCalled();
     });
 
     it('updates state to associate-address after completion', async () => {
