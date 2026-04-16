@@ -47,8 +47,7 @@
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "pretest": "mm-foundryup --binaries anvil",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test": "mm-foundryup --binaries anvil && NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
