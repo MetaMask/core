@@ -1,4 +1,8 @@
 import type { Json } from '@metamask/utils';
+import Sqlite from 'better-sqlite3';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 import { KeyValueStore } from './KeyValueStore';
 
@@ -75,6 +79,39 @@ describe('KeyValueStore', () => {
 
     it('does nothing when deleting a nonexistent key', () => {
       expect(() => store.delete('missing')).not.toThrow();
+    });
+  });
+
+  describe('corrupt data', () => {
+    let tempPath: string;
+    let corruptStore: KeyValueStore;
+
+    beforeEach(() => {
+      tempPath = path.join(os.tmpdir(), `kv-test-${Date.now()}.db`);
+      corruptStore = new KeyValueStore(tempPath);
+
+      const rawDb = new Sqlite(tempPath);
+      rawDb
+        .prepare('INSERT INTO kv (key, value) VALUES (?, ?)')
+        .run('bad', 'not json');
+      rawDb.close();
+    });
+
+    afterEach(() => {
+      corruptStore.close();
+      fs.unlinkSync(tempPath);
+    });
+
+    it('throws when get() encounters a non-JSON value', () => {
+      expect(() => corruptStore.get('bad')).toThrow(
+        "Failed to parse stored value for key 'bad'",
+      );
+    });
+
+    it('throws when getAll() encounters a non-JSON value', () => {
+      expect(() => corruptStore.getAll()).toThrow(
+        "Failed to parse stored value for key 'bad'",
+      );
     });
   });
 });

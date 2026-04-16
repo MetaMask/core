@@ -9,6 +9,8 @@ import { enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
 import type { AnvilInstance } from '../test/anvil';
+import * as persistenceModule from './persistence';
+import { KeyValueStore } from './persistence';
 import {
   createSecretRecoveryPhrase,
   importSecretRecoveryPhrase,
@@ -167,6 +169,47 @@ describe('Wallet', () => {
       encryptionKey: expect.any(String),
       encryptionSalt: expect.any(String),
       vault: expect.any(String),
+    });
+  });
+
+  describe('lifecycle', () => {
+    const options = {
+      infuraProjectId: 'fake-infura-project-id',
+      clientVersion: '1.0.0',
+      showApprovalRequest: (): undefined => undefined,
+      clientConfigApiService: new ClientConfigApiService({
+        fetch: globalThis.fetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      }),
+      getMetaMetricsId: (): string => 'fake-metrics-id',
+    };
+
+    it('closes the store if construction fails', () => {
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+      jest.spyOn(persistenceModule, 'loadState').mockImplementationOnce(() => {
+        throw new Error('load failed');
+      });
+
+      expect(() => new Wallet({ options })).toThrow('load failed');
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+
+      closeSpy.mockRestore();
+    });
+
+    it('handles multiple destroy calls gracefully', async () => {
+      wallet = new Wallet({ options });
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      await wallet.destroy();
+      await wallet.destroy();
+
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+
+      closeSpy.mockRestore();
     });
   });
 });
