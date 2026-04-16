@@ -18,7 +18,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { AccountId } from '@metamask/keyring-utils';
 import type { Provider } from '@metamask/network-controller';
 import { isStrictHexString } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
 
 import { traceFallback } from '../analytics';
 import { TraceName } from '../analytics/traces';
@@ -134,7 +133,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * @param address - The address of the account.
    * @returns The account ID.
    */
-  #getAccountId(address: Hex): string {
+  #getAccountId(address: string): string {
     return getUUIDFromAddressOfNormalAccount(address);
   }
 
@@ -155,13 +154,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
     throwOnGap: boolean;
-  }): Promise<[Hex, boolean]> {
-    const result = await this.withKeyring<Keyring, [Hex, boolean]>(
+  }): Promise<[string, boolean]> {
+    const result = await this.withKeyring<Keyring, [string, boolean]>(
       { id: entropySource },
       async ({ keyring }) => {
         const existing = await keyring.getAccounts();
         if (groupIndex < existing.length) {
-          return [existing[groupIndex].address as Hex, false];
+          return [existing[groupIndex].address, false];
         }
 
         // If the throwOnGap flag is set, we throw an error to prevent index gaps.
@@ -174,7 +173,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           entropySource,
           groupIndex,
         });
-        return [added.address as Hex, true];
+        return [added.address, true];
       },
     );
 
@@ -224,7 +223,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
             if (groupIndex < existing.length) {
               // Account already exists.
               result.push(
-                this.#getAccountId(existing[groupIndex].address as Hex),
+                this.#getAccountId(existing[groupIndex].address),
               );
             }
           }
@@ -241,7 +240,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
               entropySource,
               groupIndex,
             });
-            result.push(this.#getAccountId(created.address as Hex));
+            result.push(this.#getAccountId(created.address));
           }
 
           return result;
@@ -298,7 +297,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    */
   async #getTransactionCount(
     provider: Provider,
-    address: Hex,
+    address: string,
   ): Promise<number> {
     const method = 'eth_getTransactionCount';
 
@@ -371,17 +370,17 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         // not. The AccountsController lookup happens AFTER the callback
         // completes, because newly created accounts are only visible to the
         // AccountsController after withKeyringV2 persists and fires stateChange.
-        const discoveredAddress = await this.withKeyring<Keyring, Hex | null>(
+        const discoveredAddress = await this.withKeyring<Keyring, string | null>(
           { id: entropySource },
           async ({ keyring }) => {
             const existing = await keyring.getAccounts();
 
-            let address: Hex;
+            let address: string;
             let created: KeyringAccount | undefined;
 
             if (groupIndex < existing.length) {
               // Account already exists — use its address.
-              address = existing[groupIndex].address as Hex;
+              address = existing[groupIndex].address;
             } else {
               // Account doesn't exist — create it to discover the address.
               [created] = await keyring.createAccounts({
@@ -389,7 +388,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
                 entropySource,
                 groupIndex,
               });
-              address = created.address as Hex;
+              address = created.address;
             }
 
             const count = await this.#getTransactionCount(provider, address);
