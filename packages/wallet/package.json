@@ -66,7 +66,7 @@
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/transaction-controller": "^64.3.0",
     "@metamask/utils": "^11.9.0",
-    "better-sqlite3": "^11.9.1"
+    "better-sqlite3": "^12.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

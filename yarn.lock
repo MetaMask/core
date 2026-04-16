@@ -5717,7 +5717,7 @@ __metadata:
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/better-sqlite3": "npm:^7.6.13"
     "@types/jest": "npm:^29.5.14"
-    better-sqlite3: "npm:^11.9.1"
+    better-sqlite3: "npm:^12.9.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     nock: "npm:^13.3.1"
@@ -7798,14 +7798,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"better-sqlite3@npm:^11.9.1":
-  version: 11.10.0
-  resolution: "better-sqlite3@npm:11.10.0"
+"better-sqlite3@npm:^12.9.0":
+  version: 12.9.0
+  resolution: "better-sqlite3@npm:12.9.0"
   dependencies:
     bindings: "npm:^1.5.0"
     node-gyp: "npm:latest"
     prebuild-install: "npm:^7.1.1"
-  checksum: 10/5e4c7437c4fe6033335a79c82974d7ab29f33c51c36f48b73e87e087d21578468575de1c56a7badd4f76f17255e25abefddaeacf018e5eeb9e0cb8d6e3e4a5e1
+  checksum: 10/0b32b06140f2a98ce7fbcf7d30b56b46e16d0b6fbfb63157a7bb61dea7265e176ab362d439785e852716a03a130db5f0ab356b6a68cbcb23d59a362c1a8b01d4
   languageName: node
   linkType: hard
 

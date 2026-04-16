@@ -113,7 +113,8 @@
       "babel-runtime>core-js": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "eslint-plugin-import-x>unrs-resolver": false,
+      "better-sqlite3": true
     }
   }
 }
