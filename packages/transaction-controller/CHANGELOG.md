@@ -18,9 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Skip simulation when transaction `containerTypes` includes `EnforcedSimulations` ([#8431](https://github.com/MetaMask/core/pull/8431))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
 
 ## [64.2.0]
 
