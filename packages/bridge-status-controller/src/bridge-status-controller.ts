@@ -712,7 +712,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
         // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
-        const srcTxHash = txHistory[bridgeTxMetaId]?.status.srcChain.txHash;
+        const srcTxHash = this.#setAndGetSrcTxHash(bridgeTxMetaId);
         if (!srcTxHash) {
           return;
         }
@@ -814,9 +814,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
-  readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {
+  /**
+   * Returns the srcTxHash for a non-STX EVM tx, the hash from the bridge status api,
+   * or the local hash from the TransactionController if the tx is in a finalized state
+   *
+   * @param bridgeTxMetaId - The bridge tx meta id
+   * @returns The srcTxHash
+   */
+  readonly #setAndGetSrcTxHash = (
+    bridgeTxMetaId: string,
+  ): string | undefined => {
     const { txHistory } = this.state;
-    // Prefer the srcTxHash from bridgeStatusState so we don't have to l ook up in TransactionController
+    // Prefer the srcTxHash from bridgeStatusState so we don't have to look up in TransactionController
     // But it is possible to have bridgeHistoryItem in state without the srcTxHash yet when it is an STX
     const srcTxHash = txHistory[bridgeTxMetaId].status.srcChain.txHash;
 
@@ -824,22 +833,53 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return srcTxHash;
     }
 
-    // Look up in TransactionController if txMeta has been updated with the srcTxHash
+    // Update history with TransactionController's hash if it has been updated
     const txMeta = getTransactionMetaById(this.messenger, bridgeTxMetaId);
-    return txMeta?.hash;
-  };
 
-  readonly #updateSrcTxHash = (
-    bridgeTxMetaId: string,
-    srcTxHash: string,
-  ): void => {
-    const { txHistory } = this.state;
-    if (txHistory[bridgeTxMetaId].status.srcChain.txHash) {
-      return;
+    if (!txMeta) {
+      return undefined;
     }
 
-    this.update((state) => {
-      state.txHistory[bridgeTxMetaId].status.srcChain.txHash = srcTxHash;
+    const localTxHash = [
+      TransactionStatus.confirmed,
+      TransactionStatus.dropped,
+      TransactionStatus.rejected,
+      TransactionStatus.failed,
+    ].includes(txMeta.status)
+      ? txMeta.hash
+      : undefined;
+    this.#updateHistoryItem(bridgeTxMetaId, {
+      txHash: localTxHash,
+    });
+
+    return localTxHash;
+  };
+
+  readonly #updateHistoryItem = (
+    historyKey: string,
+    {
+      status,
+      txHash,
+      attempts,
+    }: {
+      status?: StatusTypes;
+      txHash?: string;
+      attempts?: BridgeHistoryItem['attempts'];
+    },
+  ): void => {
+    this.update((currentState) => {
+      if (!currentState.txHistory[historyKey]) {
+        return;
+      }
+      if (status) {
+        currentState.txHistory[historyKey].status.status = status;
+        if (txHash) {
+          currentState.txHistory[historyKey].status.srcChain.txHash = txHash;
+        }
+        if (attempts) {
+          currentState.txHistory[historyKey].attempts = attempts;
+        }
+      }
     });
   };
 
@@ -1219,7 +1259,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Add swap or bridge tx to history
         this.#addTxToHistory({
           accountAddress: selectedAccount.address,
-          bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
+          bridgeTxMeta: txMeta, // Only the id and hash fields are used by the BridgeStatusController
           quoteResponse,
           slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
           isStxEnabled: isStxEnabledOnClient,

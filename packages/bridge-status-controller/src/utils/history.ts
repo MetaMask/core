@@ -163,7 +163,11 @@ export const getInitialHistoryItem = (
       status: StatusTypes.PENDING,
       srcChain: {
         chainId: quoteResponse.quote.srcChainId,
-        txHash: bridgeTxMeta?.hash,
+        // STX transactions don't have a final tx hash until they are mined, so we don't set it here
+        txHash:
+          isNonEvmChainId(quoteResponse.quote.srcChainId) || !isStxEnabled
+            ? bridgeTxMeta?.hash
+            : undefined,
       },
     },
     hasApprovalTx: Boolean(quoteResponse.approval),
