@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 const ANVIL_STARTUP_TIMEOUT = 15_000;
 
-type AnvilInstance = {
+export type AnvilInstance = {
   port: number;
   rpcUrl: string;
   stop: () => Promise<void>;
