@@ -29,8 +29,7 @@ import type {
   TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
-  TransactionControllerTransactionConfirmedEvent,
-  TransactionControllerTransactionFailedEvent,
+  TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -308,9 +307,7 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents =
-  | TransactionControllerTransactionFailedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

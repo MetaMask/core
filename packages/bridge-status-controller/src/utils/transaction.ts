@@ -145,7 +145,7 @@ export const getTransactionMetaByHash = (
   txHash?: string,
 ) => {
   return getTransactions(messenger).find(
-    (tx: TransactionMeta) => tx.hash === txHash,
+    (tx: TransactionMeta) => tx.hash?.toLowerCase() === txHash?.toLowerCase(),
   );
 };
 

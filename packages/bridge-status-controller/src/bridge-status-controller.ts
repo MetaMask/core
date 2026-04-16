@@ -60,6 +60,7 @@ import {
 } from './utils/bridge-status';
 import {
   getInitialHistoryItem,
+  getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
 } from './utils/history';
@@ -203,24 +204,79 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
-    this.messenger.subscribe(
-      'TransactionController:transactionFailed',
-      this.#onTransactionFailed,
-    );
-
-    this.messenger.subscribe(
-      'TransactionController:transactionConfirmed',
-      (transactionMeta) => {
-        const { type, id: txMetaId, chainId } = transactionMeta;
-        if (type === TransactionType.swap) {
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.Completed,
-            txMetaId,
+    this.messenger.subscribe<
+      'TransactionController:transactionStatusUpdated',
+      {
+        historyKey?: string;
+        historyItem?: BridgeHistoryItem;
+        txMeta: TransactionMeta;
+      }
+    >(
+      'TransactionController:transactionStatusUpdated',
+      ({ txMeta, historyKey, historyItem }) => {
+        if (!txMeta) {
+          console.error(
+            '======TransactionController:transactionStatusUpdated NOT FOUND',
           );
+          return;
         }
-        if (type === TransactionType.bridge && !isNonEvmChainId(chainId)) {
-          this.#startPollingForTxId(txMetaId);
+        const { type, hash, status, id, actionId, batchId } = txMeta;
+        console.error('======TransactionController:transactionStatusUpdated', {
+          type,
+          hash,
+          status,
+          id,
+          actionId,
+          batchId,
+        });
+
+        // Allow event publishing if the txMeta is a swap/bridge OR if the
+        // corresponding history item exists
+        const isSwapOrBridgeTransaction =
+          type &&
+          [
+            TransactionType.swap,
+            TransactionType.bridge,
+            TransactionType.swapApproval,
+            TransactionType.bridgeApproval,
+          ].includes(type);
+
+        const isApprovalConfirmation =
+          txMeta.id === historyItem?.approvalTxId &&
+          status === TransactionStatus.confirmed;
+
+        if (
+          (!isSwapOrBridgeTransaction && !historyKey && !historyItem) ||
+          isApprovalConfirmation
+        ) {
+          console.error('======approval tx confirmed');
+          return;
         }
+
+        switch (status) {
+          case TransactionStatus.confirmed:
+            this.#handleTransactionConfirmed({ txMeta, historyKey });
+            break;
+          case TransactionStatus.failed:
+          case TransactionStatus.dropped:
+          case TransactionStatus.rejected:
+            this.#onTransactionFailed({ txMeta, historyKey });
+            break;
+          default:
+            break;
+        }
+      },
+      ({ transactionMeta }) => {
+        const entry = getMatchingHistoryEntryForTxMeta(
+          this.state.txHistory,
+          transactionMeta,
+        );
+
+        return {
+          historyKey: entry?.[0],
+          historyItem: entry?.[1],
+          txMeta: transactionMeta,
+        };
       },
     );
 
@@ -229,90 +285,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Check for historyItems that do not have a status of complete and restart polling
     this.#restartPollingForIncompleteHistoryItems();
   }
-
-  readonly #onTransactionFailed = ({
-    transactionMeta,
-  }: {
-    transactionMeta: TransactionMeta;
-  }): void => {
-    const { type, status, id: txMetaId, actionId } = transactionMeta;
-
-    if (
-      type &&
-      [
-        TransactionType.bridge,
-        TransactionType.swap,
-        TransactionType.bridgeApproval,
-        TransactionType.swapApproval,
-      ].includes(type) &&
-      [
-        TransactionStatus.failed,
-        TransactionStatus.dropped,
-        TransactionStatus.rejected,
-      ].includes(status)
-    ) {
-      this.#markTxAsFailed(transactionMeta);
-      if (status !== TransactionStatus.rejected) {
-        let historyKey: string | undefined;
-        if (this.state.txHistory[txMetaId]) {
-          historyKey = txMetaId;
-        } else if (actionId && this.state.txHistory[actionId]) {
-          historyKey = actionId;
-        }
-
-        const activeHistoryKey = historyKey ?? txMetaId;
-
-        // Skip account lookup and tracking when featureId is set (e.g. PERPS)
-        if (this.state.txHistory[activeHistoryKey]?.featureId) {
-          return;
-        }
-
-        const from = transactionMeta.txParams?.from;
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Failed,
-          activeHistoryKey,
-          getEVMTxPropertiesFromTransactionMeta(
-            transactionMeta,
-            from
-              ? this.messenger.call(
-                  'AccountsController:getAccountByAddress',
-                  from,
-                )
-              : undefined,
-          ),
-        );
-      }
-    }
-  };
-
-  // Mark tx as failed in txHistory if either the approval or trade fails
-  readonly #markTxAsFailed = ({
-    id: txMetaId,
-    actionId,
-  }: TransactionMeta): void => {
-    // Look up by txMetaId first
-    let txHistoryKey: string | undefined = this.state.txHistory[txMetaId]
-      ? txMetaId
-      : undefined;
-
-    // If not found by txMetaId, try looking up by actionId (for pre-submission failures)
-    if (!txHistoryKey && actionId && this.state.txHistory[actionId]) {
-      txHistoryKey = actionId;
-    }
-
-    // If still not found, try looking up by approvalTxId
-    txHistoryKey ??= Object.keys(this.state.txHistory).find(
-      (key) => this.state.txHistory[key].approvalTxId === txMetaId,
-    );
-
-    if (!txHistoryKey) {
-      return;
-    }
-    const key = txHistoryKey;
-    this.update((statusState) => {
-      statusState.txHistory[key].status.status = StatusTypes.FAILED;
-    });
-  };
 
   resetState = (): void => {
     this.update((state) => {
@@ -575,6 +547,59 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     await this.#fetchBridgeTxStatus(pollingInput);
   };
 
+  readonly #onTransactionFailed = ({
+    txMeta,
+    historyKey,
+  }: {
+    txMeta: TransactionMeta;
+    historyKey: string;
+  }): void => {
+    this.#updateHistoryItem(historyKey, {
+      status: StatusTypes.FAILED,
+      txHash: txMeta?.hash,
+    });
+
+    // Skip account lookup and tracking when featureId is set (e.g. PERPS)
+    if (this.state.txHistory[historyKey]?.featureId) {
+      return;
+    }
+    this.#trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.Failed,
+      historyKey,
+      getEVMTxPropertiesFromTransactionMeta(txMeta),
+    );
+  };
+
+  // Only EVM txs
+  readonly #handleTransactionConfirmed = ({
+    txMeta,
+    historyKey,
+  }: {
+    txMeta: TransactionMeta;
+    historyKey: string;
+  }): void => {
+    this.#updateHistoryItem(historyKey, {
+      txHash: txMeta.hash,
+    });
+
+    console.log('======TransactionController:transactionConfirmed', txMeta);
+
+    switch (txMeta.type) {
+      case TransactionType.swap:
+        this.#updateHistoryItem(historyKey, {
+          status: StatusTypes.COMPLETE,
+        });
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Completed,
+          historyKey,
+        );
+        break;
+      default:
+        this.#startPollingForTxId(historyKey);
+        break;
+    }
+  };
+
   /**
    * Handles the failure to fetch the bridge tx status
    * We eventually stop polling for the tx if we fail too many times
@@ -687,12 +712,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
         // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
-        const srcTxHash = this.#getSrcTxHash(bridgeTxMetaId);
+        const srcTxHash = txHistory[bridgeTxMetaId]?.status.srcChain.txHash;
         if (!srcTxHash) {
           return;
         }
-
-        this.#updateSrcTxHash(bridgeTxMetaId, srcTxHash);
 
         const statusRequest = getStatusRequestWithSrcTxHash(
           historyItem.quote,

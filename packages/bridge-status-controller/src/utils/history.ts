@@ -1,14 +1,23 @@
 import {
   StatusTypes,
   isCrossChain,
+  isNonEvmChainId,
   isTronChainId,
 } from '@metamask/bridge-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type {
   BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
 } from '../types';
+import { MAX_PENDING_HISTORY_ITEM_AGE_MS } from '../constants';
+import {
+  getTransactionMetaByHash,
+  getTransactionMetaById,
+} from './transaction';
+import { getNetworkClientByChainId } from './network';
 
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
@@ -34,6 +43,41 @@ export const rekeyHistoryItemInState = (
   };
   delete state.txHistory[actionId];
   return true;
+};
+
+/**
+ * Returns the history entry that matches the txMeta by id, actionId, batchId, txHash, or approvalTxId
+ *
+ * @param txHistory - The transaction history
+ * @param txMeta - The transaction meta
+ * @returns The history entry that matches the txMeta
+ */
+export const getMatchingHistoryEntryForTxMeta = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txMeta: TransactionMeta,
+): [string, BridgeHistoryItem] | undefined => {
+  const historyEntries = Object.entries(txHistory);
+
+  return historyEntries.find(([key, value]) => {
+    const {
+      txMetaId,
+      actionId,
+      batchId,
+      approvalTxId,
+      status: {
+        srcChain: { txHash },
+      },
+    } = value;
+    return (
+      key === txMeta.id ||
+      key === txMeta.actionId ||
+      txMetaId === txMeta.id ||
+      (actionId && actionId === txMeta.actionId) ||
+      (batchId && batchId === txMeta.batchId) ||
+      (txHash && txHash.toLowerCase() === txMeta.hash?.toLowerCase()) ||
+      (approvalTxId && approvalTxId === txMeta.id)
+    );
+  });
 };
 
 /**

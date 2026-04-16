@@ -275,7 +275,12 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     ].includes(transactionMeta.status)
       ? StatusTypes.FAILED
       : StatusTypes.COMPLETE,
-    error_message: transactionMeta.error?.message ?? '',
+    error_message: [
+      `Transaction ${transactionMeta.status}`,
+      transactionMeta.error?.message,
+    ]
+      .filter(Boolean)
+      .join('. '),
     chain_id_source: formatChainIdToCaip(transactionMeta.chainId),
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
