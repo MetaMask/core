@@ -17,15 +17,9 @@ const TEST_PHRASE =
 const TEST_PASSWORD = 'testpass';
 
 async function setupWallet(): Promise<Wallet> {
-  if (!process.env.INFURA_PROJECT_KEY) {
-    throw new Error(
-      'INFURA_PROJECT_KEY is not set. Copy .env.example to .env and fill in your key.',
-    );
-  }
-
   const wallet = new Wallet({
     options: {
-      infuraProjectId: process.env.INFURA_PROJECT_KEY,
+      infuraProjectId: 'fake-infura-project-id',
       clientVersion: '1.0.0',
       showApprovalRequest: (): undefined => undefined,
       clientConfigApiService: new ClientConfigApiService({
