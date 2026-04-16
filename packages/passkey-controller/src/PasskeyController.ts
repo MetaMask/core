@@ -38,28 +38,26 @@ export type PasskeyControllerState = {
   passkeyRecord: PasskeyRecord | null;
 };
 
-type PasskeyControllerGetStateAction = ControllerGetStateAction<
+export type PasskeyControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PasskeyControllerState
 >;
 
-type PasskeyControllerMessengerMethodActions = {
-  [Method in (typeof MESSENGER_EXPOSED_METHODS)[number]]: {
-    type: `${typeof controllerName}:${Method}`;
-    handler: PasskeyController[Method];
-  };
-}[(typeof MESSENGER_EXPOSED_METHODS)[number]];
+export type PasskeyControllerIsPasskeyEnrolledAction = {
+  type: `${typeof controllerName}:isPasskeyEnrolled`;
+  handler: PasskeyController['isPasskeyEnrolled'];
+};
 
-type PasskeyControllerActions =
+export type PasskeyControllerActions =
   | PasskeyControllerGetStateAction
-  | PasskeyControllerMessengerMethodActions;
+  | PasskeyControllerIsPasskeyEnrolledAction;
 
-type PasskeyControllerStateChangeEvent = ControllerStateChangeEvent<
+export type PasskeyControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   PasskeyControllerState
 >;
 
-type PasskeyControllerEvents = PasskeyControllerStateChangeEvent;
+export type PasskeyControllerEvents = PasskeyControllerStateChangeEvent;
 
 export type PasskeyControllerMessenger = Messenger<
   typeof controllerName,

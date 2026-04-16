@@ -5,8 +5,18 @@ export {
 export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
+  PasskeyControllerGetStateAction,
+  PasskeyControllerIsPasskeyEnrolledAction,
+  PasskeyControllerActions,
+  PasskeyControllerStateChangeEvent,
+  PasskeyControllerEvents,
 } from './PasskeyController';
-export type * from './types';
+export type {
+  PasskeyDerivationMethod,
+  PasskeyRecord,
+  PrfEvalExtension,
+  PrfClientExtensionResults,
+} from './types';
 export type {
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
