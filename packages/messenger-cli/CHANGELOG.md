@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add support for formatting the generated method action type files with Prettier or Oxfmt ([#8486](https://github.com/MetaMask/core/pull/8486))
+  - This adds a `--formatter` option to the CLI, which accepts either `oxfmt` or
+    `prettier` (default).
+  - ESLint is no longer used to format the generated files, and is no longer a
+    (peer) dependency of this package.
+
 ## [0.1.0]
 
 ### Added
