@@ -13,7 +13,7 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type { KeyringMetadata } from '@metamask/keyring-controller';
+import type { KeyringMetadata, KeyringSelector } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
@@ -147,6 +147,32 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     fn: () => Promise<ReturnType>,
   ): Promise<ReturnType> {
     return this.#trace(request, fn);
+  }
+
+  // Override to keep snap providers on V1 withKeyring until the snap keyring
+  // migration is complete. The base class calls withKeyringV2 which the snap
+  // providers are not yet compatible with (they use V1 SnapKeyring methods).
+  protected override async withKeyring<SelectedKeyring, CallbackResult = void>(
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    const result = await this.messenger.call(
+      'KeyringController:withKeyring',
+      selector,
+      ({ keyring, metadata }) =>
+        operation({
+          keyring: keyring as SelectedKeyring,
+          metadata,
+        }),
+    );
+
+    return result as CallbackResult;
   }
 
   async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {

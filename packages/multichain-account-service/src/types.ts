@@ -22,6 +22,7 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerRemoveAccountAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerWithKeyringAction,
   KeyringControllerWithKeyringV2Action,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -78,6 +79,7 @@ type AllowedActions =
   | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerGetStateAction
   | KeyringControllerGetKeyringsByTypeAction
