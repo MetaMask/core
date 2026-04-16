@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
     steps:
@@ -31,7 +31,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
         script:
           - lint:eslint
           - lint:misc:check
@@ -64,7 +64,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
@@ -97,7 +97,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
@@ -119,7 +119,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
