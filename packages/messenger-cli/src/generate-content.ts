@@ -34,8 +34,8 @@ async function prettier(contents: string, filePath: string): Promise<string> {
       (await resolveConfig(filePath)) ?? DEFAULT_FORMATTING_OPTIONS;
 
     return await format(contents, {
-      parser: 'typescript',
       ...config,
+      parser: 'typescript',
     });
   } catch (error) {
     const message = getErrorMessage(error);
