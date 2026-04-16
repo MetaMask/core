@@ -31,6 +31,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
+        node-version: [24.x]
         script:
           - lint:eslint
           - lint:misc:check
