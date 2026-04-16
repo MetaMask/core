@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
 ### Added
 
+- **BREAKING:** `AssetsControllerMessenger` now requires the `AccountsControllerGetSelectedAccountAction` allowed action ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Used as a fallback in `#getSelectedAccounts()` when `AccountTreeController` has not yet initialized.
+  - Consumers must register `AccountsController:getSelectedAccount` on the messenger.
+- **BREAKING:** `AssetsControllerMessenger` now requires the `TransactionControllerUnapprovedTransactionAddedEvent` allowed event ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - `AssetsController` subscribes to `TransactionController:unapprovedTransactionAdded` to refresh balances for the account initiating a transaction (e.g. for gas estimations).
+  - Consumers must allow `TransactionController:unapprovedTransactionAdded` on the messenger.
 - Added `isOnboarded` option to `AssetsControllerOptions` and `RpcDataSourceConfig` ([#8430](https://github.com/MetaMask/core/pull/8430))
   - When `isOnboarded` returns `false`, `RpcDataSource` skips `fetch` and `subscribe` calls, preventing on-chain RPC calls before onboarding is complete.
   - Defaults to `() => true` so existing consumers are unaffected.
@@ -321,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...@metamask/assets-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.0...@metamask/assets-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@4.0.0...@metamask/assets-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.3.0...@metamask/assets-controller@4.0.0
