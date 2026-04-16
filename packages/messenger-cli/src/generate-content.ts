@@ -40,7 +40,7 @@ async function prettier(contents: string): Promise<string> {
   } catch (error) {
     const message = getErrorMessage(error);
     throw new Error(
-      `Failed to source code with Prettier. Is Prettier installed?\n\n${message}`,
+      `Failed to format source code with Prettier. Is Prettier installed?\n\n${message}`,
     );
   }
 }
