@@ -65,7 +65,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.14.191",

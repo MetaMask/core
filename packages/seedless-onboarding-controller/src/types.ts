@@ -1,4 +1,3 @@
-import type { Encryptor } from '@metamask/keyring-controller';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
@@ -178,12 +177,6 @@ export type SeedlessOnboardingControllerState =
        */
       migrationVersion: number;
     };
-
-/**
- * Encryptor interface for encrypting and decrypting seedless onboarding vault.
- */
-export type VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams> =
-  Encryptor<EncryptionKey, SupportedKeyDerivationParams>;
 
 /**
  * Additional key deriver for the TOPRF client.

@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^10.1.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-snap-client` from `^8.2.0` to `^9.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/transaction-controller` from `^64.2.0` to `^64.3.0` ([#8482](https://github.com/MetaMask/core/pull/8482))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING:** `AssetsControllerMessenger` now requires the `AccountsControllerGetSelectedAccountAction` allowed action ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Used as a fallback in `#getSelectedAccounts()` when `AccountTreeController` has not yet initialized.
+  - Consumers must register `AccountsController:getSelectedAccount` on the messenger.
+- **BREAKING:** `AssetsControllerMessenger` now requires the `TransactionControllerUnapprovedTransactionAddedEvent` allowed event ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - `AssetsController` subscribes to `TransactionController:unapprovedTransactionAdded` to refresh balances for the account initiating a transaction (e.g. for gas estimations).
+  - Consumers must allow `TransactionController:unapprovedTransactionAdded` on the messenger.
+- Added `isOnboarded` option to `AssetsControllerOptions` and `RpcDataSourceConfig` ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - When `isOnboarded` returns `false`, `RpcDataSource` skips `fetch` and `subscribe` calls, preventing on-chain RPC calls before onboarding is complete.
+  - Defaults to `() => true` so existing consumers are unaffected.
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.0.0` to `^7.1.0` ([#8472](https://github.com/MetaMask/core/pull/8472))
 
 ## [5.0.1]
 
@@ -23,6 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AssetsController` now re-subscribes to all data sources when `AccountTreeController` state changes after initial startup, ensuring snap accounts and their chains are included ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Previously, `#start()` would create subscriptions before snap accounts were available, and its idempotency guard prevented re-subscription when the full account list arrived.
+  - Added `#handleAccountTreeStateChange()` which forces a full re-subscription and re-fetch when the account tree updates, picking up all accounts including snaps.
+  - Added `AccountsController:getSelectedAccount` as a fallback in `#getSelectedAccounts()` for when the account tree is not yet initialized.
+- `TokenDataSource` no longer filters out user-imported custom assets with the `MIN_TOKEN_OCCURRENCES` spam filter or Blockaid bulk scan ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Tokens present in `customAssets` state now bypass the EVM occurrence threshold and non-EVM Blockaid scan, ensuring manually imported assets always appear.
+- `BackendWebsocketDataSource` now properly releases chains to `AccountsApiDataSource` when the websocket is disconnected or disabled ([#8430](https://github.com/MetaMask/core/pull/8430))
+  - Previously, `BackendWebsocketDataSource` eagerly claimed all supported chains on initialization regardless of connection state, preventing `AccountsApiDataSource` from polling.
+  - Chains are now only claimed when the websocket is connected. On disconnect, chains are released so the chain-claiming loop assigns them to `AccountsApiDataSource` for polling fallback. On reconnect, chains are reclaimed.
 - `AssetsController` no longer silently skips asset fetching on startup for returning users ([#8412](https://github.com/MetaMask/core/pull/8412))
   - Previously, `#start()` was called at keyring unlock before `AccountTreeController.init()` had built the account tree, causing `#selectedAccounts` to return an empty array and all subscriptions and fetches to be skipped. `selectedAccountGroupChange` does not fire when the persisted selected group is unchanged, leaving the controller idle.
   - Now subscribes to `AccountTreeController:stateChange` (the base-controller event guaranteed to fire when `init()` calls `this.update()`), so the controller re-evaluates its active state once accounts are available.
@@ -308,7 +336,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...@metamask/assets-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.0...@metamask/assets-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@4.0.0...@metamask/assets-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.3.0...@metamask/assets-controller@4.0.0
