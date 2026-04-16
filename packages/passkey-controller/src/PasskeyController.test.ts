@@ -645,6 +645,23 @@ describe('PasskeyController', () => {
     });
   });
 
+  describe('clearState', () => {
+    it('clears stored record and resets enrollment', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(),
+        vaultKey: 'k',
+      });
+      expect(controller.isPasskeyEnrolled()).toBe(true);
+
+      controller.clearState();
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+      expect(controller.state.passkeyRecord).toBeNull();
+    });
+  });
+
   describe('verifyRegistrationResponse parameters', () => {
     it('passes expectedOrigin and expectedRPID to verification', async () => {
       setupRegistrationMocks();

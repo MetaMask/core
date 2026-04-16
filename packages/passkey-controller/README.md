@@ -93,7 +93,9 @@ await controller.renewVaultKeyProtection({
 ```typescript
 controller.isPasskeyEnrolled(); // boolean
 
-controller.removePasskey(); // clears all passkey state
+controller.removePasskey(); // user-facing unenroll
+
+controller.clearState(); // same persisted reset + session drop; use for app lifecycle (e.g. wallet reset)
 ```
 
 ## API

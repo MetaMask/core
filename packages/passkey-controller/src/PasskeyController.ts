@@ -415,14 +415,23 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Unenrolls the passkey, removing the protected vault key material.
+   * Resets persisted state to defaults and clears any in-flight WebAuthn
+   * sessions (registration or authentication). Use from app lifecycle hooks
+   * such as wallet reset, alongside other controllers' `clearState` pattern.
    */
-  removePasskey(): void {
+  clearState(): void {
     this.update((state) => {
-      state.passkeyRecord = null;
+      Object.assign(state, getDefaultPasskeyControllerState());
     });
     this.#registrationSession = null;
     this.#authenticationSession = null;
+  }
+
+  /**
+   * Unenrolls the passkey, removing the protected vault key material.
+   */
+  removePasskey(): void {
+    this.clearState();
   }
 
   /**

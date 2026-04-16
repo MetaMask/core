@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `PasskeyController.clearState` — resets passkey enrollment and clears in-flight WebAuthn sessions (aligned with other MetaMask controllers' `clearState` naming for lifecycle resets such as wallet reset)
 - `PasskeyController` — manages passkey-based vault key protection using WebAuthn, orchestrating the full passkey lifecycle:
   - `generateRegistrationOptions` — produces WebAuthn credential creation options for passkey enrollment
   - `protectVaultKeyWithPasskey` — verifies a registration response and encrypts the vault key with the new credential
