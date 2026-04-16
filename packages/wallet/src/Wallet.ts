@@ -26,6 +26,8 @@ export class Wallet {
 
   readonly #unsubscribePersistence: () => void;
 
+  #destroyed = false;
+
   constructor({ options, databasePath = ':memory:' }: WalletConstructorArgs) {
     this.messenger = new Messenger({
       namespace: 'Root',
@@ -33,19 +35,24 @@ export class Wallet {
 
     this.#store = new KeyValueStore(databasePath);
 
-    const state = loadState(this.#store);
+    try {
+      const state = loadState(this.#store);
 
-    this.#instances = initialize({
-      state,
-      messenger: this.messenger,
-      options,
-    });
+      this.#instances = initialize({
+        state,
+        messenger: this.messenger,
+        options,
+      });
 
-    this.#unsubscribePersistence = subscribeToChanges(
-      this.messenger,
-      this.#instances,
-      this.#store,
-    );
+      this.#unsubscribePersistence = subscribeToChanges(
+        this.messenger,
+        this.#instances,
+        this.#store,
+      );
+    } catch (error) {
+      this.#store.close();
+      throw error;
+    }
   }
 
   get state(): DefaultState {
@@ -59,20 +66,27 @@ export class Wallet {
   }
 
   async destroy(): Promise<void> {
+    if (this.#destroyed) {
+      return;
+    }
+    this.#destroyed = true;
+
     this.#unsubscribePersistence();
 
-    await Promise.all(
-      Object.values(this.#instances).map((instance) => {
-        // @ts-expect-error Accessing protected property.
-        if (typeof instance.destroy === 'function') {
+    try {
+      await Promise.allSettled(
+        Object.values(this.#instances).map((instance) => {
           // @ts-expect-error Accessing protected property.
-          return instance.destroy();
-        }
-        /* istanbul ignore next */
-        return undefined;
-      }),
-    );
-
-    this.#store.close();
+          if (typeof instance.destroy === 'function') {
+            // @ts-expect-error Accessing protected property.
+            return instance.destroy();
+          }
+          /* istanbul ignore next */
+          return undefined;
+        }),
+      );
+    } finally {
+      this.#store.close();
+    }
   }
 }

@@ -36,7 +36,14 @@ export class KeyValueStore {
 
   get(key: string): Json | undefined {
     const row = this.#getStmt.get(key);
-    return row ? JSON.parse(row.value) : undefined;
+    if (!row) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(row.value);
+    } catch {
+      throw new Error(`Failed to parse stored value for key '${key}'`);
+    }
   }
 
   set(key: string, value: Json): void {
@@ -47,7 +54,11 @@ export class KeyValueStore {
     const rows = this.#getAllStmt.all();
     const result: Record<string, Json> = {};
     for (const row of rows) {
-      result[row.key] = JSON.parse(row.value);
+      try {
+        result[row.key] = JSON.parse(row.value);
+      } catch {
+        throw new Error(`Failed to parse stored value for key '${row.key}'`);
+      }
     }
     return result;
   }

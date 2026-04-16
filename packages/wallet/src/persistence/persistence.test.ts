@@ -45,6 +45,22 @@ describe('loadState', () => {
       "Invalid key in store: 'noDot'. Expected format 'ControllerName.propertyName'.",
     );
   });
+
+  it('throws on a key with an empty controller name', () => {
+    store.set('.propName', 'value');
+
+    expect(() => loadState(store)).toThrow(
+      "Invalid key in store: '.propName'. Both controller name and property name must be non-empty.",
+    );
+  });
+
+  it('throws on a key with an empty property name', () => {
+    store.set('ControllerName.', 'value');
+
+    expect(() => loadState(store)).toThrow(
+      "Invalid key in store: 'ControllerName.'. Both controller name and property name must be non-empty.",
+    );
+  });
 });
 
 describe('subscribeToChanges', () => {
@@ -176,6 +192,100 @@ describe('subscribeToChanges', () => {
     expect(store.get('TestController.prop')).toBe('first');
   });
 
+  it('deletes persisted property when it is removed from state', () => {
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([['removable', true]]),
+    });
+
+    subscribeToChanges(messenger, instances, store);
+
+    // First, persist a value
+    publishStateChanged(messenger, 'TestController', {
+      state: { removable: 'exists' },
+      patches: [{ op: 'replace', path: ['removable'], value: 'exists' }],
+    });
+
+    expect(store.get('TestController.removable')).toBe('exists');
+
+    // Now remove it — state no longer contains the property
+    publishStateChanged(messenger, 'TestController', {
+      state: {},
+      patches: [{ op: 'remove', path: ['removable'] }],
+    });
+
+    expect(store.get('TestController.removable')).toBeUndefined();
+  });
+
+  it('persists all flagged properties on root state replacement', () => {
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([
+        ['propA', true],
+        ['propB', true],
+        ['transient', false],
+      ]),
+    });
+
+    subscribeToChanges(messenger, instances, store);
+
+    publishStateChanged(messenger, 'TestController', {
+      state: { propA: 'newA', propB: 'newB', transient: 'skip' },
+      patches: [
+        {
+          op: 'replace',
+          path: [],
+          value: { propA: 'newA', propB: 'newB', transient: 'skip' },
+        },
+      ],
+    });
+
+    expect(store.get('TestController.propA')).toBe('newA');
+    expect(store.get('TestController.propB')).toBe('newB');
+    expect(store.get('TestController.transient')).toBeUndefined();
+  });
+
+  it('logs and continues when store.set throws', () => {
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([
+        ['propA', true],
+        ['propB', true],
+      ]),
+    });
+
+    subscribeToChanges(messenger, instances, store);
+
+    const error = new Error('disk full');
+    const originalSet = store.set.bind(store);
+    let callCount = 0;
+    jest.spyOn(store, 'set').mockImplementation((key, value) => {
+      callCount += 1;
+      if (callCount === 1) {
+        throw error;
+      }
+      originalSet(key, value);
+    });
+
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    publishStateChanged(messenger, 'TestController', {
+      state: { propA: 'a', propB: 'b' },
+      patches: [
+        { op: 'replace', path: ['propA'], value: 'a' },
+        { op: 'replace', path: ['propB'], value: 'b' },
+      ],
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to persist state for TestController.propA',
+      error,
+    );
+    // propB should still be persisted despite propA failing
+    expect(store.get('TestController.propB')).toBe('b');
+
+    consoleSpy.mockRestore();
+  });
+
   it('handles multiple controllers independently', () => {
     const { messenger, instances } = createMockControllers({
       ControllerA: createStateMetadata([['data', true]]),
@@ -196,6 +306,37 @@ describe('subscribeToChanges', () => {
 
     expect(store.get('ControllerA.data')).toBe('fromA');
     expect(store.get('ControllerB.data')).toBe('fromB');
+  });
+});
+
+describe('subscribeToChanges unsubscribe', () => {
+  let store: KeyValueStore;
+
+  beforeEach(() => {
+    store = new KeyValueStore(':memory:');
+  });
+
+  afterEach(() => {
+    store.close();
+  });
+
+  it('stops persistence so writes to a subsequently closed store do not throw', () => {
+    const { messenger, instances } = createMockControllers({
+      TestController: createStateMetadata([['prop', true]]),
+    });
+
+    const unsubscribe = subscribeToChanges(messenger, instances, store);
+
+    unsubscribe();
+    store.close();
+
+    // This should not throw — the handler was unsubscribed before close.
+    expect(() =>
+      publishStateChanged(messenger, 'TestController', {
+        state: { prop: 'after-close' },
+        patches: [{ op: 'replace', path: ['prop'], value: 'after-close' }],
+      }),
+    ).not.toThrow();
   });
 });
 
@@ -220,7 +361,7 @@ type MockControllers = {
  * Creates a state metadata object for a mock controller.
  *
  * @param properties - An array of [property name, persist value] pairs.
- * @returns A state metadata object.
+ * @returns A mock controller configuration containing the state metadata.
  */
 function createStateMetadata(
   properties: [string, boolean | ((value: never) => Json)][],
