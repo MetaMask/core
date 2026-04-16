@@ -64,7 +64,9 @@ function getRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
-function createMessenger(rootMessenger?: RootMessenger): SocialServiceMessenger {
+function createMessenger(
+  rootMessenger?: RootMessenger,
+): SocialServiceMessenger {
   const root = rootMessenger ?? getRootMessenger();
 
   root.registerActionHandler(
