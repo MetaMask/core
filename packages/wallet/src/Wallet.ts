@@ -48,6 +48,7 @@ export class Wallet {
           // @ts-expect-error Accessing protected property.
           return instance.destroy();
         }
+        /* istanbul ignore next */
         return undefined;
       }),
     );

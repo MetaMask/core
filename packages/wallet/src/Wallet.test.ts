@@ -7,7 +7,11 @@ import {
 } from '@metamask/remote-feature-flag-controller';
 import { enableNetConnect } from 'nock';
 
-import { importSecretRecoveryPhrase, sendTransaction } from './utilities';
+import {
+  createSecretRecoveryPhrase,
+  importSecretRecoveryPhrase,
+  sendTransaction,
+} from './utilities';
 import { Wallet } from './Wallet';
 import { startAnvil } from '../test/anvil';
 import type { AnvilInstance } from '../test/anvil';
@@ -126,6 +130,31 @@ describe('Wallet', () => {
         }),
       );
     }, 15_000);
+  });
+
+  it('can create secret recovery phrase', async () => {
+    wallet = new Wallet({
+      options: {
+        infuraProjectId: 'fake-infura-project-id',
+        clientVersion: '1.0.0',
+        showApprovalRequest: (): undefined => undefined,
+        clientConfigApiService: new ClientConfigApiService({
+          fetch: globalThis.fetch,
+          config: {
+            client: ClientType.Extension,
+            distribution: DistributionType.Main,
+            environment: EnvironmentType.Production,
+          },
+        }),
+        getMetaMetricsId: (): string => 'fake-metrics-id',
+      },
+    });
+
+    await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
+
+    expect(
+      wallet.messenger.call('AccountsController:listAccounts'),
+    ).toHaveLength(1);
   });
 
   it('exposes state', async () => {
