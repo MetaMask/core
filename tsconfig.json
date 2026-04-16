@@ -229,6 +229,9 @@
     },
     {
       "path": "./packages/user-operation-controller"
+    },
+    {
+      "path": "./packages/accounts-api"
     }
   ],
   "files": [],
