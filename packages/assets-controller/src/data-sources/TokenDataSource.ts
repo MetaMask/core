@@ -21,6 +21,7 @@ import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
 } from './evm-rpc-services';
+import { isNativeAsset } from 'src/utils/isNativeAsset';
 
 // ============================================================================
 // CONSTANTS
@@ -85,13 +86,13 @@ export type TokenDataSourceAllowedActions =
  * @returns FungibleAssetMetadata for state storage.
  */
 function transformV3AssetResponseToMetadata(
-  assetId: string,
+  assetId: Caip19AssetId,
   assetData: V3AssetResponse,
 ): AssetMetadata {
-  const parsed = parseCaipAssetType(assetId as CaipAssetType);
+  const parsed = parseCaipAssetType(assetId);
   let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
 
-  if (parsed.assetNamespace === 'slip44') {
+  if (isNativeAsset(assetId)) {
     tokenType = 'native';
   } else if (parsed.assetNamespace === 'spl') {
     tokenType = 'spl';
@@ -396,18 +397,17 @@ export class TokenDataSource {
         const nonEvmTokenIds: string[] = [];
 
         for (const assetData of metadataResponse) {
-          const { assetNamespace, chain } = parseCaipAssetType(
-            assetData.assetId as CaipAssetType,
-          );
-          if (assetNamespace === CaipAssetNamespace.Slip44) {
+          const assetId = assetData.assetId as Caip19AssetId;
+          const { assetNamespace, chain } = parseCaipAssetType(assetId);
+          if (isNativeAsset(assetId)) {
             // Native assets are always kept — no filtering.
           } else if (
             assetNamespace === CaipAssetNamespace.Erc20 &&
             chain.namespace === KnownCaipNamespace.Eip155
           ) {
-            evmErc20Ids.push(assetData.assetId);
+            evmErc20Ids.push(assetId);
           } else if (assetNamespace === CaipAssetNamespace.Token) {
-            nonEvmTokenIds.push(assetData.assetId);
+            nonEvmTokenIds.push(assetId);
           }
         }
 
@@ -461,7 +461,7 @@ export class TokenDataSource {
 
           const caipAssetId = assetData.assetId as Caip19AssetId;
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
-            assetData.assetId,
+            caipAssetId,
             assetData,
           );
         }

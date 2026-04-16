@@ -166,6 +166,7 @@ export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
+  SPOT_PRICES_SUPPORT_INFO,
 } from './token-prices-service';
 export {
   searchTokens,

@@ -119,6 +119,7 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
+import { isNativeAsset } from './utils/isNativeAsset';
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -1520,7 +1521,7 @@ export class AssetsController extends BaseController<
       if (pendingMetadata) {
         const parsed = parseCaipAssetType(normalizedAssetId);
         let tokenType: FungibleAssetMetadata['type'] = 'erc20';
-        if (parsed.assetNamespace === 'slip44') {
+        if (isNativeAsset(normalizedAssetId)) {
           tokenType = 'native';
         } else if (parsed.assetNamespace === 'spl') {
           tokenType = 'spl';
@@ -2140,7 +2141,7 @@ export class AssetsController extends BaseController<
     }
 
     // Check if it's a native token (either by metadata type or assetId format)
-    const isNative = metadata.type === 'native' || assetId.includes('/slip44:');
+    const isNative = metadata.type === 'native' || isNativeAsset(assetId);
 
     return isNative;
   }

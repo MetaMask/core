@@ -10,6 +10,8 @@ import type {
 } from '../types';
 import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
+import { isNativeAsset } from './isNativeAsset';
+import { getNativeTokenAddress } from '@metamask/assets-controllers';
 
 /** Account with id and address for mapping state to legacy format. */
 export type AccountForLegacyFormat = { id: string; address: string };
@@ -115,9 +117,8 @@ export function formatStateForTransactionPay(params: {
         const amount = getAmountFromBalance(balance);
         const balanceHex = amountToHex(amount);
 
-        if (parsed.assetNamespace === 'slip44') {
-          const nativeAddress =
-            '0x0000000000000000000000000000000000000000' as const;
+        if (isNativeAsset(assetId as Caip19AssetId)) {
+          const nativeAddress = getNativeTokenAddress(chainIdHex);
           const checksumAddress = toChecksumAddress(account.address);
           tokenBalances[accountAddressLower] ??= {};
           tokenBalances[accountAddressLower][chainIdHex] ??= {};
@@ -148,10 +149,9 @@ export function formatStateForTransactionPay(params: {
         continue;
       }
       const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
-      const address =
-        parsed.assetNamespace === 'slip44'
-          ? '0x0000000000000000000000000000000000000000'
-          : toChecksumAddress(String(parsed.assetReference));
+      const address = isNativeAsset(assetId as Caip19AssetId)
+        ? getNativeTokenAddress(chainIdHex)
+        : toChecksumAddress(String(parsed.assetReference));
       const token: LegacyToken = {
         address,
         decimals: metadata.decimals,

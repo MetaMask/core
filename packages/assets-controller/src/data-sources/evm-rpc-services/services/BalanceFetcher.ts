@@ -16,6 +16,7 @@ import type {
   ChainId,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
+import { isNativeAsset } from 'src/utils/isNativeAsset';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 
@@ -139,7 +140,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
       const {
         chain: { reference: chainReference },
-        assetNamespace,
         assetReference,
       } = parseCaipAssetType(assetId);
 
@@ -149,9 +149,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           continue;
         }
 
-        const isNative = assetNamespace === 'slip44';
+        const isNative = isNativeAsset(assetId);
         const tokenAddress = isNative
-          ? ZERO_ADDRESS
+          ? ZERO_ADDRESS // Explicitly use zero address even for chains in which the native token has a non-zero address
           : (assetReference.toLowerCase() as Address);
 
         assetsToFetch.set(assetIdLowerCase, {

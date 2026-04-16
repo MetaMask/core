@@ -61,6 +61,7 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
+import { isNativeAsset } from 'src/utils/isNativeAsset';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -343,7 +344,7 @@ export class RpcDataSource extends AbstractDataSource<
     const existingMetadata = this.#getExistingAssetsMetadata();
 
     for (const balance of balances) {
-      const isNative = balance.assetId.includes('/slip44:');
+      const isNative = isNativeAsset(balance.assetId);
       if (isNative) {
         const chainStatus = this.#chainStatuses[chainId];
 
@@ -1367,7 +1368,9 @@ export class RpcDataSource extends AbstractDataSource<
       'NetworkEnablementController:getState',
     );
 
-    return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
+    return (
+      nativeAssetIdentifiers[chainId] ?? `${chainId}/erc20:${ZERO_ADDRESS}`
+    );
   }
 
   /**

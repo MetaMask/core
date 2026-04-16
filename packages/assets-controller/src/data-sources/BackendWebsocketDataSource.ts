@@ -29,6 +29,7 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
+import { isNativeAsset } from 'src/utils/isNativeAsset';
 
 // ============================================================================
 // CONSTANTS
@@ -639,7 +640,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const assetId = asset.type as Caip19AssetId;
 
       // Determine token type from asset type string
-      const isNative = asset.type.includes('/slip44:');
+      const isNative = isNativeAsset(assetId);
       const tokenType = isNative ? 'native' : 'erc20';
 
       // We assume decimals are always present; skip malformed updates

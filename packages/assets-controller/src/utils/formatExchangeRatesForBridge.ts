@@ -5,11 +5,13 @@ import {
   MarketDataDetails,
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
+  getNativeTokenAddress,
 } from '@metamask/assets-controllers';
 import { Hex, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
 import type { AssetPrice, FungibleAssetPrice, Caip19AssetId } from '../types';
+import { isNativeAsset } from './isNativeAsset';
 
 /**
  * Exchange rates in the format expected by the bridge controller:
@@ -83,15 +85,16 @@ export function formatExchangeRatesForBridge(params: {
     const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
+      const isNative = isNativeAsset(assetId as Caip19AssetId);
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
       const chainIdParsed = parseCaipChainId(parsed.chainId);
 
       if (chainIdParsed.namespace === KnownCaipNamespace.Eip155) {
         const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
 
-        const nativeAssetId = nativeAssetIdentifiers[parsed.chainId] as
-          | Caip19AssetId
-          | undefined;
+        const nativeAssetId = (
+          isNative ? assetId : nativeAssetIdentifiers[parsed.chainId]
+        ) as Caip19AssetId | undefined;
 
         const nativeCurrencySymbol =
           networkConfigurationsByChainId[chainIdHex]?.nativeCurrency;
@@ -111,11 +114,11 @@ export function formatExchangeRatesForBridge(params: {
         let tokenAddress: Hex | undefined;
         if (parsed.assetNamespace === 'erc20') {
           tokenAddress = toChecksumAddress(String(parsed.assetReference));
-        } else if (parsed.assetNamespace === 'slip44') {
-          tokenAddress = '0x0000000000000000000000000000000000000000';
+        } else if (isNative) {
+          tokenAddress = getNativeTokenAddress(chainIdHex);
         }
 
-        if (tokenAddress && nativeAssetId) {
+        if (tokenAddress) {
           const priceInNative =
             nativeAssetUsdPrice > 0 ? usdPrice / nativeAssetUsdPrice : usdPrice;
           if (!marketData[chainIdHex]) {
@@ -131,7 +134,7 @@ export function formatExchangeRatesForBridge(params: {
           } as MarketDataDetails;
         }
 
-        if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
+        if (isNative) {
           currencyRates[nativeCurrencySymbol] = {
             conversionDate: lastUpdatedInSeconds,
             conversionRate: price,
