@@ -38,7 +38,9 @@ const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
   symbol: 'TST',
 };
 
-function createMessengerMock(transactionData: Record<string, unknown> = {}) {
+function createMessengerMock(
+  transactionData: Record<string, unknown> = {},
+): never {
   return {
     call: jest.fn().mockReturnValue({ transactionData }),
   } as never;
