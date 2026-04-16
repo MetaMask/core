@@ -196,9 +196,7 @@ describe('subscribeToChanges', () => {
 
     publishStateChanged(messenger, 'TestController', {
       state: { transientOnly: 'value' },
-      patches: [
-        { op: 'replace', path: ['transientOnly'], value: 'value' },
-      ],
+      patches: [{ op: 'replace', path: ['transientOnly'], value: 'value' }],
     });
 
     expect(store.getAll()).toStrictEqual({});
@@ -301,6 +299,9 @@ type MockSetup = {
 /**
  * Creates a mock messenger and instances map for testing persistence wiring.
  * The messenger supports subscribe/unsubscribe/publish for stateChanged events.
+ *
+ * @param controllers - Map of controller names to their mock configurations.
+ * @returns A mock messenger and instances map.
  */
 function createMockSetup(
   controllers: Record<string, MockControllerConfig>,
@@ -337,6 +338,12 @@ function createMockSetup(
 
 /**
  * Publishes a stateChanged event on the mock messenger.
+ *
+ * @param messenger - The mock messenger to publish on.
+ * @param controllerName - The name of the controller whose state changed.
+ * @param options0 - The state and patches to publish.
+ * @param options0.state - The new controller state.
+ * @param options0.patches - The Immer patches describing the state change.
  */
 function publishStateChanged(
   messenger: RootMessenger,
@@ -344,9 +351,5 @@ function publishStateChanged(
   { state, patches }: { state: Record<string, Json>; patches: unknown[] },
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).publish(
-    `${controllerName}:stateChanged`,
-    state,
-    patches,
-  );
+  (messenger as any).publish(`${controllerName}:stateChanged`, state, patches);
 }

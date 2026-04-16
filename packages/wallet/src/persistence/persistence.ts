@@ -1,7 +1,6 @@
 import type {
   BaseControllerInstance,
   StateMetadataConstraint,
-  StatePropertyMetadataConstraint,
 } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 import type { Patch } from 'immer';
@@ -92,10 +91,7 @@ export function subscribeToChanges(
 
     const eventType = `${controllerName}:stateChanged`;
 
-    const handler = (
-      state: Record<string, Json>,
-      patches: Patch[],
-    ): void => {
+    const handler = (state: Record<string, Json>, patches: Patch[]): void => {
       const changed = getChangedProperties(patches);
 
       for (const prop of changed) {
@@ -109,7 +105,7 @@ export function subscribeToChanges(
         if (typeof persistFlag === 'function') {
           store.set(key, persistFlag(state[prop] as never));
         } else {
-          store.set(key, state[prop] as Json);
+          store.set(key, state[prop]);
         }
       }
     };
@@ -143,10 +139,7 @@ function getPersistPropertyNames(
   metadata: StateMetadataConstraint,
 ): Set<string> {
   const names = new Set<string>();
-  for (const [key, propertyMetadata] of Object.entries(metadata) as [
-    string,
-    StatePropertyMetadataConstraint,
-  ][]) {
+  for (const [key, propertyMetadata] of Object.entries(metadata)) {
     if (propertyMetadata.persist) {
       names.add(key);
     }

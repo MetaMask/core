@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3';
 import type { Json } from '@metamask/utils';
+import BetterSqlite3 from 'better-sqlite3';
 
 /**
  * A synchronous key-value store backed by better-sqlite3.
@@ -9,18 +9,18 @@ import type { Json } from '@metamask/utils';
  * controller state.
  */
 export class KeyValueStore {
-  readonly #db: Database.Database;
+  readonly #db: BetterSqlite3.Database;
 
-  readonly #getStmt: Database.Statement;
+  readonly #getStmt: BetterSqlite3.Statement;
 
-  readonly #setStmt: Database.Statement;
+  readonly #setStmt: BetterSqlite3.Statement;
 
-  readonly #deleteStmt: Database.Statement;
+  readonly #deleteStmt: BetterSqlite3.Statement;
 
-  readonly #getAllStmt: Database.Statement;
+  readonly #getAllStmt: BetterSqlite3.Statement;
 
   constructor(databasePath: string) {
-    this.#db = new Database(databasePath);
+    this.#db = new BetterSqlite3(databasePath);
     this.#db.pragma('journal_mode = WAL');
     this.#db.exec(
       'CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
