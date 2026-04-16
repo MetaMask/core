@@ -299,10 +299,7 @@ export class QuoteStatusUpdateManager {
     let changed = false;
 
     for (const [key, entry] of this.#deferredRetryQueue) {
-      if (
-        now - entry.createdAt >
-        QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS
-      ) {
+      if (now - entry.createdAt > QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS) {
         this.#deferredRetryQueue.delete(key);
         console.error(
           `QuoteStatusUpdateManager: evicting deferred retry for quote ${entry.quoteId} — exceeded 12-hour retry window`,
