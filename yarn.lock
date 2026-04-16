@@ -3985,7 +3985,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/foundryup@workspace:packages/foundryup":
+"@metamask/foundryup@workspace:^, @metamask/foundryup@workspace:packages/foundryup":
   version: 0.0.0-use.local
   resolution: "@metamask/foundryup@workspace:packages/foundryup"
   dependencies:
@@ -5706,6 +5706,7 @@ __metadata:
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/controller-utils": "npm:^11.20.0"
+    "@metamask/foundryup": "workspace:^"
     "@metamask/keyring-controller": "npm:^25.2.0"
     "@metamask/messenger": "npm:^1.1.1"
     "@metamask/network-controller": "npm:^30.0.1"
