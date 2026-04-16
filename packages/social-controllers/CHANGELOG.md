@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `SocialServiceMessenger` now requires `AuthenticationController:getBearerToken` as an allowed action — all consumers must provide this action via messenger delegation
+- All `SocialService` API requests now include a JWT bearer token in the `Authorization` header, obtained via `AuthenticationController:getBearerToken` ([#8485](https://github.com/MetaMask/core/pull/8485))
+
 ## [0.2.0]
 
 ### Added
