@@ -240,7 +240,8 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           assetId:
             SPOT_PRICES_SUPPORT_INFO[
               chainId as keyof typeof SPOT_PRICES_SUPPORT_INFO
-            ] ?? toCaipAssetType(
+            ] ??
+            toCaipAssetType(
               KnownCaipNamespace.Eip155,
               hexToNumber(chainId).toString(),
               'erc20',
