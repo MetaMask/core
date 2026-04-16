@@ -149,7 +149,7 @@ export function subscribeToChanges(
  */
 function getPersistPropertyNames(
   metadata: StateMetadataConstraint,
-): Set<string> {
+): ReadonlySet<string> {
   const names = new Set<string>();
   for (const key of Object.keys(metadata)) {
     if (metadata[key].persist) {
@@ -172,8 +172,8 @@ function getPersistPropertyNames(
  */
 function getChangedProperties(
   patches: Patch[],
-  persistedProperties: Set<string>,
-): Set<string> {
+  persistedProperties: ReadonlySet<string>,
+): ReadonlySet<string> {
   const changed = new Set<string>();
   for (const patch of patches) {
     if (patch.path.length === 0) {
