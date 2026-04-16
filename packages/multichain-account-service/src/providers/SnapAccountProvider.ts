@@ -13,9 +13,16 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type { KeyringMetadata, KeyringSelector } from '@metamask/keyring-controller';
+import type {
+  KeyringMetadata,
+  KeyringSelector,
+  KeyringSelectorV2,
+} from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type {
+  EthKeyring,
+  InternalAccount,
+} from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -153,7 +160,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   // migration is complete. The base class calls withKeyringV2 which the snap
   // providers are not yet compatible with (they use V1 SnapKeyring methods).
   protected override async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelector,
+    selector: KeyringSelectorV2,
     operation: ({
       keyring,
       metadata,
@@ -164,11 +171,17 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   ): Promise<CallbackResult> {
     const result = await this.messenger.call(
       'KeyringController:withKeyring',
-      selector,
-      ({ keyring, metadata }) =>
+      selector as unknown as KeyringSelector,
+      ({
+        keyring,
+        metadata: keyringMetadata,
+      }: {
+        keyring: EthKeyring;
+        metadata: KeyringMetadata;
+      }) =>
         operation({
           keyring: keyring as SelectedKeyring,
-          metadata,
+          metadata: keyringMetadata,
         }),
     );
 
