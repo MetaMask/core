@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@metamask/account-api": "^1.0.0",
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/eth-hd-keyring": "^13.1.1",
     "@metamask/providers": "^22.1.0",
