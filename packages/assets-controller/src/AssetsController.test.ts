@@ -142,6 +142,15 @@ async function withController<ReturnValue>(
     namespace: MOCK_ANY_NAMESPACE,
   });
 
+  // Mock AccountsController
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('AccountsController:getSelectedAccount', () =>
+    createMockInternalAccount(),
+  );
+
   // Mock AccountTreeController
   messenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
