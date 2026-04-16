@@ -39,10 +39,17 @@ export const isSmartTransactionStatusResolved = (
 ) => stxStatus === 'uuid_not_found';
 
 // TODO use actual url once API is defined
-export function getAPIRequestURL(apiType: APIType, chainId: string): string {
+export function getAPIRequestURL(
+  apiType: APIType,
+  chainId: string,
+  useSentinel = false,
+): string {
   const chainIdDec = parseInt(chainId, 16);
   switch (apiType) {
     case APIType.GET_FEES: {
+      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
+        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/getFees`;
+      }
       return `${API_BASE_URL}/networks/${chainIdDec}/getFees`;
     }
 
@@ -51,14 +58,23 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
     }
 
     case APIType.SUBMIT_TRANSACTIONS: {
+      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
+        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
+      }
       return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
     }
 
     case APIType.CANCEL: {
+      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
+        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/cancel`;
+      }
       return `${API_BASE_URL}/networks/${chainIdDec}/cancel`;
     }
 
     case APIType.BATCH_STATUS: {
+      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
+        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/batchStatus`;
+      }
       return `${API_BASE_URL}/networks/${chainIdDec}/batchStatus`;
     }
 
