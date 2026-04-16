@@ -29,7 +29,7 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
-import { isNativeAsset } from 'src/utils/isNativeAsset';
+import { isNativeAsset } from '../utils/isNativeAsset';
 
 // ============================================================================
 // CONSTANTS

@@ -21,7 +21,7 @@ import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
 } from './evm-rpc-services';
-import { isNativeAsset } from 'src/utils/isNativeAsset';
+import { isNativeAsset } from '../utils/isNativeAsset';
 
 // ============================================================================
 // CONSTANTS

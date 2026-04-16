@@ -61,7 +61,7 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
-import { isNativeAsset } from 'src/utils/isNativeAsset';
+import { isNativeAsset } from '../utils/isNativeAsset';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds

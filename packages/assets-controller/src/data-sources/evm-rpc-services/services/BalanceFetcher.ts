@@ -16,7 +16,7 @@ import type {
   ChainId,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
-import { isNativeAsset } from 'src/utils/isNativeAsset';
+import { isNativeAsset } from '../../../utils/isNativeAsset';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 
