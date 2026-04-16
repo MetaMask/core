@@ -1,7 +1,8 @@
 import { isBip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
-import { AccountCreationType } from '@metamask/keyring-api';
+import { AccountCreationType, EthScope } from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
+import type { Keyring } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -47,15 +48,22 @@ function toKeyringAccount(account: InternalAccount): KeyringAccount {
   } as unknown as KeyringAccount;
 }
 
-class MockKeyringV2 {
-  readonly type = 'MockKeyringV2';
+// Mock V2 HD Keyring implementing the Keyring interface from @metamask/keyring-api/v2.
+class MockHdKeyringV2 implements Keyring {
+  readonly type = 'HD Key Tree' as `${string}`;
+
+  readonly capabilities = {
+    scopes: [EthScope.Eoa] as [string, ...string[]],
+    bip44: { deriveIndex: true },
+  };
+
+  // Internal test-only state — not part of the Keyring interface.
+  readonly accounts: InternalAccount[];
 
   readonly metadata: KeyringMetadata = {
     id: 'mock-eth-keyring-id',
     name: '',
   };
-
-  readonly accounts: InternalAccount[];
 
   constructor(accounts: InternalAccount[]) {
     this.accounts = accounts;
@@ -65,20 +73,20 @@ class MockKeyringV2 {
     .fn()
     .mockImplementation(() => this.accounts.map(toKeyringAccount));
 
-  createAccounts = jest.fn().mockImplementation((options: Record<string, unknown>) => {
-    const newAccounts: InternalAccount[] = [];
+  getAccount = jest.fn().mockImplementation((accountId: string) => {
+    const account = this.accounts.find((a) => a.id === accountId);
+    if (!account) {
+      throw new Error(`Account not found: ${accountId}`);
+    }
+    return toKeyringAccount(account);
+  });
 
-    if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
-      const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withUuid()
-        .withAddressSuffix(`${this.accounts.length}`)
-        .withGroupIndex(this.accounts.length)
-        .get();
-      this.accounts.push(account);
-      newAccounts.push(account);
-    } else if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
-      const { range } = options;
-      for (let i = range.from; i <= range.to; i++) {
+  createAccounts = jest
+    .fn()
+    .mockImplementation((options: Record<string, unknown>) => {
+      const newAccounts: InternalAccount[] = [];
+
+      if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
         const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
           .withUuid()
           .withAddressSuffix(`${this.accounts.length}`)
@@ -87,10 +95,9 @@ class MockKeyringV2 {
         this.accounts.push(account);
         newAccounts.push(account);
       }
-    }
 
-    return newAccounts.map(toKeyringAccount);
-  });
+      return newAccounts.map(toKeyringAccount);
+    });
 
   deleteAccount = jest.fn().mockImplementation((accountId: string) => {
     const index = this.accounts.findIndex((a) => a.id === accountId);
@@ -98,6 +105,12 @@ class MockKeyringV2 {
       this.accounts.splice(index, 1);
     }
   });
+
+  serialize = jest.fn().mockResolvedValue({});
+
+  deserialize = jest.fn().mockResolvedValue(undefined);
+
+  submitRequest = jest.fn();
 }
 
 /**
@@ -126,13 +139,13 @@ function setup({
 } = {}): {
   provider: EvmAccountProvider;
   messenger: RootMessenger;
-  keyring: MockKeyringV2;
+  keyring: MockHdKeyringV2;
   mocks: {
     mockProviderRequest: jest.Mock;
     mockGetAccount: jest.Mock;
   };
 } {
-  const keyring = new MockKeyringV2(accounts);
+  const keyring = new MockHdKeyringV2(accounts);
 
   messenger.registerActionHandler(
     'AccountsController:getAccounts',
@@ -499,7 +512,6 @@ describe('EvmAccountProvider', () => {
       id: expect.any(String),
     };
 
-
     expect(
       await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -636,7 +648,6 @@ describe('EvmAccountProvider', () => {
       id: expect.any(String),
     };
 
-
     // Create provider with custom trace callback
     const providerWithTrace = new EvmAccountProvider(
       getMultichainAccountServiceMessenger(messenger),
@@ -672,7 +683,6 @@ describe('EvmAccountProvider', () => {
       ...account,
       id: expect.any(String),
     };
-
 
     const result = await provider.discoverAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
