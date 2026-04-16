@@ -10,6 +10,24 @@ import {
   endowmentCaveatSpecifications as snapsEndowmentCaveatSpecifications,
 } from '@metamask/snaps-rpc-methods';
 
+export const EndowmentPermissions = Object.freeze({
+  'endowment:network-access': 'endowment:network-access',
+  'endowment:transaction-insight': 'endowment:transaction-insight',
+  'endowment:cronjob': 'endowment:cronjob',
+  'endowment:ethereum-provider': 'endowment:ethereum-provider',
+  'endowment:rpc': 'endowment:rpc',
+  'endowment:webassembly': 'endowment:webassembly',
+  'endowment:lifecycle-hooks': 'endowment:lifecycle-hooks',
+  'endowment:multichain-provider': 'endowment:multichain-provider',
+  'endowment:page-home': 'endowment:page-home',
+  'endowment:page-settings': 'endowment:page-settings',
+  'endowment:signature-insight': 'endowment:signature-insight',
+  'endowment:name-lookup': 'endowment:name-lookup',
+  'endowment:assets': 'endowment:assets',
+  'endowment:protocol': 'endowment:protocol',
+  'endowment:keyring': 'endowment:keyring',
+} as const);
+
 export const ExcludedSnapPermissions = Object.freeze({});
 
 export const ExcludedSnapEndowments = Object.freeze({

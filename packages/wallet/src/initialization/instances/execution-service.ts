@@ -4,6 +4,7 @@ import {
   ExecutionServiceMessenger,
   NodeThreadExecutionService,
 } from '@metamask/snaps-controllers/node';
+import { Duplex } from 'stream';
 
 import { InitializationConfiguration } from '../types';
 
@@ -12,9 +13,14 @@ export const executionService: InitializationConfiguration<
   ExecutionServiceMessenger
 > = {
   name: 'ExecutionService',
-  init: ({ messenger }) => {
+  init: ({ messenger, createProviderRpc }) => {
+    function setupSnapProvider(snapId: string, stream: Duplex) {
+      createProviderRpc(stream);
+    }
+
     const instance = new NodeThreadExecutionService({
       messenger,
+      setupSnapProvider,
     });
 
     return {

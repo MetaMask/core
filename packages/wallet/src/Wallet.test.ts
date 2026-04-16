@@ -6,7 +6,7 @@ import {
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
 import { TransactionController } from '@metamask/transaction-controller';
-import { enableNetConnect } from 'nock';
+import { disableNetConnect, enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
 import type { AnvilInstance } from '../test/anvil';
@@ -48,12 +48,13 @@ describe('Wallet', () => {
   let wallet: Wallet;
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    enableNetConnect();
+    // jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(async () => {
     await wallet?.destroy();
-    enableNetConnect();
+    disableNetConnect();
     jest.useRealTimers();
   });
 

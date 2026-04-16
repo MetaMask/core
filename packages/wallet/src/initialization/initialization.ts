@@ -20,6 +20,7 @@ export function initialize({
   messenger,
   initializationConfigurations = [],
   options,
+  createProviderRpc,
 }: InitializeArgs): DefaultInstances {
   const overriddenConfiguration = initializationConfigurations.map(
     (config) => config.name,
@@ -44,6 +45,7 @@ export function initialize({
       state: instanceState,
       messenger: instanceMessenger,
       options,
+      createProviderRpc,
     });
 
     instances[name] = instance;

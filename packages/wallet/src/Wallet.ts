@@ -1,6 +1,7 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
+import type { Duplex } from 'stream';
 
 import type {
   DefaultActions,
@@ -10,6 +11,7 @@ import type {
   RootMessenger,
 } from './initialization';
 import { initialize } from './initialization';
+import { createProviderRpc } from './json-rpc/createProviderRpc';
 import type { WalletOptions } from './types';
 
 export class Wallet {
@@ -33,6 +35,7 @@ export class Wallet {
       state: state ?? {},
       messenger: this.messenger,
       options,
+      createProviderRpc: this.createProviderRpc.bind(this),
     });
 
     this.#controllerMetadata = Object.fromEntries(
@@ -56,6 +59,10 @@ export class Wallet {
     Record<string, Readonly<StateMetadataConstraint>>
   > {
     return this.#controllerMetadata;
+  }
+  
+  createProviderRpc(stream: Duplex) {
+    return createProviderRpc(stream);
   }
 
   async destroy(): Promise<void> {

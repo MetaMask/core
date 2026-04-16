@@ -8,6 +8,11 @@ import {
 import SolanaWalletSnap from '@metamask/solana-wallet-snap/dist/preinstalled-snap.json';
 import TronWalletSnap from '@metamask/tron-wallet-snap/dist/preinstalled-snap.json';
 
+import {
+  EndowmentPermissions,
+  ExcludedSnapEndowments,
+  ExcludedSnapPermissions,
+} from '../../permissions/specifications';
 import { InitializationConfiguration } from '../types';
 
 export const snapController: InitializationConfiguration<
@@ -20,6 +25,13 @@ export const snapController: InitializationConfiguration<
       messenger,
       // Persisted state is different from actual state, consider changing `state` inference type.
       state: state as PersistedSnapControllerState,
+
+      environmentEndowmentPermissions: Object.values(EndowmentPermissions),
+      excludedPermissions: {
+        ...ExcludedSnapPermissions,
+        ...ExcludedSnapEndowments,
+      },
+
       ensureOnboardingComplete: options.ensureOnboardingComplete,
       preinstalledSnaps: [SolanaWalletSnap, BitcoinWalletSnap, TronWalletSnap],
     });

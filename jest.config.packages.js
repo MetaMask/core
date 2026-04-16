@@ -85,6 +85,9 @@ module.exports = {
     ],
     '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
     '^@metamask/snaps-controllers/node$': ['@metamask/snaps-controllers/node'],
+    '^@metamask/snaps-execution-environments/node-thread$': [
+      '@metamask/snaps-execution-environments/node-thread',
+    ],
     '^@metamask/post-message-stream/node$': [
       '@metamask/post-message-stream/node',
     ],

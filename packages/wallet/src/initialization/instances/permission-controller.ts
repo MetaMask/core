@@ -8,8 +8,8 @@ import {
   getCaveatSpecifications,
   getPermissionSpecifications,
   unrestrictedMethods,
-} from './specifications';
-import { InitializationConfiguration } from '../../types';
+} from '../../permissions/specifications';
+import { InitializationConfiguration } from '../types';
 
 export const permissionController: InitializationConfiguration<
   PermissionController,
