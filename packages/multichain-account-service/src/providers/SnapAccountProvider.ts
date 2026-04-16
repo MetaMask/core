@@ -120,9 +120,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
    * @throws An error if the platform is not ready (only effective once the platform has been ready at least once).
    */
   async ensureCanUseSnapPlatform(): Promise<void> {
-    return this.messenger.call(
-      'MultichainAccountService:ensureCanUseSnapPlatform',
-    );
+    return this.messenger.call('SnapAccountService:ensureReady', this.snapId);
   }
 
   /**
