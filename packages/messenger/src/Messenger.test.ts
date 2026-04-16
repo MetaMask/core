@@ -1625,6 +1625,132 @@ describe('Messenger', () => {
     });
   });
 
+  describe('delegateAll', () => {
+    it('delegates all listed actions and events', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+      type ChildOwnAction = {
+        type: 'Child:doStuff';
+        handler: () => void;
+      };
+      type SourceEvent = {
+        type: 'Source:stateChange';
+        payload: [{ value: number }];
+      };
+
+      const sourceMessenger = new Messenger<
+        'Source',
+        SourceAction | ChildOwnAction,
+        SourceEvent
+      >({ namespace: 'Source' });
+
+      const childMessenger = new Messenger<
+        'Child',
+        SourceAction | ChildOwnAction,
+        SourceEvent
+      >({ namespace: 'Child' });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 42);
+
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: ['Source:stateChange'],
+      });
+
+      // Child can now call the delegated action
+      expect(childMessenger.call('Source:getValue')).toBe(42);
+
+      // Child can now subscribe to the delegated event
+      const subscriber = jest.fn();
+      childMessenger.subscribe('Source:stateChange', subscriber);
+      sourceMessenger.publish('Source:stateChange', { value: 1 });
+      expect(subscriber).toHaveBeenCalledWith({ value: 1 });
+    });
+
+    it('delegates actions with an empty events array', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+
+      const sourceMessenger = new Messenger<'Source', SourceAction, never>({
+        namespace: 'Source',
+      });
+      const childMessenger = new Messenger<'Child', SourceAction, never>({
+        namespace: 'Child',
+      });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 99);
+
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: [],
+      });
+
+      expect(childMessenger.call('Source:getValue')).toBe(99);
+    });
+
+    it('excludes the delegatee own-namespace actions from the exhaustiveness check', () => {
+      type SourceAction = {
+        type: 'Source:getValue';
+        handler: () => number;
+      };
+      type ChildOwnAction = {
+        type: 'Child:doStuff';
+        handler: () => void;
+      };
+
+      const sourceMessenger = new Messenger<
+        'Source',
+        SourceAction | ChildOwnAction,
+        never
+      >({ namespace: 'Source' });
+
+      const childMessenger = new Messenger<
+        'Child',
+        SourceAction | ChildOwnAction,
+        never
+      >({ namespace: 'Child' });
+
+      sourceMessenger.registerActionHandler('Source:getValue', () => 42);
+
+      // This should compile without listing 'Child:doStuff' — it belongs
+      // to the child's own namespace and will be registered by the child.
+      sourceMessenger.delegateAll({
+        messenger: childMessenger,
+        actions: ['Source:getValue'],
+        events: [],
+      });
+
+      expect(childMessenger.call('Source:getValue')).toBe(42);
+    });
+
+    it('produces a type error when an action is missing', () => {
+      type ActionA = { type: 'A:getValue'; handler: () => number };
+      type ActionB = { type: 'B:getName'; handler: () => string };
+
+      const source = new Messenger<'Source', ActionA | ActionB, never>({
+        namespace: 'Source',
+      });
+      const child = new Messenger<'Child', ActionA | ActionB, never>({
+        namespace: 'Child',
+      });
+
+      expect(() =>
+        // @ts-expect-error — 'B:getName' is missing from the actions list
+        source.delegateAll({
+          messenger: child,
+          actions: ['A:getValue'],
+          events: [],
+        }),
+      ).not.toThrow();
+    });
+  });
+
   describe('revoke', () => {
     it('throws when attempting to revoke from parent', () => {
       type ExampleEvent = {
