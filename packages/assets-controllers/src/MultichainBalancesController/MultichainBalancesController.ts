@@ -177,6 +177,7 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
         const updatedAccountAssets = Object.entries(assets).map(
           ([accountId, { added, removed }]) => ({
