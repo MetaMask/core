@@ -5702,7 +5702,7 @@ __metadata:
   dependencies:
     "@metamask/accounts-controller": "npm:^37.2.0"
     "@metamask/approval-controller": "npm:^9.0.1"
-    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/controller-utils": "npm:^11.20.0"
@@ -5712,7 +5712,7 @@ __metadata:
     "@metamask/network-controller": "npm:^30.0.1"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
-    "@metamask/transaction-controller": "npm:^64.0.0"
+    "@metamask/transaction-controller": "npm:^64.3.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"

@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/wallet#readme",
   "bugs": {
@@ -60,11 +60,11 @@
     "@metamask/network-controller": "^30.0.1",
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/scure-bip39": "^2.1.1",
-    "@metamask/transaction-controller": "^64.0.0",
+    "@metamask/transaction-controller": "^64.3.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/foundryup": "^1.0.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
