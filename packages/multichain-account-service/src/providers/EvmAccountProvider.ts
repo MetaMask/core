@@ -222,9 +222,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           ) {
             if (groupIndex < existing.length) {
               // Account already exists.
-              result.push(
-                this.#getAccountId(existing[groupIndex].address),
-              );
+              result.push(this.#getAccountId(existing[groupIndex].address));
             }
           }
 
@@ -370,42 +368,42 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         // not. The AccountsController lookup happens AFTER the callback
         // completes, because newly created accounts are only visible to the
         // AccountsController after withKeyringV2 persists and fires stateChange.
-        const discoveredAddress = await this.withKeyring<Keyring, string | null>(
-          { id: entropySource },
-          async ({ keyring }) => {
-            const existing = await keyring.getAccounts();
+        const discoveredAddress = await this.withKeyring<
+          Keyring,
+          string | null
+        >({ id: entropySource }, async ({ keyring }) => {
+          const existing = await keyring.getAccounts();
 
-            let address: string;
-            let created: KeyringAccount | undefined;
+          let address: string;
+          let created: KeyringAccount | undefined;
 
-            if (groupIndex < existing.length) {
-              // Account already exists — use its address.
-              address = existing[groupIndex].address;
-            } else {
-              // Account doesn't exist — create it to discover the address.
-              [created] = await keyring.createAccounts({
-                type: AccountCreationType.Bip44DeriveIndex,
-                entropySource,
-                groupIndex,
-              });
-              address = created.address;
+          if (groupIndex < existing.length) {
+            // Account already exists — use its address.
+            address = existing[groupIndex].address;
+          } else {
+            // Account doesn't exist — create it to discover the address.
+            [created] = await keyring.createAccounts({
+              type: AccountCreationType.Bip44DeriveIndex,
+              entropySource,
+              groupIndex,
+            });
+            address = created.address;
+          }
+
+          const count = await this.#getTransactionCount(provider, address);
+          if (count === 0) {
+            // No activity. If we created the account, undo it within this
+            // same callback so the net state change is zero.
+            if (created) {
+              await keyring.deleteAccount(created.id);
             }
+            return null;
+          }
 
-            const count = await this.#getTransactionCount(provider, address);
-            if (count === 0) {
-              // No activity. If we created the account, undo it within this
-              // same callback so the net state change is zero.
-              if (created) {
-                await keyring.deleteAccount(created.id);
-              }
-              return null;
-            }
-
-            // Activity found — account stays. Return the address so we can
-            // look it up in the AccountsController after the callback persists.
-            return address;
-          },
-        );
+          // Activity found — account stays. Return the address so we can
+          // look it up in the AccountsController after the callback persists.
+          return address;
+        });
 
         if (!discoveredAddress) {
           return [];
