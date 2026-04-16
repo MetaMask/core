@@ -1,8 +1,8 @@
 import type { Json } from '@metamask/utils';
 
+import type { RootMessenger, DefaultInstances } from '../initialization';
 import { KeyValueStore } from './KeyValueStore';
 import { loadState, subscribeToChanges } from './persistence';
-import type { RootMessenger, DefaultInstances } from '../initialization';
 
 describe('loadState', () => {
   let store: KeyValueStore;

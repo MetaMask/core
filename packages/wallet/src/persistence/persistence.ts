@@ -3,8 +3,8 @@ import { hasProperty } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import type { Patch } from 'immer';
 
-import type { KeyValueStore } from './KeyValueStore';
 import type { DefaultInstances, RootMessenger } from '../initialization';
+import type { KeyValueStore } from './KeyValueStore';
 
 /**
  * A controller instance that has a `metadata` property describing which

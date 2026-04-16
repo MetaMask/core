@@ -1,6 +1,6 @@
 import type { Json } from '@metamask/utils';
 import Sqlite from 'better-sqlite3';
-import fs from 'fs';
+import { unlink } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
@@ -97,9 +97,9 @@ describe('KeyValueStore', () => {
       rawDb.close();
     });
 
-    afterEach(() => {
+    afterEach(async () => {
       corruptStore.close();
-      fs.unlinkSync(tempPath);
+      await unlink(tempPath);
     });
 
     it('throws when get() encounters a non-JSON value', () => {
