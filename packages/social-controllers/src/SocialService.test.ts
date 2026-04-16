@@ -1,4 +1,9 @@
-import { Messenger } from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants';
 import type { SocialServiceMessenger } from './SocialService';
@@ -47,10 +52,37 @@ const mockPosition = {
   tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
 };
 
-function createMessenger(): SocialServiceMessenger {
-  return new Messenger({
+const MOCK_TOKEN = 'mock-bearer-token';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<SocialServiceMessenger>,
+  MessengerEvents<SocialServiceMessenger>
+>;
+
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function createMessenger(rootMessenger?: RootMessenger): SocialServiceMessenger {
+  const root = rootMessenger ?? getRootMessenger();
+
+  root.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    async () => MOCK_TOKEN,
+  );
+
+  const serviceMessenger: SocialServiceMessenger = new Messenger({
     namespace: serviceName,
-  }) as SocialServiceMessenger;
+    parent: root,
+  });
+
+  root.delegate({
+    messenger: serviceMessenger,
+    actions: ['AuthenticationController:getBearerToken'],
+  });
+
+  return serviceMessenger;
 }
 
 function createService(
@@ -108,7 +140,9 @@ describe('SocialService', () => {
       const result = await service.fetchLeaderboard();
 
       expect(result).toStrictEqual(mockLeaderboardResponse);
-      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('appends sort, chains, and limit query params', async () => {
@@ -267,6 +301,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockProfileResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/0x1234/profile`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -284,6 +319,7 @@ describe('SocialService', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/addr%2Fwith%2Fslashes/profile`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -357,6 +393,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V2_URL}/traders/0x1234/positions/open`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -480,6 +517,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/0x1234/positions/closed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -534,6 +572,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockFollowersResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/0x1234/followers`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -607,6 +646,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockFollowingResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/users/0x1234/following`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -674,7 +714,10 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockFollowResponse);
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/0x1234/follows`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ targets: ['0xaaaa', '0xbbbb'] }),
       });
     });
@@ -728,6 +771,7 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('targets=0xbbbb');
       expect(mockFetch.mock.calls[0][1]).toStrictEqual({
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
     });
 
