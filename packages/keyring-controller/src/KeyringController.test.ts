@@ -12,7 +12,7 @@ import {
   recoverEIP7702Authorization,
 } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
-import { KeyringType } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { KeyringClass } from '@metamask/keyring-utils';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
