@@ -245,7 +245,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ) {
           // Mark tx as failed in txHistory
           this.#markTxAsFailed(transactionMeta);
-          console.log('1 wefwewef - finalized failed', txMetaId)
+          console.log('1 wefwewef - finalized failed', txMetaId);
           this.#quoteStatusUpdateManager.reportFinalised(txMetaId, false);
           // Track failed event
           if (status !== TransactionStatus.rejected) {
@@ -284,7 +284,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           type &&
           [TransactionType.bridge, TransactionType.swap].includes(type)
         ) {
-          console.log('2 wefwewef - finalized success', txMetaId)
+          console.log('2 wefwewef - finalized success', txMetaId);
           this.#quoteStatusUpdateManager.reportFinalised(txMetaId, true);
         }
       },
@@ -305,7 +305,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           const historyItem = this.state.txHistory[txMetaId];
           const requestId = historyItem?.quote?.requestId;
           if (requestId) {
-            console.log('3 wefwewef - submitted', requestId, hash, txMetaId)
+            console.log('3 wefwewef - submitted', requestId, hash, txMetaId);
             this.#quoteStatusUpdateManager.reportSubmitted(
               requestId,
               hash,
@@ -803,7 +803,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(pollingToken);
         delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
-        console.log('4 wefwewef - finalized', bridgeTxMetaId, status.status === StatusTypes.COMPLETE)
+        console.log(
+          '4 wefwewef - finalized',
+          bridgeTxMetaId,
+          status.status === StatusTypes.COMPLETE,
+        );
         this.#quoteStatusUpdateManager.reportFinalised(
           bridgeTxMetaId,
           status.status === StatusTypes.COMPLETE,
@@ -1242,9 +1246,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // For batch EVM (STX/gasIncluded7702), the hash arrives later via the
       // TransactionController:transactionSubmitted event subscriber.
       if (txMeta.hash) {
-        console.log('5 wefwewef - submitted', quoteResponse.quoteId,
+        console.log(
+          '5 wefwewef - submitted',
+          quoteResponse.quoteId,
           txMeta.hash,
-          txMeta.id,)
+          txMeta.id,
+        );
         this.#quoteStatusUpdateManager.reportSubmitted(
           quoteResponse.quoteId,
           txMeta.hash,
@@ -1272,9 +1279,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Start polling for bridge tx status
         this.#startPollingForTxId(txMeta.id);
         // Non-EVM swaps (same-chain) are considered finalized immediately
-        console.log('uh3r2ehi2eh ', isBridgeTx, isTronTx, !(isBridgeTx || isTronTx))
+        console.log(
+          'uh3r2ehi2eh ',
+          isBridgeTx,
+          isTronTx,
+          !(isBridgeTx || isTronTx),
+        );
         if (!(isBridgeTx || isTronTx)) {
-          console.log('6 wefwewef - finalized sucess', txMeta.id)
+          console.log('6 wefwewef - finalized sucess', txMeta.id);
           this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, true);
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
