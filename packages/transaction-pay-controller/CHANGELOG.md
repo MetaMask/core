@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/ramps-controller` from `^13.1.0` to `^13.2.0` ([#8476](https://github.com/MetaMask/core/pull/8476))
+- Bump `@metamask/transaction-controller` from `^64.2.0` to `^64.3.0` ([#8482](https://github.com/MetaMask/core/pull/8482))
 
 ## [19.1.3]
 
