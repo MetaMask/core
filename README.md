@@ -530,6 +530,16 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> accounts_controller;
+  wallet --> approval_controller;
+  wallet --> connectivity_controller;
+  wallet --> controller_utils;
+  wallet --> keyring_controller;
+  wallet --> messenger;
+  wallet --> network_controller;
+  wallet --> remote_feature_flag_controller;
+  wallet --> transaction_controller;
+  wallet --> foundryup;
 ```
 
 <!-- end dependency graph -->
