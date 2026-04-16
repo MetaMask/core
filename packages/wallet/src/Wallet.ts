@@ -71,10 +71,8 @@ export class Wallet {
     }
     this.#destroyed = true;
 
-    this.#unsubscribePersistence();
-
     try {
-      await Promise.allSettled(
+      const destroyed = Promise.allSettled(
         Object.values(this.#instances).map((instance) => {
           // @ts-expect-error Accessing protected property.
           if (typeof instance.destroy === 'function') {
@@ -85,6 +83,9 @@ export class Wallet {
           return undefined;
         }),
       );
+
+      this.#unsubscribePersistence();
+      await destroyed;
     } finally {
       this.#store.close();
     }
