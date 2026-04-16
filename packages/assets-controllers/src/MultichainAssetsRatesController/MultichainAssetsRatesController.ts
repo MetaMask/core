@@ -656,12 +656,14 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       const removedAssets = new Set<CaipAssetType>();
 
       for (const { accountId, added, removed } of accounts) {
-        // Only newly added assets need fresh rate requests.
-        this.#addAssetsToSnapIdMap(
-          snapIdToAssets,
-          this.#getAccount(accountId),
-          added,
-        );
+        if (added.length !== 0) {
+          // Only newly added assets need fresh rate requests.
+          this.#addAssetsToSnapIdMap(
+            snapIdToAssets,
+            this.#getAccount(accountId),
+            added,
+          );
+        }
 
         // Collect removed assets separately so we can decide later whether they
         // are truly stale or still referenced by another account.
