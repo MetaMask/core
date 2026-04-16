@@ -17,6 +17,7 @@ import type {
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
+import { providerErrors } from '@metamask/rpc-errors';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
@@ -1367,7 +1368,11 @@ export class KeyringController<
       );
     }
 
-    return await keyring.signMessage(address, messageParams.data);
+    try {
+      return await keyring.signMessage(address, messageParams.data);
+    } catch (error) {
+      throw this.#normalizeSigningRejectionError(error);
+    }
   }
 
   /**
@@ -1428,7 +1433,11 @@ export class KeyringController<
 
     const normalizedData = normalize(messageParams.data) as Hex;
 
-    return await keyring.signPersonalMessage(address, normalizedData);
+    try {
+      return await keyring.signPersonalMessage(address, normalizedData);
+    } catch (error) {
+      throw this.#normalizeSigningRejectionError(error);
+    }
   }
 
   /**
@@ -1477,6 +1486,11 @@ export class KeyringController<
         { version },
       );
     } catch (error) {
+      const normalizedError = this.#normalizeSigningRejectionError(error);
+      if (normalizedError !== error) {
+        throw normalizedError;
+      }
+
       const errorMessage =
         error instanceof Error
           ? `${error.name}: ${error.message}`
@@ -1510,7 +1524,66 @@ export class KeyringController<
       );
     }
 
-    return await keyring.signTransaction(address, transaction, opts);
+    try {
+      return await keyring.signTransaction(address, transaction, opts);
+    } catch (error) {
+      throw this.#normalizeSigningRejectionError(error);
+    }
+  }
+
+  #normalizeSigningRejectionError(error: unknown): unknown {
+    if (!this.#isSigningUserRejectedError(error)) {
+      return error;
+    }
+
+    const errorData = isObject(error)
+      ? (error.data as Json | undefined)
+      : undefined;
+
+    return providerErrors.userRejectedRequest({
+      message: 'MetaMask Tx Signature: User denied transaction signature.',
+      data: errorData,
+    });
+  }
+
+  #isSigningUserRejectedError(
+    error: unknown,
+    visited = new Set<unknown>(),
+  ): boolean {
+    if (!error || visited.has(error)) {
+      return false;
+    }
+    visited.add(error);
+
+    if (typeof error === 'string') {
+      return /(?:\buser rejected\b|\baction cancelled\b|\bcancelled\b|\bcanceled\b|failure_actioncancelled)/iu.test(
+        error,
+      );
+    }
+
+    if (typeof error !== 'object') {
+      return false;
+    }
+
+    const errorObject = error as {
+      code?: unknown;
+      message?: unknown;
+      stack?: unknown;
+      cause?: unknown;
+      originalError?: unknown;
+    };
+
+    if (errorObject.code === 4001) {
+      return true;
+    }
+
+    return (
+      this.#isSigningUserRejectedError(errorObject.code, visited) ||
+      this.#isSigningUserRejectedError(errorObject.message, visited) ||
+      this.#isSigningUserRejectedError(errorObject.stack, visited) ||
+      this.#isSigningUserRejectedError(errorObject.cause, visited) ||
+      this.#isSigningUserRejectedError(errorObject.originalError, visited)
+    );
   }
 
   /**

@@ -62,6 +62,7 @@
     "@metamask/keyring-api": "^21.6.0",
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/messenger": "^1.1.1",
+    "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.9.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
