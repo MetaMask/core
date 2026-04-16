@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "1f90a9b7a957356c02dcd201ea650c9a779a0bda",
-  "lastSyncedMobileBranch": "feat/tat-2863-sync-controller-code-extension",
-  "lastSyncedCoreCommit": "c275531d934cb592fe27c545a73b08c11f50dfa3",
-  "lastSyncedCoreBranch": "feat/perps/another-sync",
-  "lastSyncedDate": "2026-04-08T11:07:13Z",
-  "sourceChecksum": "5eea712091624d82e569300f9679e6595f2e77aa9e1ced15db14d3d8cce15746"
+  "lastSyncedMobileCommit": "14dbdb4e3c7d218fe4f74984969c55142656fcf1",
+  "lastSyncedMobileBranch": "fix/perps/myx-webpack-ignore-restore",
+  "lastSyncedCoreCommit": "796d13b6e190fc481461bd268a1dd3820ca7b9a9",
+  "lastSyncedCoreBranch": "fix/perps/myx-webpack-ignore-restore-clean",
+  "lastSyncedDate": "2026-04-15T16:45:31Z",
+  "sourceChecksum": "5be7d584829db03e7449d06a8c329816966d2dd218a9fa42d57f07c22b00bc51"
 }

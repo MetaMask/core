@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SecretMetadata.compareByTimestamp` static method for comparing metadata by timestamp ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Add third generic type parameter `EncryptionResult` to `SeedlessOnboardingController` and `SeedlessOnboardingControllerOptions`, constrained by `EncryptionResultConstraint` and defaulting to `DefaultEncryptionResult`, so the vault `encryptor` matches the full `Encryptor` typing from `@metamask/keyring-controller` ([#8411](https://github.com/MetaMask/core/pull/8411))
 
 ### Changed
 
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `SecretMetadata.matchesType` for filtering
 - **BREAKING:** Change `SecretMetadata.fromRawMetadata` signature to require `storageMetadata` parameter ([#7284](https://github.com/MetaMask/core/pull/7284))
 - **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- **BREAKING:** Remove `VaultEncryptor` type alias; use `Encryptor` from `@metamask/keyring-controller` with encryption key, key derivation params, and encryption result types ([#8411](https://github.com/MetaMask/core/pull/8411))
 
 ### Fixed
 

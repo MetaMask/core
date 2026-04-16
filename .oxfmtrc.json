@@ -16,7 +16,6 @@
   "ignorePatterns": [
     "**/*-method-action-types.ts",
     ".yarnrc.yml",
-    "merged-packages/**",
-    "CHANGELOG.md"
+    "merged-packages/**"
   ]
 }

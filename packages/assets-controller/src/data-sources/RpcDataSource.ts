@@ -102,6 +102,8 @@ export type RpcDataSourceConfig = {
   tokenDetectionEnabled?: () => boolean;
   /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
   useExternalService?: () => boolean;
+  /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
+  isOnboarded?: () => boolean;
   timeout?: number;
 };
 
@@ -124,6 +126,8 @@ export type RpcDataSourceOptions = {
   tokenDetectionEnabled?: () => boolean;
   /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
   useExternalService?: () => boolean;
+  /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
+  isOnboarded?: () => boolean;
 };
 
 /**
@@ -199,6 +203,8 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #useExternalService: () => boolean;
 
+  readonly #isOnboarded: () => boolean;
+
   /** Currently active chains */
   #activeChains: ChainId[] = [];
 
@@ -231,6 +237,7 @@ export class RpcDataSource extends AbstractDataSource<
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#useExternalService =
       options.useExternalService ?? ((): boolean => true);
+    this.#isOnboarded = options.isOnboarded ?? ((): boolean => true);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -852,6 +859,11 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   async fetch(request: DataRequest): Promise<DataResponse> {
+    if (!this.#isOnboarded()) {
+      log('Skipping fetch - onboarding not complete');
+      return {};
+    }
+
     const response: DataResponse = {};
 
     const chainsToFetch = request.chainIds.filter((chainId) =>
@@ -1214,6 +1226,11 @@ export class RpcDataSource extends AbstractDataSource<
    * @param subscriptionRequest - The subscription request details.
    */
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
+    if (!this.#isOnboarded()) {
+      log('Skipping subscribe - onboarding not complete');
+      return;
+    }
+
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
     // Use request.chainIds when activeChains is not yet populated (e.g. before

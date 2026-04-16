@@ -9,10 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Remove dynamic identifiers (wallet IDs, group IDs) from backup and sync thrown error messages to improve Sentry error grouping ([#8349](https://github.com/MetaMask/core/pull/8349))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Add Stellar sort-order support ([#8464](https://github.com/MetaMask/core/pull/8464))
+
+## [7.1.0]
+
+### Changed
+
+- Always fire `:selectedAccountGroupChange` during `init` call ([#8427](https://github.com/MetaMask/core/pull/8427))
+  - Many controllers were actually relying on this behavior when this used to be dynamic, so we re-introduce this behavior.
+- Now persist `accounTree` ([#8437](https://github.com/MetaMask/core/pull/8437))
+  - The tree is not persisted and can be used before `init` is called.
+  - This allow consumers (like the assets controllers) to rely on the selected group's accounts right away.
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Removed
+
+- Remove dynamic identifiers (wallet IDs, group IDs) from backup and sync thrown error messages to improve Sentry error grouping ([#8349](https://github.com/MetaMask/core/pull/8349))
 
 ## [7.0.0]
 
@@ -518,7 +534,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...@metamask/account-tree-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@6.0.0...@metamask/account-tree-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.1...@metamask/account-tree-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.0...@metamask/account-tree-controller@5.0.1

@@ -5,8 +5,6 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
-  KeyringV2,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
@@ -14,6 +12,7 @@ import {
   EthAccountType,
   EthScope,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities, Keyring } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { AccountId } from '@metamask/keyring-utils';
@@ -157,7 +156,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     groupIndex: number;
     throwOnGap: boolean;
   }): Promise<[Hex, boolean]> {
-    const result = await this.withKeyring<KeyringV2, [Hex, boolean]>(
+    const result = await this.withKeyring<Keyring, [Hex, boolean]>(
       { id: entropySource },
       async ({ keyring }) => {
         const existing = await keyring.getAccounts();
@@ -202,7 +201,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       const { range } = options;
 
       // Use a single withKeyring call for the entire range.
-      const accountIds = await this.withKeyring<KeyringV2, AccountId[]>(
+      const accountIds = await this.withKeyring<Keyring, AccountId[]>(
         { id: entropySource },
         async ({ keyring }) => {
           const existing = await keyring.getAccounts();
@@ -367,7 +366,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         // Everything happens inside a single withKeyringV2 callback so that
         // a create+delete for inactive accounts results in zero net state
         // change (no vault write, no events fired).
-        return await this.withKeyring<KeyringV2, Bip44Account<KeyringAccount>[]>(
+        return await this.withKeyring<Keyring, Bip44Account<KeyringAccount>[]>(
           { id: entropySource },
           async ({ keyring }) => {
             const existing = await keyring.getAccounts();

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "7.0.0",
+  "version": "7.1.0",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "Ethereum",
@@ -54,8 +54,8 @@
   },
   "dependencies": {
     "@metamask/accounts-controller": "^37.2.0",
-    "@metamask/base-controller": "^9.0.1",
-    "@metamask/keyring-api": "^21.6.0",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/keyring-api": "^23.0.1",
     "@metamask/keyring-controller": "^25.2.0",
     "@metamask/messenger": "^1.1.1",
     "@metamask/multichain-account-service": "^8.0.1",
@@ -69,8 +69,8 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/account-api": "^1.0.0",
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/account-api": "^1.0.3",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

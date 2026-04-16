@@ -1752,4 +1752,53 @@ describe('RpcDataSource', () => {
       });
     });
   });
+
+  describe('isOnboarded', () => {
+    it('returns empty response from fetch when isOnboarded returns false', async () => {
+      await withController(
+        { options: { isOnboarded: () => false } },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+          expect(response).toStrictEqual({});
+        },
+      );
+    });
+
+    it('skips subscribe when isOnboarded returns false', async () => {
+      const balanceStartSpy = jest.spyOn(
+        BalanceFetcher.prototype,
+        'startPolling',
+      );
+      const detectionStartSpy = jest.spyOn(
+        TokenDetector.prototype,
+        'startPolling',
+      );
+
+      await withController(
+        { options: { isOnboarded: () => false } },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate: jest.fn(),
+          });
+
+          expect(balanceStartSpy).not.toHaveBeenCalled();
+          expect(detectionStartSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fetches normally when isOnboarded returns true', async () => {
+      await withController(
+        { options: { isOnboarded: () => true } },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+          expect(response).toBeDefined();
+          expect(response.assetsBalance).toBeDefined();
+        },
+      );
+    });
+  });
 });
