@@ -456,6 +456,98 @@ describe('ChompApiService', () => {
       );
     });
   });
+
+  describe('getServiceDetails', () => {
+    const serviceDetailsResponse = {
+      auth: {
+        message: 'CHOMP Authentication ',
+      },
+      chains: {
+        '0xa4b1': {
+          autoDepositDelegate:
+            '0xb4827a2a066cd2ef88560efdf063dd05c6c41cc7',
+          protocol: {
+            vedaProtocol: {
+              supportedTokens: [
+                {
+                  tokenAddress:
+                    '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+                  tokenDecimals: 6,
+                },
+              ],
+              adapterAddress:
+                '0x4839b1BA117BdFFA986FCfA4E5fE6b9027b8f8B1',
+              intentTypes: ['cash-deposit', 'cash-withdrawal'],
+            },
+          },
+        },
+      },
+    };
+
+    it('sends a GET with auth headers and chainId query param and returns the response', async () => {
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, serviceDetailsResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:getServiceDetails',
+        ['0xa4b1'],
+      );
+
+      expect(result).toStrictEqual(serviceDetailsResponse);
+    });
+
+    it('supports multiple chain IDs as a comma-separated query param', async () => {
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1,0x1' })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, serviceDetailsResponse);
+      const { service } = createService();
+
+      const result = await service.getServiceDetails(['0xa4b1', '0x1']);
+
+      expect(result).toStrictEqual(serviceDetailsResponse);
+    });
+
+    it('throws when a chainId is not a valid hex string', async () => {
+      const { service } = createService();
+
+      await expect(
+        service.getServiceDetails(['not-hex']),
+      ).rejects.toThrow(
+        "Invalid chainId: expected a 0x-prefixed hex string, got 'not-hex'",
+      );
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(400);
+      const { service } = createService();
+
+      await expect(
+        service.getServiceDetails(['0xa4b1']),
+      ).rejects.toThrow("GET /v1/chomp failed with status '400'");
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .reply(200, JSON.stringify({ bad: 'data' }));
+      const { service } = createService();
+
+      await expect(
+        service.getServiceDetails(['0xa4b1']),
+      ).rejects.toThrow('At path: auth -- Expected an object');
+    });
+  });
 });
 
 /**

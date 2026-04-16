@@ -116,3 +116,28 @@ export type IntentEntry = {
 export type CreateWithdrawalResponse = {
   success: true;
 };
+
+// === SERVICE DETAILS TYPES ===
+
+export type ServiceDetailsSupportedToken = {
+  tokenAddress: string;
+  tokenDecimals: number;
+};
+
+export type ServiceDetailsProtocol = {
+  supportedTokens: ServiceDetailsSupportedToken[];
+  adapterAddress: string;
+  intentTypes: ('cash-deposit' | 'cash-withdrawal')[];
+};
+
+export type ServiceDetailsChain = {
+  autoDepositDelegate: string;
+  protocol: Record<string, ServiceDetailsProtocol>;
+};
+
+export type ServiceDetailsResponse = {
+  auth: {
+    message: string;
+  };
+  chains: Record<string, ServiceDetailsChain>;
+};

@@ -15,6 +15,7 @@ export type {
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceCreateWithdrawalAction,
+  ChompApiServiceGetServiceDetailsAction,
 } from './chomp-api-service-method-action-types';
 export type {
   AssociateAddressRequest,
@@ -29,6 +30,10 @@ export type {
   IntentMetadataResponse,
   SendIntentRequest,
   SendIntentResponse,
+  ServiceDetailsChain,
+  ServiceDetailsProtocol,
+  ServiceDetailsResponse,
+  ServiceDetailsSupportedToken,
   SignedDelegation,
   VerifyDelegationRequest,
   VerifyDelegationResponse,

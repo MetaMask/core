@@ -62,6 +62,14 @@ export type ChompApiServiceCreateWithdrawalAction = {
 };
 
 /**
+ * Retrieves service details via GET /v1/chomp.
+ */
+export type ChompApiServiceGetServiceDetailsAction = {
+  type: `ChompApiService:getServiceDetails`;
+  handler: ChompApiService['getServiceDetails'];
+};
+
+/**
  * Union of all ChompApiService action types.
  */
 export type ChompApiServiceMethodActions =
@@ -71,4 +79,5 @@ export type ChompApiServiceMethodActions =
   | ChompApiServiceVerifyDelegationAction
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
-  | ChompApiServiceCreateWithdrawalAction;
+  | ChompApiServiceCreateWithdrawalAction
+  | ChompApiServiceGetServiceDetailsAction;

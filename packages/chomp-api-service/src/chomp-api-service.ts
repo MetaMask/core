@@ -14,7 +14,9 @@ import {
   define,
   enums,
   literal,
+  number,
   optional,
+  record,
   string,
   type,
 } from '@metamask/superstruct';
@@ -32,6 +34,7 @@ import type {
   IntentEntry,
   SendIntentRequest,
   SendIntentResponse,
+  ServiceDetailsResponse,
   VerifyDelegationRequest,
   VerifyDelegationResponse,
 } from './types';
@@ -58,6 +61,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createIntents',
   'getIntentsByAddress',
   'createWithdrawal',
+  'getServiceDetails',
 ] as const;
 
 /**
@@ -170,6 +174,30 @@ const IntentEntryArrayStruct = array(
 
 const CreateWithdrawalResponseStruct = type({
   success: literal(true),
+});
+
+const ServiceDetailsProtocolStruct = type({
+  supportedTokens: array(
+    type({
+      tokenAddress: string(),
+      tokenDecimals: number(),
+    }),
+  ),
+  adapterAddress: string(),
+  intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
+});
+
+const ServiceDetailsResponseStruct = type({
+  auth: type({
+    message: string(),
+  }),
+  chains: record(
+    string(),
+    type({
+      autoDepositDelegate: string(),
+      protocol: record(string(), ServiceDetailsProtocolStruct),
+    }),
+  ),
 });
 
 // === SERVICE DEFINITION ===
@@ -500,5 +528,49 @@ export class ChompApiService extends BaseDataService<
     });
 
     return create(jsonResponse, CreateWithdrawalResponseStruct);
+  }
+
+  /**
+   * Retrieves service details including delegation redeemer addresses and DeFi
+   * contract details for signing delegations for auto-deposit functionality.
+   *
+   * GET /v1/chomp
+   *
+   * @param chainIds - Array of chain IDs (0x-prefixed hex strings) to retrieve
+   * details for.
+   * @returns The service details for the requested chains.
+   */
+  async getServiceDetails(chainIds: string[]): Promise<ServiceDetailsResponse> {
+    for (const chainId of chainIds) {
+      if (!isStrictHexString(chainId)) {
+        throw new Error(
+          `Invalid chainId: expected a 0x-prefixed hex string, got '${chainId}'`,
+        );
+      }
+    }
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:getServiceDetails`, chainIds],
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const url = new URL('/v1/chomp', this.#baseUrl);
+        url.searchParams.set('chainId', chainIds.join(','));
+        const response = await fetch(url, { headers });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `GET /v1/chomp failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(
+      jsonResponse,
+      ServiceDetailsResponseStruct,
+    ) as ServiceDetailsResponse;
   }
 }

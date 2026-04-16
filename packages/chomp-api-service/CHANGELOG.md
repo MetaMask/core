@@ -10,5 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
+- Add `getServiceDetails` method to retrieve delegation redeemer addresses and DeFi contract details for auto-deposit functionality
 
 [Unreleased]: https://github.com/MetaMask/core/
