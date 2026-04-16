@@ -23,15 +23,15 @@ const DEFAULT_FORMATTING_OPTIONS = {
  * project.
  *
  * @param contents - The source code to format.
+ * @param filePath - The file path to use for resolving Prettier configuration.
  * @returns The formatted source code.
  */
-async function prettier(contents: string): Promise<string> {
+async function prettier(contents: string, filePath: string): Promise<string> {
   try {
     const { format, resolveConfig } = await import('prettier');
 
     const config =
-      // eslint-disable-next-line no-restricted-globals
-      (await resolveConfig(process.cwd())) ?? DEFAULT_FORMATTING_OPTIONS;
+      (await resolveConfig(filePath)) ?? DEFAULT_FORMATTING_OPTIONS;
 
     return await format(contents, {
       parser: 'typescript',
@@ -52,16 +52,14 @@ async function prettier(contents: string): Promise<string> {
  * project.
  *
  * @param contents - The source code to format.
+ * @param filePath - The file path to use for resolving Oxfmt configuration. Not
+ * currently used, but included for future extensibility.
  * @returns The formatted source code.
  */
-async function oxfmt(contents: string): Promise<string> {
+async function oxfmt(contents: string, filePath: string): Promise<string> {
   try {
     const { format } = await import('oxfmt');
-    const result = await format(
-      'file.ts',
-      contents,
-      DEFAULT_FORMATTING_OPTIONS,
-    );
+    const result = await format(filePath, contents, DEFAULT_FORMATTING_OPTIONS);
 
     return result.code;
   } catch (error) {
@@ -76,11 +74,12 @@ async function oxfmt(contents: string): Promise<string> {
  * Get the appropriate formatter function based on the specified formatter.
  *
  * @param formatter - The formatter to use.
- * @returns A function that takes source code as input and returns the formatted source code.
+ * @returns A function that takes source code as input and returns the formatted
+ * source code.
  */
 function getFormatter(
   formatter: Formatter,
-): (contents: string) => Promise<string> {
+): (contents: string, filePath: string) => Promise<string> {
   switch (formatter) {
     case 'prettier':
       return prettier;
@@ -145,5 +144,5 @@ export type ${unionTypeName} = ${actionTypeNames.join(' | ')};\n`;
   }
 
   const formatterFunction = getFormatter(formatter);
-  return await formatterFunction(content);
+  return await formatterFunction(content, source.filePath);
 }
