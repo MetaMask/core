@@ -4542,7 +4542,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-account-service@npm:^8.0.1, @metamask/multichain-account-service@workspace:^, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
+"@metamask/multichain-account-service@npm:^8.0.1, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
@@ -5888,10 +5888,12 @@ __metadata:
     "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/controller-utils": "npm:^11.20.0"
     "@metamask/foundryup": "npm:^1.0.1"
+    "@metamask/json-rpc-engine": "npm:^10.2.4"
     "@metamask/keyring-controller": "npm:^25.2.0"
     "@metamask/messenger": "npm:^1.2.0"
-    "@metamask/multichain-account-service": "workspace:^"
+    "@metamask/multichain-account-service": "npm:^8.0.1"
     "@metamask/network-controller": "npm:^30.0.1"
+    "@metamask/permission-controller": "npm:^12.3.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/snaps-controllers": "npm:^20.0.1"

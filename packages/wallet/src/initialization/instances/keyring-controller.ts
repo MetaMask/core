@@ -16,6 +16,7 @@ import {
   exportKey,
   generateSalt,
 } from '@metamask/browser-passworder';
+import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { Encryptor } from '@metamask/keyring-controller';
 import {
   KeyringController,
@@ -23,7 +24,6 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
-import { SnapKeyring } from '@metamask/eth-snap-keyring';
 
 import { InitializationConfiguration } from '../types';
 
@@ -36,18 +36,18 @@ import { InitializationConfiguration } from '../types';
  */
 const encryptFactory =
   (iterations: number) =>
-    async (
-      password: string,
-      data: unknown,
-      key?: EncryptionKey | CryptoKey,
-      salt?: string,
-    ): Promise<string> =>
-      encrypt(password, data, key, salt, {
-        algorithm: 'PBKDF2',
-        params: {
-          iterations,
-        },
-      });
+  async (
+    password: string,
+    data: unknown,
+    key?: EncryptionKey | CryptoKey,
+    salt?: string,
+  ): Promise<string> =>
+    encrypt(password, data, key, salt, {
+      algorithm: 'PBKDF2',
+      params: {
+        iterations,
+      },
+    });
 
 /**
  * A factory function for the encryptWithDetail method of the browser-passworder library,
@@ -58,17 +58,17 @@ const encryptFactory =
  */
 const encryptWithDetailFactory =
   (iterations: number) =>
-    async (
-      password: string,
-      object: unknown,
-      salt?: string,
-    ): Promise<DetailedEncryptionResult> =>
-      encryptWithDetail(password, object, salt, {
-        algorithm: 'PBKDF2',
-        params: {
-          iterations,
-        },
-      });
+  async (
+    password: string,
+    object: unknown,
+    salt?: string,
+  ): Promise<DetailedEncryptionResult> =>
+    encryptWithDetail(password, object, salt, {
+      algorithm: 'PBKDF2',
+      params: {
+        iterations,
+      },
+    });
 
 /**
  * A factory function for the keyFromPassword method of the browser-passworder library,
@@ -82,23 +82,23 @@ const encryptWithDetailFactory =
  */
 const keyFromPasswordFactory =
   (iterations: number) =>
-    async (
-      password: string,
-      salt: string,
-      exportable?: boolean,
-      opts?: KeyDerivationOptions,
-    ): Promise<EncryptionKey> =>
-      keyFromPassword(
-        password,
-        salt,
-        exportable,
-        opts ?? {
-          algorithm: 'PBKDF2',
-          params: {
-            iterations,
-          },
+  async (
+    password: string,
+    salt: string,
+    exportable?: boolean,
+    opts?: KeyDerivationOptions,
+  ): Promise<EncryptionKey> =>
+    keyFromPassword(
+      password,
+      salt,
+      exportable,
+      opts ?? {
+        algorithm: 'PBKDF2',
+        params: {
+          iterations,
         },
-      );
+      },
+    );
 
 /**
  * A factory function for the isVaultUpdated method of the browser-passworder library,
@@ -109,13 +109,13 @@ const keyFromPasswordFactory =
  */
 const isVaultUpdatedFactory =
   (iterations: number) =>
-    (vault: string): boolean =>
-      isVaultUpdated(vault, {
-        algorithm: 'PBKDF2',
-        params: {
-          iterations,
-        },
-      });
+  (vault: string): boolean =>
+    isVaultUpdated(vault, {
+      algorithm: 'PBKDF2',
+      params: {
+        iterations,
+      },
+    });
 
 /**
  * A factory function that returns an encryptor with the given number of iterations.
@@ -149,7 +149,7 @@ const createSnapKeyringBuilder = (messenger: KeyringControllerMessenger) => {
     });
   }) as {
     (): SnapKeyring;
-    type: typeof SnapKeyring.type
+    type: typeof SnapKeyring.type;
     state: null;
   };
 
@@ -157,7 +157,7 @@ const createSnapKeyringBuilder = (messenger: KeyringControllerMessenger) => {
   SnapKeyringBuilder.type = SnapKeyring.type;
 
   return SnapKeyringBuilder;
-}
+};
 
 export const keyringController: InitializationConfiguration<
   KeyringController,
@@ -169,19 +169,17 @@ export const keyringController: InitializationConfiguration<
       state,
       messenger,
       encryptor: encryptorFactory(600_000),
-      keyringBuilders: [createSnapKeyringBuilder(messenger)]
+      keyringBuilders: [createSnapKeyringBuilder(messenger)],
     });
 
     // Ensure the SnapKeyring has been added, this happens in different places in the clients.
     messenger.subscribe('KeyringController:unlock', () => {
-      const [snapKeyring] = instance.getKeyringsByType(
-        KeyringTypes.snap,
-      );
+      const [snapKeyring] = instance.getKeyringsByType(KeyringTypes.snap);
 
       if (!snapKeyring) {
         instance.addNewKeyring(KeyringTypes.snap).catch(console.error);
       }
-    })
+    });
 
     return {
       instance,
@@ -197,12 +195,9 @@ export const keyringController: InitializationConfiguration<
     parent.delegate({
       messenger: controllerMessenger,
       events: [],
-      actions: [
-        'SnapController:handleRequest',
-      ],
+      actions: ['SnapController:handleRequest'],
     });
 
     return controllerMessenger;
-  }
-
+  },
 };

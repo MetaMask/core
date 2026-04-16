@@ -25,7 +25,7 @@ export async function importSecretRecoveryPhrase(
 
   const walletGroup = await wallet.messenger.call(
     'MultichainAccountService:createMultichainAccountWallet',
-    { type: 'restore', password, mnemonic }
+    { type: 'restore', password, mnemonic },
   );
 
   await walletGroup.discoverAccounts();

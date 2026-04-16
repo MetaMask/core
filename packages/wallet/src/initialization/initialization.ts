@@ -46,8 +46,16 @@ export function initialize({
       options,
     });
 
-    instances[name] = instance as Record<string, unknown>;
+    instances[name] = instance;
   }
 
-  return instances as DefaultInstances;
+  const castInstances = instances as DefaultInstances;
+
+  Object.values(castInstances).forEach((instance) => {
+    if ('init' in instance) {
+      instance.init().catch(console.error);
+    }
+  });
+
+  return castInstances;
 }

@@ -1,3 +1,4 @@
+import { Messenger } from '@metamask/messenger';
 import {
   MultichainAccountService,
   SOL_ACCOUNT_PROVIDER_NAME,
@@ -5,7 +6,6 @@ import {
   BTC_ACCOUNT_PROVIDER_NAME,
   MultichainAccountServiceMessenger,
 } from '@metamask/multichain-account-service';
-import { Messenger } from '@metamask/messenger';
 
 import { InitializationConfiguration } from '../types';
 
@@ -90,5 +90,5 @@ export const multichainAccountService: InitializationConfiguration<
     });
 
     return serviceMessenger;
-  }
+  },
 };

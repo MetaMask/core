@@ -1,6 +1,10 @@
-import { Messenger } from "@metamask/messenger";
-import { StorageService, StorageServiceMessenger } from "@metamask/storage-service";
-import { InitializationConfiguration } from "../types";
+import { Messenger } from '@metamask/messenger';
+import {
+  StorageService,
+  StorageServiceMessenger,
+} from '@metamask/storage-service';
+
+import { InitializationConfiguration } from '../types';
 
 export const storageService: InitializationConfiguration<
   StorageService,

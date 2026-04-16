@@ -1,8 +1,13 @@
-import { Messenger } from '@metamask/messenger';
-import { SnapController, SnapControllerMessenger } from '@metamask/snaps-controllers';
-import SolanaWalletSnap from '@metamask/solana-wallet-snap/dist/preinstalled-snap.json';
 import BitcoinWalletSnap from '@metamask/bitcoin-wallet-snap/dist/preinstalled-snap.json';
+import { Messenger } from '@metamask/messenger';
+import {
+  SnapController,
+  SnapControllerMessenger,
+  PersistedSnapControllerState,
+} from '@metamask/snaps-controllers';
+import SolanaWalletSnap from '@metamask/solana-wallet-snap/dist/preinstalled-snap.json';
 import TronWalletSnap from '@metamask/tron-wallet-snap/dist/preinstalled-snap.json';
+
 import { InitializationConfiguration } from '../types';
 
 export const snapController: InitializationConfiguration<
@@ -10,14 +15,14 @@ export const snapController: InitializationConfiguration<
   SnapControllerMessenger
 > = {
   name: 'SnapController',
-  init: ({ messenger, options }) => {
+  init: ({ messenger, state, options }) => {
     const instance = new SnapController({
       messenger,
+      // Persisted state is different from actual state, consider changing `state` inference type.
+      state: state as PersistedSnapControllerState,
       ensureOnboardingComplete: options.ensureOnboardingComplete,
       preinstalledSnaps: [SolanaWalletSnap, BitcoinWalletSnap, TronWalletSnap],
     });
-
-    instance.init().catch(console.error);
 
     return {
       instance,
@@ -70,5 +75,5 @@ export const snapController: InitializationConfiguration<
       ],
     });
     return controllerMessenger;
-  }
+  },
 };
