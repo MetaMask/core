@@ -62,7 +62,7 @@
     "@tanstack/query-core": "^4.43.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/controller-utils": "^11.20.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

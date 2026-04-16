@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "c8f5e5aa6470a017c5165e6525bb2396bf9b7070",
-  "lastSyncedMobileBranch": "feat/tat-2956-create-a-sync-skill-to-migrate",
-  "lastSyncedCoreCommit": "59412376fb3eb4972b6c7a11f45eece5d96a40f2",
-  "lastSyncedCoreBranch": "feat/perps/new-sync",
-  "lastSyncedDate": "2026-04-15T09:32:27Z",
-  "sourceChecksum": "32ada16094f0fdd1b1bf29863518fb222210479fa03bcaa41cf8d5f41f3474b4"
+  "lastSyncedMobileCommit": "14dbdb4e3c7d218fe4f74984969c55142656fcf1",
+  "lastSyncedMobileBranch": "fix/perps/myx-webpack-ignore-restore",
+  "lastSyncedCoreCommit": "796d13b6e190fc481461bd268a1dd3820ca7b9a9",
+  "lastSyncedCoreBranch": "fix/perps/myx-webpack-ignore-restore-clean",
+  "lastSyncedDate": "2026-04-15T16:45:31Z",
+  "sourceChecksum": "5be7d584829db03e7449d06a8c329816966d2dd218a9fa42d57f07c22b00bc51"
 }

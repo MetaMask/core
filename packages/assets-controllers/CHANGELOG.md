@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `MultichainAssetsController`: periodic Blockaid re-scan of stored SPL-style `token:` assets (default once per day) so tokens that become malicious after a prior scan are dropped; use constructor option `blockaidTokenRescanInterval` (ms), or `0` to disable. ([#8400](https://github.com/MetaMask/core/pull/8400))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.0.0` to `^7.1.0` ([#8472](https://github.com/MetaMask/core/pull/8472))
+
 ### Fixed
 
 - Used the `removed` property coming from `MultichainAssetsController:accountAssetListUpdated` event body to manage stale balances ([#8461](https://github.com/MetaMask/core/pull/8461))
+- `MultichainAssetsController`: fungible `token:` assets from automatic detection are no longer added when Blockaid bulk scan fails, returns empty, or omits that address (previously fail open); an explicit non-malicious per-token result from `PhishingController:bulkScanTokens` is now required before add. ([#8400](https://github.com/MetaMask/core/pull/8400))
 
 ## [104.0.0]
 
@@ -1058,7 +1067,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevents mutation of memoized fields used inside selectors ([#6358](https://github.com/MetaMask/core/pull/6358))
 
 - Fix duplicate token balance entries caused by case-sensitive address comparison in `TokenBalancesController.updateBalances` ([#6354](https://github.com/MetaMask/core/pull/6354))
-
   - Normalize token addresses to proper EIP-55 checksum format before using as object keys to prevent the same token from appearing multiple times with different cases
   - Add comprehensive unit tests for token address normalization scenarios
 
@@ -2927,9 +2935,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/assets`
     - Asset-related functions from `src/util.ts` and accompanying tests
 

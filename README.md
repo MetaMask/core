@@ -213,6 +213,7 @@ linkStyle default opacity:0.5
   approval_controller --> base_controller;
   approval_controller --> messenger;
   assets_controller --> account_tree_controller;
+  assets_controller --> accounts_controller;
   assets_controller --> assets_controllers;
   assets_controller --> base_controller;
   assets_controller --> client_controller;
