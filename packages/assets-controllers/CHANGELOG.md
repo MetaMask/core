@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `MultichainBalancesController` no longer silently drops balance updates from `AccountsController:accountBalancesUpdated` when the account does not yet have an entry in `state.balances` ([#FIXME](https://github.com/MetaMask/core/pull/FIXME))
+- `MultichainBalancesController` no longer silently drops balance updates from `AccountsController:accountBalancesUpdated` when the account does not yet have an entry in `state.balances` ([#8484](https://github.com/MetaMask/core/pull/8484))
   - Previously, if a Snap sent balance updates before `updateBalance` had initialized `state.balances[accountId]`, the update was ignored because of an `accountId in state.balances` guard. The handler now initializes the entry before merging, ensuring balances are always persisted.
 
 ## [104.0.0]
