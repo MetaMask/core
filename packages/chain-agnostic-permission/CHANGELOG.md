@@ -113,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-internal-api` to `^6.2.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
-- Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935),[#5882](https://github.com/MetaMask/core/pull/5882))
+- Bump `@metamask/network-controller` to `^23.6.0` ([#5935](https://github.com/MetaMask/core/pull/5935), [#5882](https://github.com/MetaMask/core/pull/5882))
 - Change `caip25CaveatBuilder` to list unsupported scopes in the unsupported scopes error ([#5806](https://github.com/MetaMask/core/pull/5806))
 
 ### Fixed
@@ -140,8 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `getCaipAccountIdsFromCaip25CaveatValue`, `isInternalAccountInPermittedAccountIds`, and `isCaipAccountIdInPermittedAccountIds` account id functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
-- Added `getAllScopesFromCaip25CaveatValue`, `getAllWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject`
-  scope functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
+- Added `getAllScopesFromCaip25CaveatValue`, `getAllWalletNamespacesFromCaip25CaveatValue`, `getAllScopesFromPermission`, `getAllScopesFromCaip25CaveatValue`, and `isNamespaceInScopesObject` scope functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
 - Added `getCaip25CaveatFromPermission` misc functions. ([#5609](https://github.com/MetaMask/core/pull/5609))
 
 ### Changed
@@ -195,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
+- Initial release ([#5476](https://github.com/MetaMask/core/pull/5476))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.5.0...HEAD
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.4.0...@metamask/chain-agnostic-permission@1.5.0

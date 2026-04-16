@@ -150,14 +150,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove `RestrictedControllerMessenger` export which was an alias for `RestrictedMessenger`. Consumers should import `RestrictedMessenger` directly
   - Remove `RestrictedControllerMessengerConstraint` type export which was an alias for `RestrictedMessengerConstraint`. Consumers should use `RestrictedMessengerConstraint` type directly
   - Simplify `RestrictedMessenger` constructor by removing deprecated `controllerMessenger` parameter. The messenger instance should now be passed using only the `messenger` parameter instead of supporting both options
-- Widen input parameter for type guard `isBaseController` from `ControllerInstance` to `unknown` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- Widen input parameter for type guard `isBaseController` from `ControllerInstance` to `unknown` ([#5018](https://github.com/MetaMask/core/pull/5018))
 - Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.0.3` ([#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ### Removed
 
-- **BREAKING:** Remove class `BaseControllerV1` and type guard `isBaseControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018/))
-- **BREAKING:** Remove types `BaseConfig`, `BaseControllerV1Instance`, `BaseState`, `ConfigConstraintV1`, `Listener`, `StateConstraintV1`, `LegacyControllerStateConstraint`, `ControllerInstance` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- **BREAKING:** Remove class `BaseControllerV1` and type guard `isBaseControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018))
+- **BREAKING:** Remove types `BaseConfig`, `BaseControllerV1Instance`, `BaseState`, `ConfigConstraintV1`, `Listener`, `StateConstraintV1`, `LegacyControllerStateConstraint`, `ControllerInstance` ([#5018](https://github.com/MetaMask/core/pull/5018))
 
 ## [7.1.1]
 
@@ -194,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -272,7 +272,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `getRestricted` is still able to flag `AllowedActions` and `AllowedEvents` members that should not be included in the allowlists, based on the `Action` and `Event` generic arguments passed into the `ControllerMessenger` instance.
 - **BREAKING:** The `RestrictedControllerMessenger` class constructor now expects `allowedActions` and `allowedEvents` as required options ([#4013](https://github.com/MetaMask/core/pull/4013))
 - **BREAKING**: Add `string` as generic constraint to the `Name` generic parameter of the types `NamespacedBy` and `NotNamespacedBy` ([#4036](https://github.com/MetaMask/core/pull/4036))
-- **BREAKING:** The `getRestricted` method of the `ControllerMessenger` class now expects both `allowedActions` and `allowedEvents` as required parameters.
+- **BREAKING:** The `getRestricted` method of the `ControllerMessenger` class now expects both `allowedActions` and `allowedEvents` as required parameters. ([#4013](https://github.com/MetaMask/core/pull/4013))
   - An empty array is required if no allowed actions or events are desired.
 - Convert interface `StatePropertyMetadata` into a type alias ([#3949](https://github.com/MetaMask/core/pull/3949))
 
@@ -362,7 +362,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
+- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo. ([#1634](https://github.com/MetaMask/core/pull/1634))
 
 ## [3.2.0]
 
@@ -392,15 +392,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [1.1.2]
 
 ### Changed
 
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## [1.1.1]
 
@@ -423,8 +423,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
+  - As a result of converting our shared controllers repo into a monorepo, we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/BaseController.ts`
     - `src/BaseController.test.ts`
     - `src/BaseControllerV2.ts`

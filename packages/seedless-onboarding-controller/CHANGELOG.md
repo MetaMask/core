@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed `FailedToFetchAuthPubKey` errors caused by expired tokens in `addNewSecretData` and `changePassword` — `assertPasswordInSync` is now called inside the token-refresh wrapper so expired `nodeAuthTokens` are refreshed before reaching the backend
+- Fixed `FailedToFetchAuthPubKey` errors caused by expired tokens in `addNewSecretData` and `changePassword` — `assertPasswordInSync` is now called inside the token-refresh wrapper so expired `nodeAuthTokens` are refreshed before reaching the backend ([#8148](https://github.com/MetaMask/core/pull/8148))
 
 ## [8.1.0]
 
@@ -270,9 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller.([#6169](https://github.com/MetaMask/core/pull/6169))
-
-- Added `revokeRefreshToken` function to revoke refresh token and update vault with the new revoke token.([#6187](https://github.com/MetaMask/core/pull/6187))
+- Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller. ([#6169](https://github.com/MetaMask/core/pull/6169))
+- Added `revokeRefreshToken` function to revoke refresh token and update vault with the new revoke token. ([#6187](https://github.com/MetaMask/core/pull/6187))
 
 ## [2.4.0]
 
@@ -284,12 +283,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added a optional param `maxKeyChainLength` in `submitGlobalPassword` function.([#6134](https://github.com/MetaMask/core/pull/6134))
+- Added a optional param `maxKeyChainLength` in `submitGlobalPassword` function. ([#6134](https://github.com/MetaMask/core/pull/6134))
 - Separated vault update logic from `revokeRefreshToken`, `revokeRefreshToken` now accepts a revokeToken instead of password. ([#6134](https://github.com/MetaMask/core/pull/6134))
 
 ### Changed
 
-- `revokeRefreshToken` is removed and a private function named `revokeRefreshTokenAndUpdateState` is added as a replacement.([#6136](https://github.com/MetaMask/core/pull/6136))
+- `revokeRefreshToken` is removed and a private function named `revokeRefreshTokenAndUpdateState` is added as a replacement. ([#6136](https://github.com/MetaMask/core/pull/6136))
 
 ### Fixed
 
@@ -320,7 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
+- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948))
   - **BREAKING** Updated controller methods signatures.
   - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
   - added `addNewSecretData` method implementation to support adding different secret data types.
@@ -343,7 +342,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault
   - check for token expired in toprf call, refresh token and retry if expired
   - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
-- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
+- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976))
 - **BREAKING:** Changed `syncLatestGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
   - removed parameter `oldPassword`
   - no longer verifying old password

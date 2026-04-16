@@ -75,9 +75,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082)), ([#5272](https://github.com/MetaMask/core/pull/5272))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 - Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
 
 ## [3.0.2]
@@ -111,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -155,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
+- Initial release ([#1871](https://github.com/MetaMask/core/pull/1871))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@5.1.0...HEAD
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@5.0.0...@metamask/permission-log-controller@5.1.0

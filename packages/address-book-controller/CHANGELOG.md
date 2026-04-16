@@ -98,10 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/rpc-errors` from `^7.0.1` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [6.0.2]
 
@@ -123,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -218,8 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1747](https://github.com/MetaMask/core/pull/1747))
 
 ## [3.1.3]
 
@@ -231,14 +231,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1708](https://github.com/MetaMask/core/pull/1708))
 
 ## [3.1.1]
 
 ### Changed
 
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1634](https://github.com/MetaMask/core/pull/1634))
 
 ## [3.1.0]
 
@@ -251,7 +251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:**: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- **BREAKING:** The `addressBook` state property is now keyed by `Hex` chain ID rather than `string`, and the `chainId` property of each address book entry is also `Hex` rather than `string`.
+- **BREAKING:** The `addressBook` state property is now keyed by `Hex` chain ID rather than `string`, and the `chainId` property of each address book entry is also `Hex` rather than `string` ([#1385](https://github.com/MetaMask/core/pull/1385))
   - This requires a state migration ([#1367](https://github.com/MetaMask/core/pull/1367))
 - **BREAKING:** The methods `delete` and `set` now except the chain ID as `Hex` rather than as a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
 - Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
@@ -260,16 +260,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [1.1.0]
 
 ### Changed
 
-- Add optional `addressType` property to address book entries ([#828](https://github.com/MetaMask/controllers/pull/828), [#1068](https://github.com/MetaMask/core/pull/1068))
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Add optional `addressType` property to address book entries ([#828](https://github.com/MetaMask/core/pull/828), [#1068](https://github.com/MetaMask/core/pull/1068))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## [1.0.1]
 
@@ -281,8 +281,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
+  - As a result of converting our shared controllers repo into a monorepo, we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/user/AddressBookController.ts`
     - `src/user/AddressBookController.test.ts`
 

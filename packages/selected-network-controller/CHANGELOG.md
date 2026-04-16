@@ -153,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.2` ([#5082](https://github.com/MetaMask/core/pull/5082))
 - Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
   - This upgrade is not a breaking change because this package does not use `generateRandomMnemonic`.
@@ -214,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -233,7 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump dependency and peerDependency `@metamask/permission-controller` from `^10.0.0` to `^11.0.0` ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Remove `@metamask/network-controller` and `@metamask/permission-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/network-controller` and `@metamask/permission-controller` dependencies ([#4556](https://github.com/MetaMask/core/pull/4556))
   - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
@@ -295,7 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- These changes keep the per domain proxies (stored in domainProxyMap) pointing to the correct network client instance when the "Select networks for each site" toggle is turned on and off.
+- These changes keep the per domain proxies (stored in domainProxyMap) pointing to the correct network client instance when the "Select networks for each site" toggle is turned on and off. ([#4130](https://github.com/MetaMask/core/pull/4130))
   - **BREAKING:** A parameter `useRequestQueuePreference` which should point to the current preferences state for `useRequestQueue` is now required by the constructor ([#4130](https://github.com/MetaMask/core/pull/4130))
   - - **BREAKING:** An `onPreferencesStateChange` argument that should subscribe to `PreferencesController` state changes and call a callback with the updated state is now a required parameter in the constructor options object. ([#4130](https://github.com/MetaMask/core/pull/4130))
 
@@ -311,7 +311,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Previously the `SelectedNetworkController` only constructed proxies for domains that had permissions. Other domains have no associated proxy and the `getProviderAndBlockTracker` method would throw an error. This was problematic because we grab the network client for an origin a single time when constructing an RPC pipeline for that origin in the MetaMask extension. We don't re-create the RPC pipeline when permissions change. That means that the pipeline is setup with the wrong network client and cannot be updated. The following changes ensure seamlessly proxying calls during sessions where a dapp connects/disconnects and provides a path for clients to prune inactive proxies:
+- Previously the `SelectedNetworkController` only constructed proxies for domains that had permissions. Other domains have no associated proxy and the `getProviderAndBlockTracker` method would throw an error. This was problematic because we grab the network client for an origin a single time when constructing an RPC pipeline for that origin in the MetaMask extension. We don't re-create the RPC pipeline when permissions change. That means that the pipeline is setup with the wrong network client and cannot be updated. The following changes ensure seamlessly proxying calls during sessions where a dapp connects/disconnects and provides a path for clients to prune inactive proxies: ([#4063](https://github.com/MetaMask/core/pull/4063), [#4104](https://github.com/MetaMask/core/pull/4104))
   - **BREAKING:** `SelectedNetworkController` now expects a `domainProxyMap` param - which is a Map of Domain to NetworkProxy - in its constructor ([#4104](https://github.com/MetaMask/core/pull/4104))
     - This `domainProxyMap` is expected to automatically delete entries for domains that are no longer connected to the wallet. The `SelectedNetworkController` handles _adding_ entries, but it can't handle removal, as it doesn't know which connections are active.
     - You can pass in a plain `Map` here and it will work, but during longer sessions this might grow unbounded, resulting in a memory leak.
@@ -360,20 +360,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` for the domain param ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `setNetworkClientIdForDomain` now fails and throws an error if the passed in `domain` is not currently permissioned in the `PermissionsController` ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** the `domains` state now no longer contains a `metamask` domain key. Consumers should instead use the `selectedNetworkClientId` from the `NetworkController` to get the selected network for the `metamask` domain ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with any domain while the `perDomainNetwork` flag is false. Consumers should instead use the `provider` and `blockTracker` from the `NetworkController` when the `perDomainNetwork` flag is false ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with a domain that does not have a networkClientId set ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `getNetworkClientIdForDomain` now returns the `selectedNetworkClientId` for the globally selected network if the `perDomainNetwork` flag is false or if the domain is not in the `domains` state ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` for the domain param ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `setNetworkClientIdForDomain` now fails and throws an error if the passed in `domain` is not currently permissioned in the `PermissionsController` ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** the `domains` state now no longer contains a `metamask` domain key. Consumers should instead use the `selectedNetworkClientId` from the `NetworkController` to get the selected network for the `metamask` domain ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with any domain while the `perDomainNetwork` flag is false. Consumers should instead use the `provider` and `blockTracker` from the `NetworkController` when the `perDomainNetwork` flag is false ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with a domain that does not have a networkClientId set ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `getNetworkClientIdForDomain` now returns the `selectedNetworkClientId` for the globally selected network if the `perDomainNetwork` flag is false or if the domain is not in the `domains` state ([#3908](https://github.com/MetaMask/core/pull/3908))
 
 ### Removed
 
-- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin in the `SelectedNetworkController` when not already set. Now if `networkClientId` is not already set for the requesting origin, the middleware will not set a default `networkClientId` for that origin in the `SelectedNetworkController` but will continue to add the `selectedNetworkClientId` from the `NetworkController` to the `networkClientId` property on the request object ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin in the `SelectedNetworkController` when not already set. Now if `networkClientId` is not already set for the requesting origin, the middleware will not set a default `networkClientId` for that origin in the `SelectedNetworkController` but will continue to add the `selectedNetworkClientId` from the `NetworkController` to the `networkClientId` property on the request object ([#3908](https://github.com/MetaMask/core/pull/3908))
 
 ### Fixed
 
-- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and updates domains pointed at a removed `networkClientId` to the `selectedNetworkClientId` ([#3926](https://github.com/MetaMask/core/pull/3926)).
+- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and updates domains pointed at a removed `networkClientId` to the `selectedNetworkClientId` ([#3926](https://github.com/MetaMask/core/pull/3926))
 
 ## [7.0.1]
 
@@ -403,14 +403,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SelectedNetworkMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970)).
-- Add `setPerDomainNetwork` method to reset proxies when flag toggled ([#3593](https://github.com/MetaMask/core/pull/3593)).
-- Add `state` as a constructor argument ([#3585](https://github.com/MetaMask/core/pull/3585)).
+- Add `SelectedNetworkMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970))
+- Add `setPerDomainNetwork` method to reset proxies when flag toggled ([#3593](https://github.com/MetaMask/core/pull/3593))
+- Add `state` as a constructor argument ([#3585](https://github.com/MetaMask/core/pull/3585))
 
 ### Changed
 
-- **BREAKING:** Rename `SelectedNetworkControllerAction` to `SelectedNetworkControllerActions` and `SelectedNetworkControllerEvent` to `SelectedNetworkControllerEvents` for consistency with corresponding type exports from other controllers ([#1970](https://github.com/MetaMask/core/pull/1970)).
-- **BREAKING:** `createSelectedNetworkMiddleware` return type is constrained to satisfy `JsonRpcMiddleware<JsonRpcParams, Json>`, and its `req` parameter is constrained to satisfy `SelectedNetworkMiddlewareJsonRpcRequest` ([#1970](https://github.com/MetaMask/core/pull/1970)).
+- **BREAKING:** Rename `SelectedNetworkControllerAction` to `SelectedNetworkControllerActions` and `SelectedNetworkControllerEvent` to `SelectedNetworkControllerEvents` for consistency with corresponding type exports from other controllers ([#1970](https://github.com/MetaMask/core/pull/1970))
+- **BREAKING:** `createSelectedNetworkMiddleware` return type is constrained to satisfy `JsonRpcMiddleware<JsonRpcParams, Json>`, and its `req` parameter is constrained to satisfy `SelectedNetworkMiddlewareJsonRpcRequest` ([#1970](https://github.com/MetaMask/core/pull/1970))
 
 ## [4.0.0]
 
@@ -424,7 +424,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0 ([#2044](https://github.com/MetaMask/core/pull/2044))
 
 ## [3.1.1]
 
@@ -441,7 +441,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - No longer update `selectedNetworkClientId` when the `NetworkController` provider changes. ([#1806](https://github.com/MetaMask/core/pull/1806))
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0 ([#1904](https://github.com/MetaMask/core/pull/1904))
 
 ## [3.0.0]
 
@@ -449,7 +449,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0 ([#1747](https://github.com/MetaMask/core/pull/1747))
 - **BREAKING:** Move from `json-rpc-engine` ^7.1.1 to `@metamask/json-rpc-engine` ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0 ([#1803](https://github.com/MetaMask/core/pull/1803))
 - Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
 
 ### Fixed

@@ -99,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -203,23 +203,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add missing ISC license information ([#24](https://github.com/MetaMask/eth-json-rpc-provider/pull/24))
+- Add missing ISC license information ([#1855](https://github.com/MetaMask/core/pull/1855))
 
 ## [2.1.0]
 
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^7.0.0` to `^7.1.0` ([#25](https://github.com/MetaMask/eth-json-rpc-provider/pull/25))
-- Bump `@metamask/utils` from `^5.0.1` to `^8.1.0` ([#25](https://github.com/MetaMask/eth-json-rpc-provider/pull/25))
+- Bump `@metamask/json-rpc-engine` from `^7.0.0` to `^7.1.0` ([#1855](https://github.com/MetaMask/core/pull/1855))
+- Bump `@metamask/utils` from `^5.0.1` to `^8.1.0` ([#1855](https://github.com/MetaMask/core/pull/1855))
 
 ## [2.0.0]
 
 ### Fixed
 
-- **BREAKING:** Update minimum Node.js version to 16 ([#20](https://github.com/MetaMask/eth-json-rpc-provider/pull/20))
-- Switched json-rpc-engine@^6.1.0 -> @metamask/json-rpc-engine@^7.0.0 ([#16](https://github.com/MetaMask/eth-json-rpc-provider/pull/16))
+- **BREAKING:** Update minimum Node.js version to 16 ([#1855](https://github.com/MetaMask/core/pull/1855))
+- Switched json-rpc-engine@^6.1.0 -> @metamask/json-rpc-engine@^7.0.0 ([#1855](https://github.com/MetaMask/core/pull/1855))
   - **BREAKING**: Typescript type updates
-- Updated dependencies: ([#16](https://github.com/MetaMask/eth-json-rpc-provider/pull/16))
+- Updated dependencies: ([#1855](https://github.com/MetaMask/core/pull/1855))
   - Bumped @metamask/safe-event-emitter@^2.0.0->^3.0.0
   - Added @metamask/utils@5.0.1
 
@@ -229,10 +229,10 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 ### Changed
 
-- **BREAKING:** Update minimum Node.js version to 16 ([#20](https://github.com/MetaMask/eth-json-rpc-provider/pull/20))
-- Switched json-rpc-engine@^6.1.0 -> @metamask/json-rpc-engine@^7.0.0 ([#16](https://github.com/MetaMask/eth-json-rpc-provider/pull/16))
+- **BREAKING:** Update minimum Node.js version to 16 ([#1855](https://github.com/MetaMask/core/pull/1855))
+- Switched json-rpc-engine@^6.1.0 -> @metamask/json-rpc-engine@^7.0.0 ([#1855](https://github.com/MetaMask/core/pull/1855))
   - **BREAKING**: Typescript type updates
-- Updated dependencies: ([#16](https://github.com/MetaMask/eth-json-rpc-provider/pull/16))
+- Updated dependencies: ([#1855](https://github.com/MetaMask/core/pull/1855))
   - Bumped @metamask/safe-event-emitter@^2.0.0->^3.0.0
   - Added @metamask/utils@5.0.1
 
@@ -240,7 +240,7 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 ### Added
 
-- Initial release, including `providerFromEngine` and `providerFromMiddleware`.
+- Initial release, including `providerFromEngine` and `providerFromMiddleware`. ([#1855](https://github.com/MetaMask/core/pull/1855))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.1...HEAD
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.0...@metamask/eth-json-rpc-provider@6.0.1

@@ -169,13 +169,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
 - Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
 - Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
 
 ## [11.0.4]
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^11.4.1` to `^11.4.4` ([#4870](https://github.com/MetaMask/core/pull/4870)), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+- Bump `@metamask/controller-utils` from `^11.4.1` to `^11.4.4` ([#4870](https://github.com/MetaMask/core/pull/4870), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
 
 ### Fixed
 
@@ -348,7 +348,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/json-rpc-engine` from `^7.1.0` to `^7.2.0` ([#1895](https://github.com/MetaMask/core/pull/1895))
 - Bump dependency on `@metamask/rpc-errors` to ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1 ([#1803](https://github.com/MetaMask/core/pull/1803))
 - Bump `@metamask/utils` from `8.1.0` to `8.2.0` ([#1957](https://github.com/MetaMask/core/pull/1957))
 - Bump `@metamask/auto-changelog` from `^3.2.0` to `^3.4.3` ([#1870](https://github.com/MetaMask/core/pull/1870), [#1905](https://github.com/MetaMask/core/pull/1905), [#1997](https://github.com/MetaMask/core/pull/1997))
 
@@ -360,24 +360,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Update from `json-rpc-engine@^6.1.0` to `@metamask/json-rpc-engine@^7.1.1` ([#1749](https://github.com/MetaMask/core/pull/1749))
 - Update from `eth-rpc-errors@^4.0.2` to `@metamask/rpc-errors@^6.0.0` ([#1749](https://github.com/MetaMask/core/pull/1749))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1747](https://github.com/MetaMask/core/pull/1747))
 
 ## [4.1.2]
 
 ### Changed
 
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1708](https://github.com/MetaMask/core/pull/1708))
 
 ## [4.1.1]
 
 ### Changed
 
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1634](https://github.com/MetaMask/core/pull/1634))
 
 ## [4.1.0]
 
@@ -397,7 +397,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- **BREAKING:** Update `@metamask/approval-controller` dependency and peer dependency
+- **BREAKING:** Update `@metamask/approval-controller` dependency and peer dependency ([#1385](https://github.com/MetaMask/core/pull/1385))
 - The export `permissionRpcMethods` has a slightly different type; the second generic type variable of the `getPermissions` handler is now `undefined` rather than `void` ([#1372](https://github.com/MetaMask/core/pull/1372))
 - Add `@metamask/utils` dependency ([#1275](https://github.com/MetaMask/core/pull/1275))
 - Remove `@metamask/types` dependency ([#1372](https://github.com/MetaMask/core/pull/1372))
@@ -432,7 +432,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [2.0.0]
@@ -443,9 +443,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041))
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041)) ([#1066](https://github.com/MetaMask/core/pull/1066))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031)) ([#1066](https://github.com/MetaMask/core/pull/1066))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) ([#1066](https://github.com/MetaMask/core/pull/1066))
 
 ## [1.0.2]
 
@@ -463,8 +463,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
+  - As a result of converting our shared controllers repo into a monorepo, we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - Everything in `src/permissions`
 
     All changes listed after this point were applied to this package following the monorepo conversion.

@@ -126,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove `hydrateState()` — use `init()` as the single entry point for controller hydration
+- Remove `hydrateState()` — use `init()` as the single entry point for controller hydration ([#8157](https://github.com/MetaMask/core/pull/8157))
 
 ## [11.0.0]
 
@@ -144,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods ([#8045](https://github.com/MetaMask/core/pull/8045))
 - Added `apiMessage` property to `TransakApiError` to surface human-readable error messages from the Transak API (e.g. OTP rate-limit cooldown) ([#8072](https://github.com/MetaMask/core/pull/8072))
 - Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
 - Add messenger actions for `RampsController:setSelectedToken`, `RampsController:getQuotes`, and `RampsController:getOrder`, register their handlers in `RampsController`, and export the action types from the package index ([#8081](https://github.com/MetaMask/core/pull/8081))
@@ -237,15 +237,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `hydrateState()` method to fetch providers and tokens for user region ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `countries` state to RampsController with 24 hour TTL caching ([#7707](https://github.com/MetaMask/core/pull/7707))
-- Add `SupportedActions` type for `{ buy: boolean; sell: boolean }` support info
+- Add `SupportedActions` type for `{ buy: boolean; sell: boolean }` support info ([#7707](https://github.com/MetaMask/core/pull/7707))
 - Add `selectedToken` state and `setSelectedToken()` method to RampsController ([#7734](https://github.com/MetaMask/core/pull/7734))
 - Add `RampsEnvironment.Local` option to RampsService for local development ([#7734](https://github.com/MetaMask/core/pull/7734))
 
 ### Changed
 
 - Reorganize `init()` to only fetch geolocation and countries; remove token and provider fetching ([#7707](https://github.com/MetaMask/core/pull/7707))
-- **BREAKING:** Change `Country.supported` and `State.supported` from `boolean` to `SupportedActions` object. The API now returns buy/sell support info in a single call.
-- **BREAKING:** Remove `action` parameter from `getCountries()`. Countries are no longer fetched separately for buy/sell actions.
+- **BREAKING:** Change `Country.supported` and `State.supported` from `boolean` to `SupportedActions` object. The API now returns buy/sell support info in a single call. ([#7707](https://github.com/MetaMask/core/pull/7707))
+- **BREAKING:** Remove `action` parameter from `getCountries()`. Countries are no longer fetched separately for buy/sell actions. ([#7707](https://github.com/MetaMask/core/pull/7707))
 - **BREAKING:** Rename `preferredProvider` to `selectedProvider` and `setPreferredProvider()` to `setSelectedProvider()` in RampsController ([#7734](https://github.com/MetaMask/core/pull/7734))
 - **BREAKING:** Change `getPaymentMethods(options)` to `getPaymentMethods(region, options)` with region as first parameter ([#7734](https://github.com/MetaMask/core/pull/7734))
 

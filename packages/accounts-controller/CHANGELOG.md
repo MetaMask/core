@@ -69,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `accountIdByAddress` mapping to state ([#7893](https://github.com/MetaMask/core/pull/7893))
   - This state was added to improve lookup times for an account by address from O(n) to O(1).
   - `getAccountByAddress` also leverages this new map, thus, should be slightly faster too.
-- Add logging capabilities ([#8118](https://github.com/MetaMask/core/pull/8118/))
-- Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+- Add logging capabilities ([#8118](https://github.com/MetaMask/core/pull/8118))
+- Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
   - The following actions are now available:
     - `AccountController:loadBackupAction`
   - Corresponding action types (e.g. `AccountControllerLoadBackupAction`) are available as well.
@@ -215,7 +215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Use new typed `KeyringAccount.options` for BIP-44 compatible accounts ([#6122](https://github.com/MetaMask/core/pull/6122)), ([#6147](https://github.com/MetaMask/core/pull/6147))
+- Use new typed `KeyringAccount.options` for BIP-44 compatible accounts ([#6122](https://github.com/MetaMask/core/pull/6122), [#6147](https://github.com/MetaMask/core/pull/6147))
 
 ### Changed
 
@@ -286,7 +286,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `@metamask/network-controller` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
+- `@metamask/network-controller` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464))
 
 ## [26.1.0]
 
@@ -324,7 +324,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-controller"` from `^19.1.0` to `^19.2.0` ([#5357](https://github.com/MetaMask/core/pull/5357))
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
-- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356)), ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356), [#5366](https://github.com/MetaMask/core/pull/5366))
 - Bump `@metamask/eth-snap-keyring` from `^10.0.0` to `^11.1.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
 - Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
@@ -337,7 +337,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `@metamask/network-controller@^22.0.0` peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215)), ([#5327](https://github.com/MetaMask/core/pull/5327))
+- **BREAKING:** Add `@metamask/network-controller@^22.0.0` peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215), [#5327](https://github.com/MetaMask/core/pull/5327))
 
 ## [23.1.0]
 
@@ -358,7 +358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.7.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
 - Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
 - Bump `@metamask/eth-snap-keyring` from `^9.1.1` to `^10.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
-- Bump `@metamask/snaps-sdk` from `^6.7.0` to `^6.17.1` ([#5220](https://github.com/MetaMask/core/pull/5220)), ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/snaps-sdk` from `^6.7.0` to `^6.17.1` ([#5220](https://github.com/MetaMask/core/pull/5220), [#5265](https://github.com/MetaMask/core/pull/5265))
 - Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
@@ -377,9 +377,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Now requires `SnapKeyring:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger ([#5190](https://github.com/MetaMask/core/pull/5190))
-- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
-- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
-- Bump `@metamask/eth-snap-keyring` from `^8.1.1` to `^9.1.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/eth-snap-keyring` from `^8.1.1` to `^9.1.1` ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
 
 ## [21.0.2]
 
@@ -399,9 +399,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066)), ([#5136](https://github.com/MetaMask/core/pull/5136))
+- **BREAKING:** Add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066), [#5136](https://github.com/MetaMask/core/pull/5136))
   - This field is now required and will be used to identify the supported chains (using CAIP-2 chain IDs) for every accounts.
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
 - Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
 
@@ -433,7 +433,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^18.0.0` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^18.0.0` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
 - **BREAKING:** Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
   - If you are depending on `@metamask/providers` directly, you will need to upgrade to `18.1.0`.
 - Bump `@metamask/eth-snap-keyring` from `^4.3.6` to `^5.0.1` ([#4948](https://github.com/MetaMask/core/pull/4948))
@@ -458,7 +458,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
   - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
   - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
   - Bump `@metamask/eth-snap-keyring` from `^4.3.3` to `^4.3.6`
@@ -482,7 +482,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -492,7 +492,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add event `AccountsController:accountRenamed` and export corresponding event type `AccountsControllerAccountRenamedEvent` ([#4664](https://github.com/MetaMask/core/pull/4664)), ([#4660](https://github.com/MetaMask/core/pull/4660))
+- Add event `AccountsController:accountRenamed` and export corresponding event type `AccountsControllerAccountRenamedEvent` ([#4664](https://github.com/MetaMask/core/pull/4664), [#4660](https://github.com/MetaMask/core/pull/4660))
 - Add new `nameLastUpdatedAt` timestamp to account's metadata ([#4589](https://github.com/MetaMask/core/pull/4589))
 
 ### Changed
@@ -527,7 +527,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump peerDependency `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Remove `@metamask/keyring-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/keyring-controller` dependency ([#4556](https://github.com/MetaMask/core/pull/4556))
   - This was listed under `peerDependencies` already, so it was redundant as a dependency.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
@@ -626,7 +626,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix update setSelectedAccount to throw if the id is not found ([#4167](https://github.com/MetaMask/core/pull/4167))
 - Fix normal account indexing naming with index gap ([#4089](https://github.com/MetaMask/core/pull/4089))
-- **BREAKING** Bump peer dependency `@metamask/snaps-controllers` to `^6.0.3` and dependencies `@metamask/snaps-sdk` to `^3.1.1`, `@metamask/eth-snap-keyring` to `^3.0.0`([#4090](https://github.com/MetaMask/core/pull/4090))
+- **BREAKING** Bump peer dependency `@metamask/snaps-controllers` to `^6.0.3` and dependencies `@metamask/snaps-sdk` to `^3.1.1`, `@metamask/eth-snap-keyring` to `^3.0.0` ([#4090](https://github.com/MetaMask/core/pull/4090))
 
 ## [12.0.1]
 
@@ -687,7 +687,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to ^12.1.0 ([#3747](https://github.com/MetaMask/core/pull/3747), [#3810](https://github.com/MetaMask/core/pull/3810))
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency to ^4.0.0 ([#3747](https://github.com/MetaMask/core/pull/3747))
 - Bump `@metamask/keyring-api` to ^3.0.0 ([#3747](https://github.com/MetaMask/core/pull/3747))
-- Bump `@metamask/utils` to `^8.3.0`([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
 
 ### Fixed
 
@@ -697,7 +697,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` to ^12.0.0
+- **BREAKING:** Bump `@metamask/keyring-controller` to ^12.0.0 ([#3757](https://github.com/MetaMask/core/pull/3757))
 
 ## [7.0.1]
 
@@ -725,7 +725,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to ^9.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to ^9.0.0 ([#2052](https://github.com/MetaMask/core/pull/2052))
 - Bump `@metamask/snaps-utils` and `@metamask/snaps-controller` to 3.2.0 ([#1917](https://github.com/MetaMask/core/pull/1917), [#1944](https://github.com/MetaMask/core/pull/1944), [#1977](https://github.com/MetaMask/core/pull/1977))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 - Bump @metamask/keyring-api from 1.0.0 to 1.1.0 ([#1951](https://github.com/MetaMask/core/pull/1951))
@@ -744,15 +744,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump dependency on `@metamask/eth-snap-keyring` to ^1.0.0 ([#1735](https://github.com/MetaMask/core/pull/1735))
 - **BREAKING:** Bump dependency on `@metamask/keyring-api` to ^1.0.0 ([#1735](https://github.com/MetaMask/core/pull/1735))
 - **BREAKING:** Bump dependency on `@metamask/snaps-utils` to ^3.0.0 ([#1735](https://github.com/MetaMask/core/pull/1735))
-- Bump dependency and peer dependency on `@metamask/keyring-controller` to ^8.0.3
+- Bump dependency and peer dependency on `@metamask/keyring-controller` to ^8.0.3 ([#1803](https://github.com/MetaMask/core/pull/1803))
 
 ## [2.0.2]
 
 ### Changed
 
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump peer dependency on `@metamask/keyring-controller` to ^8.0.2
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump peer dependency on `@metamask/keyring-controller` to ^8.0.2 ([#1747](https://github.com/MetaMask/core/pull/1747))
 
 ## [2.0.1]
 
@@ -768,7 +768,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to ^8.0.0
+- **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to ^8.0.0 ([#1708](https://github.com/MetaMask/core/pull/1708))
 
 ## [1.0.0]
 

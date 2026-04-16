@@ -159,9 +159,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0`, ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
-- Bump `@metamask/accounts-controller` from `^36.0.1` to `^37.0.0` ([8140](https://github.com/MetaMask/core/pull/8140))
-- Bump `@metamask/bridge-controller` from `^68.0.0` to `^69.0.0` ([8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0` ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.1` to `^37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/bridge-controller` from `^68.0.0` to `^69.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [68.0.0]
 
@@ -224,8 +224,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
-- Bump `@metamask/bridge-controller` from `^65.3.0` to `^66.1.0`, ([#7862](https://github.com/MetaMask/core/pull/7862), [#7897](https://github.com/MetaMask/core/pull/7897))
-- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.17.0`, ([#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/bridge-controller` from `^65.3.0` to `^66.1.0` ([#7862](https://github.com/MetaMask/core/pull/7862), [#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.17.0` ([#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
 
 ## [66.0.0]
 
@@ -235,7 +235,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** Re-key intent history items and extract intent code into a new IntentManager class
+- **BREAKING** Re-key intent history items and extract intent code into a new IntentManager class ([#7843](https://github.com/MetaMask/core/pull/7843))
 - **BREAKING** handle intent orders in fetch bridge tx function ([#7756](https://github.com/MetaMask/core/pull/7756))
 - Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.14.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832))
 - Bump `@metamask/bridge-controller` from `^65.1.0` to `^65.3.0` ([#7802](https://github.com/MetaMask/core/pull/7802), [#7837](https://github.com/MetaMask/core/pull/7837))
@@ -603,7 +603,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- This version was deprecated because it accidentally included additional breaking changes; use v44.1.0 or later versions instead
+- This version was deprecated because it accidentally included additional breaking changes; use v44.1.0 or later versions instead ([#6692](https://github.com/MetaMask/core/pull/6692))
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` from `^43.0.0` to `^44.0.0` ([#6652](https://github.com/MetaMask/core/pull/6652), [#6676](https://github.com/MetaMask/core/pull/6676))
 
 ## [43.1.0]
@@ -731,7 +731,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^37.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
-- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0`, ([#6171](https://github.com/MetaMask/core/pull/6171), [#6027](https://github.com/MetaMask/core/pull/6027))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171), [#6027](https://github.com/MetaMask/core/pull/6027))
 
 ## [36.1.0]
 
@@ -976,7 +976,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Added a hardcoded `SolScope.Mainnet` value to ensure the `signAndSendTransaction` params are always valid. Discovered Solana accounts may have an undefined `options.scope`, which causes `handleRequest` calls to throw a JSON-RPC validation error ([#5750])(https://github.com/MetaMask/core/pull/5750)
+- Added a hardcoded `SolScope.Mainnet` value to ensure the `signAndSendTransaction` params are always valid. Discovered Solana accounts may have an undefined `options.scope`, which causes `handleRequest` calls to throw a JSON-RPC validation error ([#5750](https://github.com/MetaMask/core/pull/5750))
 
 ## [17.0.0]
 
@@ -1135,7 +1135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/bridge-controller` to v3.0.0
+- **BREAKING:** Bump `@metamask/bridge-controller` to v3.0.0 ([#5423](https://github.com/MetaMask/core/pull/5423))
 - Improve `BridgeStatusController` API response validation readability by using `@metamask/superstruct` ([#5408](https://github.com/MetaMask/core/pull/5408))
 
 ## [2.0.0]

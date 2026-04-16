@@ -376,7 +376,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Use gas fee properties from first transaction in EIP-7702 transactions ([#7323](https://github.com/MetaMask/core/pull/7323))
-- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309)
+- Bump `@metamask/remote-feature-flag-controller` from `^2.0.1` to `^3.0.0` ([#7309](https://github.com/MetaMask/core/pull/7309))
 
 ## [62.4.0]
 
@@ -682,7 +682,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Automatically update `gasFeeEstimates` in unapproved `transactionBatches` ([#5950](https://github.com/MetaMask/core/pull/5950))
-- Estimate gas for type-4 transactions with `data` using `eth_estimateGas` and state overrides if simulation fails [#6016](https://github.com/MetaMask/core/pull/6016))
+- Estimate gas for type-4 transactions with `data` using `eth_estimateGas` and state overrides if simulation fails ([#6016](https://github.com/MetaMask/core/pull/6016))
 - Query only latest page of transactions from accounts API ([#5983](https://github.com/MetaMask/core/pull/5983))
 - Remove incoming transactions when calling `wipeTransactions` ([#5986](https://github.com/MetaMask/core/pull/5986))
 - Poll immediately when calling `startIncomingTransactionPolling` ([#5986](https://github.com/MetaMask/core/pull/5986))
@@ -914,7 +914,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `nonce`
   - `type`
 - Configure gas estimation fallback using remote feature flags ([#5556](https://github.com/MetaMask/core/pull/5556))
-- Throw if `chainId` in `TransactionParams` does not match `networkClientId` when calling `addTransaction` ([#5511](https://github.com/MetaMask/core/pull/5511))
+- Throw if `chainId` in `TransactionParams` does not match `networkClientId` when calling `addTransaction` ([#5569](https://github.com/MetaMask/core/pull/5569))
   - Mark `chainId` in `TransactionParams` as deprecated.
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 
@@ -975,7 +975,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `enableTxParamsGasFeeUpdates` constructor option ([5394](https://github.com/MetaMask/core/pull/5394))
+- Add `enableTxParamsGasFeeUpdates` constructor option ([#5394](https://github.com/MetaMask/core/pull/5394))
   - If not set it will default to `false`.
   - Automatically update gas fee properties in `txParams` when the `gasFeeEstimates` are updated via polling.
 
@@ -1251,7 +1251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
 
 ## [39.1.0]
 
@@ -1353,7 +1353,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Make `getPermittedAccounts` constructor callback optional ([#4706](https://github.com/MetaMask/core/pull/4706))
-- Bump accounts related packages, ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
   - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
   - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
 
@@ -1381,7 +1381,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -1451,7 +1451,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
-- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/gas-fee-controller`, and `@metamask/network-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/gas-fee-controller`, and `@metamask/network-controller` dependencies ([#4556](https://github.com/MetaMask/core/pull/4556))
   - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
@@ -1561,8 +1561,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- approveTransaction was throwing away the raw signed transaction that signTransaction was adding to the metadata.
-  This was causing some transaction with low gas to appear as "failed" when in fact they were still pending. ([#4255](https://github.com/MetaMask/core/pull/4255))
+- approveTransaction was throwing away the raw signed transaction that signTransaction was adding to the metadata. This was causing some transaction with low gas to appear as "failed" when in fact they were still pending. ([#4255](https://github.com/MetaMask/core/pull/4255))
 
 ## [29.0.0]
 
@@ -1857,8 +1856,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Messenger now requires `NetworkController:findNetworkClientByChainId` and `NetworkController:getNetworkClientById` actions ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Adds a feature flag parameter `isMultichainEnabled` passed via the constructor (and defaulted to false), which when passed a truthy value will enable the controller to submit, process, and track transactions concurrently on multiple networks. ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Adds `destroy()` method that stops/removes internal polling and listeners ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Adds `stopAllIncomingTransactionPolling()` method that stops polling Etherscan for transaction updates relevant to the currently selected network.
-  - When called with the `isMultichainEnabled` feature flag on, also stops polling Etherscan for transaction updates relevant to each currently polled networkClientId. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `stopAllIncomingTransactionPolling()` method that stops polling Etherscan for transaction updates relevant to the currently selected network. ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - When called with the `isMultichainEnabled` feature flag on, also stops polling Etherscan for transaction updates relevant to each currently polled networkClientId.
 - Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Exports `TransactionControllerOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
 
@@ -2014,7 +2013,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
   - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
-- **BREAKING:** Add `finished` and `publish-skip` events to `Events` type
+- **BREAKING:** Add `finished` and `publish-skip` events to `Events` type ([#2056](https://github.com/MetaMask/core/pull/2056))
 - **BREAKING:** Update `TransactionReceipt` type so `transactionIndex` is now a string rather than a number ([#2063](https://github.com/MetaMask/core/pull/2063))
 - Bump `nonce-tracker` to ^3.0.0 ([#2040](https://github.com/MetaMask/core/pull/2040))
 - The controller now emits a `transaction-status-update` event each time the status of a transaction changes (e.g. submitted, rejected, etc.) ([#2027](https://github.com/MetaMask/core/pull/2027))
@@ -2061,30 +2060,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Pending transactions are now automatically resubmitted. ([#1896](https://github.com/MetaMask/core/pull/1896))
   - This can be disabled by setting the new `pendingTransactions.isResubmitEnabled` constructor option to `false`.
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0 ([#1877](https://github.com/MetaMask/core/pull/1877))
 - Persist specific error properties in core transaction metadata ([#1915](https://github.com/MetaMask/core/pull/1915))
   - Create `TransactionError` type with explicit properties.
 - Align core transaction error messages with extension ([#1980](https://github.com/MetaMask/core/pull/1980))
   - Catch of the `initApprovals` method to skip logging when the error is `userRejectedRequest`.
 - Create an additional transaction metadata entry when calling `stopTransaction` ([#1998](https://github.com/MetaMask/core/pull/1998))
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
-- Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.1
+- Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.1 ([#1957](https://github.com/MetaMask/core/pull/1957))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [16.0.0]
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.0
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [15.0.0]
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 - Bump dependency on `@metamask/rpc-errors` to ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1 ([#1653](https://github.com/MetaMask/core/pull/1653))
 
 ## [14.0.0]
 
@@ -2102,10 +2101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
 ### Removed
 
@@ -2171,7 +2170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Defaults to `false` but will increase state size considerably unless disabled
 - **BREAKING**: Add `disableSendFlowHistory` constructor option ([#1665](https://github.com/MetaMask/core/pull/1665))
   - Defaults to `false` but will increase state size considerably unless disabled
-- **BREAKING**: Rename the `transactionHash` property to `hash` in the transaction metadata
+- **BREAKING**: Rename the `transactionHash` property to `hash` in the transaction metadata ([#1651](https://github.com/MetaMask/core/pull/1651))
 
 ### Fixed
 
@@ -2206,10 +2205,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1 ([#1616](https://github.com/MetaMask/core/pull/1616))
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1616](https://github.com/MetaMask/core/pull/1616))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1616](https://github.com/MetaMask/core/pull/1616))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2 ([#1616](https://github.com/MetaMask/core/pull/1616))
 
 ## [9.0.0]
 
@@ -2337,21 +2336,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106)) ([#1108](https://github.com/MetaMask/core/pull/1108))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [3.0.0]
 
 ### Added
 
-- Add Etherscan API support for Sepolia and Goerli ([#1041](https://github.com/MetaMask/controllers/pull/1041))
-- Export `isEIP1559Transaction` function from package ([#1058](https://github.com/MetaMask/controllers/pull/1058))
+- Add Etherscan API support for Sepolia and Goerli ([#1041](https://github.com/MetaMask/controllers/pull/1041)) ([#1108](https://github.com/MetaMask/core/pull/1108))
+- Export `isEIP1559Transaction` function from package ([#1058](https://github.com/MetaMask/controllers/pull/1058)) ([#1108](https://github.com/MetaMask/core/pull/1108))
 
 ### Changed
 
-- **BREAKING**: Drop Etherscan API support for Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/controllers/pull/1041))
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- **BREAKING**: Drop Etherscan API support for Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/controllers/pull/1041)) ([#1108](https://github.com/MetaMask/core/pull/1108))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031)) ([#1108](https://github.com/MetaMask/core/pull/1108))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) ([#1108](https://github.com/MetaMask/core/pull/1108))
 
 ## [2.0.0]
 
@@ -2364,8 +2363,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
+  - As a result of converting our shared controllers repo into a monorepo, we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - Everything in `src/transaction`
     - Transaction-related functions from `src/util.ts` and accompanying tests
 

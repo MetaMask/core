@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
   - `identities`, `lostIdentities` and `selectedAddress` along with any associated methods and types were removed.
   - `setSmartAccountOptInForAccounts` was also removed as it is deprecated and not used in the clients.
-- Removed `@metamask/keyring-controller` and `@metamask/controller-utils` dependencies ([#7995](https://github.com/MetaMask/core/pull/7995)), ([#8115](https://github.com/MetaMask/core/pull/8115))
+- Removed `@metamask/keyring-controller` and `@metamask/controller-utils` dependencies ([#7995](https://github.com/MetaMask/core/pull/7995), [#8115](https://github.com/MetaMask/core/pull/8115))
 
 ## [22.1.0]
 
@@ -210,8 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
 
 ## [15.0.1]
 
@@ -223,7 +223,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
 
 ## [14.0.0]
 
@@ -276,7 +276,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -455,7 +455,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1708](https://github.com/MetaMask/core/pull/1708))
 
 ## [4.4.0]
 
@@ -466,8 +466,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1634](https://github.com/MetaMask/core/pull/1634))
 
 ## [4.3.0]
 
@@ -485,7 +485,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isMultiAccountBalancesEnabled` to state (default: true) along with a `setIsMultiAccountBalancesEnabled` method to set it
+- Add `isMultiAccountBalancesEnabled` to state (default: true) along with a `setIsMultiAccountBalancesEnabled` method to set it ([#1146](https://github.com/MetaMask/core/pull/1146))
 
 ## [4.0.0]
 
@@ -504,21 +504,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `disabledRpcMethodPreferences` state to PreferencesController ([#1109](https://github.com/MetaMask/core/pull/1109)). See [this PR on extension](https://github.com/MetaMask/metamask-extension/pull/17308) and [this ticket](https://github.com/MetaMask/metamask-mobile/issues/5676)
+- `disabledRpcMethodPreferences` state to PreferencesController. See [this PR on extension](https://github.com/MetaMask/metamask-extension/pull/17308) and [this ticket](https://github.com/MetaMask/metamask-mobile/issues/5676) ([#1109](https://github.com/MetaMask/core/pull/1109))
 
 ## [2.0.0]
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [1.0.2]
 
 ### Changed
 
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## [1.0.1]
 
@@ -530,7 +530,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/user/PreferencesController.ts` (plus `ContactEntry` copied from `src/user/AddressBookController.ts`)
     - `src/user/PreferencesController.test.ts`

@@ -121,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/gator-permissions-controller` from `^0.6.0` to `^0.8.0`, ([#7274](https://github.com/MetaMask/core/pull/7274), [#7330](https://github.com/MetaMask/core/pull/7330))
+- Bump `@metamask/gator-permissions-controller` from `^0.6.0` to `^0.8.0` ([#7274](https://github.com/MetaMask/core/pull/7274), [#7330](https://github.com/MetaMask/core/pull/7330))
 - Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.0)
@@ -272,7 +272,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add peer dependency on `^26.0.0` of `@metamask/accounts-controller`([#5470](https://github.com/MetaMask/core/pull/5470))
+- **BREAKING:** Add peer dependency on `^26.0.0` of `@metamask/accounts-controller` ([#5470](https://github.com/MetaMask/core/pull/5470))
 - Add EIP-7702 signature validations ([#5470](https://github.com/MetaMask/core/pull/5470))
   - Throw if external and `verifyingContract` matches any internal account.
   - Throw if external and `primaryType` is `Delegation` and `delegator` matches any internal EOA account.
@@ -298,8 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0`, ([#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0`, ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [23.2.0]
@@ -445,7 +445,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -476,7 +476,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Remove `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/logging-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/logging-controller` dependencies ([#4556](https://github.com/MetaMask/core/pull/4556))
   - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
@@ -581,7 +581,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` to ^12.1.0
+- **BREAKING:** Bump `@metamask/keyring-controller` to ^12.1.0 ([#3769](https://github.com/MetaMask/core/pull/3769))
 - Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
 
 ### Fixed
@@ -592,7 +592,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` to ^12.0.0
+- **BREAKING:** Bump `@metamask/keyring-controller` to ^12.0.0 ([#3769](https://github.com/MetaMask/core/pull/3769))
 
 ## [9.0.0]
 
@@ -621,7 +621,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: Add `@metamask/keyring-controller` as a dependency and peer dependency
+- **BREAKING**: Add `@metamask/keyring-controller` as a dependency and peer dependency ([#1957](https://github.com/MetaMask/core/pull/1957))
   - This was relied upon by past versions, but this was not reflected in the package manifest until now
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
@@ -630,18 +630,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
-- Bump dependency and peer dependency on `@metamask/logging-controller` to ^1.0.4
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Bump dependency and peer dependency on `@metamask/logging-controller` to ^1.0.4 ([#1653](https://github.com/MetaMask/core/pull/1653))
 
 ## [6.1.2]
 
 ### Changed
 
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to 5.0.2
-- Bump dependency on `@metamask/message-manager` to ^7.3.5
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/controller-utils` to 5.0.2 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/message-manager` to ^7.3.5 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
 ## [6.1.1]
 
@@ -654,10 +654,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `LoggingController` logs on signature operation stages ([#1692](https://github.com/MetaMask/core/pull/1692))
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0
-- Bump dependency on `@metamask/keyring-controller` to ^8.0.0
-- Bump dependency on `@metamask/logging-controller` to ^1.0.2
-- Bump dependency on `@metamask/message-manager` to ^7.3.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1692](https://github.com/MetaMask/core/pull/1692))
+- Bump dependency on `@metamask/keyring-controller` to ^8.0.0 ([#1692](https://github.com/MetaMask/core/pull/1692))
+- Bump dependency on `@metamask/logging-controller` to ^1.0.2 ([#1692](https://github.com/MetaMask/core/pull/1692))
+- Bump dependency on `@metamask/message-manager` to ^7.3.3 ([#1692](https://github.com/MetaMask/core/pull/1692))
 
 ## [6.0.0]
 
@@ -669,10 +669,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
-- Bump dependency on `@metamask/message-manager` to ^7.3.1
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1 ([#1506](https://github.com/MetaMask/core/pull/1506))
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1506](https://github.com/MetaMask/core/pull/1506))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1506](https://github.com/MetaMask/core/pull/1506))
+- Bump dependency on `@metamask/message-manager` to ^7.3.1 ([#1506](https://github.com/MetaMask/core/pull/1506))
 
 ## [5.3.0]
 

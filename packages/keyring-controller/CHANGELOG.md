@@ -363,7 +363,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1`, ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
 - Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066), [#5136](https://github.com/MetaMask/core/pull/5136))
 - Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
@@ -676,7 +676,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0
+- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0 ([#3757](https://github.com/MetaMask/core/pull/3757))
 
 ## [11.0.0]
 
@@ -727,15 +727,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `signTransaction` now accepts an optional `opts: Record<string, unknown>` argument to support `signTransaction` from `Keyring` type ([#1789](https://github.com/MetaMask/core/pull/1789))
-- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3 ([#1803](https://github.com/MetaMask/core/pull/1803))
 
 ## [8.0.2]
 
 ### Changed
 
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/message-manager` to ^7.3.5
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump dependency on `@metamask/message-manager` to ^7.3.5 ([#1747](https://github.com/MetaMask/core/pull/1747))
 
 ### Fixed
 
@@ -756,16 +756,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getQRKeyring(): QRKeyring | undefined` method
-- Add `KeyringController:qrKeyringStateChange` messenger event
-- The event emits updates from the internal `QRKeyring` instance, if there's one
+- Add `getQRKeyring(): QRKeyring | undefined` method ([#1702](https://github.com/MetaMask/core/pull/1702))
+- Add `KeyringController:qrKeyringStateChange` messenger event ([#1702](https://github.com/MetaMask/core/pull/1702))
+- The event emits updates from the internal `QRKeyring` instance, if there's one ([#1702](https://github.com/MetaMask/core/pull/1702))
 
 ### Changed
 
-- **BREAKING:** addNewKeyring(type) return type changed from Promise<Keyring<Json>> to Promise<unknown>
+- **BREAKING:** addNewKeyring(type) return type changed from Promise<Keyring<Json>> to Promise<unknown> ([#1702](https://github.com/MetaMask/core/pull/1702))
   - When calling with QRKeyring type the keyring instance is retrieved or created (no multiple QRKeyring instances possible)
-- Bump dependency on `@metamask/message-manager` to ^7.3.3
-- Bump dependency on `@metamask/preferences-controller` to ^4.4.1
+- Bump dependency on `@metamask/message-manager` to ^7.3.3 ([#1708](https://github.com/MetaMask/core/pull/1708))
+- Bump dependency on `@metamask/preferences-controller` to ^4.4.1 ([#1708](https://github.com/MetaMask/core/pull/1708))
 
 ### Fixed
 
@@ -811,9 +811,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/message-manager` to ^7.3.1
-- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.0
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/message-manager` to ^7.3.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.0 ([#1634](https://github.com/MetaMask/core/pull/1634))
 
 ## [7.1.0]
 
@@ -930,7 +930,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `@metamask/preferences-controller` peer dependency ([#1393](https://github.com/MetaMask/core/pull/1393))
 - Bump @metamask/eth-keyring-controller from 10.0.0 to 10.0.1 ([#1280](https://github.com/MetaMask/core/pull/1280))
 - Bump @metamask/eth-sig-util from 5.0.2 to 5.0.3 ([#1278](https://github.com/MetaMask/core/pull/1278))
-- Update `@metamask/preferences-controller` dependency
+- Update `@metamask/preferences-controller` dependency ([#1385](https://github.com/MetaMask/core/pull/1385))
 
 ### Fixed
 
@@ -945,7 +945,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [3.0.0]
@@ -960,11 +960,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:**: Require ES2020 support or greater ([#914](https://github.com/MetaMask/controllers/pull/914))
+- **BREAKING:**: Require ES2020 support or greater ([#914](https://github.com/MetaMask/core/pull/914))
   - This change was introduced by an indirect dependency on `ethereumjs/util` v8
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/eth-sig-util` to v5 ([#914](https://github.com/MetaMask/controllers/pull/914))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
+- Update `@metamask/eth-sig-util` to v5 ([#914](https://github.com/MetaMask/core/pull/914))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## [1.0.1]
 
@@ -976,8 +976,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
+  - As a result of converting our shared controllers repo into a monorepo, we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - Everything in `src/keyring`
 
     All changes listed after this point were applied to this package following the monorepo conversion.

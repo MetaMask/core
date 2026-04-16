@@ -566,7 +566,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `KeyringController:lock` event sets controller to inactive state
 - `AccountTrackerController` now only refreshes balances for the newly added network on `NetworkController:networkAdded` event instead of all networks ([#7492](https://github.com/MetaMask/core/pull/7492))
 - Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7494](https://github.com/MetaMask/core/pull/7494))
-- Bump `@metamask/multichain-account-service` from `^4.0.1` to `^4.1.0` ([#7515](https://github.com/MetaMask/core/pull/7515)
+- Bump `@metamask/multichain-account-service` from `^4.0.1` to `^4.1.0` ([#7515](https://github.com/MetaMask/core/pull/7515))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 - Bump `@metamask/network-controller` from `^27.0.0` to `^27.2.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 
@@ -599,7 +599,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `firstPageOnly` and `signal` options to `NftDetectionController.detectNfts()` method to allow fetching only the first page of NFTs and aborting detection operations ([#7436](https://github.com/MetaMask/core/pull/7436))
-- Support for Monad in NFT assets-controllers, [#7254](https://github.com/MetaMask/core/pull/7254)
+- Support for Monad in NFT assets-controllers ([#7254](https://github.com/MetaMask/core/pull/7254))
 
 ### Changed
 
@@ -617,7 +617,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduce severity of ERC721 metadata interface log from `console.error` to `console.warn` ([#7412](https://github.com/MetaMask/core/pull/7412))
   - Fixes [#24988](https://github.com/MetaMask/metamask-extension/issues/24988)
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.6.0` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430))
-- Bump `@metamask/multichain-account-service` from `^4.0.0` to `^4.0.1` ([#7437](https://github.com/MetaMask/core/pull/7437)
+- Bump `@metamask/multichain-account-service` from `^4.0.0` to `^4.0.1` ([#7437](https://github.com/MetaMask/core/pull/7437))
 
 ### Fixed
 
@@ -651,7 +651,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix 2dp value in `CurrencyRateController`([#7276](https://github.com/MetaMask/core/pull/7276))
+- Fix 2dp value in `CurrencyRateController` ([#7276](https://github.com/MetaMask/core/pull/7276))
 - Fix token search API to use correct `networks` query parameter instead of `chainIds` ([#7261](https://github.com/MetaMask/core/pull/7261))
 
 ## [92.0.0]
@@ -733,7 +733,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Remove fallback to CryptoCompare on `CurrencyRatesController` and `TokenRatesController` ([#7167](https://github.com/MetaMask/core/pull/7167))
-- Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0`
+- Bump `@metamask/core-backend` from `^4.0.0` to `^4.1.0` ([#7168](https://github.com/MetaMask/core/pull/7168))
 
 ### Fixed
 
@@ -772,8 +772,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `getTrendingTokens` function to fetch trending tokens for specific chains ([#7054]) (https://github.com/MetaMask/core/pull/7054)
-- Added new types `SortTrendingBy` and `TrendingAsset` ([#7054]) (https://github.com/MetaMask/core/pull/7054)
+- Added `getTrendingTokens` function to fetch trending tokens for specific chains ([#7054](https://github.com/MetaMask/core/pull/7054))
+- Added new types `SortTrendingBy` and `TrendingAsset` ([#7054](https://github.com/MetaMask/core/pull/7054))
 
 ## [87.0.0]
 
@@ -850,12 +850,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `Monad Mainnet` into `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+- Add `Monad Mainnet` into `SUPPORTED_NETWORKS_ACCOUNTS_API_V4` ([#6929](https://github.com/MetaMask/core/pull/6929))
 
 ### Fixed
 
-- Fix incorrect balance scan contract address for `Monad Mainnet`
-  - Remove `Monad Mainnet` in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` ([#6929](https://github.com/MetaMask/core/pull/6929))
+- Fix incorrect balance scan contract address for `Monad Mainnet` ([#6929](https://github.com/MetaMask/core/pull/6929))
+  - Remove `Monad Mainnet` in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
 
 ## [83.0.0]
 
@@ -1948,7 +1948,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Type aliases have an index signature of `string` by default, and are compatible with the `StateConstraint` type defined in the `@metamask/base-controller` package.
 - **BREAKING:** `getIpfsCIDv1AndPath`, `getFormattedIpfsUrl` are now async functions ([#3645](https://github.com/MetaMask/core/pull/3645))
 - **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
-- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/preferences-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/preferences-controller` dependencies ([#4556](https://github.com/MetaMask/core/pull/4556))
   - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Add `immer` `^9.0.6` as a new dependency ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/abi-utils` from `^2.0.2` to `^2.0.3` ([#3645](https://github.com/MetaMask/core/pull/3645))
@@ -2026,7 +2026,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** `TokenDetectionController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `AccountsController:selectedAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - **BREAKING** `TokenRatesController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - **BREAKING** `TokenRatesController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `PreferencesController:stateChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
-- **BREAKING** `TokensController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount`.
+- **BREAKING** `TokensController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount`. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - **BREAKING** `TokensController` messenger must allow the event `AccountsController:selectedEvmAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - Upgrade AccountTrackerController to BaseControllerV2 ([#4407](https://github.com/MetaMask/core/pull/4407))
 - **BREAKING:** Convert `AccountInformation` from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
@@ -2059,7 +2059,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `messenger` as a constructor option for `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
 - **BREAKING:** Add `messenger` option to `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
   - This messenger must allow the actions `TokensController:getState`, `NetworkController:getNetworkClientById`, `NetworkController:getState`, and `PreferencesController:getState` and allow the events `PreferencesController:stateChange`, `TokensController:stateChange`, and `NetworkController:stateChange`.
-- Add types `TokenRatesControllerGetStateAction`, `TokenRatesControllerActions`, `TokenRatesControllerStateChangeEvent`, `TokenRatesControllerEvents`, `TokenRatesControllerMessenger`([#4314](https://github.com/MetaMask/core/pull/4314))
+- Add types `TokenRatesControllerGetStateAction`, `TokenRatesControllerActions`, `TokenRatesControllerStateChangeEvent`, `TokenRatesControllerEvents`, `TokenRatesControllerMessenger` ([#4314](https://github.com/MetaMask/core/pull/4314))
 - Add function `getDefaultTokenRatesControllerState` ([#4314](https://github.com/MetaMask/core/pull/4314))
 - Add `enable` and `disable` methods to `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
   - These are used to stop and restart polling.
@@ -2314,7 +2314,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** The `detectTokens` method now excludes tokens that are already included in the `TokensController`'s `detectedTokens` list from the batch of incoming tokens it sends to the `TokensController` `addDetectedTokens` method.
   - **BREAKING:** The constructor for `TokenDetectionController` expects a new required property `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
-  - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
+  - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690))
     - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
   - The constructor option `selectedAddress` no longer defaults to `''` if omitted. Instead, the correct address is assigned using the `AccountsController:getSelectedAccount` messenger action.
 - **BREAKING:** Change type of `provider` property in `AssetsContractController` from `any` to `Provider` from `@metamask/network-controller` ([#3818](https://github.com/MetaMask/core/pull/3818))
@@ -2373,7 +2373,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0
+- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0 ([#3757](https://github.com/MetaMask/core/pull/3757))
 - Price API perf improvements ([#3753](https://github.com/MetaMask/core/pull/3753), [#3755](https://github.com/MetaMask/core/pull/3755))
   - Reduce token batch size from 100 to 30
   - Sort token addresses in query params for more cache hits
@@ -2450,7 +2450,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Change the type of `tokenAddresses` from `string[]` to `Hex[]`
 - **BREAKING:** `AccountTrackerController` constructor params object requires `getCurrentChainId` and `getNetworkClientById` hooks ([#3586](https://github.com/MetaMask/core/pull/3586))
   - These are needed for the new "polling by `networkClientId`" feature
-- **BREAKING:** `AccountTrackerController` has a new required state property, `accountByChainId`([#3586](https://github.com/MetaMask/core/pull/3586))
+- **BREAKING:** `AccountTrackerController` has a new required state property, `accountByChainId` ([#3586](https://github.com/MetaMask/core/pull/3586))
   - This is needed to track balances accross chains. It was introduced for the "polling by `networkClientId`" feature, but is useful on its own as well.
 - **BREAKING:** `AccountTrackerController` adds a mutex to `refresh` making it only possible for one call to be executed at time ([#3586](https://github.com/MetaMask/core/pull/3586))
 - **BREAKING:** `TokensController.watchAsset` now performs on-chain validation of the asset's symbol and decimals, if they're defined in the contract ([#1745](https://github.com/MetaMask/core/pull/1745))
@@ -2534,7 +2534,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0 ([#2044](https://github.com/MetaMask/core/pull/2044))
 - Add optional `networkClientId` and `userAddress` args to remaining `NftController` public methods ([#2006](https://github.com/MetaMask/core/pull/2006))
   - `watchNft`, `removeNft`, `removeAndIgnoreNft`, `removeNftContract`, `updateNftFavoriteStatus`, and `checkAndUpdateAllNftsOwnershipStatus` methods on `NftController` all now accept an optional options object argument containing `networkClientId` and `userAddress` to identify where in state to mutate.
   - **BREAKING**: `addNft` no longer accepts a `chainId` property in its options argument since this value can be retrieved by the `networkClientId` property and is therefore redundant.
@@ -2544,7 +2544,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING**: `validateWatchNft` method on `NftController` is now private.
   - **BREAKING**: `detectNfts` on `NftDetectionController` now accepts a single object argument with optional properties `networkClientId` and `userAddress`, rather than taking these as two sequential arguments.
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
-- Bump dependency on `@metamask/polling-controller` to ^1.0.2
+- Bump dependency on `@metamask/polling-controller` to ^1.0.2 ([#2044](https://github.com/MetaMask/core/pull/2044))
 - Bump `@metamask/utils` from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ### Fixed
@@ -2555,7 +2555,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: `CurrencyRateController` is now keyed by `nativeCurrency` (i.e. ticker) for `conversionDate`, `conversionRate`, and `usdConversionRate` in the `currencyRates` object. `nativeCurrency`, `pendingNativeCurrency`, and `pendingCurrentCurrency` have been removed.
+- **BREAKING**: `CurrencyRateController` is now keyed by `nativeCurrency` (i.e. ticker) for `conversionDate`, `conversionRate`, and `usdConversionRate` in the `currencyRates` object. `nativeCurrency`, `pendingNativeCurrency`, and `pendingCurrentCurrency` have been removed. ([#1805](https://github.com/MetaMask/core/pull/1805))
   - ```
     export type CurrencyRateState = {
       currentCurrency: string;
@@ -2582,8 +2582,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0 ([#1963](https://github.com/MetaMask/core/pull/1963))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0 ([#1963](https://github.com/MetaMask/core/pull/1963))
 
 ## [16.0.0]
 
@@ -2596,12 +2596,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0 ([#1904](https://github.com/MetaMask/core/pull/1904))
 - **BREAKING:** Make `executePoll` in TokenListController private ([#1810](https://github.com/MetaMask/core/pull/1810))
 - **BREAKING:** Update TokenListController to rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
 - Add missing dependency on `@metamask/polling-controller` ([#1831](https://github.com/MetaMask/core/pull/1831))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
-- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1 ([#1904](https://github.com/MetaMask/core/pull/1904))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3 ([#1904](https://github.com/MetaMask/core/pull/1904))
 - Fix support for NFT metadata stored outside IPFS ([#1772](https://github.com/MetaMask/core/pull/1772))
 
 ## [15.0.0]
@@ -2638,10 +2638,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NftController.addNft` will use the chainId value derived from `networkClientId` if provided ([#1698](https://github.com/MetaMask/core/pull/1698))
 - `NftController.watchNft` options now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0 ([#1803](https://github.com/MetaMask/core/pull/1803))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1803](https://github.com/MetaMask/core/pull/1803))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1803](https://github.com/MetaMask/core/pull/1803))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0 ([#1803](https://github.com/MetaMask/core/pull/1803))
 
 ### Fixed
 
@@ -2656,7 +2656,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove AbortController polyfill
+- **BREAKING:** Remove AbortController polyfill ([#1739](https://github.com/MetaMask/core/pull/1739))
   - This package now assumes that the AbortController global exists
 
 ## [13.0.0]
@@ -2694,20 +2694,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Add `getNetworkClientById` to `AssetsContractController` constructor options ([#1638](https://github.com/MetaMask/core/pull/1638))
 - Add optional `networkClientId` parameter to various `AssetContractController` methods ([#1638](https://github.com/MetaMask/core/pull/1638))
-- The affected methods are:
-  - `getERC20BalanceOf`
-  - `getERC20TokenDecimals`
-  - `getERC20TokenName`
-  - `getERC721NftTokenId`
-  - `getTokenStandardAndDetails`
-  - `getERC721TokenURI`
-  - `getERC721AssetName`
-  - `getERC721AssetSymbol`
-  - `getERC721OwnerOf`
-  - `getERC1155TokenURI`
-  - `getERC1155BalanceOf`
-  - `transferSingleERC1155`
-  - `getBalancesInSingleCall`
+  - The affected methods are:
+    - `getERC20BalanceOf`
+    - `getERC20TokenDecimals`
+    - `getERC20TokenName`
+    - `getERC721NftTokenId`
+    - `getTokenStandardAndDetails`
+    - `getERC721TokenURI`
+    - `getERC721AssetName`
+    - `getERC721AssetSymbol`
+    - `getERC721OwnerOf`
+    - `getERC1155TokenURI`
+    - `getERC1155BalanceOf`
+    - `transferSingleERC1155`
+    - `getBalancesInSingleCall`
 
 ## [11.1.0]
 
@@ -2718,11 +2718,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
-- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.0
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2 ([#1634](https://github.com/MetaMask/core/pull/1634))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.0 ([#1634](https://github.com/MetaMask/core/pull/1634))
 - Update NftController to add fallback for when IPFS gateway is disabled ([#1577](https://github.com/MetaMask/core/pull/1577))
 
 ## [11.0.1]
@@ -2735,7 +2735,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a `stop` method to stop polling
+- Add a `stop` method to stop polling ([#1501](https://github.com/MetaMask/core/pull/1501))
 
 ### Changed
 
@@ -2770,7 +2770,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The tokens controller now requires `onTokenListStateChange` and `getERC20TokenName` as constructor parameters ([#1127](https://github.com/MetaMask/core/pull/1127))
   - The `getERC20TokenName` method is used to get the token name for tokens added via `wallet_watchAsset`
   - The `onTokenListStateChange` method is used to trigger a name update when the token list changes. On each change, token names are copied from the token list if they're missing from token controller state.
-- **BREAKING:** The signature of the tokens controller method `addToken` has changed
+- **BREAKING:** The signature of the tokens controller method `addToken` has changed ([#1127](https://github.com/MetaMask/core/pull/1127))
   - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object
   - The new options parameter includes the `image` and `interactingAddress` properties, and a new `name` property
 - The token detection controller now sets the token name when new tokens are detected ([#1127](https://github.com/MetaMask/core/pull/1127))
@@ -2853,7 +2853,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Update the account tracker controller `provider` type ([#1266](https://github.com/MetaMask/core/pull/1266))
   - The `provider` setter and the `provider` config entry now use our `Provider` type from `eth-query` rather than `any`
 - **BREAKING:** Update`@metamask/preferences-controller` dependency and add it as a peer dependency ([#1393](https://github.com/MetaMask/core/pull/1393))
-- **BREAKING:** Update `@metamask/approval-controller` and `@metamask/network-controller` dependencies and peer dependencies
+- **BREAKING:** Update `@metamask/approval-controller` and `@metamask/network-controller` dependencies and peer dependencies ([#1408](https://github.com/MetaMask/core/pull/1408))
 - Bump @metamask/abi-utils from 1.1.0 to 1.2.0 ([#1287](https://github.com/MetaMask/core/pull/1287))
 - Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
 
@@ -2892,7 +2892,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [4.0.1]
@@ -2905,20 +2905,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Sepolia support to the currency rate controller ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Add Sepolia support to the currency rate controller ([#1041](https://github.com/MetaMask/core/pull/1041))
   - The currency rate controller will now treat Sepolia as a testnet, and return the Mainnet exchange rate when asked for the Sepolia exchange rate.
 
 ### Changed
 
-- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/core/pull/1041))
 - **BREAKING:** Migrate from `metaswap` to `metafi` subdomain for OpenSea proxy and token icons API ([#1060](https://github.com/MetaMask/core/pull/1060))
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update ERC20Standard to use `@metamask/abi-utils` instead of `@ethersproject/abi` ([#985](https://github.com/MetaMask/controllers/pull/985))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
+- Update ERC20Standard to use `@metamask/abi-utils` instead of `@ethersproject/abi` ([#985](https://github.com/MetaMask/core/pull/985))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## Removed
 
-- **BREAKING**: Drop support for Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- **BREAKING**: Drop support for Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/core/pull/1041))
   - The currency rate controller no longer has special handling of these three networks. It used to return the Mainnet exchange rate for these three networks, but now it includes no special handling for them.
   - The NFT controller no longer supports the Rinkeby OpenSea test API.
 
@@ -2926,12 +2926,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Export `isTokenDetectionSupportedForNetwork` function ([#1034](https://github.com/MetaMask/controllers/pull/1034))
-- Update `@metamask/contract-metadata` from 1.35.0 to 2.1.0 ([#1013](https://github.com/MetaMask/controllers/pull/1013))
+- Export `isTokenDetectionSupportedForNetwork` function ([#1034](https://github.com/MetaMask/core/pull/1034))
+- Update `@metamask/contract-metadata` from 1.35.0 to 2.1.0 ([#1013](https://github.com/MetaMask/core/pull/1013))
 
 ### Fixed
 
-- Fix token controller state updates ([#1015](https://github.com/MetaMask/controllers/pull/1015))
+- Fix token controller state updates ([#1015](https://github.com/MetaMask/core/pull/1015))
   - Attempts to empty the list of "added", "ignored", or "detected" tokens were not saved in state correctly, resulting in that operation being undone after switching account or network.
 
 ## [3.0.0]
@@ -2971,8 +2971,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
+  - As a result of converting our shared controllers repo into a monorepo, we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - Everything in `src/assets`
     - Asset-related functions from `src/util.ts` and accompanying tests
 
