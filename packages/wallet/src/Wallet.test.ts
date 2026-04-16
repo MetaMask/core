@@ -7,14 +7,14 @@ import {
 } from '@metamask/remote-feature-flag-controller';
 import { enableNetConnect } from 'nock';
 
+import { startAnvil } from '../test/anvil';
+import type { AnvilInstance } from '../test/anvil';
 import {
   createSecretRecoveryPhrase,
   importSecretRecoveryPhrase,
   sendTransaction,
 } from './utilities';
 import { Wallet } from './Wallet';
-import { startAnvil } from '../test/anvil';
-import type { AnvilInstance } from '../test/anvil';
 
 const TEST_PHRASE =
   'test test test test test test test test test test test ball';
