@@ -366,7 +366,12 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         // Everything happens inside a single withKeyringV2 callback so that
         // a create+delete for inactive accounts results in zero net state
         // change (no vault write, no events fired).
-        return await this.withKeyring<Keyring, Bip44Account<KeyringAccount>[]>(
+        //
+        // The callback returns the address if activity was found, or null if
+        // not. The AccountsController lookup happens AFTER the callback
+        // completes, because newly created accounts are only visible to the
+        // AccountsController after withKeyringV2 persists and fires stateChange.
+        const discoveredAddress = await this.withKeyring<Keyring, Hex | null>(
           { id: entropySource },
           async ({ keyring }) => {
             const existing = await keyring.getAccounts();
@@ -394,21 +399,28 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
               if (created) {
                 await keyring.deleteAccount(created.id);
               }
-              return [];
+              return null;
             }
 
-            const accountId = this.#getAccountId(address);
-
-            const account = this.messenger.call(
-              'AccountsController:getAccount',
-              accountId,
-            );
-            assertInternalAccountExists(account);
-            assertIsBip44Account(account);
-            this.accounts.add(account.id);
-            return [account];
+            // Activity found — account stays. Return the address so we can
+            // look it up in the AccountsController after the callback persists.
+            return address;
           },
         );
+
+        if (!discoveredAddress) {
+          return [];
+        }
+
+        const accountId = this.#getAccountId(discoveredAddress);
+        const account = this.messenger.call(
+          'AccountsController:getAccount',
+          accountId,
+        );
+        assertInternalAccountExists(account);
+        assertIsBip44Account(account);
+        this.accounts.add(account.id);
+        return [account];
       },
     );
   }
