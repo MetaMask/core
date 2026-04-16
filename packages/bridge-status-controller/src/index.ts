@@ -15,6 +15,7 @@ export type {
   RefuelStatusResponse,
   BridgeHistoryItem,
   BridgeStatusControllerState,
+  DeferredStatusUpdateEntry,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,
   BridgeStatusControllerGetStateAction,

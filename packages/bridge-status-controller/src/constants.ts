@@ -8,7 +8,17 @@ export const BRIDGE_STATUS_CONTROLLER_NAME = 'BridgeStatusController';
 export const DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE: BridgeStatusControllerState =
   {
     txHistory: {},
+    deferredStatusUpdates: {},
   };
+
+export const QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+export const QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+export enum QuoteStatusUpdateType {
+  Submitted = 'SUBMITTED',
+  FinalizedSuccess = 'FINALIZED_SUCCESS',
+  FinalizedFailure = 'FINALIZED_FAILURE',
+}
 
 export const BRIDGE_PROD_API_BASE_URL = 'https://bridge.api.cx.metamask.io';
 

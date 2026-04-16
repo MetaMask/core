@@ -254,8 +254,18 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 
 export type SourceChainTxMetaId = string;
 
+export type DeferredStatusUpdateEntry = {
+  quoteId: string;
+  srcTxHash: string;
+  pendingStatuses: string[];
+  createdAt: number;
+  lastAttemptAt: number;
+  txMetaId?: string;
+};
+
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
+  deferredStatusUpdates: Record<string, DeferredStatusUpdateEntry>;
 };
 
 // Actions
