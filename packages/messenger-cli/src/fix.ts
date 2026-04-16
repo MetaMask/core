@@ -16,8 +16,6 @@ export async function generateAllActionTypesFiles(
   sources: SourceInfo[],
   formatter: Formatter,
 ): Promise<boolean> {
-  const outputFiles: string[] = [];
-
   for (const source of sources) {
     console.log(`\n🔧 Processing ${source.name}...`);
     const outputDir = path.dirname(source.filePath);
@@ -33,7 +31,6 @@ export async function generateAllActionTypesFiles(
     );
 
     await fs.promises.writeFile(outputFile, generatedContent, 'utf8');
-    outputFiles.push(outputFile);
     console.log(`✅ Generated action types for ${source.name}`);
   }
 
