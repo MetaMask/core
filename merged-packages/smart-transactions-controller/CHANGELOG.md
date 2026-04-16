@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Added
 
+- feat(STX-501): route sentinel migration via remote feature flags ([#580](https://github.com/MetaMask/smart-transactions-controller/pull/580))
 - Expose `SmartTransactionsController` methods through its messenger ([#574](https://github.com/MetaMask/smart-transactions-controller/pull/574))
   - The following actions are now available:
     - `SmartTransactionsController:checkPoll`
@@ -34,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- feat: migrate to @metamask/messenger-cli for action types codegen ([#579](https://github.com/MetaMask/smart-transactions-controller/pull/579))
 - **BREAKING:** Upgrade TypeScript from `~4.8.4` to `~5.3.3` ([#574](https://github.com/MetaMask/smart-transactions-controller/pull/574))
   - Consumers on TypeScript 4.x may experience type errors and should upgrade to TypeScript 5.x.
 - **BREAKING:** Replace `getBearerToken` constructor parameter with direct `AuthenticationController:getBearerToken` call ([#578](https://github.com/MetaMask/smart-transactions-controller/pull/578))
@@ -778,7 +782,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v23.0.0...v24.0.0
 [23.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.7.0...v23.0.0
 [22.7.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.6.0...v22.7.0
 [22.6.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.5.0...v22.6.0
