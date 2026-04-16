@@ -3,6 +3,7 @@ import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller
 import { AccountCreationType, EthScope } from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type { Keyring } from '@metamask/keyring-api/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -50,10 +51,10 @@ function toKeyringAccount(account: InternalAccount): KeyringAccount {
 
 // Mock V2 HD Keyring implementing the Keyring interface from @metamask/keyring-api/v2.
 class MockHdKeyringV2 implements Keyring {
-  readonly type = 'HD Key Tree' as `${string}`;
+  readonly type = KeyringType.Hd;
 
   readonly capabilities = {
-    scopes: [EthScope.Eoa] as [string, ...string[]],
+    scopes: [EthScope.Eoa],
     bip44: { deriveIndex: true },
   };
 
