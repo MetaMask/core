@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "acda605cc580a77b425ef26d2e0c1d3cb7b5a972",
-  "lastSyncedMobileBranch": "main",
-  "lastSyncedCoreCommit": "360a80d1bde1c0a9ce19f3147bcc1383cc465eb9",
+  "lastSyncedMobileCommit": "f795eb2f5227f933e329ec61fdc804d3d95e0a73",
+  "lastSyncedMobileBranch": "perps/fix-reverse-order-price",
+  "lastSyncedCoreCommit": "ac29b054722c2c4667c801a64659a31c8effcd02",
   "lastSyncedCoreBranch": "feat/perps/reverse-position-live-price-sync",
-  "lastSyncedDate": "2026-04-16T06:21:43Z",
-  "sourceChecksum": "e85c1a9b4cf5beb0969a2d55da1da2e42d3cfb5b30a74438a7ee1570d178279a"
+  "lastSyncedDate": "2026-04-16T19:23:34Z",
+  "sourceChecksum": "b860a2f9b58ee470835f0efb0b076134225b0c3ccbd97df89b9055f3522c1f00"
 }
