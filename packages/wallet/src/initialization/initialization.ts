@@ -1,9 +1,9 @@
 import { Json } from '@metamask/utils';
 
+import { WalletOptions } from '../types';
 import type { DefaultInstances } from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 import { InitializationConfiguration } from './types';
-import { WalletOptions } from '../types';
 
 export type InitializeArgs = {
   state: Record<string, Json>;
