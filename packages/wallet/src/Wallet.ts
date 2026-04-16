@@ -63,7 +63,9 @@ export class Wallet {
 
     await Promise.all(
       Object.values(this.#instances).map((instance) => {
+        // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
+          // @ts-expect-error Accessing protected property.
           return instance.destroy();
         }
         /* istanbul ignore next */
