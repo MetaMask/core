@@ -848,6 +848,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.stopPollingByPollingToken(
           this.#pollingTokensByTxMetaId[sourceTxMetaId],
         );
+        delete this.#pollingTokensByTxMetaId[sourceTxMetaId];
       }
     });
 
