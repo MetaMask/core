@@ -1537,7 +1537,7 @@ describe('MultichainAccountService', () => {
         );
 
         rootMessenger.registerActionHandler(
-          'KeyringController:withKeyring',
+          'KeyringController:withKeyringV2',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
               (keyring) => keyring.type === 'HD Key Tree',
@@ -1580,7 +1580,7 @@ describe('MultichainAccountService', () => {
         );
 
         rootMessenger.registerActionHandler(
-          'KeyringController:withKeyring',
+          'KeyringController:withKeyringV2',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
               (keyring) => keyring.type === 'HD Key Tree',
