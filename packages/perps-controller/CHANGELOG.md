@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Use live market pricing instead of stale entry pricing when flipping a perps position, preventing reverse-position orders from failing ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [3.1.1]
 
 ### Fixed

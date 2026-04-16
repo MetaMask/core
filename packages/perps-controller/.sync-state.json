@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "14dbdb4e3c7d218fe4f74984969c55142656fcf1",
-  "lastSyncedMobileBranch": "fix/perps/myx-webpack-ignore-restore",
-  "lastSyncedCoreCommit": "796d13b6e190fc481461bd268a1dd3820ca7b9a9",
-  "lastSyncedCoreBranch": "fix/perps/myx-webpack-ignore-restore-clean",
-  "lastSyncedDate": "2026-04-15T16:45:31Z",
-  "sourceChecksum": "5be7d584829db03e7449d06a8c329816966d2dd218a9fa42d57f07c22b00bc51"
+  "lastSyncedMobileCommit": "acda605cc580a77b425ef26d2e0c1d3cb7b5a972",
+  "lastSyncedMobileBranch": "main",
+  "lastSyncedCoreCommit": "360a80d1bde1c0a9ce19f3147bcc1383cc465eb9",
+  "lastSyncedCoreBranch": "feat/perps/reverse-position-live-price-sync",
+  "lastSyncedDate": "2026-04-16T06:21:43Z",
+  "sourceChecksum": "e85c1a9b4cf5beb0969a2d55da1da2e42d3cfb5b30a74438a7ee1570d178279a"
 }
