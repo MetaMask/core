@@ -157,31 +157,39 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Builds a `PublicKeyCredentialCreationOptions` object for the browser
-   * WebAuthn `navigator.credentials.create()` call.
+   * Produces WebAuthn credential creation options for passkey enrollment.
    *
-   * Generates fresh random values for the challenge, userHandle, and PRF
-   * salt, then stores them in an in-memory registration session so they
-   * can be verified later in {@link protectVaultKeyWithPasskey}.
+   * Must be called before {@link protectVaultKeyWithPasskey}.
    *
-   * @param creationOptionsConfig - Optional overrides for the relying
-   *   party identity.
-   * @param creationOptionsConfig.rp - Relying party configuration.
-   * @param creationOptionsConfig.rp.name - Display name shown to the user
-   *   during the ceremony (defaults to `"MetaMask"`).
+   * @param creationOptionsConfig - Optional configuration overrides.
+   * @param creationOptionsConfig.rp - Relying party identity overrides.
+   * @param creationOptionsConfig.rp.name - RP display name (defaults to
+   *   `"MetaMask"`).
    * @param creationOptionsConfig.rp.id - RP ID domain (defaults to the
    *   value passed to the constructor).
-   * @returns Options JSON ready to pass to `navigator.credentials.create()`.
+   * @param creationOptionsConfig.prfAvailable - Whether the client
+   *   supports the WebAuthn PRF extension. When `false`, the PRF
+   *   extension is omitted. Defaults to `true`.
+   * @returns Options JSON for `navigator.credentials.create()`.
    */
   generateRegistrationOptions(creationOptionsConfig?: {
     rp?: { name?: string; id?: string };
+    prfAvailable?: boolean;
   }): PasskeyRegistrationOptions {
-    const prfSalt = bytesToBase64URL(randomBytes(32).slice());
+    const includePrf = creationOptionsConfig?.prfAvailable !== false;
+    const prfSalt = includePrf
+      ? bytesToBase64URL(randomBytes(32).slice())
+      : undefined;
     const userHandle = bytesToBase64URL(randomBytes(64).slice());
     const challenge = bytesToBase64URL(randomBytes(32).slice());
 
     const rpID = creationOptionsConfig?.rp?.id ?? this.#rpID;
     const rpName = creationOptionsConfig?.rp?.name ?? 'MetaMask';
+
+    const extensions: Record<string, unknown> = {};
+    if (prfSalt) {
+      extensions.prf = { eval: { first: prfSalt } };
+    }
 
     const options: PasskeyRegistrationOptions = {
       rp: { name: rpName, id: rpID },
@@ -203,14 +211,12 @@ export class PasskeyController extends BaseController<
         authenticatorAttachment: 'platform',
       },
       attestation: 'direct',
-      extensions: {
-        prf: { eval: { first: prfSalt } },
-      },
+      ...(Object.keys(extensions).length > 0 ? { extensions } : {}),
     };
 
     this.#registrationSession = {
       userHandle,
-      prfSalt,
+      prfSalt: prfSalt ?? '',
       challenge,
     };
 
@@ -218,14 +224,13 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Builds a `PublicKeyCredentialRequestOptions` object for the browser
-   * WebAuthn `navigator.credentials.get()` call.
+   * Produces WebAuthn credential request options for passkey
+   * authentication.
    *
-   * Generates a fresh challenge and stores it in an in-memory
-   * authentication session for later verification in
-   * {@link retrieveVaultKeyWithPasskey} or {@link renewVaultKeyProtection}.
+   * Must be called before {@link retrieveVaultKeyWithPasskey} or
+   * {@link renewVaultKeyProtection}.
    *
-   * @returns Options JSON ready to pass to `navigator.credentials.get()`.
+   * @returns Options JSON for `navigator.credentials.get()`.
    * @throws If no passkey is currently enrolled.
    */
   generateAuthenticationOptions(): PasskeyAuthenticationOptions {
@@ -262,25 +267,16 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Completes passkey enrollment by verifying the registration response,
-   * wrapping the vault key, and persisting the credential.
-   *
-   * Steps performed:
-   * 1. Verifies the authenticator's registration response (challenge,
-   *    origin, RP ID, attestation).
-   * 2. Derives an AES-256 wrapping key via HKDF from the PRF output or
-   *    the random userHandle.
-   * 3. Encrypts the vault key with AES-256-GCM using the derived key.
-   * 4. Persists a {@link PasskeyRecord} with the encrypted vault key,
-   *    credential public key, and derivation metadata.
+   * Completes passkey enrollment by verifying the registration response
+   * and protecting the vault key with the new credential.
    *
    * @param params - Protection parameters.
    * @param params.registrationResponse - The credential result from
    *   `navigator.credentials.create()`.
-   * @param params.vaultKey - The plaintext vault encryption key to wrap.
+   * @param params.vaultKey - The vault encryption key to protect.
    * @throws If no registration session is active (call
    *   {@link generateRegistrationOptions} first).
-   * @throws If WebAuthn verification fails.
+   * @throws If registration verification fails.
    */
   async protectVaultKeyWithPasskey(params: {
     registrationResponse: PasskeyRegistrationResponse;
@@ -329,16 +325,15 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Unlocks the vault by verifying the authentication response and
-   * decrypting the protected vault key.
+   * Retrieves the vault key protected by the enrolled passkey.
    *
    * @param authenticationResponse - The credential result from
    *   `navigator.credentials.get()`.
-   * @returns The decrypted plaintext vault encryption key.
+   * @returns The recovered vault encryption key.
    * @throws If no passkey is enrolled.
    * @throws If no authentication session is active (call
    *   {@link generateAuthenticationOptions} first).
-   * @throws If WebAuthn verification or decryption fails.
+   * @throws If authentication verification or key recovery fails.
    */
   async retrieveVaultKeyWithPasskey(
     authenticationResponse: PasskeyAuthenticationResponse,
@@ -367,22 +362,20 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Re-wraps the vault key after a password change without re-enrolling
-   * the passkey.
+   * Replaces the protected vault key without re-enrolling the passkey.
    *
-   * Authenticates via the existing passkey, verifies that decryption
-   * yields the expected old vault key, then re-encrypts with the new
-   * vault key using the same derived wrapping key.
+   * Intended for password-change flows where the vault key rotates but
+   * the same passkey credential should continue to work.
    *
    * @param params - Renewal parameters.
    * @param params.authenticationResponse - The credential result from
    *   `navigator.credentials.get()`.
-   * @param params.oldVaultKey - The vault key that was active before the
-   *   password change (used as a consistency check).
-   * @param params.newVaultKey - The new vault key to wrap.
+   * @param params.oldVaultKey - The vault key before the password change
+   *   (verified for consistency).
+   * @param params.newVaultKey - The new vault key to protect.
    * @throws If no passkey is enrolled.
    * @throws If no authentication session is active.
-   * @throws If the decrypted vault key does not match `oldVaultKey`.
+   * @throws If `oldVaultKey` does not match the currently protected key.
    */
   async renewVaultKeyProtection(params: {
     authenticationResponse: PasskeyAuthenticationResponse;
@@ -428,10 +421,7 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Removes the enrolled passkey and clears all in-memory ceremony sessions.
-   *
-   * After calling this method, the vault key can no longer be recovered
-   * via passkey authentication until a new passkey is enrolled.
+   * Unenrolls the passkey, removing the protected vault key material.
    */
   removePasskey(): void {
     this.update((state) => {
@@ -442,12 +432,11 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Verifies the authentication response using full WebAuthn verification
-   * and persists the updated signature counter for replay detection.
+   * Verifies a WebAuthn authentication response against the enrolled
+   * credential.
    *
    * @param authenticationResponse - Authentication result JSON.
-   * @param record - The stored passkey record containing publicKey and
-   *   last known counter value.
+   * @param record - The enrolled passkey record to verify against.
    */
   async #verifyAuthentication(
     authenticationResponse: PasskeyAuthenticationResponse,

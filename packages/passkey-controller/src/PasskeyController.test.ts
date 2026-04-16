@@ -231,6 +231,64 @@ describe('PasskeyController', () => {
       expect(options.rp.id).toBe('metamask.io');
       expect(options.rp.name).toBe('MetaMask');
     });
+
+    it('includes PRF extension when prfAvailable is true', () => {
+      const controller = createController();
+      const options = controller.generateRegistrationOptions({
+        prfAvailable: true,
+      });
+      expect(
+        (options.extensions as Record<string, unknown>)?.prf,
+      ).toBeDefined();
+    });
+
+    it('includes PRF extension when prfAvailable is undefined (default)', () => {
+      const controller = createController();
+      const options = controller.generateRegistrationOptions();
+      expect(
+        (options.extensions as Record<string, unknown>)?.prf,
+      ).toBeDefined();
+    });
+
+    it('omits PRF extension when prfAvailable is false', () => {
+      const controller = createController();
+      const options = controller.generateRegistrationOptions({
+        prfAvailable: false,
+      });
+      expect(options.extensions).toBeUndefined();
+    });
+
+    it('uses userHandle derivation for the full round-trip when prfAvailable is false', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const vaultKey = 'no-prf-vault-key';
+
+      const regOptions = controller.generateRegistrationOptions({
+        prfAvailable: false,
+      });
+      expect(regOptions.extensions).toBeUndefined();
+
+      const userHandle = regOptions.user.id;
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(),
+        vaultKey,
+      });
+
+      expect(controller.state.passkeyRecord?.derivationMethod).toBe(
+        'userHandle',
+      );
+      expect(controller.state.passkeyRecord?.prfSalt).toBeUndefined();
+
+      const authOptions = controller.generateAuthenticationOptions();
+      expect(authOptions.extensions).toStrictEqual({});
+
+      const retrieved = await controller.retrieveVaultKeyWithPasskey(
+        minimalAuthenticationResponse(userHandle),
+      );
+      expect(retrieved).toBe(vaultKey);
+    });
   });
 
   describe('generateAuthenticationOptions', () => {
