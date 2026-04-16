@@ -47,7 +47,7 @@
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test:prepare": "out=$(mm-foundryup --binaries anvil 2>&1) || { echo \"$out\" >&2; exit 1; }",
+    "test:prepare": "./scripts/install-anvil.sh",
     "test": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
