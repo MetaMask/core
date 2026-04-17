@@ -123,8 +123,8 @@ describe('formatExchangeRatesForBridge', () => {
       conversionRate: 0.5,
       usdConversionRate: 0.5,
     });
-    const nativeAddress = '0x0000000000000000000000000000000000000000';
-    expect(result.marketData['0x89']?.[nativeAddress]?.currency).toBe('POL');
+    const nativeAddressPol = '0x0000000000000000000000000000000000001010';
+    expect(result.marketData['0x89']?.[nativeAddressPol]?.currency).toBe('POL');
   });
 
   it('includes EVM native asset in marketData and currencyRates', () => {
