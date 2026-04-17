@@ -9,19 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isAbortError` utility export from `utils` for distinguishing expected cancellation errors from real failures ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Add `isAbortError` utility export from `utils` for distinguishing expected cancellation errors from real failures ([#8515](https://github.com/MetaMask/core/pull/8515))
 
 ### Changed
 
-- `TradingService.flipPosition()` no longer passes stale position `entryPrice` as `currentPrice` on reverse-position orders; providers now validate and price flips against live market data ([#8510](https://github.com/MetaMask/core/pull/8510))
+- `TradingService.flipPosition()` no longer passes stale position `entryPrice` as `currentPrice` on reverse-position orders; providers now validate and price flips against live market data ([#8515](https://github.com/MetaMask/core/pull/8515))
 
 ### Removed
 
-- Remove unused `ESTIMATED_FEE_RATE` export from `constants/hyperLiquidConfig` (dead code after reverse-position fee precheck was removed) ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Remove unused `ESTIMATED_FEE_RATE` export from `constants/hyperLiquidConfig` (dead code after reverse-position fee precheck was removed) ([#8515](https://github.com/MetaMask/core/pull/8515))
 
 ### Fixed
 
-- Suppress noisy Sentry reports from expected historical-candle fetch cancellations (`AbortError`) during navigation, while preserving real error reporting in `HyperLiquidClientService` and `MarketDataService` ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Suppress noisy Sentry reports from expected historical-candle fetch cancellations (`AbortError`) during navigation, while preserving real error reporting in `HyperLiquidClientService` and `MarketDataService` ([#8515](https://github.com/MetaMask/core/pull/8515))
 
 ## [3.1.1]
 
