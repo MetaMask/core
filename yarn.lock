@@ -2920,7 +2920,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/auto-changelog@npm:^6.0.0, @metamask/auto-changelog@npm:^6.1.0":
+"@metamask/auto-changelog@npm:^6.1.0":
   version: 6.1.0
   resolution: "@metamask/auto-changelog@npm:6.1.0"
   dependencies:
@@ -4488,8 +4488,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
   dependencies:
-    "@metamask/auto-changelog": "npm:^6.0.0"
-    "@metamask/base-controller": "npm:^9.0.1"
+    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/chomp-api-service": "npm:^0.0.0"
     "@metamask/delegation-controller": "npm:^3.0.0"
     "@metamask/keyring-controller": "npm:^25.2.0"
