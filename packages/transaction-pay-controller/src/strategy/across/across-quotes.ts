@@ -401,7 +401,7 @@ async function calculateSourceNetworkCost(
   const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
-  let gasEstimates = await estimateQuoteGasLimits({
+  const gasEstimates = await estimateQuoteGasLimits({
     fallbackGas: acrossFallbackGas,
     messenger,
     transactions: orderedTransactions.map((transaction) => ({
