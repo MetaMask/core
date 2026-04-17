@@ -1,5 +1,4 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import { JsonRpcParams } from '@metamask/utils';
 
 import { makeRequest } from '../../tests/utils';
 import {
@@ -15,13 +14,14 @@ type TestAction = {
 
 const getValueA = {
   hookNames: { testHook: true },
-  implementation: ({ hooks }) => hooks.testHook(),
+  implementation: ({ hooks }): Promise<string> => hooks.testHook(),
 } satisfies MethodHandler<{ testHook: () => Promise<string> }>;
 
 const getValueB = {
   actionNames: ['Example:TestAction'],
-  implementation: ({ messenger }) => messenger.call('Example:TestAction'),
-} satisfies MethodHandler<never, JsonRpcParams, TestAction>;
+  implementation: ({ messenger }): Promise<string> =>
+    messenger.call('Example:TestAction'),
+} satisfies MethodHandler<never, TestAction>;
 
 const messenger = new Messenger<string, TestAction>({
   namespace: MOCK_ANY_NAMESPACE,

@@ -5,12 +5,16 @@ import { ContextConstraint } from './MiddlewareContext';
 import { Json, JsonRpcParams, JsonRpcRequest } from './utils';
 
 type HandlerActions<Handler> =
-  Handler extends MethodHandler<any, any, infer Actions, any> ? Actions : never;
+  Handler extends MethodHandler<Record<string, unknown>, infer Actions> ? Actions : never;
+
+type HandlerHooks<Handler> =
+  Handler extends MethodHandler<infer Hooks> ? Hooks : never;
 
 export type MethodHandlerImplementation<
   Hooks extends Record<string, unknown> = Record<string, never>,
-  Parameters extends JsonRpcParams = JsonRpcParams,
   MessengerActions extends ActionConstraint = never,
+  Parameters extends JsonRpcParams = JsonRpcParams,
+  Result extends Json = Json,
   Context extends ContextConstraint = ContextConstraint,
 > = (options: {
   request: Readonly<JsonRpcRequest<Parameters>>;
@@ -18,18 +22,20 @@ export type MethodHandlerImplementation<
   next: Next<JsonRpcRequest>;
   messenger: Messenger<string, MessengerActions>;
   hooks: Hooks;
-}) => Promise<Json> | Json;
+}) => Promise<Result> | Result;
 
 export type MethodHandler<
   Hooks extends Record<string, unknown> = Record<string, unknown>,
-  Parameters extends JsonRpcParams = JsonRpcParams,
   MessengerActions extends ActionConstraint = never,
+  Parameters extends JsonRpcParams = JsonRpcParams,
+  Result extends Json = Json,
   Context extends ContextConstraint = ContextConstraint,
 > = {
   implementation: MethodHandlerImplementation<
     Hooks,
-    Parameters,
     MessengerActions,
+    Parameters,
+    Result,
     Context
   >;
   hookNames?: { [Key in keyof Hooks]: true };
@@ -39,21 +45,23 @@ export type MethodHandler<
 export type CreateMethodMiddlewareOptions<
   Handlers extends Record<string, MethodHandler>,
 > = {
-  handlers: Record<string, MethodHandler>;
+  handlers: Handlers;
   messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
-  hooks: Record<string, unknown>;
+  hooks: HandlerHooks<Handlers[keyof Handlers]>;
 };
 
 type ResolvedHandler<
   Hooks extends Record<string, unknown> = Record<string, unknown>,
-  Parameters extends JsonRpcParams = JsonRpcParams,
   MessengerActions extends ActionConstraint = never,
+  Parameters extends JsonRpcParams = JsonRpcParams,
+  Result extends Json = Json,
   Context extends ContextConstraint = ContextConstraint,
 > = {
   implementation: MethodHandlerImplementation<
     Hooks,
-    Parameters,
     MessengerActions,
+    Parameters,
+    Result,
     Context
   >;
   hooks: Record<string, unknown>;
