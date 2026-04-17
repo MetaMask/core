@@ -83,6 +83,7 @@ export async function submitRelayQuotes(
  * @param quote - Relay quote to execute.
  * @param messenger - Controller messenger.
  * @param transaction - Original transaction meta.
+ * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns An object containing the transaction hash if available.
  */
 async function executeSingleQuote(
@@ -317,6 +318,7 @@ async function validateSourceBalance(
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
+ * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
@@ -477,6 +479,7 @@ async function submitViaRelayExecute(
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
+ * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @param normalizedParams - Normalized relay-only params (without prepended original tx).
  * @param allParams - All params including any prepended original tx for post-quote flows.
  * @returns Hash of the last submitted transaction.

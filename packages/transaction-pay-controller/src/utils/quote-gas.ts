@@ -73,14 +73,14 @@ export async function estimateQuoteGasLimits({
       );
 
       return {
-        gasLimits: individualResults.map((r) => r.gasLimits[0]),
+        gasLimits: individualResults.map((res) => res.gasLimits[0]),
         is7702: false,
         totalGasEstimate: individualResults.reduce(
-          (acc, r) => acc + r.totalGasEstimate,
+          (acc, res) => acc + res.totalGasEstimate,
           0,
         ),
         totalGasLimit: individualResults.reduce(
-          (acc, r) => acc + r.totalGasLimit,
+          (acc, res) => acc + res.totalGasLimit,
           0,
         ),
         usedBatch: true,
