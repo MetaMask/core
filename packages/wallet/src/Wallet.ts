@@ -61,8 +61,15 @@ export class Wallet {
     return this.#controllerMetadata;
   }
   
-  createProviderRpc(stream: Duplex) {
-    return createProviderRpc(stream);
+  createProviderRpc(args) {
+    return createProviderRpc({
+      messenger: this.messenger,
+      createPermissionMiddleware:
+        this.#instances.PermissionController.createPermissionMiddleware.bind(
+          this.#instances.PermissionController,
+        ),
+      ...args,
+    });
   }
 
   async destroy(): Promise<void> {

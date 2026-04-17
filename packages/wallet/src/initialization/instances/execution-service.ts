@@ -15,7 +15,7 @@ export const executionService: InitializationConfiguration<
   name: 'ExecutionService',
   init: ({ messenger, createProviderRpc }) => {
     function setupSnapProvider(snapId: string, stream: Duplex) {
-      createProviderRpc(stream);
+      createProviderRpc({ origin: snapId, stream });
     }
 
     const instance = new NodeThreadExecutionService({

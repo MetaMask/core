@@ -64,8 +64,14 @@ describe('Wallet', () => {
 
     expect(
       messenger
-        .call('AccountsController:listAccounts')
-        .map((account) => account.address),
+        .call('MultichainAccountService:getMultichainAccountWallets')
+        .flatMap((multichainWallet) =>
+          multichainWallet
+            .getAccountGroups()
+            .flatMap((group) =>
+              group.getAccounts().map((account) => account.address),
+            ),
+        ),
     ).toStrictEqual(['0xc6d5a3c98ec9073b54fa0969957bd582e8d874bf']);
   });
 
