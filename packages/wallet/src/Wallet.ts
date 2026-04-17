@@ -78,10 +78,10 @@ export class Wallet {
         // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
           // @ts-expect-error Accessing protected property.
-          return instance.destroy();
+          return (async (): Promise<void> => await instance.destroy())();
         }
         /* istanbul ignore next */
-        return undefined;
+        return Promise.resolve();
       }),
     );
 
