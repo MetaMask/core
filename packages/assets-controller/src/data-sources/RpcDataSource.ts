@@ -40,7 +40,6 @@ import type {
 import { normalizeAssetId } from '../utils';
 import { ZERO_ADDRESS } from '../utils/constants';
 import { isNativeAsset } from '../utils/isNativeAsset';
-
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,

@@ -25,7 +25,6 @@ import type {
   DataResponse,
 } from '../types';
 import { isNativeAsset } from '../utils/isNativeAsset';
-
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,

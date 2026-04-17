@@ -3,7 +3,6 @@ import { parseCaipAssetType } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
 import { isNativeAsset } from '../../../utils/isNativeAsset';
-
 import type { MulticallClient } from '../clients';
 import type {
   AccountId,

@@ -18,7 +18,6 @@ import type {
   FungibleAssetMetadata,
 } from '../types';
 import { isNativeAsset } from '../utils/isNativeAsset';
-
 import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
