@@ -16,6 +16,11 @@ import {
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
+import {
+  AsyncJsonRpcEngineNextCallback,
+  createAsyncMiddleware,
+  JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine';
 import type {
   Messenger,
   ActionConstraint,
@@ -23,7 +28,12 @@ import type {
 } from '@metamask/messenger';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
-import type { Json, JsonRpcRequest, Mutable, PendingJsonRpcResponse } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  Mutable,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, produce as immerProduce } from 'immer';
 import type { Draft } from 'immer';
@@ -96,7 +106,6 @@ import {
 import type { PermissionControllerMethodActions } from './PermissionController-method-action-types';
 import type { SubjectMetadataControllerGetSubjectMetadataAction } from './SubjectMetadataController-method-action-types';
 import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
-import { AsyncJsonRpcEngineNextCallback, createAsyncMiddleware, JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 
 /**
  * Flags for controlling the validation behavior of certain internal methods.
@@ -229,10 +238,10 @@ export type PermissionControllerSubjects<
  */
 export type PermissionControllerState<Permission> =
   Permission extends PermissionConstraint
-  ? {
-    subjects: PermissionControllerSubjects<Permission>;
-  }
-  : never;
+    ? {
+        subjects: PermissionControllerSubjects<Permission>;
+      }
+    : never;
 
 /**
  * Get the state metadata of the {@link PermissionController}.
@@ -516,20 +525,20 @@ export type CaveatMutator<TargetCaveat extends CaveatConstraint> = (
 
 type CaveatMutatorResult =
   | Readonly<{
-    operation: CaveatMutatorOperation.UpdateValue;
-    value: CaveatConstraint['value'];
-  }>
+      operation: CaveatMutatorOperation.UpdateValue;
+      value: CaveatConstraint['value'];
+    }>
   | Readonly<{
-    operation: Exclude<
-      CaveatMutatorOperation,
-      CaveatMutatorOperation.UpdateValue
-    >;
-  }>;
+      operation: Exclude<
+        CaveatMutatorOperation,
+        CaveatMutatorOperation.UpdateValue
+      >;
+    }>;
 
 type MergeCaveatResult<CaveatType extends CaveatConstraint | undefined> =
   CaveatType extends undefined
-  ? [CaveatConstraint, CaveatConstraint['value']]
-  : [CaveatConstraint, CaveatConstraint['value']] | [];
+    ? [CaveatConstraint, CaveatConstraint['value']]
+    : [CaveatConstraint, CaveatConstraint['value']] | [];
 
 /**
  * Extracts the permission(s) specified by the given permission and caveat
@@ -546,11 +555,11 @@ export type ExtractPermission<
   ControllerCaveatSpecification extends CaveatSpecificationConstraint,
 > =
   ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
-  ? ValidPermission<
-    ControllerPermissionSpecification['targetName'],
-    ExtractCaveats<ControllerCaveatSpecification>
-  >
-  : never;
+    ? ValidPermission<
+        ControllerPermissionSpecification['targetName'],
+        ExtractCaveats<ControllerCaveatSpecification>
+      >
+    : never;
 
 /**
  * Extracts the restricted method permission(s) specified by the given
@@ -633,9 +642,9 @@ export type PermissionControllerOptions<
  */
 export class PermissionController<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint =
-  PermissionSpecificationConstraint,
+    PermissionSpecificationConstraint,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint =
-  CaveatSpecificationConstraint,
+    CaveatSpecificationConstraint,
 > extends BaseController<
   typeof controllerName,
   PermissionControllerState<
@@ -825,7 +834,7 @@ export class PermissionController<
 
             const specification =
               caveatSpecifications[
-              caveatType as ControllerCaveatSpecification['type']
+                caveatType as ControllerCaveatSpecification['type']
               ];
             const isRestrictedMethodCaveat =
               isRestrictedMethodCaveatSpecification(specification);
@@ -885,13 +894,13 @@ export class PermissionController<
     const failureError =
       permissionType === PermissionType.RestrictedMethod
         ? methodNotFound(
-          targetName,
-          requestingOrigin ? { origin: requestingOrigin } : undefined,
-        )
+            targetName,
+            requestingOrigin ? { origin: requestingOrigin } : undefined,
+          )
         : new EndowmentPermissionDoesNotExistError(
-          targetName,
-          requestingOrigin,
-        );
+            targetName,
+            requestingOrigin,
+          );
 
     if (!this.#targetExists(targetName)) {
       throw failureError;
@@ -968,8 +977,7 @@ export class PermissionController<
     };
 
     return createAsyncMiddleware(permissionsMiddleware);
-  };
-
+  }
 
   /**
    * Gets the implementation of the specified restricted method.
@@ -1036,8 +1044,8 @@ export class PermissionController<
     origin: OriginString,
   ):
     | SubjectPermissions<
-      ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>
-    >
+        ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>
+      >
     | undefined {
     return this.state.subjects[origin]?.permissions;
   }
@@ -1217,7 +1225,7 @@ export class PermissionController<
       ControllerCaveatSpecification
     >['parentCapability'],
     CaveatType extends
-    ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): boolean {
     return Boolean(this.getCaveat(origin, target, caveatType));
   }
@@ -1243,7 +1251,7 @@ export class PermissionController<
       ControllerCaveatSpecification
     >['parentCapability'],
     CaveatType extends
-    ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1284,7 +1292,7 @@ export class PermissionController<
       ControllerCaveatSpecification
     >['parentCapability'],
     CaveatType extends
-    ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1322,7 +1330,7 @@ export class PermissionController<
       ControllerCaveatSpecification
     >['parentCapability'],
     CaveatType extends
-    ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
     CaveatValue extends ExtractCaveatValue<
       ControllerCaveatSpecification,
       CaveatType
@@ -1364,7 +1372,7 @@ export class PermissionController<
       ControllerCaveatSpecification
     >['parentCapability'],
     CaveatType extends
-    ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1536,7 +1544,7 @@ export class PermissionController<
   removeCaveat<
     TargetName extends ControllerPermissionSpecification['targetName'],
     CaveatType extends
-    ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): void {
     this.update((draftState) => {
       const permission = draftState.subjects[origin]?.permissions[target];
@@ -1768,8 +1776,8 @@ export class PermissionController<
     const permissions = (
       preserveExistingPermissions
         ? {
-          ...this.getPermissions(origin),
-        }
+            ...this.getPermissions(origin),
+          }
         : {}
     ) as SubjectPermissions<
       ExtractPermission<
@@ -2140,16 +2148,16 @@ export class PermissionController<
     } = {},
   ): Promise<
     | [
-      Partial<
-        SubjectPermissions<
-          ExtractPermission<
-            ControllerPermissionSpecification,
-            ControllerCaveatSpecification
+        Partial<
+          SubjectPermissions<
+            ExtractPermission<
+              ControllerPermissionSpecification,
+              ControllerCaveatSpecification
+            >
           >
-        >
-      >,
-      ApprovedPermissionsMetadata,
-    ]
+        >,
+        ApprovedPermissionsMetadata,
+      ]
     | []
   > {
     const { origin } = subject;
@@ -2291,11 +2299,11 @@ export class PermissionController<
     incrementalRequestedPermissions: RequestedPermissions,
   ):
     | [
-      SubjectPermissions<
-        ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>
-      >,
-      PermissionDiffMap<string, CaveatConstraint>,
-    ]
+        SubjectPermissions<
+          ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>
+        >,
+        PermissionDiffMap<string, CaveatConstraint>,
+      ]
     | [] {
     const permissionDiffMap: PermissionDiffMap<string, CaveatConstraint> = {};
 
@@ -2435,12 +2443,12 @@ export class PermissionController<
 
     return newValue !== undefined && diff !== undefined
       ? [
-        {
-          type: rightCaveat.type,
-          value: newValue,
-        },
-        diff,
-      ]
+          {
+            type: rightCaveat.type,
+            value: newValue,
+          },
+          diff,
+        ]
       : ([] as MergeCaveatResult<LeftCaveat>);
   }
 
@@ -2601,9 +2609,9 @@ export class PermissionController<
 
       throw reasons.length > 1
         ? internalError(
-          'Multiple errors occurred during side-effects execution',
-          { errors: reasons },
-        )
+            'Multiple errors occurred during side-effects execution',
+            { errors: reasons },
+          )
         : reasons[0];
     }
 
