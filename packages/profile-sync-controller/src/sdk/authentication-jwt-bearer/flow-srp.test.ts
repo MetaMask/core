@@ -22,16 +22,17 @@ const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
 
 jest.mock('./services', () => ({
-  authenticate: (...args: unknown[]) => mockAuthenticate(...args),
-  authorizeOIDC: (...args: unknown[]) => mockAuthorizeOIDC(...args),
-  getNonce: (...args: unknown[]) => mockGetNonce(...args),
+  authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
+  authorizeOIDC: (...args: unknown[]): unknown => mockAuthorizeOIDC(...args),
+  getNonce: (...args: unknown[]): unknown => mockGetNonce(...args),
   getUserProfileLineage: jest.fn(),
 }));
 
 // Mock computeIdentifierId
 const mockComputeIdentifierId = jest.fn();
 jest.mock('./utils/identifier', () => ({
-  computeIdentifierId: (...args: unknown[]) => mockComputeIdentifierId(...args),
+  computeIdentifierId: (...args: unknown[]): unknown =>
+    mockComputeIdentifierId(...args),
 }));
 
 describe('SRPJwtBearerAuth rate limit handling', () => {
@@ -68,25 +69,26 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   };
 
   // Helper to create a rate limit error
-  const createRateLimitError = (retryAfterMs?: number) =>
+  const createRateLimitError = (retryAfterMs?: number): RateLimitedError =>
     new RateLimitedError('rate limited', retryAfterMs);
 
   const createAuth = (overrides?: {
     cooldownDefaultMs?: number;
     maxLoginRetries?: number;
-  }) => {
+  }): { auth: SRPJwtBearerAuth; store: { value: LoginResponse | null } } => {
     const store: { value: LoginResponse | null } = { value: null };
 
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
-        getLoginResponse: async () => store.value,
-        setLoginResponse: async (val) => {
+        getLoginResponse: async (): Promise<LoginResponse | null> =>
+          store.value,
+        setLoginResponse: async (val): Promise<void> => {
           store.value = val;
         },
       },
       signing: {
-        getIdentifier: async () => 'identifier-1',
-        signMessage: async () => 'signature-1',
+        getIdentifier: async (): Promise<string> => 'identifier-1',
+        signMessage: async (): Promise<string> => 'signature-1',
       },
       rateLimitRetry: overrides,
     });
@@ -94,7 +96,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     return { auth, store };
   };
 
-  beforeEach(() => {
+  beforeEach((): void => {
     jest.clearAllMocks();
     mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
     mockAuthenticate.mockResolvedValue(MOCK_AUTH_RESPONSE);
@@ -237,26 +239,30 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
     obtainedAt: Date.now(),
   };
 
-  const createAuth = () => {
+  const createAuth = (): {
+    auth: SRPJwtBearerAuth;
+    store: { value: LoginResponse | null };
+  } => {
     const store: { value: LoginResponse | null } = { value: null };
 
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
-        getLoginResponse: async () => store.value,
-        setLoginResponse: async (val) => {
+        getLoginResponse: async (): Promise<LoginResponse | null> =>
+          store.value,
+        setLoginResponse: async (val): Promise<void> => {
           store.value = val;
         },
       },
       signing: {
-        getIdentifier: async () => 'MOCK_PUBLIC_KEY',
-        signMessage: async () => 'signature-1',
+        getIdentifier: async (): Promise<string> => 'MOCK_PUBLIC_KEY',
+        signMessage: async (): Promise<string> => 'signature-1',
       },
     });
 
     return { auth, store };
   };
 
-  beforeEach(() => {
+  beforeEach((): void => {
     jest.clearAllMocks();
     mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
     mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
