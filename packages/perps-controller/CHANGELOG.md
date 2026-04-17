@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-- chore: bump `accounts` deps ([#8464](https://github.com/MetaMask/core/pull/8464))
-- Release/919.0.0 ([#8482](https://github.com/MetaMask/core/pull/8482))
-
 ### Added
 
 - Add `isAbortError` utility export from `utils` for distinguishing expected cancellation errors from real failures ([#8515](https://github.com/MetaMask/core/pull/8515))
