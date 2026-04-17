@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add `KeyringControllerGetStateAction` to `AllowedActions` to support publish hooks that need to check keyring type for EIP-7702 compatibility ([#8388](https://github.com/MetaMask/core/pull/8388))
+
 ## [64.3.0]
 
 ### Added

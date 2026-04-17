@@ -26,7 +26,6 @@ const QUOTE_MOCK = {
 } as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
-  const accountSupports7702Mock = jest.fn().mockResolvedValue(true);
   const isSmartTransactionMock = jest.fn();
   const executeMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
@@ -34,6 +33,7 @@ describe('TransactionPayPublishHook', () => {
   const {
     messenger,
     getControllerStateMock,
+    getKeyringControllerStateMock,
     getTransactionControllerStateMock,
     updateTransactionMock,
   } = getMessengerMock();
@@ -52,10 +52,18 @@ describe('TransactionPayPublishHook', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    accountSupports7702Mock.mockResolvedValue(true);
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: ['0xabc'],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     hook = new TransactionPayPublishHook({
-      accountSupports7702: accountSupports7702Mock,
       isSmartTransaction: isSmartTransactionMock,
       messenger,
     });
@@ -144,6 +152,42 @@ describe('TransactionPayPublishHook', () => {
     await runHook();
 
     expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('defaults to accountSupports7702 true when keyring not found', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [],
+    });
+
+    await runHook();
+
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountSupports7702: true,
+      }),
+    );
+  });
+
+  it('sets accountSupports7702 false for hardware wallet keyring', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Ledger Hardware',
+          accounts: ['0xabc'],
+          metadata: { id: 'ledger', name: 'Ledger' },
+        },
+      ],
+    });
+
+    await runHook();
+
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountSupports7702: false,
+      }),
+    );
   });
 
   it('throws errors from submit', async () => {
