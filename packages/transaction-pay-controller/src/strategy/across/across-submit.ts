@@ -202,9 +202,11 @@ async function submitTransactions(
     },
   );
 
+  let result: { result: Promise<string> } | undefined;
+
   try {
     if (transactions.length === 1) {
-      await messenger.call(
+      result = await messenger.call(
         'TransactionController:addTransaction',
         transactions[0].params,
         {
@@ -234,6 +236,11 @@ async function submitTransactions(
     }
   } finally {
     end();
+  }
+
+  if (result) {
+    const txHash = await result.result;
+    log('Submitted transaction', txHash);
   }
 
   await Promise.all(
