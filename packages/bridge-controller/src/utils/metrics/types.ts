@@ -175,7 +175,10 @@ type RequiredEventContextFromClientBase = {
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<
           RequestMetadata,
-          'stx_enabled' | 'usd_amount_source' | 'is_hardware_wallet'
+          | 'stx_enabled'
+          | 'usd_amount_source'
+          | 'is_hardware_wallet'
+          | 'account_hardware_type'
         > &
         Pick<
           RequestParams,
