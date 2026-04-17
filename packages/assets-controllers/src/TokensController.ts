@@ -54,8 +54,10 @@ import {
   TokenRwaData,
 } from './token-service';
 import type {
+  TokenListMap,
   TokenListStateChange,
   TokenListToken,
+  TokenListTokenListFetchedEvent,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
@@ -162,6 +164,7 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
+  | TokenListTokenListFetchedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
@@ -262,41 +265,9 @@ export class TokensController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
-        const { allTokens } = this.state;
-        const selectedAddress = this.#getSelectedAddress();
-
-        // Deep clone the `allTokens` object to ensure mutability
-        const updatedAllTokens = cloneDeep(allTokens);
-
-        for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data ?? {};
-
-          if (updatedAllTokens[chainId as Hex]) {
-            if (updatedAllTokens[chainId as Hex][selectedAddress]) {
-              const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
-
-              for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address.toLowerCase()];
-                if (cachedToken && cachedToken.name && !token.name) {
-                  token.name = cachedToken.name; // Update the token name
-                }
-                if (cachedToken?.rwaData) {
-                  token.rwaData = cachedToken.rwaData; // Update the token RWA data
-                }
-              }
-            }
-          }
-        }
-
-        // Update the state with the modified tokens
-        this.update(() => {
-          return {
-            ...this.state,
-            allTokens: updatedAllTokens,
-          };
-        });
+      'TokenListController:tokenListFetched',
+      ({ chainId, tokenList }) => {
+        this.#enrichTokensFromTokenList(chainId, tokenList);
       },
     );
   }
@@ -337,6 +308,43 @@ export class TokensController extends BaseController<
       state.allTokens = newAllTokens;
       state.allIgnoredTokens = newAllIgnoredTokens;
       state.allDetectedTokens = newAllDetectedTokens;
+    });
+  }
+
+  /**
+   * Enriches tokens in `allTokens` for a given chain using data from a freshly
+   * fetched token list. Updates `name` (when missing) and `rwaData` for the
+   * currently selected address.
+   *
+   * @param chainId - The chain whose token list was just fetched.
+   * @param tokenList - The processed token list from the API response.
+   */
+  #enrichTokensFromTokenList(chainId: Hex, tokenList: TokenListMap): void {
+    const { allTokens } = this.state;
+    const selectedAddress = this.#getSelectedAddress();
+
+    const tokensForChainAndAddress = allTokens[chainId]?.[selectedAddress];
+
+    if (!tokensForChainAndAddress?.length) {
+      return;
+    }
+
+    // Deep clone the `allTokens` object to ensure mutability
+    const updatedAllTokens = cloneDeep(allTokens);
+    const tokens = updatedAllTokens[chainId][selectedAddress];
+
+    for (const token of tokens) {
+      const cachedToken = tokenList[token.address.toLowerCase()];
+      if (cachedToken && cachedToken.name && !token.name) {
+        token.name = cachedToken.name; // Update the token name
+      }
+      if (cachedToken?.rwaData) {
+        token.rwaData = cachedToken.rwaData; // Update the token RWA data
+      }
+    }
+
+    this.update((state) => {
+      state.allTokens = updatedAllTokens;
     });
   }
 
