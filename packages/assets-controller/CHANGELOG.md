@@ -7,12 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isNativeAsset` utility that centralizes native asset detection across all CAIP-19 representations (`slip44:` namespace, known native asset IDs from `SPOT_PRICES_SUPPORT_INFO`, and `erc20:` with zero address) ([#8483](https://github.com/MetaMask/core/pull/8483))
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^10.1.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-snap-client` from `^8.2.0` to `^9.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/transaction-controller` from `^64.2.0` to `^64.3.0` ([#8482](https://github.com/MetaMask/core/pull/8482))
+
+### Fixed
+
+- Native asset detection now correctly identifies native assets across all CAIP-19 representations, not just `slip44:` namespace checks ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Previously, native assets represented as ERC-20 tokens (e.g., Polygon's POL at `0x…1010`) were not recognized as native, causing incorrect token type classification, balance handling, and missing entries in bridge exchange rates and transaction pay legacy formats.
+- Legacy format conversions (bridge exchange rates and transaction pay) now use the correct chain-specific native token address via `getNativeTokenAddress()` instead of always using the zero address ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 
 ## [6.0.0]
 
