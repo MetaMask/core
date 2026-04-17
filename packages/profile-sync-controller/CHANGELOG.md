@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504))
+  - `performSignIn` now automatically pairs all SRPs via `POST /profile/pair` when 2+ SRPs exist (idempotent)
+  - Add `canonicalProfileId` to `UserProfile` — the unified profile ID across paired SRPs
+  - Add `ProfileAlias` type for transient alias data returned by the pairing API
+  - Add `pairSrpProfiles` method to `SRPJwtBearerAuth` and `JwtBearerAuth`
+  - Add `ProfileSignInEvent` (`AuthenticationController:profileSignIn`) emitted after successful pairing
+  - Send `X-MetaMask-Profile-Pairing: enabled` header on all `/srp/login` requests
+  - Resolve original per-SRP `profileId` from `profile_aliases` using `computeIdentifierId`
+  - Propagate canonical profile ID to all `srpSessionData` entries after pairing
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
