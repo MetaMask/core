@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
@@ -194,9 +198,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.2.0`, ([#8107](https://github.com/MetaMask/core/pull/8107), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/network-enablement-controller` from `^4.1.2` to `^4.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
-- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0` ([#8104](https://github.com/MetaMask/core/pull/8104)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0`, ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/account-tree-controller` from `^4.1.1` to `^5.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/core-backend` from `^6.0.0` to `^6.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/preferences-controller` from `^22.1.0` to `^23.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
@@ -309,7 +313,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Narrow `AssetsControllerState` types from `Json` to semantic types: `assetsMetadata` → `AssetMetadata`, `assetsBalance` → `AssetBalance`, `assetsPrice` → `AssetPrice`, `assetPreferences` → `AssetPreferences`, `customAssets` → `Caip19AssetId[]` ([#7777](https://github.com/MetaMask/core/pull/7777))
-
 - Replace `viem` dependency with `@ethersproject/abi` for ABI encoding/decoding in `MulticallClient` ([#7839](https://github.com/MetaMask/core/pull/7839))
 
 ## [0.1.0]
