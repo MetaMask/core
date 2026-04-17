@@ -32,25 +32,3 @@ export type InitConfig = Pick<
   | 'redeemerEnforcer'
   | 'valueLteEnforcer'
 >;
-
-/**
- * The discrete steps of the upgrade sequence, in order.
- */
-export type UpgradeStep =
-  | 'associate-address'
-  | 'submit-authorization'
-  | 'verify-delegation'
-  | 'save-delegation'
-  | 'register-intents';
-
-/**
- * Persisted record tracking the progress of an individual account upgrade.
- */
-export type AccountUpgradeEntry = {
-  /** The last successfully completed step. */
-  step: UpgradeStep;
-  /** The chain the upgrade is targeting. */
-  chainId: Hex;
-  /** The delegation hash returned by CHOMP after verify-delegation. */
-  delegationHash?: string;
-};

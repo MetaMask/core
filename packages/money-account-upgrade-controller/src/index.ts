@@ -1,9 +1,4 @@
-export type {
-  InitConfig,
-  UpgradeConfig,
-  UpgradeStep,
-  AccountUpgradeEntry,
-} from './types';
+export type { InitConfig, UpgradeConfig } from './types';
 export {
   MoneyAccountUpgradeController,
   controllerName,

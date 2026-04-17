@@ -6,11 +6,7 @@
 import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
 
 /**
- * Runs the full upgrade sequence for a Money Account.
- *
- * @param address - The Money Account address to upgrade.
- * @param chainId - The target chain for the upgrade.
- * @returns A promise that resolves when the upgrade is complete.
+ * Upgrades a Money Account. Currently a no-op.
  */
 export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
   type: `MoneyAccountUpgradeController:upgradeAccount`;
