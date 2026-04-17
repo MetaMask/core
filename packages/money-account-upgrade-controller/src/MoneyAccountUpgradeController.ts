@@ -23,6 +23,8 @@ import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/mone
 import type { Hex } from '@metamask/utils';
 import { webcrypto } from 'node:crypto';
 
+import { MAX_UINT256, ROOT_AUTHORITY, STEP_ORDER } from './constants';
+import { encodeCaveatTerms } from './encode-caveat-terms';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
 import type {
   AccountUpgradeEntry,
@@ -32,24 +34,6 @@ import type {
 } from './types';
 
 export const controllerName = 'MoneyAccountUpgradeController';
-
-// The root authority constant for top-level delegations.
-const ROOT_AUTHORITY =
-  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex;
-
-// The ordered list of upgrade steps, used to determine whether a step
-// has already been completed during a previous (possibly interrupted) run.
-const STEP_ORDER: UpgradeStep[] = [
-  'associate-address',
-  'submit-authorization',
-  'verify-delegation',
-  'save-delegation',
-  'register-intents',
-];
-
-// Maximum uint256 — used as the allowance for the ERC20TransferAmountEnforcer.
-const MAX_UINT256 =
-  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex;
 
 export type MoneyAccountUpgradeControllerState = {
   upgrades: Record<string, AccountUpgradeEntry>;
@@ -369,12 +353,12 @@ export class MoneyAccountUpgradeController extends BaseController<
       caveats: [
         {
           enforcer: config.erc20TransferAmountEnforcer,
-          terms: this.#encodeCaveatTerms(MAX_UINT256, config.musdTokenAddress),
+          terms: encodeCaveatTerms(MAX_UINT256, config.musdTokenAddress),
           args: '0x' as Hex,
         },
         {
           enforcer: config.redeemerEnforcer,
-          terms: this.#encodeCaveatTerms(config.vedaVaultAdapterAddress),
+          terms: encodeCaveatTerms(config.vedaVaultAdapterAddress),
           args: '0x' as Hex,
         },
         {
@@ -480,16 +464,6 @@ export class MoneyAccountUpgradeController extends BaseController<
     ]);
 
     this.#updateUpgrade(address, { step: 'register-intents' });
-  }
-
-  /**
-   * Encodes caveat terms by concatenating hex values (ABI-style).
-   *
-   * @param values - The hex values to pack.
-   * @returns The concatenated hex string.
-   */
-  #encodeCaveatTerms(...values: Hex[]): Hex {
-    return `0x${values.map((val) => val.slice(2).padStart(64, '0')).join('')}`;
   }
 
   /**
