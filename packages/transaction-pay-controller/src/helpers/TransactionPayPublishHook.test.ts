@@ -52,6 +52,8 @@ describe('TransactionPayPublishHook', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    accountSupports7702Mock.mockResolvedValue(true);
+
     hook = new TransactionPayPublishHook({
       accountSupports7702: accountSupports7702Mock,
       isSmartTransaction: isSmartTransactionMock,

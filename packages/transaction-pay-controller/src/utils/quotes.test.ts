@@ -677,8 +677,8 @@ describe('Quotes Utils', () => {
 
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
-          batchTransactions: [],
-          batchTransactionsOptions: {},
+          batchTransactions: undefined,
+          batchTransactionsOptions: undefined,
         }),
       );
     });
