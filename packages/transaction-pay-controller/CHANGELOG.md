@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolve correct `networkClientId` for source chain in Relay execute flow ([#8492](https://github.com/MetaMask/core/pull/8492))
 - Stop double-counting subsidized fees in Relay quote target amounts ([#8488](https://github.com/MetaMask/core/pull/8488))
+- Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on a new `accountSupports7702` callback option ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ## [19.2.0]
 
@@ -79,10 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Set `submittedTime` at the start of `TransactionPayPublishHook` before strategy execution for accurate `mm_pay_time_to_complete_s` metrics in intent-based flows ([#8439](https://github.com/MetaMask/core/pull/8439))
-
-### Fixed
-
-- Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on a new `accountSupports7702` callback option ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ## [19.1.0]
 
