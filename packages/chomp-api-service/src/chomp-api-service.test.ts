@@ -15,13 +15,15 @@ const MOCK_TOKEN = 'mock-jwt-token';
 
 describe('ChompApiService', () => {
   describe('associateAddress', () => {
+    const associateRequest = {
+      signature: '0x123' as const,
+      timestamp: '2026-01-01T00:00:00Z',
+      address: '0xabc' as const,
+    };
+
     it('sends a POST with auth headers and returns the response on 201', async () => {
       nock(BASE_URL)
-        .post('/v1/auth/address', {
-          signature: '0x123',
-          timestamp: '2026-01-01T00:00:00Z',
-          address: '0xabc',
-        })
+        .post('/v1/auth/address', associateRequest)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .matchHeader('Content-Type', 'application/json')
         .reply(201, {
@@ -33,11 +35,7 @@ describe('ChompApiService', () => {
 
       const result = await rootMessenger.call(
         'ChompApiService:associateAddress',
-        {
-          signature: '0x123',
-          timestamp: '2026-01-01T00:00:00Z',
-          address: '0xabc',
-        },
+        associateRequest,
       );
 
       expect(result).toStrictEqual({
@@ -55,11 +53,7 @@ describe('ChompApiService', () => {
       });
       const { service } = createService();
 
-      const result = await service.associateAddress({
-        signature: '0x123',
-        timestamp: '2026-01-01T00:00:00Z',
-        address: '0xabc',
-      });
+      const result = await service.associateAddress(associateRequest);
 
       expect(result).toStrictEqual({
         profileId: 'p1',
@@ -75,13 +69,9 @@ describe('ChompApiService', () => {
         .reply(500);
       const { service } = createService();
 
-      await expect(
-        service.associateAddress({
-          signature: '0x123',
-          timestamp: '2026-01-01T00:00:00Z',
-          address: '0xabc',
-        }),
-      ).rejects.toThrow("POST /v1/auth/address failed with status '500'");
+      await expect(service.associateAddress(associateRequest)).rejects.toThrow(
+        "POST /v1/auth/address failed with status '500'",
+      );
     });
 
     it('throws on malformed response', async () => {
@@ -90,23 +80,19 @@ describe('ChompApiService', () => {
         .reply(201, JSON.stringify({ missing: 'fields' }));
       const { service } = createService();
 
-      await expect(
-        service.associateAddress({
-          signature: '0x123',
-          timestamp: '2026-01-01T00:00:00Z',
-          address: '0xabc',
-        }),
-      ).rejects.toThrow('At path: profileId -- Expected a string');
+      await expect(service.associateAddress(associateRequest)).rejects.toThrow(
+        'At path: profileId -- Expected a string',
+      );
     });
   });
 
   describe('createUpgrade', () => {
     const upgradeRequest = {
-      r: '0x1',
-      s: '0x2',
+      r: '0x1' as const,
+      s: '0x2' as const,
       v: 27,
       yParity: 0,
-      address: '0xabc',
+      address: '0xabc' as const,
       chainId: '1',
       nonce: '0',
     };
@@ -228,7 +214,7 @@ describe('ChompApiService', () => {
       nock(BASE_URL)
         .post('/v1/intent/verify-delegation', delegationRequest)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
-        .reply(200, { valid: true, delegationHash: '0xhash123' });
+        .reply(200, { valid: true, delegationHash: '0xabc123' });
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
@@ -238,7 +224,7 @@ describe('ChompApiService', () => {
 
       expect(result).toStrictEqual({
         valid: true,
-        delegationHash: '0xhash123',
+        delegationHash: '0xabc123',
       });
     });
 
@@ -508,14 +494,6 @@ describe('ChompApiService', () => {
       const result = await service.getServiceDetails(['0xa4b1', '0x1']);
 
       expect(result).toStrictEqual(serviceDetailsResponse);
-    });
-
-    it('throws when a chainId is not a valid hex string', async () => {
-      const { service } = createService();
-
-      await expect(service.getServiceDetails(['not-hex'])).rejects.toThrow(
-        "Invalid chainId: expected a 0x-prefixed hex string, got 'not-hex'",
-      );
     });
 
     it('throws on non-OK status', async () => {

@@ -20,17 +20,17 @@ export type SignedDelegation = {
 // === REQUEST TYPES ===
 
 export type AssociateAddressRequest = {
-  signature: string;
+  signature: Hex;
   timestamp: string;
-  address: string;
+  address: Hex;
 };
 
 export type CreateUpgradeRequest = {
-  r: string;
-  s: string;
+  r: Hex;
+  s: Hex;
   v: number;
   yParity: number;
-  address: string;
+  address: Hex;
   chainId: string;
   nonce: string;
 };
@@ -65,19 +65,19 @@ export type CreateWithdrawalRequest = {
 
 export type AssociateAddressResponse = {
   profileId: string;
-  address: string;
+  address: Hex;
   status: string;
 };
 
 export type UpgradeResponse = {
-  signerAddress: string;
+  signerAddress: Hex;
   status: string;
   createdAt: string;
 };
 
 export type VerifyDelegationResponse = {
   valid: boolean;
-  delegationHash?: string;
+  delegationHash?: Hex;
   errors?: string[];
 };
 
@@ -89,7 +89,7 @@ export type IntentMetadataResponse = {
 };
 
 export type SendIntentResponse = {
-  delegationHash: string;
+  delegationHash: Hex;
   metadata: IntentMetadataResponse;
   createdAt: string;
 };
@@ -120,18 +120,18 @@ export type CreateWithdrawalResponse = {
 // === SERVICE DETAILS TYPES ===
 
 export type ServiceDetailsSupportedToken = {
-  tokenAddress: string;
+  tokenAddress: Hex;
   tokenDecimals: number;
 };
 
 export type ServiceDetailsProtocol = {
   supportedTokens: ServiceDetailsSupportedToken[];
-  adapterAddress: string;
+  adapterAddress: Hex;
   intentTypes: ('cash-deposit' | 'cash-withdrawal')[];
 };
 
 export type ServiceDetailsChain = {
-  autoDepositDelegate: string;
+  autoDepositDelegate: Hex;
   protocol: Record<string, ServiceDetailsProtocol>;
 };
 
@@ -139,5 +139,5 @@ export type ServiceDetailsResponse = {
   auth: {
     message: string;
   };
-  chains: Record<string, ServiceDetailsChain>;
+  chains: Record<Hex, ServiceDetailsChain>;
 };

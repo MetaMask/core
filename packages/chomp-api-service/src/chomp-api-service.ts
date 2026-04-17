@@ -19,7 +19,8 @@ import {
   string,
   type,
 } from '@metamask/superstruct';
-import { isStrictHexString, StrictHexStruct } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+import { StrictHexStruct } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
@@ -123,25 +124,25 @@ export type ChompApiServiceMessenger = Messenger<
 
 const AssociateAddressResponseStruct = type({
   profileId: string(),
-  address: string(),
+  address: StrictHexStruct,
   status: string(),
 });
 
 const UpgradeResponseStruct = type({
-  signerAddress: string(),
+  signerAddress: StrictHexStruct,
   status: string(),
   createdAt: string(),
 });
 
 const VerifyDelegationResponseStruct = type({
   valid: boolean(),
-  delegationHash: optional(string()),
+  delegationHash: optional(StrictHexStruct),
   errors: optional(array(string())),
 });
 
 const SendIntentResponseArrayStruct = array(
   type({
-    delegationHash: string(),
+    delegationHash: StrictHexStruct,
     metadata: type({
       allowance: StrictHexStruct,
       tokenSymbol: string(),
@@ -174,11 +175,11 @@ const CreateWithdrawalResponseStruct = type({
 const ServiceDetailsProtocolStruct = type({
   supportedTokens: array(
     type({
-      tokenAddress: string(),
+      tokenAddress: StrictHexStruct,
       tokenDecimals: number(),
     }),
   ),
-  adapterAddress: string(),
+  adapterAddress: StrictHexStruct,
   intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
 });
 
@@ -187,9 +188,9 @@ const ServiceDetailsResponseStruct = type({
     message: string(),
   }),
   chains: record(
-    string(),
+    StrictHexStruct,
     type({
-      autoDepositDelegate: string(),
+      autoDepositDelegate: StrictHexStruct,
       protocol: record(string(), ServiceDetailsProtocolStruct),
     }),
   ),
@@ -346,7 +347,7 @@ export class ChompApiService extends BaseDataService<
    * @param address - The address to look up.
    * @returns The upgrade record, or null if not found.
    */
-  async getUpgrade(address: string): Promise<UpgradeResponse | null> {
+  async getUpgrade(address: Hex): Promise<UpgradeResponse | null> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getUpgrade`, address],
       queryFn: async () => {
@@ -464,7 +465,7 @@ export class ChompApiService extends BaseDataService<
    * @param address - The address to look up intents for.
    * @returns The array of intents for the address.
    */
-  async getIntentsByAddress(address: string): Promise<IntentEntry[]> {
+  async getIntentsByAddress(address: Hex): Promise<IntentEntry[]> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getIntentsByAddress`, address],
       queryFn: async () => {
@@ -535,15 +536,7 @@ export class ChompApiService extends BaseDataService<
    * details for.
    * @returns The service details for the requested chains.
    */
-  async getServiceDetails(chainIds: string[]): Promise<ServiceDetailsResponse> {
-    for (const chainId of chainIds) {
-      if (!isStrictHexString(chainId)) {
-        throw new Error(
-          `Invalid chainId: expected a 0x-prefixed hex string, got '${chainId}'`,
-        );
-      }
-    }
-
+  async getServiceDetails(chainIds: Hex[]): Promise<ServiceDetailsResponse> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getServiceDetails`, chainIds],
       queryFn: async () => {

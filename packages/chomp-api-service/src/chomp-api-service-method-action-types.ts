@@ -54,7 +54,7 @@ export type ChompApiServiceGetIntentsByAddressAction = {
 };
 
 /**
- * Creates a withdrawal for card spend flows.
+ * Submits a withdrawal request via POST /v1/withdrawal
  */
 export type ChompApiServiceCreateWithdrawalAction = {
   type: `ChompApiService:createWithdrawal`;
