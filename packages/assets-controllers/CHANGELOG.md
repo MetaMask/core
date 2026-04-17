@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [104.1.0]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-
 ### Added
 
 - `MultichainAssetsController`: periodic Blockaid re-scan of stored SPL-style `token:` assets (default once per day) so tokens that become malicious after a prior scan are dropped; use constructor option `blockaidTokenRescanInterval` (ms), or `0` to disable. ([#8400](https://github.com/MetaMask/core/pull/8400))
@@ -1704,9 +1699,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
-- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^14.0.0` to `^15.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^14.0.0` to `^15.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
 
 ## [44.1.0]
 
@@ -2927,7 +2922,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/assets`
     - Asset-related functions from `src/util.ts` and accompanying tests
 
