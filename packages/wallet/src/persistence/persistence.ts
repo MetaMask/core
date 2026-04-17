@@ -3,16 +3,12 @@ import { hasProperty } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import type { Patch } from 'immer';
 
-import type { DefaultInstances, RootMessenger } from '../initialization';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../initialization';
 import type { KeyValueStore } from './KeyValueStore';
-
-/**
- * A controller instance that has a `metadata` property describing which
- * state properties should be persisted.
- */
-type PersistableController = {
-  metadata: StateMetadataConstraint;
-};
 
 /**
  * Construct a store key from a controller name and property name.
@@ -69,28 +65,27 @@ export function loadState(
  * Subscribe to all controller `stateChanged` events and persist changes
  * to the key-value store.
  *
- * For each controller instance, this function reads the controller's metadata
- * to determine which state properties are persist-flagged. When a `stateChanged`
- * event fires, it uses the Immer patches to identify which top-level properties
- * changed, filters to only persist-flagged properties, and writes them to the
- * store.
+ * For each controller's metadata, this function determines which state
+ * properties are persist-flagged. When a `stateChanged` event fires, it uses
+ * the Immer patches to identify which top-level properties changed, filters
+ * to only persist-flagged properties, and writes them to the store.
+ *
+ * Also subscribes to `Root:walletDestroyed` — when the Wallet publishes that
+ * event, persistence tears itself down.
  *
  * @param messenger - The root messenger to subscribe on.
- * @param instances - The controller instances returned by `initialize()`.
+ * @param controllerMetadata - A map from controller name to its state metadata.
  * @param store - The key-value store to write to.
  * @returns A function that unsubscribes all persistence handlers.
  */
 export function subscribeToChanges(
-  messenger: RootMessenger,
-  instances: DefaultInstances,
+  messenger: RootMessenger<DefaultActions, DefaultEvents>,
+  controllerMetadata: Record<string, StateMetadataConstraint>,
   store: KeyValueStore,
 ): () => void {
   const unsubscribers: (() => void)[] = [];
 
-  for (const [controllerName, instance] of Object.entries(instances)) {
-    const controller = instance as unknown as PersistableController;
-    const { metadata } = controller;
-
+  for (const [controllerName, metadata] of Object.entries(controllerMetadata)) {
     const persistedProperties = getPersistPropertyNames(metadata);
     if (persistedProperties.size === 0) {
       continue;
@@ -133,11 +128,19 @@ export function subscribeToChanges(
     });
   }
 
-  return () => {
-    for (const unsubscribe of unsubscribers) {
-      unsubscribe();
+  const unsubscribeAll = (): void => {
+    while (unsubscribers.length > 0) {
+      unsubscribers.pop()?.();
     }
   };
+
+  const destroyedHandler = (): void => unsubscribeAll();
+  messenger.subscribe('Root:walletDestroyed', destroyedHandler);
+  unsubscribers.push(() => {
+    messenger.unsubscribe('Root:walletDestroyed', destroyedHandler);
+  });
+
+  return unsubscribeAll;
 }
 
 /**

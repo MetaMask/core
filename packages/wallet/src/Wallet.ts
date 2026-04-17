@@ -1,3 +1,4 @@
+import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
 
 import type {
@@ -8,12 +9,10 @@ import type {
   RootMessenger,
 } from './initialization';
 import { initialize } from './initialization';
-import { KeyValueStore, loadState, subscribeToChanges } from './persistence';
 import type { WalletOptions } from './types';
 
-export type WalletConstructorArgs = {
-  options: WalletOptions;
-  databasePath?: string;
+type PersistableController = {
+  metadata: StateMetadataConstraint;
 };
 
 export class Wallet {
@@ -22,37 +21,34 @@ export class Wallet {
 
   readonly #instances: DefaultInstances;
 
-  readonly #store: KeyValueStore;
-
-  readonly #unsubscribePersistence: () => void;
+  readonly #controllerMetadata: Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  >;
 
   #destroyed = false;
 
-  constructor({ options, databasePath = ':memory:' }: WalletConstructorArgs) {
+  constructor({ state, ...options }: WalletOptions) {
     this.messenger = new Messenger({
       namespace: 'Root',
     });
 
-    this.#store = new KeyValueStore(databasePath);
+    this.messenger.registerInitialEventPayload({
+      eventType: 'Root:walletDestroyed',
+      getPayload: () => [],
+    });
 
-    try {
-      const state = loadState(this.#store);
+    this.#instances = initialize({
+      state: state ?? {},
+      messenger: this.messenger,
+      options,
+    });
 
-      this.#instances = initialize({
-        state,
-        messenger: this.messenger,
-        options,
-      });
-
-      this.#unsubscribePersistence = subscribeToChanges(
-        this.messenger,
-        this.#instances,
-        this.#store,
-      );
-    } catch (error) {
-      this.#store.close();
-      throw error;
-    }
+    this.#controllerMetadata = Object.fromEntries(
+      Object.entries(this.#instances).map(([name, instance]) => [
+        name,
+        (instance as unknown as PersistableController).metadata,
+      ]),
+    );
   }
 
   get state(): DefaultState {
@@ -65,29 +61,30 @@ export class Wallet {
     ) as DefaultState;
   }
 
+  get controllerMetadata(): Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  > {
+    return this.#controllerMetadata;
+  }
+
   async destroy(): Promise<void> {
     if (this.#destroyed) {
       return;
     }
     this.#destroyed = true;
 
-    try {
-      const destroyed = Promise.allSettled(
-        Object.values(this.#instances).map((instance) => {
+    await Promise.allSettled(
+      Object.values(this.#instances).map((instance) => {
+        // @ts-expect-error Accessing protected property.
+        if (typeof instance.destroy === 'function') {
           // @ts-expect-error Accessing protected property.
-          if (typeof instance.destroy === 'function') {
-            // @ts-expect-error Accessing protected property.
-            return instance.destroy();
-          }
-          /* istanbul ignore next */
-          return undefined;
-        }),
-      );
+          return instance.destroy();
+        }
+        /* istanbul ignore next */
+        return undefined;
+      }),
+    );
 
-      this.#unsubscribePersistence();
-      await destroyed;
-    } finally {
-      this.#store.close();
-    }
+    this.messenger.publish('Root:walletDestroyed');
   }
 }

@@ -9,8 +9,6 @@ import { enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
 import type { AnvilInstance } from '../test/anvil';
-import * as persistenceModule from './persistence';
-import { KeyValueStore } from './persistence';
 import {
   createSecretRecoveryPhrase,
   importSecretRecoveryPhrase,
@@ -24,20 +22,18 @@ const TEST_PASSWORD = 'testpass';
 
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
-    options: {
-      infuraProjectId: 'fake-infura-project-id',
-      clientVersion: '1.0.0',
-      showApprovalRequest: (): undefined => undefined,
-      clientConfigApiService: new ClientConfigApiService({
-        fetch: globalThis.fetch,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      }),
-      getMetaMetricsId: (): string => 'fake-metrics-id',
-    },
+    infuraProjectId: 'fake-infura-project-id',
+    clientVersion: '1.0.0',
+    showApprovalRequest: (): undefined => undefined,
+    clientConfigApiService: new ClientConfigApiService({
+      fetch: globalThis.fetch,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    }),
+    getMetaMetricsId: (): string => 'fake-metrics-id',
   });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_PHRASE);
@@ -136,20 +132,18 @@ describe('Wallet', () => {
 
   it('can create secret recovery phrase', async () => {
     wallet = new Wallet({
-      options: {
-        infuraProjectId: 'fake-infura-project-id',
-        clientVersion: '1.0.0',
-        showApprovalRequest: (): undefined => undefined,
-        clientConfigApiService: new ClientConfigApiService({
-          fetch: globalThis.fetch,
-          config: {
-            client: ClientType.Extension,
-            distribution: DistributionType.Main,
-            environment: EnvironmentType.Production,
-          },
-        }),
-        getMetaMetricsId: (): string => 'fake-metrics-id',
-      },
+      infuraProjectId: 'fake-infura-project-id',
+      clientVersion: '1.0.0',
+      showApprovalRequest: (): undefined => undefined,
+      clientConfigApiService: new ClientConfigApiService({
+        fetch: globalThis.fetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      }),
+      getMetaMetricsId: (): string => 'fake-metrics-id',
     });
 
     await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
@@ -188,28 +182,26 @@ describe('Wallet', () => {
       getMetaMetricsId: (): string => 'fake-metrics-id',
     };
 
-    it('closes the store if construction fails', () => {
-      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
-      jest.spyOn(persistenceModule, 'loadState').mockImplementationOnce(() => {
-        throw new Error('load failed');
-      });
+    it('exposes controllerMetadata for each initialized controller', () => {
+      wallet = new Wallet(options);
 
-      expect(() => new Wallet({ options })).toThrow('load failed');
-      expect(closeSpy).toHaveBeenCalledTimes(1);
-
-      closeSpy.mockRestore();
+      const names = Object.keys(wallet.controllerMetadata);
+      expect(names).toStrictEqual(Object.keys(wallet.state));
+      for (const name of names) {
+        expect(wallet.controllerMetadata[name]).toBeDefined();
+      }
     });
 
-    it('handles multiple destroy calls gracefully', async () => {
-      wallet = new Wallet({ options });
-      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+    it('publishes Root:walletDestroyed exactly once on destroy', async () => {
+      wallet = new Wallet(options);
+
+      const listener = jest.fn();
+      wallet.messenger.subscribe('Root:walletDestroyed', listener);
 
       await wallet.destroy();
       await wallet.destroy();
 
-      expect(closeSpy).toHaveBeenCalledTimes(1);
-
-      closeSpy.mockRestore();
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 });

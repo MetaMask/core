@@ -38,7 +38,14 @@ export type DefaultInstances = {
 
 export type DefaultActions = MessengerActions<AllMessengers>;
 
-export type DefaultEvents = MessengerEvents<AllMessengers>;
+export type WalletDestroyedEvent = {
+  type: 'Root:walletDestroyed';
+  payload: [];
+};
+
+export type DefaultEvents =
+  | MessengerEvents<AllMessengers>
+  | WalletDestroyedEvent;
 
 export type RootMessenger<
   AllowedActions extends ActionConstraint = ActionConstraint,

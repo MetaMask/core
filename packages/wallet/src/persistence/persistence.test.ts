@@ -1,8 +1,15 @@
+import type { StateMetadataConstraint } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
-import type { RootMessenger, DefaultInstances } from '../initialization';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../initialization';
 import { KeyValueStore } from './KeyValueStore';
 import { loadState, subscribeToChanges } from './persistence';
+
+type TestMessenger = RootMessenger<DefaultActions, DefaultEvents>;
 
 describe('loadState', () => {
   let store: KeyValueStore;
@@ -75,14 +82,14 @@ describe('subscribeToChanges', () => {
   });
 
   it('writes persist-flagged properties on state change', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([
         ['persisted', true],
         ['transient', false],
       ]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     publishStateChanged(messenger, 'TestController', {
       state: { persisted: 'savedValue', transient: 'notSaved' },
@@ -97,14 +104,14 @@ describe('subscribeToChanges', () => {
   });
 
   it('only writes properties that are in the patches', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([
         ['propA', true],
         ['propB', true],
       ]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     publishStateChanged(messenger, 'TestController', {
       state: { propA: 'changedA', propB: 'unchangedB' },
@@ -119,11 +126,11 @@ describe('subscribeToChanges', () => {
     const deriver = (value: never): Json =>
       (value as unknown as string).toUpperCase();
 
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['derived', deriver]]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     publishStateChanged(messenger, 'TestController', {
       state: { derived: 'hello' },
@@ -134,11 +141,11 @@ describe('subscribeToChanges', () => {
   });
 
   it('handles nested property changes by extracting the top-level key', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['nested', true]]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     publishStateChanged(messenger, 'TestController', {
       state: { nested: { inner: { deep: 'value' } } },
@@ -153,11 +160,15 @@ describe('subscribeToChanges', () => {
   });
 
   it('skips controllers with no persisted properties', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['transientOnly', false]]),
     });
 
-    const unsubscribe = subscribeToChanges(messenger, instances, store);
+    const unsubscribe = subscribeToChanges(
+      messenger,
+      controllerMetadata,
+      store,
+    );
 
     publishStateChanged(messenger, 'TestController', {
       state: { transientOnly: 'value' },
@@ -169,11 +180,15 @@ describe('subscribeToChanges', () => {
   });
 
   it('returns an unsubscribe function that stops persistence', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['prop', true]]),
     });
 
-    const unsubscribe = subscribeToChanges(messenger, instances, store);
+    const unsubscribe = subscribeToChanges(
+      messenger,
+      controllerMetadata,
+      store,
+    );
 
     publishStateChanged(messenger, 'TestController', {
       state: { prop: 'first' },
@@ -193,11 +208,11 @@ describe('subscribeToChanges', () => {
   });
 
   it('deletes persisted property when it is removed from state', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['removable', true]]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     // First, persist a value
     publishStateChanged(messenger, 'TestController', {
@@ -217,7 +232,7 @@ describe('subscribeToChanges', () => {
   });
 
   it('persists all flagged properties on root state replacement', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([
         ['propA', true],
         ['propB', true],
@@ -225,7 +240,7 @@ describe('subscribeToChanges', () => {
       ]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     publishStateChanged(messenger, 'TestController', {
       state: { propA: 'newA', propB: 'newB', transient: 'skip' },
@@ -244,14 +259,14 @@ describe('subscribeToChanges', () => {
   });
 
   it('logs and continues when store.set throws', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([
         ['propA', true],
         ['propB', true],
       ]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     const error = new Error('disk full');
     const originalSet = store.set.bind(store);
@@ -287,12 +302,12 @@ describe('subscribeToChanges', () => {
   });
 
   it('handles multiple controllers independently', () => {
-    const { messenger, instances } = createMockControllers({
+    const { messenger, controllerMetadata } = createMockControllers({
       ControllerA: createStateMetadata([['data', true]]),
       ControllerB: createStateMetadata([['data', true]]),
     });
 
-    subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
 
     publishStateChanged(messenger, 'ControllerA', {
       state: { data: 'fromA' },
@@ -320,12 +335,40 @@ describe('subscribeToChanges unsubscribe', () => {
     store.close();
   });
 
-  it('stops persistence so writes to a subsequently closed store do not throw', () => {
-    const { messenger, instances } = createMockControllers({
+  it('self-unsubscribes when Root:walletDestroyed is published', () => {
+    const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['prop', true]]),
     });
 
-    const unsubscribe = subscribeToChanges(messenger, instances, store);
+    subscribeToChanges(messenger, controllerMetadata, store);
+
+    publishStateChanged(messenger, 'TestController', {
+      state: { prop: 'before' },
+      patches: [{ op: 'replace', path: ['prop'], value: 'before' }],
+    });
+
+    expect(store.get('TestController.prop')).toBe('before');
+
+    messenger.publish('Root:walletDestroyed');
+
+    publishStateChanged(messenger, 'TestController', {
+      state: { prop: 'after' },
+      patches: [{ op: 'replace', path: ['prop'], value: 'after' }],
+    });
+
+    expect(store.get('TestController.prop')).toBe('before');
+  });
+
+  it('stops persistence so writes to a subsequently closed store do not throw', () => {
+    const { messenger, controllerMetadata } = createMockControllers({
+      TestController: createStateMetadata([['prop', true]]),
+    });
+
+    const unsubscribe = subscribeToChanges(
+      messenger,
+      controllerMetadata,
+      store,
+    );
 
     unsubscribe();
     store.close();
@@ -340,56 +383,52 @@ describe('subscribeToChanges unsubscribe', () => {
   });
 });
 
-type MockControllerConfig = {
-  metadata: Record<
-    string,
-    {
-      persist: boolean | ((value: never) => Json);
-      includeInDebugSnapshot: boolean;
-      includeInStateLogs: boolean;
-      usedInUi: boolean;
-    }
-  >;
-};
+type MockMetadata = Record<
+  string,
+  {
+    persist: boolean | ((value: never) => Json);
+    includeInDebugSnapshot: boolean;
+    includeInStateLogs: boolean;
+    usedInUi: boolean;
+  }
+>;
 
 type MockControllers = {
-  messenger: RootMessenger;
-  instances: DefaultInstances;
+  messenger: TestMessenger;
+  controllerMetadata: Record<string, StateMetadataConstraint>;
 };
 
 /**
  * Creates a state metadata object for a mock controller.
  *
  * @param properties - An array of [property name, persist value] pairs.
- * @returns A mock controller configuration containing the state metadata.
+ * @returns A mock metadata object.
  */
 function createStateMetadata(
   properties: [string, boolean | ((value: never) => Json)][],
-): MockControllerConfig {
-  return {
-    metadata: Object.fromEntries(
-      properties.map(([name, persist]) => [
-        name,
-        {
-          persist,
-          includeInDebugSnapshot: false,
-          includeInStateLogs: false,
-          usedInUi: false,
-        },
-      ]),
-    ),
-  };
+): MockMetadata {
+  return Object.fromEntries(
+    properties.map(([name, persist]) => [
+      name,
+      {
+        persist,
+        includeInDebugSnapshot: false,
+        includeInStateLogs: false,
+        usedInUi: false,
+      },
+    ]),
+  );
 }
 
 /**
- * Creates a mock messenger and instances map for testing persistence wiring.
- * The messenger supports subscribe/unsubscribe/publish for stateChanged events.
+ * Creates a mock messenger and controllerMetadata map for testing persistence
+ * wiring. The messenger supports subscribe/unsubscribe/publish.
  *
- * @param controllers - Map of controller names to their mock configurations.
- * @returns A mock messenger and instances map.
+ * @param controllers - Map of controller names to their metadata.
+ * @returns A mock messenger and a controllerMetadata map.
  */
 function createMockControllers(
-  controllers: Record<string, MockControllerConfig>,
+  controllers: Record<string, MockMetadata>,
 ): MockControllers {
   const handlers = new Map<string, Set<(...args: unknown[]) => void>>();
 
@@ -411,14 +450,14 @@ function createMockControllers(
         }
       }
     },
-  } as unknown as RootMessenger;
+  } as unknown as TestMessenger;
 
-  const instances: Record<string, unknown> = {};
-  for (const [name, config] of Object.entries(controllers)) {
-    instances[name] = { metadata: config.metadata };
+  const controllerMetadata: Record<string, StateMetadataConstraint> = {};
+  for (const [name, metadata] of Object.entries(controllers)) {
+    controllerMetadata[name] = metadata;
   }
 
-  return { messenger, instances: instances as unknown as DefaultInstances };
+  return { messenger, controllerMetadata };
 }
 
 /**

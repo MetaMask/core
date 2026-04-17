@@ -32,6 +32,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./persistence": {
+      "import": {
+        "types": "./dist/persistence/index.d.mts",
+        "default": "./dist/persistence/index.mjs"
+      },
+      "require": {
+        "types": "./dist/persistence/index.d.cts",
+        "default": "./dist/persistence/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
