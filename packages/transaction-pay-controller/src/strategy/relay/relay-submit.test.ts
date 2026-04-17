@@ -1272,6 +1272,7 @@ describe('Relay Submit Utils', () => {
         expect(getDelegationTransactionMock).toHaveBeenCalledWith({
           transaction: expect.objectContaining({
             chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
             nestedTransactions: [
               {
                 data: '0x1234',
@@ -1281,6 +1282,14 @@ describe('Relay Submit Utils', () => {
             ],
           }),
         });
+      });
+
+      it('resolves networkClientId for source chain instead of inheriting from original transaction', async () => {
+        await submitRelayQuotes(request);
+
+        expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+          CHAIN_ID_MOCK,
+        );
       });
 
       it('submits to /execute with delegation data', async () => {

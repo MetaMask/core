@@ -16,6 +16,11 @@ import {
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
+import {
+  AsyncJsonRpcEngineNextCallback,
+  createAsyncMiddleware,
+  JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine';
 import type {
   Messenger,
   ActionConstraint,
@@ -23,7 +28,12 @@ import type {
 } from '@metamask/messenger';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
-import type { Json, Mutable } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  Mutable,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, produce as immerProduce } from 'immer';
 import type { Draft } from 'immer';
@@ -93,7 +103,6 @@ import {
   hasSpecificationType,
   PermissionType,
 } from './Permission';
-import { getPermissionMiddlewareFactory } from './permission-middleware';
 import type { PermissionControllerMethodActions } from './PermissionController-method-action-types';
 import type { SubjectMetadataControllerGetSubjectMetadataAction } from './SubjectMetadataController-method-action-types';
 import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
@@ -190,6 +199,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'revokePermissions',
   'updateCaveat',
   'getCaveat',
+  'createPermissionMiddleware',
 ] as const;
 
 /**
@@ -665,18 +675,6 @@ export class PermissionController<
   }
 
   /**
-   * Returns a `json-rpc-engine` middleware function factory, so that the rules
-   * described by the state of this controller can be applied to incoming
-   * JSON-RPC requests.
-   *
-   * The middleware **must** be added in the correct place in the middleware
-   * stack in order for it to work. See the README for an example.
-   */
-  public createPermissionMiddleware: ReturnType<
-    typeof getPermissionMiddlewareFactory
-  >;
-
-  /**
    * Constructs the PermissionController.
    *
    * @param options - Permission controller options.
@@ -744,14 +742,6 @@ export class PermissionController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-
-    this.createPermissionMiddleware = getPermissionMiddlewareFactory({
-      executeRestrictedMethod: this.#executeRestrictedMethod.bind(this),
-      getRestrictedMethod: this.getRestrictedMethod.bind(this),
-      isUnrestrictedMethod: this.unrestrictedMethods.has.bind(
-        this.unrestrictedMethods,
-      ),
-    });
   }
 
   /**
@@ -922,6 +912,71 @@ export class PermissionController<
     }
 
     return specification;
+  }
+
+  /**
+   * Creates a permission middleware function. Like any {@link JsonRpcEngine}
+   * middleware, each middleware will only receive requests from a particular
+   * subject / origin.
+   *
+   * The middlewares returned will pass through requests for
+   * unrestricted methods, and attempt to execute restricted methods. If a method
+   * is neither restricted nor unrestricted, a "method not found" error will be
+   * returned.
+   * If a method is restricted, the middleware will first attempt to retrieve the
+   * subject's permission for that method. If the permission is found, the method
+   * will be executed. Otherwise, an "unauthorized" error will be returned.
+   *
+   * The middleware **must** be added in the correct place in the middleware
+   * stack in order for it to work. See the README for an example.
+   *
+   * @param subject The permission subject.
+   * @returns A `json-rpc-engine` middleware.
+   */
+  public createPermissionMiddleware(
+    subject: PermissionSubjectMetadata,
+  ): JsonRpcMiddleware<RestrictedMethodParameters, Json> {
+    const { origin } = subject;
+    if (typeof origin !== 'string' || !origin) {
+      throw new Error('The subject "origin" must be a non-empty string.');
+    }
+
+    const permissionsMiddleware = async (
+      req: JsonRpcRequest<RestrictedMethodParameters>,
+      res: PendingJsonRpcResponse,
+      next: AsyncJsonRpcEngineNextCallback,
+    ): Promise<void> => {
+      const { method, params } = req;
+
+      // Skip registered unrestricted methods.
+      if (this.#unrestrictedMethods.has(method)) {
+        return next();
+      }
+
+      // This will throw if no restricted method implementation is found.
+      const methodImplementation = this.getRestrictedMethod(method, origin);
+
+      // This will throw if the permission does not exist.
+      const result = await this.#executeRestrictedMethod(
+        methodImplementation,
+        subject,
+        method,
+        params,
+      );
+
+      if (result === undefined) {
+        res.error = internalError(
+          `Request for method "${req.method}" returned undefined result.`,
+          { request: req },
+        );
+        return undefined;
+      }
+
+      res.result = result;
+      return undefined;
+    };
+
+    return createAsyncMiddleware(permissionsMiddleware);
   }
 
   /**

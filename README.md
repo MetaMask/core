@@ -486,6 +486,7 @@ linkStyle default opacity:0.5
   social_controllers --> base_data_service;
   social_controllers --> controller_utils;
   social_controllers --> messenger;
+  social_controllers --> profile_sync_controller;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
