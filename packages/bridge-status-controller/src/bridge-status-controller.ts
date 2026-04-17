@@ -643,6 +643,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
+      // Finalize the quote status update as a failure since we can no longer
+      // determine the outcome via polling.
+      this.#quoteStatusUpdateManager.reportFinalised(bridgeTxMetaId, false);
+
       // Track max polling reached event
       const historyItem = this.state.txHistory[bridgeTxMetaId];
       if (historyItem && !historyItem.featureId) {
@@ -799,15 +803,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         status.status === StatusTypes.COMPLETE ||
         status.status === StatusTypes.FAILED;
 
-      if (isFinalStatus && pollingToken) {
-        this.stopPollingByPollingToken(pollingToken);
-        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+      if (isFinalStatus) {
+        if (pollingToken) {
+          this.stopPollingByPollingToken(pollingToken);
+          delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+        }
 
-        console.log(
-          '4 wefwewef - finalized',
-          bridgeTxMetaId,
-          status.status === StatusTypes.COMPLETE,
-        );
         this.#quoteStatusUpdateManager.reportFinalised(
           bridgeTxMetaId,
           status.status === StatusTypes.COMPLETE,
