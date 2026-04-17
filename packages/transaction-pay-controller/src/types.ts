@@ -130,9 +130,7 @@ export type TransactionPayControllerMessenger = Messenger<
 >;
 
 /** Callback to check whether an account supports EIP-7702 authorization signing. */
-export type AccountSupports7702Callback = (
-  account: string,
-) => Promise<boolean>;
+export type AccountSupports7702Callback = (account: string) => Promise<boolean>;
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {

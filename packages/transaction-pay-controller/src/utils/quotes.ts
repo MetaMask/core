@@ -189,9 +189,7 @@ function syncTransaction({
     },
     (tx: TransactionMeta) => {
       tx.batchTransactions = batchTransactions;
-      tx.batchTransactionsOptions = batchTransactions?.length
-        ? {}
-        : undefined;
+      tx.batchTransactionsOptions = batchTransactions?.length ? {} : undefined;
 
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,

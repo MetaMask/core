@@ -98,9 +98,8 @@ const BATCH_TRANSACTION_MOCK = {
 
 describe('Quotes Utils', () => {
   const { messenger, getControllerStateMock } = getMessengerMock();
-  const accountSupports7702Mock: jest.MockedFunction<
-    AccountSupports7702Callback
-  > = jest.fn();
+  const accountSupports7702Mock: jest.MockedFunction<AccountSupports7702Callback> =
+    jest.fn();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);

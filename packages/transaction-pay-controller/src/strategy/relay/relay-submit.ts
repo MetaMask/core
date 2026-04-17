@@ -108,7 +108,12 @@ async function executeSingleQuote(
     const from = transaction.txParams.from as Hex;
     await submitHyperliquidWithdraw(quote, from, messenger);
   } else {
-    await submitTransactions(quote, transaction, messenger, accountSupports7702);
+    await submitTransactions(
+      quote,
+      transaction,
+      messenger,
+      accountSupports7702,
+    );
   }
 
   const targetHash = await waitForRelayCompletion(
