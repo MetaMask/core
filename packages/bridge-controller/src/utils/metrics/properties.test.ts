@@ -6,6 +6,8 @@ import { getNativeAssetForChainId } from '../bridge';
 import { formatChainIdToCaip } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
 import {
+  getAccountHardwareType,
+  isHardwareWallet,
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
   getSwapTypeFromQuote,
@@ -222,6 +224,39 @@ describe('properties', () => {
       const result = formatProviderLabel(mockQuoteResponse.quote);
 
       expect(result).toBe('bridge1_bridge1');
+    });
+  });
+
+  describe('getAccountHardwareType', () => {
+    it('returns null for non-hardware accounts', () => {
+      expect(
+        getAccountHardwareType({
+          metadata: {
+            keyring: {
+              type: 'HD Key Tree',
+            },
+          },
+        } as never),
+      ).toBeNull();
+      expect(isHardwareWallet(undefined)).toBe(false);
+    });
+
+    it.each([
+      ['Ledger Hardware', 'Ledger'],
+      ['Trezor Hardware', 'Trezor'],
+      ['QR Hardware Wallet Device', 'QR Hardware'],
+      ['Lattice Hardware', 'Lattice'],
+    ] as const)('maps %s to %s', (keyringType, expected) => {
+      const account = {
+        metadata: {
+          keyring: {
+            type: keyringType,
+          },
+        },
+      } as never;
+
+      expect(getAccountHardwareType(account)).toBe(expected);
+      expect(isHardwareWallet(account)).toBe(true);
     });
   });
 

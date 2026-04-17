@@ -22,12 +22,20 @@ export type RequestParams = {
   token_address_destination: CaipAssetType | null;
 };
 
+export type AccountHardwareType =
+  | 'Ledger'
+  | 'Trezor'
+  | 'QR Hardware'
+  | 'Lattice'
+  | null;
+
 export type RequestMetadata = {
   slippage_limit?: number; // undefined === auto
   custom_slippage: boolean;
   usd_amount_source: number; // Use quoteResponse when available
   stx_enabled: boolean;
   is_hardware_wallet: boolean;
+  account_hardware_type: AccountHardwareType;
   swap_type: MetricsSwapType;
   security_warnings: string[];
 };
@@ -263,7 +271,11 @@ export type RequiredEventContextFromClient = {
  */
 export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: RequestParams;
-  [UnifiedSwapBridgeEventName.PageViewed]: RequestParams;
+  [UnifiedSwapBridgeEventName.PageViewed]: RequestParams &
+    Omit<
+      RequestMetadata,
+      'stx_enabled' | 'usd_amount_source' | 'security_warnings'
+    >;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
     input_value: string;
