@@ -9,6 +9,7 @@ import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
 
 import type { AccountId } from './AccountsController';
+import { KeyringType } from '@metamask/keyring-api/v2';
 
 /**
  * Returns the name of the keyring type.
@@ -39,6 +40,7 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.qr: {
       return 'QR';
     }
+    case KeyringType.Snap:
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
@@ -101,6 +103,16 @@ export function isNormalKeyringType(
  */
 export function isSnapKeyringType(keyringType: KeyringTypes | string): boolean {
   return keyringType === (KeyringTypes.snap as string);
+}
+
+/**
+ * Check if a keyring type is a Snap keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring type is considered a Snap keyring, false otherwise.
+ */
+export function isSnapKeyringV2Type(keyringType: KeyringTypes | KeyringType | string): boolean {
+  return keyringType === (KeyringType.Snap as string);
 }
 
 /**
