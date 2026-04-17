@@ -37,6 +37,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
+- [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/client-controller`](packages/client-controller)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
@@ -124,6 +125,7 @@ linkStyle default opacity:0.5
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
+  chomp_api_service(["@metamask/chomp-api-service"]);
   claims_controller(["@metamask/claims-controller"]);
   client_controller(["@metamask/client-controller"]);
   compliance_controller(["@metamask/compliance-controller"]);
@@ -277,6 +279,9 @@ linkStyle default opacity:0.5
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
   chain_agnostic_permission --> permission_controller;
+  chomp_api_service --> base_data_service;
+  chomp_api_service --> controller_utils;
+  chomp_api_service --> messenger;
   claims_controller --> base_controller;
   claims_controller --> controller_utils;
   claims_controller --> keyring_controller;
