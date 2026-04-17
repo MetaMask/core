@@ -6,7 +6,7 @@ import type {
   AccountSupports7702Callback,
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
-} from '..';
+} from '../types';
 import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type { UpdateTransactionDataCallback } from '../types';

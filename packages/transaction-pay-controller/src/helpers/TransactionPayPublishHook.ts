@@ -6,10 +6,10 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
-  AccountSupports7702Callback,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
+import { KEYRING_TYPES_SUPPORTING_7702 } from '../types';
 import { getStrategyByName } from '../utils/strategy';
 import { updateTransaction } from '../utils/transaction';
 
@@ -24,18 +24,13 @@ export class TransactionPayPublishHook {
 
   readonly #messenger: TransactionPayControllerMessenger;
 
-  readonly #accountSupports7702: AccountSupports7702Callback;
-
   constructor({
-    accountSupports7702,
     isSmartTransaction,
     messenger,
   }: {
-    accountSupports7702: AccountSupports7702Callback;
     isSmartTransaction: (chainId: Hex) => boolean;
     messenger: TransactionPayControllerMessenger;
   }) {
-    this.#accountSupports7702 = accountSupports7702;
     this.#isSmartTransaction = isSmartTransaction;
     this.#messenger = messenger;
   }
@@ -88,7 +83,14 @@ export class TransactionPayPublishHook {
 
     const strategy = getStrategyByName(quotes[0].strategy);
     const from = transactionMeta.txParams.from as Hex;
-    const accountSupports7702 = await this.#accountSupports7702(from);
+
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
+    const keyring = keyrings.find((k) =>
+      k.accounts.some((a) => a.toLowerCase() === from.toLowerCase()),
+    );
+    const accountSupports7702 = keyring
+      ? (KEYRING_TYPES_SUPPORTING_7702 as string[]).includes(keyring.type)
+      : true;
 
     return await strategy.execute({
       accountSupports7702,

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Snapshot `txParamsOriginal` in `updateEditableParams` when `containerTypes` are first applied ([#8546](https://github.com/MetaMask/core/pull/8546))
 - Add `requiresAuthorizationList` to `TransactionController:estimateGasBatch` results when EIP-7702 batch gas estimation requires a first-time account upgrade ([#8577](https://github.com/MetaMask/core/pull/8577))
+- Add `KeyringControllerGetStateAction` to `AllowedActions` to support publish hooks that need to check keyring type for EIP-7702 compatibility ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ### Fixed
 
