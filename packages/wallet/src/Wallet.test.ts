@@ -5,6 +5,7 @@ import {
   DistributionType,
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
+import { TransactionController } from '@metamask/transaction-controller';
 import { enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
@@ -199,6 +200,38 @@ describe('Wallet', () => {
       wallet.messenger.subscribe('Root:walletDestroyed', listener);
 
       await wallet.destroy();
+      await wallet.destroy();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes Root:walletDestroyed even if a controller destroy throws synchronously', async () => {
+      wallet = new Wallet(options);
+
+      jest
+        .spyOn(TransactionController.prototype, 'destroy')
+        .mockImplementation(() => {
+          throw new Error('sync destroy error');
+        });
+
+      const listener = jest.fn();
+      wallet.messenger.subscribe('Root:walletDestroyed', listener);
+
+      await wallet.destroy();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes Root:walletDestroyed even if a controller destroy rejects', async () => {
+      wallet = new Wallet(options);
+
+      jest
+        .spyOn(TransactionController.prototype, 'destroy')
+        .mockRejectedValue(new Error('async destroy error'));
+
+      const listener = jest.fn();
+      wallet.messenger.subscribe('Root:walletDestroyed', listener);
+
       await wallet.destroy();
 
       expect(listener).toHaveBeenCalledTimes(1);
