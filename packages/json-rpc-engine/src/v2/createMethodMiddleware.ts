@@ -1,37 +1,70 @@
-import { Messenger } from '@metamask/messenger';
+import { ActionConstraint, Messenger } from '@metamask/messenger';
 
 import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
 import { ContextConstraint } from './MiddlewareContext';
-import { Json, JsonRpcRequest } from './utils';
+import { Json, JsonRpcParams, JsonRpcRequest } from './utils';
 
-export type MethodHandlerImplementation = (options: {
-  request: Readonly<JsonRpcRequest>;
-  context: any;
+type HandlerActions<Handler> =
+  Handler extends MethodHandler<any, any, infer Actions, any> ? Actions : never;
+
+export type MethodHandlerImplementation<
+  Hooks extends Record<string, unknown> = Record<string, never>,
+  Parameters extends JsonRpcParams = JsonRpcParams,
+  MessengerActions extends ActionConstraint = never,
+  Context extends ContextConstraint = ContextConstraint,
+> = (options: {
+  request: Readonly<JsonRpcRequest<Parameters>>;
+  context: Context;
   next: Next<JsonRpcRequest>;
-  messenger: Messenger;
-  hooks: any;
-}) => Json;
+  messenger: Messenger<string, MessengerActions>;
+  hooks: Hooks;
+}) => Promise<Json> | Json;
 
-export type MethodHandler = {
-  implementation: MethodHandlerImplementation;
-  hookNames?: Record<string, true>;
-  actionNames?: string[];
+export type MethodHandler<
+  Hooks extends Record<string, unknown> = Record<string, unknown>,
+  Parameters extends JsonRpcParams = JsonRpcParams,
+  MessengerActions extends ActionConstraint = never,
+  Context extends ContextConstraint = ContextConstraint,
+> = {
+  implementation: MethodHandlerImplementation<
+    Hooks,
+    Parameters,
+    MessengerActions,
+    Context
+  >;
+  hookNames?: { [Key in keyof Hooks]: true };
+  actionNames?: MessengerActions['type'][];
 };
 
-export type CreateMethodMiddlewareOptions = {
+export type CreateMethodMiddlewareOptions<
+  Handlers extends Record<string, MethodHandler>,
+> = {
   handlers: Record<string, MethodHandler>;
-  messenger: Messenger;
+  messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
   hooks: Record<string, unknown>;
 };
 
-type ResolvedHandler = {
-  implementation: MethodHandlerImplementation;
+type ResolvedHandler<
+  Hooks extends Record<string, unknown> = Record<string, unknown>,
+  Parameters extends JsonRpcParams = JsonRpcParams,
+  MessengerActions extends ActionConstraint = never,
+  Context extends ContextConstraint = ContextConstraint,
+> = {
+  implementation: MethodHandlerImplementation<
+    Hooks,
+    Parameters,
+    MessengerActions,
+    Context
+  >;
   hooks: Record<string, unknown>;
-  messenger: Messenger;
+  messenger: Messenger<string, MessengerActions>;
 };
 
-export function createMethodMiddleware<Context extends ContextConstraint>(
-  options: CreateMethodMiddlewareOptions,
+export function createMethodMiddleware<
+  Handlers extends Record<string, MethodHandler>,
+  Context extends ContextConstraint,
+>(
+  options: CreateMethodMiddlewareOptions<Handlers>,
 ): JsonRpcMiddleware<JsonRpcRequest, Json, Context> {
   const { messenger: rootMessenger, hooks: allHooks } = options;
 
