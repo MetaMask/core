@@ -64,7 +64,7 @@
     "jsonschema": "^1.4.1"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
     "@metamask/multichain-transactions-controller": "^7.0.4",
     "@metamask/safe-event-emitter": "^3.0.0",

@@ -135,6 +135,9 @@
       "path": "./packages/messenger-cli"
     },
     {
+      "path": "./packages/money-account-balance-service"
+    },
+    {
       "path": "./packages/money-account-controller"
     },
     {

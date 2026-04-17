@@ -5,17 +5,16 @@ import type * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { HdKeyring as HdKeyringV2 } from '@metamask/eth-hd-keyring/v2';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
-import SimpleKeyring, { SimpleKeyringV2 } from '@metamask/eth-simple-keyring';
+import SimpleKeyring from '@metamask/eth-simple-keyring';
+import { SimpleKeyring as SimpleKeyringV2 } from '@metamask/eth-simple-keyring/v2';
 import type {
   KeyringExecutionContext,
   EthBaseTransaction,
   EthBaseUserOperation,
   EthUserOperation,
   EthUserOperationPatch,
-
   KeyringAccount,
 } from '@metamask/keyring-api';
-
 import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';

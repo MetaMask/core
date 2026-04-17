@@ -5,11 +5,12 @@ import yargs from 'yargs';
 import { checkActionTypesFiles } from './check';
 import { generateAllActionTypesFiles } from './fix';
 import { findSourcesWithExposedMethods } from './parse-source';
-import type { ESLint } from './types';
+import { Formatter } from './types';
 
 type CommandLineArguments = {
   check: boolean;
   generate: boolean;
+  formatter: Formatter;
   sourcePath: string;
 };
 
@@ -25,6 +26,7 @@ async function parseCommandLineArguments(
   const {
     check,
     generate,
+    formatter,
     path: sourcePath,
   } = await yargs(args)
     .command(
@@ -49,6 +51,12 @@ async function parseCommandLineArguments(
       description: 'Generate/update action type files',
       default: false,
     })
+    .option('formatter', {
+      type: 'string',
+      description: 'The formatter to use for formatting generated files',
+      choices: ['oxfmt', 'prettier'],
+      default: 'prettier',
+    })
     .help()
     .check((argv) => {
       if (!argv.check && !argv.generate) {
@@ -60,39 +68,16 @@ async function parseCommandLineArguments(
   return {
     check,
     generate,
+    formatter: formatter as Formatter,
     sourcePath: sourcePath as string,
   };
-}
-
-/**
- * Attempt to load ESLint from the current project. Returns null if unavailable.
- *
- * @returns An ESLint object with instance and static methods, or null if unavailable.
- */
-async function loadESLint(): Promise<ESLint | null> {
-  try {
-    const { ESLint: ESLintClass } = await import('eslint');
-    const instance = new ESLintClass({
-      fix: true,
-      errorOnUnmatchedPattern: false,
-    });
-    return {
-      instance,
-      eslintClass: ESLintClass,
-    };
-  } catch {
-    console.warn(
-      '⚠️  ESLint could not be loaded. Generated files will not be formatted.',
-    );
-    return null;
-  }
 }
 
 /**
  * Main entry point for the CLI.
  */
 async function main(): Promise<void> {
-  const { generate, sourcePath } = await parseCommandLineArguments(
+  const { generate, sourcePath, formatter } = await parseCommandLineArguments(
     globalThis.process.argv.slice(2),
   );
 
@@ -113,18 +98,11 @@ async function main(): Promise<void> {
     `📦 Found ${sources.length} controller(s)/service(s) with exposed methods`,
   );
 
-  const eslint = await loadESLint();
-
   if (generate) {
-    const success = await generateAllActionTypesFiles(sources, eslint);
-    if (success) {
-      console.log('\n🎉 All action types generated successfully!');
-    } else {
-      // eslint-disable-next-line no-restricted-globals
-      process.exitCode = 1;
-    }
+    await generateAllActionTypesFiles(sources, formatter);
+    console.log('\n🎉 All action types generated successfully!');
   } else {
-    const success = await checkActionTypesFiles(sources, eslint);
+    const success = await checkActionTypesFiles(sources, formatter);
     if (!success) {
       // eslint-disable-next-line no-restricted-globals
       process.exitCode = 1;

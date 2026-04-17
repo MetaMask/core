@@ -7,6 +7,7 @@ import { BaseDataService } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   array,
   boolean,
@@ -69,6 +70,7 @@ const PositionStruct = structType({
   costBasis: number(),
   trades: array(TradeStruct),
   lastTradeAt: number(),
+  tokenImageUrl: optional(nullable(string())),
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
@@ -119,6 +121,7 @@ const TraderStatsStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  medianHoldMinutes: optional(nullable(number())),
 });
 
 const PerChainBreakdownStruct = structType({
@@ -183,10 +186,15 @@ export type SocialServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
   | DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+
+type AllowedEvents = never;
+
 export type SocialServiceMessenger = Messenger<
   typeof serviceName,
-  SocialServiceActions,
-  SocialServiceEvents
+  SocialServiceActions | AllowedActions,
+  SocialServiceEvents | AllowedEvents
 >;
 
 // ---------------------------------------------------------------------------
@@ -241,6 +249,19 @@ export class SocialService extends BaseDataService<
   }
 
   /**
+   * Returns an Authorization header with a JWT bearer token obtained from the
+   * AuthenticationController.
+   *
+   * @returns A headers object containing the Authorization header.
+   */
+  async #getAuthHeaders(): Promise<Record<string, string>> {
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  /**
    * Fetches the leaderboard of top traders.
    *
    * Calls `GET ${baseUrl}/leaderboard`.
@@ -268,7 +289,10 @@ export class SocialService extends BaseDataService<
           url.searchParams.append('limit', String(limit));
         }
 
-        const response = await fetch(url.toString());
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_LEADERBOARD_FAILED,
@@ -304,7 +328,8 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchTraderProfile`, addressOrId],
       queryFn: async () => {
         const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/profile`;
-        const response = await fetch(url);
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED,
@@ -378,7 +403,8 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFollowers`, addressOrId],
       queryFn: async () => {
         const url = `${this.#v1Url}/traders/${encodeURIComponent(addressOrId)}/followers`;
-        const response = await fetch(url);
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWERS_FAILED,
@@ -415,7 +441,8 @@ export class SocialService extends BaseDataService<
       staleTime: 0,
       queryFn: async () => {
         const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/following`;
-        const response = await fetch(url);
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED,
@@ -451,9 +478,10 @@ export class SocialService extends BaseDataService<
       staleTime: 0,
       queryFn: async () => {
         const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`;
+        const authHeaders = await this.#getAuthHeaders();
         const response = await fetch(url, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
           body: JSON.stringify({ targets }),
         });
         SocialService.#throwIfNotOk(
@@ -496,7 +524,11 @@ export class SocialService extends BaseDataService<
         for (const target of targets) {
           url.searchParams.append('targets', target);
         }
-        const response = await fetch(url.toString(), { method: 'DELETE' });
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.UNFOLLOW_FAILED,
@@ -546,8 +578,9 @@ export class SocialService extends BaseDataService<
         page ?? null,
       ],
       queryFn: async () => {
+        const baseUrl = status === 'open' ? this.#v2Url : this.#v1Url;
         const url = new URL(
-          `${this.#v2Url}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
+          `${baseUrl}/traders/${encodeURIComponent(addressOrId)}/positions/${status}`,
         );
         if (chain) {
           url.searchParams.append('chain', chain);
@@ -563,7 +596,10 @@ export class SocialService extends BaseDataService<
           url.searchParams.append('page', String(page));
         }
 
-        const response = await fetch(url.toString());
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
         SocialService.#throwIfNotOk(response, failedMessage);
         const positionsData = await response.json();
         if (!is(positionsData, PositionsResponseStruct)) {
