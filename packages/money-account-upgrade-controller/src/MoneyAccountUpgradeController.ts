@@ -26,6 +26,8 @@ import { webcrypto } from 'node:crypto';
 import { MAX_UINT256, ROOT_AUTHORITY, STEP_ORDER } from './constants';
 import { encodeCaveatTerms } from './encode-caveat-terms';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
+import { associateAddress } from './steps/associate-address';
+import type { Step } from './steps/types';
 import type {
   AccountUpgradeEntry,
   InitConfig,
@@ -214,7 +216,7 @@ export class MoneyAccountUpgradeController extends BaseController<
         } but upgradeAccount was called with ${chainId}`,
       );
     }
-    await this.#associateAddress(address);
+    await this.#runStep(address, chainId, 'associate-address', associateAddress);
     await this.#submitAuthorization(address, chainId);
     await this.#verifyDelegation(address, chainId);
     await this.#saveDelegation(address, chainId);
@@ -238,33 +240,31 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
-   * Step 0: Associate the Money Account address with the user's CHOMP profile.
+   * Runs an extracted step function unless it has already been completed,
+   * then merges the returned patch into state.
    *
-   * Signs "CHOMP Authentication {timestamp}" via personal_sign and submits
-   * it to CHOMP. The API accepts 409 (already associated) as success.
-   *
-   * @param address - The Money Account address.
+   * @param address - The account address.
+   * @param chainId - The target chain.
+   * @param step - The step being run (used for the skip check).
+   * @param fn - The extracted step function.
    */
-  async #associateAddress(address: Hex): Promise<void> {
-    if (this.#isStepCompleted(address, 'associate-address')) {
+  async #runStep(
+    address: Hex,
+    chainId: Hex,
+    step: UpgradeStep,
+    fn: Step,
+  ): Promise<void> {
+    if (this.#isStepCompleted(address, step)) {
       return;
     }
-
-    const timestamp = Date.now().toString();
-    const message = `CHOMP Authentication ${timestamp}`;
-
-    const signature = await this.messenger.call(
-      'KeyringController:signPersonalMessage',
-      { data: message, from: address },
-    );
-
-    await this.messenger.call('ChompApiService:associateAddress', {
-      signature,
-      timestamp,
+    const patch = await fn({
+      messenger: this.messenger,
+      config: this.#requireConfig(),
       address,
+      chainId,
+      entry: this.state.upgrades[address],
     });
-
-    this.#updateUpgrade(address, { step: 'associate-address' });
+    this.#updateUpgrade(address, patch);
   }
 
   /**

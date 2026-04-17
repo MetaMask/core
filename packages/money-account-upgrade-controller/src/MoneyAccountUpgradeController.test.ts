@@ -493,62 +493,6 @@ describe('MoneyAccountUpgradeController', () => {
     });
   });
 
-  describe('step 0: associate address', () => {
-    it('signs the authentication message and submits to CHOMP', async () => {
-      const { controller, mocks } = await setupInitialized();
-
-      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
-
-      expect(mocks.signPersonalMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.stringMatching(/^CHOMP Authentication \d+$/u),
-          from: MOCK_ADDRESS,
-        }),
-      );
-
-      expect(mocks.associateAddress).toHaveBeenCalledWith(
-        expect.objectContaining({
-          signature: MOCK_SIGNATURE,
-          address: MOCK_ADDRESS,
-          timestamp: expect.stringMatching(/^\d+$/u),
-        }),
-      );
-    });
-
-    it('skips signing when address already has an upgrade entry', async () => {
-      const { controller, mocks } = await setupInitialized({
-        state: {
-          upgrades: {
-            [MOCK_ADDRESS]: {
-              step: 'associate-address',
-              chainId: MOCK_CHAIN_ID,
-            },
-          },
-        },
-      });
-
-      await controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID);
-
-      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
-      expect(mocks.associateAddress).not.toHaveBeenCalled();
-    });
-
-    it('updates state to associate-address after completion', async () => {
-      const { controller, mocks } = await setupInitialized();
-
-      // Make subsequent steps fail so we can check state after step 0.
-      mocks.getUpgrade.mockRejectedValue(new Error('stop'));
-
-      await expect(
-        controller.upgradeAccount(MOCK_ADDRESS, MOCK_CHAIN_ID),
-      ).rejects.toThrow('stop');
-
-      expect(controller.state.upgrades[MOCK_ADDRESS]?.step).toBe(
-        'associate-address',
-      );
-    });
-  });
-
   describe('step 1: submit authorization', () => {
     it('skips signing when CHOMP already has an upgrade record', async () => {
       const { controller, mocks } = await setupInitialized();
