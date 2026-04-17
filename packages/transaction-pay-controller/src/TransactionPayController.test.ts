@@ -466,6 +466,7 @@ describe('TransactionPayController', () => {
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: expect.any(Function),
         getStrategies: expect.any(Function),
         messenger,
         transactionData: expect.objectContaining({

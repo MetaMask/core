@@ -241,7 +241,7 @@ describe('Across Submit', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: false,
-          disableHook: true,
+          disableHook: false,
           disableSequential: true,
           gasLimit7702: toHex(64000),
           transactions: [

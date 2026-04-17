@@ -502,7 +502,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith({
         disable7702: true,
-        disableHook: false,
+        disableHook: true,
         disableSequential: false,
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -1013,7 +1013,7 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
             disable7702: true,
-            disableHook: false,
+            disableHook: true,
             disableSequential: false,
             gasLimit7702: undefined,
             transactions: [
@@ -1043,7 +1043,7 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
             disable7702: false,
-            disableHook: true,
+            disableHook: false,
             disableSequential: true,
             gasLimit7702: '0x31955',
             transactions: [
@@ -1079,7 +1079,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: false,
-          disableHook: true,
+          disableHook: false,
           disableSequential: true,
           gasLimit7702: '0xa410',
           transactions: [
@@ -1213,7 +1213,7 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: true,
-          disableHook: false,
+          disableHook: true,
           disableSequential: false,
           gasLimit7702: undefined,
           transactions: [
