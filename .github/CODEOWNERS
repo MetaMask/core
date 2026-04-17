@@ -13,6 +13,7 @@
 /packages/account-tree-controller            @MetaMask/accounts-engineers
 /packages/profile-sync-controller            @MetaMask/accounts-engineers
 /packages/money-account-controller           @MetaMask/accounts-engineers
+/packages/snap-account-service               @MetaMask/accounts-engineers
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
@@ -232,3 +233,5 @@
 /packages/money-account-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/chomp-api-service/package.json @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/chomp-api-service/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/snap-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/snap-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
