@@ -2,6 +2,8 @@ import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controlle
 import { parseCaipAssetType } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
+import { isNativeAsset } from '../../../utils/isNativeAsset';
+
 import type { MulticallClient } from '../clients';
 import type {
   AccountId,
@@ -16,7 +18,6 @@ import type {
   ChainId,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
-import { isNativeAsset } from '../../../utils/isNativeAsset';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 

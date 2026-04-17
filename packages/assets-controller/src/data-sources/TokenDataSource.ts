@@ -17,11 +17,12 @@ import type {
   Middleware,
   FungibleAssetMetadata,
 } from '../types';
+import { isNativeAsset } from '../utils/isNativeAsset';
+
 import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
 } from './evm-rpc-services';
-import { isNativeAsset } from '../utils/isNativeAsset';
 
 // ============================================================================
 // CONSTANTS

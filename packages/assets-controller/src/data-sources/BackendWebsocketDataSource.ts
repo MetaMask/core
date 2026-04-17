@@ -24,12 +24,13 @@ import type {
   AssetBalance,
   DataResponse,
 } from '../types';
+import { isNativeAsset } from '../utils/isNativeAsset';
+
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
-import { isNativeAsset } from '../utils/isNativeAsset';
 
 // ============================================================================
 // CONSTANTS

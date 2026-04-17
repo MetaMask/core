@@ -1,4 +1,5 @@
 import { toChecksumAddress } from '@ethereumjs/util';
+import { getNativeTokenAddress } from '@metamask/assets-controllers';
 import { numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
@@ -11,7 +12,6 @@ import type {
 import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
 import { isNativeAsset } from './isNativeAsset';
-import { getNativeTokenAddress } from '@metamask/assets-controllers';
 
 /** Account with id and address for mapping state to legacy format. */
 export type AccountForLegacyFormat = { id: string; address: string };

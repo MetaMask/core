@@ -39,6 +39,8 @@ import type {
 } from '../types';
 import { normalizeAssetId } from '../utils';
 import { ZERO_ADDRESS } from '../utils/constants';
+import { isNativeAsset } from '../utils/isNativeAsset';
+
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
@@ -61,7 +63,6 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
-import { isNativeAsset } from '../utils/isNativeAsset';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds

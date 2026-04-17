@@ -1,5 +1,6 @@
 import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { parseCaipAssetType } from '@metamask/utils';
+
 import type { Caip19AssetId } from '../types';
 import { ZERO_ADDRESS } from './constants';
 
