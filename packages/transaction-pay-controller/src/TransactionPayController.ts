@@ -13,6 +13,7 @@ import {
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
+  AccountSupports7702Callback,
   GetDelegationTransactionCallback,
   TransactionConfigCallback,
   TransactionData,
@@ -53,6 +54,8 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #accountSupports7702: AccountSupports7702Callback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
   readonly #getStrategy?: (
@@ -64,6 +67,7 @@ export class TransactionPayController extends BaseController<
   ) => TransactionPayStrategy[];
 
   constructor({
+    accountSupports7702,
     getDelegationTransaction,
     getStrategy,
     getStrategies,
@@ -77,6 +81,7 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#accountSupports7702 = accountSupports7702;
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
@@ -94,6 +99,7 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      accountSupports7702: this.#accountSupports7702,
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
@@ -251,6 +257,7 @@ export class TransactionPayController extends BaseController<
 
     if (shouldUpdateQuotes) {
       updateQuotes({
+        accountSupports7702: this.#accountSupports7702,
         getStrategies: this.#getStrategiesWithFallback.bind(this),
         messenger: this.messenger,
         transactionData: this.state.transactionData[transactionId],

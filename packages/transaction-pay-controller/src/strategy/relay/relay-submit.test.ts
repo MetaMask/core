@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
@@ -25,7 +26,7 @@ import {
 } from '../../utils/transaction';
 import { RELAY_STATUS_URL } from './constants';
 import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
+import type { RelayQuote, RelayTransactionStep } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
@@ -51,16 +52,18 @@ const TRANSACTION_META_MOCK = {
   hash: TRANSACTION_HASH_MOCK,
 } as TransactionMeta;
 
-const ORIGINAL_QUOTE_MOCK = {
+const ORIGINAL_QUOTE_MOCK: RelayQuote & { steps: RelayTransactionStep[] } = {
   details: {
     currencyIn: {
       currency: {
         chainId: 1,
+        decimals: 6,
       },
     },
     currencyOut: {
       currency: {
         chainId: 2,
+        decimals: 6,
       },
     },
   },
@@ -68,7 +71,17 @@ const ORIGINAL_QUOTE_MOCK = {
     gasLimits: [21000, 21000],
     is7702: false,
   },
-  request: {},
+  request: {
+    amount: '1',
+    destinationChainId: 2,
+    destinationCurrency: '0xdef' as Hex,
+    originChainId: 1,
+    originCurrency: '0xabc' as Hex,
+    recipient: FROM_MOCK,
+    slippageTolerance: '100',
+    tradeType: 'EXPECTED_OUTPUT',
+    user: FROM_MOCK,
+  },
   steps: [
     {
       id: 'swap',
@@ -76,6 +89,10 @@ const ORIGINAL_QUOTE_MOCK = {
       requestId: REQUEST_ID_MOCK,
       items: [
         {
+          check: {
+            endpoint: '/test',
+            method: 'GET',
+          },
           data: {
             chainId: 1,
             data: '0x1234' as Hex,
@@ -91,7 +108,7 @@ const ORIGINAL_QUOTE_MOCK = {
       ],
     },
   ],
-} as RelayQuote;
+};
 
 const STATUS_RESPONSE_MOCK = {
   status: 'success',
@@ -102,6 +119,7 @@ const STATUS_RESPONSE_MOCK = {
 const SOURCE_AMOUNT_RAW_MOCK = '1000000';
 
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
+  accountSupports7702: true,
   quotes: [
     {
       fees: {
@@ -141,7 +159,6 @@ describe('Relay Submit Utils', () => {
   const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
 
   const {
-    accountSupports7702Mock,
     addTransactionMock,
     addTransactionBatchMock,
     getDelegationTransactionMock,
@@ -158,7 +175,6 @@ describe('Relay Submit Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    accountSupports7702Mock.mockResolvedValue(true);
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
 
@@ -451,7 +467,7 @@ describe('Relay Submit Utils', () => {
     });
 
     it('does not add authorization list when account does not support 7702', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+      request.accountSupports7702 = false;
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {
         authorizationList: [
@@ -492,7 +508,7 @@ describe('Relay Submit Utils', () => {
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
-        overwriteUpgrade: true,
+        overwriteUpgrade: false,
         requireApproval: false,
         transactions: [
           {
@@ -888,7 +904,7 @@ describe('Relay Submit Utils', () => {
             gasFeeToken: undefined,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             origin: ORIGIN_METAMASK,
-            overwriteUpgrade: true,
+            overwriteUpgrade: false,
             requireApproval: false,
             transactions: [
               {
@@ -1083,8 +1099,8 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('submits individually when account does not support 7702', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+    it('submits batch sequentially when account does not support 7702', async () => {
+      request.accountSupports7702 = false;
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -1095,12 +1111,18 @@ describe('Relay Submit Utils', () => {
 
       await submitRelayQuotes(request);
 
-      expect(addTransactionBatchMock).not.toHaveBeenCalled();
-      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: true,
+          disableSequential: false,
+        }),
+      );
+      expect(addTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('falls back to first gas limit when entry is missing for individual submission', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+    it('omits per-transaction gas when entry is missing in batch submission', async () => {
+      request.accountSupports7702 = false;
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -1110,19 +1132,26 @@ describe('Relay Submit Utils', () => {
 
       await submitRelayQuotes(request);
 
-      expect(addTransactionBatchMock).not.toHaveBeenCalled();
-      expect(addTransactionMock).toHaveBeenCalledTimes(2);
-      expect(addTransactionMock).toHaveBeenNthCalledWith(
-        2,
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gas: '0x5208',
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: '0x5208',
+              }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+            }),
+          ],
         }),
-        expect.anything(),
       );
     });
 
-    it('skips on-chain confirmation wait for non-7702 accounts with multiple transactions', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+    it('waits for on-chain confirmation for non-7702 accounts with multiple transactions', async () => {
+      request.accountSupports7702 = false;
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -1132,12 +1161,12 @@ describe('Relay Submit Utils', () => {
 
       await submitRelayQuotes(request);
 
-      expect(addTransactionMock).toHaveBeenCalledTimes(2);
-      expect(waitForTransactionConfirmedMock).not.toHaveBeenCalled();
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(waitForTransactionConfirmedMock).toHaveBeenCalled();
     });
 
-    it('awaits all transaction results before returning for non-7702 accounts', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+    it('uses addTransactionBatch for non-7702 accounts with multiple transactions', async () => {
+      request.accountSupports7702 = false;
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -1145,27 +1174,14 @@ describe('Relay Submit Utils', () => {
 
       request.quotes[0].original.metamask.gasLimits = [21000, 22000];
 
-      const resultPromise1 = Promise.resolve('0xhash1');
-      const resultPromise2 = Promise.resolve('0xhash2');
-
-      addTransactionMock
-        .mockResolvedValueOnce({
-          result: resultPromise1,
-          transactionMeta: TRANSACTION_META_MOCK,
-        })
-        .mockResolvedValueOnce({
-          result: resultPromise2,
-          transactionMeta: TRANSACTION_META_MOCK,
-        });
-
       await submitRelayQuotes(request);
 
-      expect(await resultPromise1).toBe('0xhash1');
-      expect(await resultPromise2).toBe('0xhash2');
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).not.toHaveBeenCalled();
     });
 
     it('still waits for on-chain confirmation for 7702 accounts with multiple transactions', async () => {
-      accountSupports7702Mock.mockResolvedValue(true);
+      request.accountSupports7702 = true;
 
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
@@ -1177,7 +1193,7 @@ describe('Relay Submit Utils', () => {
     });
 
     it('still waits for on-chain confirmation for non-7702 accounts with single transaction', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+      request.accountSupports7702 = false;
 
       await submitRelayQuotes(request);
 

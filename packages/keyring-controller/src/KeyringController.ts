@@ -75,7 +75,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'createNewVaultAndKeychain',
   'createNewVaultAndRestore',
   'removeAccount',
-  'accountSupports7702',
 ] as const;
 
 /**
@@ -2077,14 +2076,10 @@ export class KeyringController<
     return keyring.type;
   }
 
-  async accountSupports7702(account: string): Promise<boolean> {
-    const keyringType = await this.getAccountKeyringType(account);
-    return (
-      keyringType === (KeyringTypes.hd as string) ||
-      keyringType === (KeyringTypes.simple as string)
-    );
-  }
-
+  /**
+   * Constructor helper for registering this controller's messenger
+   * actions.
+   */
   #registerMessageHandlers(): void {
     this.messenger.registerMethodActionHandlers(
       this,

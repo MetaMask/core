@@ -193,7 +193,7 @@ async function normalizeQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
-  const { messenger } = fullRequest;
+  const { accountSupports7702, messenger } = fullRequest;
   const { quote } = original;
 
   const { usdToFiatRate, sourceFiatRate, targetFiatRate } = getFiatRates(
@@ -208,6 +208,7 @@ async function normalizeQuote(
     quote,
     messenger,
     request,
+    accountSupports7702,
   );
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
@@ -390,6 +391,7 @@ async function calculateSourceNetworkCost(
   quote: AcrossSwapApprovalResponse,
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
+  accountSupports7702: boolean,
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
@@ -412,42 +414,9 @@ async function calculateSourceNetworkCost(
       to: transaction.to,
       value: transaction.value ?? '0x0',
     })),
+    accountSupports7702,
   });
   const { batchGasLimit } = gasEstimates;
-
-  const accountSupports7702 = await messenger.call(
-    'KeyringController:accountSupports7702',
-    from,
-  );
-
-  // If the chain returned a combined 7702 gas limit but the account cannot sign
-  // EIP-7702 authorizations (e.g. hardware wallet), re-estimate each transaction
-  // individually so the submit path receives per-transaction gas limits.
-  if (gasEstimates.is7702 && !accountSupports7702) {
-    const individualResults = await Promise.all(
-      orderedTransactions.map((transaction) =>
-        estimateQuoteGasLimits({
-          fallbackGas: acrossFallbackGas,
-          messenger,
-          transactions: [
-            {
-              chainId: toHex(transaction.chainId),
-              data: transaction.data,
-              from,
-              gas: transaction.gas,
-              to: transaction.to,
-              value: transaction.value ?? '0x0',
-            },
-          ],
-        }),
-      ),
-    );
-    gasEstimates = {
-      ...gasEstimates,
-      is7702: false,
-      gasLimits: individualResults.map((result) => result.gasLimits[0]),
-    };
-  }
 
   const { is7702 } = gasEstimates;
 

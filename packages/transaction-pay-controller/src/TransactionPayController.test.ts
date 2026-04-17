@@ -45,6 +45,7 @@ describe('TransactionPayController', () => {
    */
   function createController(): TransactionPayController {
     return new TransactionPayController({
+      accountSupports7702: jest.fn().mockResolvedValue(true),
       getDelegationTransaction: jest.fn(),
       messenger,
     });
@@ -238,6 +239,7 @@ describe('TransactionPayController', () => {
         .mockResolvedValue(resultMock);
 
       new TransactionPayController({
+        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: getDelegationTransactionMock,
         messenger,
       });
@@ -268,6 +270,7 @@ describe('TransactionPayController', () => {
 
     it('returns callback value if provided', async () => {
       new TransactionPayController({
+        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
         messenger,
@@ -283,6 +286,7 @@ describe('TransactionPayController', () => {
 
     it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
       new TransactionPayController({
+        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] => [
           TransactionPayStrategy.Test,
@@ -306,6 +310,7 @@ describe('TransactionPayController', () => {
       getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
 
       new TransactionPayController({
+        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] => [],
         messenger,
@@ -323,6 +328,7 @@ describe('TransactionPayController', () => {
       getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
 
       new TransactionPayController({
+        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] =>
           [undefined] as unknown as TransactionPayStrategy[],

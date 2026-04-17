@@ -26,6 +26,7 @@ const QUOTE_MOCK = {
 } as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
+  const accountSupports7702Mock = jest.fn().mockResolvedValue(true);
   const isSmartTransactionMock = jest.fn();
   const executeMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
@@ -52,6 +53,7 @@ describe('TransactionPayPublishHook', () => {
     jest.resetAllMocks();
 
     hook = new TransactionPayPublishHook({
+      accountSupports7702: accountSupports7702Mock,
       isSmartTransaction: isSmartTransactionMock,
       messenger,
     });
@@ -81,6 +83,7 @@ describe('TransactionPayPublishHook', () => {
 
     expect(executeMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        accountSupports7702: true,
         quotes: [QUOTE_MOCK, QUOTE_MOCK],
       }),
     );

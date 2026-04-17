@@ -12,10 +12,7 @@ import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
-import type {
-  KeyringControllerAccountSupports7702Action,
-  KeyringControllerSignTypedMessageAction,
-} from '@metamask/keyring-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
@@ -50,7 +47,6 @@ export type AllowedActions =
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
-  | KeyringControllerAccountSupports7702Action
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -133,8 +129,16 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerEvents | AllowedEvents
 >;
 
+/** Callback to check whether an account supports EIP-7702 authorization signing. */
+export type AccountSupports7702Callback = (
+  account: string,
+) => Promise<boolean>;
+
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Callback to check whether an account supports EIP-7702. */
+  accountSupports7702: AccountSupports7702Callback;
+
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
 
@@ -428,6 +432,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Selected fiat payment method ID, if applicable. */
   fiatPaymentMethod?: string;
 
@@ -443,6 +450,9 @@ export type PayStrategyGetQuotesRequest = {
 
 /** Request to submit quotes for a transaction. */
 export type PayStrategyExecuteRequest<OriginalRequest> = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Callback to determine if the transaction is a smart transaction. */
   isSmartTransaction: (chainId: Hex) => boolean;
 

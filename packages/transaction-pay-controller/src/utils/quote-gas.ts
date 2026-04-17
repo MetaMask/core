@@ -26,11 +26,13 @@ export type QuoteGasLimit = {
 };
 
 export async function estimateQuoteGasLimits({
+  accountSupports7702 = true,
   fallbackGas,
   fallbackOnSimulationFailure = false,
   messenger,
   transactions,
 }: {
+  accountSupports7702?: boolean;
   fallbackGas?: {
     estimate: number;
     max: number;
@@ -53,8 +55,43 @@ export async function estimateQuoteGasLimits({
   const useBatch = transactions.length > 1;
 
   if (useBatch) {
+    const result = await estimateQuoteGasLimitsBatch(
+      transactions,
+      messenger,
+    );
+
+    // If the batch returned a combined 7702 gas limit but the account cannot
+    // sign EIP-7702 authorizations (e.g. hardware wallet), re-estimate each
+    // transaction individually so callers receive per-transaction gas limits.
+    if (result.is7702 && !accountSupports7702) {
+      const individualResults = await Promise.all(
+        transactions.map((transaction) =>
+          estimateQuoteGasLimitSingle({
+            fallbackGas,
+            fallbackOnSimulationFailure,
+            messenger,
+            transaction,
+          }),
+        ),
+      );
+
+      return {
+        gasLimits: individualResults.map((r) => r.gasLimits[0]),
+        is7702: false,
+        totalGasEstimate: individualResults.reduce(
+          (acc, r) => acc + r.totalGasEstimate,
+          0,
+        ),
+        totalGasLimit: individualResults.reduce(
+          (acc, r) => acc + r.totalGasLimit,
+          0,
+        ),
+        usedBatch: true,
+      };
+    }
+
     return {
-      ...(await estimateQuoteGasLimitsBatch(transactions, messenger)),
+      ...result,
       usedBatch: true,
     };
   }

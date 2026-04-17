@@ -7,6 +7,7 @@ import { cloneDeep } from 'lodash';
 import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
+  AccountSupports7702Callback,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayQuote,
@@ -96,8 +97,10 @@ const BATCH_TRANSACTION_MOCK = {
 } as BatchTransaction;
 
 describe('Quotes Utils', () => {
-  const { messenger, getControllerStateMock, accountSupports7702Mock } =
-    getMessengerMock();
+  const { messenger, getControllerStateMock } = getMessengerMock();
+  const accountSupports7702Mock: jest.MockedFunction<
+    AccountSupports7702Callback
+  > = jest.fn();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);
@@ -118,6 +121,7 @@ describe('Quotes Utils', () => {
    */
   async function run(params?: Partial<UpdateQuotesRequest>): Promise<boolean> {
     return await updateQuotes({
+      accountSupports7702: accountSupports7702Mock,
       getStrategies: getStrategiesMock,
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),
@@ -482,6 +486,7 @@ describe('Quotes Utils', () => {
       await run();
 
       expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -524,6 +529,7 @@ describe('Quotes Utils', () => {
       });
 
       expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
         messenger,
         requests: [
           expect.objectContaining({
@@ -759,6 +765,7 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
+        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
@@ -788,6 +795,7 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
+        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
@@ -818,6 +826,7 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
+        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
@@ -839,6 +848,7 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
+        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
@@ -891,6 +901,7 @@ describe('Quotes Utils', () => {
       });
 
       expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
