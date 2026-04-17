@@ -58,8 +58,9 @@ describe('computeIdentifierId', () => {
   });
 
   it('throws for invalid environment', () => {
-    expect(() =>
-      computeIdentifierId(MOCK_PUBLIC_KEY, 'invalid' as Env),
-    ).toThrow('Cannot compute identifier ID: invalid environment');
+    // @ts-expect-error: testing runtime guard with an invalid env value
+    expect(() => computeIdentifierId(MOCK_PUBLIC_KEY, 'invalid')).toThrow(
+      'Cannot compute identifier ID: invalid environment',
+    );
   });
 });

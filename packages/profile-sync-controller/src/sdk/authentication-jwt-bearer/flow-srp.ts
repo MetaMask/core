@@ -1,7 +1,6 @@
 import type { Eip1193Provider } from 'ethers';
 
 import type { MetaMetricsAuth } from '../../shared/types/services';
-import { computeIdentifierId } from './utils/identifier';
 import { ValidationError, RateLimitedError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
@@ -29,6 +28,7 @@ import type {
   UserProfile,
   UserProfileLineage,
 } from './types';
+import { computeIdentifierId } from './utils/identifier';
 import * as timeUtils from './utils/time';
 
 type JwtBearerAuth_SRP_Options = {

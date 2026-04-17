@@ -1,7 +1,7 @@
 import { createSHA256Hash } from '../../../shared/encryption';
 import type { Env } from '../../../shared/env';
 
-export const IDENTIFIER_SALT: Record<string, string> = {
+export const IDENTIFIER_SALT: Record<Env, string> = {
   dev: 'Baiche1eu8Oa2een5ieReul0Phooph4e',
   uat: 'wooG2Nahd4juviiw7cooxa7ekaeNgeik',
   prd: 'oCheThi4lohv5choGhuosh1aiT2phioF',
