@@ -373,7 +373,7 @@ describe('services', () => {
       );
     });
 
-    it('should send X-MetaMask-Profile-Pairing header', async () => {
+    it('should send X-MetaMask-Profile-Pairing header for SRP', async () => {
       const mockResponse = createMockResponse(mockAuthResponse);
       mockFetch.mockResolvedValue(mockResponse);
 
@@ -381,6 +381,20 @@ describe('services', () => {
 
       const callArgs = mockFetch.mock.calls[0];
       expect(callArgs[1].headers).toStrictEqual(
+        expect.objectContaining({
+          'X-MetaMask-Profile-Pairing': 'enabled',
+        }),
+      );
+    });
+
+    it('should not send X-MetaMask-Profile-Pairing header for SiWE', async () => {
+      const mockResponse = createMockResponse(mockAuthResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await authenticate('raw-message', 'signature', AuthType.SiWE, Env.DEV);
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers).not.toStrictEqual(
         expect.objectContaining({
           'X-MetaMask-Profile-Pairing': 'enabled',
         }),

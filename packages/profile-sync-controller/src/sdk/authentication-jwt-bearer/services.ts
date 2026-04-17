@@ -427,7 +427,9 @@ export async function authenticate(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-MetaMask-Profile-Pairing': 'enabled',
+        ...(authType === AuthType.SRP
+          ? { 'X-MetaMask-Profile-Pairing': 'enabled' }
+          : {}),
       },
       body: JSON.stringify({
         signature,
