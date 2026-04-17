@@ -107,7 +107,12 @@ async function executeSingleQuote(
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else {
-    await submitTransactions(quote, transaction, messenger, accountSupports7702);
+    await submitTransactions(
+      quote,
+      transaction,
+      messenger,
+      accountSupports7702,
+    );
   }
 
   const targetHash = await waitForRelayCompletion(

@@ -46,7 +46,9 @@ type MessengerMockResult = {
   estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
   >;
-  estimateGasMock: jest.MockedFn<TransactionControllerEstimateGasAction['handler']>;
+  estimateGasMock: jest.MockedFn<
+    TransactionControllerEstimateGasAction['handler']
+  >;
   fetchQuotesMock: jest.Mock;
   findNetworkClientIdByChainIdMock: jest.MockedFn<
     NetworkControllerFindNetworkClientIdByChainIdAction['handler']
@@ -75,7 +77,9 @@ type MessengerMockResult = {
   getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
     RemoteFeatureFlagControllerGetStateAction['handler']
   >;
-  getStrategyMock: jest.MockedFn<TransactionPayControllerGetStrategyAction['handler']>;
+  getStrategyMock: jest.MockedFn<
+    TransactionPayControllerGetStrategyAction['handler']
+  >;
   getTokenBalanceControllerStateMock: jest.MockedFn<
     TokenBalancesControllerGetStateAction['handler']
   >;
@@ -312,7 +316,6 @@ export function getMessengerMock({
       'AssetsController:getStateForTransactionPay',
       getAssetsControllerStateMock,
     );
-
   }
 
   const publish = messenger.publish.bind(messenger);

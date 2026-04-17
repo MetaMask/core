@@ -56,10 +56,7 @@ export async function estimateQuoteGasLimits({
   const useBatch = transactions.length > 1;
 
   if (useBatch) {
-    const result = await estimateQuoteGasLimitsBatch(
-      transactions,
-      messenger,
-    );
+    const result = await estimateQuoteGasLimitsBatch(transactions, messenger);
 
     // If the batch returned a combined 7702 gas limit but the account cannot
     // sign EIP-7702 authorizations (e.g. hardware wallet), re-estimate each
