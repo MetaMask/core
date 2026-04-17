@@ -116,9 +116,7 @@ export const arrangeAuthAPIs = (options?: {
   const mockPairIdentifiersUrl = handleMockPairIdentifiers(
     options?.mockPairIdentifiers,
   );
-  const mockPairProfilesUrl = handleMockPairProfiles(
-    options?.mockPairProfiles,
-  );
+  const mockPairProfilesUrl = handleMockPairProfiles(options?.mockPairProfiles);
   const mockUserProfileLineageUrl = handleMockUserProfileLineage(
     options?.mockUserProfileLineageUrl,
   );
