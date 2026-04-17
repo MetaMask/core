@@ -42,6 +42,7 @@ import type { Hex } from '@metamask/utils';
 import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
+import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
 import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
@@ -773,7 +774,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * This method:
    * - Checks if useTokenDetection preference is enabled (skips if disabled)
    * - Checks if external services are enabled (skips if disabled)
-   * - Tokens are expected to be in the tokensChainsCache with full metadata
+   * - Fetches token metadata from the v3 tokens API and filters out unverified
+   *   tokens (occurrences < 3) as a spam prevention measure
    * - Balance fetching is skipped since balances are provided by the websocket
    * - Ignored tokens have been filtered out by the caller
    *
@@ -799,12 +801,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    // Refresh the token cache to ensure we have the latest token metadata
-    // This fixes a bug where the cache from construction time could be stale/empty
-    const { tokensChainsCache } = this.messenger.call(
-      'TokenListController:getState',
+    const verifiedTokens = await fetchVerifiedTokensByAddresses(
+      chainId,
+      tokensSlice,
     );
-    this.#tokensChainsCache = tokensChainsCache ?? {};
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
@@ -814,10 +814,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
-      // Check map of validated tokens (cache keys are lowercase)
-      const tokenData =
-        this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
-
+      const tokenData = verifiedTokens.get(lowercaseTokenAddress);
       if (!tokenData) {
         continue;
       }
@@ -870,7 +867,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * - Checks if useTokenDetection preference is enabled (skips if disabled)
    * - Checks if external services are enabled (skips if disabled)
    * - Filters out tokens already in allTokens or allIgnoredTokens
-   * - Tokens are expected to be in the tokensChainsCache with full metadata
+   * - Fetches token metadata from the v3 tokens API and filters out unverified
+   *   tokens (occurrences < 3) as a spam prevention measure
    * - Balance fetching is skipped since balances are provided by the caller
    *
    * @param options - The options object
@@ -895,13 +893,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    // Refresh the token cache to ensure we have the latest token metadata
-    // This fixes a bug where the cache from construction time could be stale/empty
-    const { tokensChainsCache } = this.messenger.call(
-      'TokenListController:getState',
-    );
-    this.#tokensChainsCache = tokensChainsCache ?? {};
-
     const selectedAddress = this.#getSelectedAddress();
 
     // Get current token states to filter out already tracked/ignored tokens
@@ -917,27 +908,33 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       allIgnoredTokens[chainId]?.[selectedAddress] ?? []
     ).map((address) => address.toLowerCase());
 
+    const addressesToFetch = tokensSlice.filter((address) => {
+      const lower = address.toLowerCase();
+      // Skip tokens already in allTokens
+      // Skip tokens in allIgnoredTokens
+      return (
+        !existingTokenAddresses.includes(lower) &&
+        !ignoredTokenAddresses.includes(lower)
+      );
+    });
+
+    if (addressesToFetch.length === 0) {
+      return;
+    }
+
+    const verifiedTokens = await fetchVerifiedTokensByAddresses(
+      chainId,
+      addressesToFetch,
+    );
+
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
-    for (const tokenAddress of tokensSlice) {
+    for (const tokenAddress of addressesToFetch) {
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
-      // Skip tokens already in allTokens
-      if (existingTokenAddresses.includes(lowercaseTokenAddress)) {
-        continue;
-      }
-
-      // Skip tokens in allIgnoredTokens
-      if (ignoredTokenAddresses.includes(lowercaseTokenAddress)) {
-        continue;
-      }
-
-      // Check map of validated tokens (cache keys are lowercase)
-      const tokenData =
-        this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
-
+      const tokenData = verifiedTokens.get(lowercaseTokenAddress);
       if (!tokenData) {
         continue;
       }
