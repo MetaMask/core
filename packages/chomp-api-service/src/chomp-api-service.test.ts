@@ -406,7 +406,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.getIntentsByAddress('0xabc')).rejects.toThrow(
-        'At path: 0.account -- Expected a value of type `Hex string`',
+        'At path: 0.account -- Expected a string, but received: undefined',
       );
     });
   });

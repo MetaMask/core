@@ -11,7 +11,6 @@ import {
   array,
   boolean,
   create,
-  define,
   enums,
   literal,
   number,
@@ -20,7 +19,7 @@ import {
   string,
   type,
 } from '@metamask/superstruct';
-import { isStrictHexString } from '@metamask/utils';
+import { isStrictHexString, StrictHexStruct } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
@@ -122,10 +121,6 @@ export type ChompApiServiceMessenger = Messenger<
 
 // === RESPONSE VALIDATION ===
 
-const HexStringStruct = define<string>('Hex string', (value) =>
-  isStrictHexString(value),
-);
-
 const AssociateAddressResponseStruct = type({
   profileId: string(),
   address: string(),
@@ -148,9 +143,9 @@ const SendIntentResponseArrayStruct = array(
   type({
     delegationHash: string(),
     metadata: type({
-      allowance: HexStringStruct,
+      allowance: StrictHexStruct,
       tokenSymbol: string(),
-      tokenAddress: HexStringStruct,
+      tokenAddress: StrictHexStruct,
       type: enums(['cash-deposit', 'cash-withdrawal']),
     }),
     createdAt: string(),
@@ -159,13 +154,13 @@ const SendIntentResponseArrayStruct = array(
 
 const IntentEntryArrayStruct = array(
   type({
-    account: HexStringStruct,
-    delegationHash: HexStringStruct,
-    chainId: HexStringStruct,
+    account: StrictHexStruct,
+    delegationHash: StrictHexStruct,
+    chainId: StrictHexStruct,
     status: enums(['active', 'revoked']),
     metadata: type({
-      allowance: HexStringStruct,
-      tokenAddress: HexStringStruct,
+      allowance: StrictHexStruct,
+      tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
       type: enums(['deposit', 'withdraw']),
     }),
