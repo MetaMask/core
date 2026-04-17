@@ -61,6 +61,7 @@ export async function submitRelayQuotes(
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
+  const { accountSupports7702 } = request;
 
   let transactionHash: Hex | undefined;
 
@@ -69,6 +70,7 @@ export async function submitRelayQuotes(
       quote,
       messenger,
       transaction,
+      accountSupports7702,
     ));
   }
 
@@ -87,6 +89,7 @@ async function executeSingleQuote(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  accountSupports7702: boolean,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
@@ -104,7 +107,7 @@ async function executeSingleQuote(
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else {
-    await submitTransactions(quote, transaction, messenger);
+    await submitTransactions(quote, transaction, messenger, accountSupports7702);
   }
 
   const targetHash = await waitForRelayCompletion(
@@ -314,6 +317,7 @@ async function submitTransactions(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  accountSupports7702: boolean,
 ): Promise<Hex> {
   const { steps } = quote.original;
   const txSteps = steps.filter(
@@ -371,6 +375,7 @@ async function submitTransactions(
     quote,
     transaction,
     messenger,
+    accountSupports7702,
     normalizedParams,
     allParams,
   );
@@ -478,17 +483,13 @@ async function submitViaTransactionController(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  accountSupports7702: boolean,
   normalizedParams: TransactionParams[],
   allParams: TransactionParams[],
 ): Promise<Hex> {
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
   const { isPostQuote } = quote.request;
-
-  const accountSupports7702 = await messenger.call(
-    'KeyringController:accountSupports7702',
-    from,
-  );
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
@@ -552,15 +553,14 @@ async function submitViaTransactionController(
   const { metamask } = quote.original;
   const { gasLimits } = metamask;
 
-  const results: { result: Promise<string> }[] = [];
+  const is7702 = metamask.is7702 && accountSupports7702;
 
-  if (allParams.length === 1 || !accountSupports7702) {
-    for (let i = 0; i < allParams.length; i++) {
-      const transactionParams = {
-        ...allParams[i],
-        ...(i === 0 ? { authorizationList } : {}),
-        gas: toHex(gasLimits[i] ?? gasLimits[0]),
-      };
+  if (allParams.length === 1) {
+    const transactionParams = {
+      ...allParams[0],
+      authorizationList,
+      gas: toHex(gasLimits[0]),
+    };
 
     result = await messenger.call(
       'TransactionController:addTransaction',
@@ -574,9 +574,7 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 = metamask.is7702
-      ? toHex(metamask.gasLimits[0])
-      : undefined;
+    const gasLimit7702 = is7702 ? toHex(metamask.gasLimits[0]) : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
@@ -604,13 +602,13 @@ async function submitViaTransactionController(
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
       disable7702: !gasLimit7702,
-      disableHook: Boolean(gasLimit7702),
+      disableHook: !gasLimit7702,
       disableSequential: Boolean(gasLimit7702),
       gasFeeToken,
       gasLimit7702,
       networkClientId,
       origin: ORIGIN_METAMASK,
-      overwriteUpgrade: true,
+      overwriteUpgrade: is7702,
       requireApproval: false,
       transactions,
     });
@@ -619,14 +617,6 @@ async function submitViaTransactionController(
   end();
 
   log('Added transactions', transactionIds);
-
-  if (!accountSupports7702 && allParams.length > 1) {
-    log(
-      'Hardware wallet transactions signed and broadcast, skipping on-chain confirmation wait',
-    );
-    await Promise.all(results.map((res) => res.result));
-    return undefined as unknown as Hex;
-  }
 
   if (result) {
     const txHash = await result.result;

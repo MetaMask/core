@@ -6,6 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
+  AccountSupports7702Callback,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
@@ -23,13 +24,18 @@ export class TransactionPayPublishHook {
 
   readonly #messenger: TransactionPayControllerMessenger;
 
+  readonly #accountSupports7702: AccountSupports7702Callback;
+
   constructor({
+    accountSupports7702,
     isSmartTransaction,
     messenger,
   }: {
+    accountSupports7702: AccountSupports7702Callback;
     isSmartTransaction: (chainId: Hex) => boolean;
     messenger: TransactionPayControllerMessenger;
   }) {
+    this.#accountSupports7702 = accountSupports7702;
     this.#isSmartTransaction = isSmartTransaction;
     this.#messenger = messenger;
   }
@@ -81,8 +87,11 @@ export class TransactionPayPublishHook {
     );
 
     const strategy = getStrategyByName(quotes[0].strategy);
+    const from = transactionMeta.txParams.from as Hex;
+    const accountSupports7702 = await this.#accountSupports7702(from);
 
     return await strategy.execute({
+      accountSupports7702,
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,

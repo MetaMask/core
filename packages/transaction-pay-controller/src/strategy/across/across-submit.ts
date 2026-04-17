@@ -48,6 +48,7 @@ export async function submitAcrossQuotes(
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
+  const { accountSupports7702 } = request;
 
   let transactionHash: Hex | undefined;
 
@@ -56,6 +57,7 @@ export async function submitAcrossQuotes(
       quote,
       messenger,
       transaction,
+      accountSupports7702,
     ));
   }
 
@@ -66,6 +68,7 @@ async function executeSingleQuote(
   quote: TransactionPayQuote<AcrossQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  accountSupports7702: boolean,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
@@ -86,6 +89,7 @@ async function executeSingleQuote(
     transaction.id,
     acrossDepositType,
     messenger,
+    accountSupports7702,
   );
 
   updateTransaction(
@@ -116,15 +120,12 @@ async function submitTransactions(
   parentTransactionId: string,
   acrossDepositType: TransactionType,
   messenger: TransactionPayControllerMessenger,
+  accountSupports7702: boolean,
 ): Promise<Hex | undefined> {
   const { swapTx } = quote.original.quote;
   const { gasLimits: quoteGasLimits, is7702: apiIs7702 } =
     quote.original.metamask;
   const { from } = quote.request;
-  const accountSupports7702 = await messenger.call(
-    'KeyringController:accountSupports7702',
-    from,
-  );
   const is7702 = apiIs7702 && accountSupports7702;
   const chainId = toHex(swapTx.chainId);
   const orderedTransactions = getAcrossOrderedTransactions({
@@ -200,22 +201,18 @@ async function submitTransactions(
     },
   );
 
-  let result: { result: Promise<string> } | undefined;
-
   try {
-    if (transactions.length === 1 || !accountSupports7702) {
-      for (const { params, type } of transactions) {
-        result = await messenger.call(
-          'TransactionController:addTransaction',
-          params,
-          {
-            networkClientId,
-            origin: ORIGIN_METAMASK,
-            requireApproval: false,
-            type,
-          },
-        );
-      }
+    if (transactions.length === 1) {
+      await messenger.call(
+        'TransactionController:addTransaction',
+        transactions[0].params,
+        {
+          networkClientId,
+          origin: ORIGIN_METAMASK,
+          requireApproval: false,
+          type: transactions[0].type,
+        },
+      );
     } else {
       const batchTransactions = transactions.map(({ params, type }) => ({
         params: toBatchTransactionParams(params),
@@ -224,7 +221,7 @@ async function submitTransactions(
 
       await messenger.call('TransactionController:addTransactionBatch', {
         disable7702: !gasLimit7702,
-        disableHook: Boolean(gasLimit7702),
+        disableHook: !gasLimit7702,
         disableSequential: Boolean(gasLimit7702),
         from,
         gasLimit7702,
@@ -236,11 +233,6 @@ async function submitTransactions(
     }
   } finally {
     end();
-  }
-
-  if (result) {
-    const txHash = await result.result;
-    log('Submitted transaction', txHash);
   }
 
   await Promise.all(

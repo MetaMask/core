@@ -35,7 +35,8 @@ const log = createModuleLogger(projectLogger, 'fiat-strategy');
 export async function getFiatQuotes(
   request: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
-  const { fiatPaymentMethod, messenger, transaction } = request;
+  const { accountSupports7702, fiatPaymentMethod, messenger, transaction } =
+    request;
   const transactionId = transaction.id;
 
   const state = messenger.call('TransactionPayController:getState');
@@ -76,6 +77,7 @@ export async function getFiatQuotes(
     }
 
     const relayQuotes = await getRelayQuotes({
+      accountSupports7702,
       messenger,
       requests: [relayRequest],
       transaction,

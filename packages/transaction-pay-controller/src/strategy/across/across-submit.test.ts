@@ -36,6 +36,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   dust: { usd: '0', fiat: '0' },
   estimatedDuration: 0,
   fees: {
+    metaMask: { usd: '0', fiat: '0' },
     provider: { usd: '0', fiat: '0' },
     sourceNetwork: {
       estimate: { usd: '0', fiat: '0', human: '0', raw: '0' },
@@ -93,7 +94,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
     targetTokenAddress: '0xdef' as Hex,
   },
   sourceAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
-  targetAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
+  targetAmount: { usd: '0', fiat: '0' },
   strategy: TransactionPayStrategy.Across,
 };
 
@@ -101,7 +102,6 @@ describe('Across Submit', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
 
   const {
-    accountSupports7702Mock,
     addTransactionBatchMock,
     addTransactionMock,
     estimateGasMock,
@@ -127,7 +127,6 @@ describe('Across Submit', () => {
       },
     });
 
-    accountSupports7702Mock.mockResolvedValue(true);
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
       simulationFails: undefined,
@@ -191,12 +190,10 @@ describe('Across Submit', () => {
       }) as TransactionPayQuote<AcrossQuote>;
 
     it('submits a batch when approvals exist', async () => {
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [QUOTE_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [QUOTE_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
@@ -230,12 +227,10 @@ describe('Across Submit', () => {
         },
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [batchGasQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [batchGasQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -261,8 +256,7 @@ describe('Across Submit', () => {
       );
     });
 
-    it('submits individually when account does not support 7702', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
+    it('submits batch sequentially when account does not support 7702', async () => {
 
       const nonIs7702Quote = {
         ...QUOTE_MOCK,
@@ -278,15 +272,19 @@ describe('Across Submit', () => {
         },
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [nonIs7702Quote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: false, messenger,
+      quotes: [nonIs7702Quote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
-      expect(addTransactionBatchMock).not.toHaveBeenCalled();
-      expect(addTransactionMock).toHaveBeenCalledTimes(2);
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: true,
+          disableSequential: false,
+        }),
+      );
+      expect(addTransactionMock).not.toHaveBeenCalled();
     });
 
     it('submits a single transaction when no approvals', async () => {
@@ -301,12 +299,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
@@ -330,12 +326,10 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await expect(
-        submitAcrossQuotes({
-          messenger,
-          quotes: [missingBatchGasQuote],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        }),
+        submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [missingBatchGasQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), }),
       ).rejects.toThrow('Missing quote gas limit for Across 7702 batch');
 
       expect(addTransactionBatchMock).not.toHaveBeenCalled();
@@ -353,15 +347,13 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDeposit,
-        },
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictDeposit,
+      },
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -383,15 +375,13 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.swap,
-        },
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.swap,
+      },
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -413,15 +403,13 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: undefined,
-        },
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: undefined,
+      },
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -455,12 +443,10 @@ describe('Across Submit', () => {
         },
       ]);
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -484,12 +470,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -538,12 +522,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      const result = await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      const result = await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -593,12 +575,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -655,12 +635,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      const result = await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      const result = await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(successfulFetchMock).toHaveBeenCalledWith(
         expect.stringContaining('/deposit/status?depositTxnRef=0xconfirmed'),
@@ -764,12 +742,10 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await expect(
-        submitAcrossQuotes({
-          messenger,
-          quotes: [noApprovalQuote],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        }),
+        submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [noApprovalQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), }),
       ).rejects.toThrow('Across request failed with status: failed');
     });
 
@@ -787,12 +763,10 @@ describe('Across Submit', () => {
             }),
           } as Response);
 
-        const resultPromise = submitAcrossQuotes({
-          messenger,
-          quotes: [buildDepositQuote()],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        });
+        const resultPromise = submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), });
 
         await jest.runAllTimersAsync();
         const result = await resultPromise;
@@ -813,12 +787,10 @@ describe('Across Submit', () => {
         }),
       } as Response);
 
-      const result = await submitAcrossQuotes({
-        messenger,
-        quotes: [buildDepositQuote()],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      const result = await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [buildDepositQuote()],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(result.transactionHash).toBe('0xfill');
     });
@@ -851,12 +823,10 @@ describe('Across Submit', () => {
         }),
       } as Response);
 
-      const result = await submitAcrossQuotes({
-        messenger,
-        quotes: [buildDepositQuote()],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      const result = await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [buildDepositQuote()],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(result.transactionHash).toBe('0xbridge');
     });
@@ -869,12 +839,10 @@ describe('Across Submit', () => {
         }),
       } as Response);
 
-      const result = await submitAcrossQuotes({
-        messenger,
-        quotes: [buildDepositQuote()],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      const result = await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [buildDepositQuote()],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(result.transactionHash).toBe('0xconfirmed');
     });
@@ -899,12 +867,10 @@ describe('Across Submit', () => {
           }),
         } as Response);
 
-        const resultPromise = submitAcrossQuotes({
-          messenger,
-          quotes: [buildDepositQuote()],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        });
+        const resultPromise = submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), });
 
         await jest.runAllTimersAsync();
         const result = await resultPromise;
@@ -933,12 +899,10 @@ describe('Across Submit', () => {
           }),
         } as Response);
 
-        const resultPromise = submitAcrossQuotes({
-          messenger,
-          quotes: [buildDepositQuote()],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        });
+        const resultPromise = submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), });
 
         await jest.runAllTimersAsync();
         const result = await resultPromise;
@@ -965,12 +929,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       const params = addTransactionMock.mock.calls[0][0] as { gas: Hex };
 
@@ -994,12 +956,10 @@ describe('Across Submit', () => {
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
       await expect(
-        submitAcrossQuotes({
-          messenger,
-          quotes: [missingSwapGasQuote],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        }),
+        submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [missingSwapGasQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), }),
       ).rejects.toThrow('Missing quote gas limit for Across swap transaction');
 
       expect(addTransactionMock).not.toHaveBeenCalled();
@@ -1017,12 +977,10 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await expect(
-        submitAcrossQuotes({
-          messenger,
-          quotes: [missingApprovalGasQuote],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        }),
+        submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [missingApprovalGasQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), }),
       ).rejects.toThrow(
         'Missing quote gas limit for Across approval transaction at index 0',
       );
@@ -1043,12 +1001,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [noApprovalQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       const params = addTransactionMock.mock.calls[0][0] as {
         maxFeePerGas: Hex;
@@ -1076,12 +1032,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [decimalGasQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [decimalGasQuote],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       const params = addTransactionMock.mock.calls[0][0] as {
         maxFeePerGas: Hex;
@@ -1110,12 +1064,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [quoteWithApproval],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [quoteWithApproval],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionBatchMock).toHaveBeenCalled();
     });
@@ -1141,12 +1093,10 @@ describe('Across Submit', () => {
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [quoteWithoutValue],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [quoteWithoutValue],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalled();
       const params = addTransactionMock.mock.calls[0][0] as { value: Hex };
@@ -1209,12 +1159,10 @@ describe('Across Submit', () => {
         };
       });
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [quote1, quote2],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await submitAcrossQuotes({ accountSupports7702: true, messenger,
+      quotes: [quote1, quote2],
+      transaction: TRANSACTION_META_MOCK,
+      isSmartTransaction: jest.fn(), });
 
       expect(addTransactionMock).toHaveBeenCalledTimes(2);
     });
@@ -1235,12 +1183,10 @@ describe('Across Submit', () => {
       addTransactionMock.mockRejectedValue(new Error('submission failed'));
 
       await expect(
-        submitAcrossQuotes({
-          messenger,
-          quotes: [noApprovalQuote],
-          transaction: TRANSACTION_META_MOCK,
-          isSmartTransaction: jest.fn(),
-        }),
+        submitAcrossQuotes({ accountSupports7702: true, messenger,
+        quotes: [noApprovalQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(), }),
       ).rejects.toThrow('submission failed');
 
       expect(unsubscribeSpy).toHaveBeenCalledWith(

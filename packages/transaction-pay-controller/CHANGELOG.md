@@ -82,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on `KeyringController:accountSupports7702` ([#8388](https://github.com/MetaMask/core/pull/8388))
+- Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on a new `accountSupports7702` callback option ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ## [19.1.0]
 
@@ -97,7 +97,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix perps withdraw to Arbitrum USDC showing inflated transaction fee by bypassing same-token filter when `isHyperliquidSource` is set ([#8387](https://github.com/MetaMask/core/pull/8387))
-- Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on `KeyringController:accountSupports7702` ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ## [19.0.3]
 

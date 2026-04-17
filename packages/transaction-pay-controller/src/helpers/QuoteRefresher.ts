@@ -3,6 +3,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { noop } from 'lodash';
 
 import type {
+  AccountSupports7702Callback,
   TransactionPayControllerMessenger,
   TransactionPayControllerState,
 } from '..';
@@ -30,19 +31,24 @@ export class QuoteRefresher {
 
   readonly #updateTransactionData: UpdateTransactionDataCallback;
 
+  readonly #accountSupports7702: AccountSupports7702Callback;
+
   constructor({
     getStrategies,
     messenger,
     updateTransactionData,
+    accountSupports7702,
   }: {
     getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
     messenger: TransactionPayControllerMessenger;
     updateTransactionData: UpdateTransactionDataCallback;
+    accountSupports7702: AccountSupports7702Callback;
   }) {
     this.#getStrategies = getStrategies;
     this.#messenger = messenger;
     this.#isRunning = false;
     this.#isUpdating = false;
+    this.#accountSupports7702 = accountSupports7702;
     this.#updateTransactionData = updateTransactionData;
 
     messenger.subscribe(
@@ -81,6 +87,7 @@ export class QuoteRefresher {
         this.#messenger,
         this.#updateTransactionData,
         this.#getStrategies,
+        this.#accountSupports7702,
       );
     } catch (error) {
       log('Error refreshing quotes', error);

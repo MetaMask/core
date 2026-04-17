@@ -7,6 +7,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
+  AccountSupports7702Callback,
   QuoteRequest,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -36,6 +37,7 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 const log = createModuleLogger(projectLogger, 'quotes');
 
 export type UpdateQuotesRequest = {
+  accountSupports7702: AccountSupports7702Callback;
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
   transactionData: TransactionData | undefined;
@@ -53,6 +55,7 @@ export async function updateQuotes(
   request: UpdateQuotesRequest,
 ): Promise<boolean> {
   const {
+    accountSupports7702,
     getStrategies,
     messenger,
     transactionData,
@@ -110,9 +113,12 @@ export async function updateQuotes(
       transactionId,
     });
 
+    const supports7702 = await accountSupports7702(from);
+
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
       requests,
+      supports7702,
       getStrategies,
       messenger,
       transactionData.fiatPayment?.selectedPaymentMethodId,
@@ -128,13 +134,8 @@ export async function updateQuotes(
 
     log('Calculated totals', { transactionId, totals });
 
-    const accountSupports7702 = await messenger.call(
-      'KeyringController:accountSupports7702',
-      from,
-    );
-
     syncTransaction({
-      batchTransactions: accountSupports7702 ? batchTransactions : [],
+      batchTransactions: supports7702 ? batchTransactions : undefined,
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
@@ -175,7 +176,7 @@ function syncTransaction({
   totals,
   transactionId,
 }: {
-  batchTransactions: BatchTransaction[];
+  batchTransactions: BatchTransaction[] | undefined;
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
@@ -194,7 +195,9 @@ function syncTransaction({
     },
     (tx: TransactionMeta) => {
       tx.batchTransactions = batchTransactions;
-      tx.batchTransactionsOptions = {};
+      tx.batchTransactionsOptions = batchTransactions?.length
+        ? {}
+        : undefined;
 
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
@@ -215,11 +218,13 @@ function syncTransaction({
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
+ * @param accountSupports7702 - Callback to check account EIP-7702 support.
  */
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
+  accountSupports7702: AccountSupports7702Callback,
 ): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
@@ -248,6 +253,7 @@ export async function refreshQuotes(
     }
 
     const isUpdated = await updateQuotes({
+      accountSupports7702,
       getStrategies,
       messenger,
       transactionData,
@@ -480,6 +486,7 @@ async function refreshPaymentTokenBalance({
  *
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
+ * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
@@ -488,6 +495,7 @@ async function refreshPaymentTokenBalance({
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
+  accountSupports7702: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
@@ -514,6 +522,7 @@ async function getQuotes(
   }
 
   const request = {
+    accountSupports7702,
     fiatPaymentMethod,
     messenger,
     requests,

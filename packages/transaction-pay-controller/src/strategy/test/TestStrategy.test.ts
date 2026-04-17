@@ -18,6 +18,7 @@ describe('TestStrategy', () => {
   describe('getQuotes', () => {
     it('returns quote', async () => {
       const quotesPromise = new TestStrategy().getQuotes({
+        accountSupports7702: true,
         messenger: {} as TransactionPayControllerMessenger,
         requests: [REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -83,6 +84,7 @@ describe('TestStrategy', () => {
   describe('execute', () => {
     it('resolves', async () => {
       const executePromise = new TestStrategy().execute({
+        accountSupports7702: true,
         isSmartTransaction: () => false,
         messenger: {} as TransactionPayControllerMessenger,
         quotes: [QUOTE_MOCK],

@@ -221,13 +221,8 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
-    const accountSupports7702 = await messenger.call(
-      'KeyringController:accountSupports7702',
-      from,
-    );
-
     const useExecute =
-      accountSupports7702 &&
+      fullRequest.accountSupports7702 &&
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 

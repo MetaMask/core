@@ -6,7 +6,6 @@ import type {
   BridgeStatusControllerGetStateAction,
   BridgeStatusControllerSubmitTxAction,
 } from '@metamask/bridge-status-controller';
-import type { KeyringControllerAccountSupports7702Action } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -37,6 +36,68 @@ type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
+type MessengerMockResult = {
+  addTransactionBatchMock: jest.MockedFn<
+    TransactionControllerAddTransactionBatchAction['handler']
+  >;
+  addTransactionMock: jest.MockedFn<
+    TransactionControllerAddTransactionAction['handler']
+  >;
+  estimateGasBatchMock: jest.MockedFn<
+    TransactionControllerEstimateGasBatchAction['handler']
+  >;
+  estimateGasMock: jest.MockedFn<TransactionControllerEstimateGasAction['handler']>;
+  fetchQuotesMock: jest.Mock;
+  findNetworkClientIdByChainIdMock: jest.MockedFn<
+    NetworkControllerFindNetworkClientIdByChainIdAction['handler']
+  >;
+  getAccountTrackerControllerStateMock: jest.MockedFn<
+    AccountTrackerControllerGetStateAction['handler']
+  >;
+  getAssetsControllerStateMock: jest.Mock;
+  getBridgeStatusControllerStateMock: jest.MockedFn<
+    BridgeStatusControllerGetStateAction['handler']
+  >;
+  getControllerStateMock: jest.MockedFn<
+    TransactionPayControllerGetStateAction['handler']
+  >;
+  getCurrencyRateControllerStateMock: jest.Mock;
+  getDelegationTransactionMock: jest.MockedFn<
+    TransactionPayControllerGetDelegationTransactionAction['handler']
+  >;
+  getGasFeeControllerStateMock: jest.Mock;
+  getGasFeeTokensMock: jest.MockedFn<
+    TransactionControllerGetGasFeeTokensAction['handler']
+  >;
+  getNetworkClientByIdMock: jest.MockedFn<
+    NetworkControllerGetNetworkClientByIdAction['handler']
+  >;
+  getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
+    RemoteFeatureFlagControllerGetStateAction['handler']
+  >;
+  getStrategyMock: jest.MockedFn<TransactionPayControllerGetStrategyAction['handler']>;
+  getTokenBalanceControllerStateMock: jest.MockedFn<
+    TokenBalancesControllerGetStateAction['handler']
+  >;
+  getTokenRatesControllerStateMock: jest.MockedFn<
+    TokenRatesControllerGetStateAction['handler']
+  >;
+  getTokensControllerStateMock: jest.MockedFn<
+    TokensControllerGetStateAction['handler']
+  >;
+  getTransactionControllerStateMock: jest.MockedFn<
+    TransactionControllerGetStateAction['handler']
+  >;
+  messenger: TransactionPayControllerMessenger;
+  publish: RootMessenger['publish'];
+  submitTransactionMock: jest.MockedFunction<
+    BridgeStatusControllerSubmitTxAction['handler']
+  >;
+  updateTransactionMock: jest.MockedFn<
+    TransactionControllerUpdateTransactionAction['handler']
+  >;
+};
+
 /**
  * Creates a mock controller messenger for testing.
  *
@@ -47,7 +108,7 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function getMessengerMock({
   skipRegister,
-}: { skipRegister?: boolean } = {}) {
+}: { skipRegister?: boolean } = {}): MessengerMockResult {
   const getControllerStateMock: jest.MockedFn<
     TransactionPayControllerGetStateAction['handler']
   > = jest.fn();
@@ -128,10 +189,6 @@ export function getMessengerMock({
 
   const estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
-  > = jest.fn();
-
-  const accountSupports7702Mock: jest.MockedFn<
-    KeyringControllerAccountSupports7702Action['handler']
   > = jest.fn();
 
   const getAssetsControllerStateMock = jest.fn();
@@ -256,16 +313,11 @@ export function getMessengerMock({
       getAssetsControllerStateMock,
     );
 
-    messenger.registerActionHandler(
-      'KeyringController:accountSupports7702',
-      accountSupports7702Mock,
-    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
-    accountSupports7702Mock,
     addTransactionMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
