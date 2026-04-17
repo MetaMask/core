@@ -2,10 +2,7 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { asLegacyMiddleware } from '@metamask/json-rpc-engine/v2';
 import { createEngineStream } from '@metamask/json-rpc-middleware-stream';
 import ObjectMultiplex from '@metamask/object-multiplex';
-import {
-  PermissionController,
-  SubjectType,
-} from '@metamask/permission-controller';
+import { SubjectType } from '@metamask/permission-controller';
 import {
   createWalletSnapPermissionMiddleware,
   createSnapsMethodMiddleware,
@@ -230,14 +227,11 @@ export function createProviderRpc({
   origin,
   subjectType,
   messenger,
-  createPermissionMiddleware,
   stream,
 }: {
   origin: string;
   subjectType: SubjectType;
   messenger: RootMessenger;
-  // TODO: Move to messenger.
-  createPermissionMiddleware: PermissionController['createPermissionMiddleware'];
   stream: Duplex;
 }) {
   const mux = setupMultiplex(stream);
@@ -250,7 +244,7 @@ export function createProviderRpc({
 
   engine.push(asLegacyMiddleware(createWalletSnapPermissionMiddleware()));
 
-  engine.push(createPermissionMiddleware({ origin }));
+  engine.push(messenger.call('PermissionController:createPermissionMiddleware', { origin }));
 
   const hooks = createRpcHooks(origin, messenger);
 
