@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Resolve correct `networkClientId` for source chain in Relay execute flow ([#8492](https://github.com/MetaMask/core/pull/8492))
+- Stop double-counting subsidized fees in Relay quote target amounts ([#8488](https://github.com/MetaMask/core/pull/8488))
 
 ## [19.2.0]
 
