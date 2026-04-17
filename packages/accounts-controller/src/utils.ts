@@ -1,3 +1,4 @@
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -9,7 +10,6 @@ import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
 
 import type { AccountId } from './AccountsController';
-import { KeyringType } from '@metamask/keyring-api/v2';
 
 /**
  * Returns the name of the keyring type.
@@ -111,7 +111,9 @@ export function isSnapKeyringType(keyringType: KeyringTypes | string): boolean {
  * @param keyringType - The account's keyring type.
  * @returns True if the keyring type is considered a Snap keyring, false otherwise.
  */
-export function isSnapKeyringV2Type(keyringType: KeyringTypes | KeyringType | string): boolean {
+export function isSnapKeyringV2Type(
+  keyringType: KeyringTypes | KeyringType | string,
+): boolean {
   return keyringType === (KeyringType.Snap as string);
 }
 

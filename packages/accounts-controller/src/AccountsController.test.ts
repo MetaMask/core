@@ -3,6 +3,7 @@ import {
   InfuraNetworkType,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -16,7 +17,6 @@ import {
   EthScope,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerState,
@@ -1088,7 +1088,9 @@ describe('AccountsController', () => {
           Object.create(SnapKeyringV2.prototype),
           {
             snapId: mockSnapV2SnapId,
-            lookupByAddress: jest.fn().mockReturnValue(mockSnapV2KeyringAccount),
+            lookupByAddress: jest
+              .fn()
+              .mockReturnValue(mockSnapV2KeyringAccount),
           },
         );
 
@@ -1123,7 +1125,11 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        messenger.publish('KeyringController:stateChange', mockNewKeyringState, []);
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
 
         const accounts = accountsController.listMultichainAccounts();
 
@@ -1185,7 +1191,11 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        messenger.publish('KeyringController:stateChange', mockNewKeyringState, []);
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
 
         expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
       });
@@ -1227,7 +1237,11 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        messenger.publish('KeyringController:stateChange', mockNewKeyringState, []);
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
 
         expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
       });

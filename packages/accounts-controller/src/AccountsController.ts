@@ -4,12 +4,12 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type {
   SnapKeyringAccountAssetListUpdatedEvent,
   SnapKeyringAccountBalancesUpdatedEvent,
   SnapKeyringAccountTransactionsUpdatedEvent,
 } from '@metamask/eth-snap-keyring';
+import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import {
   EthAccountType,
@@ -18,6 +18,7 @@ import {
   isEvmAccountType,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
@@ -56,7 +57,6 @@ import {
   isSnapKeyringV2Type,
   keyringTypeToName,
 } from './utils';
-import { KeyringType } from '@metamask/keyring-api/v2';
 
 const controllerName = 'AccountsController';
 

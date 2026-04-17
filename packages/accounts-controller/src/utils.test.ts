@@ -1,7 +1,7 @@
 import { toChecksumAddress } from '@ethereumjs/util';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { KeyringType } from '@metamask/keyring-api/v2';
 
 import { createMockInternalAccount } from '../tests/mocks';
 import {
