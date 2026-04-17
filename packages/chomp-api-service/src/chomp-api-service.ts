@@ -451,10 +451,7 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    return create(
-      jsonResponse,
-      SendIntentResponseArrayStruct,
-    ) as SendIntentResponse[];
+    return create(jsonResponse, SendIntentResponseArrayStruct);
   }
 
   /**
@@ -486,7 +483,7 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    return create(jsonResponse, IntentEntryArrayStruct) as IntentEntry[];
+    return create(jsonResponse, IntentEntryArrayStruct);
   }
 
   /**
@@ -556,9 +553,6 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    return create(
-      jsonResponse,
-      ServiceDetailsResponseStruct,
-    ) as ServiceDetailsResponse;
+    return create(jsonResponse, ServiceDetailsResponseStruct);
   }
 }
