@@ -36,72 +36,6 @@ type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-type MessengerMockResult = {
-  addTransactionBatchMock: jest.MockedFn<
-    TransactionControllerAddTransactionBatchAction['handler']
-  >;
-  addTransactionMock: jest.MockedFn<
-    TransactionControllerAddTransactionAction['handler']
-  >;
-  estimateGasBatchMock: jest.MockedFn<
-    TransactionControllerEstimateGasBatchAction['handler']
-  >;
-  estimateGasMock: jest.MockedFn<
-    TransactionControllerEstimateGasAction['handler']
-  >;
-  fetchQuotesMock: jest.Mock;
-  findNetworkClientIdByChainIdMock: jest.MockedFn<
-    NetworkControllerFindNetworkClientIdByChainIdAction['handler']
-  >;
-  getAccountTrackerControllerStateMock: jest.MockedFn<
-    AccountTrackerControllerGetStateAction['handler']
-  >;
-  getAssetsControllerStateMock: jest.Mock;
-  getBridgeStatusControllerStateMock: jest.MockedFn<
-    BridgeStatusControllerGetStateAction['handler']
-  >;
-  getControllerStateMock: jest.MockedFn<
-    TransactionPayControllerGetStateAction['handler']
-  >;
-  getCurrencyRateControllerStateMock: jest.Mock;
-  getDelegationTransactionMock: jest.MockedFn<
-    TransactionPayControllerGetDelegationTransactionAction['handler']
-  >;
-  getGasFeeControllerStateMock: jest.Mock;
-  getGasFeeTokensMock: jest.MockedFn<
-    TransactionControllerGetGasFeeTokensAction['handler']
-  >;
-  getNetworkClientByIdMock: jest.MockedFn<
-    NetworkControllerGetNetworkClientByIdAction['handler']
-  >;
-  getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
-    RemoteFeatureFlagControllerGetStateAction['handler']
-  >;
-  getStrategyMock: jest.MockedFn<
-    TransactionPayControllerGetStrategyAction['handler']
-  >;
-  getTokenBalanceControllerStateMock: jest.MockedFn<
-    TokenBalancesControllerGetStateAction['handler']
-  >;
-  getTokenRatesControllerStateMock: jest.MockedFn<
-    TokenRatesControllerGetStateAction['handler']
-  >;
-  getTokensControllerStateMock: jest.MockedFn<
-    TokensControllerGetStateAction['handler']
-  >;
-  getTransactionControllerStateMock: jest.MockedFn<
-    TransactionControllerGetStateAction['handler']
-  >;
-  messenger: TransactionPayControllerMessenger;
-  publish: RootMessenger['publish'];
-  submitTransactionMock: jest.MockedFunction<
-    BridgeStatusControllerSubmitTxAction['handler']
-  >;
-  updateTransactionMock: jest.MockedFn<
-    TransactionControllerUpdateTransactionAction['handler']
-  >;
-};
-
 /**
  * Creates a mock controller messenger for testing.
  *
@@ -112,7 +46,7 @@ type MessengerMockResult = {
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function getMessengerMock({
   skipRegister,
-}: { skipRegister?: boolean } = {}): MessengerMockResult {
+}: { skipRegister?: boolean } = {}) {
   const getControllerStateMock: jest.MockedFn<
     TransactionPayControllerGetStateAction['handler']
   > = jest.fn();
