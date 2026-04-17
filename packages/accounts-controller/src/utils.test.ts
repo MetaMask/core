@@ -1,6 +1,7 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { KeyringType } from '@metamask/keyring-api/v2';
 
 import { createMockInternalAccount } from '../tests/mocks';
 import {
@@ -9,6 +10,7 @@ import {
   isMoneyKeyringType,
   isNormalKeyringType,
   isSimpleKeyringType,
+  isSnapKeyringV2Type,
   keyringTypeToName,
 } from './utils';
 
@@ -23,6 +25,7 @@ describe('utils', () => {
       [KeyringTypes.lattice, 'Lattice'],
       [KeyringTypes.qr, 'QR'],
       [KeyringTypes.snap, 'Snap Account'],
+      [KeyringType.Snap, 'Snap Account'],
       [KeyringTypes.money, 'Money'],
     ])('returns "%s" for %s keyring type', (keyringType, expectedName) => {
       expect(keyringTypeToName(keyringType)).toBe(expectedName);
@@ -81,6 +84,22 @@ describe('utils', () => {
       expect(isSimpleKeyringType(KeyringTypes.oneKey)).toBe(false);
       expect(isSimpleKeyringType(KeyringTypes.ledger)).toBe(false);
       expect(isSimpleKeyringType(KeyringTypes.lattice)).toBe(false);
+    });
+  });
+
+  describe('isSnapKeyringV2Type', () => {
+    it('returns true for KeyringType.Snap', () => {
+      expect(isSnapKeyringV2Type(KeyringType.Snap)).toBe(true);
+    });
+
+    it('returns false for the v1 snap keyring type', () => {
+      expect(isSnapKeyringV2Type(KeyringTypes.snap)).toBe(false);
+    });
+
+    it('returns false for non-snap keyring types', () => {
+      expect(isSnapKeyringV2Type(KeyringTypes.hd)).toBe(false);
+      expect(isSnapKeyringV2Type(KeyringTypes.simple)).toBe(false);
+      expect(isSnapKeyringV2Type(KeyringTypes.trezor)).toBe(false);
     });
   });
 
