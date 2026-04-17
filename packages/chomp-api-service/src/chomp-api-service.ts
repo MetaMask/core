@@ -25,17 +25,17 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
 import type {
-  AssociateAddressRequest,
+  AssociateAddressParams,
   AssociateAddressResponse,
-  CreateUpgradeRequest,
+  CreateUpgradeParams,
   UpgradeResponse,
-  CreateWithdrawalRequest,
+  CreateWithdrawalParams,
   CreateWithdrawalResponse,
   IntentEntry,
-  SendIntentRequest,
+  SendIntentParams,
   SendIntentResponse,
   ServiceDetailsResponse,
-  VerifyDelegationRequest,
+  VerifyDelegationParams,
   VerifyDelegationResponse,
 } from './types';
 
@@ -266,15 +266,15 @@ export class ChompApiService extends BaseDataService<
    *
    * POST /v1/auth/address
    *
-   * @param request - The association request containing signature, timestamp,
+   * @param params - The association params containing signature, timestamp,
    * and address.
    * @returns The profile association result. Returns on both 201 and 409.
    */
   async associateAddress(
-    request: AssociateAddressRequest,
+    params: AssociateAddressParams,
   ): Promise<AssociateAddressResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:associateAddress`, request],
+      queryKey: [`${this.name}:associateAddress`, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -283,7 +283,7 @@ export class ChompApiService extends BaseDataService<
           {
             method: 'POST',
             headers,
-            body: JSON.stringify(request),
+            body: JSON.stringify(params),
           },
         );
 
@@ -306,13 +306,13 @@ export class ChompApiService extends BaseDataService<
    *
    * POST /v1/account-upgrade
    *
-   * @param request - The upgrade request containing signature components and
+   * @param params - The upgrade params containing signature components and
    * chain details.
    * @returns The upgrade result.
    */
-  async createUpgrade(request: CreateUpgradeRequest): Promise<UpgradeResponse> {
+  async createUpgrade(params: CreateUpgradeParams): Promise<UpgradeResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:createUpgrade`, request],
+      queryKey: [`${this.name}:createUpgrade`, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -321,7 +321,7 @@ export class ChompApiService extends BaseDataService<
           {
             method: 'POST',
             headers,
-            body: JSON.stringify(request),
+            body: JSON.stringify(params),
           },
         );
 
@@ -384,14 +384,14 @@ export class ChompApiService extends BaseDataService<
    *
    * POST /v1/intent/verify-delegation
    *
-   * @param request - The delegation verification request.
+   * @param params - The delegation verification params.
    * @returns The verification result including validity and optional errors.
    */
   async verifyDelegation(
-    request: VerifyDelegationRequest,
+    params: VerifyDelegationParams,
   ): Promise<VerifyDelegationResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:verifyDelegation`, request],
+      queryKey: [`${this.name}:verifyDelegation`, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -400,7 +400,7 @@ export class ChompApiService extends BaseDataService<
           {
             method: 'POST',
             headers,
-            body: JSON.stringify(request),
+            body: JSON.stringify(params),
           },
         );
 
@@ -427,7 +427,7 @@ export class ChompApiService extends BaseDataService<
    * @returns The array of intent responses.
    */
   async createIntents(
-    intents: SendIntentRequest[],
+    intents: SendIntentParams[],
   ): Promise<SendIntentResponse[]> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:createIntents`, intents],
@@ -491,22 +491,22 @@ export class ChompApiService extends BaseDataService<
    *
    * POST /v1/withdrawal
    *
-   * @param request - The withdrawal request containing chainId, amount
+   * @param params - The withdrawal params containing chainId, amount
    * (decimal or hex string), and account address.
    * @returns The withdrawal result.
    */
   async createWithdrawal(
-    request: CreateWithdrawalRequest,
+    params: CreateWithdrawalParams,
   ): Promise<CreateWithdrawalResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:createWithdrawal`, request],
+      queryKey: [`${this.name}:createWithdrawal`, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(new URL('/v1/withdrawal', this.#baseUrl), {
           method: 'POST',
           headers,
-          body: JSON.stringify(request),
+          body: JSON.stringify(params),
         });
 
         if (!response.ok) {

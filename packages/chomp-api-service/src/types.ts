@@ -17,15 +17,15 @@ export type SignedDelegation = {
   signature: Hex;
 };
 
-// === REQUEST TYPES ===
+// === PARAMS TYPES ===
 
-export type AssociateAddressRequest = {
+export type AssociateAddressParams = {
   signature: Hex;
   timestamp: string;
   address: Hex;
 };
 
-export type CreateUpgradeRequest = {
+export type CreateUpgradeParams = {
   r: Hex;
   s: Hex;
   v: number;
@@ -35,26 +35,26 @@ export type CreateUpgradeRequest = {
   nonce: string;
 };
 
-export type VerifyDelegationRequest = {
+export type VerifyDelegationParams = {
   signedDelegation: SignedDelegation;
   chainId: Hex;
 };
 
-export type IntentMetadataRequest = {
+export type IntentMetadataParams = {
   allowance: Hex;
   tokenSymbol: string;
   tokenAddress: Hex;
   type: 'cash-deposit' | 'cash-withdrawal';
 };
 
-export type SendIntentRequest = {
+export type SendIntentParams = {
   account: Hex;
   delegationHash: Hex;
   chainId: Hex;
-  metadata: IntentMetadataRequest;
+  metadata: IntentMetadataParams;
 };
 
-export type CreateWithdrawalRequest = {
+export type CreateWithdrawalParams = {
   chainId: Hex;
   /** Decimal integer or 0x-prefixed hex string representing the amount. */
   amount: string;

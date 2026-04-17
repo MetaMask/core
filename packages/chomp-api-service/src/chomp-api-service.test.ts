@@ -15,7 +15,7 @@ const MOCK_TOKEN = 'mock-jwt-token';
 
 describe('ChompApiService', () => {
   describe('associateAddress', () => {
-    const associateRequest = {
+    const associateParams = {
       signature: '0x123' as const,
       timestamp: '2026-01-01T00:00:00Z',
       address: '0xabc' as const,
@@ -23,7 +23,7 @@ describe('ChompApiService', () => {
 
     it('sends a POST with auth headers and returns the response on 201', async () => {
       nock(BASE_URL)
-        .post('/v1/auth/address', associateRequest)
+        .post('/v1/auth/address', associateParams)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .matchHeader('Content-Type', 'application/json')
         .reply(201, {
@@ -35,7 +35,7 @@ describe('ChompApiService', () => {
 
       const result = await rootMessenger.call(
         'ChompApiService:associateAddress',
-        associateRequest,
+        associateParams,
       );
 
       expect(result).toStrictEqual({
@@ -53,7 +53,7 @@ describe('ChompApiService', () => {
       });
       const { service } = createService();
 
-      const result = await service.associateAddress(associateRequest);
+      const result = await service.associateAddress(associateParams);
 
       expect(result).toStrictEqual({
         profileId: 'p1',
@@ -69,7 +69,7 @@ describe('ChompApiService', () => {
         .reply(500);
       const { service } = createService();
 
-      await expect(service.associateAddress(associateRequest)).rejects.toThrow(
+      await expect(service.associateAddress(associateParams)).rejects.toThrow(
         "POST /v1/auth/address failed with status '500'",
       );
     });
@@ -80,14 +80,14 @@ describe('ChompApiService', () => {
         .reply(201, JSON.stringify({ missing: 'fields' }));
       const { service } = createService();
 
-      await expect(service.associateAddress(associateRequest)).rejects.toThrow(
+      await expect(service.associateAddress(associateParams)).rejects.toThrow(
         'At path: profileId -- Expected a string',
       );
     });
   });
 
   describe('createUpgrade', () => {
-    const upgradeRequest = {
+    const upgradeParams = {
       r: '0x1' as const,
       s: '0x2' as const,
       v: 27,
@@ -105,14 +105,14 @@ describe('ChompApiService', () => {
 
     it('sends a POST with auth headers and returns the response', async () => {
       nock(BASE_URL)
-        .post('/v1/account-upgrade', upgradeRequest)
+        .post('/v1/account-upgrade', upgradeParams)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .reply(200, upgradeResponse);
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
         'ChompApiService:createUpgrade',
-        upgradeRequest,
+        upgradeParams,
       );
 
       expect(result).toStrictEqual(upgradeResponse);
@@ -125,7 +125,7 @@ describe('ChompApiService', () => {
         .reply(500);
       const { service } = createService();
 
-      await expect(service.createUpgrade(upgradeRequest)).rejects.toThrow(
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
         "POST /v1/account-upgrade failed with status '500'",
       );
     });
@@ -136,7 +136,7 @@ describe('ChompApiService', () => {
         .reply(200, JSON.stringify({ bad: 'data' }));
       const { service } = createService();
 
-      await expect(service.createUpgrade(upgradeRequest)).rejects.toThrow(
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
         'At path: signerAddress -- Expected a string',
       );
     });
@@ -198,7 +198,7 @@ describe('ChompApiService', () => {
   });
 
   describe('verifyDelegation', () => {
-    const delegationRequest = {
+    const delegationParams = {
       signedDelegation: {
         delegate: '0x1' as const,
         delegator: '0x2' as const,
@@ -212,14 +212,14 @@ describe('ChompApiService', () => {
 
     it('sends a POST with auth headers and returns the response', async () => {
       nock(BASE_URL)
-        .post('/v1/intent/verify-delegation', delegationRequest)
+        .post('/v1/intent/verify-delegation', delegationParams)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .reply(200, { valid: true, delegationHash: '0xabc123' });
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
         'ChompApiService:verifyDelegation',
-        delegationRequest,
+        delegationParams,
       );
 
       expect(result).toStrictEqual({
@@ -234,7 +234,7 @@ describe('ChompApiService', () => {
         .reply(200, { valid: false, errors: ['bad signature'] });
       const { service } = createService();
 
-      const result = await service.verifyDelegation(delegationRequest);
+      const result = await service.verifyDelegation(delegationParams);
 
       expect(result).toStrictEqual({
         valid: false,
@@ -249,7 +249,7 @@ describe('ChompApiService', () => {
         .reply(400);
       const { service } = createService();
 
-      await expect(service.verifyDelegation(delegationRequest)).rejects.toThrow(
+      await expect(service.verifyDelegation(delegationParams)).rejects.toThrow(
         "POST /v1/intent/verify-delegation failed with status '400'",
       );
     });
@@ -260,14 +260,14 @@ describe('ChompApiService', () => {
         .reply(200, JSON.stringify({ bad: 'data' }));
       const { service } = createService();
 
-      await expect(service.verifyDelegation(delegationRequest)).rejects.toThrow(
+      await expect(service.verifyDelegation(delegationParams)).rejects.toThrow(
         'At path: valid -- Expected a value of type `boolean`',
       );
     });
   });
 
   describe('createIntents', () => {
-    const intentRequest = [
+    const intentParams = [
       {
         account: '0xabc' as const,
         delegationHash: '0xdef' as const,
@@ -296,14 +296,14 @@ describe('ChompApiService', () => {
 
     it('sends a POST with auth headers and returns the response array', async () => {
       nock(BASE_URL)
-        .post('/v1/intent', intentRequest)
+        .post('/v1/intent', intentParams)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .reply(201, intentResponse);
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
         'ChompApiService:createIntents',
-        intentRequest,
+        intentParams,
       );
 
       expect(result).toStrictEqual(intentResponse);
@@ -316,7 +316,7 @@ describe('ChompApiService', () => {
         .reply(409);
       const { service } = createService();
 
-      await expect(service.createIntents(intentRequest)).rejects.toThrow(
+      await expect(service.createIntents(intentParams)).rejects.toThrow(
         "POST /v1/intent failed with status '409'",
       );
     });
@@ -327,7 +327,7 @@ describe('ChompApiService', () => {
         .reply(201, JSON.stringify([{ bad: 'data' }]));
       const { service } = createService();
 
-      await expect(service.createIntents(intentRequest)).rejects.toThrow(
+      await expect(service.createIntents(intentParams)).rejects.toThrow(
         'At path: 0.delegationHash -- Expected a string',
       );
     });
@@ -398,7 +398,7 @@ describe('ChompApiService', () => {
   });
 
   describe('createWithdrawal', () => {
-    const withdrawalRequest = {
+    const withdrawalParams = {
       chainId: '0x1' as const,
       amount: '1000000',
       account: '0xabc' as const,
@@ -406,14 +406,14 @@ describe('ChompApiService', () => {
 
     it('sends a POST with auth headers and returns the response', async () => {
       nock(BASE_URL)
-        .post('/v1/withdrawal', withdrawalRequest)
+        .post('/v1/withdrawal', withdrawalParams)
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
         .reply(200, { success: true });
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
         'ChompApiService:createWithdrawal',
-        withdrawalRequest,
+        withdrawalParams,
       );
 
       expect(result).toStrictEqual({ success: true });
@@ -426,7 +426,7 @@ describe('ChompApiService', () => {
         .reply(400);
       const { service } = createService();
 
-      await expect(service.createWithdrawal(withdrawalRequest)).rejects.toThrow(
+      await expect(service.createWithdrawal(withdrawalParams)).rejects.toThrow(
         "POST /v1/withdrawal failed with status '400'",
       );
     });
@@ -437,7 +437,7 @@ describe('ChompApiService', () => {
         .reply(200, JSON.stringify({ success: false }));
       const { service } = createService();
 
-      await expect(service.createWithdrawal(withdrawalRequest)).rejects.toThrow(
+      await expect(service.createWithdrawal(withdrawalParams)).rejects.toThrow(
         'At path: success -- Expected the literal `true`',
       );
     });
