@@ -118,7 +118,9 @@ export function formatStateForTransactionPay(params: {
         const balanceHex = amountToHex(amount);
 
         if (isNativeAsset(assetId as Caip19AssetId)) {
-          const nativeAddress = getNativeTokenAddress(chainIdHex);
+          const nativeAddress = toChecksumAddress(
+            getNativeTokenAddress(chainIdHex),
+          );
           const checksumAddress = toChecksumAddress(account.address);
           tokenBalances[accountAddressLower] ??= {};
           tokenBalances[accountAddressLower][chainIdHex] ??= {};
