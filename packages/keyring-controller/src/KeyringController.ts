@@ -2215,7 +2215,7 @@ export class KeyringController<
   }
 
   /**
-   * Constructor helper for registering this controller's messenger
+   * Constructor helper for registering this controller's messeger
    * actions.
    */
   #registerMessageHandlers(): void {
