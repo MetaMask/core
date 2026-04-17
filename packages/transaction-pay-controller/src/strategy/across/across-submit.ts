@@ -113,6 +113,7 @@ async function executeSingleQuote(
  * @param parentTransactionId - ID of the parent transaction.
  * @param acrossDepositType - Transaction type used for the swap/deposit step.
  * @param messenger - Controller messenger.
+ * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns Hash of the last submitted transaction, if available.
  */
 async function submitTransactions(
