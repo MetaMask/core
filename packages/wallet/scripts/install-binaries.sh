@@ -17,10 +17,15 @@ if ! output=$(yarn tsx ../foundryup/src/cli.ts --binaries anvil 2>&1); then
   exit 1
 fi
 
-# Rebuild better-sqlite3's native addon if it can't be loaded. This is
-# necessary when switching Node versions or branches where the prebuilt binary
-# is missing or incompatible.
-if ! node -e "require('better-sqlite3')" 2>/dev/null; then
-  echo "Rebuilding better-sqlite3 native addon..."
-  (cd "${MONOREPO_ROOT}/node_modules/better-sqlite3" && "${MONOREPO_ROOT}/node_modules/.bin/prebuild-install")
+# Install the better-sqlite3 native addon if missing. Yarn has
+# `enableScripts: false` globally, so install scripts never run during
+# `yarn install` and the addon may be absent from the filesystem. Invoke the
+# prebuild-install binary directly to fetch a matching prebuild for the active
+# Node version and platform.
+BETTER_SQLITE3_DIR="${MONOREPO_ROOT}/node_modules/better-sqlite3"
+if [ ! -f "${BETTER_SQLITE3_DIR}/build/Release/better_sqlite3.node" ]; then
+  (
+    cd "${BETTER_SQLITE3_DIR}"
+    "${MONOREPO_ROOT}/node_modules/.bin/prebuild-install"
+  )
 fi
