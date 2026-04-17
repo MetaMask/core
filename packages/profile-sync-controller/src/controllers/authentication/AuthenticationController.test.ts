@@ -230,7 +230,7 @@ describe('AuthenticationController', () => {
 
       await controller.performSignIn();
 
-      mockEndpoints.mockPairProfilesUrl.done();
+      expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(true);
     });
 
     it('does not call pairProfiles when only 1 SRP exists', async () => {
