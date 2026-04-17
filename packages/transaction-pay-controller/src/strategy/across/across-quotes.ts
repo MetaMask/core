@@ -416,9 +416,7 @@ async function calculateSourceNetworkCost(
     })),
     accountSupports7702,
   });
-  const { batchGasLimit } = gasEstimates;
-
-  const { is7702 } = gasEstimates;
+  const { batchGasLimit, is7702 } = gasEstimates;
 
   if (is7702) {
     if (!batchGasLimit) {
