@@ -113,9 +113,9 @@ export function formatExchangeRatesForBridge(params: {
 
         let tokenAddress: Hex | undefined;
         if (parsed.assetNamespace === 'erc20') {
-          tokenAddress = toChecksumAddress(String(parsed.assetReference));
+          tokenAddress = toChecksumAddress(parsed.assetReference);
         } else if (isNative) {
-          tokenAddress = getNativeTokenAddress(chainIdHex);
+          tokenAddress = toChecksumAddress(getNativeTokenAddress(chainIdHex));
         }
 
         if (tokenAddress) {
