@@ -151,7 +151,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
         const isNative = isNativeAsset(assetId);
         const tokenAddress = isNative
-          ? ZERO_ADDRESS // Explicitly use zero address even for chains in which the native token has a non-zero address
+          ? ZERO_ADDRESS // BalanceFetcher requires the use of zero address even for chains in which the native token has a non-zero address
           : (assetReference.toLowerCase() as Address);
 
         assetsToFetch.set(assetIdLowerCase, {
