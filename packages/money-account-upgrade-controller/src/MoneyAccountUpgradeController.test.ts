@@ -14,6 +14,8 @@ import {
 import type { UpgradeConfig } from './types';
 
 const MOCK_CHAIN_ID = '0x1' as Hex;
+const MOCK_ACCOUNT_ADDRESS =
+  '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 
 const MOCK_CONFIG: UpgradeConfig = {
   delegateAddress: '0x1111111111111111111111111111111111111111' as Hex,
@@ -62,6 +64,8 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 type Mocks = {
   getServiceDetails: jest.Mock;
+  signPersonalMessage: jest.Mock;
+  associateAddress: jest.Mock;
 };
 
 function setup({
@@ -80,6 +84,12 @@ function setup({
     getServiceDetails: jest
       .fn()
       .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
+    signPersonalMessage: jest.fn().mockResolvedValue('0xdeadbeef'),
+    associateAddress: jest.fn().mockResolvedValue({
+      profileId: 'profile-1',
+      address: MOCK_ACCOUNT_ADDRESS,
+      status: 'CREATED',
+    }),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -90,6 +100,14 @@ function setup({
     'ChompApiService:getServiceDetails',
     mocks.getServiceDetails,
   );
+  rootMessenger.registerActionHandler(
+    'KeyringController:signPersonalMessage',
+    mocks.signPersonalMessage,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:associateAddress',
+    mocks.associateAddress,
+  );
 
   const messenger: MoneyAccountUpgradeControllerMessenger = new Messenger({
     namespace: 'MoneyAccountUpgradeController',
@@ -97,7 +115,11 @@ function setup({
   });
 
   rootMessenger.delegate({
-    actions: ['ChompApiService:getServiceDetails'],
+    actions: [
+      'ChompApiService:getServiceDetails',
+      'KeyringController:signPersonalMessage',
+      'ChompApiService:associateAddress',
+    ],
     events: [],
     messenger,
   });
@@ -229,17 +251,24 @@ describe('MoneyAccountUpgradeController', () => {
   });
 
   describe('upgradeAccount', () => {
-    it('resolves without doing anything', async () => {
-      const { controller } = setup();
+    it('runs each step for the given address', async () => {
+      const { controller, mocks } = setup();
 
-      expect(await controller.upgradeAccount()).toBeUndefined();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ from: MOCK_ACCOUNT_ADDRESS }),
+      );
+      expect(mocks.associateAddress).toHaveBeenCalledWith(
+        expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
+      );
     });
 
     it('does not mutate state', async () => {
       const { controller } = setup();
       const stateBefore = controller.state;
 
-      await controller.upgradeAccount();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
       expect(controller.state).toStrictEqual(stateBefore);
     });
@@ -250,8 +279,18 @@ describe('MoneyAccountUpgradeController', () => {
       expect(
         await rootMessenger.call(
           'MoneyAccountUpgradeController:upgradeAccount',
+          MOCK_ACCOUNT_ADDRESS,
         ),
       ).toBeUndefined();
+    });
+
+    it('propagates errors thrown by a step', async () => {
+      const { controller, mocks } = setup();
+      mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('signing failed');
     });
   });
 });

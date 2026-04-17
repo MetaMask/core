@@ -4,10 +4,15 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { ChompApiServiceGetServiceDetailsAction } from '@metamask/chomp-api-service';
+import type {
+  ChompApiServiceAssociateAddressAction,
+  ChompApiServiceGetServiceDetailsAction,
+} from '@metamask/chomp-api-service';
+import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
+import { associateAddressStep } from './associate-address';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
 import type { Step } from './step';
 import type { InitConfig } from './types';
@@ -45,7 +50,10 @@ export type MoneyAccountUpgradeControllerActions =
   | MoneyAccountUpgradeControllerGetStateAction
   | MoneyAccountUpgradeControllerMethodActions;
 
-type AllowedActions = ChompApiServiceGetServiceDetailsAction;
+type AllowedActions =
+  | ChompApiServiceAssociateAddressAction
+  | ChompApiServiceGetServiceDetailsAction
+  | KeyringControllerSignPersonalMessageAction;
 
 export type MoneyAccountUpgradeControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -74,7 +82,7 @@ export class MoneyAccountUpgradeController extends BaseController<
 > {
   initialized: boolean;
 
-  readonly #steps: Step[] = [];
+  readonly #steps: Step[] = [associateAddressStep];
 
   /**
    * Constructor for the MoneyAccountUpgradeController.
@@ -147,10 +155,12 @@ export class MoneyAccountUpgradeController extends BaseController<
    * `'already-done'` is skipped without performing any action; a step that
    * reports `'completed'` has performed its action. An error thrown by any
    * step propagates and halts the sequence.
+   *
+   * @param address - The Money Account address to upgrade.
    */
-  async upgradeAccount(): Promise<void> {
+  async upgradeAccount(address: Hex): Promise<void> {
     for (const step of this.#steps) {
-      await step.run();
+      await step.run({ messenger: this.messenger, address });
     }
   }
 }

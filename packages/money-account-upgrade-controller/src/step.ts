@@ -1,3 +1,15 @@
+import type { Hex } from '@metamask/utils';
+
+import type { MoneyAccountUpgradeControllerMessenger } from './MoneyAccountUpgradeController';
+
+/**
+ * Context supplied to each step when it is run.
+ */
+export type StepContext = {
+  messenger: MoneyAccountUpgradeControllerMessenger;
+  address: Hex;
+};
+
 /**
  * The outcome of running a single step in the Money Account upgrade sequence.
  *
@@ -16,5 +28,5 @@ export type StepResult = 'already-done' | 'completed';
  */
 export type Step = {
   name: string;
-  run: () => Promise<StepResult>;
+  run: (context: StepContext) => Promise<StepResult>;
 };
