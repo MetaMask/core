@@ -9,6 +9,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
+import type { Step } from './step';
 import type { InitConfig } from './types';
 
 export const controllerName = 'MoneyAccountUpgradeController';
@@ -72,6 +73,8 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerMessenger
 > {
   initialized: boolean;
+
+  readonly #steps: Step[] = [];
 
   /**
    * Constructor for the MoneyAccountUpgradeController.
@@ -140,9 +143,14 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
-   * Upgrades a Money Account. Currently a no-op.
+   * Runs each step in the upgrade sequence in order. A step that reports
+   * `'already-done'` is skipped without performing any action; a step that
+   * reports `'completed'` has performed its action. An error thrown by any
+   * step propagates and halts the sequence.
    */
   async upgradeAccount(): Promise<void> {
-    // No-op.
+    for (const step of this.#steps) {
+      await step.run();
+    }
   }
 }
