@@ -16,10 +16,15 @@ export type AuthenticationControllerPerformSignOutAction = {
 };
 
 /**
- * Will return a bearer token.
- * Logs a user in if a user is not logged in.
+ * Returns a bearer token for the specified SRP, logging in if needed.
  *
- * @returns profile for the session.
+ * When called without `entropySourceId`, returns the primary (first) SRP's
+ * access token, which is effectively the canonical
+ * profile's token that can be used by alias-aware consumers for cross-SRP
+ * operations.
+ *
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The OIDC access token.
  */
 export type AuthenticationControllerGetBearerTokenAction = {
   type: `AuthenticationController:getBearerToken`;
