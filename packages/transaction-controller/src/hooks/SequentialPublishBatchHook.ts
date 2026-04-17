@@ -97,10 +97,7 @@ export class SequentialPublishBatchHook {
       } catch (error) {
         log('Batch transaction failed', { transaction, error });
         pendingTransactionTracker.stop();
-        const reason = error instanceof Error ? error.message : String(error);
-        throw rpcErrors.internal(
-          `Failed to publish batch transaction: ${reason}`,
-        );
+        throw rpcErrors.internal(`Failed to publish batch transaction`);
       }
     }
 
