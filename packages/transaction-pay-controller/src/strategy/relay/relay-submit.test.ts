@@ -1191,6 +1191,27 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
+      it('uses quote.request.from (accountOverride) for signing when accountOverride is set', async () => {
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
+
+        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
+
+        request.quotes[0].request.isHyperliquidSource = true;
+        request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
+        request.quotes[0].original.steps[0].kind = 'transaction';
+
+        await submitRelayQuotes(request);
+
+        expect(hlWithdrawMock).toHaveBeenCalledTimes(1);
+        expect(hlWithdrawMock).toHaveBeenCalledWith(
+          request.quotes[0],
+          ACCOUNT_OVERRIDE_MOCK,
+          messenger,
+        );
+      });
+
       it('still polls relay status after HyperLiquid withdraw', async () => {
         request.quotes[0].request.isHyperliquidSource = true;
 
