@@ -15,6 +15,7 @@ import type { Json } from '@metamask/utils';
 
 import type {
   LoginResponse,
+  ProfileAlias,
   SRPInterface,
   UserProfile,
   UserProfileLineage,
@@ -108,7 +109,20 @@ export type AuthenticationControllerStateChangeEvent =
     AuthenticationControllerState
   >;
 
-export type Events = AuthenticationControllerStateChangeEvent;
+export type ProfileSignInInfo = {
+  profileId: string;
+  profileAliases: ProfileAlias[];
+  profileIdChanged: boolean;
+};
+
+export type AuthenticationControllerProfileSignInEvent = {
+  type: `${typeof controllerName}:profileSignIn`;
+  payload: [ProfileSignInInfo];
+};
+
+export type Events =
+  | AuthenticationControllerStateChangeEvent
+  | AuthenticationControllerProfileSignInEvent;
 
 // Allowed Actions
 type AllowedActions =
@@ -286,7 +300,7 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('performSignIn');
 
     const allPublicKeys = await this.#snapGetAllPublicKeys();
-    const accessTokens = [];
+    const accessTokens: string[] = [];
 
     // We iterate sequentially in order to be sure that the first entry
     // is the primary SRP LoginResponse.
@@ -295,7 +309,70 @@ export class AuthenticationController extends BaseController<
       accessTokens.push(accessToken);
     }
 
+    // Pair SRP profiles (idempotent — no-op if already paired)
+    if (accessTokens.length >= 2) {
+      const previousCanonical = this.#getCanonicalProfileId();
+
+      try {
+        const profileAliases = await this.#pairSrpProfiles(accessTokens);
+
+        const newCanonical = this.#getCanonicalProfileId();
+        const profileIdChanged = previousCanonical !== newCanonical;
+        const shouldEmitProfileSignInEvent =
+          profileIdChanged || profileAliases.length > 0;
+
+        if (shouldEmitProfileSignInEvent) {
+          this.messenger.publish('AuthenticationController:profileSignIn', {
+            profileId: newCanonical ?? '',
+            profileAliases,
+            profileIdChanged,
+          });
+        }
+      } catch {
+        // Pairing failure is non-fatal — retry on next performSignIn
+      }
+    }
+
     return accessTokens;
+  }
+
+  async #pairSrpProfiles(accessTokens: string[]): Promise<ProfileAlias[]> {
+    if (accessTokens.length < 2) {
+      return [];
+    }
+    const {
+      profileAliases,
+      profile: { canonicalProfileId },
+    } = await this.#auth.pairSrpProfiles(accessTokens, accessTokens[0]);
+    this.#propagateCanonical(canonicalProfileId);
+    return profileAliases;
+  }
+
+  #propagateCanonical(canonicalProfileId: string): void {
+    const { srpSessionData } = this.state;
+    if (!srpSessionData) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const key of Object.keys(state.srpSessionData ?? {})) {
+        const entry = state.srpSessionData?.[key];
+        if (entry?.profile) {
+          entry.profile.canonicalProfileId = canonicalProfileId;
+        }
+      }
+    });
+  }
+
+  #getCanonicalProfileId(): string | null {
+    const { srpSessionData } = this.state;
+    if (!srpSessionData) {
+      return null;
+    }
+    const firstKey = Object.keys(srpSessionData)[0];
+    return firstKey
+      ? (srpSessionData[firstKey]?.profile?.canonicalProfileId ?? null)
+      : null;
   }
 
   public performSignOut(): void {
@@ -307,12 +384,16 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Will return a bearer token.
-   * Logs a user in if a user is not logged in.
+   * Returns a bearer token for the specified SRP, logging in if needed.
    *
-   * @returns profile for the session.
+   * When called without `entropySourceId`, returns the primary (first) SRP's
+   * access token, which is effectively the canonical
+   * profile's token that can be used by alias-aware consumers for cross-SRP
+   * operations.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The OIDC access token.
    */
-
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
     const resolvedId =

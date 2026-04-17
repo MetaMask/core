@@ -1,6 +1,7 @@
 import type { Eip1193Provider } from 'ethers';
 
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import { computeIdentifierId } from './utils/identifier';
 import { ValidationError, RateLimitedError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
@@ -15,7 +16,9 @@ import {
   authorizeOIDC,
   getNonce,
   getUserProfileLineage,
+  pairProfiles,
 } from './services';
+import type { PairProfilesResponse } from './services';
 import type {
   AuthConfig,
   AuthSigningOptions,
@@ -150,6 +153,13 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    return await pairProfiles(accessTokens, authAccessToken, this.#config.env);
+  }
+
   async signMessage(
     message: string,
     entropySourceId?: string,
@@ -220,6 +230,29 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       this.#metametrics,
     );
 
+    // Resolve original profileId from aliases.
+    // This is done mainly to preserve the original profileId for storage key derivation
+    // until we migrate to the canonical profileId storage system.
+    const canonicalProfileId = authResponse.profile.profileId;
+    const profile = { ...authResponse.profile };
+
+    if (authResponse.profileAliases?.length > 0) {
+      const targetIdentifierId = computeIdentifierId(
+        publicKey,
+        this.#config.env,
+      );
+
+      const targetAlias = authResponse.profileAliases.find((alias) =>
+        alias.identifierIds.some((id) => id.id === targetIdentifierId),
+      );
+
+      if (targetAlias) {
+        profile.profileId = targetAlias.aliasProfileId;
+      }
+    }
+
+    profile.canonicalProfileId = canonicalProfileId;
+
     // Authorize
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
@@ -229,7 +262,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
     // Save
     const result: LoginResponse = {
-      profile: authResponse.profile,
+      profile,
       token: tokenResponse,
     };
 

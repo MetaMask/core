@@ -28,6 +28,12 @@ jest.mock('./services', () => ({
   getUserProfileLineage: jest.fn(),
 }));
 
+// Mock computeIdentifierId
+const mockComputeIdentifierId = jest.fn();
+jest.mock('./utils/identifier', () => ({
+  computeIdentifierId: (...args: unknown[]) => mockComputeIdentifierId(...args),
+}));
+
 describe('SRPJwtBearerAuth rate limit handling', () => {
   const config: AuthConfig & { type: AuthType.SRP } = {
     type: AuthType.SRP,
@@ -38,6 +44,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   // Mock data constants
   const MOCK_PROFILE: UserProfile = {
     profileId: 'p1',
+    canonicalProfileId: 'p1',
     metaMetricsId: 'm1',
     identifierId: 'i1',
   };
@@ -208,5 +215,208 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     const token = await auth.getAccessToken();
     expect(token).toBe(validJwt);
     expect(mockGetNonce).not.toHaveBeenCalled();
+  });
+});
+
+describe('SRPJwtBearerAuth profileId resolution', () => {
+  const config: AuthConfig & { type: AuthType.SRP } = {
+    type: AuthType.SRP,
+    env: Env.DEV,
+    platform: Platform.EXTENSION,
+  };
+
+  const MOCK_NONCE_RESPONSE = {
+    nonce: 'nonce-1',
+    identifier: 'identifier-1',
+    expiresIn: 60,
+  };
+
+  const MOCK_OIDC_RESPONSE = {
+    accessToken: 'access-token',
+    expiresIn: 60,
+    obtainedAt: Date.now(),
+  };
+
+  const createAuth = () => {
+    const store: { value: LoginResponse | null } = { value: null };
+
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async () => store.value,
+        setLoginResponse: async (val) => {
+          store.value = val;
+        },
+      },
+      signing: {
+        getIdentifier: async () => 'MOCK_PUBLIC_KEY',
+        signMessage: async () => 'signature-1',
+      },
+    });
+
+    return { auth, store };
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
+    mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
+    mockComputeIdentifierId.mockReturnValue('computed-identifier-hash');
+  });
+
+  it('resolves original profileId from aliases when paired', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'canonical-profile-id',
+        canonicalProfileId: 'canonical-profile-id',
+      },
+      profileAliases: [
+        {
+          aliasProfileId: 'original-profile-id',
+          canonicalProfileId: 'canonical-profile-id',
+          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+        },
+        {
+          aliasProfileId: 'other-original-id',
+          canonicalProfileId: 'canonical-profile-id',
+          identifierIds: [{ id: 'other-hash', type: 'SRP' }],
+        },
+      ],
+    });
+
+    const { auth } = createAuth();
+    const profile = await auth.getUserProfile();
+
+    expect(profile.profileId).toBe('original-profile-id');
+    expect(profile.canonicalProfileId).toBe('canonical-profile-id');
+    expect(mockComputeIdentifierId).toHaveBeenCalledWith(
+      'MOCK_PUBLIC_KEY',
+      Env.DEV,
+    );
+  });
+
+  it('keeps canonical as profileId when no alias matches', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'canonical-profile-id',
+        canonicalProfileId: 'canonical-profile-id',
+      },
+      profileAliases: [
+        {
+          aliasProfileId: 'other-original-id',
+          canonicalProfileId: 'canonical-profile-id',
+          identifierIds: [{ id: 'non-matching-hash', type: 'SRP' }],
+        },
+      ],
+    });
+
+    const { auth } = createAuth();
+    const profile = await auth.getUserProfile();
+
+    expect(profile.profileId).toBe('canonical-profile-id');
+    expect(profile.canonicalProfileId).toBe('canonical-profile-id');
+  });
+
+  it('stores profileId as-is when no aliases are returned (unpaired)', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'solo-profile-id',
+        canonicalProfileId: 'solo-profile-id',
+      },
+      profileAliases: [],
+    });
+
+    const { auth } = createAuth();
+    const profile = await auth.getUserProfile();
+
+    expect(profile.profileId).toBe('solo-profile-id');
+    expect(profile.canonicalProfileId).toBe('solo-profile-id');
+    expect(mockComputeIdentifierId).not.toHaveBeenCalled();
+  });
+
+  it('does not call computeIdentifierId when profileAliases is undefined', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'solo-profile-id',
+        canonicalProfileId: 'solo-profile-id',
+      },
+    });
+
+    const { auth } = createAuth();
+    const profile = await auth.getUserProfile();
+
+    expect(profile.profileId).toBe('solo-profile-id');
+    expect(mockComputeIdentifierId).not.toHaveBeenCalled();
+  });
+
+  it('sets canonicalProfileId to the login response profileId', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'canonical-from-server',
+        canonicalProfileId: 'canonical-from-server',
+      },
+      profileAliases: [
+        {
+          aliasProfileId: 'my-original-id',
+          canonicalProfileId: 'canonical-from-server',
+          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+        },
+      ],
+    });
+
+    const { auth, store } = createAuth();
+    await auth.getUserProfile();
+
+    expect(store.value?.profile.profileId).toBe('my-original-id');
+    expect(store.value?.profile.canonicalProfileId).toBe(
+      'canonical-from-server',
+    );
+  });
+
+  it('persists resolved profile to storage', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'canonical-id',
+        canonicalProfileId: 'canonical-id',
+      },
+      profileAliases: [
+        {
+          aliasProfileId: 'original-id',
+          canonicalProfileId: 'canonical-id',
+          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+        },
+      ],
+    });
+
+    const { auth, store } = createAuth();
+    await auth.getAccessToken();
+
+    expect(store.value).not.toBeNull();
+    expect(store.value?.profile.profileId).toBe('original-id');
+    expect(store.value?.profile.canonicalProfileId).toBe('canonical-id');
+    expect(store.value?.token.accessToken).toBe('access-token');
   });
 });
