@@ -2,7 +2,7 @@ import {
   deriveKeyFromRegistrationResponse,
   deriveKeyFromAuthenticationResponse,
 } from './key-derivation';
-import type { PasskeyRecord, PasskeyRegistrationSession } from './types';
+import type { PasskeyRecord, PasskeyRegistrationCeremony } from './types';
 import type {
   PasskeyAuthenticationResponse,
   PasskeyRegistrationResponse,
@@ -20,11 +20,12 @@ const USER_HANDLE = b64url('user-handle-bytes');
 const PRF_SALT = b64url('prf-salt-bytes');
 const PRF_FIRST = b64url('prf-output-bytes');
 
-function makeSession(): PasskeyRegistrationSession {
+function makeRegistrationCeremony(): PasskeyRegistrationCeremony {
   return {
     userHandle: USER_HANDLE,
     prfSalt: PRF_SALT,
     challenge: b64url('challenge'),
+    createdAt: 0,
   };
 }
 
@@ -81,7 +82,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
 
     const { encKey, derivationMethod } = deriveKeyFromRegistrationResponse(
       response,
-      makeSession(),
+      makeRegistrationCeremony(),
     );
 
     expect(derivationMethod).toBe('prf');
@@ -89,17 +90,30 @@ describe('deriveKeyFromRegistrationResponse', () => {
     expect(encKey).toHaveLength(32);
   });
 
-  it('uses PRF output when prf.enabled is true', () => {
+  it('uses PRF output when prf.enabled is true and results.first is present', () => {
     const response = makeRegistrationResponse({
       prf: { enabled: true, results: { first: PRF_FIRST } },
     });
 
     const { derivationMethod } = deriveKeyFromRegistrationResponse(
       response,
-      makeSession(),
+      makeRegistrationCeremony(),
     );
 
     expect(derivationMethod).toBe('prf');
+  });
+
+  it('falls back to userHandle when prf.enabled is true but results.first is absent', () => {
+    const response = makeRegistrationResponse({
+      prf: { enabled: true },
+    });
+
+    const { derivationMethod } = deriveKeyFromRegistrationResponse(
+      response,
+      makeRegistrationCeremony(),
+    );
+
+    expect(derivationMethod).toBe('userHandle');
   });
 
   it('falls back to userHandle when PRF is absent', () => {
@@ -107,7 +121,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
 
     const { encKey, derivationMethod } = deriveKeyFromRegistrationResponse(
       response,
-      makeSession(),
+      makeRegistrationCeremony(),
     );
 
     expect(derivationMethod).toBe('userHandle');
@@ -122,7 +136,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
 
     const { derivationMethod } = deriveKeyFromRegistrationResponse(
       response,
-      makeSession(),
+      makeRegistrationCeremony(),
     );
 
     expect(derivationMethod).toBe('userHandle');
@@ -135,18 +149,18 @@ describe('deriveKeyFromRegistrationResponse', () => {
 
     const { encKey: key1 } = deriveKeyFromRegistrationResponse(
       response1,
-      makeSession(),
+      makeRegistrationCeremony(),
     );
     const { encKey: key2 } = deriveKeyFromRegistrationResponse(
       response2,
-      makeSession(),
+      makeRegistrationCeremony(),
     );
 
     expect(key1).not.toStrictEqual(key2);
   });
 
   it('produces different keys for PRF vs userHandle', () => {
-    const session = makeSession();
+    const registrationCeremony = makeRegistrationCeremony();
 
     const responseWithPrf = makeRegistrationResponse({
       prf: { results: { first: PRF_FIRST } },
@@ -155,11 +169,11 @@ describe('deriveKeyFromRegistrationResponse', () => {
 
     const { encKey: prfKey } = deriveKeyFromRegistrationResponse(
       responseWithPrf,
-      session,
+      registrationCeremony,
     );
     const { encKey: uhKey } = deriveKeyFromRegistrationResponse(
       responseWithoutPrf,
-      session,
+      registrationCeremony,
     );
 
     expect(prfKey).not.toStrictEqual(uhKey);
@@ -204,11 +218,11 @@ describe('deriveKeyFromAuthenticationResponse', () => {
 
   it('produces consistent keys across registration and authentication', () => {
     const regResponse = makeRegistrationResponse({});
-    const session = makeSession();
+    const registrationCeremony = makeRegistrationCeremony();
 
     const { encKey: regKey } = deriveKeyFromRegistrationResponse(
       regResponse,
-      session,
+      registrationCeremony,
     );
 
     const authResponse = makeAuthenticationResponse({}, USER_HANDLE);

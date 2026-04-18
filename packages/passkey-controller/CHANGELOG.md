@@ -9,26 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `PasskeyController.clearState` — resets passkey enrollment and clears in-flight WebAuthn sessions (aligned with other MetaMask controllers' `clearState` naming for lifecycle resets such as wallet reset)
-- `PasskeyController` — manages passkey-based vault key protection using WebAuthn, orchestrating the full passkey lifecycle:
-  - `generateRegistrationOptions` — produces WebAuthn credential creation options for passkey enrollment
-  - `protectVaultKeyWithPasskey` — verifies a registration response and encrypts the vault key with the new credential
-  - `generateAuthenticationOptions` — produces WebAuthn credential request options for passkey authentication
-  - `retrieveVaultKeyWithPasskey` — verifies an authentication response and recovers the vault encryption key
-  - `renewVaultKeyProtection` — re-encrypts the vault key for password-change flows without re-enrolling the passkey
-  - `removePasskey` — unenrolls the passkey and clears all stored key material
-  - `isPasskeyEnrolled` — returns whether a passkey is currently enrolled
-- Adaptive key derivation with two strategies selected automatically during enrollment:
-  - **PRF** — uses the WebAuthn PRF extension output as HKDF input key material
-  - **userHandle** — falls back to a random userHandle when PRF is unavailable
-- Self-contained WebAuthn verification (no Node.js server dependencies):
-  - `clientDataJSON` verification: `type`, `challenge`, `origin`
-  - `authenticatorData` verification: `rpIdHash` (SHA-256 comparison), flags (`up`, `uv`), counter monotonicity
-  - Signature verification against stored credential public key using `@noble/curves` (EC2/EdDSA) and Web Crypto API (RSA fallback)
-  - Attestation format support: `none` and `packed` self-attestation
-- AES-256-GCM encryption utilities for vault key wrapping with HKDF-SHA256 key derivation
-- Exported types: `PasskeyControllerState`, `PasskeyControllerMessenger`, `PasskeyControllerGetStateAction`, `PasskeyControllerIsPasskeyEnrolledAction`, `PasskeyControllerActions`, `PasskeyControllerStateChangeEvent`, `PasskeyControllerEvents`
-- Self-contained WebAuthn types: `PasskeyRegistrationOptions`, `PasskeyRegistrationResponse`, `PasskeyAuthenticationOptions`, `PasskeyAuthenticationResponse`
-- COSE constant enums: `COSEALG`, `COSEKEYS`, `COSEKTY`, `COSECRV`
+- Initial `@metamask/passkey-controller` package: passkey-based vault key protection using WebAuthn, orchestrating enrollment, authentication, and vault key wrap/unwrap with AES-256-GCM and HKDF-derived keys.
+- `PasskeyController` API:
+  - `generateRegistrationOptions` / `protectVaultKeyWithPasskey` — enrollment and vault key protection
+  - `generateAuthenticationOptions` / `retrieveVaultKeyWithPasskey` — unlock and vault key recovery
+  - `renewVaultKeyProtection` — re-wrap vault key for password-change flows without re-enrolling the passkey
+  - `removePasskey` — unenroll and clear key material
+  - `isPasskeyEnrolled` — enrollment check (exposed via messenger)
+  - `clearState` — reset persisted state and clear in-flight WebAuthn ceremony state (for app lifecycle, e.g. wallet reset)
+- Adaptive key derivation during enrollment: **PRF** (WebAuthn PRF extension output as HKDF input) or **userHandle** fallback; PRF path used only when `prf.results.first` is a non-empty string.
+- Self-contained WebAuthn verification (no Node server): `clientDataJSON` and `authenticatorData` checks, signature verification (`@noble/curves` + Web Crypto RSA), attestation formats `none` and `packed` self-attestation.
+- In-flight **ceremony** coordination (distinct from user login sessions): challenge-keyed registration/authentication state in `src/ceremony-manager.ts` (`CeremonyManager` and timing/capacity constants), TTL aligned with WebAuthn `timeout`, and a cap on concurrent ceremonies per flow so multiple tabs/contexts do not overwrite a single in-memory entry.
+- Exported timing and limits from package entry: `WEBAUTHN_TIMEOUT_MS`, `SESSION_TTL_SLACK_MS`, `SESSION_MAX_AGE_MS`, `MAX_CONCURRENT_PASSKEY_CEREMONIES` (`PasskeyController` does not re-export these; import from `@metamask/passkey-controller` or `./ceremony-manager` in the monorepo).
+- Exported controller types (`PasskeyControllerState`, messenger types, actions, events) and WebAuthn option/response types; internal ceremony payload types `PasskeyRegistrationCeremony` / `PasskeyAuthenticationCeremony` in `types.ts`.
+- AES-256-GCM helpers and COSE enums (`COSEALG`, `COSEKEYS`, `COSEKTY`, `COSECRV`).
 
 [Unreleased]: https://github.com/MetaMask/core/

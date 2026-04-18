@@ -1,6 +1,6 @@
 import type {
   PasskeyRecord,
-  PasskeyRegistrationSession,
+  PasskeyRegistrationCeremony,
   PrfClientExtensionResults,
 } from './types';
 import { deriveEncryptionKey } from './utils/crypto';
@@ -14,20 +14,21 @@ import type {
  * Derives an AES-256 wrapping key from a WebAuthn registration ceremony
  * response.
  *
- * Checks whether the authenticator returned a PRF evaluation result. If
- * so, uses the PRF output as HKDF input key material; otherwise falls
- * back to the random `userHandle` created during option generation.
+ * Uses the PRF output as HKDF input key material when
+ * `clientExtensionResults.prf.results.first` is a non-empty string;
+ * otherwise falls back to the random `userHandle` created during option
+ * generation (including when PRF is enabled but no output is present).
  *
  * @param registrationResponse - The registration credential result from
  *   `navigator.credentials.create()`.
- * @param session - The in-memory registration session that was created
+ * @param registrationCeremony - In-flight registration ceremony state from
  *   when `generateRegistrationOptions()` was called.
  * @returns The derived 32-byte AES wrapping key and which derivation
  *   method (PRF vs userHandle) was used.
  */
 export function deriveKeyFromRegistrationResponse(
   registrationResponse: PasskeyRegistrationResponse,
-  session: PasskeyRegistrationSession,
+  registrationCeremony: PasskeyRegistrationCeremony,
 ): {
   encKey: Uint8Array;
   derivationMethod: 'prf' | 'userHandle';
@@ -37,13 +38,14 @@ export function deriveKeyFromRegistrationResponse(
     registrationResponse.clientExtensionResults as PrfClientExtensionResults
   )?.prf;
   const prfFirst = prf?.results?.first;
-  const prfEnabled =
-    prf?.enabled === true || (prfFirst !== undefined && prfFirst.length > 0);
-  const derivationMethod = prfEnabled ? 'prf' : 'userHandle';
+  const hasPrfOutput = typeof prfFirst === 'string' && prfFirst.length > 0;
+  const derivationMethod: 'prf' | 'userHandle' = hasPrfOutput
+    ? 'prf'
+    : 'userHandle';
   const ikm: Uint8Array =
     derivationMethod === 'prf'
       ? base64URLToBytes(prfFirst as string)
-      : base64URLToBytes(session.userHandle);
+      : base64URLToBytes(registrationCeremony.userHandle);
   const encKey = deriveEncryptionKey(ikm, base64URLToBytes(credentialId));
   return { encKey, derivationMethod };
 }

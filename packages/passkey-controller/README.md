@@ -14,7 +14,7 @@ or
 
 The controller follows a two-phase ceremony pattern for both enrollment and authentication:
 
-1. **Generate options** — call a synchronous method that returns options JSON and creates an in-memory session.
+1. **Generate options** — call a synchronous method that returns options JSON and records **in-flight ceremony** state (challenge-keyed; not a user login session).
 2. **Verify response** — pass the authenticator's response back to the controller, which verifies the WebAuthn signature and performs the cryptographic operation (protect or retrieve the vault key).
 
 ### Key derivation strategies
@@ -95,7 +95,7 @@ controller.isPasskeyEnrolled(); // boolean
 
 controller.removePasskey(); // user-facing unenroll
 
-controller.clearState(); // same persisted reset + session drop; use for app lifecycle (e.g. wallet reset)
+controller.clearState(); // same persisted reset + clears in-flight ceremony state; use for app lifecycle (e.g. wallet reset)
 ```
 
 ## API

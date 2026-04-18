@@ -7,15 +7,12 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 
+import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
 import {
   deriveKeyFromAuthenticationResponse,
   deriveKeyFromRegistrationResponse,
 } from './key-derivation';
-import type {
-  PasskeyAuthenticationSession,
-  PasskeyRecord,
-  PasskeyRegistrationSession,
-} from './types';
+import type { PasskeyRecord } from './types';
 import { decryptWithKey, encryptWithKey } from './utils/crypto';
 import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
 import {
@@ -29,6 +26,7 @@ import type {
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
 } from './webauthn';
+import { decodeClientDataJSON } from './webauthn/decodeClientDataJSON';
 
 const controllerName = 'PasskeyController';
 
@@ -100,9 +98,7 @@ export class PasskeyController extends BaseController<
   PasskeyControllerState,
   PasskeyControllerMessenger
 > {
-  #registrationSession: PasskeyRegistrationSession | null = null;
-
-  #authenticationSession: PasskeyAuthenticationSession | null = null;
+  readonly #ceremonyManager = new CeremonyManager();
 
   readonly #rpID: string;
 
@@ -148,6 +144,10 @@ export class PasskeyController extends BaseController<
 
   #getPasskeyRecord(): PasskeyRecord | null {
     return this.state.passkeyRecord;
+  }
+
+  #getChallengeFromClientData(clientDataJSON: string): string {
+    return decodeClientDataJSON(clientDataJSON).challenge;
   }
 
   /**
@@ -198,7 +198,7 @@ export class PasskeyController extends BaseController<
         { alg: COSEALG.ES256, type: 'public-key' },
         { alg: COSEALG.RS256, type: 'public-key' },
       ],
-      timeout: 60000,
+      timeout: WEBAUTHN_TIMEOUT_MS,
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'preferred',
@@ -208,11 +208,12 @@ export class PasskeyController extends BaseController<
       ...(Object.keys(extensions).length > 0 ? { extensions } : {}),
     };
 
-    this.#registrationSession = {
+    this.#ceremonyManager.saveRegistrationCeremony(challenge, {
       userHandle,
       prfSalt: prfSalt ?? '',
       challenge,
-    };
+      createdAt: Date.now(),
+    });
 
     return options;
   }
@@ -251,11 +252,14 @@ export class PasskeyController extends BaseController<
         },
       ],
       userVerification: 'preferred',
-      timeout: 60000,
+      timeout: WEBAUTHN_TIMEOUT_MS,
       extensions,
     };
 
-    this.#authenticationSession = { challenge };
+    this.#ceremonyManager.saveAuthenticationCeremony(challenge, {
+      challenge,
+      createdAt: Date.now(),
+    });
 
     return options;
   }
@@ -268,7 +272,7 @@ export class PasskeyController extends BaseController<
    * @param params.registrationResponse - The credential result from
    *   `navigator.credentials.create()`.
    * @param params.vaultKey - The vault encryption key to protect.
-   * @throws If no registration session is active (call
+   * @throws If no registration ceremony is active (call
    *   {@link generateRegistrationOptions} first).
    * @throws If registration verification fails.
    */
@@ -276,22 +280,29 @@ export class PasskeyController extends BaseController<
     registrationResponse: PasskeyRegistrationResponse;
     vaultKey: string;
   }): Promise<void> {
-    const session = this.#registrationSession;
-    if (!session) {
-      throw new Error('No active passkey registration session');
-    }
-
     const { registrationResponse, vaultKey } = params;
+    const challengeKey = this.#getChallengeFromClientData(
+      registrationResponse.response.clientDataJSON,
+    );
+    const registrationCeremony =
+      this.#ceremonyManager.getRegistrationCeremony(challengeKey);
+    if (!registrationCeremony) {
+      throw new Error('No active passkey registration ceremony');
+    }
 
     const verification = await verifyRegistrationResponse({
       response: registrationResponse,
-      expectedChallenge: session.challenge,
+      expectedChallenge: registrationCeremony.challenge,
       expectedOrigin: this.#expectedOrigin,
       expectedRPID: this.#rpID,
       requireUserVerification: false,
+    }).catch((error) => {
+      this.#ceremonyManager.deleteRegistrationCeremony(challengeKey);
+      throw error;
     });
 
     if (!verification.verified || !verification.registrationInfo) {
+      this.#ceremonyManager.deleteRegistrationCeremony(challengeKey);
       throw new Error('Passkey registration verification failed');
     }
 
@@ -299,7 +310,7 @@ export class PasskeyController extends BaseController<
 
     const { encKey, derivationMethod } = deriveKeyFromRegistrationResponse(
       registrationResponse,
-      session,
+      registrationCeremony,
     );
 
     const { ciphertext, iv } = encryptWithKey(vaultKey, encKey);
@@ -309,13 +320,14 @@ export class PasskeyController extends BaseController<
       derivationMethod,
       encryptedVaultKey: ciphertext,
       iv,
-      prfSalt: derivationMethod === 'prf' ? session.prfSalt : undefined,
+      prfSalt:
+        derivationMethod === 'prf' ? registrationCeremony.prfSalt : undefined,
       publicKey: bytesToBase64URL(registrationInfo.publicKey),
       counter: registrationInfo.counter,
       transports: registrationInfo.transports,
     });
 
-    this.#registrationSession = null;
+    this.#ceremonyManager.deleteRegistrationCeremony(challengeKey);
   }
 
   /**
@@ -325,7 +337,7 @@ export class PasskeyController extends BaseController<
    *   `navigator.credentials.get()`.
    * @returns The recovered vault encryption key.
    * @throws If no passkey is enrolled.
-   * @throws If no authentication session is active (call
+   * @throws If no authentication ceremony is active (call
    *   {@link generateAuthenticationOptions} first).
    * @throws If authentication verification or key recovery fails.
    */
@@ -337,20 +349,40 @@ export class PasskeyController extends BaseController<
       throw new Error('Passkey is not enrolled');
     }
 
-    await this.#verifyAuthentication(authenticationResponse, record);
+    const challengeKey = this.#getChallengeFromClientData(
+      authenticationResponse.response.clientDataJSON,
+    );
+    const authenticationCeremony =
+      this.#ceremonyManager.getAuthenticationCeremony(challengeKey);
+    if (!authenticationCeremony) {
+      throw new Error('No active passkey authentication ceremony');
+    }
+
+    try {
+      await this.#verifyAuthentication(
+        authenticationResponse,
+        record,
+        authenticationCeremony.challenge,
+      );
+    } catch (error) {
+      this.#ceremonyManager.deleteAuthenticationCeremony(challengeKey);
+      throw error;
+    }
+
+    const updatedRecord = this.#getPasskeyRecord() as PasskeyRecord;
 
     const encKey = deriveKeyFromAuthenticationResponse(
       authenticationResponse,
-      record,
+      updatedRecord,
     );
 
     const vaultKey = decryptWithKey(
-      record.encryptedVaultKey,
-      record.iv,
+      updatedRecord.encryptedVaultKey,
+      updatedRecord.iv,
       encKey,
     );
 
-    this.#authenticationSession = null;
+    this.#ceremonyManager.deleteAuthenticationCeremony(challengeKey);
 
     return vaultKey;
   }
@@ -368,7 +400,7 @@ export class PasskeyController extends BaseController<
    *   (verified for consistency).
    * @param params.newVaultKey - The new vault key to protect.
    * @throws If no passkey is enrolled.
-   * @throws If no authentication session is active.
+   * @throws If no authentication ceremony is active.
    * @throws If `oldVaultKey` does not match the currently protected key.
    */
   async renewVaultKeyProtection(params: {
@@ -383,21 +415,41 @@ export class PasskeyController extends BaseController<
       throw new Error('Passkey is not enrolled');
     }
 
-    await this.#verifyAuthentication(authenticationResponse, record);
+    const challengeKey = this.#getChallengeFromClientData(
+      authenticationResponse.response.clientDataJSON,
+    );
+    const authenticationCeremony =
+      this.#ceremonyManager.getAuthenticationCeremony(challengeKey);
+    if (!authenticationCeremony) {
+      throw new Error('No active passkey authentication ceremony');
+    }
+
+    try {
+      await this.#verifyAuthentication(
+        authenticationResponse,
+        record,
+        authenticationCeremony.challenge,
+      );
+    } catch (error) {
+      this.#ceremonyManager.deleteAuthenticationCeremony(challengeKey);
+      throw error;
+    }
+
+    const recordAfterVerify = this.#getPasskeyRecord() as PasskeyRecord;
 
     const encKey = deriveKeyFromAuthenticationResponse(
       authenticationResponse,
-      record,
+      recordAfterVerify,
     );
 
     const decryptedVaultKey = decryptWithKey(
-      record.encryptedVaultKey,
-      record.iv,
+      recordAfterVerify.encryptedVaultKey,
+      recordAfterVerify.iv,
       encKey,
     );
 
     if (decryptedVaultKey !== oldVaultKey) {
-      this.#authenticationSession = null;
+      this.#ceremonyManager.deleteAuthenticationCeremony(challengeKey);
       throw new Error(
         'Passkey authentication does not match the current vault key',
       );
@@ -406,25 +458,20 @@ export class PasskeyController extends BaseController<
     const { ciphertext, iv: newIv } = encryptWithKey(newVaultKey, encKey);
 
     this.#setPasskeyRecord({
-      ...record,
+      ...recordAfterVerify,
       encryptedVaultKey: ciphertext,
       iv: newIv,
     });
 
-    this.#authenticationSession = null;
+    this.#ceremonyManager.deleteAuthenticationCeremony(challengeKey);
   }
 
-  /**
-   * Resets persisted state to defaults and clears any in-flight WebAuthn
-   * sessions (registration or authentication). Use from app lifecycle hooks
-   * such as wallet reset, alongside other controllers' `clearState` pattern.
-   */
+  /** Resets state and clears in-flight registration/authentication ceremonies. */
   clearState(): void {
     this.update((state) => {
       Object.assign(state, getDefaultPasskeyControllerState());
     });
-    this.#registrationSession = null;
-    this.#authenticationSession = null;
+    this.#ceremonyManager.clear();
   }
 
   /**
@@ -440,19 +487,17 @@ export class PasskeyController extends BaseController<
    *
    * @param authenticationResponse - Authentication result JSON.
    * @param record - The enrolled passkey record to verify against.
+   * @param expectedChallenge - Challenge for this ceremony (from in-memory
+   *   ceremony state).
    */
   async #verifyAuthentication(
     authenticationResponse: PasskeyAuthenticationResponse,
     record: PasskeyRecord,
+    expectedChallenge: string,
   ): Promise<void> {
-    const session = this.#authenticationSession;
-    if (!session) {
-      throw new Error('No active passkey authentication session');
-    }
-
     const verification = await verifyAuthenticationResponse({
       response: authenticationResponse,
-      expectedChallenge: session.challenge,
+      expectedChallenge,
       expectedOrigin: this.#expectedOrigin,
       expectedRPID: this.#rpID,
       credential: {
@@ -461,9 +506,7 @@ export class PasskeyController extends BaseController<
         counter: record.counter,
         transports: record.transports,
       },
-      // Passkeys with touch-only authenticators (no PIN/biometric) are
-      // accepted intentionally to maximise device compatibility. The
-      // vault key is already protected by the user's wallet password.
+      // UV optional for device compatibility; vault key remains password-gated.
       requireUserVerification: false,
     });
 

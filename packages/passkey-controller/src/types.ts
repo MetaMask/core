@@ -32,16 +32,28 @@ export type PasskeyRecord = {
   transports?: AuthenticatorTransportFuture[];
 };
 
-/** In-memory registration session: creation material + RP challenge bytes. */
-export type PasskeyRegistrationSession = {
+/**
+ * In-memory state for one **in-flight** WebAuthn **registration** ceremony
+ * (from `create()` options until `protectVaultKeyWithPasskey` completes). This is
+ * not a user login session; it is keyed by challenge and distinct from the full
+ * spec ceremony (which includes the authenticator round-trip).
+ */
+export type PasskeyRegistrationCeremony = {
   userHandle: Base64URLString;
   prfSalt: Base64URLString;
   challenge: Base64URLString;
+  /** When this ceremony was started (ms since epoch); used for TTL pruning. */
+  createdAt: number;
 };
 
-/** In-memory authentication session: challenge bytes. */
-export type PasskeyAuthenticationSession = {
+/**
+ * In-memory state for one **in-flight** WebAuthn **authentication** ceremony
+ * (`get()` options until the assertion is verified). Not a user login session.
+ */
+export type PasskeyAuthenticationCeremony = {
   challenge: Base64URLString;
+  /** When this ceremony was started (ms since epoch); used for TTL pruning. */
+  createdAt: number;
 };
 
 /**
