@@ -2,12 +2,12 @@ import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 import { sha256 } from '@noble/hashes/sha2';
 
 import { COSEALG, COSEKEYS } from './constants';
-import { decodeAttestationObject } from './decodeAttestationObject';
-import { decodeClientDataJSON } from './decodeClientDataJSON';
-import { matchExpectedRPID } from './matchExpectedRPID';
-import { parseAuthenticatorData } from './parseAuthenticatorData';
+import { decodeAttestationObject } from './decode-attestation-object';
+import { decodeClientDataJSON } from './decode-client-data-json';
+import { matchExpectedRPID } from './match-expected-rp-id';
+import { parseAuthenticatorData } from './parse-authenticator-data';
 import type { PasskeyRegistrationResponse } from './types';
-import { verifySignature } from './verifySignature';
+import { verifySignature } from './verify-signature';
 import type { AuthenticatorTransportFuture } from '../types';
 import {
   base64URLToBytes,

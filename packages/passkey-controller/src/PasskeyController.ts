@@ -17,6 +17,7 @@ import { decryptWithKey, encryptWithKey } from './utils/crypto';
 import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
 import {
   COSEALG,
+  decodeClientDataJSON,
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from './webauthn';
@@ -26,7 +27,6 @@ import type {
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
 } from './webauthn';
-import { decodeClientDataJSON } from './webauthn/decodeClientDataJSON';
 
 const controllerName = 'PasskeyController';
 

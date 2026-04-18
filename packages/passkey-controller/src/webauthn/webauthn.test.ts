@@ -9,8 +9,8 @@ import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
 } from './types';
-import { verifyAuthenticationResponse } from './verifyAuthenticationResponse';
-import { verifyRegistrationResponse } from './verifyRegistrationResponse';
+import { verifyAuthenticationResponse } from './verify-authentication-response';
+import { verifyRegistrationResponse } from './verify-registration-response';
 import { bytesToBase64URL } from '../utils/encoding';
 
 // ---------------------------------------------------------------------------
@@ -1437,7 +1437,7 @@ describe('verifyRegistrationResponse edge cases', () => {
 
 describe('verifySignature', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require
-  const { verifySignature } = require('./verifySignature');
+  const { verifySignature } = require('./verify-signature');
 
   it('verifies P-384 EC2 signature', async () => {
     const privateKey = p384.utils.randomPrivateKey();
@@ -1652,7 +1652,7 @@ describe('verifySignature', () => {
 
 describe('parseAuthenticatorData edge cases', () => {
   /* eslint-disable @typescript-eslint/no-require-imports, n/global-require */
-  const { parseAuthenticatorData } = require('./parseAuthenticatorData');
+  const { parseAuthenticatorData } = require('./parse-authenticator-data');
   /* eslint-enable @typescript-eslint/no-require-imports, n/global-require */
 
   it('throws for authenticator data shorter than 37 bytes', () => {
@@ -1725,7 +1725,7 @@ describe('parseAuthenticatorData edge cases', () => {
 
 describe('matchExpectedRPID edge cases', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require
-  const { matchExpectedRPID } = require('./matchExpectedRPID');
+  const { matchExpectedRPID } = require('./match-expected-rp-id');
 
   it('throws when no RP ID matches', () => {
     const rpIdHash = sha256(new TextEncoder().encode('example.com'));
@@ -1799,7 +1799,7 @@ describe('verifySignature RSA hash variants', () => {
   /* eslint-disable @typescript-eslint/no-require-imports, n/global-require */
   const {
     verifySignature: verifySignatureHelper,
-  } = require('./verifySignature');
+  } = require('./verify-signature');
   /* eslint-enable @typescript-eslint/no-require-imports, n/global-require */
 
   async function generateRSAKeyPairAndSign(
