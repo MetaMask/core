@@ -213,7 +213,8 @@ export class PasskeyController extends BaseController<
   /**
    * WebAuthn request options for authenticating with the enrolled passkey.
    *
-   * Call before {@link retrieveVaultKeyWithPasskey} or {@link renewVaultKeyProtection}.
+   * Call before {@link retrieveVaultKeyWithPasskey},
+   * {@link verifyPasskeyAuthentication}, or {@link renewVaultKeyProtection}.
    *
    * @returns Options for `navigator.credentials.get()`.
    */
@@ -328,7 +329,7 @@ export class PasskeyController extends BaseController<
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<string> {
     // verify authentication response
-    await this.#verifyAuthentication(authenticationResponse);
+    await this.#verifyAuthenticationResponse(authenticationResponse);
 
     // derive key
     const passkeyRecord = this.#getPasskeyRecord() as PasskeyRecord;
@@ -348,6 +349,24 @@ export class PasskeyController extends BaseController<
   }
 
   /**
+   * Returns whether passkey authentication succeeds for this credential (same
+   * work as {@link retrieveVaultKeyWithPasskey} without exposing the vault key).
+   *
+   * @param authenticationResponse - Credential from `navigator.credentials.get()`.
+   * @returns `true` if authentication succeeds, otherwise `false`.
+   */
+  async verifyPasskeyAuthentication(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<boolean> {
+    try {
+      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Updates the vault encryption key for the same passkey (e.g. after a password change).
    *
    * @param params - Renewal parameters.
@@ -362,7 +381,7 @@ export class PasskeyController extends BaseController<
   }): Promise<void> {
     // verify authentication response
     const { authenticationResponse } = params;
-    await this.#verifyAuthentication(authenticationResponse);
+    await this.#verifyAuthenticationResponse(authenticationResponse);
 
     // derive key
     const passkeyRecord = this.#getPasskeyRecord() as PasskeyRecord;
@@ -418,7 +437,7 @@ export class PasskeyController extends BaseController<
    * @param authenticationResponse - Authentication result JSON.
    * @param shouldDeleteCeremony - Remove the in-flight ceremony after success (default: true).
    */
-  async #verifyAuthentication(
+  async #verifyAuthenticationResponse(
     authenticationResponse: PasskeyAuthenticationResponse,
     shouldDeleteCeremony = true,
   ): Promise<void> {

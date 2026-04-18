@@ -596,6 +596,96 @@ describe('PasskeyController', () => {
     });
   });
 
+  describe('verifyPasskeyAuthentication', () => {
+    it('returns false when passkey is not enrolled', async () => {
+      setupAuthenticationMocks();
+      const controller = createController();
+      expect(
+        await controller.verifyPasskeyAuthentication(
+          minimalAuthenticationResponse('uh'),
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when there is no authentication ceremony', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        vaultKey: 'k',
+      });
+
+      expect(
+        await controller.verifyPasskeyAuthentication(
+          minimalAuthenticationResponse('uh'),
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when verification fails', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        vaultKey: 'k',
+      });
+
+      mockVerifyAuthenticationResponse.mockResolvedValue({
+        verified: false,
+        authenticationInfo: {},
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+
+      expect(
+        await controller.verifyPasskeyAuthentication(
+          minimalAuthenticationResponse('uh', undefined, authOpts.challenge),
+        ),
+      ).toBe(false);
+    });
+
+    it('returns true on successful authentication (prf)', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(7));
+      const vaultKey = 'verify-bool-ok';
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      expect(
+        await controller.verifyPasskeyAuthentication(
+          minimalAuthenticationResponse(
+            undefined,
+            {
+              clientExtensionResults: prfResults(prfFirst),
+            },
+            authOpts.challenge,
+          ),
+        ),
+      ).toBe(true);
+    });
+  });
+
   describe('registration and authentication round-trip (userHandle)', () => {
     it('retrieves vault key using userHandle derivation', async () => {
       setupRegistrationMocks();

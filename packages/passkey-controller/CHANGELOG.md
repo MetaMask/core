@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `PasskeyController.verifyPasskeyAuthentication` — returns whether the passkey authentication response is valid without returning the vault key (delegates to the same path as `retrieveVaultKeyWithPasskey`).
 - Initial `@metamask/passkey-controller` package: passkey-based vault key protection using WebAuthn, orchestrating enrollment, authentication, and vault key wrap/unwrap with AES-256-GCM and HKDF-derived keys.
 - `PasskeyController` API:
   - `generateRegistrationOptions` / `protectVaultKeyWithPasskey` — enrollment and vault key protection
