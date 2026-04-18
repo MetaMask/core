@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add UI-safe subpath exports `./formatters`, `./calculations`, and `./constants` so consumers can import pure formatting/calc utilities (`perpsFormatters`, `orderCalculations`, `perpsConfig`) without transitively loading the HyperLiquid SDK. This avoids pulling ESM-only `@noble/hashes` into CJS Jest environments where `transformIgnorePatterns` is not customized.
+- Add UI-safe subpath exports `./formatters`, `./calculations`, `./constants`, and `./constants/hyperliquid` so consumers can import pure formatting/calc utilities (`perpsFormatters`, `orderCalculations`, `perpsConfig`, `hyperLiquidConfig`) without transitively loading the HyperLiquid SDK. This avoids pulling ESM-only `@noble/hashes` into CJS Jest environments where `transformIgnorePatterns` is not customized.
 
 ## [3.2.0]
 

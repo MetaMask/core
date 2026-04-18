@@ -65,6 +65,16 @@
         "default": "./dist/constants/perpsConfig.cjs"
       }
     },
+    "./constants/hyperliquid": {
+      "import": {
+        "types": "./dist/constants/hyperLiquidConfig.d.mts",
+        "default": "./dist/constants/hyperLiquidConfig.mjs"
+      },
+      "require": {
+        "types": "./dist/constants/hyperLiquidConfig.d.cts",
+        "default": "./dist/constants/hyperLiquidConfig.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
