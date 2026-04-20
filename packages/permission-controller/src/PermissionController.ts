@@ -882,22 +882,19 @@ export class PermissionController<
    * @template Type - The type of the permission specification to get.
    * @param permissionType - The type of the permission specification to get.
    * @param targetName - The name of the permission whose specification to get.
-   * @param requestingOrigin - The origin of the requesting subject, if any.
-   * Will be added to any thrown errors.
+   * @param requestingOrigin - The origin of the requesting subject. Will be
+   * added to any thrown errors.
    * @returns The specification object corresponding to the given type and
    * target name.
    */
   #getTypedPermissionSpecification<Type extends PermissionType>(
     permissionType: Type,
     targetName: string,
-    requestingOrigin?: string,
+    requestingOrigin: string,
   ): ControllerPermissionSpecification & { permissionType: Type } {
     const failureError =
       permissionType === PermissionType.RestrictedMethod
-        ? methodNotFound(
-            targetName,
-            requestingOrigin ? { origin: requestingOrigin } : undefined,
-          )
+        ? methodNotFound(targetName, { origin: requestingOrigin })
         : new EndowmentPermissionDoesNotExistError(
             targetName,
             requestingOrigin,
@@ -923,12 +920,12 @@ export class PermissionController<
    * @see {@link PermissionController.executeRestrictedMethod} for internal usage.
    * @param method - The name of the restricted method.
    * @param origin - The origin associated with the request for the restricted
-   * method, if any.
+   * method.
    * @returns The restricted method implementation.
    */
-  getRestrictedMethod(
+  #getRestrictedMethod(
     method: string,
-    origin?: string,
+    origin: string,
   ): RestrictedMethod<RestrictedMethodParameters, Json> {
     return this.#getTypedPermissionSpecification(
       PermissionType.RestrictedMethod,
@@ -2765,7 +2762,7 @@ export class PermissionController<
     params?: RestrictedMethodParameters,
   ): Promise<Json> {
     // Throws if the method does not exist
-    const methodImplementation = this.getRestrictedMethod(targetName, origin);
+    const methodImplementation = this.#getRestrictedMethod(targetName, origin);
 
     const result = await this.#executeRestrictedMethod(
       methodImplementation,

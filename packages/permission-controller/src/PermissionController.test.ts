@@ -957,36 +957,6 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('getRestrictedMethod', () => {
-    it('gets the implementation of a restricted method', async () => {
-      const controller = getDefaultPermissionController();
-      const method = controller.getRestrictedMethod(
-        PermissionNames.wallet_getSecretArray,
-      );
-
-      expect(
-        await method({
-          method: 'wallet_getSecretArray',
-          context: { origin: 'github.com' },
-        }),
-      ).toStrictEqual(['a', 'b', 'c']);
-    });
-
-    it('throws an error if the requested permission target is not a restricted method', () => {
-      const controller = getDefaultPermissionController();
-      expect(() =>
-        controller.getRestrictedMethod(PermissionNames.endowmentAnySubject),
-      ).toThrow(errors.methodNotFound(PermissionNames.endowmentAnySubject));
-    });
-
-    it('throws an error if the method does not exist', () => {
-      const controller = getDefaultPermissionController();
-      expect(() => controller.getRestrictedMethod('foo')).toThrow(
-        errors.methodNotFound('foo'),
-      );
-    });
-  });
-
   describe('getSubjectNames', () => {
     it('gets all subject names', () => {
       const controller = getDefaultPermissionController();
