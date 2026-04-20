@@ -923,6 +923,15 @@ describe('BridgeStatusController constructor', () => {
       },
     },
     {
+      title: 'solana srcChainId, no tx hash, no txMeta',
+      txMeta: {
+        id: 'solanaTxMetaId1',
+      },
+      srcChainId: ChainId.SOLANA,
+      expectedHistoryTxMetaId: 'solanaTxMetaId1',
+      txHash: 'solanaTxMetaId1',
+    },
+    {
       title: 'no txHash, no txMeta, provider returns no receipt',
       txMeta: {
         id: 'undefined',
@@ -951,6 +960,7 @@ describe('BridgeStatusController constructor', () => {
       providerAction = () => Promise.resolve(),
       txMeta,
       expectedHistoryTxMetaId,
+      srcChainId,
     }) => {
       // Setup
       jest.useFakeTimers();
@@ -971,6 +981,7 @@ describe('BridgeStatusController constructor', () => {
         MockTxHistory.getPending({
           txMetaId: txMeta?.id ?? 'unknownTxMetaId1',
           srcTxHash: txHash,
+          srcChainId,
         }),
       )[0];
 
@@ -1019,24 +1030,14 @@ describe('BridgeStatusController constructor', () => {
           await flushPromises();
 
           // Assertions
-          const fetchTxStatusCalls = fetchBridgeTxStatusSpy.mock.calls.length;
-          const consoleWarnCalls = consoleWarnSpy.mock.calls;
-          const expectedMetric = messengerCallSpy.mock.calls;
-
-          expect({
-            expectedMetric,
-            fetchTxStatusCalls,
-            historyTxMetaIdAfterFetch:
-              controller.state.txHistory[historyKey]?.txMetaId,
-            consoleWarnCalls: consoleWarnCalls.map((call) =>
-              JSON.stringify(call),
-            ),
-          }).toStrictEqual({
-            expectedMetric: [],
-            fetchTxStatusCalls: 0,
-            historyTxMetaIdAfterFetch: expectedHistoryTxMetaId,
-            consoleWarnCalls: ['["Failed to fetch bridge tx status",{}]'],
-          });
+          expect(messengerCallSpy.mock.calls).toStrictEqual([]);
+          expect(fetchBridgeTxStatusSpy.mock.calls).toHaveLength(0);
+          expect(controller.state.txHistory[historyKey]?.txMetaId).toBe(
+            expectedHistoryTxMetaId,
+          );
+          expect(
+            consoleWarnSpy.mock.calls.map((call) => JSON.stringify(call)),
+          ).toStrictEqual(['["Failed to fetch bridge tx status",{}]']);
 
           expect(controller.state.txHistory[historyKey]?.status.status).toBe(
             expectedHistoryTxMetaId ? StatusTypes.PENDING : undefined,

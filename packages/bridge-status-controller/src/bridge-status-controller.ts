@@ -719,10 +719,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const srcTxHash = this.#setAndGetSrcTxHash(bridgeTxMetaId);
 
         // Throw errors to increase polling attempts counter
-        if (
-          isHistoryItemTooOld(this.messenger, historyItem) &&
-          historyItem.attempts?.counter
-        ) {
+        if (isHistoryItemTooOld(this.messenger, historyItem)) {
           throw new Error(`History item is too old: ${bridgeTxMetaId}}`);
         }
 
@@ -842,7 +839,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // But it is possible to have bridgeHistoryItem in state without the srcTxHash yet when it is an STX
     const srcTxHash = txHistory[bridgeTxMetaId].status.srcChain.txHash;
 
-    if (srcTxHash) {
+    if (
+      srcTxHash ||
+      isNonEvmChainId(txHistory[bridgeTxMetaId].quote.srcChainId)
+    ) {
+      // throw new Error(`Src tx hash not found for non-EVM chain: ${srcTxHash}`);
       return srcTxHash;
     }
 
