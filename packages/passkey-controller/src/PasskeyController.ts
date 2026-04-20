@@ -192,10 +192,11 @@ export class PasskeyController extends BaseController<
       ],
       timeout: WEBAUTHN_TIMEOUT_MS,
       authenticatorSelection: {
-        residentKey: 'preferred',
         userVerification: 'preferred',
         authenticatorAttachment: 'platform',
+        residentKey: 'preferred',
       },
+      hints: ['client-device', 'hybrid'],
       attestation: 'direct',
       ...(Object.keys(extensions).length > 0 ? { extensions } : {}),
     };
@@ -242,6 +243,7 @@ export class PasskeyController extends BaseController<
         },
       ],
       userVerification: 'preferred',
+      hints: ['client-device', 'hybrid'],
       timeout: WEBAUTHN_TIMEOUT_MS,
       extensions,
     };

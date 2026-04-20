@@ -28,4 +28,5 @@ export type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
+  PublicKeyCredentialHint,
 } from './webauthn';

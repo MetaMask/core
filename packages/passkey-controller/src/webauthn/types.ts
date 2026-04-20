@@ -9,6 +9,11 @@ export type PublicKeyCredentialDescriptorJSON = {
   transports?: AuthenticatorTransportFuture[];
 };
 
+export type PublicKeyCredentialHint =
+  | 'hybrid'
+  | 'security-key'
+  | 'client-device';
+
 export type PasskeyRegistrationOptions = {
   rp: { name: string; id: string };
   user: {
@@ -26,6 +31,7 @@ export type PasskeyRegistrationOptions = {
     requireResidentKey?: boolean;
     userVerification?: 'discouraged' | 'preferred' | 'required';
   };
+  hints?: PublicKeyCredentialHint[];
   attestation?: 'direct' | 'enterprise' | 'indirect' | 'none';
   extensions?: Record<string, unknown>;
 };
@@ -52,6 +58,7 @@ export type PasskeyAuthenticationOptions = {
   rpId?: string;
   allowCredentials?: PublicKeyCredentialDescriptorJSON[];
   userVerification?: 'discouraged' | 'preferred' | 'required';
+  hints?: PublicKeyCredentialHint[];
   extensions?: Record<string, unknown>;
 };
 
