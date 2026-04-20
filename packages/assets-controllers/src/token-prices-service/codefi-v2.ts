@@ -319,6 +319,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
   '0xdef1': 'eip155:57073/slip44:60', // Ink Mainnet - Native symbol: ETH
   '0x3dc': 'eip155:988/erc20:0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
+  '0xf043a': 'eip155:984122/slip44:984122', // Forma - Native symbol: TIA (Celestia)
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
