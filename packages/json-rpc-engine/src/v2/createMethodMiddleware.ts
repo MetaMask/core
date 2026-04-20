@@ -4,25 +4,22 @@ import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
 import { ContextConstraint } from './MiddlewareContext';
 import { Json, JsonRpcParams, JsonRpcRequest } from './utils';
 
-type HandlerActions<Handler> =
-  Handler extends MethodHandler<Record<string, unknown>, infer Actions> ? Actions : never;
+// The helpers below seem excessive, but they are required for inference of hooks/actions.
+type HandlerActions<Handler> = Handler extends {
+  implementation: (options: infer Options) => unknown;
+}
+  ? Options extends { messenger: Messenger<string, infer Actions> }
+    ? Actions
+    : never
+  : never;
 
-type HandlerHooks<Handler> =
-  Handler extends MethodHandler<infer Hooks> ? Hooks : never;
-
-export type MethodHandlerImplementation<
-  Hooks extends Record<string, unknown> = Record<string, never>,
-  MessengerActions extends ActionConstraint = never,
-  Parameters extends JsonRpcParams = JsonRpcParams,
-  Result extends Json = Json,
-  Context extends ContextConstraint = ContextConstraint,
-> = (options: {
-  request: Readonly<JsonRpcRequest<Parameters>>;
-  context: Context;
-  next: Next<JsonRpcRequest>;
-  messenger: Messenger<string, MessengerActions>;
-  hooks: Hooks;
-}) => Promise<Result> | Result;
+type HandlerHooks<Handler> = Handler extends {
+  implementation: (options: infer Options) => unknown;
+}
+  ? Options extends { hooks: infer Hooks }
+    ? Hooks
+    : never
+  : never;
 
 export type MethodHandler<
   Hooks extends Record<string, unknown> = Record<string, unknown>,
@@ -31,62 +28,73 @@ export type MethodHandler<
   Result extends Json = Json,
   Context extends ContextConstraint = ContextConstraint,
 > = {
-  implementation: MethodHandlerImplementation<
-    Hooks,
-    MessengerActions,
-    Parameters,
-    Result,
-    Context
-  >;
+  implementation: (options: {
+    request: Readonly<JsonRpcRequest<Parameters>>;
+    context: Context;
+    next: Next<JsonRpcRequest>;
+    messenger: Messenger<string, MessengerActions>;
+    hooks: Hooks;
+  }) => Promise<Result> | Result;
   hookNames?: { [Key in keyof Hooks]: true };
   actionNames?: MessengerActions['type'][];
 };
 
+type AnyMethodHandler = {
+  implementation(
+    this: void,
+    options: {
+      request: Readonly<JsonRpcRequest>;
+      context: ContextConstraint;
+      next: Next<JsonRpcRequest>;
+      messenger: unknown;
+      hooks: unknown;
+    },
+  ): Promise<Json> | Json;
+  hookNames?: Record<string, true>;
+  actionNames?: readonly string[];
+};
+
 export type CreateMethodMiddlewareOptions<
-  Handlers extends Record<string, MethodHandler>,
+  Handlers extends Record<string, AnyMethodHandler>,
 > = {
   handlers: Handlers;
   messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
   hooks: HandlerHooks<Handlers[keyof Handlers]>;
 };
 
-type ResolvedHandler<
-  Hooks extends Record<string, unknown> = Record<string, unknown>,
-  MessengerActions extends ActionConstraint = never,
-  Parameters extends JsonRpcParams = JsonRpcParams,
-  Result extends Json = Json,
-  Context extends ContextConstraint = ContextConstraint,
-> = {
-  implementation: MethodHandlerImplementation<
-    Hooks,
-    MessengerActions,
-    Parameters,
-    Result,
-    Context
-  >;
+type ResolvedHandler = {
+  implementation: AnyMethodHandler['implementation'];
   hooks: Record<string, unknown>;
-  messenger: Messenger<string, MessengerActions>;
+  messenger: Messenger<string, ActionConstraint>;
 };
 
 export function createMethodMiddleware<
-  Handlers extends Record<string, MethodHandler>,
+  Handlers extends Record<string, AnyMethodHandler>,
   Context extends ContextConstraint,
 >(
   options: CreateMethodMiddlewareOptions<Handlers>,
 ): JsonRpcMiddleware<JsonRpcRequest, Json, Context> {
-  const { messenger: rootMessenger, hooks: allHooks } = options;
+  const { messenger: rootMessenger } = options;
+  const allHooks = options.hooks as Record<string, unknown>;
 
   const handlers = Object.entries(options.handlers).reduce<
     Record<string, ResolvedHandler>
   >((accumulator, [handlerName, handler]) => {
     const handlerHooks = selectHooks(allHooks, handler.hookNames) ?? {};
-    const handlerMessenger = new Messenger({
+    const handlerMessenger = new Messenger<
+      string,
+      HandlerActions<Handlers[keyof Handlers]>,
+      never,
+      typeof rootMessenger
+    >({
       namespace: handlerName,
       parent: rootMessenger,
     });
 
     rootMessenger.delegate({
-      actions: handler.actionNames ?? [],
+      actions: (handler.actionNames ?? []) as HandlerActions<
+        Handlers[keyof Handlers]
+      >['type'][],
       messenger: handlerMessenger,
     });
 
