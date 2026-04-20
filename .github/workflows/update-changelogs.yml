@@ -89,6 +89,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -96,7 +97,9 @@ jobs:
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
       - name: Checkout pull request
-        run: gh pr checkout "$PR_NUMBER"
+        run: |
+          git fetch --no-tags origin "$PR_HEAD_SHA"
+          git checkout --detach "$PR_HEAD_SHA"
 
       - name: Setup environment
         uses: MetaMask/action-checkout-and-setup@v3
