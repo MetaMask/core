@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       is-release: ${{ steps.is-release.outputs.is-release }}
+      head-sha: ${{ steps.pr-head-sha.outputs.pr-head-sha }}
     steps:
       - name: Determine whether this PR is from a fork
         id: is-fork
@@ -35,12 +36,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
 
+      - name: Get pull request base ref and head SHA
+        if: steps.is-fork.outputs.is-fork == 'false'
+        id: pr-head-sha
+        env:
+          GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          echo "pr-base-ref=$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
+          echo "pr-head-sha=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
       - name: Get merge base
         if: steps.is-fork.outputs.is-fork == 'false'
         id: merge-base
         shell: bash
         env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_REF: ${{ steps.pr-head-sha.outputs.pr-base-ref }}
         run: |
           set -euo pipefail
 
@@ -95,16 +112,9 @@ jobs:
         with:
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
-      - name: Get pull request head SHA
-        id: pr-head-sha
-        run: echo "pr-head-sha=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
-        env:
-          GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-
       - name: Checkout pull request
         env:
-          PR_HEAD_SHA: ${{ steps.pr-head-sha.outputs.pr-head-sha }}
+          PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
         run: |
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git checkout --detach "$PR_HEAD_SHA"
