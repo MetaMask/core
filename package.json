@@ -45,7 +45,7 @@
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^5.0.1",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/create-release-branch": "^4.2.0",
     "@metamask/eslint-config": "^15.0.0",
@@ -109,11 +109,8 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
-      "babel-runtime>core-js": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "tsx>esbuild": false
     }
   }
 }
