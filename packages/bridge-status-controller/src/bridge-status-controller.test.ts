@@ -4879,6 +4879,27 @@ describe('BridgeStatusController', () => {
         ]);
       });
 
+      it('should call getAccountByAddress when txParams.from is set', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionFailed', {
+          error: 'tx-error',
+          transactionMeta: {
+            chainId: CHAIN_IDS.ARBITRUM,
+            networkClientId: 'eth-id',
+            time: Date.now(),
+            txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            id: 'bridgeTxMetaId1',
+          },
+        });
+
+        expect(messengerCallSpy).toHaveBeenCalledWith(
+          'AccountsController:getAccountByAddress',
+          '0xaccount1',
+        );
+      });
+
       it('should not track failed event for signed status', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish('TransactionController:transactionFailed', {
