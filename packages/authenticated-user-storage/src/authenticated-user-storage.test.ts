@@ -6,13 +6,6 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
-import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
-import {
-  getAuthenticatedStorageUrl,
-  AuthenticatedUserStorageService,
-} from './authenticated-user-storage';
-import type { Environment } from './env';
-import { getUserStorageApiUrl } from './env';
 import {
   handleMockListDelegations,
   handleMockCreateDelegation,
@@ -25,6 +18,13 @@ import {
   MOCK_DELEGATION_SUBMISSION,
   MOCK_NOTIFICATION_PREFERENCES,
 } from '../tests/mocks/authenticated-userstorage';
+import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
+import {
+  getAuthenticatedStorageUrl,
+  AuthenticatedUserStorageService,
+} from './authenticated-user-storage';
+import type { Environment } from './env';
+import { getUserStorageApiUrl } from './env';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
