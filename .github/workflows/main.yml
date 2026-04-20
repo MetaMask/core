@@ -104,7 +104,7 @@ jobs:
       - id: is-release
         uses: MetaMask/action-is-release@v2
         with:
-          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
+          commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
 
   publish-release:
     name: Publish release
