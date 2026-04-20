@@ -63,6 +63,7 @@ exports[`BridgeController SSE should replace all stale quotes after a refresh an
 [
   "Unified SwapBridge Quotes Requested",
   {
+    "account_hardware_type": null,
     "action_type": "swapbridge-v1",
     "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
     "chain_id_source": "eip155:1",
@@ -89,6 +90,7 @@ exports[`BridgeController SSE should reset and refetch quotes after quote reques
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -115,6 +117,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -137,6 +140,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
   [
     "Unified SwapBridge Quotes Error",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -232,6 +236,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -254,6 +259,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
   [
     "Unified SwapBridge Quotes Error",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -349,6 +355,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",

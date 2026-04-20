@@ -23,7 +23,6 @@ import {
 import { serviceName, SocialServiceErrorMessage } from './social-constants';
 import type {
   FetchFollowersOptions,
-  FetchFollowingOptions,
   FetchLeaderboardOptions,
   FetchPositionsOptions,
   FetchTraderProfileOptions,
@@ -423,24 +422,19 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Fetches the list of traders a user is following.
+   * Fetches the list of traders the current user is following.
    *
-   * Calls `GET ${baseUrl}/users/${addressOrUid}/following`.
+   * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
    *
-   * @param options - Options bag.
-   * @param options.addressOrUid - Wallet address or Clicker profile ID.
    * @returns The following response.
    */
-  async fetchFollowing(
-    options: FetchFollowingOptions,
-  ): Promise<FollowingResponse> {
-    const { addressOrUid } = options;
-
+  async fetchFollowing(): Promise<FollowingResponse> {
     const followingResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchFollowing`, addressOrUid],
+      queryKey: [`${this.name}:fetchFollowing`],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/following`;
+        const url = `${this.#v1Url}/users/me/following`;
         const authHeaders = await this.#getAuthHeaders();
         const response = await fetch(url, { headers: authHeaders });
         SocialService.#throwIfNotOk(
@@ -461,23 +455,23 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Follows one or more traders.
+   * Follows one or more traders on behalf of the current user.
    *
-   * Calls `PUT ${baseUrl}/users/${addressOrUid}/follows`.
+   * Calls `PUT ${baseUrl}/users/me/follows`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
    *
    * @param options - Options bag.
-   * @param options.addressOrUid - Wallet address or Clicker profile ID of the user.
    * @param options.targets - Array of wallet addresses or profile IDs to follow.
    * @returns The follow response with confirmed follows.
    */
   async follow(options: FollowOptions): Promise<FollowResponse> {
-    const { addressOrUid, targets } = options;
+    const { targets } = options;
 
     const followResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:follow`, addressOrUid, targets],
+      queryKey: [`${this.name}:follow`, targets],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`;
+        const url = `${this.#v1Url}/users/me/follows`;
         const authHeaders = await this.#getAuthHeaders();
         const response = await fetch(url, {
           method: 'PUT',
@@ -500,27 +494,25 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Unfollows one or more traders.
+   * Unfollows one or more traders on behalf of the current user.
    *
-   * Calls `DELETE ${baseUrl}/users/${addressOrUid}/follows?targets=...`.
-   * Targets are sent as query params because Fastify does not parse
-   * request bodies on DELETE requests per RFC 9110.
+   * Calls `DELETE ${baseUrl}/users/me/follows?targets=...`. Targets are sent
+   * as query params because Fastify does not parse request bodies on DELETE
+   * requests per RFC 9110. The caller is identified server-side from the JWT
+   * sub claim carried in the Authorization header.
    *
    * @param options - Options bag.
-   * @param options.addressOrUid - Wallet address or Clicker profile ID of the user.
    * @param options.targets - Array of wallet addresses or profile IDs to unfollow.
    * @returns The unfollow response with confirmed unfollows.
    */
   async unfollow(options: UnfollowOptions): Promise<UnfollowResponse> {
-    const { addressOrUid, targets } = options;
+    const { targets } = options;
 
     const unfollowResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:unfollow`, addressOrUid, targets],
+      queryKey: [`${this.name}:unfollow`, targets],
       staleTime: 0,
       queryFn: async () => {
-        const url = new URL(
-          `${this.#v1Url}/users/${encodeURIComponent(addressOrUid)}/follows`,
-        );
+        const url = new URL(`${this.#v1Url}/users/me/follows`);
         for (const target of targets) {
           url.searchParams.append('targets', target);
         }

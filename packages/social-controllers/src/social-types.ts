@@ -187,7 +187,7 @@ export type FollowersResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/users/:addressOrUid/following`.
+ * Response from `GET /v1/users/me/following`.
  */
 export type FollowingResponse = {
   following: ProfileSummary[];
@@ -199,14 +199,14 @@ export type FollowingResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `PUT /v1/users/:addressOrUid/follows`.
+ * Response from `PUT /v1/users/me/follows`.
  */
 export type FollowResponse = {
   followed: ProfileSummary[];
 };
 
 /**
- * Response from `DELETE /v1/users/:addressOrUid/follows`.
+ * Response from `DELETE /v1/users/me/follows`.
  */
 export type UnfollowResponse = {
   unfollowed: ProfileSummary[];
@@ -241,21 +241,12 @@ export type FetchFollowersOptions = {
   addressOrId: string;
 };
 
-export type FetchFollowingOptions = {
-  /** Wallet address or Clicker profile ID. */
-  addressOrUid: string;
-};
-
 export type FollowOptions = {
-  /** Wallet address or Clicker profile ID of the user. */
-  addressOrUid: string;
   /** Array of wallet addresses or profile IDs to follow. */
   targets: string[];
 };
 
 export type UnfollowOptions = {
-  /** Wallet address or Clicker profile ID of the user. */
-  addressOrUid: string;
   /** Array of wallet addresses or profile IDs to unfollow. */
   targets: string[];
 };
