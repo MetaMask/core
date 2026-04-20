@@ -493,9 +493,7 @@ describe('SocialController', () => {
 
       const { messenger } = createController({ rootMessenger });
 
-      const result = await messenger.call(
-        'SocialController:updateFollowing',
-      );
+      const result = await messenger.call('SocialController:updateFollowing');
 
       expect(result.following).toStrictEqual([mockProfileSummary]);
     });
@@ -570,9 +568,9 @@ describe('SocialController', () => {
         state: { followingAddresses: ['0xold'] },
       });
 
-      await expect(
-        controller.updateFollowing(),
-      ).rejects.toThrow('fetch following failed');
+      await expect(controller.updateFollowing()).rejects.toThrow(
+        'fetch following failed',
+      );
       expect(controller.state.followingAddresses).toStrictEqual(['0xold']);
     });
   });
