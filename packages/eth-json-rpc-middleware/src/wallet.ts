@@ -25,6 +25,7 @@ import {
   validateAndNormalizeKeyholder as validateKeyholder,
   validateTypedDataForPrototypePollution,
   validateTypedDataV1ForPrototypePollution,
+  validateTypedMessageKeys,
 } from './utils/validation';
 
 export type TransactionParams = {
@@ -408,6 +409,7 @@ export function createWalletMiddleware({
 
     const address = await validateAndNormalizeKeyholder(params[0], context);
     const message = normalizeTypedMessage(params[1]);
+    validateTypedMessageKeys(message);
     validatePrimaryType(message);
     validateVerifyingContract(message);
     validateTypedDataForPrototypePollution(message);
