@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-
 ### Changed
 
 - **BREAKING:** `SocialService.follow`, `SocialService.unfollow`, and `SocialController.followTrader`, `SocialController.unfollowTrader` no longer accept an `addressOrUid` option. The caller is identified server-side from the JWT `sub` claim carried in the `Authorization` header. ([#8520](https://github.com/MetaMask/core/pull/8520))
