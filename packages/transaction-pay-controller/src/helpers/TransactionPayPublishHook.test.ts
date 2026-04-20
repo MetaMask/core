@@ -3,7 +3,6 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
-import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 import { TransactionPayStrategy } from '..';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
@@ -11,6 +10,7 @@ import type {
   TransactionPayQuote,
 } from '../types';
 import { getStrategyByName } from '../utils/strategy';
+import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 
 jest.mock('../utils/strategy');
 
@@ -30,7 +30,12 @@ describe('TransactionPayPublishHook', () => {
   const executeMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
 
-  const { messenger, getControllerStateMock } = getMessengerMock();
+  const {
+    messenger,
+    getControllerStateMock,
+    getTransactionControllerStateMock,
+    updateTransactionMock,
+  } = getMessengerMock();
 
   let hook: TransactionPayPublishHook;
 
@@ -65,6 +70,10 @@ describe('TransactionPayPublishHook', () => {
         },
       },
     } as TransactionPayControllerState);
+
+    getTransactionControllerStateMock.mockReturnValue({
+      transactions: [TRANSACTION_META_MOCK],
+    });
   });
 
   it('executes strategy with quotes', async () => {
@@ -91,6 +100,45 @@ describe('TransactionPayPublishHook', () => {
     await runHook();
 
     expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it('sets submittedTime on the transaction before executing strategy', async () => {
+    await runHook();
+
+    expect(updateTransactionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: TRANSACTION_META_MOCK.id,
+        submittedTime: expect.any(Number),
+      }),
+      'Set submittedTime at pay publish hook start',
+    );
+  });
+
+  it('sets submittedTime before strategy.execute is called', async () => {
+    const callOrder: string[] = [];
+
+    updateTransactionMock.mockImplementation(() => {
+      callOrder.push('updateTransaction');
+    });
+
+    executeMock.mockImplementation(() => {
+      callOrder.push('execute');
+      return { transactionHash: '0x123' };
+    });
+
+    await runHook();
+
+    expect(callOrder).toStrictEqual(['updateTransaction', 'execute']);
+  });
+
+  it('does not set submittedTime if no quotes', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {},
+    });
+
+    await runHook();
+
+    expect(updateTransactionMock).not.toHaveBeenCalled();
   });
 
   it('throws errors from submit', async () => {

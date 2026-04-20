@@ -49,6 +49,10 @@ import type {
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
+import type {
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
+  NetworkControllerMethodActions,
+} from './NetworkController-method-action-types';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
@@ -646,97 +650,51 @@ export type NetworkControllerEvents =
  */
 type AllowedEvents = never;
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addNetwork',
+  'disableRpcFailover',
+  'enableRpcFailover',
+  'findNetworkClientIdByChainId',
+  'get1559CompatibilityWithNetworkClientId',
+  'getEIP1559Compatibility',
+  'getEthQuery',
+  'getNetworkClientById',
+  'getNetworkClientRegistry',
+  'getNetworkConfigurationByChainId',
+  'getNetworkConfigurationByNetworkClientId',
+  'getProviderAndBlockTracker',
+  'getSelectedChainId',
+  'getSelectedNetworkClient',
+  'initializeProvider',
+  'loadBackup',
+  'lookupNetwork',
+  'lookupNetworkByClientId',
+  'removeNetwork',
+  'resetConnection',
+  'rollbackToPreviousProvider',
+  'setActiveNetwork',
+  'setProviderType',
+  'updateNetwork',
+] as const;
+
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NetworkState
 >;
 
-export type NetworkControllerGetEthQueryAction = {
-  type: `NetworkController:getEthQuery`;
-  handler: () => EthQuery | undefined;
-};
-
-export type NetworkControllerGetNetworkClientByIdAction = {
-  type: `NetworkController:getNetworkClientById`;
-  handler: NetworkController['getNetworkClientById'];
-};
-
-export type NetworkControllerGetSelectedNetworkClientAction = {
-  type: `NetworkController:getSelectedNetworkClient`;
-  handler: NetworkController['getSelectedNetworkClient'];
-};
-
-export type NetworkControllerGetSelectedChainIdAction = {
-  type: 'NetworkController:getSelectedChainId';
-  handler: NetworkController['getSelectedChainId'];
-};
-
-export type NetworkControllerGetEIP1559CompatibilityAction = {
-  type: `NetworkController:getEIP1559Compatibility`;
-  handler: NetworkController['getEIP1559Compatibility'];
-};
-
-export type NetworkControllerFindNetworkClientIdByChainIdAction = {
-  type: `NetworkController:findNetworkClientIdByChainId`;
-  handler: NetworkController['findNetworkClientIdByChainId'];
-};
-
 /**
- * Change the currently selected network to the given built-in network type.
- *
- * @deprecated This action has been replaced by `setActiveNetwork`, and will be
- * removed in a future release.
+ * All actions that {@link NetworkController} registers, to be called
+ * externally.
  */
-export type NetworkControllerSetProviderTypeAction = {
-  type: `NetworkController:setProviderType`;
-  handler: NetworkController['setProviderType'];
-};
-
-export type NetworkControllerSetActiveNetworkAction = {
-  type: `NetworkController:setActiveNetwork`;
-  handler: NetworkController['setActiveNetwork'];
-};
-
-export type NetworkControllerGetNetworkConfigurationByChainId = {
-  type: `NetworkController:getNetworkConfigurationByChainId`;
-  handler: NetworkController['getNetworkConfigurationByChainId'];
-};
-
-export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
-  type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
-  handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
-};
-
-export type NetworkControllerAddNetworkAction = {
-  type: 'NetworkController:addNetwork';
-  handler: NetworkController['addNetwork'];
-};
-
-export type NetworkControllerRemoveNetworkAction = {
-  type: 'NetworkController:removeNetwork';
-  handler: NetworkController['removeNetwork'];
-};
-
-export type NetworkControllerUpdateNetworkAction = {
-  type: 'NetworkController:updateNetwork';
-  handler: NetworkController['updateNetwork'];
-};
-
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerGetEthQueryAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetSelectedNetworkClientAction
-  | NetworkControllerGetSelectedChainIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerSetProviderTypeAction
-  | NetworkControllerGetNetworkConfigurationByChainId
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId
-  | NetworkControllerAddNetworkAction
-  | NetworkControllerRemoveNetworkAction
-  | NetworkControllerUpdateNetworkAction;
+  | NetworkControllerMethodActions;
+
+/**
+ * @deprecated Use {@link NetworkControllerGetNetworkConfigurationByNetworkClientIdAction} instead.
+ */
+export type NetworkControllerGetNetworkConfigurationByNetworkClientId =
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction;
 
 /**
  * All actions that {@link NetworkController} calls internally.
@@ -1389,68 +1347,9 @@ export class NetworkController extends BaseController<
         this.state.networkConfigurationsByChainId,
       );
 
-    this.messenger.registerActionHandler(`${this.name}:getEthQuery`, () => {
-      return this.#ethQuery;
-    });
-
-    this.messenger.registerActionHandler(
-      `${this.name}:getNetworkClientById`,
-      this.getNetworkClientById.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:getEIP1559Compatibility`,
-      this.getEIP1559Compatibility.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:setActiveNetwork`,
-      this.setActiveNetwork.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:setProviderType`,
-      this.setProviderType.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:findNetworkClientIdByChainId`,
-      this.findNetworkClientIdByChainId.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:getNetworkConfigurationByChainId`,
-      this.getNetworkConfigurationByChainId.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:getNetworkConfigurationByNetworkClientId`,
-      this.getNetworkConfigurationByNetworkClientId.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:getSelectedNetworkClient`,
-      this.getSelectedNetworkClient.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:getSelectedChainId`,
-      this.getSelectedChainId.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:addNetwork`,
-      this.addNetwork.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:removeNetwork`,
-      this.removeNetwork.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${this.name}:updateNetwork`,
-      this.updateNetwork.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
     this.messenger.subscribe(
@@ -1477,6 +1376,16 @@ export class NetworkController extends BaseController<
         });
       },
     );
+  }
+
+  /**
+   * Returns the EthQuery instance for the currently selected network.
+   *
+   * @returns The EthQuery instance, or undefined if the provider has not been
+   * initialized.
+   */
+  getEthQuery(): EthQuery | undefined {
+    return this.#ethQuery;
   }
 
   /**

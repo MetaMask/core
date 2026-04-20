@@ -57,6 +57,16 @@ export type {
   FeatureFlagsPlatformConfig,
 } from './types';
 
+export type {
+  BridgeControllerUpdateBridgeQuoteRequestParamsAction,
+  BridgeControllerFetchQuotesAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BridgeControllerSetLocationAction,
+  BridgeControllerResetStateAction,
+  BridgeControllerSetChainIntervalLengthAction,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+} from './bridge-controller-method-action-types';
+
 export { AbortReason } from './utils/metrics/constants';
 
 export { StatusTypes } from './types';

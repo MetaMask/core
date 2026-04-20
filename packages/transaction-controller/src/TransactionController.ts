@@ -66,6 +66,7 @@ import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { MantleLayer1GasFeeFlow } from './gas-flows/MantleLayer1GasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
@@ -121,7 +122,6 @@ import type {
   TransactionBatchMeta,
   AfterSimulateHook,
   BeforeSignHook,
-  TransactionContainerType,
   GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
@@ -130,6 +130,7 @@ import type {
 } from './types';
 import {
   GasFeeEstimateLevel,
+  TransactionContainerType,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
@@ -1188,6 +1189,7 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       disableGasBuffer,
       gasFeeToken,
+      excludeNativeTokenForFee,
       isGasFeeIncluded,
       isGasFeeSponsored,
       isStateOnly,
@@ -1275,6 +1277,13 @@ export class TransactionController extends BaseController<
         })
       ).type;
 
+    /**
+     * Original behavior was that this was set to 'true' whenever a gasFeeToken was passed.
+     * 'excludeNativeTokenForFee' optionally overrides this behavior to prevent native token from
+     * being used when another gasFeeToken is set.
+     */
+    const isGasFeeTokenIgnoredIfBalance =
+      Boolean(gasFeeToken) && !excludeNativeTokenForFee;
     let addedTransactionMeta: TransactionMeta = {
       actionId,
       assetsFiatValues,
@@ -1284,9 +1293,13 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       disableGasBuffer,
       id: random(),
-      isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
+      isGasFeeTokenIgnoredIfBalance,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      // To avoid the property to be set as undefined.
+      ...(excludeNativeTokenForFee === undefined
+        ? {}
+        : { excludeNativeTokenForFee }),
       isFirstTimeInteraction: undefined,
       isStateOnly,
       nestedTransactions,
@@ -3279,7 +3292,7 @@ export class TransactionController extends BaseController<
         (draftTxMeta) => {
           draftTxMeta.hash = hash;
           draftTxMeta.status = TransactionStatus.submitted;
-          draftTxMeta.submittedTime = new Date().getTime();
+          draftTxMeta.submittedTime ??= new Date().getTime();
           if (shouldUpdatePreTxBalance) {
             draftTxMeta.preTxBalance = preTxBalance;
             log('Updated pre-transaction balance', preTxBalance);
@@ -4156,7 +4169,11 @@ export class TransactionController extends BaseController<
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
-    return [new OptimismLayer1GasFeeFlow(), new ScrollLayer1GasFeeFlow()];
+    return [
+      new MantleLayer1GasFeeFlow(),
+      new OptimismLayer1GasFeeFlow(),
+      new ScrollLayer1GasFeeFlow(),
+    ];
   }
 
   #updateTransactionInternal(
@@ -4224,6 +4241,15 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
+  #isBalanceChangesSkipped(transactionMeta: TransactionMeta): boolean {
+    return (
+      this.#skipSimulationTransactionIds.has(transactionMeta.id) ||
+      transactionMeta.containerTypes?.includes(
+        TransactionContainerType.EnforcedSimulations,
+      ) === true
+    );
+  }
+
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
     {
@@ -4255,7 +4281,7 @@ export class TransactionController extends BaseController<
     let isGasFeeSponsored = false;
 
     const isBalanceChangesSkipped =
-      this.#skipSimulationTransactionIds.has(transactionId);
+      this.#isBalanceChangesSkipped(transactionMeta);
 
     if (this.#isSimulationEnabled() && !isBalanceChangesSkipped) {
       const balanceChangesResult = await this.#trace(
@@ -4319,7 +4345,7 @@ export class TransactionController extends BaseController<
         txMeta.isGasFeeSponsored = isGasFeeSponsored;
         txMeta.gasUsed = gasUsed;
 
-        if (!isBalanceChangesSkipped) {
+        if (!this.#isBalanceChangesSkipped(txMeta)) {
           txMeta.simulationData = simulationData;
         }
       },

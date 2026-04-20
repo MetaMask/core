@@ -19,10 +19,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
-import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
@@ -30,6 +26,10 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import { getTokenBalancesForMultipleAddresses } from './multicall';
 
 type AllAccountTrackerControllerActions =
   MessengerActions<AccountTrackerControllerMessenger>;
@@ -399,6 +399,72 @@ describe('AccountTrackerController', () => {
         expect(
           controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
         ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('should not wipe existing balances when syncing accounts and the selected chain has no state entry', async () => {
+    const networkClientId = 'networkClientId1';
+
+    mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+      tokenBalances: {
+        '0x0000000000000000000000000000000000000000': {},
+      },
+      stakedBalances: {},
+    });
+
+    await withController(
+      {
+        options: {
+          state: {
+            accountsByChainId: {
+              '0xe705': {
+                [CHECKSUM_ADDRESS_1]: {
+                  balance: '0xabc',
+                  stakedBalance: '0x5',
+                },
+              },
+            },
+          },
+        },
+        isMultiAccountBalancesEnabled: true,
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+        networkClientById: {
+          [networkClientId]: buildCustomNetworkClientConfiguration({
+            chainId: '0x999',
+          }),
+        },
+      },
+      async ({ controller, refresh }) => {
+        // Verify initial state has the balance we expect to preserve
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // Refresh for a new chain. The selected network (mainnet / 0x1) is
+        // NOT in accountsByChainId, so #syncAccounts sees an empty "existing"
+        // set. Without the fix this would overwrite every address on every
+        // chain with { balance: '0x0' }, wiping both balance and stakedBalance.
+        await refresh(['networkClientId1'], true);
+
+        // Existing balances must be preserved
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // New chain should have been initialised with a zero balance
+        expect(
+          controller.state.accountsByChainId['0x999'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0x0',
+        });
       },
     );
   });
@@ -1642,6 +1708,62 @@ describe('AccountTrackerController', () => {
           ]);
           expect(result[ADDRESS_1].balance).toBe('0x10');
           expect(result[ADDRESS_2].balance).toBe('0x20');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Mainnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-mainnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0x1079',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-mainnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Testnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-testnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0xa5bf',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-testnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
         },
       );
     });

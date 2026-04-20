@@ -1,5 +1,5 @@
-import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 import type { FungibleAssetPrice } from '../types';
+import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 
 /**
  * Builds minimal AssetPrice for tests. Defaults usdPrice to the same

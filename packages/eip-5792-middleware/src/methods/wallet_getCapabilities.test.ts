@@ -1,12 +1,12 @@
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
 
-import { walletGetCapabilities } from './wallet_getCapabilities';
 import type {
   GetCapabilitiesHook,
   GetCapabilitiesParams,
   GetCapabilitiesResult,
 } from '../types';
+import { walletGetCapabilities } from './wallet_getCapabilities';
 
 type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 

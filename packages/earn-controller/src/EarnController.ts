@@ -1,7 +1,9 @@
+import type { BigNumber } from '@ethersproject/bignumber';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type {
   ControllerGetStateAction,
@@ -15,6 +17,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
@@ -47,7 +50,6 @@ import type {
 import type { EarnControllerMethodActions } from './EarnController-method-action-types';
 import type {
   RefreshEarnEligibilityOptions,
-  RefreshLendingEligibilityOptions,
   RefreshLendingPositionsOptions,
   RefreshPooledStakesOptions,
   RefreshPooledStakingDataOptions,
@@ -262,7 +264,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshPooledStakingData',
   'refreshLendingMarkets',
   'refreshLendingPositions',
-  'refreshLendingEligibility',
   'refreshLendingData',
   'refreshTronStakingApy',
   'getTronStakingApy',
@@ -295,6 +296,7 @@ export type EarnControllerActions =
  * All actions that EarnController calls internally.
  */
 export type AllowedActions =
+  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction;
 
@@ -315,6 +317,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  * All events that EarnController subscribes to internally.
  */
 export type AllowedEvents =
+  | AccountTreeControllerStateChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkDidChangeEvent;
@@ -341,7 +344,7 @@ export class EarnController extends BaseController<
 > {
   #earnSDK: EarnSdk | null = null;
 
-  #selectedNetworkClientId: string;
+  #initPromise: Promise<void> | null = null;
 
   readonly #earnApiService: EarnApiService;
 
@@ -355,13 +358,11 @@ export class EarnController extends BaseController<
     messenger,
     state = {},
     addTransactionFn,
-    selectedNetworkClientId,
     env = EarnEnvironments.PROD,
   }: {
     messenger: EarnControllerMessenger;
     state?: Partial<EarnControllerState>;
     addTransactionFn: typeof TransactionController.prototype.addTransaction;
-    selectedNetworkClientId: string;
     env?: EarnEnvironments;
   }) {
     super({
@@ -385,20 +386,13 @@ export class EarnController extends BaseController<
 
     this.#addTransactionFn = addTransactionFn;
 
-    this.#selectedNetworkClientId = selectedNetworkClientId;
-
-    this.#initializeSDK(selectedNetworkClientId).catch(console.error);
-    this.refreshPooledStakingData().catch(console.error);
-    this.refreshLendingData().catch(console.error);
-
     // Listen for network changes
     this.messenger.subscribe(
       'NetworkController:networkDidChange',
       (networkControllerState: NetworkState) => {
-        this.#selectedNetworkClientId =
-          networkControllerState.selectedNetworkClientId;
-
-        this.#initializeSDK(this.#selectedNetworkClientId).catch(console.error);
+        this.#initializeSDK(
+          networkControllerState.selectedNetworkClientId,
+        ).catch(console.error);
 
         // refresh pooled staking data
         this.refreshPooledStakingVaultMetadata().catch(console.error);
@@ -466,12 +460,41 @@ export class EarnController extends BaseController<
     );
   }
 
+  #refreshEarnPortfolio(address: string): void {
+    this.refreshEarnEligibility({ address }).catch(console.error);
+    this.refreshPooledStakingData({ address }).catch(console.error);
+    this.refreshLendingData().catch(console.error);
+  }
+
+  async init(): Promise<void> {
+    if (this.#initPromise) {
+      return this.#initPromise;
+    }
+
+    this.#initPromise = (async (): Promise<void> => {
+      await this.#initializeSDK(this.#getSelectedNetworkClientId());
+
+      const address = this.#getSelectedEvmAccountAddress();
+      if (address) {
+        this.#refreshEarnPortfolio(address);
+      } else {
+        // Account tree state is not yet available, so we defer the refresh to when it is.
+        this.#refreshEarnPortfolioOnAccountReady();
+      }
+    })().catch((error) => {
+      this.#initPromise = null;
+      throw error;
+    });
+
+    return this.#initPromise;
+  }
+
   /**
    * Initializes the Earn SDK.
    *
    * @param networkClientId - The network client id to initialize the Earn SDK for.
    */
-  async #initializeSDK(networkClientId: string) {
+  async #initializeSDK(networkClientId: string): Promise<void> {
     const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -508,6 +531,16 @@ export class EarnController extends BaseController<
   }
 
   /**
+   * Gets the selected network client ID from NetworkController's live state.
+   *
+   * @returns The selected network client ID.
+   */
+  #getSelectedNetworkClientId(): string {
+    return this.messenger.call('NetworkController:getState')
+      .selectedNetworkClientId;
+  }
+
+  /**
    * Gets the EVM account from the selected account group.
    *
    * @returns The EVM account or undefined if no EVM account is found.
@@ -525,6 +558,36 @@ export class EarnController extends BaseController<
    */
   #getSelectedEvmAccountAddress(): string | undefined {
     return this.#getSelectedEvmAccount()?.address;
+  }
+
+  /**
+   * Sets up a one-time subscription to AccountTreeController:stateChange that
+   * triggers address-dependent refreshes once both the selected account group
+   * is populated and an EVM account address is resolvable. Unsubscribes
+   * only after a refresh is triggered.
+   *
+   * This handles the case where EarnController.init() runs before
+   * AccountTreeController.init() has populated the selected account group.
+   */
+  #refreshEarnPortfolioOnAccountReady(): void {
+    const handler = ({
+      selectedAccountGroup,
+    }: {
+      selectedAccountGroup: string;
+    }): void => {
+      if (!selectedAccountGroup) {
+        return;
+      }
+
+      const address = this.#getSelectedEvmAccountAddress();
+      if (!address) {
+        return;
+      }
+
+      this.messenger.unsubscribe('AccountTreeController:stateChange', handler);
+      this.#refreshEarnPortfolio(address);
+    };
+    this.messenger.subscribe('AccountTreeController:stateChange', handler);
   }
 
   /**
@@ -677,7 +740,7 @@ export class EarnController extends BaseController<
    */
   async refreshPooledStakingVaultApyAverages(
     chainId: number = ChainId.ETHEREUM,
-  ) {
+  ): Promise<void> {
     const chainIdToUse = isSupportedPooledStakingChain(chainId)
       ? chainId
       : ChainId.ETHEREUM;
@@ -715,11 +778,6 @@ export class EarnController extends BaseController<
   }: RefreshPooledStakingDataOptions = {}): Promise<void> {
     const errors: Error[] = [];
 
-    // Refresh earn eligibility once since it's not chain-specific
-    await this.refreshEarnEligibility({ address }).catch((error) => {
-      errors.push(error);
-    });
-
     for (const chainId of this.#supportedPooledStakingChains) {
       await Promise.all([
         this.refreshPooledStakes({ resetCache, address, chainId }).catch(
@@ -742,7 +800,7 @@ export class EarnController extends BaseController<
     if (errors.length > 0) {
       throw new Error(
         `Failed to refresh some staking data: ${errors
-          .map((e) => e.message)
+          .map((error) => error.message)
           .join(', ')}`,
       );
     }
@@ -796,38 +854,6 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Refreshes the lending eligibility status for the current account.
-   * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
-   *
-   * @param options - Optional arguments
-   * @param [options.address] - The address to refresh lending eligibility for (optional).
-   * @returns A promise that resolves when the eligibility status has been updated
-   */
-  async refreshLendingEligibility({
-    address,
-  }: RefreshLendingEligibilityOptions = {}): Promise<void> {
-    const addressToUse = address ?? this.#getSelectedEvmAccountAddress();
-    // TODO: this is a temporary solution to refresh lending eligibility as
-    // the eligibility check is not yet implemented for lending
-    // this check will check the address against the same blocklist as the
-    // staking eligibility check
-
-    if (!addressToUse) {
-      return;
-    }
-
-    const { eligible: isEligible } =
-      await this.#earnApiService.pooledStaking.getPooledStakingEligibility([
-        addressToUse,
-      ]);
-
-    this.update((state) => {
-      state.lending.isEligible = isEligible;
-      state.pooled_staking.isEligible = isEligible;
-    });
-  }
-
-  /**
    * Refreshes all lending related data including markets, positions, and eligibility.
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
@@ -845,15 +871,12 @@ export class EarnController extends BaseController<
       this.refreshLendingPositions().catch((error) => {
         errors.push(error);
       }),
-      this.refreshLendingEligibility().catch((error) => {
-        errors.push(error);
-      }),
     ]);
 
     if (errors.length > 0) {
       throw new Error(
         `Failed to refresh some lending data: ${errors
-          .map((e) => e.message)
+          .map((error) => error.message)
           .join(', ')}`,
       );
     }
@@ -1019,7 +1042,9 @@ export class EarnController extends BaseController<
     if (!transactionData) {
       throw new Error('Transaction data not found');
     }
-    if (!this.#selectedNetworkClientId) {
+
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    if (!selectedNetworkClientId) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1036,7 +1061,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: selectedNetworkClientId,
       },
     );
 
@@ -1095,7 +1120,8 @@ export class EarnController extends BaseController<
       throw new Error('Transaction data not found');
     }
 
-    if (!this.#selectedNetworkClientId) {
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    if (!selectedNetworkClientId) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1112,7 +1138,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: selectedNetworkClientId,
       },
     );
 
@@ -1171,7 +1197,8 @@ export class EarnController extends BaseController<
       throw new Error('Transaction data not found');
     }
 
-    if (!this.#selectedNetworkClientId) {
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    if (!selectedNetworkClientId) {
       throw new Error('Selected network client id not found');
     }
 
@@ -1188,7 +1215,7 @@ export class EarnController extends BaseController<
       },
       {
         ...txOptions,
-        networkClientId: this.#selectedNetworkClientId,
+        networkClientId: selectedNetworkClientId,
       },
     );
 
@@ -1205,7 +1232,7 @@ export class EarnController extends BaseController<
   async getLendingTokenAllowance(
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
-  ) {
+  ): Promise<BigNumber | undefined> {
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
@@ -1230,7 +1257,7 @@ export class EarnController extends BaseController<
   async getLendingTokenMaxWithdraw(
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
-  ) {
+  ): Promise<BigNumber | undefined> {
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {
@@ -1255,7 +1282,7 @@ export class EarnController extends BaseController<
   async getLendingTokenMaxDeposit(
     protocol: LendingMarket['protocol'],
     underlyingTokenAddress: string,
-  ) {
+  ): Promise<BigNumber | undefined> {
     const address = this.#getSelectedEvmAccountAddress();
 
     if (!address) {

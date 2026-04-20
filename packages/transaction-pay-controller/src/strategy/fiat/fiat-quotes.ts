@@ -3,8 +3,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
 import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -16,6 +14,8 @@ import type {
 import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
+import type { FiatQuote } from './types';
+import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-strategy');
 

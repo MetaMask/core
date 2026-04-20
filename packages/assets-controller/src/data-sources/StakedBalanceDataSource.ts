@@ -10,6 +10,18 @@ import {
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  AccountId,
+  ChainId,
+  Caip19AssetId,
+  AssetBalance,
+  AssetMetadata,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -24,18 +36,6 @@ import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  AccountId,
-  ChainId,
-  Caip19AssetId,
-  AssetBalance,
-  AssetMetadata,
-  DataRequest,
-  DataResponse,
-  Middleware,
-} from '../types';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
 const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes
@@ -192,10 +192,14 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         this.#getProvider(hexChainId),
     });
 
-    // Wire the callback so polling results flow back to subscriptions
-    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate(
-      this.#handleStakedBalanceUpdate.bind(this),
-    );
+    // Polling controller invokes this synchronously; keep failures inside the poll tick.
+    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate((result) => {
+      try {
+        this.#handleStakedBalanceUpdate(result);
+      } catch (error) {
+        log('Staked balance update handler failed', { error });
+      }
+    });
 
     this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',

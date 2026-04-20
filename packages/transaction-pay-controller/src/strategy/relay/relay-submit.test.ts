@@ -4,9 +4,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { RELAY_STATUS_URL } from './constants';
-import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
@@ -26,6 +23,9 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { RELAY_STATUS_URL } from './constants';
+import { submitRelayQuotes } from './relay-submit';
+import type { RelayQuote } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
@@ -257,6 +257,66 @@ describe('Relay Submit Utils', () => {
       request.transaction = {
         ...request.transaction,
         type: TransactionType.simpleSend,
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.relayDeposit,
+        }),
+      );
+    });
+
+    it('uses musdRelayDeposit type when parent transaction is musdConversion', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.musdConversion,
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.musdRelayDeposit,
+        }),
+      );
+    });
+
+    it.each([
+      [TransactionType.predictDeposit, TransactionType.predictRelayDeposit],
+      [TransactionType.perpsDeposit, TransactionType.perpsRelayDeposit],
+      [TransactionType.musdConversion, TransactionType.musdRelayDeposit],
+    ])(
+      'resolves %s from nestedTransactions when type is batch',
+      async (nestedType, expectedType) => {
+        request.transaction = {
+          ...request.transaction,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: nestedType }],
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            type: expectedType,
+          }),
+        );
+      },
+    );
+
+    it('falls back to relayDeposit when type is batch and nestedTransactions have no mapped type', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.batch,
+        nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
       } as TransactionMeta;
 
       await submitRelayQuotes(request);
@@ -1212,6 +1272,7 @@ describe('Relay Submit Utils', () => {
         expect(getDelegationTransactionMock).toHaveBeenCalledWith({
           transaction: expect.objectContaining({
             chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
             nestedTransactions: [
               {
                 data: '0x1234',
@@ -1221,6 +1282,14 @@ describe('Relay Submit Utils', () => {
             ],
           }),
         });
+      });
+
+      it('resolves networkClientId for source chain instead of inheriting from original transaction', async () => {
+        await submitRelayQuotes(request);
+
+        expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+          CHAIN_ID_MOCK,
+        );
       });
 
       it('submits to /execute with delegation data', async () => {

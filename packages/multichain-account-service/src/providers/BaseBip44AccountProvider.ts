@@ -4,8 +4,8 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type {
   KeyringMetadata,
   KeyringSelector,
@@ -87,8 +87,7 @@ export type Bip44AccountProvider<
 
 export abstract class BaseBip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
-> implements Bip44AccountProvider<Account>
-{
+> implements Bip44AccountProvider<Account> {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
   protected accounts: Set<Bip44Account<KeyringAccount>['id']> = new Set();

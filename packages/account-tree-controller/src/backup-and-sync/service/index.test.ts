@@ -115,8 +115,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('returns early when a full sync has not completed at least once', () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        false;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
       backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
       // Should not have called any messenger functions beyond the state check
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
@@ -129,8 +128,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('enqueues single wallet sync when enabled and synced at least once', async () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        true;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
 
       // Add a mock wallet to the context so the sync can find it
       mockContext.controller.state.accountTree.wallets = {
@@ -214,8 +212,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('returns early when a full sync has not completed at least once', () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        false;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
 
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
 
@@ -230,8 +227,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('enqueues group sync when enabled and synced at least once', async () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        true;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
 
       // Set up the group mapping and wallet context
       mockContext.groupIdToWalletId.set(

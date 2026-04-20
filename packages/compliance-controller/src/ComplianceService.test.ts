@@ -231,90 +231,6 @@ describe('ComplianceService', () => {
     });
   });
 
-  describe('ComplianceService:updateBlockedWallets', () => {
-    it('returns the blocked wallets data', async () => {
-      nock(MOCK_API_URL)
-        .get('/v1/blocked-wallets')
-        .reply(200, {
-          addresses: ['0xABC', '0xDEF'],
-          sources: { ofac: 100, remote: 5 },
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-        });
-      const { rootMessenger } = getService();
-
-      const result = await rootMessenger.call(
-        'ComplianceService:updateBlockedWallets',
-      );
-
-      expect(result).toStrictEqual({
-        addresses: ['0xABC', '0xDEF'],
-        sources: { ofac: 100, remote: 5 },
-        lastUpdated: '2026-01-01T00:00:00.000Z',
-      });
-    });
-
-    it.each([
-      'not an object',
-      {
-        addresses: 'not an array',
-        sources: { ofac: 1, remote: 1 },
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: 'not an object',
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: { ofac: 'nan', remote: 1 },
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: { ofac: 1, remote: 'nan' },
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: { ofac: 1, remote: 1 },
-        lastUpdated: 123,
-      },
-      { addresses: ['0xABC'], sources: { ofac: 1, remote: 1 } },
-      {
-        addresses: [123],
-        sources: { ofac: 1, remote: 1 },
-        lastUpdated: '2026-01-01',
-      },
-    ])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
-        nock(MOCK_API_URL)
-          .get('/v1/blocked-wallets')
-          .reply(200, JSON.stringify(response));
-        const { rootMessenger } = getService();
-
-        await expect(
-          rootMessenger.call('ComplianceService:updateBlockedWallets'),
-        ).rejects.toThrow(
-          'Malformed response received from compliance blocked wallets API',
-        );
-      },
-    );
-
-    it('throws an HttpError when the API returns a non-200 status', async () => {
-      nock(MOCK_API_URL).get('/v1/blocked-wallets').times(4).reply(503);
-      const { service } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-
-      await expect(service.updateBlockedWallets()).rejects.toThrow(
-        /failed with status '503'/u,
-      );
-    });
-  });
-
   describe('checkWalletCompliance', () => {
     it('does the same thing as the messenger action', async () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').reply(200, {
@@ -343,27 +259,6 @@ describe('ComplianceService', () => {
       const result = await service.checkWalletsCompliance(addresses);
 
       expect(result).toStrictEqual([{ address: '0xABC', blocked: true }]);
-    });
-  });
-
-  describe('updateBlockedWallets', () => {
-    it('does the same thing as the messenger action', async () => {
-      nock(MOCK_API_URL)
-        .get('/v1/blocked-wallets')
-        .reply(200, {
-          addresses: ['0xABC'],
-          sources: { ofac: 50, remote: 2 },
-          lastUpdated: '2026-02-01T00:00:00.000Z',
-        });
-      const { service } = getService();
-
-      const result = await service.updateBlockedWallets();
-
-      expect(result).toStrictEqual({
-        addresses: ['0xABC'],
-        sources: { ofac: 50, remote: 2 },
-        lastUpdated: '2026-02-01T00:00:00.000Z',
-      });
     });
   });
 });

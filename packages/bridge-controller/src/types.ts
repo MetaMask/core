@@ -28,6 +28,7 @@ import type {
 } from '@metamask/utils';
 
 import type { BridgeController } from './bridge-controller';
+import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BitcoinTradeDataSchema,
@@ -334,10 +335,20 @@ export enum RequestStatus {
   FETCHED,
   ERROR,
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeUserAction {
   SELECT_DEST_NETWORK = 'selectDestNetwork',
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeBackgroundAction {
   SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
@@ -395,6 +406,10 @@ export type BridgeControllerState = {
   quoteStreamComplete: QuoteStreamCompleteData | null;
 };
 
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,
 > = {
@@ -412,15 +427,9 @@ export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
   BridgeControllerState
 >;
 
-// Maps to BridgeController function names
 export type BridgeControllerActions =
   | BridgeControllerGetStateAction
-  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
-  | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
-  | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
+  | BridgeControllerMethodActions;
 
 export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 

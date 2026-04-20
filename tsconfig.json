@@ -60,6 +60,9 @@
       "path": "./packages/chain-agnostic-permission"
     },
     {
+      "path": "./packages/chomp-api-service"
+    },
+    {
       "path": "./packages/claims-controller"
     },
     {
@@ -130,6 +133,15 @@
     },
     {
       "path": "./packages/messenger"
+    },
+    {
+      "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/money-account-balance-service"
+    },
+    {
+      "path": "./packages/money-account-controller"
     },
     {
       "path": "./packages/multichain-account-service"

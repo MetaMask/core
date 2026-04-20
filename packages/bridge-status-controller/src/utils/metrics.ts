@@ -33,12 +33,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import type { BridgeHistoryItem } from '../types';
 import { calcActualGasUsed } from './gas';
 import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
 } from './swap-received-amount';
-import type { BridgeHistoryItem } from '../types';
 
 export const getTxStatusesFromHistory = ({
   status,

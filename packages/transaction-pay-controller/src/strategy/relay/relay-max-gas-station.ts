@@ -1,11 +1,6 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  getGasStationEligibility,
-  getGasStationCostInSourceTokenRaw,
-} from './gas-station';
-import type { RelayQuote, RelayTransactionStep } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -18,6 +13,11 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token';
+import {
+  getGasStationEligibility,
+  getGasStationCostInSourceTokenRaw,
+} from './gas-station';
+import type { RelayQuote, RelayTransactionStep } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-max-gas-station');
 

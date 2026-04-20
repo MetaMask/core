@@ -70,16 +70,17 @@ export type RampsControllerSetUserRegionAction = {
 };
 
 /**
- * Sets the user's selected provider by ID, or clears the selection.
- * Looks up the provider from the current providers in state and automatically
- * fetches payment methods for that provider.
+ * Sets the user's selected provider.
  *
- * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
+ * Accepts either a Provider object (stored directly) or a provider ID
+ * string (looked up from state). The object form is preferred when the
+ * caller already has the full data (e.g. from React Query cache).
+ *
+ * @param providerOrId - A Provider object, a provider ID string (e.g., "/providers/moonpay"), or null to clear.
  * @param options - Optional settings for the selection.
  * @param options.autoSelected - When true, marks the provider as system-guessed
  * (soft selection). The UI will silently auto-switch on token conflict instead
  * of showing the "Token Not Available" modal. Defaults to false.
- * @throws If region is not set, providers are not loaded, or provider is not found.
  */
 export type RampsControllerSetSelectedProviderAction = {
   type: `RampsController:setSelectedProvider`;
@@ -177,11 +178,14 @@ export type RampsControllerGetPaymentMethodsAction = {
 };
 
 /**
- * Sets the user's selected payment method by ID.
- * Looks up the payment method from the current payment methods in state.
+ * Sets the user's selected payment method.
  *
- * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
- * @throws If payment methods are not loaded or payment method is not found.
+ * Accepts either a payment method ID (looked up from state) or a full
+ * PaymentMethod object (stored directly). The object form is preferred
+ * when the caller already has the full data (e.g. from React Query cache),
+ * as it avoids depending on controller state being populated.
+ *
+ * @param paymentMethodOrId - A PaymentMethod object, a payment method ID string, or undefined/null to clear.
  */
 export type RampsControllerSetSelectedPaymentMethodAction = {
   type: `RampsController:setSelectedPaymentMethod`;

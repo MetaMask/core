@@ -50,6 +50,7 @@ import {
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
+  isMoneyKeyringType,
   isSnapKeyringType,
   keyringTypeToName,
 } from './utils';
@@ -666,6 +667,12 @@ export class AccountsController extends BaseController<
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
+      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
+      // we need to filter them out here.
+      if (isMoneyKeyringType(keyring.type)) {
+        continue;
+      }
+
       const keyringTypeName = keyringTypeToName(keyring.type);
 
       for (const address of keyring.accounts) {
@@ -913,6 +920,12 @@ export class AccountsController extends BaseController<
     // Go over all keyring changes and create patches out of it.
     const addresses = new Set<string>();
     for (const keyring of keyrings) {
+      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
+      // we need to filter them out here.
+      if (isMoneyKeyringType(keyring.type)) {
+        continue;
+      }
+
       const patch = patchOf(keyring.type);
 
       for (const accountAddress of keyring.accounts) {

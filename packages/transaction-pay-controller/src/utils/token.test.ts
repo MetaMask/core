@@ -5,6 +5,13 @@ import type { AccountTrackerControllerState } from '@metamask/assets-controllers
 import type { TokenRatesControllerState } from '@metamask/assets-controllers';
 import type { Hex } from '@metamask/utils';
 
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
+} from '../constants';
+import { getMessengerMock } from '../tests/messenger-mock';
 import {
   computeRawFromFiatAmount,
   computeTokenAmounts,
@@ -17,13 +24,6 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from './token';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import {
-  CHAIN_ID_POLYGON,
-  NATIVE_TOKEN_ADDRESS,
-  POLYGON_USDCE_ADDRESS,
-} from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
 
 jest.mock('@ethersproject/contracts', () => ({
   ...jest.requireActual('@ethersproject/contracts'),

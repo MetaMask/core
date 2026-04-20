@@ -7,7 +7,6 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
@@ -15,6 +14,7 @@ import {
   EthAccountType,
   EthScope,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -25,16 +25,16 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { traceFallback } from '../analytics';
+import { TraceName } from '../analytics/traces';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
+import type { MultichainAccountServiceMessenger } from '../types';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 import { withRetry, withTimeout } from './utils';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../analytics/traces';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import type { MultichainAccountServiceMessenger } from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 

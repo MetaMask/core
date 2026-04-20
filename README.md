@@ -37,6 +37,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
+- [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/client-controller`](packages/client-controller)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
@@ -64,6 +65,9 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
+- [`@metamask/messenger-cli`](packages/messenger-cli)
+- [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
+- [`@metamask/money-account-controller`](packages/money-account-controller)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
@@ -121,6 +125,7 @@ linkStyle default opacity:0.5
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
+  chomp_api_service(["@metamask/chomp-api-service"]);
   claims_controller(["@metamask/claims-controller"]);
   client_controller(["@metamask/client-controller"]);
   compliance_controller(["@metamask/compliance-controller"]);
@@ -148,6 +153,9 @@ linkStyle default opacity:0.5
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
+  messenger_cli(["@metamask/messenger-cli"]);
+  money_account_balance_service(["@metamask/money-account-balance-service"]);
+  money_account_controller(["@metamask/money-account-controller"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
@@ -207,6 +215,7 @@ linkStyle default opacity:0.5
   approval_controller --> base_controller;
   approval_controller --> messenger;
   assets_controller --> account_tree_controller;
+  assets_controller --> accounts_controller;
   assets_controller --> assets_controllers;
   assets_controller --> base_controller;
   assets_controller --> client_controller;
@@ -217,6 +226,7 @@ linkStyle default opacity:0.5
   assets_controller --> network_controller;
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
+  assets_controller --> phishing_controller;
   assets_controller --> polling_controller;
   assets_controller --> preferences_controller;
   assets_controller --> transaction_controller;
@@ -262,12 +272,16 @@ linkStyle default opacity:0.5
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> gas_fee_controller;
   bridge_status_controller --> keyring_controller;
+  bridge_status_controller --> messenger;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> profile_sync_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
   chain_agnostic_permission --> permission_controller;
+  chomp_api_service --> base_data_service;
+  chomp_api_service --> controller_utils;
+  chomp_api_service --> messenger;
   claims_controller --> base_controller;
   claims_controller --> controller_utils;
   claims_controller --> keyring_controller;
@@ -295,7 +309,6 @@ linkStyle default opacity:0.5
   core_backend --> keyring_controller;
   core_backend --> messenger;
   core_backend --> profile_sync_controller;
-  delegation_controller --> accounts_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
@@ -327,10 +340,12 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
+  gas_fee_controller --> messenger;
   gas_fee_controller --> network_controller;
   gas_fee_controller --> polling_controller;
   gator_permissions_controller --> base_controller;
   gator_permissions_controller --> messenger;
+  gator_permissions_controller --> network_controller;
   gator_permissions_controller --> transaction_controller;
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
@@ -344,6 +359,14 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   message_manager --> messenger;
+  money_account_balance_service --> base_data_service;
+  money_account_balance_service --> controller_utils;
+  money_account_balance_service --> messenger;
+  money_account_balance_service --> network_controller;
+  money_account_controller --> accounts_controller;
+  money_account_controller --> base_controller;
+  money_account_controller --> keyring_controller;
+  money_account_controller --> messenger;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
@@ -413,6 +436,7 @@ linkStyle default opacity:0.5
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
   polling_controller --> network_controller;
+  polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
   profile_metrics_controller --> accounts_controller;
@@ -437,6 +461,7 @@ linkStyle default opacity:0.5
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
   sample_controllers --> base_controller;
+  sample_controllers --> base_data_service;
   sample_controllers --> messenger;
   sample_controllers --> network_controller;
   sample_controllers --> controller_utils;
@@ -462,6 +487,11 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  social_controllers --> base_controller;
+  social_controllers --> base_data_service;
+  social_controllers --> controller_utils;
+  social_controllers --> messenger;
+  social_controllers --> profile_sync_controller;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
@@ -478,6 +508,7 @@ linkStyle default opacity:0.5
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
   transaction_pay_controller --> assets_controller;

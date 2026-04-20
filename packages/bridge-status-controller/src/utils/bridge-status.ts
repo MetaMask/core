@@ -2,7 +2,6 @@ import { getClientHeaders } from '@metamask/bridge-controller';
 import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { validateBridgeStatusResponse } from './validators';
 import { REFRESH_INTERVAL_MS } from '../constants';
 import type {
   StatusResponse,
@@ -12,6 +11,7 @@ import type {
   BridgeHistoryItem,
   StatusRequest,
 } from '../types';
+import { validateBridgeStatusResponse } from './validators';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;

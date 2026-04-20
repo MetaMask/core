@@ -10,6 +10,7 @@ import {
   EthAccountType,
   SolAccountType,
   TrxAccountType,
+  XlmAccountType,
 } from '@metamask/keyring-api';
 import type { KeyringAccountType } from '@metamask/keyring-api';
 
@@ -45,6 +46,7 @@ export const ACCOUNT_TYPE_TO_SORT_ORDER: Record<KeyringAccountType, number> = {
   [BtcAccountType.P2wpkh]: 5,
   [BtcAccountType.P2tr]: 6,
   [TrxAccountType.Eoa]: 7,
+  [XlmAccountType.Account]: 8,
   [AnyAccountType.Account]: MAX_SORT_ORDER,
 };
 
@@ -162,5 +164,5 @@ export function isAccountGroupNameUnique(
     }
   }
 
-  throw new Error(`Account group with ID "${groupId}" not found in tree`);
+  throw new Error('Account group not found in tree');
 }

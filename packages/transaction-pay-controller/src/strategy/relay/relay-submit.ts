@@ -9,19 +9,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  RELAY_DEPOSIT_TYPES,
-  RELAY_FAILURE_STATUSES,
-  RELAY_PENDING_STATUSES,
-} from './constants';
-import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
-import type {
-  RelayExecuteRequest,
-  RelayQuote,
-  RelayStatusResponse,
-  RelayTransactionStep,
-} from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -44,6 +31,19 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import {
+  RELAY_DEPOSIT_TYPES,
+  RELAY_FAILURE_STATUSES,
+  RELAY_PENDING_STATUSES,
+} from './constants';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+import { getRelayStatus, submitRelayExecute } from './relay-api';
+import type {
+  RelayExecuteRequest,
+  RelayQuote,
+  RelayStatusResponse,
+  RelayTransactionStep,
+} from './types';
 
 const FALLBACK_HASH = '0x0' as Hex;
 
@@ -400,9 +400,15 @@ async function submitViaRelayExecute(
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
+    networkClientId,
     nestedTransactions: allParams.map((params) => ({
       data: (params.data ?? '0x') as Hex,
       to: params.to as Hex,
@@ -551,7 +557,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
-        type: getRelayDepositType(transaction.type),
+        type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
     );
   } else {
@@ -576,7 +582,7 @@ async function submitViaTransactionController(
         type: getTransactionType(
           isPostQuote,
           index,
-          transaction.type,
+          getEffectiveTransactionType(transaction),
           normalizedParams.length,
         ),
       };
@@ -663,4 +669,25 @@ function getRelayDepositType(
     (originalType && RELAY_DEPOSIT_TYPES[originalType]) ??
     TransactionType.relayDeposit
   );
+}
+
+/**
+ * Get the effective transaction type, resolving through nested transactions
+ * when the top-level type is `batch`.
+ *
+ * @param transaction - The transaction metadata.
+ * @returns The resolved type from nested transactions, or the top-level type.
+ */
+function getEffectiveTransactionType(
+  transaction: TransactionMeta,
+): TransactionMeta['type'] {
+  if (transaction.type !== TransactionType.batch) {
+    return transaction.type;
+  }
+
+  const nestedType = transaction.nestedTransactions?.find(
+    (tx) => tx.type && RELAY_DEPOSIT_TYPES[tx.type] !== undefined,
+  )?.type;
+
+  return nestedType ?? transaction.type;
 }

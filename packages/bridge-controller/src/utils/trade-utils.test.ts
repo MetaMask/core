@@ -1,3 +1,4 @@
+import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
 import {
   extractTradeData,
   isEvmTxData,
@@ -5,7 +6,6 @@ import {
   isTronTrade,
 } from './trade-utils';
 import type { Trade } from './trade-utils';
-import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
 
 describe('Trade utils', () => {
   describe('isEvmTxData', () => {

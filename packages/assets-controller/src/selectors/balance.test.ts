@@ -1,14 +1,14 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { AssetsControllerState } from '../AssetsController';
+import type { Caip19AssetId } from '../types';
 import type { AccountsById, EnabledNetworkMap } from './balance';
 import {
   getAggregatedBalanceForAccount,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './balance';
-import type { AssetsControllerState } from '../AssetsController';
-import type { Caip19AssetId } from '../types';
 
 describe('balance selectors', () => {
   const accountId1 = 'account-id-1';

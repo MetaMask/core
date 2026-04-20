@@ -1,5 +1,6 @@
 import type { Eip1193Provider } from 'ethers';
 
+import type { Env } from '../shared/env';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
 import {
@@ -13,7 +14,6 @@ import type {
 } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import { PairError, UnsupportedAuthTypeError } from './errors';
-import type { Env } from '../shared/env';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 

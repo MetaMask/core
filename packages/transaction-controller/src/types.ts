@@ -277,6 +277,13 @@ export type TransactionMeta = {
   /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
   isGasFeeTokenIgnoredIfBalance?: boolean;
 
+  /**
+   * When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance.
+   * Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions
+   * This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all
+   */
+  excludeNativeTokenForFee?: boolean;
+
   /** Whether the intent of the transaction was achieved via an alternate route or chain. */
   isIntentComplete?: boolean;
 
@@ -793,6 +800,11 @@ export enum TransactionType {
    * A transaction that converts tokens to mUSD.
    */
   musdConversion = 'musdConversion',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is an mUSD conversion.
+   */
+  musdRelayDeposit = 'musdRelayDeposit',
 
   /**
    * Deposit funds for Across quote via Perps.
@@ -1801,6 +1813,14 @@ export type TransactionBatchSingleRequest = {
  * Currently only atomic batches are supported via EIP-7702.
  */
 export type TransactionBatchRequest = {
+  /**
+   * Whether the EIP-7702 batch transaction should be executed atomically.
+   * When `true` (default), all calls in the batch either succeed or revert together.
+   * When `false`, calls are independent — individual calls can fail without
+   * reverting the entire batch.
+   */
+  atomic?: boolean;
+
   batchId?: Hex;
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
@@ -1820,6 +1840,11 @@ export type TransactionBatchRequest = {
 
   /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
   gasFeeToken?: Hex;
+
+  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
+  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
+  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  excludeNativeTokenForFee?: boolean;
 
   /** Gas limit for the transaction batch if submitted via EIP-7702. */
   gasLimit7702?: Hex;
@@ -2196,6 +2221,11 @@ export type AddTransactionOptions = {
 
   /** Whether MetaMask will sponsor the gas fee for the transaction. */
   isGasFeeSponsored?: boolean;
+
+  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
+  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
+  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  excludeNativeTokenForFee?: boolean;
 
   /**
    * Whether the transaction has no lifecycle and is not signed or published.
