@@ -89,14 +89,22 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
+      - name: Get pull request head SHA
+        id: pr-head-sha
+        run: echo "pr-head-sha=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+
       - name: Checkout pull request
+        env:
+          PR_HEAD_SHA: ${{ steps.pr-head-sha.outputs.pr-head-sha }}
         run: |
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git checkout --detach "$PR_HEAD_SHA"
