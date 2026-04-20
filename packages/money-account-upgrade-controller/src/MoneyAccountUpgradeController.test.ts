@@ -269,7 +269,7 @@ describe('MoneyAccountUpgradeController', () => {
       });
       await expect(
         controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG),
-      ).rejects.toThrow();
+      ).rejects.toThrow('Chain 0x1 not found in service details response');
 
       await expect(
         controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
