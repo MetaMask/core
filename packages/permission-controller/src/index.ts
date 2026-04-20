@@ -18,7 +18,6 @@ export type {
   PermissionControllerRequestPermissionsAction,
   PermissionControllerRequestPermissionsIncrementalAction,
   PermissionControllerGetEndowmentsAction,
-  PermissionControllerCreatePermissionMiddlewareAction,
 } from './PermissionController-method-action-types';
 export type {
   ExtractSpecifications,
