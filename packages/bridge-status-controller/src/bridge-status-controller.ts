@@ -290,6 +290,72 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#restartPollingForIncompleteHistoryItems();
   }
 
+  readonly #onTransactionFailed = ({
+    txMeta,
+    historyKey,
+  }: {
+    txMeta: TransactionMeta;
+    historyKey?: string;
+  }): void => {
+    this.#updateHistoryItem({
+      historyKey,
+      status: StatusTypes.FAILED,
+      txHash:
+        txMeta.type &&
+        [TransactionType.bridge, TransactionType.swap].includes(txMeta.type)
+          ? txMeta.hash
+          : undefined,
+    });
+
+    if (txMeta.status === TransactionStatus.rejected) {
+      return;
+    }
+
+    // Skip account lookup and tracking when featureId is set (e.g. PERPS)
+    if (historyKey && this.state.txHistory[historyKey]?.featureId) {
+      return;
+    }
+
+    this.#trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.Failed,
+      historyKey,
+      getEVMTxPropertiesFromTransactionMeta(txMeta),
+    );
+  };
+
+  // Only EVM txs
+  readonly #onTransactionConfirmed = ({
+    txMeta,
+    historyKey,
+  }: {
+    txMeta: TransactionMeta;
+    historyKey?: string;
+  }): void => {
+    this.#updateHistoryItem({
+      historyKey,
+      txHash: txMeta.hash,
+    });
+    console.log('======TransactionController:transactionConfirmed', txMeta);
+
+    switch (txMeta.type) {
+      case TransactionType.swap:
+        this.#updateHistoryItem({
+          historyKey,
+          status: StatusTypes.COMPLETE,
+        });
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Completed,
+          historyKey,
+        );
+        break;
+      default:
+        if (historyKey) {
+          this.#startPollingForTxId(historyKey);
+        }
+        break;
+    }
+  };
+
   resetState = (): void => {
     this.update((state) => {
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
@@ -545,72 +611,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     pollingInput: BridgeStatusPollingInput,
   ): Promise<void> => {
     await this.#fetchBridgeTxStatus(pollingInput);
-  };
-
-  readonly #onTransactionFailed = ({
-    txMeta,
-    historyKey,
-  }: {
-    txMeta: TransactionMeta;
-    historyKey?: string;
-  }): void => {
-    this.#updateHistoryItem({
-      historyKey,
-      status: StatusTypes.FAILED,
-      txHash:
-        txMeta.type &&
-        [TransactionType.bridge, TransactionType.swap].includes(txMeta.type)
-          ? txMeta.hash
-          : undefined,
-    });
-
-    if (txMeta.status === TransactionStatus.rejected) {
-      return;
-    }
-
-    // Skip account lookup and tracking when featureId is set (e.g. PERPS)
-    if (historyKey && this.state.txHistory[historyKey]?.featureId) {
-      return;
-    }
-
-    this.#trackUnifiedSwapBridgeEvent(
-      UnifiedSwapBridgeEventName.Failed,
-      historyKey,
-      getEVMTxPropertiesFromTransactionMeta(txMeta),
-    );
-  };
-
-  // Only EVM txs
-  readonly #onTransactionConfirmed = ({
-    txMeta,
-    historyKey,
-  }: {
-    txMeta: TransactionMeta;
-    historyKey?: string;
-  }): void => {
-    this.#updateHistoryItem({
-      historyKey,
-      txHash: txMeta.hash,
-    });
-    console.log('======TransactionController:transactionConfirmed', txMeta);
-
-    switch (txMeta.type) {
-      case TransactionType.swap:
-        this.#updateHistoryItem({
-          historyKey,
-          status: StatusTypes.COMPLETE,
-        });
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Completed,
-          historyKey,
-        );
-        break;
-      default:
-        if (historyKey) {
-          this.#startPollingForTxId(historyKey);
-        }
-        break;
-    }
   };
 
   /**
