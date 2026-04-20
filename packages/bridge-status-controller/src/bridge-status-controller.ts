@@ -548,17 +548,27 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     historyKey,
   }: {
     txMeta: TransactionMeta;
-    historyKey: string;
+    historyKey?: string;
   }): void => {
-    this.#updateHistoryItem(historyKey, {
+    this.#updateHistoryItem({
+      historyKey,
       status: StatusTypes.FAILED,
-      txHash: txMeta?.hash,
+      txHash:
+        txMeta.type &&
+        [TransactionType.bridge, TransactionType.swap].includes(txMeta.type)
+          ? txMeta.hash
+          : undefined,
     });
 
-    // Skip account lookup and tracking when featureId is set (e.g. PERPS)
-    if (this.state.txHistory[historyKey]?.featureId) {
+    if (txMeta.status === TransactionStatus.rejected) {
       return;
     }
+
+    // Skip account lookup and tracking when featureId is set (e.g. PERPS)
+    if (historyKey && this.state.txHistory[historyKey]?.featureId) {
+      return;
+    }
+
     this.#trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.Failed,
       historyKey,
@@ -572,17 +582,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     historyKey,
   }: {
     txMeta: TransactionMeta;
-    historyKey: string;
+    historyKey?: string;
   }): void => {
-    this.#updateHistoryItem(historyKey, {
+    this.#updateHistoryItem({
+      historyKey,
       txHash: txMeta.hash,
     });
-
     console.log('======TransactionController:transactionConfirmed', txMeta);
 
     switch (txMeta.type) {
       case TransactionType.swap:
-        this.#updateHistoryItem(historyKey, {
+        this.#updateHistoryItem({
+          historyKey,
           status: StatusTypes.COMPLETE,
         });
         this.#trackUnifiedSwapBridgeEvent(
@@ -591,7 +602,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         );
         break;
       default:
-        this.#startPollingForTxId(historyKey);
+        if (historyKey) {
+          this.#startPollingForTxId(historyKey);
+        }
         break;
     }
   };
@@ -836,6 +849,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return undefined;
     }
 
+    // Wait for finalized status before updating the history item
     const localTxHash = [
       TransactionStatus.confirmed,
       TransactionStatus.dropped,
@@ -844,37 +858,37 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     ].includes(txMeta.status)
       ? txMeta.hash
       : undefined;
-    this.#updateHistoryItem(bridgeTxMetaId, {
+    this.#updateHistoryItem({
+      historyKey: bridgeTxMetaId,
       txHash: localTxHash,
     });
 
     return localTxHash;
   };
 
-  readonly #updateHistoryItem = (
-    historyKey: string,
-    {
-      status,
-      txHash,
-      attempts,
-    }: {
-      status?: StatusTypes;
-      txHash?: string;
-      attempts?: BridgeHistoryItem['attempts'];
-    },
-  ): void => {
+  readonly #updateHistoryItem = ({
+    historyKey,
+    status,
+    txHash,
+    attempts,
+  }: {
+    historyKey?: string;
+    status?: StatusTypes;
+    txHash?: string;
+    attempts?: BridgeHistoryItem['attempts'];
+  }): void => {
+    if (!historyKey) {
+      return;
+    }
     this.update((currentState) => {
-      if (!currentState.txHistory[historyKey]) {
-        return;
-      }
       if (status) {
         currentState.txHistory[historyKey].status.status = status;
-        if (txHash) {
-          currentState.txHistory[historyKey].status.srcChain.txHash = txHash;
-        }
-        if (attempts) {
-          currentState.txHistory[historyKey].attempts = attempts;
-        }
+      }
+      if (txHash) {
+        currentState.txHistory[historyKey].status.srcChain.txHash = txHash;
+      }
+      if (attempts) {
+        currentState.txHistory[historyKey].attempts = attempts;
       }
     });
   };
