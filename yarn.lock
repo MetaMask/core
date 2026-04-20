@@ -3430,7 +3430,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/delegation-controller@npm:^3.0.0, @metamask/delegation-controller@workspace:packages/delegation-controller":
+"@metamask/delegation-controller@workspace:packages/delegation-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/delegation-controller@workspace:packages/delegation-controller"
   dependencies:
@@ -4458,7 +4458,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-controller@npm:^0.1.0, @metamask/money-account-controller@workspace:packages/money-account-controller":
+"@metamask/money-account-controller@workspace:packages/money-account-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:
@@ -4491,10 +4491,8 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/chomp-api-service": "npm:^1.0.0"
-    "@metamask/delegation-controller": "npm:^3.0.0"
     "@metamask/keyring-controller": "npm:^25.2.0"
     "@metamask/messenger": "npm:^1.1.1"
-    "@metamask/money-account-controller": "npm:^0.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"

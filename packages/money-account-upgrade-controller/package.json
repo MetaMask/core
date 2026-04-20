@@ -55,10 +55,8 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/chomp-api-service": "^1.0.0",
-    "@metamask/delegation-controller": "^3.0.0",
     "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.1.1",
-    "@metamask/money-account-controller": "^0.1.0"
+    "@metamask/messenger": "^1.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
