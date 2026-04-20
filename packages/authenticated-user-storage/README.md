@@ -19,11 +19,10 @@ or
 
 ### Creating a service
 
-`AuthenticatedUserStorageService` extends `BaseDataService` and requires a messenger, an environment, and an access-token callback:
+`AuthenticatedUserStorageService` extends `BaseDataService` and requires a messenger and an environment:
 
-- **`messenger`** -- a namespaced messenger for registering actions and events.
+- **`messenger`** -- a namespaced messenger for registering actions and events. The messenger must have access to `AuthenticationController:getBearerToken` to retrieve access tokens.
 - **`env`** -- selects the backend environment (`DEV`, `UAT`, or `PRD`).
-- **`getAccessToken`** -- an async callback that returns a valid JWT access token for the current user.
 
 ```typescript
 import { Messenger } from '@metamask/messenger';
@@ -48,8 +47,6 @@ const messenger = new Messenger<
 const service = new AuthenticatedUserStorageService({
   messenger,
   environment: 'prod',
-  getAccessToken: () =>
-    rootMessenger.call('AuthenticationController:getBearerToken'),
 });
 ```
 

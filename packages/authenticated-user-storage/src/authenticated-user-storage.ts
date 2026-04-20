@@ -66,10 +66,19 @@ export type AuthenticatedUserStorageActions =
   | AuthenticatedUserStorageInvalidateQueriesAction;
 
 /**
+ * Retrieves a bearer token from the `AuthenticationController`, logging in the
+ * user if necessary.
+ */
+type AuthenticationControllerGetBearerTokenAction = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
+
+/**
  * Actions from other messengers that {@link AuthenticatedUserStorageService}
  * calls.
  */
-type AllowedActions = never;
+type AllowedActions = AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Published when {@link AuthenticatedUserStorageService}'s cache is updated.
@@ -122,32 +131,26 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 > {
   readonly #environment: Environment;
 
-  readonly #getAccessToken: () => Promise<string>;
-
   /**
    * Constructs a new AuthenticatedUserStorageService.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.environment - The target environment (dev, uat, prod).
-   * @param args.getAccessToken - Callback that returns a valid access token.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
     messenger,
     environment,
-    getAccessToken,
     policyOptions,
   }: {
     messenger: AuthenticatedUserStorageMessenger;
     environment: Environment;
-    getAccessToken: () => Promise<string>;
     policyOptions?: CreateServicePolicyOptions;
   }) {
     super({ name: serviceName, messenger, policyOptions });
     this.#environment = environment;
-    this.#getAccessToken = getAccessToken;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -341,7 +344,9 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   }
 
   async #getHeaders(clientType?: ClientType): Promise<Record<string, string>> {
-    const accessToken = await this.#getAccessToken();
+    const accessToken = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,

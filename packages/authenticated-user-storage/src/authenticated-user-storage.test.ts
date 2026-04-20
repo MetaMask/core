@@ -287,11 +287,11 @@ describe('AuthenticatedUserStorageService', () => {
   describe('authorization', () => {
     it('passes the access token as a Bearer header', async () => {
       handleMockListDelegations();
-      const { service, mockGetAccessToken } = createService();
+      const { service, mockGetBearerToken } = createService();
 
       await service.listDelegations();
 
-      expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+      expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -327,17 +327,26 @@ function createService({
   service: AuthenticatedUserStorageService;
   rootMessenger: RootMessenger;
   messenger: AuthenticatedUserStorageMessenger;
-  mockGetAccessToken: jest.Mock;
+  mockGetBearerToken: jest.Mock;
 } {
   const rootMessenger = createRootMessenger();
+  const mockGetBearerToken = jest
+    .fn()
+    .mockResolvedValue(MOCK_ACCESS_TOKEN);
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    mockGetBearerToken,
+  );
   const messenger = createServiceMessenger(rootMessenger);
-  const mockGetAccessToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
+  rootMessenger.delegate({
+    messenger,
+    actions: ['AuthenticationController:getBearerToken'],
+  });
   const service = new AuthenticatedUserStorageService({
     messenger,
     environment: 'prod',
-    getAccessToken: mockGetAccessToken,
     ...options,
   });
 
-  return { service, rootMessenger, messenger, mockGetAccessToken };
+  return { service, rootMessenger, messenger, mockGetBearerToken };
 }
