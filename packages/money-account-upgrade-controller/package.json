@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/chomp-api-service": "^0.0.0",
+    "@metamask/chomp-api-service": "^1.0.0",
     "@metamask/delegation-controller": "^3.0.0",
     "@metamask/keyring-controller": "^25.2.0",
     "@metamask/messenger": "^1.1.1",
