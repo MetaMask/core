@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `SPOT_PRICES_SUPPORT_INFO` from the token prices service ([#8483](https://github.com/MetaMask/core/pull/8483))
+
 ## [104.1.0]
 
 ### Added
 
 - `MultichainAssetsController`: periodic Blockaid re-scan of stored SPL-style `token:` assets (default once per day) so tokens that become malicious after a prior scan are dropped; use constructor option `blockaidTokenRescanInterval` (ms), or `0` to disable. ([#8400](https://github.com/MetaMask/core/pull/8400))
-- Export `SPOT_PRICES_SUPPORT_INFO` from the token prices service ([#8483](https://github.com/MetaMask/core/pull/8483))
 
 ### Changed
 
