@@ -8,7 +8,6 @@ import type {
   NetworkState,
   NetworkStatus,
 } from '@metamask/network-controller';
-
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,

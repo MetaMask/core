@@ -4,6 +4,7 @@ import type {
   AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -12,7 +13,6 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -774,7 +774,10 @@ export class AssetsController extends BaseController<
       const { chainId } = parseCaipAssetType(nativeAssetId);
       initialNativeAssetMap[chainId] = nativeAssetId;
     }
-    queryApiClient.setCachedData(NATIVE_ASSETS_QUERY_KEY, initialNativeAssetMap);
+    queryApiClient.setCachedData(
+      NATIVE_ASSETS_QUERY_KEY,
+      initialNativeAssetMap,
+    );
 
     this.#onActiveChainsUpdated = (
       dataSourceName: string,

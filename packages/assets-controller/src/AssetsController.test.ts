@@ -59,12 +59,15 @@ function createMockQueryApiClient(): ApiPlatformClient {
   return {
     fetch: jest.fn(),
     getCachedData: jest.fn((key: string[]) => cache.get(JSON.stringify(key))),
-    setCachedData: jest.fn(
-      (key: string[], data: unknown) => cache.set(JSON.stringify(key), data),
+    setCachedData: jest.fn((key: string[], data: unknown) =>
+      cache.set(JSON.stringify(key), data),
     ),
     queryClient: {
       fetchQuery: jest.fn(
-        async (opts: { queryKey: string[]; queryFn: () => Promise<unknown> }) => {
+        async (opts: {
+          queryKey: string[];
+          queryFn: () => Promise<unknown>;
+        }) => {
           const data = await opts.queryFn();
           cache.set(JSON.stringify(opts.queryKey), data);
           return data;
