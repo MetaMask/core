@@ -63,6 +63,9 @@ import {
   getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
+  shouldWaitForSrcTxHash,
+  incrementPollingAttempts,
+  isHistoryItemTooOld,
 } from './utils/history';
 import {
   getIntentFromQuote,
@@ -80,6 +83,7 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
+  getPollingStatusUpdatedProperties,
 } from './utils/metrics';
 import {
   getNetworkClientIdByChainId,
@@ -610,71 +614,71 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
-   * Handles the failure to fetch the bridge tx status
-   * We eventually stop polling for the tx if we fail too many times
+   * Handles the failure to fetch the bridge tx status or recognize the transaction hash
+   * We eventually stop polling for the tx if we fail too many times or if the transaction is stale
    * Failures (500 errors) can be due to:
    * - The srcTxHash not being available immediately for STX
    * - The srcTxHash being invalid for the chain. This case will never resolve so we stop polling for it to avoid hammering the Bridge API forever.
    *
    * @param bridgeTxMetaId - The txMetaId of the bridge tx
    */
-  readonly #handleFetchFailure = (bridgeTxMetaId: string): void => {
-    const { attempts } = this.state.txHistory[bridgeTxMetaId];
-
-    const newAttempts = attempts
-      ? {
-          counter: attempts.counter + 1,
-          lastAttemptTime: Date.now(),
-        }
-      : {
-          counter: 1,
-          lastAttemptTime: Date.now(),
-        };
-
-    // If we've failed too many times, stop polling for the tx
+  readonly #handleFetchFailure = async (
+    bridgeTxMetaId: string,
+  ): Promise<void> => {
+    // Increment the polling attempts counter
+    const newAttempts = incrementPollingAttempts(
+      this.state.txHistory[bridgeTxMetaId],
+    );
+    this.#updateHistoryItem({
+      historyKey: bridgeTxMetaId,
+      attempts: newAttempts,
+    });
+    // Continue polling every 10s until the max attempts is reached
+    if (newAttempts.counter < MAX_ATTEMPTS) {
+      return;
+    }
     const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-    if (newAttempts.counter >= MAX_ATTEMPTS && pollingToken) {
-      this.stopPollingByPollingToken(pollingToken);
-      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
-      // Track max polling reached event
-      const historyItem = this.state.txHistory[bridgeTxMetaId];
-      if (historyItem && !historyItem.featureId) {
-        const selectedAccount = getAccountByAddress(
-          this.messenger,
-          historyItem.account,
-        );
-        const requestParams = getRequestParamFromHistory(historyItem);
-        const requestMetadata = getRequestMetadataFromHistory(
-          historyItem,
-          selectedAccount,
-        );
-        const { security_warnings: _, ...metadataWithoutWarnings } =
-          requestMetadata;
-
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.PollingStatusUpdated,
-          bridgeTxMetaId,
-          {
-            ...getTradeDataFromHistory(historyItem),
-            ...getPriceImpactFromQuote(historyItem.quote),
-            ...metadataWithoutWarnings,
-            chain_id_source: requestParams.chain_id_source,
-            chain_id_destination: requestParams.chain_id_destination,
-            token_symbol_source: requestParams.token_symbol_source,
-            token_symbol_destination: requestParams.token_symbol_destination,
-            action_type: MetricsActionType.SWAPBRIDGE_V1,
-            polling_status: PollingStatus.MaxPollingReached,
-            retry_attempts: newAttempts.counter,
-          },
-        );
-      }
+    // After the attempts exceed the max, keep polling with exponential backoff
+    // If the historyItem age is less than the configured maxPendingHistoryItemAgeMs flag, wait for a valid srcTxHash
+    if (
+      await shouldWaitForSrcTxHash(
+        this.messenger,
+        this.state.txHistory[bridgeTxMetaId],
+      )
+    ) {
+      return;
     }
 
-    // Update the attempts counter
-    this.update((state) => {
-      state.txHistory[bridgeTxMetaId].attempts = newAttempts;
-    });
+    if (newAttempts.counter === MAX_ATTEMPTS) {
+      // If we've failed too many times, stop polling for the tx
+      if (pollingToken) {
+        this.stopPollingByPollingToken(pollingToken);
+        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+      }
+
+      // Track polling status updated event
+      this.#trackPollingStatusUpdatedEvent(
+        bridgeTxMetaId,
+        PollingStatus.MaxPollingReached,
+      );
+      return;
+    }
+
+    // If the src hash is invalid after the max wait time, stop polling for the tx
+    if (pollingToken) {
+      this.stopPollingByPollingToken(pollingToken);
+      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    }
+
+    // Track polling status updated event
+    this.#trackPollingStatusUpdatedEvent(
+      bridgeTxMetaId,
+      PollingStatus.StaleTransactionHash,
+    );
+
+    // Delete the history item so polling doesn't start over on the next restart
+    this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
   readonly #fetchBridgeTxStatus = async ({
@@ -819,7 +823,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch (error) {
       console.warn('Failed to fetch bridge tx status', error);
-      this.#handleFetchFailure(bridgeTxMetaId);
+      await this.#handleFetchFailure(bridgeTxMetaId);
     }
   };
 
@@ -890,6 +894,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (attempts) {
         currentState.txHistory[historyKey].attempts = attempts;
       }
+    });
+  };
+
+  readonly #deleteHistoryItem = (historyKey: string): void => {
+    this.update((currentState) => {
+      delete currentState.txHistory[historyKey];
     });
   };
 
@@ -1482,6 +1492,25 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
 
       throw error;
+    }
+  };
+
+  readonly #trackPollingStatusUpdatedEvent = (
+    historyKey: string,
+    pollingStatus: PollingStatus,
+  ): void => {
+    // Track polling status updated event
+    const historyItem = this.state.txHistory[historyKey];
+    if (historyItem && !historyItem.featureId) {
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.PollingStatusUpdated,
+        historyKey,
+        getPollingStatusUpdatedProperties(
+          this.messenger,
+          pollingStatus,
+          historyItem,
+        ),
+      );
     }
   };
 

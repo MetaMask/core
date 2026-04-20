@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import {
-  formatChainIdToHex,
-  GenericQuoteRequest,
-} from '@metamask/bridge-controller';
-
-import { BridgeStatusControllerMessenger } from '../types';
+import { formatChainIdToHex } from '@metamask/bridge-controller';
+import type { GenericQuoteRequest } from '@metamask/bridge-controller';
+import type { NetworkClient } from '@metamask/network-controller';
+import type { BridgeStatusControllerMessenger } from '../types';
 
 export const getSelectedChainId = (
   messenger: BridgeStatusControllerMessenger,
@@ -28,4 +26,17 @@ export const getNetworkClientIdByChainId = (
     'NetworkController:findNetworkClientIdByChainId',
     hexChainId,
   );
+};
+
+export const getNetworkClientByChainId = (
+  messenger: BridgeStatusControllerMessenger,
+  chainId: GenericQuoteRequest['srcChainId'],
+): NetworkClient['provider'] => {
+  const networkClientId = getNetworkClientIdByChainId(messenger, chainId);
+
+  const networkClient = messenger.call(
+    'NetworkController:getNetworkClientById',
+    networkClientId,
+  );
+  return networkClient.provider;
 };

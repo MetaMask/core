@@ -1049,7 +1049,7 @@ describe('metrics utils', () => {
     it('should return correct properties for a successful swap transaction', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
-        error_message: '',
+        error_message: 'Transaction submitted',
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
@@ -1086,14 +1086,14 @@ describe('metrics utils', () => {
         ...mockTransactionMeta,
         status: TransactionStatus.failed,
         error: {
-          message: 'Transaction failed',
+          message: 'Error message',
           name: 'Error',
         } as TransactionError,
       };
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
-      expect(result.error_message).toBe('Transaction failed');
+      expect(result.error_message).toBe('Transaction failed. Error message');
       expect(result.source_transaction).toBe('FAILED');
     });
 
