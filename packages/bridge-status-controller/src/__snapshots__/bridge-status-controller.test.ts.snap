@@ -6321,10 +6321,6 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if not in txHistory 1`] = `
 [
   [
-    "AccountsController:getAccountByAddress",
-    undefined,
-  ],
-  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
@@ -6364,10 +6360,6 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
 [
-  [
-    "AccountsController:getAccountByAddress",
-    undefined,
-  ],
   [
     "AccountsController:getAccountByAddress",
     "0xaccount1",

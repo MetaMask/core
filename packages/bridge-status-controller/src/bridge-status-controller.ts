@@ -267,15 +267,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           return;
         }
 
+        const from = transactionMeta.txParams?.from;
         this.#trackUnifiedSwapBridgeEvent(
           UnifiedSwapBridgeEventName.Failed,
           activeHistoryKey,
           getEVMTxPropertiesFromTransactionMeta(
             transactionMeta,
-            this.messenger.call(
-              'AccountsController:getAccountByAddress',
-              transactionMeta.txParams?.from,
-            ),
+            from
+              ? this.messenger.call(
+                  'AccountsController:getAccountByAddress',
+                  from,
+                )
+              : undefined,
           ),
         );
       }
