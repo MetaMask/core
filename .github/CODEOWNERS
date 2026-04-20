@@ -42,6 +42,8 @@
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
+/packages/money-account-balance-service     @MetaMask/earn
+/packages/chomp-api-service                 @MetaMask/earn @MetaMask/delegation
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
@@ -149,6 +151,8 @@
 /packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
 /packages/earn-controller/package.json            @MetaMask/earn @MetaMask/core-platform
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-balance-service/package.json @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-balance-service/CHANGELOG.md @MetaMask/earn @MetaMask/core-platform
 /packages/eip-5792-middleware/package.json        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip-5792-middleware/CHANGELOG.md        @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/eip1193-permission-middleware/package.json @MetaMask/wallet-integrations @MetaMask/core-platform
@@ -231,3 +235,5 @@
 /packages/social-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
 /packages/money-account-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/chomp-api-service/package.json @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/chomp-api-service/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform

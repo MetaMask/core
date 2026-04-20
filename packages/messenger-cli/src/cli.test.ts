@@ -98,34 +98,38 @@ class FooController {
           path.join(directoryPath, 'FooController-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { FooController } from './FooController';
+          import type { FooController } from './FooController';
 
-/**
- * Gets the current state.
- */
-export type FooControllerGetStateAction = {
-  type: \`FooController:getState\`;
-  handler: FooController['getState'];
-};
+          /**
+           * Gets the current state.
+           */
+          export type FooControllerGetStateAction = {
+            type: \`FooController:getState\`;
+            handler: FooController['getState'];
+          };
 
-/**
- * Resets the controller.
- */
-export type FooControllerResetAction = {
-  type: \`FooController:reset\`;
-  handler: FooController['reset'];
-};
+          /**
+           * Resets the controller.
+           */
+          export type FooControllerResetAction = {
+            type: \`FooController:reset\`;
+            handler: FooController['reset'];
+          };
 
-/**
- * Union of all FooController action types.
- */
-export type FooControllerMethodActions = FooControllerGetStateAction | FooControllerResetAction;
-`);
+          /**
+           * Union of all FooController action types.
+           */
+          export type FooControllerMethodActions =
+            | FooControllerGetStateAction
+            | FooControllerResetAction;
+          "
+        `);
       });
     });
 
@@ -164,28 +168,30 @@ class DataService {
           path.join(directoryPath, 'DataService-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { DataService } from './DataService';
+          import type { DataService } from './DataService';
 
-/**
- * Fetches items from the API.
- *
- * @returns The items.
- */
-export type DataServiceFetchItemsAction = {
-  type: \`DataService:fetchItems\`;
-  handler: DataService['fetchItems'];
-};
+          /**
+           * Fetches items from the API.
+           *
+           * @returns The items.
+           */
+          export type DataServiceFetchItemsAction = {
+            type: \`DataService:fetchItems\`;
+            handler: DataService['fetchItems'];
+          };
 
-/**
- * Union of all DataService action types.
- */
-export type DataServiceMethodActions = DataServiceFetchItemsAction;
-`);
+          /**
+           * Union of all DataService action types.
+           */
+          export type DataServiceMethodActions = DataServiceFetchItemsAction;
+          "
+        `);
       });
     });
 
@@ -219,33 +225,38 @@ class BarController {
           path.join(directoryPath, 'BarController-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { BarController } from './BarController';
+          import type { BarController } from './BarController';
 
-export type BarControllerEnableAction = {
-  type: \`BarController:enable\`;
-  handler: BarController['enable'];
-};
+          export type BarControllerEnableAction = {
+            type: \`BarController:enable\`;
+            handler: BarController['enable'];
+          };
 
-export type BarControllerDisableAction = {
-  type: \`BarController:disable\`;
-  handler: BarController['disable'];
-};
+          export type BarControllerDisableAction = {
+            type: \`BarController:disable\`;
+            handler: BarController['disable'];
+          };
 
-export type BarControllerIsEnabledAction = {
-  type: \`BarController:isEnabled\`;
-  handler: BarController['isEnabled'];
-};
+          export type BarControllerIsEnabledAction = {
+            type: \`BarController:isEnabled\`;
+            handler: BarController['isEnabled'];
+          };
 
-/**
- * Union of all BarController action types.
- */
-export type BarControllerMethodActions = BarControllerEnableAction | BarControllerDisableAction | BarControllerIsEnabledAction;
-`);
+          /**
+           * Union of all BarController action types.
+           */
+          export type BarControllerMethodActions =
+            | BarControllerEnableAction
+            | BarControllerDisableAction
+            | BarControllerIsEnabledAction;
+          "
+        `);
       });
     });
 
@@ -285,29 +296,31 @@ class AuthService {
           path.join(directoryPath, 'AuthService-method-action-types.ts'),
           'utf8',
         );
-        expect(content).toBe(`/**
- * This file is auto generated.
- * Do not edit manually.
- */
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
 
-import type { AuthService } from './AuthService';
+          import type { AuthService } from './AuthService';
 
-/**
- * Authenticates the user.
- *
- * @param token - The auth token.
- * @returns Whether authentication succeeded.
- */
-export type AuthServiceAuthenticateAction = {
-  type: \`AuthService:authenticate\`;
-  handler: AuthService['authenticate'];
-};
+          /**
+           * Authenticates the user.
+           *
+           * @param token - The auth token.
+           * @returns Whether authentication succeeded.
+           */
+          export type AuthServiceAuthenticateAction = {
+            type: \`AuthService:authenticate\`;
+            handler: AuthService['authenticate'];
+          };
 
-/**
- * Union of all AuthService action types.
- */
-export type AuthServiceMethodActions = AuthServiceAuthenticateAction;
-`);
+          /**
+           * Union of all AuthService action types.
+           */
+          export type AuthServiceMethodActions = AuthServiceAuthenticateAction;
+          "
+        `);
       });
     });
 

@@ -7,7 +7,6 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
@@ -15,6 +14,7 @@ import {
   EthAccountType,
   EthScope,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   EthKeyring,

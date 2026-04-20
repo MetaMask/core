@@ -44,8 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/seedless-onboarding-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/seedless-onboarding-controller",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/auth-network-utils": "^0.3.0",
-    "@metamask/base-controller": "^9.0.1",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/keyring-controller": "^25.2.0",
     "@metamask/messenger": "^1.1.1",
@@ -68,7 +68,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/elliptic": "^6",
     "@types/jest": "^29.5.14",

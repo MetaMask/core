@@ -27,6 +27,7 @@ export type {
   PermissionInfo,
   StoredGatorPermission,
   PermissionInfoWithMetadata,
+  GatorPermissionStatus,
   DelegationDetails,
   RevocationParams,
   RevocationMetadata,

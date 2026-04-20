@@ -42,7 +42,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/yargs": "^17.0.32",
@@ -50,15 +50,21 @@
     "eslint": "^9.39.1",
     "execa": "^5.0.0",
     "jest": "^29.7.0",
+    "oxfmt": "^0.44.0",
+    "prettier": "^3.3.3",
     "ts-jest": "^29.2.5",
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
-    "eslint": ">=8",
+    "oxfmt": "^0.44.0",
+    "prettier": "^3.0.0",
     "typescript": ">=5.0.0"
   },
   "peerDependenciesMeta": {
-    "eslint": {
+    "oxfmt": {
+      "optional": true
+    },
+    "prettier": {
       "optional": true
     }
   },

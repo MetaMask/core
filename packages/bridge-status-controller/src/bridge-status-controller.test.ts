@@ -602,7 +602,6 @@ function registerDefaultActionHandlers(
     'AccountsController:getAccountByAddress',
     () => ({
       address: account,
-      // @ts-expect-error: Partial mock.
       metadata: { keyring: { type: 'any' } },
     }),
   );
@@ -617,7 +616,6 @@ function registerDefaultActionHandlers(
     () => 'networkClientId',
   );
 
-  // @ts-expect-error: Partial mock.
   rootMessenger.registerActionHandler('NetworkController:getState', () => ({
     selectedNetworkClientId: 'networkClientId',
   }));
@@ -625,7 +623,6 @@ function registerDefaultActionHandlers(
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     () => ({
-      // @ts-expect-error: Partial mock.
       configuration: {
         chainId: numberToHex(srcChainId),
       },
@@ -633,7 +630,6 @@ function registerDefaultActionHandlers(
   );
 
   rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-    // @ts-expect-error: Partial mock.
     transactions: [{ id: txMetaId, hash: txHash }],
   }));
 }
@@ -1096,7 +1092,6 @@ describe('BridgeStatusController', () => {
         rootMessenger.registerActionHandler(
           'TransactionController:getState',
           () => ({
-            // @ts-expect-error: Partial mock.
             transactions: [{ id: 'bridgeTxMetaId1', hash: undefined }],
           }),
         );
@@ -1227,7 +1222,6 @@ describe('BridgeStatusController', () => {
           );
           rootMessenger.registerActionHandler(
             'TransactionController:getState',
-            // @ts-expect-error: Partial mock.
             () => {
               getStateCallCount += 1;
               return {
@@ -1984,7 +1978,7 @@ describe('BridgeStatusController', () => {
           id: 'test-snap',
         },
         keyring: {
-          type: 'Hardware',
+          type: 'QR Hardware Wallet Device',
         },
       },
       options: { scope: 'solana-chain-id' },
@@ -2976,7 +2970,6 @@ describe('BridgeStatusController', () => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
             'otherAccount',
-            // @ts-expect-error: Partial mock.
             lineaQuoteResponse,
             false,
           );
@@ -3024,7 +3017,6 @@ describe('BridgeStatusController', () => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
             'otherAccount',
-            // @ts-expect-error: Partial mock.
             baseQuoteResponse,
             false,
           );
@@ -3606,7 +3598,6 @@ describe('BridgeStatusController', () => {
                 ...mockEvmQuoteResponse.quote,
                 gasIncluded: true,
                 feeData: {
-                  // @ts-expect-error: Partial mock.
                   txFee: {
                     maxFeePerGas: '123',
                     maxPriorityFeePerGas: '123',
@@ -3721,7 +3712,6 @@ describe('BridgeStatusController', () => {
                 gasIncluded7702: false,
                 feeData: {
                   ...quoteWithoutApproval.quote.feeData,
-                  // @ts-expect-error: Partial mock.
                   txFee: {
                     maxFeePerGas: '1395348', // Decimal string from quote
                     maxPriorityFeePerGas: '1000001',
@@ -3793,7 +3783,6 @@ describe('BridgeStatusController', () => {
                 gasIncluded7702: false,
                 feeData: {
                   ...quoteWithoutApproval.quote.feeData,
-                  // @ts-expect-error: Partial mock.
                   txFee: {
                     maxFeePerGas: '1395348', // Decimal string from quote
                     maxPriorityFeePerGas: '1000001',
@@ -3928,7 +3917,6 @@ describe('BridgeStatusController', () => {
                 gasIncluded7702: true, // 7702 takes precedence → batch path
                 feeData: {
                   ...quoteWithoutApproval.quote.feeData,
-                  // @ts-expect-error: Partial mock.
                   txFee: {
                     maxFeePerGas: '1395348',
                     maxPriorityFeePerGas: '1000001',
@@ -3982,7 +3970,6 @@ describe('BridgeStatusController', () => {
                 gasIncluded7702: true, // 7702 takes precedence → batch path
                 feeData: {
                   ...mockEvmQuoteResponse.quote.feeData,
-                  // @ts-expect-error: Partial mock.
                   txFee: {
                     maxFeePerGas: '1395348',
                     maxPriorityFeePerGas: '1000001',
@@ -4095,6 +4082,7 @@ describe('BridgeStatusController', () => {
               "BridgeController:trackUnifiedSwapBridgeEvent",
               "Unified SwapBridge Failed",
               {
+                "account_hardware_type": null,
                 "action_type": "swapbridge-v1",
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
@@ -4184,6 +4172,7 @@ describe('BridgeStatusController', () => {
               "BridgeController:trackUnifiedSwapBridgeEvent",
               "Unified SwapBridge Failed",
               {
+                "account_hardware_type": null,
                 "action_type": "swapbridge-v1",
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
@@ -4864,6 +4853,51 @@ describe('BridgeStatusController', () => {
           bridgeStatusController.state.txHistory.swapTxMetaId1.status.status,
         ).toBe(StatusTypes.FAILED);
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
+
+      it('should not call getAccountByAddress with undefined when txParams.from is missing', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionFailed', {
+          error: 'tx-error',
+          transactionMeta: {
+            chainId: CHAIN_IDS.ARBITRUM,
+            networkClientId: 'eth-id',
+            time: Date.now(),
+            txParams: {} as unknown as TransactionParams,
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            id: 'bridgeTxMetaId1',
+          },
+        });
+
+        const accountLookupCalls = messengerCallSpy.mock.calls.filter(
+          (call) => call[0] === 'AccountsController:getAccountByAddress',
+        );
+        expect(accountLookupCalls).not.toContainEqual([
+          'AccountsController:getAccountByAddress',
+          undefined,
+        ]);
+      });
+
+      it('should call getAccountByAddress when txParams.from is set', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionFailed', {
+          error: 'tx-error',
+          transactionMeta: {
+            chainId: CHAIN_IDS.ARBITRUM,
+            networkClientId: 'eth-id',
+            time: Date.now(),
+            txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            id: 'bridgeTxMetaId1',
+          },
+        });
+
+        expect(messengerCallSpy).toHaveBeenCalledWith(
+          'AccountsController:getAccountByAddress',
+          '0xaccount1',
+        );
       });
 
       it('should not track failed event for signed status', () => {

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "9.0.1",
+  "version": "9.1.0",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/json-rpc-engine": "^10.2.4",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

@@ -61,6 +61,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Completed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
@@ -98,6 +99,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
@@ -140,6 +142,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -195,6 +198,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -223,6 +227,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge All Quotes Opened",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "can_submit": true,
       "chain_id_destination": null,
@@ -253,6 +258,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge All Quotes Sorted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
@@ -341,11 +347,15 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge Page Viewed",
     {
-      "abc": 1,
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "is_hardware_wallet": false,
       "location": "Main View",
+      "slippage_limit": undefined,
+      "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
     },
@@ -358,6 +368,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge Quote Selected",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": false,
@@ -401,6 +412,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge Quotes Received",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
@@ -475,6 +487,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
@@ -497,6 +510,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
   [
     "Unified SwapBridge Quotes Received",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
@@ -892,6 +906,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -914,6 +929,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -936,6 +952,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -958,6 +975,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Error",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -981,6 +999,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
