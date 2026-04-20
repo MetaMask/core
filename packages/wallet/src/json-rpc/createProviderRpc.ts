@@ -244,7 +244,11 @@ export function createProviderRpc({
 
   engine.push(asLegacyMiddleware(createWalletSnapPermissionMiddleware()));
 
-  engine.push(messenger.call('PermissionController:createPermissionMiddleware', { origin }));
+  engine.push(
+    messenger.call('PermissionController:createPermissionMiddleware', {
+      origin,
+    }),
+  );
 
   const hooks = createRpcHooks(origin, messenger);
 

@@ -4,11 +4,16 @@ import {
   caip25EndowmentBuilder,
 } from '@metamask/chain-agnostic-permission';
 import {
+  KeyringControllerWithKeyringAction,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
+import {
   buildSnapEndowmentSpecifications,
   buildSnapRestrictedMethodSpecifications,
   caveatSpecifications as snapsCaveatsSpecifications,
   endowmentCaveatSpecifications as snapsEndowmentCaveatSpecifications,
 } from '@metamask/snaps-rpc-methods';
+import { RootMessenger } from 'src/initialization';
 
 export const EndowmentPermissions = Object.freeze({
   'endowment:network-access': 'endowment:network-access',
@@ -39,16 +44,228 @@ export const ExcludedSnapEndowments = Object.freeze({
  * Gets the specifications for all permissions that will be recognized by the
  * PermissionController.
  *
+ * @param messenger - The messenger.
  * @returns the permission specifications to construct the PermissionController.
  */
-export const getPermissionSpecifications = () => {
+export const getPermissionSpecifications = (messenger: RootMessenger) => {
   return {
     [caip25EndowmentBuilder.targetName]:
       caip25EndowmentBuilder.specificationBuilder({}),
     ...buildSnapEndowmentSpecifications(Object.keys(ExcludedSnapEndowments)),
     ...buildSnapRestrictedMethodSpecifications(
       Object.keys(ExcludedSnapPermissions),
-      {},
+      {
+        /**
+         * Get user preferences.
+         *
+         * @returns An object containing the preferences relevant to Snaps. This
+         * is a subset of the full preferences state.
+         */
+        getPreferences: () => {
+          const currency = messenger.call(
+            'CurrencyRateController:getState',
+          ).currentCurrency;
+
+          const {
+            currentLocale: locale,
+            openSeaEnabled,
+            preferences: { privacyMode, showTestNetworks },
+            securityAlertsEnabled,
+            useCurrencyRateCheck,
+            useTransactionSimulations,
+            useTokenDetection,
+            useMultiAccountBalanceChecker,
+            useNftDetection,
+          } = messenger.call('PreferencesController:getState');
+
+          return {
+            locale,
+            currency,
+            hideBalances: privacyMode,
+            useSecurityAlerts: securityAlertsEnabled,
+            useExternalPricingData: useCurrencyRateCheck,
+            simulateOnChainActions: useTransactionSimulations,
+            useTokenDetection,
+            batchCheckBalances: useMultiAccountBalanceChecker,
+            displayNftMedia: openSeaEnabled,
+            useNftDetection,
+            showTestnets: showTestNetworks,
+          };
+        },
+
+        clearSnapState: messenger.call.bind(
+          messenger,
+          'SnapController:clearSnapState',
+        ),
+
+        getMnemonic: getMnemonic.bind(null, messenger),
+        getMnemonicSeed: getMnemonicSeed.bind(null, messenger),
+
+        getUnlockPromise: messenger.call.bind(
+          messenger,
+          'AppStateController:getUnlockPromise',
+        ),
+
+        getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),
+        handleSnapRpcRequest: messenger.call.bind(
+          messenger,
+          'SnapController:handleRequest',
+        ),
+
+        getSnapState: messenger.call.bind(
+          messenger,
+          'SnapController:getSnapState',
+        ),
+
+        requestUserApproval: messenger.call.bind(
+          messenger,
+          'ApprovalController:addAndShowApprovalRequest',
+        ),
+
+        /**
+         * Show a native (system) notification.
+         *
+         * @param origin - The origin requesting the notification.
+         * @param args - The notification arguments.
+         * @param args.message - The notification message.
+         * @returns A promise that resolves when the notification is shown.
+         */
+        showNativeNotification: (origin: string, args: { message: string }) =>
+          messenger.call(
+            'RateLimitController:call',
+            origin,
+            'showNativeNotification',
+            // @ts-expect-error: `RateLimitController` methods aren't properly
+            // typed yet.
+            origin,
+            args.message,
+          ),
+
+        /**
+         * Show an in-app notification.
+         *
+         * @param origin - The origin requesting the notification.
+         * @param args - The notification arguments.
+         * @param args.message - The notification message.
+         * @param args.title - The notification title.
+         * @param args.footerLink - The notification footer link.
+         * @param args.content - The notification content identifier.
+         * @returns A promise that resolves when the notification is shown.
+         */
+        showInAppNotification: (
+          origin: string,
+          args: {
+            message: string;
+            title?: string;
+            footerLink?: string;
+            content?: string;
+          },
+        ) => {
+          const { content, message, title, footerLink } = args;
+          const notificationArgs = {
+            interfaceId: content,
+            message,
+            title,
+            footerLink,
+          };
+
+          return messenger.call(
+            'RateLimitController:call',
+            origin,
+            'showInAppNotification',
+            // @ts-expect-error: `RateLimitController` methods aren't properly
+            // typed yet.
+            origin,
+            notificationArgs,
+          );
+        },
+
+        updateSnapState: messenger.call.bind(
+          messenger,
+          'SnapController:updateSnapState',
+        ),
+
+        /**
+         * If phishing detection is enabled, check for an updated phishing
+         * list.
+         */
+        maybeUpdatePhishingList: () => {
+          const { usePhishDetect } = messenger.call(
+            'PreferencesController:getState',
+          );
+
+          if (!usePhishDetect) {
+            return;
+          }
+
+          messenger.call('PhishingController:maybeUpdateState');
+        },
+
+        /**
+         * Check whether a URL is on the phishing list.
+         *
+         * @param url - The URL to check.
+         * @returns A boolean indicating whether the URL is on the phishing
+         * list. If phishing detection is disabled, false is returned.
+         */
+        isOnPhishingList: (url: string) => {
+          const { usePhishDetect } = messenger.call(
+            'PreferencesController:getState',
+          );
+
+          if (!usePhishDetect) {
+            return false;
+          }
+
+          return messenger.call('PhishingController:testOrigin', url).result;
+        },
+
+        createInterface: messenger.call.bind(
+          messenger,
+          'SnapInterfaceController:createInterface',
+        ),
+
+        getInterface: messenger.call.bind(
+          messenger,
+          'SnapInterfaceController:getInterface',
+        ),
+
+        /**
+         * Get custom cryptography implementations for the client.
+         *
+         * @returns An object containing custom cryptography implementations.
+         * We currently don't use any specific implementations, so this is an
+         * empty object.
+         */
+        getClientCryptography: () => ({}),
+
+        getSnapKeyring: async () => {
+          // TODO: Use `withKeyring` instead.
+          const [snapKeyring] = messenger.call(
+            'KeyringController:getKeyringsByType',
+            KeyringTypes.snap,
+          );
+
+          if (!snapKeyring) {
+            messenger.call(
+              'KeyringController:addNewKeyring',
+              KeyringTypes.snap,
+            );
+
+            return messenger.call(
+              'KeyringController:getKeyringsByType',
+              KeyringTypes.snap,
+            )[0];
+          }
+
+          return snapKeyring;
+        },
+
+        setInterfaceDisplayed: messenger.call.bind(
+          messenger,
+          'SnapInterfaceController:setInterfaceDisplayed',
+        ),
+      },
     ),
   };
 };
@@ -57,29 +274,28 @@ export const getPermissionSpecifications = () => {
  * Gets the specifications for all caveats that will be recognized by the
  * PermissionController.
  *
- * @param options - The options object.
- * @param options.listAccounts - A function that returns the
- * `AccountsController` internalAccount objects for all evm accounts.
- * @param options.findNetworkClientIdByChainId - A function that
- * returns the networkClientId given a chainId.
- * @param options.isNonEvmScopeSupported - A function that returns true if
- * a non-evm scope is supported.
- * @param options.getNonEvmAccountAddresses - A function that returns the
- * supported CAIP-10 account addresses for a non-evm scope.
+ * @param messenger - The messenger.
  * @returns the caveat specifications to construct the PermissionController.
  */
-export const getCaveatSpecifications = ({
-  listAccounts,
-  findNetworkClientIdByChainId,
-  isNonEvmScopeSupported,
-  getNonEvmAccountAddresses,
-}: Parameters<typeof caip25CaveatBuilder>[0]) => {
+export const getCaveatSpecifications = (messenger: RootMessenger) => {
   return {
     [Caip25CaveatType]: caip25CaveatBuilder({
-      listAccounts,
-      findNetworkClientIdByChainId,
-      isNonEvmScopeSupported,
-      getNonEvmAccountAddresses,
+      listAccounts: () => {
+        const accounts = messenger.call('AccountsController:listAccounts');
+        return accounts.map((account) => ({
+          type: account.type,
+          address: account.address as `0x${string}`,
+        }));
+      },
+      findNetworkClientIdByChainId: (chainId: string) =>
+        messenger.call(
+          'NetworkController:findNetworkClientIdByChainId',
+          chainId,
+        ),
+      isNonEvmScopeSupported: (scope: string) =>
+        messenger.call('MultichainRoutingService:isSupportedScope', scope),
+      getNonEvmAccountAddresses: (scope: string) =>
+        messenger.call('MultichainRoutingService:getSupportedAccounts', scope),
     }),
     ...snapsCaveatsSpecifications,
     ...snapsEndowmentCaveatSpecifications,
@@ -197,3 +413,118 @@ export const unrestrictedMethods = Object.freeze([
   'snap_startTrace',
   'snap_endTrace',
 ]);
+
+/**
+ * Get the mnemonic for a given entropy source. If no source is
+ * provided, the primary HD keyring's mnemonic will be returned.
+ *
+ * @param messenger - The messenger.
+ * @param source - The ID of the entropy source keyring.
+ * @returns The mnemonic.
+ */
+export async function getMnemonic(
+  messenger: RootMessenger<KeyringControllerWithKeyringAction, never>,
+  source?: string | undefined,
+): Promise<Uint8Array> {
+  if (!source) {
+    const mnemonic = (await messenger.call(
+      'KeyringController:withKeyring',
+      {
+        type: KeyringTypes.hd,
+        index: 0,
+      },
+      async ({ keyring }) => (keyring as HdKeyring).mnemonic,
+    )) as Uint8Array | null;
+
+    if (!mnemonic) {
+      throw new Error('Primary keyring mnemonic unavailable.');
+    }
+
+    return mnemonic;
+  }
+
+  try {
+    const keyringData = await messenger.call(
+      'KeyringController:withKeyring',
+      {
+        id: source,
+      },
+      async ({ keyring }) => ({
+        type: keyring.type,
+        mnemonic: (keyring as HdKeyring).mnemonic,
+      }),
+    );
+
+    const { type, mnemonic } = keyringData as {
+      type: string;
+      mnemonic?: Uint8Array;
+    };
+
+    if (type !== KeyringTypes.hd || !mnemonic) {
+      // The keyring isn't guaranteed to have a mnemonic (e.g.,
+      // hardware wallets, which can't be used as entropy sources),
+      // so we throw an error if it doesn't.
+      throw new Error(`Entropy source with ID "${source}" not found.`);
+    }
+
+    return mnemonic;
+  } catch {
+    throw new Error(`Entropy source with ID "${source}" not found.`);
+  }
+}
+
+/**
+ * Get the mnemonic seed for a given entropy source. If no source is
+ * provided, the primary HD keyring's mnemonic seed will be returned.
+ *
+ * @param messenger - The messenger.
+ * @param source - The ID of the entropy source keyring.
+ * @returns The mnemonic seed.
+ */
+export async function getMnemonicSeed(
+  messenger: RootMessenger<KeyringControllerWithKeyringAction, never>,
+  source?: string | undefined,
+): Promise<Uint8Array> {
+  if (!source) {
+    const seed = (await messenger.call(
+      'KeyringController:withKeyring',
+      {
+        type: KeyringTypes.hd,
+        index: 0,
+      },
+      async ({ keyring }) => (keyring as HdKeyring).seed,
+    )) as Uint8Array | null;
+
+    if (!seed) {
+      throw new Error('Primary keyring mnemonic unavailable.');
+    }
+
+    return seed;
+  }
+
+  try {
+    const keyringData = await messenger.call(
+      'KeyringController:withKeyring',
+      {
+        id: source,
+      },
+      async ({ keyring }) => ({
+        type: keyring.type,
+        seed: (keyring as HdKeyring).seed,
+      }),
+    );
+
+    const { type, seed } = keyringData as { type: string; seed?: Uint8Array };
+
+    if (type !== KeyringTypes.hd || !seed) {
+      // The keyring isn't guaranteed to have a mnemonic (e.g.,
+      // hardware wallets, which can't be used as entropy sources),
+      // so we throw an error if it doesn't.
+      throw new Error(`Entropy source with ID "${source}" not found.`);
+    }
+
+    return seed;
+  } catch {
+    throw new Error(`Entropy source with ID "${source}" not found.`);
+  }
+}

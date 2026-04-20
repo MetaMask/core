@@ -20,8 +20,8 @@ export const permissionController: InitializationConfiguration<
     const instance = new PermissionController({
       messenger,
       state,
-      permissionSpecifications: getPermissionSpecifications({}),
-      caveatSpecifications: getCaveatSpecifications({}),
+      permissionSpecifications: getPermissionSpecifications(messenger),
+      caveatSpecifications: getCaveatSpecifications(messenger),
       unrestrictedMethods,
     });
 
