@@ -90,6 +90,8 @@ jobs:
       - name: Check release
         if: github.event_name != 'push'
         uses: ./.github/actions/check-release
+        with:
+          commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
 
   is-release:
     name: Determine whether this is a release merge commit
