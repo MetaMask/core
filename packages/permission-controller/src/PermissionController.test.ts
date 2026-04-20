@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -37,6 +38,7 @@ import {
   CaveatMutatorOperation,
   constructPermission,
   createPermissionMiddleware,
+  createPermissionMiddlewareV2,
   MethodNames,
   PermissionController,
   PermissionType,
@@ -6503,6 +6505,102 @@ describe('PermissionController', () => {
         `Internal request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
       );
       expect(error.code).toBe(-32603);
+    });
+
+    describe('v2', () => {
+      it('executes a restricted method', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['a', 'b', 'c']);
+      });
+
+      it('passes through unrestricted methods', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+            () => 'success',
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'wallet_unrestrictedMethod',
+        });
+
+        expect(result).toBe('success');
+      });
+
+      it('throws an error if the subject has an invalid "origin" property', () => {
+        const { middlewareMessenger } = setup();
+
+        ['', null, undefined, 2].forEach((invalidOrigin) => {
+          expect(() =>
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: {
+                // @ts-expect-error Intentional destructive testing
+                origin: invalidOrigin,
+              },
+            }),
+          ).toThrow(
+            new Error('The subject "origin" must be a non-empty string.'),
+          );
+        });
+      });
+
+      it('throws if the subject does not have the requisite permission', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: PermissionNames.wallet_getSecretArray,
+          }),
+        ).rejects.toThrow(
+          'Unauthorized to perform action. Try requesting the required permission(s) first.',
+        );
+      });
     });
   });
 

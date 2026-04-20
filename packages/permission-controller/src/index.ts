@@ -23,6 +23,7 @@ export type {
 } from './PermissionController-method-action-types';
 export {
   createPermissionMiddleware,
+  createPermissionMiddlewareV2,
   type PermissionMiddlewareActions,
 } from './permission-middleware';
 export type {
