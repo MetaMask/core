@@ -46,6 +46,7 @@ jobs:
       head-sha: ${{ steps.pr-info.outputs.pr-head-sha }}
       head-ref: ${{ steps.pr-info.outputs.pr-head-ref }}
       base-ref: ${{ steps.pr-info.outputs.pr-base-ref }}
+      merge-base: ${{ steps.merge-base.outputs.merge-base }}
     steps:
       - name: Get pull request info
         id: pr-info
@@ -139,7 +140,9 @@ jobs:
 
       - name: Ensure required dependency bump entries exist across all changelogs
         id: update-changelogs
-        run: yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER"
+        env:
+          MERGE_BASE: ${{ needs.is-release.outputs.merge-base }}
+        run: yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
         continue-on-error: true
 
       - name: Commit and push updated changelogs
