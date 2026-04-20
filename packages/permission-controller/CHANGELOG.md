@@ -9,24 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `createPermissionMiddlewareV2`, a `JsonRpcEngineV2` variant of the standalone permission middleware factory ([#8532](https://github.com/MetaMask/core/pull/8532)).
+- Add `createPermissionMiddlewareV2`, a `JsonRpcEngineV2` variant of the standalone permission middleware factory ([#8532](https://github.com/MetaMask/core/pull/8532))
 
 ### Changed
 
-- **BREAKING:** Decouple the permission middleware from `PermissionController` and expose it as a standalone `createPermissionMiddleware` export ([#8532](https://github.com/MetaMask/core/pull/8532))
-  - Removes the `createPermissionMiddleware` property from `PermissionController`. Consumers should instead import `createPermissionMiddleware` from `@metamask/permission-controller` and call it with a messenger and subject metadata. The messenger must have the `PermissionController:executeRestrictedMethod` and `PermissionController:hasUnrestrictedMethod` actions delegated to it.
-  - Adds a new `PermissionMiddlewareActions` type describing the messenger actions required by the middleware.
-  - Exposes additional `PermissionController` methods through its messenger: `PermissionController:executeRestrictedMethod` and `PermissionController:hasUnrestrictedMethod`. Corresponding action types (`PermissionControllerExecuteRestrictedMethodAction` and `PermissionControllerHasUnrestrictedMethodAction`) are exported as well.
-  - Adds a public `PermissionController.hasUnrestrictedMethod(method)` predicate backing the new action.
-  - Removes the public `getRestrictedMethod` method from `PermissionController`. Restricted methods should be invoked via `executeRestrictedMethod` instead.
-  - When a restricted method returns `undefined`, the middleware now propagates the plain `Error` thrown by `PermissionController.executeRestrictedMethod` (with the message `Internal request for method "<method>" as origin "<origin>" returned no result.`) rather than wrapping it into a custom `internalError` with a `request` data payload. The JSON-RPC engine serializes this as a standard internal error response.
+- **BREAKING:** Decouple the permission middleware from `PermissionController` and expose it as a standalone function ([#8532](https://github.com/MetaMask/core/pull/8532))
+  - Removes the `createPermissionMiddleware` property from `PermissionController`. Consumers should instead import `createPermissionMiddlewareV2` from `@metamask/permission-controller` and call it with a messenger and subject metadata.
+  - A `createPermissionMiddleware` function is exported for legacy `JsonRpcEngine` compatibility.
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ### Deprecated
 
-- Deprecate `createPermissionMiddleware` in favor of `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2` ([#8532](https://github.com/MetaMask/core/pull/8532)).
+- Deprecate `createPermissionMiddleware` in favor of `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2` ([#8532](https://github.com/MetaMask/core/pull/8532))
 
 ## [12.3.0]
 
@@ -197,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
