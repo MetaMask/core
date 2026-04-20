@@ -43,39 +43,34 @@ jobs:
     environment: default-branch
     outputs:
       is-release: ${{ steps.is-release.outputs.IS_RELEASE }}
-      head-sha: ${{ steps.pr-head-sha.outputs.pr-head-sha }}
+      head-sha: ${{ steps.pr-info.outputs.pr-head-sha }}
+      head-ref: ${{ steps.pr-info.outputs.pr-head-ref }}
+      base-ref: ${{ steps.pr-info.outputs.pr-base-ref }}
     steps:
-      - name: Determine whether this PR is from a fork
-        id: is-fork
-        run: |
-          IS_FORK="$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "$PR_NUMBER" --repo "$GITHUB_REPOSITORY")"
-          echo "is-fork=$IS_FORK" >> "$GITHUB_OUTPUT"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-
-      - name: Get pull request base ref and head SHA
-        if: steps.is-fork.outputs.is-fork == 'false'
-        id: pr-head-sha
+      - name: Get pull request info
+        id: pr-info
         env:
           GH_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
-          echo "pr-base-ref=$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
-          echo "pr-head-sha=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
+          gh pr view "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json baseRefName,headRefOid,headRefName,title \
+            --jq '"pr-base-ref=\(.baseRefName)\npr-head-sha=\(.headRefOid)\npr-head-ref=\(.headRefName)\npr-title=\(.title)"' \
+            >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          ref: ${{ steps.pr-info.outputs.pr-head-sha }}
 
       - name: Get merge base
-        if: steps.is-fork.outputs.is-fork == 'false'
         id: merge-base
         shell: bash
         env:
-          BASE_REF: ${{ steps.pr-head-sha.outputs.pr-base-ref }}
+          BASE_REF: ${{ steps.pr-info.outputs.pr-base-ref }}
         run: |
           set -euo pipefail
 
@@ -83,19 +78,18 @@ jobs:
           echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
 
       - name: Check if the pull request is a release
-        if: steps.is-fork.outputs.is-fork == 'false'
         id: is-release
         uses: MetaMask/action-is-release@v2
         with:
           commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
-          commit-message: ${{ github.event.pull_request.title }}
+          commit-message: ${{ steps.pr-info.outputs.pr-title }}
           before: ${{ steps.merge-base.outputs.merge-base }}
           skip-checkout: true
 
   react-to-comment:
     name: React to the comment
     needs: is-release
-    if: ${{ needs.is-release.outputs.is-release == 'true' }}
+    if: needs.is-release.outputs.is-release == 'true' && github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     environment: default-branch
     continue-on-error: true
@@ -132,8 +126,10 @@ jobs:
       - name: Checkout pull request
         env:
           PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
+          PR_BASE_REF: ${{ needs.is-release.outputs.base-ref }}
         run: |
           git fetch --no-tags origin "$PR_HEAD_SHA"
+          git fetch --no-tags origin "$PR_BASE_REF"
           git checkout --detach "$PR_HEAD_SHA"
 
       - name: Setup environment
@@ -148,6 +144,8 @@ jobs:
 
       - name: Commit and push updated changelogs
         id: push-changes
+        env:
+          PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
         run: |
           if git diff --quiet; then
             echo "changes-pushed=false" >> "$GITHUB_OUTPUT"
@@ -159,7 +157,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- '**/CHANGELOG.md'
           git commit -m "chore: Update dependency bump changelog entries"
-          git push
+          git push origin "HEAD:$PR_HEAD_REF"
 
           echo "changes-pushed=true" >> "$GITHUB_OUTPUT"
 
