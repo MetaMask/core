@@ -771,94 +771,94 @@ const mockSelectedAccount = {
   },
 };
 
-describe('BridgeStatusController', () => {
+describe('BridgeStatusController constructor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
-    // jest.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
   });
 
-  describe('constructor', () => {
-    it('should setup correctly', async () => {
-      await withController(async ({ controller }) => {
-        expect(controller.state).toStrictEqual(EMPTY_INIT_STATE);
-      });
+  it('should setup correctly', async () => {
+    await withController(async ({ controller }) => {
+      expect(controller.state).toStrictEqual(EMPTY_INIT_STATE);
     });
+  });
 
-    it('rehydrates the tx history state', async () => {
-      await withController(
-        { options: { state: { txHistory: MockTxHistory.getPending() } } },
-        async ({ controller }) => {
-          // Assertion
-          expect(controller.state.txHistory).toMatchSnapshot();
-          controller.stopAllPolling();
-        },
-      );
-    });
+  it('rehydrates the tx history state', async () => {
+    await withController(
+      { options: { state: { txHistory: MockTxHistory.getPending() } } },
+      async ({ controller }) => {
+        // Assertion
+        expect(controller.state.txHistory).toMatchSnapshot();
+        controller.stopAllPolling();
+      },
+    );
+  });
 
-    it('restarts polling for history items that are not complete', async () => {
-      // Setup
-      jest.useFakeTimers();
-      const fetchBridgeTxStatusSpy = jest.spyOn(
-        bridgeStatusUtils,
-        'fetchBridgeTxStatus',
-      );
-      const provider = {
-        request: jest.fn().mockResolvedValueOnce('txReceipt1'),
-      };
+  it('restarts polling for history items that are not complete', async () => {
+    // Setup
+    jest.useFakeTimers();
+    const fetchBridgeTxStatusSpy = jest.spyOn(
+      bridgeStatusUtils,
+      'fetchBridgeTxStatus',
+    );
+    const provider = {
+      request: jest.fn().mockResolvedValueOnce('txReceipt1'),
+    };
 
-      await withController(
-        {
-          options: {
-            state: {
-              txHistory: {
-                ...MockTxHistory.getPending(),
-                ...MockTxHistory.getUnknown(),
-                ...MockTxHistory.getPendingSwap({
-                  srcTxHash: '0xswapSrcTxHash',
-                }),
-                ...MockTxHistory.getInitNoSrcTxHash({
-                  txMetaId: 'oldBridgeTxMetaId',
-                  srcTxHash: '0xoldSrcTxHash',
-                }),
-              },
+    jest.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
+
+    await withController(
+      {
+        options: {
+          state: {
+            txHistory: {
+              ...MockTxHistory.getPending(),
+              ...MockTxHistory.getUnknown(),
+              ...MockTxHistory.getPendingSwap({
+                srcTxHash: '0xswapSrcTxHash',
+              }),
+              ...MockTxHistory.getInitNoSrcTxHash({
+                txMetaId: 'oldBridgeTxMetaId',
+                srcTxHash: '0xoldSrcTxHash',
+              }),
             },
-            fetchFn: jest
-              .fn()
-              .mockResolvedValueOnce(MockStatusResponse.getPending())
-              .mockResolvedValueOnce(MockStatusResponse.getComplete())
-              .mockResolvedValueOnce(MockStatusResponse.getPending()),
           },
+          fetchFn: jest
+            .fn()
+            .mockResolvedValueOnce(MockStatusResponse.getPending())
+            .mockResolvedValueOnce(MockStatusResponse.getComplete())
+            .mockResolvedValueOnce(MockStatusResponse.getPending()),
         },
-        async ({ controller, rootMessenger }) => {
-          registerDefaultActionHandlers(rootMessenger, {
-            provider,
-          });
-          const initialStatuses = {
-            bridgeTxMetaId1: 'PENDING',
-            bridgeTxMetaId2: 'UNKNOWN',
-            swapTxMetaId1: 'PENDING',
-            oldBridgeTxMetaId: 'PENDING',
-          };
-          expect(
-            Object.entries(controller.state.txHistory).reduce(
-              (acc, [key, value]) => ({
-                ...acc,
-                [key]: value.status.status,
-              }),
-              {},
-            ),
-          ).toStrictEqual(initialStatuses);
+      },
+      async ({ controller, rootMessenger }) => {
+        registerDefaultActionHandlers(rootMessenger, {
+          provider,
+        });
+        const initialStatuses = {
+          bridgeTxMetaId1: 'PENDING',
+          bridgeTxMetaId2: 'UNKNOWN',
+          swapTxMetaId1: 'PENDING',
+          oldBridgeTxMetaId: 'PENDING',
+        };
+        expect(
+          Object.entries(controller.state.txHistory).reduce(
+            (acc, [key, value]) => ({
+              ...acc,
+              [key]: value.status.status,
+            }),
+            {},
+          ),
+        ).toStrictEqual(initialStatuses);
 
-          expect(
-            Object.entries(controller.state.txHistory).reduce(
-              (acc, [key, value]) => ({
-                ...acc,
-                [key]: value.status.srcChain.txHash,
-              }),
-              {},
-            ),
-          ).toMatchInlineSnapshot(`
+        expect(
+          Object.entries(controller.state.txHistory).reduce(
+            (acc, [key, value]) => ({
+              ...acc,
+              [key]: value.status.srcChain.txHash,
+            }),
+            {},
+          ),
+        ).toMatchInlineSnapshot(`
             {
               "bridgeTxMetaId1": "0xsrcTxHash1",
               "bridgeTxMetaId2": "0xsrcTxHash2",
@@ -867,405 +867,201 @@ describe('BridgeStatusController', () => {
             }
           `);
 
-          jest.advanceTimersByTime(10000);
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(3);
+        expect(provider.request.mock.calls.flat()).toMatchInlineSnapshot(`[]`);
+
+        expect(controller.state.txHistory.bridgeTxMetaId1.status.status).toBe(
+          StatusTypes.PENDING,
+        );
+        expect(controller.state.txHistory.bridgeTxMetaId2.status.status).toBe(
+          StatusTypes.COMPLETE,
+        );
+        expect(controller.state.txHistory.swapTxMetaId1.status.status).toBe(
+          StatusTypes.PENDING,
+        );
+        expect(controller.state.txHistory.oldBridgeTxMetaId.status.status).toBe(
+          StatusTypes.PENDING,
+        );
+        controller.stopAllPolling();
+      },
+    );
+  });
+
+  it.each([
+    {
+      title: 'tx hash, provider returns receipt',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () => await Promise.resolve('txReceipt1'),
+      expectedHistoryTxMetaId: 'unknownTxMetaId1',
+    },
+    {
+      title: 'tx hash, provider returns no receipt',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () => await Promise.resolve(),
+    },
+    {
+      title: 'tx hash, provider throws error',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () =>
+        await Promise.reject(new Error('Provider error')),
+    },
+    {
+      title: 'no tx hash, has txMeta',
+      txMeta: {
+        id: 'txMetaId2',
+        hash: '0xsrcTxHash3',
+      },
+    },
+    {
+      title: 'no tx hash, no txMeta',
+      txMeta: {
+        id: 'undefined',
+      },
+    },
+    {
+      title: 'no txHash, no txMeta, provider returns no receipt',
+      txMeta: {
+        id: 'undefined',
+      },
+      providerAction: async () => await Promise.resolve(),
+    },
+    {
+      title: 'no txHash, no txMeta, provider returns receipt',
+      txMeta: {
+        id: 'undefined',
+      },
+      providerAction: async () => await Promise.resolve('txReceipt1'),
+    },
+    {
+      title: 'no txHash, no txMeta, provider throws error',
+      txMeta: {
+        id: 'undefined',
+      },
+      providerAction: async () =>
+        await Promise.reject(new Error('Provider error')),
+    },
+  ])(
+    'when history has $title and is older than 2 days',
+    async ({
+      txHash = 'undefined',
+      providerAction = () => Promise.resolve(),
+      txMeta,
+      expectedHistoryTxMetaId,
+    }) => {
+      // Setup
+      jest.useFakeTimers();
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+      const provider = {
+        request: jest
+          .fn()
+          .mockImplementationOnce(async () => await providerAction()),
+      };
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementationOnce(() => jest.fn());
+
+      const [historyKey, txHistoryItem] = Object.entries(
+        MockTxHistory.getPending({
+          txMetaId: txMeta?.id ?? 'unknownTxMetaId1',
+          srcTxHash: txHash,
+        }),
+      )[0];
+
+      const startTime =
+        Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS - 1000;
+
+      await withController(
+        {
+          options: {
+            state: {
+              txHistory: {
+                [historyKey]: {
+                  ...txHistoryItem,
+                  attempts: {
+                    counter: MAX_ATTEMPTS + 1,
+                    lastAttemptTime: Date.now() - 1280000 - 1000,
+                  },
+                  startTime,
+                },
+              },
+            },
+            fetchFn: jest
+              .fn()
+              .mockResolvedValueOnce(MockStatusResponse.getPending()),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const stopPollingSpy = jest.spyOn(
+            controller,
+            'stopPollingByPollingToken',
+          );
+          const messengerCallSpy = jest.spyOn(rootMessenger, 'call');
+
+          registerDefaultActionHandlers(rootMessenger, {
+            provider,
+            txMetaId: txMeta?.id === 'undefined' ? undefined : txMeta?.id,
+            txHash: txMeta?.hash,
+          });
+          controller.startPolling({ bridgeTxMetaId: historyKey });
+
+          expect(
+            controller.state.txHistory[historyKey].status.status,
+          ).toStrictEqual(StatusTypes.PENDING);
+
+          jest.advanceTimersByTime(DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS);
           await flushPromises();
 
           // Assertions
-          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(3);
-          expect(
-            provider.request.mock.calls.flatMap((call) =>
-              call.flatMap((c) => c.params),
-            ),
-          ).toMatchInlineSnapshot(`[]`);
+          const fetchTxStatusCalls = fetchBridgeTxStatusSpy.mock.calls.length;
+          const consoleWarnCalls = consoleWarnSpy.mock.calls;
+          const expectedMetric = messengerCallSpy.mock.calls;
 
-          expect(controller.state.txHistory.bridgeTxMetaId1.status.status).toBe(
-            StatusTypes.PENDING,
-          );
-          expect(controller.state.txHistory.bridgeTxMetaId2.status.status).toBe(
-            StatusTypes.COMPLETE,
-          );
-          expect(controller.state.txHistory.swapTxMetaId1.status.status).toBe(
-            StatusTypes.PENDING,
+          expect({
+            expectedMetric,
+            fetchTxStatusCalls,
+            historyTxMetaIdAfterFetch:
+              controller.state.txHistory[historyKey]?.txMetaId,
+            consoleWarnCalls: consoleWarnCalls.map((call) =>
+              JSON.stringify(call),
+            ),
+          }).toStrictEqual({
+            expectedMetric: [],
+            fetchTxStatusCalls: 0,
+            historyTxMetaIdAfterFetch: expectedHistoryTxMetaId,
+            consoleWarnCalls: ['["Failed to fetch bridge tx status",{}]'],
+          });
+
+          expect(controller.state.txHistory[historyKey]?.status.status).toBe(
+            expectedHistoryTxMetaId ? StatusTypes.PENDING : undefined,
           );
           expect(
-            controller.state.txHistory.oldBridgeTxMetaId.status.status,
-          ).toBe(StatusTypes.PENDING);
-          controller.stopAllPolling();
+            controller.state.txHistory[historyKey]?.attempts?.counter,
+          ).toBe(expectedHistoryTxMetaId ? MAX_ATTEMPTS + 2 : undefined);
+          expect(stopPollingSpy.mock.calls).toStrictEqual(
+            expectedHistoryTxMetaId ? [] : [['test-uuid-1234']],
+          );
+          expect(
+            controller.state.txHistory[historyKey]?.status.srcChain.txHash,
+          ).toBe(expectedHistoryTxMetaId ? txHash : undefined);
+          expect(provider.request.mock.calls.flat()).toMatchSnapshot();
         },
       );
-    });
+    },
+  );
+});
 
-    it.each([
-      {
-        title: 'tx hash, provider returns receipt',
-        txHash: '0xsrcTxHash2',
-        providerAction: async () => await Promise.resolve('txReceipt1'),
-        expectedFetchTxStatusCalls: 1,
-      },
-      {
-        title: 'tx hash, provider returns no receipt',
-        txHash: '0xsrcTxHash2',
-        providerAction: async () => await Promise.resolve(),
-        expectedFetchTxStatusCalls: 1,
-      },
-      {
-        title: 'tx hash, provider throws error',
-        txHash: '0xsrcTxHash2',
-        providerAction: async () =>
-          await Promise.reject(new Error('Provider error')),
-        expectedFetchTxStatusCalls: 1,
-      },
-      {
-        title: 'no tx hash, has txMeta',
-        txMeta: {
-          id: 'txMetaId2',
-          hash: '0xsrcTxHash3',
-        },
-        expectedFetchTxStatusCalls: 1,
-      },
-      {
-        title: 'no tx hash, no txMeta',
-        txMeta: {
-          id: 'undefined',
-        },
-      },
-      {
-        title: 'no txHash, no txMeta, provider returns no receipt',
-        txMeta: {
-          id: 'undefined',
-        },
-        providerAction: async () => await Promise.resolve(),
-      },
-      {
-        title: 'no txHash, no txMeta, provider returns receipt',
-        txMeta: {
-          id: 'undefined',
-        },
-        providerAction: async () => await Promise.resolve('txReceipt1'),
-      },
-      {
-        title: 'no txHash, no txMeta, provider throws error',
-        txMeta: {
-          id: 'undefined',
-        },
-        providerAction: async () =>
-          await Promise.reject(new Error('Provider error')),
-      },
-    ])(
-      'when history has $title and is older than 2 days',
-      async ({
-        txHash = 'undefined',
-        providerAction = () => Promise.resolve(),
-        txMeta,
-        expectedFetchTxStatusCalls = 0,
-      }) => {
-        // Setup
-        jest.useFakeTimers();
-        const fetchBridgeTxStatusSpy = jest.spyOn(
-          bridgeStatusUtils,
-          'fetchBridgeTxStatus',
-        );
-        const provider = {
-          request: jest
-            .fn()
-            .mockImplementationOnce(async () => await providerAction()),
-        };
-        const consoleWarnSpy = jest
-          .spyOn(console, 'warn')
-          .mockImplementationOnce(() => jest.fn());
-
-        const [historyKey, txHistoryItem] = Object.entries(
-          MockTxHistory.getPending({
-            txMetaId: txMeta?.id ?? 'unknownTxMetaId1',
-            srcTxHash: txHash,
-          }),
-        )[0];
-
-        const startTime =
-          Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS - 1000;
-
-        await withController(
-          {
-            options: {
-              state: {
-                txHistory: {
-                  [historyKey]: {
-                    ...txHistoryItem,
-                    attempts: {
-                      counter: MAX_ATTEMPTS + 1,
-                      lastAttemptTime: Date.now() - 1280000 - 1000,
-                    },
-                    startTime,
-                  },
-                },
-              },
-              fetchFn: jest
-                .fn()
-                .mockResolvedValueOnce(MockStatusResponse.getPending()),
-            },
-          },
-          async ({ controller, rootMessenger }) => {
-            const stopPollingSpy = jest.spyOn(
-              controller,
-              'stopPollingByPollingToken',
-            );
-            const messengerCallSpy = jest.spyOn(rootMessenger, 'call');
-
-            registerDefaultActionHandlers(rootMessenger, {
-              provider,
-              txMetaId: txMeta?.id === 'undefined' ? undefined : txMeta?.id,
-              txHash: txMeta?.hash,
-            });
-
-            controller.startPolling({ bridgeTxMetaId: historyKey });
-            expect(
-              controller.state.txHistory[historyKey].status.status,
-            ).toStrictEqual(StatusTypes.PENDING);
-
-            jest.advanceTimersByTime(DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS);
-            await flushPromises();
-
-            // Assertions
-            const fetchTxStatusCalls = fetchBridgeTxStatusSpy.mock.calls.length;
-            const providerParams = provider.request.mock.calls.flatMap((call) =>
-              call.flatMap((c) => c.params),
-            );
-            const expectedTxHistory = Boolean(
-              controller.state.txHistory[historyKey],
-            );
-            const expectedStatus =
-              controller.state.txHistory[historyKey]?.status.status;
-            const stopPollingCalls = stopPollingSpy.mock.calls;
-            const expectedAttempts =
-              controller.state.txHistory[historyKey]?.attempts?.counter;
-            const consoleWarnCalls = consoleWarnSpy.mock.calls;
-            const expectedMetric = messengerCallSpy.mock.calls;
-
-            const sharedResults = {
-              expectedMetric,
-              fetchTxStatusCalls,
-            };
-            expect(sharedResults).toStrictEqual({
-              expectedMetric: [],
-              fetchTxStatusCalls: expectedFetchTxStatusCalls,
-            });
-
-            const results = {
-              expectedTxHash:
-                controller.state.txHistory[historyKey]?.status.srcChain.txHash,
-              stopPollingCalls,
-              expectedTxHistory,
-              expectedStatus,
-              expectedAttempts,
-              consoleWarnCalls,
-              providerParams,
-            };
-            expect(results).toMatchSnapshot();
-          },
-        );
-      },
-    );
-
-    describe.each([
-      {
-        title: 'tx hash, provider returns receipt',
-        txHash: '0xsrcTxHash2',
-        providerAction: async () => await Promise.resolve('txReceipt1'),
-      },
-      {
-        title: 'tx hash, provider returns no receipt',
-        txHash: '0xsrcTxHash2',
-        providerAction: async () => await Promise.resolve(),
-      },
-      {
-        title: 'tx hash, provider throws error',
-        txHash: '0xsrcTxHash2',
-        providerAction: async () =>
-          await Promise.reject(new Error('Provider error')),
-      },
-      {
-        title: 'no tx hash, has txMeta',
-        txMeta: {
-          id: 'txMetaId2',
-          hash: '0xsrcTxHash3',
-        },
-      },
-      {
-        title: 'no tx hash, no txMeta',
-        txMeta: {
-          id: 'undefined',
-        },
-        // retry: true,
-      },
-      {
-        title: 'no txHash, no txMeta, provider returns no receipt',
-        txMeta: {
-          id: 'undefined',
-        },
-        providerAction: async () => await Promise.resolve(),
-        // retry: true,
-      },
-      {
-        title: 'no txHash, no txMeta, provider returns receipt',
-        txMeta: {
-          id: 'undefined',
-        },
-        providerAction: async () => await Promise.resolve('txReceipt1'),
-        // retry: true,
-      },
-      {
-        title: 'no txHash, no txMeta, provider throws error',
-        txMeta: {
-          id: 'undefined',
-        },
-        providerAction: async () =>
-          await Promise.reject(new Error('Provider error')),
-        // retry: true,
-      },
-    ])(
-      'has $title',
-      ({
-        txHash = 'undefined',
-        providerAction = () => Promise.resolve(),
-        txMeta,
-      }) => {
-        it.each([
-          {
-            title: 'polling every 10s',
-            attempts: {
-              counter: MAX_ATTEMPTS - 2,
-              lastAttemptTime: Date.now() - 160000,
-            },
-            startTime:
-              Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS + 320000,
-          },
-          {
-            title: 'max attempts reached',
-            attempts: {
-              counter: MAX_ATTEMPTS - 1,
-              lastAttemptTime: Date.now() - 320000,
-            },
-            startTime:
-              Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS + 320000,
-          },
-          {
-            title: 'exponentially backing off',
-            startTime:
-              Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS + 3200000,
-          },
-          {
-            title: 'too old',
-            startTime:
-              Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS - 320000,
-          },
-        ])('and $title', async ({ attempts }) => {
-          // Setup
-          jest.useFakeTimers();
-          const fetchBridgeTxStatusSpy = jest.spyOn(
-            bridgeStatusUtils,
-            'fetchBridgeTxStatus',
-          );
-          const provider = {
-            request: jest
-              .fn()
-              .mockImplementationOnce(async () => await providerAction()),
-          };
-          const consoleWarnSpy = jest
-            .spyOn(console, 'warn')
-            .mockImplementationOnce(() => jest.fn());
-
-          const [historyKey, txHistoryItem] = Object.entries(
-            MockTxHistory.getPending({
-              txMetaId: txMeta?.id === 'undefined' ? undefined : txMeta?.id,
-              srcTxHash: txHash,
-            }),
-          )[0];
-
-          await withController(
-            {
-              options: {
-                state: {
-                  txHistory: {
-                    [historyKey]: {
-                      ...txHistoryItem,
-                      attempts: attempts ?? {
-                        counter: MAX_ATTEMPTS + 1,
-                        lastAttemptTime: Date.now() - 1280000 - 1000,
-                      },
-                      startTime:
-                        Date.now() -
-                        DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS +
-                        320000,
-                    },
-                  },
-                },
-                fetchFn: jest
-                  .fn()
-                  .mockResolvedValueOnce(MockStatusResponse.getPending()),
-              },
-            },
-            async ({ controller, rootMessenger }) => {
-              const stopPollingSpy = jest.spyOn(
-                controller,
-                'stopPollingByPollingToken',
-              );
-              const messengerCallSpy = jest.spyOn(rootMessenger, 'call');
-
-              registerDefaultActionHandlers(rootMessenger, {
-                provider,
-                txMetaId: txMeta?.id,
-                txHash: txMeta?.hash,
-              });
-
-              controller.startPolling({ bridgeTxMetaId: historyKey });
-              expect(
-                controller.state.txHistory[historyKey].status.status,
-              ).toStrictEqual(StatusTypes.PENDING);
-
-              jest.advanceTimersByTime(DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS);
-              await flushPromises();
-
-              // Assertions
-              const fetchTxStatusCalls =
-                fetchBridgeTxStatusSpy.mock.calls.length;
-              const providerParams = provider.request.mock.calls.flatMap(
-                (call) => call.flatMap((c) => c.params),
-              );
-              const expectedTxHistory = Boolean(
-                controller.state.txHistory[historyKey],
-              );
-              const expectedStatus =
-                controller.state.txHistory[historyKey]?.status.status;
-              const stopPollingCalls = stopPollingSpy.mock.calls;
-              const consoleWarnCalls = consoleWarnSpy.mock.calls;
-              const expectedMetric = messengerCallSpy.mock.calls;
-              const expectedAttempts =
-                controller.state.txHistory[historyKey]?.attempts?.counter;
-              const expectedTxHash =
-                controller.state.txHistory[historyKey]?.status.srcChain.txHash;
-
-              expect({
-                expectedMetric,
-                providerParams,
-              }).toStrictEqual({
-                expectedMetric: [],
-                providerParams: [],
-              });
-
-              expect({
-                expectedAttempts,
-                expectedStatus,
-                expectedTxHistory,
-                expectedTxHash,
-                stopPollingCalls,
-                fetchTxStatusCalls,
-                consoleWarnCalls,
-              }).toMatchSnapshot('pending history item');
-            },
-          );
-        });
-      },
-    );
+describe('BridgeStatusController', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+    jest.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
   });
 
   describe('startPolling - error handling', () => {
@@ -1372,10 +1168,12 @@ describe('BridgeStatusController', () => {
           }
 
           // Assertions
-          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(MAX_ATTEMPTS);
+          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(
+            MAX_ATTEMPTS + 1,
+          );
           expect(
             controller.state.txHistory.bridgeTxMetaId1?.attempts?.counter,
-          ).toBe(MAX_ATTEMPTS);
+          ).toBe(MAX_ATTEMPTS + 1);
 
           // Verify polling stops after max attempts - even with a long wait, no more calls
           const callCountBeforeExtraTime =
@@ -1388,6 +1186,10 @@ describe('BridgeStatusController', () => {
           controller.stopAllPolling();
           expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
             [
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
               [
                 "Failed to fetch bridge tx status",
                 [Error: Persistent error],
@@ -5400,18 +5202,21 @@ describe('BridgeStatusController', () => {
 
       it('should call getAccountByAddress when txParams.from is set', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: { from: '0xaccount1' } as unknown as TransactionParams,
-            type: TransactionType.bridge,
-            status: TransactionStatus.failed,
-            id: 'bridgeTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'bridgeTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(messengerCallSpy).toHaveBeenCalledWith(
           'AccountsController:getAccountByAddress',
@@ -5662,13 +5467,7 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
-              "RemoteFeatureFlagController:getState",
-            ],
-            [
               "AuthenticationController:getBearerToken",
-            ],
-            [
-              "RemoteFeatureFlagController:getState",
             ],
             [
               "AuthenticationController:getBearerToken",
@@ -5719,13 +5518,7 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
-              "RemoteFeatureFlagController:getState",
-            ],
-            [
               "AuthenticationController:getBearerToken",
-            ],
-            [
-              "RemoteFeatureFlagController:getState",
             ],
             [
               "AuthenticationController:getBearerToken",
@@ -5917,16 +5710,17 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
-              "RemoteFeatureFlagController:getState",
+              "AuthenticationController:getBearerToken",
             ],
             [
               "AuthenticationController:getBearerToken",
             ],
             [
-              "RemoteFeatureFlagController:getState",
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
             ],
             [
-              "AuthenticationController:getBearerToken",
+              "TransactionController:getState",
             ],
           ]
         `);
@@ -5952,20 +5746,6 @@ describe('BridgeStatusController', () => {
             [
               "Error getting JWT token for bridge-api request",
               [Error: AuthenticationController:getBearerToken not implemented],
-            ],
-            [
-              "Error getting JWT token for bridge-api request",
-              [Error: AuthenticationController:getBearerToken not implemented],
-            ],
-            [
-              "======status.status",
-              "test-uuid-1234",
-              false,
-            ],
-            [
-              "======status.status",
-              "test-uuid-1234",
-              true,
             ],
           ]
         `);

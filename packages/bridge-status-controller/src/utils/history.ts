@@ -12,7 +12,6 @@ import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
 } from '../types';
-import { getNetworkClientByChainId } from './network';
 import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
 
 export const rekeyHistoryItemInState = (
@@ -202,62 +201,6 @@ export const isHistoryItemTooOld = (
     : false;
 
   return !isWithinMaxPendingHistoryItemAgeMs;
-};
-
-/*
- * Checks if a pending history item is older than 2 days and does not have a valid tx hash
- *
- * @param messenger - The messenger to use to get the transaction meta by hash or id
- * @param historyItem - The history item to check
- *
- * @returns true if the src tx hash is valid or we should still wait for it, false otherwise
- */
-export const shouldWaitForSrcTxHash = async (
-  messenger: BridgeStatusControllerMessenger,
-  historyItem: BridgeHistoryItem,
-): Promise<boolean> => {
-  if (isHistoryItemTooOld(messenger, historyItem)) {
-    return false;
-  }
-
-  if (isNonEvmChainId(historyItem.quote.srcChainId)) {
-    return true;
-  }
-
-  // Otherwise check if the tx has been mined on chain
-  const provider = getNetworkClientByChainId(
-    messenger,
-    historyItem.quote.srcChainId,
-  );
-  // When this happens it means the network was disabled while the tx was pending
-  if (!provider) {
-    return false;
-  }
-
-  if (!historyItem.status.srcChain.txHash) {
-    return false;
-  }
-
-  // console.warn(
-  //   '======historyItem.status.srcChain.txHash',
-  //   historyItem.status.srcChain.txHash,
-  //   historyItem.txMetaId,
-  // );
-
-  return provider
-    .request({
-      method: 'eth_getTransactionReceipt',
-      params: [historyItem.status.srcChain.txHash],
-    })
-    .then((txReceipt) => {
-      if (txReceipt) {
-        return true;
-      }
-      return false;
-    })
-    .catch(() => {
-      return false;
-    });
 };
 
 export const incrementPollingAttempts = (

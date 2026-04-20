@@ -57,13 +57,13 @@ import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
+  shouldWaitForFinalBridgeStatus,
 } from './utils/bridge-status';
 import {
   getInitialHistoryItem,
   getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
-  shouldWaitForSrcTxHash,
   incrementPollingAttempts,
   isHistoryItemTooOld,
 } from './utils/history';
@@ -259,7 +259,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
         switch (status) {
           case TransactionStatus.confirmed:
-            this.#handleTransactionConfirmed({ txMeta, historyKey });
+            this.#onTransactionConfirmed({ txMeta, historyKey });
             break;
           case TransactionStatus.failed:
           case TransactionStatus.dropped:
@@ -581,7 +581,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   // Only EVM txs
-  readonly #handleTransactionConfirmed = ({
+  readonly #onTransactionConfirmed = ({
     txMeta,
     historyKey,
   }: {
@@ -642,7 +642,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // After the attempts exceed the max, keep polling with exponential backoff
     // If the historyItem age is less than the configured maxPendingHistoryItemAgeMs flag, wait for a valid srcTxHash
     if (
-      await shouldWaitForSrcTxHash(
+      await shouldWaitForFinalBridgeStatus(
         this.messenger,
         this.state.txHistory[bridgeTxMetaId],
       )
@@ -650,35 +650,26 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    if (newAttempts.counter === MAX_ATTEMPTS) {
-      // If we've failed too many times, stop polling for the tx
-      if (pollingToken) {
-        this.stopPollingByPollingToken(pollingToken);
-        delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-      }
-
-      // Track polling status updated event
-      this.#trackPollingStatusUpdatedEvent(
-        bridgeTxMetaId,
-        PollingStatus.MaxPollingReached,
-      );
-      return;
-    }
-
-    // If the src hash is invalid after the max wait time, stop polling for the tx
+    // If we've failed too many times and the srcTxHash is invalid, stop polling for the tx
     if (pollingToken) {
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
     }
 
     // Track polling status updated event
-    this.#trackPollingStatusUpdatedEvent(
-      bridgeTxMetaId,
-      PollingStatus.StaleTransactionHash,
-    );
-
-    // Delete the history item so polling doesn't start over on the next restart
-    this.#deleteHistoryItem(bridgeTxMetaId);
+    if (newAttempts.counter === MAX_ATTEMPTS) {
+      this.#trackPollingStatusUpdatedEvent(
+        bridgeTxMetaId,
+        PollingStatus.MaxPollingReached,
+      );
+    } else {
+      this.#trackPollingStatusUpdatedEvent(
+        bridgeTxMetaId,
+        PollingStatus.StaleTransactionHash,
+      );
+      // Delete the history item so polling doesn't start over on the next restart
+      this.#deleteHistoryItem(bridgeTxMetaId);
+    }
   };
 
   readonly #fetchBridgeTxStatus = async ({
@@ -726,6 +717,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
         // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
         const srcTxHash = this.#setAndGetSrcTxHash(bridgeTxMetaId);
+
+        // Throw errors to increase polling attempts counter
+        if (
+          isHistoryItemTooOld(this.messenger, historyItem) &&
+          historyItem.attempts?.counter
+        ) {
+          throw new Error(`History item is too old: ${bridgeTxMetaId}}`);
+        }
+
         if (!srcTxHash) {
           return;
         }

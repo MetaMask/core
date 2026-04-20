@@ -1,389 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`BridgeStatusController constructor has no tx hash, has txMeta and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, has txMeta and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, has txMeta and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, has txMeta and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, no txMeta and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, no txMeta and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 6,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, no txMeta and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 5,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no tx hash, no txMeta and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns no receipt and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns no receipt and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 6,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns no receipt and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 5,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns no receipt and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns receipt and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns receipt and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 6,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns receipt and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 5,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider returns receipt and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider throws error and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider throws error and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 6,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider throws error and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 5,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has no txHash, no txMeta, provider throws error and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 0,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns no receipt and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns no receipt and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns no receipt and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns no receipt and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns receipt and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns receipt and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns receipt and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider returns receipt and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider throws error and exponentially backing off: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider throws error and max attempts reached: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider throws error and polling every 10s: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
-exports[`BridgeStatusController constructor has tx hash, provider throws error and too old: pending history item 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "fetchTxStatusCalls": 1,
-  "stopPollingCalls": [],
-}
-`;
-
 exports[`BridgeStatusController constructor rehydrates the tx history state 1`] = `
 {
   "bridgeTxMetaId1": {
@@ -530,106 +146,59 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
 `;
 
 exports[`BridgeStatusController constructor when history has no tx hash, has txMeta and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash3",
+    ],
+  },
+]
 `;
 
-exports[`BridgeStatusController constructor when history has no tx hash, no txMeta and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
-`;
+exports[`BridgeStatusController constructor when history has no tx hash, no txMeta and is older than 2 days 1`] = `[]`;
 
-exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns no receipt and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
-`;
+exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns no receipt and is older than 2 days 1`] = `[]`;
 
-exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns receipt and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
-`;
+exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns receipt and is older than 2 days 1`] = `[]`;
 
-exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider throws error and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": 8,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": undefined,
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
-`;
+exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider throws error and is older than 2 days 1`] = `[]`;
 
 exports[`BridgeStatusController constructor when history has tx hash, provider returns no receipt and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
 `;
 
 exports[`BridgeStatusController constructor when history has tx hash, provider returns receipt and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
 `;
 
 exports[`BridgeStatusController constructor when history has tx hash, provider throws error and is older than 2 days 1`] = `
-{
-  "consoleWarnCalls": [],
-  "expectedAttempts": undefined,
-  "expectedStatus": "PENDING",
-  "expectedTxHash": "0xsrcTxHash1",
-  "expectedTxHistory": true,
-  "providerParams": [],
-  "stopPollingCalls": [],
-}
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
 `;
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
-  [
-    "RemoteFeatureFlagController:getState",
-  ],
   [
     "AuthenticationController:getBearerToken",
   ],
@@ -812,9 +381,6 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
 [
   [
     "TransactionController:getState",
-  ],
-  [
-    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",
@@ -6532,19 +6098,10 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for bridge tx if status response is invalid 1`] = `
 [
   [
-    "RemoteFeatureFlagController:getState",
-  ],
-  [
     "AuthenticationController:getBearerToken",
   ],
   [
-    "RemoteFeatureFlagController:getState",
-  ],
-  [
     "AuthenticationController:getBearerToken",
-  ],
-  [
-    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",
@@ -6983,9 +6540,6 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 [
   [
-    "RemoteFeatureFlagController:getState",
-  ],
-  [
     "AuthenticationController:getBearerToken",
   ],
   [
@@ -6998,9 +6552,6 @@ exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
-  ],
-  [
-    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",

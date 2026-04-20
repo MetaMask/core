@@ -1231,6 +1231,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
             status: StatusTypes.PENDING,
             srcChain: { chainId: 1, txHash: '0xhash' },
           },
+          startTime: Date.now() - 1000,
         },
       },
     });
@@ -1247,6 +1248,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
 
     expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
       [
+        [
+          "RemoteFeatureFlagController:getState",
+        ],
         [
           "AuthenticationController:getBearerToken",
         ],
