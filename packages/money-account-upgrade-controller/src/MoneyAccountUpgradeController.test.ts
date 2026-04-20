@@ -251,8 +251,36 @@ describe('MoneyAccountUpgradeController', () => {
   });
 
   describe('upgradeAccount', () => {
+    it('throws when called before init', async () => {
+      const { controller } = setup();
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(
+        'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
+      );
+    });
+
+    it('throws when a previous init attempt failed', async () => {
+      const { controller, mocks } = setup();
+      mocks.getServiceDetails.mockResolvedValueOnce({
+        auth: { message: 'CHOMP Authentication' },
+        chains: {},
+      });
+      await expect(
+        controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG),
+      ).rejects.toThrow();
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(
+        'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
+      );
+    });
+
     it('runs each step for the given address', async () => {
       const { controller, mocks } = setup();
+      await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
 
       await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
@@ -266,6 +294,7 @@ describe('MoneyAccountUpgradeController', () => {
 
     it('does not mutate state', async () => {
       const { controller } = setup();
+      await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
       const stateBefore = controller.state;
 
       await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
@@ -274,7 +303,8 @@ describe('MoneyAccountUpgradeController', () => {
     });
 
     it('is callable via the messenger', async () => {
-      const { rootMessenger } = setup();
+      const { controller, rootMessenger } = setup();
+      await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
 
       expect(
         await rootMessenger.call(
@@ -286,6 +316,7 @@ describe('MoneyAccountUpgradeController', () => {
 
     it('propagates errors thrown by a step', async () => {
       const { controller, mocks } = setup();
+      await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
       mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
 
       await expect(

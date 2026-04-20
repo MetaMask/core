@@ -159,6 +159,12 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
+    if (!this.initialized) {
+      throw new Error(
+        'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
+      );
+    }
+
     for (const step of this.#steps) {
       await step.run({ messenger: this.messenger, address });
     }
