@@ -7,10 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '.';
-import {
-  MoneyAccountUpgradeController,
-  getDefaultMoneyAccountUpgradeControllerState,
-} from '.';
+import { MoneyAccountUpgradeController } from '.';
 import type { UpgradeConfig } from './types';
 
 const MOCK_CHAIN_ID = '0x1' as Hex;
@@ -68,13 +65,7 @@ type Mocks = {
   associateAddress: jest.Mock;
 };
 
-function setup({
-  state,
-}: {
-  state?: Partial<
-    ReturnType<typeof getDefaultMoneyAccountUpgradeControllerState>
-  >;
-} = {}): {
+function setup(): {
   controller: MoneyAccountUpgradeController;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountUpgradeControllerMessenger;
@@ -126,7 +117,6 @@ function setup({
 
   const controller = new MoneyAccountUpgradeController({
     messenger,
-    state,
   });
 
   return { controller, rootMessenger, messenger, mocks };
@@ -134,31 +124,7 @@ function setup({
 
 describe('MoneyAccountUpgradeController', () => {
   describe('constructor', () => {
-    it('initializes with default state when no state is provided', () => {
-      const { controller } = setup();
-
-      expect(controller.state).toStrictEqual(
-        getDefaultMoneyAccountUpgradeControllerState(),
-      );
-    });
-
-    it('accepts initial state', () => {
-      const { controller } = setup({
-        state: {
-          upgrades: {
-            '0xabcdef1234567890abcdef1234567890abcdef12': {
-              chainId: MOCK_CHAIN_ID,
-            },
-          },
-        },
-      });
-
-      expect(
-        controller.state.upgrades['0xabcdef1234567890abcdef1234567890abcdef12'],
-      ).toStrictEqual({ chainId: MOCK_CHAIN_ID });
-    });
-
-    it('Does not make async init calls when constructed', () => {
+    it('does not make async init calls when constructed', () => {
       const { mocks } = setup();
 
       expect(mocks.getServiceDetails).not.toHaveBeenCalled();
@@ -276,16 +242,6 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.associateAddress).toHaveBeenCalledWith(
         expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
       );
-    });
-
-    it('does not mutate state', async () => {
-      const { controller } = setup();
-      await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
-      const stateBefore = controller.state;
-
-      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
-
-      expect(controller.state).toStrictEqual(stateBefore);
     });
 
     it('is callable via the messenger', async () => {

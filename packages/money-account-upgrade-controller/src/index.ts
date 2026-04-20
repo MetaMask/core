@@ -1,15 +1,11 @@
 export type { Step, StepResult } from './step';
 export type { InitConfig, UpgradeConfig } from './types';
-export {
-  MoneyAccountUpgradeController,
-  controllerName,
-  getDefaultMoneyAccountUpgradeControllerState,
-} from './MoneyAccountUpgradeController';
+export { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
 export type {
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerGetStateAction,
   MoneyAccountUpgradeControllerActions,
-  MoneyAccountUpgradeControllerStateChangeEvent,
+  MoneyAccountUpgradeControllerStateChangedEvent,
   MoneyAccountUpgradeControllerEvents,
   MoneyAccountUpgradeControllerMessenger,
 } from './MoneyAccountUpgradeController';

@@ -1,6 +1,6 @@
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -19,24 +19,10 @@ import type { InitConfig } from './types';
 
 export const controllerName = 'MoneyAccountUpgradeController';
 
-export type MoneyAccountUpgradeControllerState = {
-  upgrades: Record<string, { chainId: Hex }>;
-};
+export type MoneyAccountUpgradeControllerState = Record<string, never>;
 
-const moneyAccountUpgradeControllerMetadata = {
-  upgrades: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: true,
-    usedInUi: false,
-  },
-} satisfies StateMetadata<MoneyAccountUpgradeControllerState>;
-
-export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgradeControllerState {
-  return {
-    upgrades: {},
-  };
-}
+const moneyAccountUpgradeControllerMetadata =
+  {} satisfies StateMetadata<MoneyAccountUpgradeControllerState>;
 
 const MESSENGER_EXPOSED_METHODS = ['upgradeAccount'] as const;
 
@@ -55,14 +41,14 @@ type AllowedActions =
   | ChompApiServiceGetServiceDetailsAction
   | KeyringControllerSignPersonalMessageAction;
 
-export type MoneyAccountUpgradeControllerStateChangeEvent =
-  ControllerStateChangeEvent<
+export type MoneyAccountUpgradeControllerStateChangedEvent =
+  ControllerStateChangedEvent<
     typeof controllerName,
     MoneyAccountUpgradeControllerState
   >;
 
 export type MoneyAccountUpgradeControllerEvents =
-  MoneyAccountUpgradeControllerStateChangeEvent;
+  MoneyAccountUpgradeControllerStateChangedEvent;
 
 type AllowedEvents = never;
 
@@ -89,23 +75,17 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param options - The options for constructing the controller.
    * @param options.messenger - The messenger to use for inter-controller communication.
-   * @param options.state - The initial state of the controller.
    */
   constructor({
     messenger,
-    state,
   }: {
     messenger: MoneyAccountUpgradeControllerMessenger;
-    state?: Partial<MoneyAccountUpgradeControllerState>;
   }) {
     super({
       messenger,
       metadata: moneyAccountUpgradeControllerMetadata,
       name: controllerName,
-      state: {
-        ...getDefaultMoneyAccountUpgradeControllerState(),
-        ...state,
-      },
+      state: {},
     });
 
     this.#initialized = false;
