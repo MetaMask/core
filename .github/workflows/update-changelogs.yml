@@ -19,12 +19,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  is-fork-pull-request:
-    name: Determine whether this PR is from a fork
-    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-pr')
+  is-release:
+    name: Determine whether this PR is a release PR
+    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
-      is-fork: ${{ steps.is-fork.outputs.is-fork }}
+      is-release: ${{ steps.is-release.outputs.is-release }}
     steps:
       - name: Determine whether this PR is from a fork
         id: is-fork
@@ -35,12 +35,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
 
+      - name: Get merge base
+        if: steps.is-fork.outputs.is-fork == 'false'
+        id: merge-base
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
+          echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Check if the pull request is a release
+        if: steps.is-fork.outputs.is-fork == 'false'
+        id: is-release
+        uses: MetaMask/action-is-release@v2
+        with:
+          commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
+          commit-message: ${{ github.event.pull_request.title }}
+          before: ${{ steps.merge-base.outputs.merge-base }}
+          skip-checkout: true
+
   react-to-comment:
     name: React to the comment
-    if: ${{ needs.is-fork-pull-request.outputs.is-fork == 'false' }}
+    needs: is-release
+    if: ${{ needs.is-release.outputs.is-release == 'true' }}
     runs-on: ubuntu-latest
-    needs:
-      - is-fork-pull-request
     environment: default-branch
     continue-on-error: true
     steps:
@@ -61,8 +82,8 @@ jobs:
 
   update-changelogs:
     name: Update changelogs
-    needs: is-fork-pull-request
-    if: ${{ needs.is-fork-pull-request.outputs.is-fork == 'false' }}
+    needs: is-release
+    if: ${{ needs.is-release.outputs.is-release == 'true' }}
     runs-on: ubuntu-latest
     environment: default-branch
     env:
