@@ -19,12 +19,30 @@ permissions:
   pull-requests: write
 
 jobs:
-  is-release:
-    name: Determine whether this PR is a release PR
+  is-fork:
+    name: Determine whether this PR is from a fork
     if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
-      is-release: ${{ steps.is-release.outputs.is-release }}
+      is-fork: ${{ steps.is-fork.outputs.is-fork }}
+    steps:
+      - name: Determine whether this PR is from a fork
+        id: is-fork
+        run: |
+          IS_FORK="$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "$PR_NUMBER" --repo "$GITHUB_REPOSITORY")"
+          echo "is-fork=$IS_FORK" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+
+  is-release:
+    name: Determine whether this PR is a release PR
+    needs: is-fork
+    if: needs.is-fork.outputs.is-fork == 'false'
+    runs-on: ubuntu-latest
+    environment: default-branch
+    outputs:
+      is-release: ${{ steps.is-release.outputs.IS_RELEASE }}
       head-sha: ${{ steps.pr-head-sha.outputs.pr-head-sha }}
     steps:
       - name: Determine whether this PR is from a fork
@@ -40,7 +58,7 @@ jobs:
         if: steps.is-fork.outputs.is-fork == 'false'
         id: pr-head-sha
         env:
-          GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          GH_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
           echo "pr-base-ref=$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName' --repo "$GITHUB_REPOSITORY")" >> "$GITHUB_OUTPUT"
@@ -94,7 +112,7 @@ jobs:
             -f content='+1'
         env:
           COMMENT_ID: ${{ github.event.comment.id }}
-          GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          GH_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
           REPO: ${{ github.repository }}
 
   update-changelogs:
@@ -104,7 +122,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: default-branch
     env:
-      GITHUB_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
     steps:
       - name: Checkout repository
@@ -123,7 +140,6 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
-          cache-node-modules: true
 
       - name: Ensure required dependency bump entries exist across all changelogs
         id: update-changelogs
