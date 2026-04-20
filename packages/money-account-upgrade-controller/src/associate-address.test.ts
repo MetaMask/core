@@ -30,7 +30,7 @@ function setup(): {
     associateAddress: jest.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ADDRESS,
-      status: 'CREATED',
+      status: 'created',
     }),
   };
 
@@ -99,7 +99,7 @@ describe('associateAddressStep', () => {
     });
   });
 
-  it('returns "completed"', async () => {
+  it('returns "completed" when CHOMP creates the association', async () => {
     const { messenger } = setup();
 
     const result = await associateAddressStep.run({
@@ -108,6 +108,22 @@ describe('associateAddressStep', () => {
     });
 
     expect(result).toBe('completed');
+  });
+
+  it('returns "already-done" when CHOMP responds with already_associated (409)', async () => {
+    const { messenger, mocks } = setup();
+    mocks.associateAddress.mockResolvedValue({
+      profileId: 'profile-1',
+      address: MOCK_ADDRESS,
+      status: 'already_associated',
+    });
+
+    const result = await associateAddressStep.run({
+      messenger,
+      address: MOCK_ADDRESS,
+    });
+
+    expect(result).toBe('already-done');
   });
 
   it('propagates errors from signing and does not submit to the API', async () => {

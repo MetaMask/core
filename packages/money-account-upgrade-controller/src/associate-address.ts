@@ -2,6 +2,8 @@ import type { Hex } from '@metamask/utils';
 
 import type { Step } from './step';
 
+const ALREADY_ASSOCIATED_STATUS = 'already_associated';
+
 /**
  * Associates the Money Account address with the user's CHOMP profile.
  *
@@ -9,8 +11,10 @@ import type { Step } from './step';
  * and submits the signature to CHOMP, which verifies the timestamp is fresh,
  * recovers the signer, and records the profile–address mapping.
  *
- * The CHOMP endpoint is idempotent, so this step always executes and has no
- * pre-check.
+ * CHOMP responds with 201 and `status: 'created'` when the association is
+ * made, and 409 with `status: 'already_associated'` when the address is
+ * already linked to a profile. The service surfaces both responses, so this
+ * step reports `'already-done'` for the 409 case and `'completed'` otherwise.
  */
 export const associateAddressStep: Step = {
   name: 'associate-address',
@@ -23,11 +27,15 @@ export const associateAddressStep: Step = {
       { data: message, from: address },
     )) as Hex;
 
-    await messenger.call('ChompApiService:associateAddress', {
+    const response = await messenger.call('ChompApiService:associateAddress', {
       signature,
       timestamp,
       address,
     });
+
+    if (response.status === ALREADY_ASSOCIATED_STATUS) {
+      return 'already-done';
+    }
 
     return 'completed';
   },
