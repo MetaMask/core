@@ -60,6 +60,9 @@
       "path": "./packages/chain-agnostic-permission"
     },
     {
+      "path": "./packages/chomp-api-service"
+    },
+    {
       "path": "./packages/claims-controller"
     },
     {

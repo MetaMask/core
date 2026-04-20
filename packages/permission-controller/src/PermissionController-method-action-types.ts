@@ -14,6 +14,30 @@ export type PermissionControllerClearStateAction = {
 };
 
 /**
+ * Creates a permission middleware function. Like any {@link JsonRpcEngine}
+ * middleware, each middleware will only receive requests from a particular
+ * subject / origin.
+ *
+ * The middlewares returned will pass through requests for
+ * unrestricted methods, and attempt to execute restricted methods. If a method
+ * is neither restricted nor unrestricted, a "method not found" error will be
+ * returned.
+ * If a method is restricted, the middleware will first attempt to retrieve the
+ * subject's permission for that method. If the permission is found, the method
+ * will be executed. Otherwise, an "unauthorized" error will be returned.
+ *
+ * The middleware **must** be added in the correct place in the middleware
+ * stack in order for it to work. See the README for an example.
+ *
+ * @param subject The permission subject.
+ * @returns A `json-rpc-engine` middleware.
+ */
+export type PermissionControllerCreatePermissionMiddlewareAction = {
+  type: `PermissionController:createPermissionMiddleware`;
+  handler: PermissionController['createPermissionMiddleware'];
+};
+
+/**
  * Gets a list of all origins of subjects.
  *
  * @returns The origins (i.e. IDs) of all subjects.
@@ -274,6 +298,7 @@ export type PermissionControllerGetEndowmentsAction = {
  */
 export type PermissionControllerMethodActions =
   | PermissionControllerClearStateAction
+  | PermissionControllerCreatePermissionMiddlewareAction
   | PermissionControllerGetSubjectNamesAction
   | PermissionControllerGetPermissionsAction
   | PermissionControllerHasPermissionAction
