@@ -372,6 +372,163 @@ rootMessenger.subscribe('FooController:someEvent', () => {
 });
 ```
 
+## Define, but do not export, a name for the controller
+
+Every controller has a name, which is not only used to namespace the controller's messenger actions and events, but also to namespace the controller's state data when composed with other controllers.
+
+The name should be defined in a constant called `CONTROLLER_NAME` so that it can be easily changed if the need arises. (This variable was formerly called `controllerName`.) The name should be used to initialize the messenger, and should also be passed to the `BaseController` constructor.
+
+The constant should be used to define actions and events. It may be exported from the file in which it is defined, but should not listed as an export of the package:
+
+🚫 **The messenger namespace is not defined as a constant, but is repeated**
+
+```typescript
+export type FooControllerSomeCustomAction = {
+  type: 'FooController:someCustomAction';
+  handler: (bar: string) => void;
+};
+
+export type FooControllerAnotherCustomAction = {
+  type: 'FooController:anotherCustomAction';
+  handler: (baz: number) => void;
+};
+
+export type FooControllerActions =
+  | FooControllerSomeCustomAction
+  | FooControllerAnotherCustomAction;
+
+export type FooControllerMessenger = Messenger<
+  'FooController',
+  FooControllerActions,
+  never
+>;
+
+export class FooController extends BaseController</* ... */ {
+  constructor(/* ... */) {
+    super({ name: 'FooController', /* ... */ })
+
+    // ...
+  }
+}
+```
+
+🚫 **The messenger namespace is defined as a constant, but it is called `controllerName`**
+
+```typescript
+const controllerName = 'FooController';
+
+export type FooControllerSomeCustomAction = {
+  type: `${typeof controllerName}:someCustomAction`;
+  handler: (bar: string) => void;
+};
+
+export type FooControllerAnotherCustomAction = {
+  type: `${typeof controllerName}:anotherCustomAction`;
+  handler: (baz: number) => void;
+};
+
+export type FooControllerActions =
+  | FooControllerSomeCustomAction
+  | FooControllerAnotherCustomAction;
+
+export type FooControllerMessenger = Messenger<
+  typeof controllerName,
+  FooControllerActions,
+  never
+>;
+
+export class FooController extends BaseController</* ... */ {
+  constructor(/* ... */) {
+    super({ name: controllerName, /* ... */ })
+
+    // ...
+  }
+}
+```
+
+🚫 **The messenger namespace is defined as a constant, but it is exported from the package**
+
+```typescript
+/* packages/foo-controller/src/foo-controller.ts */
+
+export const CONTROLLER_NAME = 'FooController';
+
+export type FooControllerSomeCustomAction = {
+  type: `${typeof CONTROLLER_NAME}:someCustomAction`;
+  handler: (bar: string) => void;
+};
+
+export type FooControllerAnotherCustomAction = {
+  type: `${typeof CONTROLLER_NAME}:anotherCustomAction`;
+  handler: (baz: number) => void;
+};
+
+export type FooControllerActions =
+  | FooControllerSomeCustomAction
+  | FooControllerAnotherCustomAction;
+
+export type FooControllerMessenger = Messenger<
+  typeof CONTROLLER_NAME,
+  FooControllerActions,
+  never
+>;
+
+export class FooController extends BaseController</* ... */ {
+  constructor(/* ... */) {
+    super({ name: CONTROLLER_NAME, /* ... */ })
+
+    // ...
+  }
+}
+
+/* packages/foo-controller/src/index.ts */
+
+export {
+  CONTROLLER_NAME,
+  FooController
+} from './foo-controller';
+```
+
+✅ **The messenger namespace is defined as a constant, and it is kept internal instead of being exported**
+
+```typescript
+/* packages/foo-controller/src/foo-controller.ts */
+
+const CONTROLLER_NAME = 'FooController';
+
+export type FooControllerSomeCustomAction = {
+  type: `${CONTROLLER_NAME}:someCustomAction`;
+  handler: (bar: string) => void;
+};
+
+export type FooControllerAnotherCustomAction = {
+  type: `${CONTROLLER_NAME}:anotherCustomAction`;
+  handler: (baz: number) => void;
+};
+
+export type FooControllerActions =
+  | FooControllerSomeCustomAction
+  | FooControllerAnotherCustomAction;
+
+export type FooControllerMessenger = Messenger<
+  CONTROLLER_NAME,
+  FooControllerActions,
+  never
+>;
+
+export class FooController extends BaseController</* ... */ {
+  constructor(/* ... */) {
+    super({ name: CONTROLLER_NAME, /* ... */ })
+
+    // ...
+  }
+}
+
+/* packages/foo-controller/src/index.ts */
+
+export { FooController } from './foo-controller';
+```
+
 ## Expose controller methods through messenger in bulk
 
 Exposing controller methods through the messenger can be tedious. An action type must be created for each method, each action type must be added to the messenger type, and each action must be registered through the messenger. This creates a lot of boilerplate that must be maintained.
