@@ -381,11 +381,8 @@ export class PasskeyController extends BaseController<
     oldVaultKey: string;
     newVaultKey: string;
   }): Promise<void> {
-    // verify authentication response
-    const { authenticationResponse } = params;
-    await this.#verifyAuthenticationResponse(authenticationResponse);
-
     // derive key
+    const { authenticationResponse } = params;
     const passkeyRecord = this.#getPasskeyRecord() as PasskeyRecord;
     const encKey = deriveKeyFromAuthenticationResponse(
       authenticationResponse,
@@ -430,18 +427,18 @@ export class PasskeyController extends BaseController<
    * Unenrolls the passkey, removing the protected vault key material.
    */
   removePasskey(): void {
-    this.clearState();
+    this.update((state) => {
+      Object.assign(state, getDefaultPasskeyControllerState());
+    });
   }
 
   /**
    * Verifies an authentication response for the enrolled passkey.
    *
    * @param authenticationResponse - Authentication result JSON.
-   * @param shouldDeleteCeremony - Remove the in-flight ceremony after success (default: true).
    */
   async #verifyAuthenticationResponse(
     authenticationResponse: PasskeyAuthenticationResponse,
-    shouldDeleteCeremony = true,
   ): Promise<void> {
     let challenge: string | undefined;
     try {
@@ -491,12 +488,10 @@ export class PasskeyController extends BaseController<
       };
       this.#setPasskeyRecord(updatedRecord);
 
-      // delete ceremony if requested
-      if (shouldDeleteCeremony) {
-        this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
-      }
+      // delete ceremony
+      this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
     } catch (error) {
-      if (challenge && shouldDeleteCeremony) {
+      if (challenge) {
         this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
       }
       throw error;

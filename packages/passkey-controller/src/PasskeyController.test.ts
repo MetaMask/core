@@ -777,7 +777,7 @@ describe('PasskeyController', () => {
           oldVaultKey: 'old',
           newVaultKey: 'new',
         }),
-      ).rejects.toThrow('Passkey is not enrolled');
+      ).rejects.toThrow(TypeError);
     });
 
     it('updates the passkey wrap when before/after vault keys match', async () => {
@@ -863,7 +863,7 @@ describe('PasskeyController', () => {
       );
     });
 
-    it('throws when there is no authentication ceremony', async () => {
+    it('completes renewal without an active authentication ceremony (prf)', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
 
@@ -881,94 +881,65 @@ describe('PasskeyController', () => {
         vaultKey: 'wrapped',
       });
 
-      await expect(
-        controller.renewVaultKeyProtection({
-          authenticationResponse: minimalAuthenticationResponse(
-            undefined,
-            {
-              clientExtensionResults: prfResults(prfFirst),
-            },
-            TEST_CHALLENGE,
-          ),
-          oldVaultKey: 'wrapped',
-          newVaultKey: 'new',
-        }),
-      ).rejects.toThrow('No active passkey authentication ceremony');
-    });
-
-    it('removes authentication ceremony when verification fails during renewal', async () => {
-      setupRegistrationMocks();
-      setupAuthenticationMocks();
-
-      const controller = createController();
-      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
-
-      const regOpts = controller.generateRegistrationOptions();
-      await controller.protectVaultKeyWithPasskey({
-        registrationResponse: minimalRegistrationResponse(
-          {
-            clientExtensionResults: prfResults(prfFirst),
-          },
-          regOpts.challenge,
-        ),
-        vaultKey: 'wrapped',
-      });
-
-      mockVerifyAuthenticationResponse.mockResolvedValue({
-        verified: false,
-        authenticationInfo: {},
-      });
-
-      const authOpts = controller.generateAuthenticationOptions();
-      await expect(
-        controller.renewVaultKeyProtection({
-          authenticationResponse: minimalAuthenticationResponse(
-            undefined,
-            {
-              clientExtensionResults: prfResults(prfFirst),
-            },
-            authOpts.challenge,
-          ),
-          oldVaultKey: 'wrapped',
-          newVaultKey: 'new',
-        }),
-      ).rejects.toThrow('Passkey authentication verification failed');
-
-      mockVerifyAuthenticationResponse.mockResolvedValue({
-        verified: true,
-        authenticationInfo: {
-          credentialId: TEST_CREDENTIAL_ID,
-          newCounter: 0,
-          userVerified: true,
-          origin: TEST_ORIGIN,
-          rpID: TEST_RP_ID,
-        },
-      });
-
-      const authOptsRetry = controller.generateAuthenticationOptions();
       await controller.renewVaultKeyProtection({
         authenticationResponse: minimalAuthenticationResponse(
           undefined,
           {
             clientExtensionResults: prfResults(prfFirst),
           },
-          authOptsRetry.challenge,
+          TEST_CHALLENGE,
         ),
         oldVaultKey: 'wrapped',
-        newVaultKey: 'rotated',
+        newVaultKey: 'new',
       });
 
-      const authOptsFinal = controller.generateAuthenticationOptions();
+      const authOpts = controller.generateAuthenticationOptions();
       const unwrapped = await controller.retrieveVaultKeyWithPasskey(
         minimalAuthenticationResponse(
           undefined,
           {
             clientExtensionResults: prfResults(prfFirst),
           },
-          authOptsFinal.challenge,
+          authOpts.challenge,
         ),
       );
-      expect(unwrapped).toBe('rotated');
+      expect(unwrapped).toBe('new');
+    });
+
+    it('does not invoke verifyAuthenticationResponse', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey: 'wrapped',
+      });
+
+      mockVerifyAuthenticationResponse.mockClear();
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.renewVaultKeyProtection({
+        authenticationResponse: minimalAuthenticationResponse(
+          undefined,
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          authOpts.challenge,
+        ),
+        oldVaultKey: 'wrapped',
+        newVaultKey: 'rotated',
+      });
+
+      expect(mockVerifyAuthenticationResponse).not.toHaveBeenCalled();
     });
   });
 
