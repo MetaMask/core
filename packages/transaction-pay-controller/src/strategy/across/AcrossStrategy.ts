@@ -1,10 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { isSupportedAcrossPerpsDepositRequest } from './perps';
-import { isAcrossQuoteRequest } from './requests';
-import type { AcrossQuote } from './types';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -12,6 +7,11 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { getAcrossQuotes } from './across-quotes';
+import { submitAcrossQuotes } from './across-submit';
+import { isSupportedAcrossPerpsDepositRequest } from './perps';
+import { isAcrossQuoteRequest } from './requests';
+import type { AcrossQuote } from './types';
 
 export class AcrossStrategy implements PayStrategy<AcrossQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
