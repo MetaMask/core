@@ -29,11 +29,6 @@ export class Wallet {
       namespace: 'Root',
     });
 
-    this.messenger.registerInitialEventPayload({
-      eventType: 'Root:walletDestroyed',
-      getPayload: () => [],
-    });
-
     this.#instances = initialize({
       state: state ?? {},
       messenger: this.messenger,
