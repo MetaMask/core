@@ -2,7 +2,12 @@ import { ActionConstraint, Messenger } from '@metamask/messenger';
 
 import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
 import { ContextConstraint } from './MiddlewareContext';
-import { Json, JsonRpcParams, JsonRpcRequest } from './utils';
+import {
+  Json,
+  JsonRpcParams,
+  JsonRpcRequest,
+  UnionToIntersection,
+} from './utils';
 
 // The helpers below seem excessive, but they are required for inference of hooks/actions.
 type HandlerActions<Handler> = Handler extends {
@@ -59,7 +64,7 @@ export type CreateMethodMiddlewareOptions<
 > = {
   handlers: Handlers;
   messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
-  hooks: HandlerHooks<Handlers[keyof Handlers]>;
+  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
 };
 
 type ResolvedHandler = {
