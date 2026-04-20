@@ -158,10 +158,10 @@ describe('MoneyAccountUpgradeController', () => {
       ).toStrictEqual({ chainId: MOCK_CHAIN_ID });
     });
 
-    it('starts with initialized set to false', () => {
-      const { controller } = setup();
+    it('Does not make async init calls when constructed', () => {
+      const { mocks } = setup();
 
-      expect(controller.initialized).toBe(false);
+      expect(mocks.getServiceDetails).not.toHaveBeenCalled();
     });
   });
 
@@ -172,14 +172,6 @@ describe('MoneyAccountUpgradeController', () => {
       await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
 
       expect(mocks.getServiceDetails).toHaveBeenCalledWith([MOCK_CHAIN_ID]);
-    });
-
-    it('sets initialized to true after successful init', async () => {
-      const { controller } = setup();
-
-      await controller.init(MOCK_CHAIN_ID, MOCK_INIT_CONFIG);
-
-      expect(controller.initialized).toBe(true);
     });
 
     it('throws when the chain is not found in service details', async () => {
@@ -195,8 +187,6 @@ describe('MoneyAccountUpgradeController', () => {
       ).rejects.toThrow(
         `Chain ${MOCK_CHAIN_ID} not found in service details response`,
       );
-
-      expect(controller.initialized).toBe(false);
     });
 
     it('throws when vedaProtocol is not found', async () => {
@@ -217,8 +207,6 @@ describe('MoneyAccountUpgradeController', () => {
       ).rejects.toThrow(
         `vedaProtocol not found for chain ${MOCK_CHAIN_ID} in service details response`,
       );
-
-      expect(controller.initialized).toBe(false);
     });
 
     it('throws when supportedTokens is empty', async () => {
@@ -245,8 +233,6 @@ describe('MoneyAccountUpgradeController', () => {
       ).rejects.toThrow(
         `No supported tokens found for vedaProtocol on chain ${MOCK_CHAIN_ID}`,
       );
-
-      expect(controller.initialized).toBe(false);
     });
   });
 

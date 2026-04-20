@@ -80,7 +80,7 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerMessenger
 > {
-  initialized: boolean;
+  #initialized: boolean;
 
   readonly #steps: Step[] = [associateAddressStep];
 
@@ -108,7 +108,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       },
     });
 
-    this.initialized = false;
+    this.#initialized = false;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -147,7 +147,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       );
     }
 
-    this.initialized = true;
+    this.#initialized = true;
   }
 
   /**
@@ -159,7 +159,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
-    if (!this.initialized) {
+    if (!this.#initialized) {
       throw new Error(
         'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
       );
