@@ -8,7 +8,7 @@ import type {
   NetworkState,
   NetworkStatus,
 } from '@metamask/network-controller';
-import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
@@ -73,8 +73,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AssetsControllerGetStateAction
-  | NetworkEnablementControllerGetStateAction;
+  | AssetsControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
 export type RpcDataSourceAllowedEvents =
@@ -117,6 +116,8 @@ export type RpcDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /** Resolves CAIP-2 chain ID to CAIP-19 native asset ID from the cached native asset map. */
+  getNativeAssetForChain?: (chainId: string) => string | undefined;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -198,6 +199,8 @@ export class RpcDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #getNativeAssetForChain: (chainId: string) => string | undefined;
+
   readonly #timeout: number;
 
   readonly #tokenDetectionEnabled: () => boolean;
@@ -233,6 +236,8 @@ export class RpcDataSource extends AbstractDataSource<
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#getNativeAssetForChain =
+      options.getNativeAssetForChain ?? ((): undefined => undefined);
     this.#timeout = options.timeout ?? 10_000;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
@@ -1358,18 +1363,17 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * Build the native asset ID for a given chain using NetworkEnablementController state.
+   * Build the native asset ID for a given chain using the cached native asset
+   * map (injected via constructor callback). Falls back to the ERC20 zero-address
+   * format when the chain has no known native asset mapping.
    *
    * @param chainId - The CAIP-2 chain ID (e.g., "eip155:1")
    * @returns The CAIP-19 native asset ID (e.g., "eip155:1/slip44:60")
    */
   #buildNativeAssetId(chainId: ChainId): Caip19AssetId {
-    const { nativeAssetIdentifiers } = this.#messenger.call(
-      'NetworkEnablementController:getState',
-    );
-
     return (
-      nativeAssetIdentifiers[chainId] ?? `${chainId}/erc20:${ZERO_ADDRESS}`
+      (this.#getNativeAssetForChain(chainId) as Caip19AssetId | undefined) ??
+      `${chainId}/erc20:${ZERO_ADDRESS}`
     );
   }
 

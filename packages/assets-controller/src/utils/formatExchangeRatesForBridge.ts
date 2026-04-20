@@ -65,6 +65,10 @@ export function formatExchangeRatesForBridge(params: {
     };
   }
 
+  const knownNativeAssetIds = new Set(
+    Object.values(nativeAssetIdentifiers).map((id) => id.toLowerCase()),
+  );
+
   const fungibleAssetsPrice = Object.entries(assetsPrice).reduce<
     Record<Caip19AssetId, FungibleAssetPrice>
   >((acc, [assetId, priceData]) => {
@@ -85,7 +89,10 @@ export function formatExchangeRatesForBridge(params: {
     const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
-      const isNative = isNativeAsset(assetId as Caip19AssetId);
+      const isNative = isNativeAsset(
+        assetId as Caip19AssetId,
+        knownNativeAssetIds,
+      );
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
       const chainIdParsed = parseCaipChainId(parsed.chainId);
 

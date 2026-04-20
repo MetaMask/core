@@ -95,6 +95,10 @@ export function formatStateForTransactionPay(params: {
     networkConfigurationsByChainId = {},
   } = params;
 
+  const knownNativeAssetIds = new Set(
+    Object.values(nativeAssetIdentifiers).map((id) => id.toLowerCase()),
+  );
+
   const tokenBalances: TransactionPayLegacyFormat['tokenBalances'] = {};
   const accountsByChainId: TransactionPayLegacyFormat['accountsByChainId'] = {};
   const allTokensByChain: Record<string, LegacyToken[]> = {};
@@ -117,7 +121,7 @@ export function formatStateForTransactionPay(params: {
         const amount = getAmountFromBalance(balance);
         const balanceHex = amountToHex(amount);
 
-        if (isNativeAsset(assetId as Caip19AssetId)) {
+        if (isNativeAsset(assetId as Caip19AssetId, knownNativeAssetIds)) {
           const nativeAddress = toChecksumAddress(
             getNativeTokenAddress(chainIdHex),
           );
@@ -151,7 +155,10 @@ export function formatStateForTransactionPay(params: {
         continue;
       }
       const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
-      const address = isNativeAsset(assetId as Caip19AssetId)
+      const address = isNativeAsset(
+        assetId as Caip19AssetId,
+        knownNativeAssetIds,
+      )
         ? getNativeTokenAddress(chainIdHex)
         : toChecksumAddress(String(parsed.assetReference));
       const token: LegacyToken = {

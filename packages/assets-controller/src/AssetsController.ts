@@ -12,6 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -120,6 +121,8 @@ import type {
   TransactionPayLegacyFormat,
 } from './utils';
 import { isNativeAsset } from './utils/isNativeAsset';
+
+const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -702,6 +705,8 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
+  readonly #queryApiClient: ApiPlatformClient;
+
   readonly #onActiveChainsUpdated: (
     dataSourceName: string,
     chains: ChainId[],
@@ -737,7 +742,39 @@ export class AssetsController extends BaseController<
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
+    this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
+
+    queryApiClient.queryClient
+      .fetchQuery({
+        queryKey: NATIVE_ASSETS_QUERY_KEY,
+        queryFn: async (): Promise<Record<string, string>> => {
+          // Today: build from constant. Tomorrow: replace body with API call.
+          const map: Record<string, string> = {};
+          for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
+            const { chainId } = parseCaipAssetType(nativeAssetId);
+            map[chainId] = nativeAssetId;
+          }
+          return map;
+        },
+        staleTime: Infinity,
+        gcTime: Infinity,
+      })
+      .catch(() => {
+        // Failure to populate native asset cache is non-fatal;
+        // isNativeAsset falls back to SPOT_PRICES_SUPPORT_INFO heuristics.
+      });
+
+    // Seed the cache synchronously so that synchronous consumers (e.g.
+    // isNativeAsset, #resolveNativeAssetIds) have data available immediately.
+    // When fetchQuery resolves (currently instant, future: API), it overwrites
+    // this with potentially fresher data.
+    const initialNativeAssetMap: Record<string, string> = {};
+    for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
+      const { chainId } = parseCaipAssetType(nativeAssetId);
+      initialNativeAssetMap[chainId] = nativeAssetId;
+    }
+    queryApiClient.setCachedData(NATIVE_ASSETS_QUERY_KEY, initialNativeAssetMap);
 
     this.#onActiveChainsUpdated = (
       dataSourceName: string,
@@ -771,6 +808,8 @@ export class AssetsController extends BaseController<
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      getNativeAssetForChain: (chainId: string): string | undefined =>
+        this.#getNativeAssetMap()[chainId],
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
     });
@@ -782,10 +821,7 @@ export class AssetsController extends BaseController<
     this.#tokenDataSource = new TokenDataSource(this.messenger, {
       queryApiClient,
       getNativeAssetIds: (): string[] => {
-        const { nativeAssetIdentifiers } = this.messenger.call(
-          'NetworkEnablementController:getState',
-        );
-        return Object.values(nativeAssetIdentifiers);
+        return Object.values(this.#getNativeAssetMap());
       },
     });
     this.#priceDataSource = new PriceDataSource({
@@ -1429,16 +1465,13 @@ export class AssetsController extends BaseController<
    * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
    */
   getExchangeRatesForBridge(): BridgeExchangeRatesFormat {
-    const { nativeAssetIdentifiers } = this.messenger.call(
-      'NetworkEnablementController:getState',
-    );
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
     return formatExchangeRatesForBridge({
       assetsPrice: this.state.assetsPrice,
       selectedCurrency: this.state.selectedCurrency,
-      nativeAssetIdentifiers,
+      nativeAssetIdentifiers: this.#getNativeAssetMap(),
       networkConfigurationsByChainId,
     });
   }
@@ -1454,9 +1487,6 @@ export class AssetsController extends BaseController<
    */
   getStateForTransactionPay(): TransactionPayLegacyFormat {
     const accounts = this.#getSelectedAccounts();
-    const { nativeAssetIdentifiers } = this.messenger.call(
-      'NetworkEnablementController:getState',
-    );
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
@@ -1466,7 +1496,7 @@ export class AssetsController extends BaseController<
       assetsPrice: this.state.assetsPrice,
       selectedCurrency: this.state.selectedCurrency,
       accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
-      nativeAssetIdentifiers,
+      nativeAssetIdentifiers: this.#getNativeAssetMap(),
       networkConfigurationsByChainId,
     });
   }
@@ -1521,7 +1551,7 @@ export class AssetsController extends BaseController<
       if (pendingMetadata) {
         const parsed = parseCaipAssetType(normalizedAssetId);
         let tokenType: FungibleAssetMetadata['type'] = 'erc20';
-        if (isNativeAsset(normalizedAssetId)) {
+        if (isNativeAsset(normalizedAssetId, this.#getKnownNativeAssetIds())) {
           tokenType = 'native';
         } else if (parsed.assetNamespace === 'spl') {
           tokenType = 'spl';
@@ -1741,20 +1771,44 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   /**
+   * Reads the native asset map (CAIP-2 chain ID -> CAIP-19 native asset ID)
+   * from the QueryClient cache. Populated at construction via fetchQuery.
+   *
+   * @returns Cached map, or empty object if not yet populated.
+   */
+  #getNativeAssetMap(): Record<string, string> {
+    return (
+      this.#queryApiClient.getCachedData<Record<string, string>>(
+        NATIVE_ASSETS_QUERY_KEY,
+      ) ?? {}
+    );
+  }
+
+  /**
+   * Returns a set of known native asset IDs (lowercased) derived from the
+   * cached native asset map, for O(1) membership checks in isNativeAsset.
+   *
+   * @returns A ReadonlySet of lowercased CAIP-19 native asset IDs.
+   */
+  #getKnownNativeAssetIds(): ReadonlySet<string> {
+    return new Set(
+      Object.values(this.#getNativeAssetMap()).map((id) => id.toLowerCase()),
+    );
+  }
+
+  /**
    * Resolves native asset IDs (CAIP-19) for the given chains by looking them up
-   * in NetworkEnablementController.nativeAssetIdentifiers.
+   * in the cached native asset map.
    * Chains without a registered native identifier are skipped.
    *
    * @param chains - The chain IDs to resolve native assets for.
    * @returns Array of native asset IDs for the chains that have a registered identifier.
    */
   #resolveNativeAssetIds(chains: Iterable<ChainId>): Caip19AssetId[] {
-    const { nativeAssetIdentifiers } = this.messenger.call(
-      'NetworkEnablementController:getState',
-    );
+    const nativeAssetMap = this.#getNativeAssetMap();
     const ids: Caip19AssetId[] = [];
     for (const chainId of chains) {
-      const nativeId = nativeAssetIdentifiers?.[chainId];
+      const nativeId = nativeAssetMap[chainId];
       if (nativeId) {
         ids.push(nativeId as Caip19AssetId);
       }
@@ -2141,7 +2195,9 @@ export class AssetsController extends BaseController<
     }
 
     // Check if it's a native token (either by metadata type or assetId format)
-    const isNative = metadata.type === 'native' || isNativeAsset(assetId);
+    const isNative =
+      metadata.type === 'native' ||
+      isNativeAsset(assetId, this.#getKnownNativeAssetIds());
 
     return isNative;
   }

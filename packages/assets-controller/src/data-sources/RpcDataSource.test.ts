@@ -213,10 +213,16 @@ async function withController<ReturnValue>(
     registerRpcDataSourceActions(rootMessenger, { networkState });
   }
 
+  const defaultNativeAssetMap: Record<string, string> = {
+    [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+  };
+
   const onActiveChainsUpdated = options.onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
+    getNativeAssetForChain: (chainId: string): string | undefined =>
+      defaultNativeAssetMap[chainId],
     ...options,
   });
 
