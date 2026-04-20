@@ -1,5 +1,6 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
+import { hasProperty } from '@metamask/utils';
 
 import type {
   DefaultActions,
@@ -10,10 +11,6 @@ import type {
 } from './initialization';
 import { initialize } from './initialization';
 import type { WalletOptions } from './types';
-
-type PersistableController = {
-  metadata: StateMetadataConstraint;
-};
 
 export class Wallet {
   // TODO: Expand types when passing additionalConfigurations.
@@ -44,10 +41,9 @@ export class Wallet {
     });
 
     this.#controllerMetadata = Object.fromEntries(
-      Object.entries(this.#instances).map(([name, instance]) => [
-        name,
-        (instance as unknown as PersistableController).metadata,
-      ]),
+      Object.entries(this.#instances)
+        .filter(([_, instance]) => hasProperty(instance, 'metadata'))
+        .map(([name, instance]) => [name, instance.metadata]),
     );
   }
 

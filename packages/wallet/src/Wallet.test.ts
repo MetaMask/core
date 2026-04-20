@@ -10,6 +10,7 @@ import { enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
 import type { AnvilInstance } from '../test/anvil';
+import * as initializationModule from './initialization';
 import {
   createSecretRecoveryPhrase,
   importSecretRecoveryPhrase,
@@ -193,6 +194,21 @@ describe('Wallet', () => {
       }
     });
 
+    it('omits instances without a metadata property from controllerMetadata', () => {
+      const fakeMetadata = { foo: { persist: true, anonymous: false } };
+      jest.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
+        WithMeta: { state: {}, metadata: fakeMetadata },
+        NoMeta: { state: {} },
+      } as never);
+
+      wallet = new Wallet(options);
+
+      expect(wallet.controllerMetadata).toStrictEqual({
+        WithMeta: fakeMetadata,
+      });
+      expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+    });
+
     it('publishes Root:walletDestroyed exactly once on destroy', async () => {
       wallet = new Wallet(options);
 
@@ -227,7 +243,7 @@ describe('Wallet', () => {
 
       jest
         .spyOn(TransactionController.prototype, 'destroy')
-        .mockRejectedValue(new Error('async destroy error'));
+        .mockRejectedValue(new Error('async destroy error') as never);
 
       const listener = jest.fn();
       wallet.messenger.subscribe('Root:walletDestroyed', listener);
