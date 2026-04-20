@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add newly supported chains to multicall contract support in `MulticallClient` ([#8346](https://github.com/MetaMask/core/pull/8346))
+  - Tempo Mainnet (`4217`/`0x1079`)
+  - Tempo Testnet Moderato (`42431`/`0xa5bf`)
+  - Ink Mainnet (`57073`/`0xdef1`)
+  - Stable mainnet (`988`/`0x3dc`)
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.1.0` ([#8509](https://github.com/MetaMask/core/pull/8509))
