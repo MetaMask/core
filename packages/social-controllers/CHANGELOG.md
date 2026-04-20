@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `SocialService.follow`, `SocialService.unfollow`, and `SocialController.followTrader`, `SocialController.unfollowTrader` no longer accept an `addressOrUid` option. The caller is identified server-side from the JWT `sub` claim carried in the `Authorization` header.
+- **BREAKING:** `SocialService.fetchFollowing` and `SocialController.updateFollowing` now take no arguments (previously `{ addressOrUid }`).
+- **BREAKING:** Remove `FetchFollowingOptions` type export (no longer needed).
+- `SocialService` now calls `PUT /v1/users/me/follows`, `DELETE /v1/users/me/follows`, and `GET /v1/users/me/following` (previously `/v1/users/:addressOrUid/...`).
+
 ## [1.0.0]
 
 ### Uncategorized
