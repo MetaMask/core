@@ -330,9 +330,7 @@ function createService({
   mockGetBearerToken: jest.Mock;
 } {
   const rootMessenger = createRootMessenger();
-  const mockGetBearerToken = jest
-    .fn()
-    .mockResolvedValue(MOCK_ACCESS_TOKEN);
+  const mockGetBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
     mockGetBearerToken,

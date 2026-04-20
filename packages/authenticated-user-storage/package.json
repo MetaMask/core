@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "SDK for authenticated (non-encrypted) user storage endpoints",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/authenticated-user-storage#readme",
   "bugs": {
