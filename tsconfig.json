@@ -144,6 +144,9 @@
       "path": "./packages/money-account-controller"
     },
     {
+      "path": "./packages/money-account-upgrade-controller"
+    },
+    {
       "path": "./packages/multichain-account-service"
     },
     {
