@@ -70,11 +70,11 @@ type ResolvedHandler = {
 
 /**
  * Create a JSON-RPC middleware that handles the passed JSON-RPC method handlers using the messenger and hooks.
- * 
+ *
  * @param options The options.
  * @param options.handlers - The JSON-RPC method handler implementations.
  * @param options.messenger - The messenger to be used by the handlers.
- * @param options.hooks - The hooks to be used by the handlers. 
+ * @param options.hooks - The hooks to be used by the handlers.
  * @returns A JsonRpcEngineV2 middleware.
  */
 export function createMethodMiddleware<
