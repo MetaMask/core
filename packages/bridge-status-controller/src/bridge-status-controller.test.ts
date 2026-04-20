@@ -401,6 +401,7 @@ const MockTxHistory = {
     destChainId = 10,
     featureId = undefined,
     attempts = undefined as BridgeHistoryItem['attempts'],
+    startTime = 1729964825189,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
@@ -408,7 +409,7 @@ const MockTxHistory = {
       originalTransactionId: txMetaId,
       batchId,
       quote: getMockQuote({ srcChainId, destChainId }),
-      startTime: 1729964825189,
+      startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
       account,
@@ -480,13 +481,14 @@ const MockTxHistory = {
     srcChainId = 42161,
     destChainId = 42161,
     featureId = undefined,
+    startTime = 1729964825189,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
-      startTime: 1729964825189,
+      startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
       account,
@@ -5124,7 +5126,9 @@ describe('BridgeStatusController', () => {
         addTransactionBatchFn: jest.fn(),
         state: {
           txHistory: {
-            ...MockTxHistory.getPending(),
+            ...MockTxHistory.getPending({
+              startTime: Date.now() - 1000,
+            }),
             ...MockTxHistory.getPendingSwap(),
             ...MockTxHistory.getPending({
               txMetaId: 'bridgeTxMetaId1WithApproval',
@@ -5133,11 +5137,13 @@ describe('BridgeStatusController', () => {
             ...MockTxHistory.getPendingSwap({
               txMetaId: 'perpsSwapTxMetaId1',
               featureId: FeatureId.PERPS as never,
+              startTime: Date.now() - 1000,
             }),
             ...MockTxHistory.getPending({
               txMetaId: 'perpsBridgeTxMetaId1',
               srcTxHash: '0xperpsSrcTxHash1',
               featureId: FeatureId.PERPS as never,
+              startTime: Date.now() - 1000,
             }),
             // ActionId-keyed entries for pre-submission failure tests
             'pre-submission-action-id': {
@@ -5656,7 +5662,13 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
+              "RemoteFeatureFlagController:getState",
+            ],
+            [
               "AuthenticationController:getBearerToken",
+            ],
+            [
+              "RemoteFeatureFlagController:getState",
             ],
             [
               "AuthenticationController:getBearerToken",
@@ -5707,7 +5719,13 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
+              "RemoteFeatureFlagController:getState",
+            ],
+            [
               "AuthenticationController:getBearerToken",
+            ],
+            [
+              "RemoteFeatureFlagController:getState",
             ],
             [
               "AuthenticationController:getBearerToken",
@@ -5840,9 +5858,6 @@ describe('BridgeStatusController', () => {
         consoleFnSpy = jest
           .spyOn(console, 'error')
           .mockImplementationOnce(jest.fn());
-        jest.spyOn(Date, 'now').mockImplementation(() => {
-          return 1729964825189;
-        });
         consoleFnSpy.mockImplementationOnce(jest.fn());
 
         messengerCallSpy.mockReturnValueOnce({
@@ -5855,6 +5870,21 @@ describe('BridgeStatusController', () => {
           cacheTimestamp: Date.now(),
         });
 
+        messengerCallSpy.mockImplementationOnce(() => {
+          throw new Error(
+            'AuthenticationController:getBearerToken not implemented',
+          );
+        });
+
+        messengerCallSpy.mockReturnValueOnce({
+          remoteFeatureFlags: {
+            bridgeConfig: {
+              maxPendingHistoryItemAgeMs:
+                DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
+            },
+          },
+          cacheTimestamp: Date.now(),
+        });
         messengerCallSpy.mockImplementationOnce(() => {
           throw new Error(
             'AuthenticationController:getBearerToken not implemented',
@@ -5887,54 +5917,16 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
-              "AuthenticationController:getBearerToken",
+              "RemoteFeatureFlagController:getState",
             ],
             [
               "AuthenticationController:getBearerToken",
             ],
             [
-              "AccountsController:getAccountByAddress",
-              "0xaccount1",
+              "RemoteFeatureFlagController:getState",
             ],
             [
-              "TransactionController:getState",
-            ],
-            [
-              "BridgeController:trackUnifiedSwapBridgeEvent",
-              "Unified SwapBridge Completed",
-              {
-                "action_type": "swapbridge-v1",
-                "actual_time_minutes": 0,
-                "allowance_reset_transaction": undefined,
-                "approval_transaction": "COMPLETE",
-                "chain_id_destination": "eip155:10",
-                "chain_id_source": "eip155:42161",
-                "custom_slippage": true,
-                "destination_transaction": "COMPLETE",
-                "gas_included": false,
-                "gas_included_7702": false,
-                "is_hardware_wallet": false,
-                "location": "Main View",
-                "price_impact": 0,
-                "provider": "lifi_across",
-                "quote_vs_execution_ratio": 0,
-                "quoted_time_minutes": 0.25,
-                "quoted_vs_used_gas_ratio": 0,
-                "security_warnings": [],
-                "slippage_limit": 0,
-                "source_transaction": "COMPLETE",
-                "stx_enabled": false,
-                "swap_type": "crosschain",
-                "token_address_destination": "eip155:10/slip44:60",
-                "token_address_source": "eip155:42161/slip44:60",
-                "token_symbol_destination": "ETH",
-                "token_symbol_source": "ETH",
-                "usd_actual_gas": 0,
-                "usd_actual_return": 0,
-                "usd_amount_source": 0,
-                "usd_quoted_gas": 2.5778,
-                "usd_quoted_return": 0,
-              },
+              "AuthenticationController:getBearerToken",
             ],
           ]
         `);
@@ -5960,6 +5952,20 @@ describe('BridgeStatusController', () => {
             [
               "Error getting JWT token for bridge-api request",
               [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+            [
+              "Error getting JWT token for bridge-api request",
+              [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+            [
+              "======status.status",
+              "test-uuid-1234",
+              false,
+            ],
+            [
+              "======status.status",
+              "test-uuid-1234",
+              true,
             ],
           ]
         `);

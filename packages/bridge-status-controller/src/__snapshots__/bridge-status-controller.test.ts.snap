@@ -628,6 +628,9 @@ exports[`BridgeStatusController constructor when history has tx hash, provider t
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [
+    "RemoteFeatureFlagController:getState",
+  ],
+  [
     "AuthenticationController:getBearerToken",
   ],
   [
@@ -809,6 +812,9 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
 [
   [
     "TransactionController:getState",
+  ],
+  [
+    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",
@@ -6526,10 +6532,19 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for bridge tx if status response is invalid 1`] = `
 [
   [
-    "AuthenticationController:getBearerToken",
+    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",
+  ],
+  [
+    "RemoteFeatureFlagController:getState",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",
@@ -6968,6 +6983,9 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 [
   [
+    "RemoteFeatureFlagController:getState",
+  ],
+  [
     "AuthenticationController:getBearerToken",
   ],
   [
@@ -6980,6 +6998,9 @@ exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
+  ],
+  [
+    "RemoteFeatureFlagController:getState",
   ],
   [
     "AuthenticationController:getBearerToken",
