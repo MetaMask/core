@@ -40,6 +40,7 @@
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 /packages/money-account-balance-service     @MetaMask/earn
+/packages/chomp-api-service                 @MetaMask/earn @MetaMask/delegation
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
@@ -229,3 +230,5 @@
 /packages/social-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
 /packages/money-account-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/chomp-api-service/package.json @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/chomp-api-service/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform

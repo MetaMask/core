@@ -139,7 +139,7 @@ describe('Across Submit', () => {
       transactionMeta: TRANSACTION_META_MOCK,
     });
     successfulFetchMock.mockResolvedValue({
-      json: async () => ({ status: 'pending' }),
+      json: async () => ({ status: 'success' }),
     } as Response);
   });
 
@@ -576,7 +576,7 @@ describe('Across Submit', () => {
       );
     });
 
-    it('polls Across status endpoint when quote includes a deposit id', async () => {
+    it('polls Across status endpoint with depositTxnRef from the source tx hash', async () => {
       const confirmedTransaction = {
         id: 'new-tx',
         chainId: '0x1',
@@ -633,9 +633,55 @@ describe('Across Submit', () => {
       });
 
       expect(successfulFetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/deposit/status?'),
+        expect.stringContaining('/deposit/status?depositTxnRef=0xconfirmed'),
         expect.objectContaining({ method: 'GET' }),
       );
+      expect(result.transactionHash).toBe('0xtarget');
+    });
+
+    it('uses the configured proxy for approvals and deposit status polling', async () => {
+      const proxyApiBase = 'https://intents.dev-api.cx.metamask.io/across';
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                apiBase: proxyApiBase,
+              },
+            },
+          },
+        },
+      });
+
+      setupConfirmedSubmission();
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK.original.quote,
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            destinationTxHash: '0xtarget',
+            status: 'success',
+          }),
+        } as Response);
+
+      const result = await submitAcrossQuotes({
+        messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      const [statusUrl, statusOptions] = successfulFetchMock.mock.calls[1];
+      expect(statusUrl).toStrictEqual(
+        expect.stringContaining(`${proxyApiBase}/deposit/status?`),
+      );
+      expect(statusOptions).toMatchObject({ method: 'GET' });
       expect(result.transactionHash).toBe('0xtarget');
     });
 
@@ -745,6 +791,25 @@ describe('Across Submit', () => {
       });
 
       expect(result.transactionHash).toBe('0xfill');
+    });
+
+    it('returns fill txn ref when destination hash is missing', async () => {
+      setupConfirmedSubmission();
+      successfulFetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          fillTxnRef: '0xfillref',
+          status: 'filled',
+        }),
+      } as Response);
+
+      const result = await submitAcrossQuotes({
+        messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(result.transactionHash).toBe('0xfillref');
     });
 
     it('returns tx hash when destination and fill hashes are missing', async () => {

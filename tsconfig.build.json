@@ -59,6 +59,9 @@
       "path": "./packages/chain-agnostic-permission/tsconfig.build.json"
     },
     {
+      "path": "./packages/chomp-api-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/claims-controller/tsconfig.build.json"
     },
     {
