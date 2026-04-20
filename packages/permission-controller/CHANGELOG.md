@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Decouple the permission middleware from `PermissionController` and expose it as a standalone `createPermissionMiddleware` export
+  - Removes the `createPermissionMiddleware` property from `PermissionController`. Consumers should instead import `createPermissionMiddleware` from `@metamask/permission-controller` and call it with a messenger and subject metadata. The messenger must have the `PermissionController:executeRestrictedMethod` and `PermissionController:hasUnrestrictedMethod` actions delegated to it.
+  - Adds a new `PermissionMiddlewareActions` type describing the messenger actions required by the middleware.
+  - Exposes additional `PermissionController` methods through its messenger: `PermissionController:executeRestrictedMethod` and `PermissionController:hasUnrestrictedMethod`. Corresponding action types (`PermissionControllerExecuteRestrictedMethodAction` and `PermissionControllerHasUnrestrictedMethodAction`) are exported as well.
+  - Adds a public `PermissionController.hasUnrestrictedMethod(method)` predicate backing the new action.
+  - When a restricted method returns `undefined`, the middleware now propagates the plain `Error` thrown by `PermissionController.executeRestrictedMethod` (with the message `Internal request for method "<method>" as origin "<origin>" returned no result.`) rather than wrapping it into a custom `internalError` with a `request` data payload. The JSON-RPC engine serializes this as a standard internal error response.
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))

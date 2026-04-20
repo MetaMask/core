@@ -26,6 +26,7 @@ import {
   PermissionControllerMessenger,
   PermissionControllerOptions,
   PermissionControllerState,
+  PermissionMiddlewareActions,
   PermissionOptions,
   PermissionsRequest,
   RestrictedMethodOptions,
@@ -35,6 +36,7 @@ import {
 import {
   CaveatMutatorOperation,
   constructPermission,
+  createPermissionMiddleware,
   MethodNames,
   PermissionController,
   PermissionType,
@@ -628,6 +630,32 @@ function getPermissionControllerMessenger(
       'ApprovalController:acceptRequest',
       'ApprovalController:rejectRequest',
       'SubjectMetadataController:getSubjectMetadata',
+    ],
+    messenger,
+  });
+  return messenger;
+}
+
+/**
+ * Gets a messenger scoped to the actions required by the permission
+ * middleware, delegated from the given root messenger.
+ *
+ * @param rootMessenger - The root messenger to delegate from.
+ * @returns A messenger suitable for passing to `createPermissionMiddleware`.
+ */
+function getPermissionMiddlewareMessenger(
+  rootMessenger: RootMessenger,
+): Messenger<'PermissionMiddleware', PermissionMiddlewareActions> {
+  const messenger = new Messenger<
+    'PermissionMiddleware',
+    PermissionMiddlewareActions,
+    never,
+    RootMessenger
+  >({ namespace: 'PermissionMiddleware', parent: rootMessenger });
+  rootMessenger.delegate({
+    actions: [
+      'PermissionController:executeRestrictedMethod',
+      'PermissionController:hasUnrestrictedMethod',
     ],
     messenger,
   });
@@ -6223,8 +6251,42 @@ describe('PermissionController', () => {
   });
 
   describe('permission middleware', () => {
+    /**
+     * Builds a permission controller and a messenger suitable for passing to
+     * `createPermissionMiddleware` that are wired to the same root messenger.
+     *
+     * @param opts - Permission controller options overrides.
+     * @returns The controller and the middleware messenger.
+     */
+    const setup = (
+      opts?: Record<string, unknown>,
+    ): {
+      controller: PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >;
+      middlewareMessenger: Messenger<
+        'PermissionMiddleware',
+        PermissionMiddlewareActions
+      >;
+    } => {
+      const rootMessenger = getRootMessenger();
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(
+        getPermissionControllerOptions({
+          messenger: getPermissionControllerMessenger(rootMessenger),
+          ...opts,
+        }),
+      );
+      const middlewareMessenger =
+        getPermissionMiddlewareMessenger(rootMessenger);
+      return { controller, middlewareMessenger };
+    };
+
     it('executes a restricted method', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6235,7 +6297,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
 
       const response = await engine.handle({
         jsonrpc: '2.0',
@@ -6248,7 +6315,7 @@ describe('PermissionController', () => {
     });
 
     it('executes a restricted method with a caveat', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6261,7 +6328,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
 
       const response = await engine.handle({
         jsonrpc: '2.0',
@@ -6274,7 +6346,7 @@ describe('PermissionController', () => {
     });
 
     it('executes a restricted method with multiple caveats', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6290,7 +6362,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
 
       const response = await engine.handle({
         jsonrpc: '2.0',
@@ -6303,11 +6380,16 @@ describe('PermissionController', () => {
     });
 
     it('passes through unrestricted methods', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
       engine.push((_req, res, _next, end) => {
         res.result = 'success';
         end();
@@ -6324,13 +6406,16 @@ describe('PermissionController', () => {
     });
 
     it('throws an error if the subject has an invalid "origin" property', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
 
       ['', null, undefined, 2].forEach((invalidOrigin) => {
         expect(() =>
-          controller.createPermissionMiddleware({
-            // @ts-expect-error Intentional destructive testing
-            origin: invalidOrigin,
+          createPermissionMiddleware({
+            messenger: middlewareMessenger,
+            subject: {
+              // @ts-expect-error Intentional destructive testing
+              origin: invalidOrigin,
+            },
           }),
         ).toThrow(
           new Error('The subject "origin" must be a non-empty string.'),
@@ -6339,11 +6424,16 @@ describe('PermissionController', () => {
     });
 
     it('returns an error if the subject does not have the requisite permission', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
 
       const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
@@ -6369,11 +6459,16 @@ describe('PermissionController', () => {
     });
 
     it('returns an error if the method does not exist', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
 
       const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
@@ -6401,14 +6496,9 @@ describe('PermissionController', () => {
       permissionSpecifications.wallet_doubleNumber.methodImplementation =
         (): undefined => undefined;
 
-      const controller = new PermissionController<
-        DefaultPermissionSpecifications,
-        DefaultCaveatSpecifications
-      >(
-        getPermissionControllerOptions({
-          permissionSpecifications,
-        }),
-      );
+      const { controller, middlewareMessenger } = setup({
+        permissionSpecifications,
+      });
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -6419,7 +6509,12 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          subject: { origin },
+        }),
+      );
 
       const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
@@ -6427,21 +6522,17 @@ describe('PermissionController', () => {
         method: PermissionNames.wallet_doubleNumber,
       };
 
-      const expectedError = errors.internalError(
-        `Request for method "${PermissionNames.wallet_doubleNumber}" returned undefined result.`,
-        { request: { ...request } },
-      );
-
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
 
-      expect(error.message).toStrictEqual(expectedError.message);
-      // @ts-expect-error We do expect this property to exist.
-      expect(error.data?.cause).toBeNull();
-      // @ts-expect-error Intentional destructive testing
-      delete error.data.cause;
-      expect(error).toMatchObject(expect.objectContaining(expectedError));
+      // The public `executeRestrictedMethod` throws a plain `Error` when the
+      // restricted method returns `undefined`; the JSON-RPC engine wraps it
+      // as an internal error response.
+      expect(error.message).toBe(
+        `Internal request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+      );
+      expect(error.code).toBe(-32603);
     });
   });
 

@@ -93,7 +93,6 @@ import {
   hasSpecificationType,
   PermissionType,
 } from './Permission';
-import { getPermissionMiddlewareFactory } from './permission-middleware';
 import type { PermissionControllerMethodActions } from './PermissionController-method-action-types';
 import type { SubjectMetadataControllerGetSubjectMetadataAction } from './SubjectMetadataController-method-action-types';
 import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
@@ -176,11 +175,13 @@ const controllerName = 'PermissionController';
 
 const MESSENGER_EXPOSED_METHODS = [
   'clearState',
+  'executeRestrictedMethod',
   'getEndowments',
   'getSubjectNames',
   'getPermissions',
   'hasPermission',
   'hasPermissions',
+  'hasUnrestrictedMethod',
   'grantPermissions',
   'grantPermissionsIncremental',
   'requestPermissions',
@@ -665,16 +666,14 @@ export class PermissionController<
   }
 
   /**
-   * Returns a `json-rpc-engine` middleware function factory, so that the rules
-   * described by the state of this controller can be applied to incoming
-   * JSON-RPC requests.
+   * Checks whether the given method is an unrestricted method.
    *
-   * The middleware **must** be added in the correct place in the middleware
-   * stack in order for it to work. See the README for an example.
+   * @param method - The name of the method to check.
+   * @returns Whether the method is unrestricted.
    */
-  public createPermissionMiddleware: ReturnType<
-    typeof getPermissionMiddlewareFactory
-  >;
+  hasUnrestrictedMethod(method: string): boolean {
+    return this.#unrestrictedMethods.has(method);
+  }
 
   /**
    * Constructs the PermissionController.
@@ -744,14 +743,6 @@ export class PermissionController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-
-    this.createPermissionMiddleware = getPermissionMiddlewareFactory({
-      executeRestrictedMethod: this.#executeRestrictedMethod.bind(this),
-      getRestrictedMethod: this.getRestrictedMethod.bind(this),
-      isUnrestrictedMethod: this.unrestrictedMethods.has.bind(
-        this.unrestrictedMethods,
-      ),
-    });
   }
 
   /**
@@ -929,8 +920,7 @@ export class PermissionController<
    *
    * A JSON-RPC error is thrown if the method does not exist.
    *
-   * @see {@link PermissionController.executeRestrictedMethod} and
-   * {@link PermissionController.createPermissionMiddleware} for internal usage.
+   * @see {@link PermissionController.executeRestrictedMethod} for internal usage.
    * @param method - The name of the restricted method.
    * @param origin - The origin associated with the request for the restricted
    * method, if any.
@@ -2794,17 +2784,15 @@ export class PermissionController<
   }
 
   /**
-   * An internal method used in the controller's `json-rpc-engine` middleware
-   * and {@link PermissionController.executeRestrictedMethod}. Calls the
-   * specified restricted method implementation after decorating it with the
-   * caveats of its permission. Throws if the subject does not have the
+   * An internal method used in {@link PermissionController.executeRestrictedMethod}.
+   * Calls the specified restricted method implementation after decorating it
+   * with the caveats of its permission. Throws if the subject does not have the
    * requisite permission.
    *
    * ATTN: Parameter validation is the responsibility of the caller, or
    * the restricted method implementation in the case of `params`.
    *
-   * @see {@link PermissionController.executeRestrictedMethod} and
-   * {@link PermissionController.createPermissionMiddleware} for usage.
+   * @see {@link PermissionController.executeRestrictedMethod} for usage.
    * @param methodImplementation - The implementation of the method to call.
    * @param subject - Metadata about the subject that made the request.
    * @param method - The method name

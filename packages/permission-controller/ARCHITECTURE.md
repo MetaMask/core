@@ -335,7 +335,7 @@ const origin = getOrigin(subject);
 
 const engine = new JsonRpcEngine();
 engine.push(/* your various middleware*/);
-engine.push(permissionController.createPermissionMiddleware({ origin }));
+engine.push(createPermissionMiddleware({ messenger, subject: { origin } }));
 // Your middleware stack is now permissioned
 engine.push(/* your other various middleware*/);
 ```

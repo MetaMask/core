@@ -6,6 +6,17 @@
 import type { PermissionController } from './PermissionController';
 
 /**
+ * Checks whether the given method is an unrestricted method.
+ *
+ * @param method - The name of the method to check.
+ * @returns Whether the method is unrestricted.
+ */
+export type PermissionControllerHasUnrestrictedMethodAction = {
+  type: `PermissionController:hasUnrestrictedMethod`;
+  handler: PermissionController['hasUnrestrictedMethod'];
+};
+
+/**
  * Clears the state of the controller.
  */
 export type PermissionControllerClearStateAction = {
@@ -270,9 +281,40 @@ export type PermissionControllerGetEndowmentsAction = {
 };
 
 /**
+ * Executes a restricted method as the subject with the given origin.
+ * The specified params, if any, will be passed to the method implementation.
+ *
+ * ATTN: Great caution should be exercised in the use of this method.
+ * Methods that cause side effects or affect application state should
+ * be avoided.
+ *
+ * This method will first attempt to retrieve the requested restricted method
+ * implementation, throwing if it does not exist. The method will then be
+ * invoked as though the subject with the specified origin had invoked it with
+ * the specified parameters. This means that any existing caveats will be
+ * applied to the restricted method, and this method will throw if the
+ * restricted method or its caveat decorators throw.
+ *
+ * In addition, this method will throw if the subject does not have a
+ * permission for the specified restricted method.
+ *
+ * @param origin - The origin of the subject to execute the method on behalf
+ * of.
+ * @param targetName - The name of the method to execute. This must be a valid
+ * permission target name.
+ * @param params - The parameters to pass to the method implementation.
+ * @returns The result of the executed method.
+ */
+export type PermissionControllerExecuteRestrictedMethodAction = {
+  type: `PermissionController:executeRestrictedMethod`;
+  handler: PermissionController['executeRestrictedMethod'];
+};
+
+/**
  * Union of all PermissionController action types.
  */
 export type PermissionControllerMethodActions =
+  | PermissionControllerHasUnrestrictedMethodAction
   | PermissionControllerClearStateAction
   | PermissionControllerGetSubjectNamesAction
   | PermissionControllerGetPermissionsAction
@@ -287,4 +329,5 @@ export type PermissionControllerMethodActions =
   | PermissionControllerGrantPermissionsIncrementalAction
   | PermissionControllerRequestPermissionsAction
   | PermissionControllerRequestPermissionsIncrementalAction
-  | PermissionControllerGetEndowmentsAction;
+  | PermissionControllerGetEndowmentsAction
+  | PermissionControllerExecuteRestrictedMethodAction;
