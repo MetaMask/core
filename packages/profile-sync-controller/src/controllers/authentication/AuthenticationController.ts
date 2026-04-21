@@ -445,7 +445,7 @@ export class AuthenticationController extends BaseController<
       await this.performSignIn();
     } else {
       const primaryId = await this.#getPrimaryEntropySourceId();
-      this.#clearSrpSessionData(primaryId);
+      this.#invalidateSrpSession(primaryId);
       await this.#auth.getAccessToken(primaryId);
     }
 
@@ -458,10 +458,11 @@ export class AuthenticationController extends BaseController<
     return canonical;
   }
 
-  #clearSrpSessionData(entropySourceId: string): void {
+  #invalidateSrpSession(entropySourceId: string): void {
     this.update((state) => {
-      if (state.srpSessionData?.[entropySourceId]) {
-        delete state.srpSessionData[entropySourceId];
+      const entry = state.srpSessionData?.[entropySourceId];
+      if (entry?.profile) {
+        entry.profile.canonicalProfileId = '';
       }
     });
   }

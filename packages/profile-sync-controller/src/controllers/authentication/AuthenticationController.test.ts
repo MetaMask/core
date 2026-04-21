@@ -863,7 +863,7 @@ describe('AuthenticationController', () => {
       const canonical = await controller.refreshCanonicalProfileId();
       expect(canonical).toBe(MOCK_LOGIN_RESPONSE.profile.profile_id);
       expect(
-        controller.state.srpSessionData?.['SINGLE_ENTROPY_SOURCE_ID'],
+        controller.state.srpSessionData?.SINGLE_ENTROPY_SOURCE_ID,
       ).toBeDefined();
     });
 
