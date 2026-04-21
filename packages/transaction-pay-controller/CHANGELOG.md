@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.1.0` ([#8509](https://github.com/MetaMask/core/pull/8509))
+- Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.2.0` ([#8509](https://github.com/MetaMask/core/pull/8509),[#8544](https://github.com/MetaMask/core/pull/8544))
 
 ### Fixed
 

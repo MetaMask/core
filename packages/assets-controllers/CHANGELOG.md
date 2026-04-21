@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [104.2.0]
+
 ### Added
 
 - Add Tempo Mainnet (`4217`/`0x1079`) multicall contract support ([#8346](https://github.com/MetaMask/core/pull/8346))
@@ -2936,7 +2938,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...HEAD
+[104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
 [104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0
 [104.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...@metamask/assets-controllers@104.0.0
 [103.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...@metamask/assets-controllers@103.1.1
