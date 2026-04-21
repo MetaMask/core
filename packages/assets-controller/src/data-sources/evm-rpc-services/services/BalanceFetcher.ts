@@ -130,8 +130,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       return [];
     }
 
-    const { assetsInfo } = state;
-
     // Convert hex chainId to decimal for CAIP-2 matching
     // This is safe because we are filtring with an accountId that is for evm balances only
     const chainIdDecimal = parseInt(chainId, 16).toString();
@@ -150,7 +148,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           continue;
         }
 
-        const isNative = assetsInfo[assetId]?.type === 'native';
+        const isNative = state.assetsInfo[assetId]?.type === 'native';
         const tokenAddress = isNative
           ? ZERO_ADDRESS
           : (assetReference.toLowerCase() as Address);
