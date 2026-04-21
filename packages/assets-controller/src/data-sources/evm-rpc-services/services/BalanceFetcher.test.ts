@@ -4,7 +4,7 @@ import type { MulticallClient } from '../clients';
 import type {
   Address,
   AssetFetchEntry,
-  StateForBalanceFetcher,
+  AssetsBalanceState,
   BalanceOfResponse,
   ChainId,
 } from '../types';
@@ -71,22 +71,20 @@ const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
 function createMockStateForBalanceFetcher(
   accountId: string,
   balances: Record<string, { amount: string }> = {},
-  assetsInfo: Record<string, { type: string }> = {},
-): StateForBalanceFetcher {
+): AssetsBalanceState {
   return {
     assetsBalance: {
       [accountId]: balances,
     },
-    assetsInfo,
   };
 }
 
 function createMockMessenger(
-  stateForBalanceFetcher?: StateForBalanceFetcher,
+  state?: AssetsBalanceState,
 ): BalanceFetcherMessenger {
   return {
-    call: (_action: 'AssetsController:getState'): StateForBalanceFetcher => {
-      return stateForBalanceFetcher ?? { assetsBalance: {}, assetsInfo: {} };
+    call: (_action: 'AssetsController:getState'): AssetsBalanceState => {
+      return state ?? { assetsBalance: {} };
     },
   };
 }
@@ -106,7 +104,7 @@ function createMockBalanceResponse(
 
 type WithControllerOptions = {
   config?: BalanceFetcherConfig;
-  stateForBalanceFetcher?: StateForBalanceFetcher;
+  stateForBalanceFetcher?: AssetsBalanceState;
 };
 
 type WithControllerCallback<ReturnValue> = (params: {
@@ -203,14 +201,17 @@ describe('BalanceFetcher', () => {
 
   describe('setOnBalanceUpdate', () => {
     it('sets the balance update callback', async () => {
-      const mockState = createMockStateForBalanceFetcher(
-        TEST_ACCOUNT_ID,
-        { [NATIVE_ETH_ASSET_ID]: { amount: '0' } },
-        { [NATIVE_ETH_ASSET_ID]: { type: 'native' } },
-      );
+      const mockState = createMockStateForBalanceFetcher(TEST_ACCOUNT_ID, {
+        [NATIVE_ETH_ASSET_ID]: { amount: '0' },
+      });
 
       await withController(
-        { stateForBalanceFetcher: mockState },
+        {
+          stateForBalanceFetcher: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+          },
+        },
         async ({ controller, mockMulticallClient }) => {
           const mockCallback = jest.fn();
           controller.setOnBalanceUpdate(mockCallback);

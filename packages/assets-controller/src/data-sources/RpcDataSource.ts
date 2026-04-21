@@ -268,17 +268,12 @@ export class RpcDataSource extends AbstractDataSource<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
-        assetsInfo: Record<string, { type: string }>;
       } => {
         const state = this.#messenger.call('AssetsController:getState');
         return {
           assetsBalance: (state.assetsBalance ?? {}) as Record<
             string,
             Record<string, { amount: string }>
-          >,
-          assetsInfo: (state.assetsInfo ?? {}) as Record<
-            string,
-            { type: string }
           >,
         };
       },
@@ -288,7 +283,18 @@ export class RpcDataSource extends AbstractDataSource<
     this.#balanceFetcher = new BalanceFetcher(
       this.#multicallClient,
       balanceFetcherMessenger,
-      { pollingInterval: balanceInterval },
+      {
+        pollingInterval: balanceInterval,
+        isNativeAsset: (assetId: Caip19AssetId): boolean => {
+          try {
+            const { chainId } = parseCaipAssetType(assetId);
+            const nativeId = this.#getNativeAssetForChain(chainId);
+            return nativeId?.toLowerCase() === assetId.toLowerCase();
+          } catch {
+            return false;
+          }
+        },
+      },
     );
     // Polling controller awaits this callback; rejections must not become unhandled.
     this.#balanceFetcher.setOnBalanceUpdate(async (result) => {

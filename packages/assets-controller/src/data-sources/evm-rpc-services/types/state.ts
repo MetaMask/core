@@ -47,20 +47,10 @@ export type AssetBalanceEntry = {
 };
 
 /**
- * Minimal asset metadata used by BalanceFetcher to distinguish native from
- * ERC-20 assets without pulling the full AssetMetadata type.
+ * Assets balance state shape (from AssetsController).
+ * Maps accountId -> assetId (CAIP-19) -> balance entry.
  */
-export type AssetMetadataEntry = {
-  type: string;
-};
-
-/**
- * Assets state shape (from AssetsController) consumed by BalanceFetcher.
- * Maps accountId -> assetId (CAIP-19) -> balance entry, plus per-asset metadata.
- */
-export type StateForBalanceFetcher = {
+export type AssetsBalanceState = {
   /** Balance data per account: accountId -> assetId -> balance */
   assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
-  /** Metadata per asset: assetId -> metadata */
-  assetsInfo: Record<string, AssetMetadataEntry>;
 };

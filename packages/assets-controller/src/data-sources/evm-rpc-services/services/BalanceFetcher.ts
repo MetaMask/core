@@ -8,7 +8,7 @@ import type {
   Address,
   AssetBalance,
   AssetFetchEntry,
-  StateForBalanceFetcher,
+  AssetsBalanceState,
   BalanceFetchResult,
   BalanceOfRequest,
   BalanceOfResponse,
@@ -23,7 +23,7 @@ const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
  * Minimal messenger interface for BalanceFetcher.
  */
 export type BalanceFetcherMessenger = {
-  call: (action: 'AssetsController:getState') => StateForBalanceFetcher;
+  call: (action: 'AssetsController:getState') => AssetsBalanceState;
 };
 
 export type BalanceFetcherConfig = {
@@ -31,6 +31,8 @@ export type BalanceFetcherConfig = {
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 30s) */
   pollingInterval?: number;
+  /** Determines whether a CAIP-19 asset ID represents a native asset. */
+  isNativeAsset?: (assetId: CaipAssetType) => boolean;
 };
 
 /**
@@ -66,7 +68,11 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
   readonly #messenger: BalanceFetcherMessenger;
 
-  readonly #config: Required<Omit<BalanceFetcherConfig, 'pollingInterval'>>;
+  readonly #config: Required<
+    Omit<BalanceFetcherConfig, 'pollingInterval' | 'isNativeAsset'>
+  >;
+
+  readonly #isNativeAsset: (assetId: string) => boolean;
 
   #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
 
@@ -82,6 +88,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
+    this.#isNativeAsset = config?.isNativeAsset ?? (() => false);
 
     // Set the polling interval
     this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);
@@ -148,7 +155,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           continue;
         }
 
-        const isNative = state.assetsInfo[assetId]?.type === 'native';
+        const isNative = this.#isNativeAsset(assetId);
         const tokenAddress = isNative
           ? ZERO_ADDRESS
           : (assetReference.toLowerCase() as Address);
