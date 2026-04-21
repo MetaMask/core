@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Native asset detection now correctly identifies native assets across all CAIP-19 representations, not just `slip44:` namespace checks ([#8483](https://github.com/MetaMask/core/pull/8483))
-  - Previously, native assets represented as ERC-20 tokens (e.g., Polygon's POL at `0x…1010`) were not recognized as native, causing incorrect token type classification, balance handling, and missing entries in bridge exchange rates and transaction pay legacy formats.
+  - Previously, native assets represented as ERC-20 tokens were not recognized as native, causing incorrect token type classification.
 - Exempt mUSD token from EVM ERC-20 minimum-occurrence spam filter so it is no longer incorrectly hidden ([#8541](https://github.com/MetaMask/core/pull/8541))
 
 ## [6.0.0]
