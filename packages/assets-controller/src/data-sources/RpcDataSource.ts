@@ -362,8 +362,7 @@ export class RpcDataSource extends AbstractDataSource<
     for (const balance of balances) {
       const isNative =
         existingMetadata[balance.assetId]?.type === 'native' ||
-        (nativeAssetId !== undefined &&
-          balance.assetId.toLowerCase() === nativeAssetId.toLowerCase());
+        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
       if (isNative) {
         const chainStatus = this.#chainStatuses[chainId];
 
