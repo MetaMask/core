@@ -44,8 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/account-tree-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/account-tree-controller",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -55,7 +55,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^37.2.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/keyring-api": "^21.6.0",
+    "@metamask/keyring-api": "^23.0.1",
     "@metamask/keyring-controller": "^25.2.0",
     "@metamask/messenger": "^1.1.1",
     "@metamask/multichain-account-service": "^8.0.1",
@@ -69,7 +69,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/account-api": "^1.0.0",
+    "@metamask/account-api": "^1.0.3",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",

@@ -990,6 +990,11 @@ export enum TransactionType {
    * A token approval transaction subscribing to the shield insurance service
    */
   shieldSubscriptionApprove = 'shieldSubscriptionApprove',
+
+  /**
+   * A transaction that sets a spending limit delegation for the MetaMask Card.
+   */
+  cardDelegation = 'cardDelegation',
 }
 
 export enum TransactionContainerType {
