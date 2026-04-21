@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `spotUsdcBalance` to perps account state so consumers can distinguish raw HyperLiquid spot USDC from perps `withdrawable` balance.
+
+### Fixed
+
+- Populate `spotUsdcBalance` in HyperLiquid account fetches and live account updates so funded-state checks can use spot USDC without changing the meaning of `availableBalance`.
+
 ## [3.2.0]
 
 ### Added
