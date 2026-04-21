@@ -670,7 +670,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     bridgeTxMetaId: string,
   ): Promise<void> => {
     if (
-      !isHistoryItemTooOld(this.messenger, this.state.txHistory[bridgeTxMetaId])
+      // Skip if the history item is finalized or not old
+      !(
+        isHistoryItemTooOld(
+          this.messenger,
+          this.state.txHistory[bridgeTxMetaId],
+        ) &&
+        [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
+          this.state.txHistory[bridgeTxMetaId].status.status,
+        )
+      )
     ) {
       return;
     }

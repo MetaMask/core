@@ -190,6 +190,8 @@ exports[`BridgeStatusController constructor when history has tx hash, provider r
 ]
 `;
 
+exports[`BridgeStatusController constructor when history has tx hash, provider returns receipt, status is complete and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
 exports[`BridgeStatusController constructor when history has tx hash, provider throws error and is older than 2 days: provider tx receipt calls 1`] = `
 [
   {

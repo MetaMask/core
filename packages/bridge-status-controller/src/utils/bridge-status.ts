@@ -1,5 +1,6 @@
 import { getClientHeaders, isNonEvmChainId } from '@metamask/bridge-controller';
 import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
+import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
 
 import { REFRESH_INTERVAL_MS } from '../constants';
@@ -130,13 +131,14 @@ export const shouldWaitForFinalBridgeStatus = async (
     return false;
   }
 
-  // Otherwise check if the tx has been mined on chain
-  const provider = getNetworkClientByChainId(
-    messenger,
-    historyItem.quote.srcChainId,
-  );
-  // When this happens it means the network was disabled while the tx was pending
-  if (!provider) {
+  let provider: Provider;
+  try {
+    provider = getNetworkClientByChainId(
+      messenger,
+      historyItem.quote.srcChainId,
+    );
+  } catch {
+    // This  happens when the network is disabled while the tx is pending
     return false;
   }
 
@@ -144,6 +146,7 @@ export const shouldWaitForFinalBridgeStatus = async (
     return false;
   }
 
+  // Otherwise check if the tx has been mined on chain
   return provider
     .request({
       method: 'eth_getTransactionReceipt',

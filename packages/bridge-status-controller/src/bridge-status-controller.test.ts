@@ -625,7 +625,12 @@ function registerDefaultActionHandlers(
 
   rootMessenger.registerActionHandler(
     'NetworkController:findNetworkClientIdByChainId',
-    () => 'networkClientId',
+    () => {
+      if (provider === 'undefined') {
+        throw new Error('Provider is undefined');
+      }
+      return 'networkClientId';
+    },
   );
 
   rootMessenger.registerActionHandler('NetworkController:getState', () => ({
@@ -645,7 +650,7 @@ function registerDefaultActionHandlers(
         chainId: numberToHex(srcChainId),
       },
       // @ts-expect-error: Partial mock.
-      provider: provider === 'undefined' ? undefined : mockProvider,
+      provider: mockProvider,
     }),
   );
 
@@ -908,6 +913,14 @@ describe('BridgeStatusController constructor', () => {
       expectedStatusFetchCount: 1,
     },
     {
+      title: 'tx hash, provider returns receipt, status is complete',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () => await Promise.resolve('txReceipt1'),
+      expectedHistoryTxMetaId: 'unknownTxMetaId1',
+      expectedStatusFetchCount: 1,
+      statusResponse: MockStatusResponse.getComplete,
+    },
+    {
       title: 'tx hash, provider returns no receipt',
       txHash: '0xsrcTxHash2',
       providerAction: async () => await Promise.resolve(),
@@ -981,6 +994,7 @@ describe('BridgeStatusController constructor', () => {
       srcChainId,
       provider: providerParam,
       expectedStatusFetchCount = 0,
+      statusResponse = MockStatusResponse.getPending,
     }) => {
       // Setup
       jest.useFakeTimers();
@@ -1021,7 +1035,7 @@ describe('BridgeStatusController constructor', () => {
               },
             },
             fetchFn: jest.fn().mockResolvedValueOnce(
-              MockStatusResponse.getPending({
+              statusResponse({
                 srcTxHash: txMeta?.hash ?? txHash,
               }),
             ),
@@ -1060,7 +1074,7 @@ describe('BridgeStatusController constructor', () => {
           ).toStrictEqual([]);
 
           expect(controller.state.txHistory[historyKey]?.status.status).toBe(
-            expectedHistoryTxMetaId ? StatusTypes.PENDING : undefined,
+            expectedHistoryTxMetaId ? statusResponse()?.status : undefined,
           );
           expect(
             controller.state.txHistory[historyKey]?.attempts?.counter,
@@ -1068,7 +1082,10 @@ describe('BridgeStatusController constructor', () => {
 
           // Should always stop polling for the tx after 2 days
           expect(stopPollingSpy.mock.calls).toStrictEqual(
-            expectedHistoryTxMetaId ? [] : [['test-uuid-1234']],
+            expectedHistoryTxMetaId &&
+              statusResponse()?.status !== StatusTypes.COMPLETE
+              ? []
+              : [['test-uuid-1234']],
           );
 
           expect(
@@ -1130,6 +1147,14 @@ describe('BridgeStatusController constructor', () => {
                     usd_quoted_return: 0,
                   },
                 ],
+          );
+
+          jest.advanceTimersByTime(11000);
+          await flushPromises();
+
+          // Assertions
+          expect(controller.state.txHistory[historyKey]?.status.status).toBe(
+            expectedHistoryTxMetaId ? statusResponse()?.status : undefined,
           );
         },
       );
