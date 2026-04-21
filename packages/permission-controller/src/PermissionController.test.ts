@@ -6547,7 +6547,7 @@ describe('PermissionController', () => {
               messenger: middlewareMessenger,
               subject: { origin },
             }),
-            () => 'success',
+            (): string => 'success',
           ],
         });
 
