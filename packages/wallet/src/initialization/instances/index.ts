@@ -8,6 +8,7 @@ export * from './keyring-controller';
 export * from './multichain-account-service';
 export * from './network-controller';
 export * from './permission-controller';
+export * from './preferences-controller';
 export * from './remote-feature-flag-controller';
 export * from './subject-metadata-controller';
 export * from './transaction-controller';

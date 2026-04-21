@@ -7,6 +7,7 @@ import {
   createWalletSnapPermissionMiddleware,
   createSnapsMethodMiddleware,
 } from '@metamask/snaps-rpc-methods';
+import { createDeferredPromise } from '@metamask/utils';
 import { Duplex, pipeline } from 'readable-stream';
 
 import { RootMessenger } from '../initialization';
@@ -37,10 +38,17 @@ export function createRpcHooks(origin: string, messenger: RootMessenger) {
       'SnapController:clearSnapState',
       origin,
     ),
-    getUnlockPromise: messenger.call.bind(
-      messenger,
-      'AppStateController:getUnlockPromise',
-    ),
+    getUnlockPromise: async () => {
+      if (messenger.call('KeyringController:getState').isUnlocked) {
+        return Promise.resolve();
+      }
+      const { promise, resolve: resolveUnlock } = createDeferredPromise();
+      messenger.subscribe('KeyringController:unlock', resolveUnlock);
+
+      await promise;
+
+      messenger.unsubscribe('KeyringController:unlock', resolveUnlock);
+    },
     getSnaps: messenger.call.bind(
       messenger,
       'SnapController:getPermittedSnaps',
@@ -89,8 +97,8 @@ export function createRpcHooks(origin: string, messenger: RootMessenger) {
     },
     getIsActive: () => {
       const { isUnlocked } = messenger.call('KeyringController:getState');
-
-      return Boolean(this._isClientOpen && isUnlocked);
+      // TODO: This is different between clients.
+      return Boolean(isUnlocked);
     },
     getVersion: () => {
       return process.env.METAMASK_VERSION;
@@ -238,6 +246,13 @@ export function createProviderRpc({
 
   // TODO: Use V2, currently not compatible with createEngineStream.
   const engine = new JsonRpcEngine();
+
+  // TODO: Rebase and use createOriginMiddleware.
+  engine.push((request, _, next) => {
+    // @ts-expect-error Type does not allow this.
+    request.origin = origin;
+    return next();
+  });
 
   // TODO: A bunch of middlewares are missing.
   // TODO: Configure additional client-specific middlewares

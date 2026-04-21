@@ -13,6 +13,7 @@ import {
   caveatSpecifications as snapsCaveatsSpecifications,
   endowmentCaveatSpecifications as snapsEndowmentCaveatSpecifications,
 } from '@metamask/snaps-rpc-methods';
+import { createDeferredPromise } from '@metamask/utils';
 import { RootMessenger } from 'src/initialization';
 
 export const EndowmentPermissions = Object.freeze({
@@ -62,33 +63,29 @@ export const getPermissionSpecifications = (messenger: RootMessenger) => {
          * is a subset of the full preferences state.
          */
         getPreferences: () => {
-          const currency = messenger.call(
-            'CurrencyRateController:getState',
-          ).currentCurrency;
-
           const {
-            currentLocale: locale,
-            openSeaEnabled,
-            preferences: { privacyMode, showTestNetworks },
             securityAlertsEnabled,
-            useCurrencyRateCheck,
             useTransactionSimulations,
             useTokenDetection,
-            useMultiAccountBalanceChecker,
+            privacyMode,
             useNftDetection,
+            displayNftMedia,
+            isMultiAccountBalancesEnabled,
+            showTestNetworks,
           } = messenger.call('PreferencesController:getState');
 
           return {
-            locale,
-            currency,
+            // TODO: Locale and currency.
+            locale: 'en',
+            currency: 'usd',
             hideBalances: privacyMode,
             useSecurityAlerts: securityAlertsEnabled,
-            useExternalPricingData: useCurrencyRateCheck,
             simulateOnChainActions: useTransactionSimulations,
             useTokenDetection,
-            batchCheckBalances: useMultiAccountBalanceChecker,
-            displayNftMedia: openSeaEnabled,
+            batchCheckBalances: isMultiAccountBalancesEnabled,
+            displayNftMedia,
             useNftDetection,
+            useExternalPricingData: true,
             showTestnets: showTestNetworks,
           };
         },
@@ -101,10 +98,17 @@ export const getPermissionSpecifications = (messenger: RootMessenger) => {
         getMnemonic: getMnemonic.bind(null, messenger),
         getMnemonicSeed: getMnemonicSeed.bind(null, messenger),
 
-        getUnlockPromise: messenger.call.bind(
-          messenger,
-          'AppStateController:getUnlockPromise',
-        ),
+        getUnlockPromise: async () => {
+          if (messenger.call('KeyringController:getState').isUnlocked) {
+            return Promise.resolve();
+          }
+          const { promise, resolve: resolveUnlock } = createDeferredPromise();
+          messenger.subscribe('KeyringController:unlock', resolveUnlock);
+
+          await promise;
+
+          messenger.unsubscribe('KeyringController:unlock', resolveUnlock);
+        },
 
         getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),
         handleSnapRpcRequest: messenger.call.bind(

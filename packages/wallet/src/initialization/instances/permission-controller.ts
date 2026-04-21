@@ -45,6 +45,9 @@ export const permissionController: InitializationConfiguration<
         'SnapController:getPermittedSnaps',
         'SnapController:installSnaps',
         'SubjectMetadataController:getSubjectMetadata',
+        // Actions required for specifications.
+        'KeyringController:getState',
+        'KeyringController:withKeyring',
       ],
     });
 

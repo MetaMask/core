@@ -154,6 +154,7 @@ describe('Wallet', () => {
         },
       }),
       getMetaMetricsId: (): string => 'fake-metrics-id',
+      ensureOnboardingComplete: () => Promise.resolve(),
     });
 
     await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
