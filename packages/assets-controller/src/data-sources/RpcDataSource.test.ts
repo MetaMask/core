@@ -271,6 +271,7 @@ describe('createRpcDataSource', () => {
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
+      getNativeAssetForChain: jest.fn(),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -1724,6 +1725,7 @@ describe('RpcDataSource', () => {
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
+        getNativeAssetForChain: jest.fn(),
       });
       controller.destroy();
       expect(controller).toBeDefined();

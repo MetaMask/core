@@ -115,7 +115,7 @@ export type RpcDataSourceOptions = {
     previousChains: ChainId[],
   ) => void;
   /** Resolves CAIP-2 chain ID to CAIP-19 native asset ID from the cached native asset map. */
-  getNativeAssetForChain?: (chainId: ChainId) => Caip19AssetId | undefined;
+  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId | undefined;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -236,8 +236,7 @@ export class RpcDataSource extends AbstractDataSource<
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
-    this.#getNativeAssetForChain =
-      options.getNativeAssetForChain ?? ((): undefined => undefined);
+    this.#getNativeAssetForChain = options.getNativeAssetForChain;
     this.#timeout = options.timeout ?? 10_000;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
