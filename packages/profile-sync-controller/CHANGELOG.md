@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Send `X-MetaMask-Profile-Pairing: enabled` header on all `/srp/login` requests
   - Resolve original per-SRP `profileId` from `profile_aliases` using `computeIdentifierId`
   - Propagate canonical profile ID to all `srpSessionData` entries after pairing
-  - Add `refreshCanonicalProfileId` method — forces a fresh canonical retrieval from the server and propagates it to all cached SRP sessions
+  - Add `refreshCanonicalProfileId` method — forces a fresh canonical retrieval from the server (1 primary SRP login) and propagates it to all cached SRP sessions. For best-effort reads, use `getSessionProfile().canonicalProfileId` instead.
   - Force re-login when cached session is missing `canonicalProfileId`
 
 ### Changed
