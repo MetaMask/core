@@ -170,7 +170,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 8
+      "count": 7
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
