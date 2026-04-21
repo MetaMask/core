@@ -54,9 +54,7 @@ describe('analyticsControllerStateValidator', () => {
         analyticsId: 'not-a-uuid',
       };
 
-      expect(() =>
-        validateAnalyticsControllerState(state, true),
-      ).not.toThrow();
+      expect(() => validateAnalyticsControllerState(state, true)).not.toThrow();
     });
 
     it('throws when analyticsId is not UUIDv4 and skipUUIDv4Check is false', () => {
@@ -65,9 +63,9 @@ describe('analyticsControllerStateValidator', () => {
         analyticsId: 'not-a-uuid',
       };
 
-      expect(() =>
-        validateAnalyticsControllerState(state, false),
-      ).toThrow('Invalid analyticsId');
+      expect(() => validateAnalyticsControllerState(state, false)).toThrow(
+        'Invalid analyticsId',
+      );
     });
 
     it('throws when analyticsId is empty string even if skipUUIDv4Check is true', () => {
@@ -76,9 +74,9 @@ describe('analyticsControllerStateValidator', () => {
         analyticsId: '',
       };
 
-      expect(() =>
-        validateAnalyticsControllerState(state, true),
-      ).toThrow('Invalid analyticsId');
+      expect(() => validateAnalyticsControllerState(state, true)).toThrow(
+        'Invalid analyticsId',
+      );
     });
   });
 });

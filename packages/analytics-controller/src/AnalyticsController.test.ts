@@ -392,7 +392,9 @@ describe('AnalyticsController', () => {
       });
 
       expect(controller.state.analyticsId).toBe(analyticsId);
-      expect(platformAdapter.onSetupCompleted).toHaveBeenCalledWith(analyticsId);
+      expect(platformAdapter.onSetupCompleted).toHaveBeenCalledWith(
+        analyticsId,
+      );
     });
 
     it('accepts different valid UUIDv4 values', async () => {
