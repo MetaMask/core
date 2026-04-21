@@ -71,7 +71,7 @@ function getAmountFromBalance(balance: AssetBalance): string {
  * @param params.assetsPrice - Prices by asset ID.
  * @param params.selectedCurrency - Current currency code.
  * @param params.accounts - List of accounts (id + address) to map state for.
- * @param params.nativeAssetIdentifiers - Optional CAIP-2 chain ID to native asset ID.
+ * @param params.nativeAssetIdentifiers - Map of CAIP-2 chain ID to native asset ID. Used for EVM native lookups.
  * @param params.networkConfigurationsByChainId - Optional chain ID to network config (for native symbol).
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
@@ -81,7 +81,7 @@ export function formatStateForTransactionPay(params: {
   assetsPrice: Record<string, AssetPrice>;
   selectedCurrency: string;
   accounts: AccountForLegacyFormat[];
-  nativeAssetIdentifiers?: Record<string, string>;
+  nativeAssetIdentifiers: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
 }): TransactionPayLegacyFormat {
   const {
@@ -90,7 +90,7 @@ export function formatStateForTransactionPay(params: {
     assetsPrice,
     selectedCurrency,
     accounts,
-    nativeAssetIdentifiers = {},
+    nativeAssetIdentifiers,
     networkConfigurationsByChainId = {},
   } = params;
 

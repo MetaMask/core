@@ -49,6 +49,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances).toStrictEqual({});
@@ -99,6 +100,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const accountLower = ACCOUNT_1.address.toLowerCase();
@@ -127,6 +129,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.allTokens['0x1']).toBeDefined();
@@ -171,6 +174,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances).toStrictEqual({});
@@ -198,6 +202,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(
@@ -216,6 +221,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances[ACCOUNT_1.address.toLowerCase()]).toBeDefined();
@@ -233,6 +239,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const accountLower = ACCOUNT_1.address.toLowerCase();
@@ -331,6 +338,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances).toStrictEqual({});
@@ -360,6 +368,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const accountLower = ACCOUNT_1.address.toLowerCase();

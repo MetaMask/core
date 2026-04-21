@@ -36,25 +36,25 @@ export type BridgeExchangeRatesFormat = {
  * a single action when useAssetsControllerForRates is true.
  *
  * @param params - Conversion parameters.
- * @param params.assetsInfo - Optional metadata map keyed by CAIP-19 asset ID; used to determine native assets via `type === 'native'`.
+ * @param params.assetsInfo - Metadata map keyed by CAIP-19 asset ID; used to determine native assets via `type === 'native'`.
  * @param params.assetsPrice - Map of CAIP-19 asset ID to price data (must include both `price` and `usdPrice`).
  * @param params.selectedCurrency - ISO 4217 currency code (e.g. 'usd').
- * @param params.nativeAssetIdentifiers - Optional map of CAIP-2 chain ID to native asset ID (e.g. from NetworkEnablementController state). When provided, used for EVM native lookups.
+ * @param params.nativeAssetIdentifiers - Map of CAIP-2 chain ID to native asset ID. Used for EVM native lookups.
  * @param params.networkConfigurationsByChainId - Optional map of Hex chain ID to network config (e.g. from NetworkController state). Used to resolve native currency symbol via `nativeCurrency`; keys are Hex (e.g. '0x1').
  * @returns Bridge-compatible conversionRates, currencyRates, marketData, currentCurrency.
  */
 export function formatExchangeRatesForBridge(params: {
-  assetsInfo?: Record<string, AssetMetadata>;
+  assetsInfo: Record<string, AssetMetadata>;
   assetsPrice: Record<string, AssetPrice>;
   selectedCurrency: string;
-  nativeAssetIdentifiers?: Record<string, string>;
+  nativeAssetIdentifiers: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
 }): BridgeExchangeRatesFormat {
   const {
-    assetsInfo = {},
+    assetsInfo,
     assetsPrice,
     selectedCurrency,
-    nativeAssetIdentifiers = {},
+    nativeAssetIdentifiers,
     networkConfigurationsByChainId = {},
   } = params;
   const conversionRates: MultichainAssetsRatesControllerState['conversionRates'] =
