@@ -1,6 +1,6 @@
 import type {
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -30,8 +30,6 @@ import type {
 
 const controllerName = 'PasskeyController';
 
-const MESSENGER_EXPOSED_METHODS = ['isPasskeyEnrolled'] as const;
-
 export type PasskeyControllerState = {
   passkeyRecord: PasskeyRecord | null;
 };
@@ -41,21 +39,24 @@ export type PasskeyControllerGetStateAction = ControllerGetStateAction<
   PasskeyControllerState
 >;
 
-export type PasskeyControllerIsPasskeyEnrolledAction = {
-  type: `${typeof controllerName}:isPasskeyEnrolled`;
-  handler: PasskeyController['isPasskeyEnrolled'];
-};
+/**
+ * Actions exposed by {@link PasskeyController} on its messenger.
+ *
+ * Only `:getState` is exposed. Derived enrollment status is available via
+ * {@link passkeyControllerSelectors.selectIsPasskeyEnrolled}, and lifecycle
+ * methods ({@link PasskeyController.generateRegistrationOptions},
+ * {@link PasskeyController.protectVaultKeyWithPasskey}, etc.) accept or
+ * return non-`Json` runtime values (WebAuthn `PublicKeyCredential` objects
+ * and the vault key string), so they require a direct controller reference.
+ */
+export type PasskeyControllerActions = PasskeyControllerGetStateAction;
 
-export type PasskeyControllerActions =
-  | PasskeyControllerGetStateAction
-  | PasskeyControllerIsPasskeyEnrolledAction;
-
-export type PasskeyControllerStateChangeEvent = ControllerStateChangeEvent<
+export type PasskeyControllerStateChangedEvent = ControllerStateChangedEvent<
   typeof controllerName,
   PasskeyControllerState
 >;
 
-export type PasskeyControllerEvents = PasskeyControllerStateChangeEvent;
+export type PasskeyControllerEvents = PasskeyControllerStateChangedEvent;
 
 export type PasskeyControllerMessenger = Messenger<
   typeof controllerName,
@@ -82,6 +83,18 @@ const passkeyControllerMetadata = {
 } satisfies StateMetadata<PasskeyControllerState>;
 
 /**
+ * Selectors for {@link PasskeyControllerState}.
+ *
+ * Use these instead of dedicated getter methods on the controller, so that
+ * derived values can be consumed from Redux selectors and other places that
+ * only have access to a state object.
+ */
+export const passkeyControllerSelectors = {
+  selectIsPasskeyEnrolled: (state: PasskeyControllerState): boolean =>
+    state.passkeyRecord !== null,
+};
+
+/**
  * Passkey-based protection for the vault encryption key (WebAuthn).
  *
  * Uses PRF-backed derivation when available; otherwise uses the credential
@@ -100,18 +113,45 @@ export class PasskeyController extends BaseController<
 
   readonly #expectedOrigin: string | string[];
 
+  readonly #userName: string;
+
+  readonly #userDisplayName: string;
+
+  /**
+   * Constructs a new {@link PasskeyController}.
+   *
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this controller.
+   * @param args.state - Initial state. Missing properties are filled in with
+   *   defaults from {@link getDefaultPasskeyControllerState}.
+   * @param args.rpID - WebAuthn Relying Party ID (typically the eTLD+1 of the
+   *   client origin, or `localhost` in dev).
+   * @param args.rpName - Human-readable Relying Party name shown by the OS
+   *   passkey UI.
+   * @param args.expectedOrigin - One or more acceptable origins for the
+   *   `clientDataJSON.origin` check (e.g. `chrome-extension://...`).
+   * @param args.userName - Optional `user.name` shown by the OS passkey UI.
+   *   Defaults to `rpName` so client builds (Stable, Flask, etc.) can
+   *   differentiate without changes here.
+   * @param args.userDisplayName - Optional `user.displayName` shown by the OS
+   *   passkey UI. Defaults to `rpName`.
+   */
   constructor({
     messenger,
     state,
     rpID,
     rpName,
     expectedOrigin,
+    userName,
+    userDisplayName,
   }: {
     messenger: PasskeyControllerMessenger;
     state?: Partial<PasskeyControllerState>;
     rpID: string;
     rpName: string;
     expectedOrigin: string | string[];
+    userName?: string;
+    userDisplayName?: string;
   }) {
     super({
       messenger,
@@ -123,11 +163,16 @@ export class PasskeyController extends BaseController<
     this.#rpID = rpID;
     this.#rpName = rpName;
     this.#expectedOrigin = expectedOrigin;
+    this.#userName = userName ?? rpName;
+    this.#userDisplayName = userDisplayName ?? rpName;
+  }
 
-    this.messenger.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
+  /**
+   * Releases all in-flight ceremony state and tears down the messenger.
+   */
+  destroy(): void {
+    this.#ceremonyManager.clear();
+    super.destroy();
   }
 
   #setPasskeyRecord(record: PasskeyRecord): void {
@@ -138,6 +183,14 @@ export class PasskeyController extends BaseController<
 
   #getPasskeyRecord(): PasskeyRecord | null {
     return this.state.passkeyRecord;
+  }
+
+  #requireEnrolled(): PasskeyRecord {
+    const record = this.#getPasskeyRecord();
+    if (!record) {
+      throw new Error('Passkey is not enrolled');
+    }
+    return record;
   }
 
   #getChallengeFromClientData(clientDataJSON: string): string {
@@ -181,8 +234,8 @@ export class PasskeyController extends BaseController<
       rp: { name: this.#rpName, id: this.#rpID },
       user: {
         id: userHandle,
-        name: 'MetaMask Wallet',
-        displayName: 'MetaMask Wallet',
+        name: this.#userName,
+        displayName: this.#userDisplayName,
       },
       challenge,
       pubKeyCredParams: [
@@ -220,10 +273,7 @@ export class PasskeyController extends BaseController<
    * @returns Options for `navigator.credentials.get()`.
    */
   generateAuthenticationOptions(): PasskeyAuthenticationOptions {
-    const record = this.#getPasskeyRecord();
-    if (!record) {
-      throw new Error('Passkey is not enrolled');
-    }
+    const record = this.#requireEnrolled();
 
     const challenge = bytesToBase64URL(randomBytes(32).slice());
 
@@ -332,8 +382,8 @@ export class PasskeyController extends BaseController<
     // verify authentication response
     await this.#verifyAuthenticationResponse(authenticationResponse);
 
-    // derive key
-    const passkeyRecord = this.#getPasskeyRecord() as PasskeyRecord;
+    // derive key (#verifyAuthenticationResponse guarantees enrolled)
+    const passkeyRecord = this.#requireEnrolled();
     const encKey = deriveKeyFromAuthenticationResponse(
       authenticationResponse,
       passkeyRecord,
@@ -370,8 +420,15 @@ export class PasskeyController extends BaseController<
   /**
    * Updates the vault encryption key for the same passkey (e.g. after a password change).
    *
+   * Caller MUST first verify the assertion via {@link verifyPasskeyAuthentication}
+   * or {@link retrieveVaultKeyWithPasskey}. This method does not re-verify
+   * because the ceremony is single-use (deleted on verify) and the signature
+   * counter is advanced (replay would be rejected). Authentication here is
+   * enforced by the prior verification plus the `oldVaultKey` match below.
+   *
    * @param params - Renewal parameters.
-   * @param params.authenticationResponse - Credential from `navigator.credentials.get()`.
+   * @param params.authenticationResponse - Credential from `navigator.credentials.get()`,
+   *   already verified by the caller.
    * @param params.oldVaultKey - Expected current vault key.
    * @param params.newVaultKey - New vault key to protect.
    */
@@ -380,9 +437,10 @@ export class PasskeyController extends BaseController<
     oldVaultKey: string;
     newVaultKey: string;
   }): Promise<void> {
-    // derive key
     const { authenticationResponse } = params;
-    const passkeyRecord = this.#getPasskeyRecord() as PasskeyRecord;
+    const passkeyRecord = this.#requireEnrolled();
+
+    // derive key
     const encKey = deriveKeyFromAuthenticationResponse(
       authenticationResponse,
       passkeyRecord,
@@ -446,10 +504,7 @@ export class PasskeyController extends BaseController<
       );
 
       // get passkey record
-      const record = this.#getPasskeyRecord();
-      if (!record) {
-        throw new Error('Passkey is not enrolled');
-      }
+      const record = this.#requireEnrolled();
 
       // get authentication ceremony
       const authenticationCeremony =
@@ -459,23 +514,22 @@ export class PasskeyController extends BaseController<
       }
 
       // verify authentication response
-      const { verified, authenticationInfo } =
-        await verifyAuthenticationResponse({
-          response: authenticationResponse,
-          expectedChallenge: authenticationCeremony.challenge,
-          expectedOrigin: this.#expectedOrigin,
-          expectedRPID: this.#rpID,
-          credential: {
-            id: record.credential.id,
-            publicKey: base64URLToBytes(record.credential.publicKey),
-            counter: record.credential.counter,
-            transports: record.credential.transports,
-          },
-          // UV optional for device compatibility; vault key remains password-gated.
-          requireUserVerification: false,
-        });
+      const result = await verifyAuthenticationResponse({
+        response: authenticationResponse,
+        expectedChallenge: authenticationCeremony.challenge,
+        expectedOrigin: this.#expectedOrigin,
+        expectedRPID: this.#rpID,
+        credential: {
+          id: record.credential.id,
+          publicKey: base64URLToBytes(record.credential.publicKey),
+          counter: record.credential.counter,
+          transports: record.credential.transports,
+        },
+        // UV optional for device compatibility; vault key remains password-gated.
+        requireUserVerification: false,
+      });
 
-      if (!verified) {
+      if (!result.verified) {
         throw new Error('Passkey authentication verification failed');
       }
 
@@ -484,7 +538,7 @@ export class PasskeyController extends BaseController<
         ...record,
         credential: {
           ...record.credential,
-          counter: authenticationInfo.newCounter,
+          counter: result.authenticationInfo.newCounter,
         },
       };
       this.#setPasskeyRecord(updatedRecord);

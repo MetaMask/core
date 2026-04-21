@@ -1,8 +1,9 @@
 import { Messenger } from '@metamask/messenger';
 
-import { SESSION_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
+import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
 import {
   getDefaultPasskeyControllerState,
+  passkeyControllerSelectors,
   PasskeyController,
 } from './PasskeyController';
 import type { PasskeyControllerMessenger } from './PasskeyController';
@@ -203,18 +204,6 @@ describe('PasskeyController', () => {
     it('returns false when no record is stored', () => {
       const controller = createController();
       expect(controller.isPasskeyEnrolled()).toBe(false);
-    });
-
-    it('is callable via messenger method action', () => {
-      const messenger = getPasskeyMessenger();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const controller = new PasskeyController({
-        messenger,
-        rpID: TEST_RP_ID,
-        rpName: TEST_RP_NAME,
-        expectedOrigin: TEST_ORIGIN,
-      });
-      expect(messenger.call('PasskeyController:isPasskeyEnrolled')).toBe(false);
     });
   });
 
@@ -550,7 +539,6 @@ describe('PasskeyController', () => {
 
       mockVerifyAuthenticationResponse.mockResolvedValue({
         verified: false,
-        authenticationInfo: {},
       });
 
       const authOpts = controller.generateAuthenticationOptions();
@@ -645,7 +633,6 @@ describe('PasskeyController', () => {
 
       mockVerifyAuthenticationResponse.mockResolvedValue({
         verified: false,
-        authenticationInfo: {},
       });
 
       const authOpts = controller.generateAuthenticationOptions();
@@ -782,7 +769,7 @@ describe('PasskeyController', () => {
           oldVaultKey: 'old',
           newVaultKey: 'new',
         }),
-      ).rejects.toThrow(TypeError);
+      ).rejects.toThrow('Passkey is not enrolled');
     });
 
     it('updates the passkey wrap when before/after vault keys match', async () => {
@@ -985,6 +972,56 @@ describe('PasskeyController', () => {
       controller.clearState();
       expect(controller.isPasskeyEnrolled()).toBe(false);
       expect(controller.state.passkeyRecord).toBeNull();
+    });
+  });
+
+  describe('destroy', () => {
+    it('clears in-flight ceremony state', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+
+      controller.destroy();
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: minimalRegistrationResponse(
+            undefined,
+            regOpts.challenge,
+          ),
+          vaultKey: 'k',
+        }),
+      ).rejects.toThrow('No active passkey registration ceremony');
+    });
+  });
+
+  describe('passkeyControllerSelectors', () => {
+    describe('selectIsPasskeyEnrolled', () => {
+      it('returns false when no record is stored', () => {
+        expect(
+          passkeyControllerSelectors.selectIsPasskeyEnrolled({
+            passkeyRecord: null,
+          }),
+        ).toBe(false);
+      });
+
+      it('returns true when a record is stored', () => {
+        const record: PasskeyRecord = {
+          credential: {
+            id: TEST_CREDENTIAL_ID,
+            publicKey: TEST_PUBLIC_KEY,
+            counter: 0,
+            transports: ['internal'],
+          },
+          encryptedVaultKey: { ciphertext: 'YQ==', iv: 'YWFhYWFhYWFhYQ==' },
+          keyDerivation: { method: 'userHandle' },
+        };
+        expect(
+          passkeyControllerSelectors.selectIsPasskeyEnrolled({
+            passkeyRecord: record,
+          }),
+        ).toBe(true);
+      });
     });
   });
 
@@ -1228,7 +1265,7 @@ describe('PasskeyController', () => {
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
 
-      jest.setSystemTime(1_000_000 + SESSION_MAX_AGE_MS + 1);
+      jest.setSystemTime(1_000_000 + CEREMONY_MAX_AGE_MS + 1);
 
       await expect(
         controller.protectVaultKeyWithPasskey({
@@ -1259,7 +1296,6 @@ describe('PasskeyController', () => {
 
       mockVerifyAuthenticationResponse.mockResolvedValue({
         verified: false,
-        authenticationInfo: {},
       });
 
       const authOpts = controller.generateAuthenticationOptions();

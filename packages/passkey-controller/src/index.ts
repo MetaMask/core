@@ -1,20 +1,20 @@
 export {
   PasskeyController,
   getDefaultPasskeyControllerState,
+  passkeyControllerSelectors,
 } from './PasskeyController';
 export {
   WEBAUTHN_TIMEOUT_MS,
-  SESSION_TTL_SLACK_MS,
-  SESSION_MAX_AGE_MS,
+  CEREMONY_TTL_SLACK_MS,
+  CEREMONY_MAX_AGE_MS,
   MAX_CONCURRENT_PASSKEY_CEREMONIES,
 } from './ceremony-manager';
 export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
   PasskeyControllerGetStateAction,
-  PasskeyControllerIsPasskeyEnrolledAction,
   PasskeyControllerActions,
-  PasskeyControllerStateChangeEvent,
+  PasskeyControllerStateChangedEvent,
   PasskeyControllerEvents,
 } from './PasskeyController';
 export type {

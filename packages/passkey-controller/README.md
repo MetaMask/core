@@ -43,6 +43,9 @@ const controller = new PasskeyController({
   rpID: 'example.com',
   rpName: 'My Wallet',
   expectedOrigin: 'chrome-extension://abcdef1234567890',
+  // Optional — both default to `rpName` when omitted.
+  userName: 'My Wallet',
+  userDisplayName: 'My Wallet',
 });
 ```
 
@@ -98,6 +101,17 @@ controller.removePasskey(); // user-facing unenroll
 controller.clearState(); // same persisted reset + clears in-flight ceremony state; use for app lifecycle (e.g. wallet reset)
 ```
 
+### Selectors
+
+For Redux selectors and other code paths without access to the controller
+instance, use the exported selector(s):
+
+```typescript
+import { passkeyControllerSelectors } from '@metamask/passkey-controller';
+
+passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
+```
+
 ## API
 
 ### State
@@ -111,13 +125,16 @@ controller.clearState(); // same persisted reset + clears in-flight ceremony sta
 | Action | Handler |
 |---|---|
 | `PasskeyController:getState` | Returns the current controller state |
-| `PasskeyController:isPasskeyEnrolled` | Returns whether a passkey is currently enrolled |
+
+For derived enrollment status outside of components that hold a controller
+reference, use `passkeyControllerSelectors.selectIsPasskeyEnrolled` (see
+[Selectors](#selectors)).
 
 ### Messenger events
 
 | Event | Payload |
 |---|---|
-| `PasskeyController:stateChange` | Emitted when state changes (standard `BaseController` event) |
+| `PasskeyController:stateChanged` | Emitted when state changes (standard `BaseController` event) |
 
 ## Contributing
 

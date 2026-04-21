@@ -1,7 +1,7 @@
 import {
+  CEREMONY_MAX_AGE_MS,
   CeremonyManager,
   MAX_CONCURRENT_PASSKEY_CEREMONIES,
-  SESSION_MAX_AGE_MS,
 } from './ceremony-manager';
 
 describe('CeremonyManager', () => {
@@ -31,7 +31,7 @@ describe('CeremonyManager', () => {
       });
     });
 
-    it('getRegistrationCeremony prunes entries older than SESSION_MAX_AGE_MS before lookup', () => {
+    it('getRegistrationCeremony prunes entries older than CEREMONY_MAX_AGE_MS before lookup', () => {
       const manager = new CeremonyManager();
       const tOld = 100_000;
       const tNew = 150_000;
@@ -49,7 +49,7 @@ describe('CeremonyManager', () => {
         createdAt: tNew,
       });
       jest.setSystemTime(pruneAt);
-      expect(pruneAt - tOld).toBeGreaterThan(SESSION_MAX_AGE_MS);
+      expect(pruneAt - tOld).toBeGreaterThan(CEREMONY_MAX_AGE_MS);
       expect(manager.getRegistrationCeremony('new')).toMatchObject({
         challenge: 'new',
         createdAt: tNew,
@@ -127,7 +127,7 @@ describe('CeremonyManager', () => {
     expect(manager.getRegistrationCeremony('reg-chal')).toBeDefined();
     expect(manager.getAuthenticationCeremony('auth-chal')).toBeDefined();
 
-    jest.setSystemTime(now + SESSION_MAX_AGE_MS + 1);
+    jest.setSystemTime(now + CEREMONY_MAX_AGE_MS + 1);
     expect(manager.getRegistrationCeremony('reg-chal')).toBeUndefined();
 
     jest.setSystemTime(now);
@@ -137,7 +137,7 @@ describe('CeremonyManager', () => {
       challenge: 'reg2',
       createdAt: now,
     });
-    jest.setSystemTime(now + SESSION_MAX_AGE_MS + 1);
+    jest.setSystemTime(now + CEREMONY_MAX_AGE_MS + 1);
     expect(manager.getAuthenticationCeremony('auth-chal')).toBeUndefined();
 
     jest.setSystemTime(now);

@@ -495,9 +495,72 @@ describe('verifyAuthenticationResponse', () => {
       },
     });
 
-    expect(result.verified).toBe(true);
+    if (!result.verified) {
+      throw new Error('expected verified result');
+    }
     expect(result.authenticationInfo.newCounter).toBe(1);
     expect(result.authenticationInfo.rpID).toBe(TEST_RP_ID);
+  });
+
+  it('returns { verified: false } when the signature does not verify', async () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    // Sign with a different key so the public key does not match the signature.
+    const { privateKey: otherPrivateKey } = generateES256KeyPair();
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x01,
+      counter: 1,
+    });
+
+    const clientDataJSONStr = makeAuthClientDataJSON();
+    const clientDataBytes = Uint8Array.from(
+      atob(
+        clientDataJSONStr.replace(/-/gu, '+').replace(/_/gu, '/') +
+          '='.repeat((4 - (clientDataJSONStr.length % 4)) % 4),
+      ),
+      (ch) => ch.charCodeAt(0),
+    );
+    const clientDataHash = sha256(clientDataBytes);
+
+    const signatureBase = new Uint8Array(
+      authData.length + clientDataHash.length,
+    );
+    signatureBase.set(authData, 0);
+    signatureBase.set(clientDataHash, authData.length);
+
+    const sigHash = sha256(signatureBase);
+    const ecdsaSig = p256.sign(sigHash, otherPrivateKey);
+
+    const credentialIdB64 = bytesToBase64URL(new Uint8Array(16).fill(0x11));
+
+    const response: PasskeyAuthenticationResponse = {
+      id: credentialIdB64,
+      rawId: credentialIdB64,
+      type: 'public-key',
+      response: {
+        clientDataJSON: clientDataJSONStr,
+        authenticatorData: bytesToBase64URL(authData),
+        signature: bytesToBase64URL(new Uint8Array(ecdsaSig.toDERRawBytes())),
+      },
+      clientExtensionResults: {},
+    };
+
+    const result = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge: TEST_CHALLENGE,
+      expectedOrigin: TEST_ORIGIN,
+      expectedRPID: TEST_RP_ID,
+      credential: {
+        id: credentialIdB64,
+        publicKey: cosePublicKeyCBOR,
+        counter: 0,
+      },
+    });
+
+    expect(result.verified).toBe(false);
+    expect(result.authenticationInfo).toBeUndefined();
   });
 
   it('rejects mismatched challenge', async () => {
@@ -998,7 +1061,9 @@ describe('verifyAuthenticationResponse', () => {
       },
     });
 
-    expect(result.verified).toBe(true);
+    if (!result.verified) {
+      throw new Error('expected verified result');
+    }
     expect(result.authenticationInfo.newCounter).toBe(0);
   });
 });

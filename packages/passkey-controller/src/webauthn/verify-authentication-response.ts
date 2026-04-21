@@ -11,16 +11,18 @@ import type { AuthenticatorTransportFuture } from '../types';
 import { concatUint8Arrays } from '../utils/bytes';
 import { base64URLToBytes } from '../utils/encoding';
 
-export type VerifiedAuthenticationResponse = {
-  verified: boolean;
-  authenticationInfo: {
-    credentialId: string;
-    newCounter: number;
-    userVerified: boolean;
-    origin: string;
-    rpID: string;
-  };
-};
+export type VerifiedAuthenticationResponse =
+  | { verified: false; authenticationInfo?: never }
+  | {
+      verified: true;
+      authenticationInfo: {
+        credentialId: string;
+        newCounter: number;
+        userVerified: boolean;
+        origin: string;
+        rpID: string;
+      };
+    };
 
 /**
  * Verifies a WebAuthn authentication (assertion) response per
@@ -155,6 +157,10 @@ export async function verifyAuthenticationResponse(opts: {
     data: signatureBase,
   });
 
+  if (!verified) {
+    return { verified: false };
+  }
+
   if (
     (counter > 0 || credential.counter > 0) &&
     counter <= credential.counter
@@ -165,7 +171,7 @@ export async function verifyAuthenticationResponse(opts: {
   }
 
   return {
-    verified,
+    verified: true,
     authenticationInfo: {
       credentialId: credential.id,
       newCounter: counter,

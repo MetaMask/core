@@ -10,13 +10,14 @@ export const WEBAUTHN_TIMEOUT_MS = 60_000;
  * Extra allowance beyond {@link WEBAUTHN_TIMEOUT_MS} before in-memory
  * ceremony state is discarded (covers slow UX and clock skew).
  */
-export const SESSION_TTL_SLACK_MS = 15_000;
+export const CEREMONY_TTL_SLACK_MS = 15_000;
 
 /**
  * Maximum age for in-flight registration or authentication ceremony state
- * (between options and verified response), not a user login session.
+ * (between options and verified response). This bounds the lifetime of a
+ * single WebAuthn ceremony only; it is not a user login session timeout.
  */
-export const SESSION_MAX_AGE_MS = WEBAUTHN_TIMEOUT_MS + SESSION_TTL_SLACK_MS;
+export const CEREMONY_MAX_AGE_MS = WEBAUTHN_TIMEOUT_MS + CEREMONY_TTL_SLACK_MS;
 
 /**
  * Upper bound on concurrent in-memory ceremonies per flow type (registration
@@ -56,7 +57,7 @@ export class CeremonyManager {
     const now = Date.now();
     const map = this.#getMap(ceremonyType);
     for (const [key, ceremony] of map) {
-      if (now - ceremony.createdAt > SESSION_MAX_AGE_MS) {
+      if (now - ceremony.createdAt > CEREMONY_MAX_AGE_MS) {
         map.delete(key);
       }
     }
