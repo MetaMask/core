@@ -3,26 +3,10 @@ import { p256, p384 } from '@noble/curves/nist';
 import { sha256, sha384 } from '@noble/hashes/sha2';
 
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
+import { concatUint8Arrays } from '../utils/bytes';
 import { bytesToBase64URL } from '../utils/encoding';
 
 type COSEPublicKey = Map<number, number | Uint8Array>;
-
-/**
- * Concatenate multiple Uint8Arrays into a single Uint8Array.
- *
- * @param arrays - Arrays to concatenate.
- * @returns Combined Uint8Array.
- */
-function concatBytes(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
 
 /**
  * Get the key type from a COSE public key map.
@@ -62,7 +46,11 @@ function verifyEC2(
     throw new Error('EC2 public key missing x or y coordinate');
   }
 
-  const uncompressed = concatBytes(new Uint8Array([0x04]), xCoord, yCoord);
+  const uncompressed = concatUint8Arrays(
+    new Uint8Array([0x04]),
+    xCoord,
+    yCoord,
+  );
 
   switch (crv) {
     case COSECRV.P256:

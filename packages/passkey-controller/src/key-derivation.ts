@@ -76,10 +76,14 @@ export function deriveKeyFromAuthenticationResponse(
   const prfFirst = (
     authenticationResponse.clientExtensionResults as PrfClientExtensionResults
   )?.prf?.results?.first;
+  const hasPrfOutput = typeof prfFirst === 'string' && prfFirst.length > 0;
 
   let ikm: Uint8Array;
   if (record.keyDerivation.method === 'prf') {
-    ikm = base64URLToBytes(prfFirst as string);
+    if (!hasPrfOutput) {
+      throw new Error('Passkey assertion missing required key material');
+    }
+    ikm = base64URLToBytes(prfFirst);
   } else if (userHandle) {
     ikm = base64URLToBytes(userHandle);
   } else {

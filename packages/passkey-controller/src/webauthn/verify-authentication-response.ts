@@ -8,6 +8,7 @@ import type { ParsedAuthenticatorData } from './types';
 import type { PasskeyAuthenticationResponse } from './types';
 import { verifySignature } from './verify-signature';
 import type { AuthenticatorTransportFuture } from '../types';
+import { concatUint8Arrays } from '../utils/bytes';
 import { base64URLToBytes } from '../utils/encoding';
 
 export type VerifiedAuthenticationResponse = {
@@ -173,11 +174,4 @@ export async function verifyAuthenticationResponse(opts: {
       rpID: matchedRPID,
     },
   };
-}
-
-function concatUint8Arrays(first: Uint8Array, second: Uint8Array): Uint8Array {
-  const result = new Uint8Array(first.length + second.length);
-  result.set(first, 0);
-  result.set(second, first.length);
-  return result;
 }

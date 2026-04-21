@@ -222,6 +222,24 @@ describe('deriveKeyFromAuthenticationResponse', () => {
     ).toThrow('Passkey assertion missing required key material');
   });
 
+  it('throws when PRF derivation is needed but PRF output is missing', () => {
+    const response = makeAuthenticationResponse({});
+
+    expect(() =>
+      deriveKeyFromAuthenticationResponse(response, makeRecord('prf')),
+    ).toThrow('Passkey assertion missing required key material');
+  });
+
+  it('throws when PRF derivation is needed but prf.results.first is empty', () => {
+    const response = makeAuthenticationResponse({
+      prf: { results: { first: '' } },
+    });
+
+    expect(() =>
+      deriveKeyFromAuthenticationResponse(response, makeRecord('prf')),
+    ).toThrow('Passkey assertion missing required key material');
+  });
+
   it('produces consistent keys across registration and authentication', () => {
     const regResponse = makeRegistrationResponse({});
     const registrationCeremony = makeRegistrationCeremony();

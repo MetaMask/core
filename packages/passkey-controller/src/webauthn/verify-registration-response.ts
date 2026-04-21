@@ -9,6 +9,7 @@ import { parseAuthenticatorData } from './parse-authenticator-data';
 import type { PasskeyRegistrationResponse } from './types';
 import { verifySignature } from './verify-signature';
 import type { AuthenticatorTransportFuture } from '../types';
+import { concatUint8Arrays } from '../utils/bytes';
 import {
   base64URLToBytes,
   bytesToBase64URL,
@@ -279,11 +280,4 @@ async function verifyPackedAttestation(
     signature,
     data: signatureBase,
   });
-}
-
-function concatUint8Arrays(first: Uint8Array, second: Uint8Array): Uint8Array {
-  const result = new Uint8Array(first.length + second.length);
-  result.set(first, 0);
-  result.set(second, first.length);
-  return result;
 }
