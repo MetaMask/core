@@ -39,7 +39,6 @@ export type {
 export { TradeStruct } from './social-types';
 export type {
   FetchFollowersOptions,
-  FetchFollowingOptions,
   FetchLeaderboardOptions,
   FetchPositionsOptions,
   FetchTraderProfileOptions,

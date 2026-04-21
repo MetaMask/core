@@ -11,11 +11,11 @@ import {
   formatChainIdToHex,
   isNonEvmChainId,
   StatusTypes,
+  getAccountHardwareType,
   UnifiedSwapBridgeEventName,
   isCrossChain,
   isTronChainId,
   isEvmTxData,
-  isHardwareWallet,
   MetricsActionType,
   MetaMetricsSwapsEventSource,
   isBitcoinTrade,
@@ -205,43 +205,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.messenger.subscribe(
       'TransactionController:transactionFailed',
-      ({ transactionMeta }) => {
-        const { type, status, id: txMetaId, actionId } = transactionMeta;
-
-        if (
-          type &&
-          [
-            TransactionType.bridge,
-            TransactionType.swap,
-            TransactionType.bridgeApproval,
-            TransactionType.swapApproval,
-          ].includes(type) &&
-          [
-            TransactionStatus.failed,
-            TransactionStatus.dropped,
-            TransactionStatus.rejected,
-          ].includes(status)
-        ) {
-          // Mark tx as failed in txHistory
-          this.#markTxAsFailed(transactionMeta);
-          // Track failed event
-          if (status !== TransactionStatus.rejected) {
-            // Look up history by txMetaId first, then by actionId (for pre-submission failures)
-            let historyKey: string | undefined;
-            if (this.state.txHistory[txMetaId]) {
-              historyKey = txMetaId;
-            } else if (actionId && this.state.txHistory[actionId]) {
-              historyKey = actionId;
-            }
-
-            this.#trackUnifiedSwapBridgeEvent(
-              UnifiedSwapBridgeEventName.Failed,
-              historyKey ?? txMetaId,
-              getEVMTxPropertiesFromTransactionMeta(transactionMeta),
-            );
-          }
-        }
-      },
+      this.#onTransactionFailed,
     );
 
     this.messenger.subscribe(
@@ -265,6 +229,61 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Check for historyItems that do not have a status of complete and restart polling
     this.#restartPollingForIncompleteHistoryItems();
   }
+
+  readonly #onTransactionFailed = ({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+  }): void => {
+    const { type, status, id: txMetaId, actionId } = transactionMeta;
+
+    if (
+      type &&
+      [
+        TransactionType.bridge,
+        TransactionType.swap,
+        TransactionType.bridgeApproval,
+        TransactionType.swapApproval,
+      ].includes(type) &&
+      [
+        TransactionStatus.failed,
+        TransactionStatus.dropped,
+        TransactionStatus.rejected,
+      ].includes(status)
+    ) {
+      this.#markTxAsFailed(transactionMeta);
+      if (status !== TransactionStatus.rejected) {
+        let historyKey: string | undefined;
+        if (this.state.txHistory[txMetaId]) {
+          historyKey = txMetaId;
+        } else if (actionId && this.state.txHistory[actionId]) {
+          historyKey = actionId;
+        }
+
+        const activeHistoryKey = historyKey ?? txMetaId;
+
+        // Skip account lookup and tracking when featureId is set (e.g. PERPS)
+        if (this.state.txHistory[activeHistoryKey]?.featureId) {
+          return;
+        }
+
+        const from = transactionMeta.txParams?.from;
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Failed,
+          activeHistoryKey,
+          getEVMTxPropertiesFromTransactionMeta(
+            transactionMeta,
+            from
+              ? this.messenger.call(
+                  'AccountsController:getAccountByAddress',
+                  from,
+                )
+              : undefined,
+          ),
+        );
+      }
+    }
+  };
 
   // Mark tx as failed in txHistory if either the approval or trade fails
   readonly #markTxAsFailed = ({
@@ -956,12 +975,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
     }
-    const isHardwareAccount = isHardwareWallet(selectedAccount);
+    const accountHardwareType = getAccountHardwareType(selectedAccount);
 
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       isStxEnabledOnClient,
-      isHardwareAccount,
+      accountHardwareType,
       location,
       abTests,
       activeAbTests,
@@ -1040,7 +1059,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
         // Extension does not have this issue
         const requireApproval =
-          this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
+          this.#clientId === BridgeClientId.MOBILE &&
+          accountHardwareType !== null;
 
         // Handle smart transactions if enabled
         txMeta = await this.#trace(
@@ -1233,11 +1253,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = getAccountByAddress(this.messenger, accountAddress);
-    const isHardwareAccount = Boolean(account) && isHardwareWallet(account);
+    const accountHardwareType = getAccountHardwareType(account);
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       false,
-      isHardwareAccount,
+      accountHardwareType,
       location,
       abTests,
       activeAbTests,
@@ -1254,7 +1274,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
 
       const requireApproval =
-        isHardwareAccount && this.#clientId === BridgeClientId.MOBILE;
+        this.#clientId === BridgeClientId.MOBILE &&
+        accountHardwareType !== null;
       // Handle approval silently for better UX in intent flows
       const approvalTxMeta = await this.#handleApprovalTx(
         quoteResponse,

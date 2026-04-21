@@ -2895,8 +2895,7 @@ describe('BridgeController', function () {
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.PageViewed,
-          // @ts-expect-error Partial mock.
-          { abc: 1 },
+          {},
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
@@ -3267,6 +3266,7 @@ describe('BridgeController', function () {
               chain_id_destination: formatChainIdToCaip(1),
               custom_slippage: false,
               is_hardware_wallet: false,
+              account_hardware_type: null,
               slippage_limit: 0.5,
               usd_quoted_gas: 1,
               gas_included: false,
@@ -3310,6 +3310,7 @@ describe('BridgeController', function () {
             usd_amount_source: 100,
             stx_enabled: false,
             is_hardware_wallet: false,
+            account_hardware_type: null,
             swap_type: MetricsSwapType.CROSSCHAIN,
             provider: 'provider_bridge',
             price_impact: 6,
@@ -3355,6 +3356,7 @@ describe('BridgeController', function () {
             usd_amount_source: 100,
             stx_enabled: false,
             is_hardware_wallet: false,
+            account_hardware_type: null,
             swap_type: MetricsSwapType.CROSSCHAIN,
             chain_id_destination: formatChainIdToCaip(ChainId.SOLANA),
             token_symbol_destination: 'USDC',

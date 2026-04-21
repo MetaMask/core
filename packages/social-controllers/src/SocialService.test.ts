@@ -633,7 +633,7 @@ describe('SocialService', () => {
       count: 1,
     };
 
-    it('fetches following from correct endpoint', async () => {
+    it('fetches following from the /users/me/following endpoint', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -641,15 +641,12 @@ describe('SocialService', () => {
       });
 
       const service = createService();
-      const result = await service.fetchFollowing({
-        addressOrUid: '0x1234',
-      });
+      const result = await service.fetchFollowing();
 
       expect(result).toStrictEqual(mockFollowingResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/users/0x1234/following`,
-        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
-      );
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/following`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('throws HttpError on non-ok response', async () => {
@@ -657,9 +654,7 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.fetchFollowing({ addressOrUid: '0x1234' }),
-      ).rejects.toThrow(
+      await expect(service.fetchFollowing()).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED}: 500`,
       );
     });
@@ -673,9 +668,7 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.fetchFollowing({ addressOrUid: '0x1234' }),
-      ).rejects.toThrow(
+      await expect(service.fetchFollowing()).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
       );
     });
@@ -688,8 +681,8 @@ describe('SocialService', () => {
       });
 
       const service = createService();
-      await service.fetchFollowing({ addressOrUid: '0x1234' });
-      await service.fetchFollowing({ addressOrUid: '0x1234' });
+      await service.fetchFollowing();
+      await service.fetchFollowing();
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
@@ -700,7 +693,7 @@ describe('SocialService', () => {
       followed: [mockProfileSummary],
     };
 
-    it('sends PUT request with targets in body', async () => {
+    it('sends PUT request with targets in body to /users/me/follows', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -709,12 +702,11 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.follow({
-        addressOrUid: '0x1234',
         targets: ['0xaaaa', '0xbbbb'],
       });
 
       expect(result).toStrictEqual(mockFollowResponse);
-      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/0x1234/follows`, {
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/follows`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${MOCK_TOKEN}`,
@@ -729,9 +721,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(`${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`);
+      await expect(service.follow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        `${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`,
+      );
     });
 
     it('throws when response schema is invalid', async () => {
@@ -743,9 +735,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
+      await expect(service.follow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE,
+      );
     });
   });
 
@@ -754,7 +746,7 @@ describe('SocialService', () => {
       unfollowed: [mockProfileSummary],
     };
 
-    it('sends DELETE request with targets as query params', async () => {
+    it('sends DELETE request with targets as query params to /users/me/follows', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -763,12 +755,12 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.unfollow({
-        addressOrUid: '0x1234',
         targets: ['0xaaaa', '0xbbbb'],
       });
 
       expect(result).toStrictEqual(mockUnfollowResponse);
       const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain(`${V1_URL}/users/me/follows`);
       expect(calledUrl).toContain('targets=0xaaaa');
       expect(calledUrl).toContain('targets=0xbbbb');
       expect(mockFetch.mock.calls[0][1]).toStrictEqual({
@@ -782,9 +774,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(`${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`);
+      await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`,
+      );
     });
 
     it('throws when response schema is invalid', async () => {
@@ -796,9 +788,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
+      await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
+      );
     });
   });
 });
