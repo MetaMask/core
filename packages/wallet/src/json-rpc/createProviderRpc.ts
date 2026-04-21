@@ -223,8 +223,12 @@ export function createRpcHooks(origin: string, messenger: RootMessenger) {
       messenger,
       'NetworkController:getNetworkClientById',
     ),
-    startTrace: () => {},
-    endTrace: () => {},
+    startTrace: () => {
+      return null;
+    },
+    endTrace: () => {
+      return null;
+    },
     handleSnapRpcRequest: (args) =>
       messenger.call('SnapController:handleRequest', { ...args, origin }),
     getAllowedKeyringMethods: () => [],

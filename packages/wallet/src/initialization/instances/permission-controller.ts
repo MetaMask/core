@@ -45,9 +45,21 @@ export const permissionController: InitializationConfiguration<
         'SnapController:getPermittedSnaps',
         'SnapController:installSnaps',
         'SubjectMetadataController:getSubjectMetadata',
-        // Actions required for specifications.
+        // TODO: These actions required for specifications, not part of the type.
+        'PreferencesController:getState',
         'KeyringController:getState',
         'KeyringController:withKeyring',
+        'KeyringController:getKeyringsByType',
+        'SnapController:getSnap',
+        'SnapController:getSnapState',
+        'SnapController:clearSnapState',
+        'SnapController:handleRequest',
+        'ApprovalController:addAndShowApprovalRequest',
+        'RateLimitController:call',
+        'SnapController:updateSnapState',
+        'SnapInterfaceController:createInterface',
+        'SnapInterfaceController:getInterface',
+        'SnapInterfaceController:setInterfaceDisplayed',
       ],
     });
 

@@ -8,10 +8,12 @@ import {
 import SolanaWalletSnap from '@metamask/solana-wallet-snap/dist/preinstalled-snap.json';
 import TronWalletSnap from '@metamask/tron-wallet-snap/dist/preinstalled-snap.json';
 
+import { encryptorFactory } from '../../encryption';
 import {
   EndowmentPermissions,
   ExcludedSnapEndowments,
   ExcludedSnapPermissions,
+  getMnemonicSeed,
 } from '../../permissions/specifications';
 import { InitializationConfiguration } from '../types';
 
@@ -31,6 +33,10 @@ export const snapController: InitializationConfiguration<
         ...ExcludedSnapPermissions,
         ...ExcludedSnapEndowments,
       },
+
+      encryptor: encryptorFactory(600_000),
+
+      getMnemonicSeed: getMnemonicSeed.bind(null, messenger, undefined),
 
       ensureOnboardingComplete: options.ensureOnboardingComplete,
       preinstalledSnaps: [SolanaWalletSnap, BitcoinWalletSnap, TronWalletSnap],
@@ -84,6 +90,8 @@ export const snapController: InitializationConfiguration<
         'StorageService:getItem',
         'StorageService:removeItem',
         'StorageService:clear',
+        // TODO: Required for hooks
+        'KeyringController:withKeyring',
       ],
     });
     return controllerMessenger;
