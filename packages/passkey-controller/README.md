@@ -96,7 +96,7 @@ await controller.renewVaultKeyProtection({
 ```typescript
 controller.isPasskeyEnrolled(); // boolean
 
-controller.removePasskey(); // user-facing unenroll
+controller.removePasskey(); // user-facing unenroll; clears persisted passkey and in-flight ceremonies
 
 controller.clearState(); // same persisted reset + clears in-flight ceremony state; use for app lifecycle (e.g. wallet reset)
 ```
@@ -111,6 +111,16 @@ import { passkeyControllerSelectors } from '@metamask/passkey-controller';
 
 passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
 ```
+
+### Errors
+
+`PasskeyAuthenticationRejectedError` is thrown when authentication or vault-key
+recovery fails in an expected operational way (for example: not enrolled, no
+active ceremony, failed WebAuthn verification, missing PRF / `userHandle`
+material, or AES-GCM decrypt failure). `retrieveVaultKeyWithPasskey` and
+related paths surface this type so callers can distinguish it from bugs or
+malformed input. `verifyPasskeyAuthentication` returns `false` only for this
+error and rethrows any other thrown value.
 
 ## API
 

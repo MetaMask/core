@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 
+import { PasskeyAuthenticationRejectedError } from './errors';
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
 import {
   deriveKeyFromAuthenticationResponse,
@@ -138,7 +139,7 @@ export class PasskeyController extends BaseController<
    */
   constructor({
     messenger,
-    state,
+    state = {},
     rpID,
     rpName,
     expectedOrigin,
@@ -188,7 +189,7 @@ export class PasskeyController extends BaseController<
   #requireEnrolled(): PasskeyRecord {
     const record = this.#getPasskeyRecord();
     if (!record) {
-      throw new Error('Passkey is not enrolled');
+      throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
     }
     return record;
   }
@@ -203,7 +204,7 @@ export class PasskeyController extends BaseController<
    * @returns Whether the passkey is enrolled.
    */
   isPasskeyEnrolled(): boolean {
-    return this.state.passkeyRecord !== null;
+    return passkeyControllerSelectors.selectIsPasskeyEnrolled(this.state);
   }
 
   /**
@@ -390,11 +391,18 @@ export class PasskeyController extends BaseController<
     );
 
     // decrypt vault key
-    const vaultKey = decryptWithKey(
-      passkeyRecord.encryptedVaultKey.ciphertext,
-      passkeyRecord.encryptedVaultKey.iv,
-      encKey,
-    );
+    let vaultKey: string;
+    try {
+      vaultKey = decryptWithKey(
+        passkeyRecord.encryptedVaultKey.ciphertext,
+        passkeyRecord.encryptedVaultKey.iv,
+        encKey,
+      );
+    } catch {
+      throw new PasskeyAuthenticationRejectedError(
+        'Passkey vault key decryption failed',
+      );
+    }
 
     return vaultKey;
   }
@@ -402,6 +410,10 @@ export class PasskeyController extends BaseController<
   /**
    * Returns whether passkey authentication succeeds for this credential (same
    * work as {@link retrieveVaultKeyWithPasskey} without exposing the vault key).
+   *
+   * Returns `false` only when the failure is a normal authentication outcome
+   * ({@link PasskeyAuthenticationRejectedError}). Unexpected errors (e.g. malformed
+   * `clientDataJSON`, internal bugs) are rethrown.
    *
    * @param authenticationResponse - Credential from `navigator.credentials.get()`.
    * @returns `true` if authentication succeeds, otherwise `false`.
@@ -412,8 +424,11 @@ export class PasskeyController extends BaseController<
     try {
       await this.retrieveVaultKeyWithPasskey(authenticationResponse);
       return true;
-    } catch {
-      return false;
+    } catch (error: unknown) {
+      if (error instanceof PasskeyAuthenticationRejectedError) {
+        return false;
+      }
+      throw error;
     }
   }
 
@@ -486,6 +501,7 @@ export class PasskeyController extends BaseController<
     this.update((state) => {
       Object.assign(state, getDefaultPasskeyControllerState());
     });
+    this.#ceremonyManager.clear();
   }
 
   /**
@@ -510,7 +526,9 @@ export class PasskeyController extends BaseController<
       const authenticationCeremony =
         this.#ceremonyManager.getAuthenticationCeremony(challenge);
       if (!authenticationCeremony) {
-        throw new Error('No active passkey authentication ceremony');
+        throw new PasskeyAuthenticationRejectedError(
+          'No active passkey authentication ceremony',
+        );
       }
 
       // verify authentication response
@@ -530,7 +548,9 @@ export class PasskeyController extends BaseController<
       });
 
       if (!result.verified) {
-        throw new Error('Passkey authentication verification failed');
+        throw new PasskeyAuthenticationRejectedError(
+          'Passkey authentication verification failed',
+        );
       }
 
       // persist passkey record with updated counter

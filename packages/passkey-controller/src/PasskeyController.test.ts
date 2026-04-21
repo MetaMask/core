@@ -644,6 +644,23 @@ describe('PasskeyController', () => {
       ).toBe(false);
     });
 
+    it('rethrows non-operational errors (e.g. malformed clientDataJSON)', async () => {
+      const controller = createController();
+      const badClientData = bytesToBase64URL(
+        new TextEncoder().encode('not-json'),
+      );
+      await expect(
+        controller.verifyPasskeyAuthentication(
+          minimalAuthenticationResponse('uh', {
+            response: {
+              ...minimalAuthenticationResponse('uh').response,
+              clientDataJSON: badClientData,
+            },
+          }),
+        ),
+      ).rejects.toThrow(SyntaxError);
+    });
+
     it('returns true on successful authentication (prf)', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
@@ -709,7 +726,7 @@ describe('PasskeyController', () => {
             authOpts.challenge,
           ),
         ),
-      ).rejects.toThrow('aes/gcm');
+      ).rejects.toThrow('Passkey vault key decryption failed');
 
       authOpts = controller.generateAuthenticationOptions();
       await expect(
@@ -936,6 +953,23 @@ describe('PasskeyController', () => {
   });
 
   describe('removePasskey', () => {
+    it('clears in-flight registration ceremonies', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      controller.removePasskey();
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: minimalRegistrationResponse(
+            undefined,
+            regOpts.challenge,
+          ),
+          vaultKey: 'k',
+        }),
+      ).rejects.toThrow('No active passkey registration ceremony');
+    });
+
     it('clears stored record and resets enrollment', async () => {
       setupRegistrationMocks();
       const controller = createController();

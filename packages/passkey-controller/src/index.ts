@@ -1,3 +1,4 @@
+export { PasskeyAuthenticationRejectedError } from './errors';
 export {
   PasskeyController,
   getDefaultPasskeyControllerState,

@@ -1,3 +1,4 @@
+import { PasskeyAuthenticationRejectedError } from './errors';
 import type {
   PasskeyKeyDerivation,
   PasskeyRecord,
@@ -81,13 +82,17 @@ export function deriveKeyFromAuthenticationResponse(
   let ikm: Uint8Array;
   if (record.keyDerivation.method === 'prf') {
     if (!hasPrfOutput) {
-      throw new Error('Passkey assertion missing required key material');
+      throw new PasskeyAuthenticationRejectedError(
+        'Passkey assertion missing required key material',
+      );
     }
     ikm = base64URLToBytes(prfFirst);
   } else if (userHandle) {
     ikm = base64URLToBytes(userHandle);
   } else {
-    throw new Error('Passkey assertion missing required key material');
+    throw new PasskeyAuthenticationRejectedError(
+      'Passkey assertion missing required key material',
+    );
   }
 
   return deriveEncryptionKey(ikm, base64URLToBytes(record.credential.id));

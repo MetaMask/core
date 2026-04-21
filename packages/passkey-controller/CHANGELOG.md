@@ -27,7 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported timing and limits from package entry: `WEBAUTHN_TIMEOUT_MS`, `CEREMONY_TTL_SLACK_MS`, `CEREMONY_MAX_AGE_MS`, `MAX_CONCURRENT_PASSKEY_CEREMONIES` (`PasskeyController` does not re-export these; import from `@metamask/passkey-controller` or `./ceremony-manager` in the monorepo).
 - Exported controller types (`PasskeyControllerState`, messenger types, actions, events) and WebAuthn option/response types; internal ceremony payload types `PasskeyRegistrationCeremony` / `PasskeyAuthenticationCeremony` in `types.ts`.
 - AES-256-GCM helpers and COSE enums (`COSEALG`, `COSEKEYS`, `COSEKTY`, `COSECRV`).
-- `renewVaultKeyProtection` throws `Error('Passkey is not enrolled')` when called without an enrolled passkey instead of an opaque `TypeError`.
+- `PasskeyAuthenticationRejectedError` for expected authentication or enrollment failures (not enrolled, missing ceremony, failed verification, missing key material, vault decrypt failure). `PasskeyController.verifyPasskeyAuthentication` returns `false` only for this error and rethrows anything else.
+- `renewVaultKeyProtection` throws `PasskeyAuthenticationRejectedError('Passkey is not enrolled')` when called without an enrolled passkey instead of an opaque `TypeError`.
 - `verifyAuthenticationResponse` returns a discriminated union (`{ verified: false }` or `{ verified: true; authenticationInfo }`) so consumers cannot accidentally read `authenticationInfo` on a failed verification; signature verification failure short-circuits before the counter-monotonicity check.
+- `PasskeyController` constructor defaults `state` to `{}` per controller guidelines.
+- `PasskeyController.isPasskeyEnrolled` delegates to `passkeyControllerSelectors.selectIsPasskeyEnrolled`.
+- `PasskeyController.removePasskey` clears in-flight ceremony state (same as `clearState` for the ceremony manager).
 
 [Unreleased]: https://github.com/MetaMask/core/
