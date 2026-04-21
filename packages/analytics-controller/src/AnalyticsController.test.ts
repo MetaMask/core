@@ -377,6 +377,24 @@ describe('AnalyticsController', () => {
       }).toThrow('Invalid analyticsId');
     });
 
+    it('accepts non-UUID analyticsId when adapter skipUUIDv4Check is true', async () => {
+      const analyticsId = 'not-a-uuid';
+      const platformAdapter = {
+        ...createMockAdapter(),
+        skipUUIDv4Check: true,
+      };
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId,
+        },
+        platformAdapter,
+      });
+
+      expect(controller.state.analyticsId).toBe(analyticsId);
+      expect(platformAdapter.onSetupCompleted).toHaveBeenCalledWith(analyticsId);
+    });
+
     it('accepts different valid UUIDv4 values', async () => {
       const analyticsId1 = '11111111-1111-4111-8111-111111111111';
       const analyticsId2 = '22222222-2222-4222-9222-222222222222';
