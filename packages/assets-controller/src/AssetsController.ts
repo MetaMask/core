@@ -119,6 +119,7 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
+import { ZERO_ADDRESS } from './utils/constants';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -1795,16 +1796,34 @@ export class AssetsController extends BaseController<
 
   /**
    * Checks whether the given CAIP-19 asset ID represents a native asset
-   * according to the cached native asset map.
+   * according to the cached native asset map, the asset namespace, and the asset reference.
    *
    * @param assetId - The CAIP-19 asset ID to check (case-insensitive).
    * @returns True if the asset ID is a native asset.
    */
   #isNativeAsset(assetId: Caip19AssetId): boolean {
+    const parsed = parseCaipAssetType(assetId);
+
+    if (parsed.assetNamespace === 'slip44') {
+      return true;
+    }
+
     const lower = assetId.toLowerCase();
-    return Object.values(this.#getNativeAssetMap()).some(
+    const isInNativeAssetMap = Object.values(this.#getNativeAssetMap()).some(
       (id) => id.toLowerCase() === lower,
     );
+    if (isInNativeAssetMap) {
+      return true;
+    }
+
+    if (
+      parsed.assetNamespace === 'eip155' &&
+      parsed.assetReference === ZERO_ADDRESS
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
