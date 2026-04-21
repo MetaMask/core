@@ -4,7 +4,7 @@ import type { MulticallClient } from '../clients';
 import type {
   Address,
   AssetFetchEntry,
-  AssetsBalanceState,
+  StateForBalanceFetcher,
   BalanceOfResponse,
   ChainId,
 } from '../types';
@@ -68,23 +68,24 @@ const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
     batchBalanceOf: jest.fn(),
   }) as unknown as jest.Mocked<MulticallClient>;
 
-function createMockAssetsBalanceState(
+function createMockStateForBalanceFetcher(
   accountId: string,
   balances: Record<string, { amount: string }> = {},
-): AssetsBalanceState {
+): StateForBalanceFetcher {
   return {
     assetsBalance: {
       [accountId]: balances,
     },
+    assetsInfo: {},
   };
 }
 
 function createMockMessenger(
-  assetsBalanceState?: AssetsBalanceState,
+  stateForBalanceFetcher?: StateForBalanceFetcher,
 ): BalanceFetcherMessenger {
   return {
-    call: (_action: 'AssetsController:getState'): AssetsBalanceState => {
-      return assetsBalanceState ?? { assetsBalance: {} };
+    call: (_action: 'AssetsController:getState'): StateForBalanceFetcher => {
+      return stateForBalanceFetcher ?? { assetsBalance: {}, assetsInfo: {} };
     },
   };
 }
@@ -104,7 +105,7 @@ function createMockBalanceResponse(
 
 type WithControllerOptions = {
   config?: BalanceFetcherConfig;
-  assetsBalanceState?: AssetsBalanceState;
+  stateForBalanceFetcher?: StateForBalanceFetcher;
 };
 
 type WithControllerCallback<ReturnValue> = (params: {
@@ -125,10 +126,10 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
   const [options, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { config, assetsBalanceState } = options;
+  const { config, stateForBalanceFetcher } = options;
 
   const mockMulticallClient = createMockMulticallClient();
-  const mockMessenger = createMockMessenger(assetsBalanceState);
+  const mockMessenger = createMockMessenger(stateForBalanceFetcher);
   const controller = new BalanceFetcher(
     mockMulticallClient,
     mockMessenger,
@@ -201,12 +202,12 @@ describe('BalanceFetcher', () => {
 
   describe('setOnBalanceUpdate', () => {
     it('sets the balance update callback', async () => {
-      const mockState = createMockAssetsBalanceState(TEST_ACCOUNT_ID, {
+      const mockState = createMockStateForBalanceFetcher(TEST_ACCOUNT_ID, {
         [NATIVE_ETH_ASSET_ID]: { amount: '0' },
       });
 
       await withController(
-        { assetsBalanceState: mockState },
+        { stateForBalanceFetcher: mockState },
         async ({ controller, mockMulticallClient }) => {
           const mockCallback = jest.fn();
           controller.setOnBalanceUpdate(mockCallback);

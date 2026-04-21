@@ -10,8 +10,12 @@ import {
 import { Hex, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
-import type { AssetPrice, FungibleAssetPrice, Caip19AssetId } from '../types';
-import { isNativeAsset } from './isNativeAsset';
+import type {
+  AssetMetadata,
+  AssetPrice,
+  FungibleAssetPrice,
+  Caip19AssetId,
+} from '../types';
 
 /**
  * Exchange rates in the format expected by the bridge controller:
@@ -32,6 +36,7 @@ export type BridgeExchangeRatesFormat = {
  * a single action when useAssetsControllerForRates is true.
  *
  * @param params - Conversion parameters.
+ * @param params.assetsInfo - Optional metadata map keyed by CAIP-19 asset ID; used to determine native assets via `type === 'native'`.
  * @param params.assetsPrice - Map of CAIP-19 asset ID to price data (must include both `price` and `usdPrice`).
  * @param params.selectedCurrency - ISO 4217 currency code (e.g. 'usd').
  * @param params.nativeAssetIdentifiers - Optional map of CAIP-2 chain ID to native asset ID (e.g. from NetworkEnablementController state). When provided, used for EVM native lookups.
@@ -39,12 +44,14 @@ export type BridgeExchangeRatesFormat = {
  * @returns Bridge-compatible conversionRates, currencyRates, marketData, currentCurrency.
  */
 export function formatExchangeRatesForBridge(params: {
+  assetsInfo?: Record<string, AssetMetadata>;
   assetsPrice: Record<string, AssetPrice>;
   selectedCurrency: string;
   nativeAssetIdentifiers?: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
 }): BridgeExchangeRatesFormat {
   const {
+    assetsInfo = {},
     assetsPrice,
     selectedCurrency,
     nativeAssetIdentifiers = {},
@@ -64,10 +71,6 @@ export function formatExchangeRatesForBridge(params: {
       currentCurrency: selectedCurrency,
     };
   }
-
-  const knownNativeAssetIds = new Set(
-    Object.values(nativeAssetIdentifiers).map((id) => id.toLowerCase()),
-  );
 
   const fungibleAssetsPrice = Object.entries(assetsPrice).reduce<
     Record<Caip19AssetId, FungibleAssetPrice>
@@ -89,10 +92,7 @@ export function formatExchangeRatesForBridge(params: {
     const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
-      const isNative = isNativeAsset(
-        assetId as Caip19AssetId,
-        knownNativeAssetIds,
-      );
+      const isNative = assetsInfo[assetId]?.type === 'native';
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
       const chainIdParsed = parseCaipChainId(parsed.chainId);
 

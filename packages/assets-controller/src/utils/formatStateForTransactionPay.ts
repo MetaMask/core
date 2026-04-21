@@ -11,7 +11,6 @@ import type {
 } from '../types';
 import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
-import { isNativeAsset } from './isNativeAsset';
 
 /** Account with id and address for mapping state to legacy format. */
 export type AccountForLegacyFormat = { id: string; address: string };
@@ -95,10 +94,6 @@ export function formatStateForTransactionPay(params: {
     networkConfigurationsByChainId = {},
   } = params;
 
-  const knownNativeAssetIds = new Set(
-    Object.values(nativeAssetIdentifiers).map((id) => id.toLowerCase()),
-  );
-
   const tokenBalances: TransactionPayLegacyFormat['tokenBalances'] = {};
   const accountsByChainId: TransactionPayLegacyFormat['accountsByChainId'] = {};
   const allTokensByChain: Record<string, LegacyToken[]> = {};
@@ -121,7 +116,7 @@ export function formatStateForTransactionPay(params: {
         const amount = getAmountFromBalance(balance);
         const balanceHex = amountToHex(amount);
 
-        if (isNativeAsset(assetId as Caip19AssetId, knownNativeAssetIds)) {
+        if (assetsInfo[assetId]?.type === 'native') {
           const nativeAddress = toChecksumAddress(
             getNativeTokenAddress(chainIdHex),
           );
@@ -155,12 +150,10 @@ export function formatStateForTransactionPay(params: {
         continue;
       }
       const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
-      const address = isNativeAsset(
-        assetId as Caip19AssetId,
-        knownNativeAssetIds,
-      )
-        ? getNativeTokenAddress(chainIdHex)
-        : toChecksumAddress(String(parsed.assetReference));
+      const address =
+        metadata.type === 'native'
+          ? getNativeTokenAddress(chainIdHex)
+          : toChecksumAddress(String(parsed.assetReference));
       const token: LegacyToken = {
         address,
         decimals: metadata.decimals,
@@ -187,6 +180,7 @@ export function formatStateForTransactionPay(params: {
   }
 
   const exchangeRates = formatExchangeRatesForBridge({
+    assetsInfo,
     assetsPrice,
     selectedCurrency,
     nativeAssetIdentifiers,

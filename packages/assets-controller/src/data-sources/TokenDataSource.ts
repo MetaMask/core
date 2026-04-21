@@ -17,7 +17,6 @@ import type {
   Middleware,
   FungibleAssetMetadata,
 } from '../types';
-import { isNativeAsset } from '../utils/isNativeAsset';
 import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
@@ -85,16 +84,18 @@ export type TokenDataSourceAllowedActions =
  *
  * @param assetId - CAIP-19 asset ID used to derive token type.
  * @param assetData - V3 API response data.
+ * @param nativeAssetIds - Set of known native asset IDs (lowercased) for membership checks.
  * @returns FungibleAssetMetadata for state storage.
  */
 function transformV3AssetResponseToMetadata(
   assetId: Caip19AssetId,
   assetData: V3AssetResponse,
+  nativeAssetIds: ReadonlySet<string>,
 ): AssetMetadata {
   const parsed = parseCaipAssetType(assetId);
   let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
 
-  if (isNativeAsset(assetId)) {
+  if (nativeAssetIds.has(assetId.toLowerCase())) {
     tokenType = 'native';
   } else if (parsed.assetNamespace === 'spl') {
     tokenType = 'spl';
@@ -317,7 +318,11 @@ export class TokenDataSource {
       );
 
       // Always include native asset IDs from NetworkEnablementController
-      for (const nativeAssetId of this.#getNativeAssetIds()) {
+      const nativeAssetIdsList = this.#getNativeAssetIds();
+      const nativeAssetIds = new Set(
+        nativeAssetIdsList.map((id) => id.toLowerCase()),
+      );
+      for (const nativeAssetId of nativeAssetIdsList) {
         assetIdsNeedingMetadata.add(nativeAssetId);
       }
 
@@ -390,7 +395,7 @@ export class TokenDataSource {
         });
 
         // Split assets by chain type: EVM uses occurrence-count filtering;
-        // non-EVM non-native uses Blockaid; native (slip44) is always allowed.
+        // non-EVM non-native uses Blockaid; native assets are always allowed.
         const occurrencesByAssetId = new Map(
           metadataResponse.map((a) => [a.assetId, a.occurrences]),
         );
@@ -401,7 +406,7 @@ export class TokenDataSource {
         for (const assetData of metadataResponse) {
           const assetId = assetData.assetId as Caip19AssetId;
           const { assetNamespace, chain } = parseCaipAssetType(assetId);
-          if (isNativeAsset(assetId)) {
+          if (nativeAssetIds.has(assetId.toLowerCase())) {
             // Native assets are always kept — no filtering.
           } else if (
             assetNamespace === CaipAssetNamespace.Erc20 &&
@@ -466,6 +471,7 @@ export class TokenDataSource {
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
             caipAssetId,
             assetData,
+            nativeAssetIds,
           );
         }
 

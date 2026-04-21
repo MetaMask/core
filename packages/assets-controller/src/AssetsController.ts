@@ -121,7 +121,6 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
-import { isNativeAsset } from './utils/isNativeAsset';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -767,6 +766,8 @@ export class AssetsController extends BaseController<
       messenger: this.messenger,
       queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      isNativeAsset: (assetId: Caip19AssetId): boolean =>
+        this.#isNativeAsset(assetId),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
@@ -858,11 +859,11 @@ export class AssetsController extends BaseController<
       })
       .catch(() => {
         // Failure to populate native asset cache is non-fatal;
-        // isNativeAsset falls back to SPOT_PRICES_SUPPORT_INFO heuristics.
+        // #isNativeAsset falls back to the seed data from buildNativeAssetsFromConstant.
       });
 
     // Seed the cache synchronously so that synchronous consumers (e.g.
-    // isNativeAsset, #resolveNativeAssetIds) have data available immediately.
+    // #isNativeAsset, #resolveNativeAssetIds) have data available immediately.
     // When fetchQuery resolves (currently instant, future: API), it overwrites
     // this with potentially fresher data.
     const initialNativeAssetMap = buildNativeAssetsFromConstant();
@@ -1480,6 +1481,7 @@ export class AssetsController extends BaseController<
       'NetworkController:getState',
     );
     return formatExchangeRatesForBridge({
+      assetsInfo: this.state.assetsInfo,
       assetsPrice: this.state.assetsPrice,
       selectedCurrency: this.state.selectedCurrency,
       nativeAssetIdentifiers: this.#getNativeAssetMap(),
@@ -1562,7 +1564,7 @@ export class AssetsController extends BaseController<
       if (pendingMetadata) {
         const parsed = parseCaipAssetType(normalizedAssetId);
         let tokenType: FungibleAssetMetadata['type'] = 'erc20';
-        if (isNativeAsset(normalizedAssetId, this.#getKnownNativeAssetIds())) {
+        if (this.#isNativeAsset(normalizedAssetId)) {
           tokenType = 'native';
         } else if (parsed.assetNamespace === 'spl') {
           tokenType = 'spl';
@@ -1796,14 +1798,16 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Returns a set of known native asset IDs (lowercased) derived from the
-   * cached native asset map, for O(1) membership checks in isNativeAsset.
+   * Checks whether the given CAIP-19 asset ID represents a native asset
+   * according to the cached native asset map.
    *
-   * @returns A ReadonlySet of lowercased CAIP-19 native asset IDs.
+   * @param assetId - The CAIP-19 asset ID to check (case-insensitive).
+   * @returns True if the asset ID is a native asset.
    */
-  #getKnownNativeAssetIds(): ReadonlySet<string> {
-    return new Set(
-      Object.values(this.#getNativeAssetMap()).map((id) => id.toLowerCase()),
+  #isNativeAsset(assetId: Caip19AssetId): boolean {
+    const lower = assetId.toLowerCase();
+    return Object.values(this.#getNativeAssetMap()).some(
+      (id) => id.toLowerCase() === lower,
     );
   }
 
@@ -2205,10 +2209,7 @@ export class AssetsController extends BaseController<
       return false;
     }
 
-    // Check if it's a native token (either by metadata type or assetId format)
-    const isNative =
-      metadata.type === 'native' ||
-      isNativeAsset(assetId, this.#getKnownNativeAssetIds());
+    const isNative = metadata.type === 'native' || this.#isNativeAsset(assetId);
 
     return isNative;
   }

@@ -12,7 +12,8 @@ export type { Asset, AssetBalance } from './assets';
 
 // State types
 export type {
-  AssetsBalanceState,
+  AssetMetadataEntry,
+  StateForBalanceFetcher,
   TokenChainsCacheEntry,
   TokenListEntry,
   TokenListState,

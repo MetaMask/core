@@ -38,7 +38,6 @@ import type {
 } from '../types';
 import { normalizeAssetId } from '../utils';
 import { ZERO_ADDRESS } from '../utils/constants';
-import { isNativeAsset } from '../utils/isNativeAsset';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
@@ -269,12 +268,17 @@ export class RpcDataSource extends AbstractDataSource<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
+        assetsInfo: Record<string, { type: string }>;
       } => {
         const state = this.#messenger.call('AssetsController:getState');
         return {
           assetsBalance: (state.assetsBalance ?? {}) as Record<
             string,
             Record<string, { amount: string }>
+          >,
+          assetsInfo: (state.assetsInfo ?? {}) as Record<
+            string,
+            { type: string }
           >,
         };
       },
@@ -349,8 +353,12 @@ export class RpcDataSource extends AbstractDataSource<
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const existingMetadata = this.#getExistingAssetsMetadata();
 
+    const nativeAssetId = this.#getNativeAssetForChain(chainId);
     for (const balance of balances) {
-      const isNative = isNativeAsset(balance.assetId);
+      const isNative =
+        existingMetadata[balance.assetId]?.type === 'native' ||
+        (nativeAssetId !== undefined &&
+          balance.assetId.toLowerCase() === nativeAssetId.toLowerCase());
       if (isNative) {
         const chainStatus = this.#chainStatuses[chainId];
 

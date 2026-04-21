@@ -24,7 +24,6 @@ import type {
   AssetBalance,
   DataResponse,
 } from '../types';
-import { isNativeAsset } from '../utils/isNativeAsset';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
@@ -77,6 +76,8 @@ export type BackendWebsocketDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /** Determines whether a CAIP-19 asset ID represents a native asset. */
+  isNativeAsset: (assetId: Caip19AssetId) => boolean;
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -225,6 +226,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #isNativeAsset: (assetId: Caip19AssetId) => boolean;
+
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -252,6 +255,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#isNativeAsset = options.isNativeAsset;
 
     this.#subscribeToEvents();
     this.#initializeActiveChains().catch(console.error);
@@ -640,7 +644,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const assetId = asset.type as Caip19AssetId;
 
       // Determine token type from asset type string
-      const isNative = isNativeAsset(assetId);
+      const isNative = this.#isNativeAsset(assetId);
       const tokenType = isNative ? 'native' : 'erc20';
 
       // We assume decimals are always present; skip malformed updates

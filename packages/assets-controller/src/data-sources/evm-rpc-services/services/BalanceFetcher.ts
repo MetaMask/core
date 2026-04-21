@@ -2,14 +2,13 @@ import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controlle
 import { parseCaipAssetType } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
-import { isNativeAsset } from '../../../utils/isNativeAsset';
 import type { MulticallClient } from '../clients';
 import type {
   AccountId,
   Address,
   AssetBalance,
   AssetFetchEntry,
-  AssetsBalanceState,
+  StateForBalanceFetcher,
   BalanceFetchResult,
   BalanceOfRequest,
   BalanceOfResponse,
@@ -24,7 +23,7 @@ const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
  * Minimal messenger interface for BalanceFetcher.
  */
 export type BalanceFetcherMessenger = {
-  call: (action: 'AssetsController:getState') => AssetsBalanceState;
+  call: (action: 'AssetsController:getState') => StateForBalanceFetcher;
 };
 
 export type BalanceFetcherConfig = {
@@ -131,6 +130,8 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       return [];
     }
 
+    const { assetsInfo } = state;
+
     // Convert hex chainId to decimal for CAIP-2 matching
     // This is safe because we are filtring with an accountId that is for evm balances only
     const chainIdDecimal = parseInt(chainId, 16).toString();
@@ -149,9 +150,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           continue;
         }
 
-        const isNative = isNativeAsset(assetId);
+        const isNative = assetsInfo[assetId]?.type === 'native';
         const tokenAddress = isNative
-          ? ZERO_ADDRESS // BalanceFetcher requires the use of zero address even for chains in which the native token has a non-zero address
+          ? ZERO_ADDRESS
           : (assetReference.toLowerCase() as Address);
 
         assetsToFetch.set(assetIdLowerCase, {
