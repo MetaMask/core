@@ -12,8 +12,8 @@ import type {
   StatusRequest,
   BridgeStatusControllerMessenger,
 } from '../types';
-import { validateBridgeStatusResponse } from './validators';
 import { getNetworkClientByChainId } from './network';
+import { validateBridgeStatusResponse } from './validators';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;

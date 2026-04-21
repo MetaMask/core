@@ -24,12 +24,12 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { Provider } from '@metamask/network-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
 import {
   TransactionType,
   TransactionStatus,
 } from '@metamask/transaction-controller';
-import type { Provider } from '@metamask/network-controller';
 import type {
   TransactionMeta,
   TransactionParams,
@@ -55,8 +55,8 @@ import type {
   StatusResponse,
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
-import * as transactionUtils from './utils/transaction';
 import * as historyUtils from './utils/history';
+import * as transactionUtils from './utils/transaction';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;

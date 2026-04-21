@@ -39,12 +39,12 @@ import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
 } from '../types';
+import { getAccountByAddress } from './accounts';
 import { calcActualGasUsed } from './gas';
 import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
 } from './swap-received-amount';
-import { getAccountByAddress } from './accounts';
 
 export const getTxStatusesFromHistory = ({
   status,
