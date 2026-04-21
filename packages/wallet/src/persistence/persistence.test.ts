@@ -335,7 +335,7 @@ describe('subscribeToChanges unsubscribe', () => {
     store.close();
   });
 
-  it('self-unsubscribes when Root:walletDestroyed is published', () => {
+  it('self-unsubscribes when Wallet:destroyed is published', () => {
     const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([['prop', true]]),
     });
@@ -349,7 +349,7 @@ describe('subscribeToChanges unsubscribe', () => {
 
     expect(store.get('TestController.prop')).toBe('before');
 
-    messenger.publish('Root:walletDestroyed');
+    messenger.publish('Wallet:destroyed');
 
     publishStateChanged(messenger, 'TestController', {
       state: { prop: 'after' },

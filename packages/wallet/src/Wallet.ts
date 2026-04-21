@@ -26,7 +26,7 @@ export class Wallet {
 
   constructor({ state, ...options }: WalletOptions) {
     this.messenger = new Messenger({
-      namespace: 'Root',
+      namespace: 'Wallet',
     });
 
     this.#instances = initialize({
@@ -65,17 +65,17 @@ export class Wallet {
     this.#destroyed = true;
 
     await Promise.allSettled(
-      Object.values(this.#instances).map((instance) => {
+      Object.values(this.#instances).map(async (instance) => {
         // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
           // @ts-expect-error Accessing protected property.
-          return (async (): Promise<void> => await instance.destroy())();
+          return await instance.destroy();
         }
         /* istanbul ignore next */
-        return Promise.resolve();
+        return undefined;
       }),
     );
 
-    this.messenger.publish('Root:walletDestroyed');
+    this.messenger.publish('Wallet:destroyed');
   }
 }

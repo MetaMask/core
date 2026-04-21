@@ -70,7 +70,7 @@ export function loadState(
  * the Immer patches to identify which top-level properties changed, filters
  * to only persist-flagged properties, and writes them to the store.
  *
- * Also subscribes to `Root:walletDestroyed` — when the Wallet publishes that
+ * Also subscribes to `Wallet:destroyed` — when the Wallet publishes that
  * event, persistence tears itself down.
  *
  * @param messenger - The root messenger to subscribe on.
@@ -135,9 +135,9 @@ export function subscribeToChanges(
   };
 
   const destroyedHandler = (): void => unsubscribeAll();
-  messenger.subscribe('Root:walletDestroyed', destroyedHandler);
+  messenger.subscribe('Wallet:destroyed', destroyedHandler);
   unsubscribers.push(() => {
-    messenger.unsubscribe('Root:walletDestroyed', destroyedHandler);
+    messenger.unsubscribe('Wallet:destroyed', destroyedHandler);
   });
 
   return unsubscribeAll;

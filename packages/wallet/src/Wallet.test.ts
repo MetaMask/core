@@ -195,7 +195,9 @@ describe('Wallet', () => {
     });
 
     it('omits instances without a metadata property from controllerMetadata', () => {
-      const fakeMetadata = { foo: { persist: true, anonymous: false } };
+      const fakeMetadata = {
+        foo: { persist: true, includeInDebugSnapshot: false },
+      };
       jest.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
         WithMeta: { state: {}, metadata: fakeMetadata },
         NoMeta: { state: {} },
@@ -209,11 +211,11 @@ describe('Wallet', () => {
       expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
     });
 
-    it('publishes Root:walletDestroyed exactly once on destroy', async () => {
+    it('publishes Wallet:destroyed exactly once on destroy', async () => {
       wallet = new Wallet(options);
 
       const listener = jest.fn();
-      wallet.messenger.subscribe('Root:walletDestroyed', listener);
+      wallet.messenger.subscribe('Wallet:destroyed', listener);
 
       await wallet.destroy();
       await wallet.destroy();
@@ -221,7 +223,7 @@ describe('Wallet', () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('publishes Root:walletDestroyed even if a controller destroy throws synchronously', async () => {
+    it('publishes Wallet:destroyed even if a controller destroy throws synchronously', async () => {
       wallet = new Wallet(options);
 
       jest
@@ -231,14 +233,14 @@ describe('Wallet', () => {
         });
 
       const listener = jest.fn();
-      wallet.messenger.subscribe('Root:walletDestroyed', listener);
+      wallet.messenger.subscribe('Wallet:destroyed', listener);
 
       await wallet.destroy();
 
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('publishes Root:walletDestroyed even if a controller destroy rejects', async () => {
+    it('publishes Wallet:destroyed even if a controller destroy rejects', async () => {
       wallet = new Wallet(options);
 
       jest
@@ -246,7 +248,7 @@ describe('Wallet', () => {
         .mockRejectedValue(new Error('async destroy error') as never);
 
       const listener = jest.fn();
-      wallet.messenger.subscribe('Root:walletDestroyed', listener);
+      wallet.messenger.subscribe('Wallet:destroyed', listener);
 
       await wallet.destroy();
 
