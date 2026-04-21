@@ -2686,10 +2686,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@levischuck/tiny-cbor@npm:^0.2.2":
-  version: 0.2.11
-  resolution: "@levischuck/tiny-cbor@npm:0.2.11"
-  checksum: 10/b278004882fc9153b6337f04591a8c95471369d4a2eed1ef9c715c12ddb1a6a5bc85d7ef1d45a9757eaac9b9da8f98d99a44dfdf7162c901a82f8bc8fb7add82
+"@levischuck/tiny-cbor@npm:^0.3.3":
+  version: 0.3.3
+  resolution: "@levischuck/tiny-cbor@npm:0.3.3"
+  checksum: 10/737219a7bb28570043f77aa9d73af800a1dd41a1561c0f816d0ff5b7e95e08351377cd97afa19c4d8581e44951211a4b5f46084944ffdbca2779cddaa1c1fcbc
   languageName: node
   linkType: hard
 
@@ -4644,13 +4644,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/messenger@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@metamask/messenger@npm:0.3.0"
-  checksum: 10/84e9f4193646d749c7260a4958b13974b3c8738cc2e414116279ed31734e1edba687ff56ddbfdb75033bce30aaa9eeb7c391bccb87a66dbc99a902882271f673
-  languageName: node
-  linkType: hard
-
 "@metamask/messenger@npm:^1.1.0, @metamask/messenger@npm:^1.1.1, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
@@ -5072,13 +5065,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/passkey-controller@workspace:packages/passkey-controller"
   dependencies:
-    "@levischuck/tiny-cbor": "npm:^0.2.2"
+    "@levischuck/tiny-cbor": "npm:^0.3.3"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/messenger": "npm:^1.1.1"
     "@metamask/utils": "npm:^11.9.0"
     "@noble/ciphers": "npm:^1.3.0"
-    "@noble/curves": "npm:^1.8.0"
+    "@noble/curves": "npm:^1.9.2"
     "@noble/hashes": "npm:^1.8.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^27.5.2"
@@ -6095,7 +6088,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:^1.2.0, @noble/curves@npm:^1.8.0, @noble/curves@npm:^1.8.1, @noble/curves@npm:^1.9.2, @noble/curves@npm:~1.9.0":
+"@noble/curves@npm:^1.2.0, @noble/curves@npm:^1.8.1, @noble/curves@npm:^1.9.2, @noble/curves@npm:~1.9.0":
   version: 1.9.7
   resolution: "@noble/curves@npm:1.9.7"
   dependencies:
