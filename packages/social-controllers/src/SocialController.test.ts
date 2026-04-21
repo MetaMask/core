@@ -237,12 +237,10 @@ describe('SocialController', () => {
       const { controller } = createController({ rootMessenger });
 
       const result = await controller.followTrader({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
       expect(follow).toHaveBeenCalledWith({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
       expect(result.followed).toStrictEqual([mockProfileSummary]);
@@ -267,7 +265,6 @@ describe('SocialController', () => {
       const { controller } = createController({ rootMessenger });
 
       await controller.followTrader({
-        addressOrUid: '0xuser',
         targets: [
           '0x1111111111111111111111111111111111111111',
           '0x2222222222222222222222222222222222222222',
@@ -297,7 +294,6 @@ describe('SocialController', () => {
       const { controller } = createController({ rootMessenger });
 
       await controller.followTrader({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
@@ -320,11 +316,9 @@ describe('SocialController', () => {
       const { controller } = createController({ rootMessenger });
 
       await controller.followTrader({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
       await controller.followTrader({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
@@ -347,7 +341,6 @@ describe('SocialController', () => {
       const { messenger } = createController({ rootMessenger });
 
       const result = await messenger.call('SocialController:followTrader', {
-        addressOrUid: '0xuser',
         targets: ['0xaaaa'],
       });
 
@@ -378,12 +371,10 @@ describe('SocialController', () => {
       });
 
       const result = await controller.unfollowTrader({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
       expect(unfollow).toHaveBeenCalledWith({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
       expect(result.unfollowed).toStrictEqual([mockProfileSummary]);
@@ -409,7 +400,6 @@ describe('SocialController', () => {
       });
 
       await controller.unfollowTrader({
-        addressOrUid: '0xuser',
         targets: ['0x1111111111111111111111111111111111111111'],
       });
 
@@ -428,7 +418,6 @@ describe('SocialController', () => {
       const { messenger } = createController({ rootMessenger });
 
       const result = await messenger.call('SocialController:unfollowTrader', {
-        addressOrUid: '0xuser',
         targets: ['0xaaaa'],
       });
 
@@ -457,13 +446,9 @@ describe('SocialController', () => {
         },
       });
 
-      const result = await controller.updateFollowing({
-        addressOrUid: '0xuser',
-      });
+      const result = await controller.updateFollowing();
 
-      expect(fetchFollowing).toHaveBeenCalledWith({
-        addressOrUid: '0xuser',
-      });
+      expect(fetchFollowing).toHaveBeenCalledWith();
       expect(result.following).toStrictEqual([mockProfileSummary]);
       expect(controller.state.followingAddresses).toStrictEqual([
         '0x1111111111111111111111111111111111111111',
@@ -489,7 +474,7 @@ describe('SocialController', () => {
         },
       });
 
-      await controller.updateFollowing({ addressOrUid: '0xuser' });
+      await controller.updateFollowing();
 
       expect(controller.state.followingAddresses).toStrictEqual([]);
       expect(controller.state.followingProfileIds).toStrictEqual([]);
@@ -508,9 +493,7 @@ describe('SocialController', () => {
 
       const { messenger } = createController({ rootMessenger });
 
-      const result = await messenger.call('SocialController:updateFollowing', {
-        addressOrUid: '0xuser',
-      });
+      const result = await messenger.call('SocialController:updateFollowing');
 
       expect(result.following).toStrictEqual([mockProfileSummary]);
     });
@@ -545,7 +528,6 @@ describe('SocialController', () => {
 
       await expect(
         controller.followTrader({
-          addressOrUid: '0xuser',
           targets: ['0xaaaa'],
         }),
       ).rejects.toThrow('follow failed');
@@ -567,7 +549,6 @@ describe('SocialController', () => {
 
       await expect(
         controller.unfollowTrader({
-          addressOrUid: '0xuser',
           targets: ['0xaaaa'],
         }),
       ).rejects.toThrow('unfollow failed');
@@ -587,9 +568,9 @@ describe('SocialController', () => {
         state: { followingAddresses: ['0xold'] },
       });
 
-      await expect(
-        controller.updateFollowing({ addressOrUid: '0xuser' }),
-      ).rejects.toThrow('fetch following failed');
+      await expect(controller.updateFollowing()).rejects.toThrow(
+        'fetch following failed',
+      );
       expect(controller.state.followingAddresses).toStrictEqual(['0xold']);
     });
   });

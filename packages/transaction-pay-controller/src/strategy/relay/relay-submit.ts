@@ -400,9 +400,15 @@ async function submitViaRelayExecute(
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
+    networkClientId,
     nestedTransactions: allParams.map((params) => ({
       data: (params.data ?? '0x') as Hex,
       to: params.to as Hex,
