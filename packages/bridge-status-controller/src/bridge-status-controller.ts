@@ -285,6 +285,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMeta: TransactionMeta;
     historyKey?: string;
   }): void => {
+    // Check if the history item is already marked as a failure
+    const isHistoryItemAlreadyFailed = historyKey
+      ? this.state.txHistory[historyKey]?.status.status === StatusTypes.FAILED
+      : false;
+
     this.#updateHistoryItem({
       historyKey,
       status: StatusTypes.FAILED,
@@ -301,6 +306,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Skip account lookup and tracking when featureId is set (e.g. PERPS)
     if (historyKey && this.state.txHistory[historyKey]?.featureId) {
+      return;
+    }
+
+    // Skip tracking if this is a duplicate failed event for the same history item
+    // This can happen if the transaction includes an approval tx that fails
+    if (isHistoryItemAlreadyFailed) {
       return;
     }
 

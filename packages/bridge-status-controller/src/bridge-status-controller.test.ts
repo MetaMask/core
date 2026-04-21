@@ -5063,7 +5063,23 @@ describe('BridgeStatusController', () => {
           },
         );
 
-        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.dropped,
+              id: 'bridgeTxMetaId1WithApproval',
+            },
+          },
+        );
+
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
             .status.status,
