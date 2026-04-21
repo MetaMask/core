@@ -377,6 +377,34 @@ describe('MultichainBalancesController', () => {
     );
   });
 
+  it('initializes and stores balances when "AccountsController:accountBalancesUpdated" fires before the account has an entry in state', async () => {
+    const { controller, messenger } = setupController({
+      state: { balances: {} },
+      mocks: {
+        listMultichainAccounts: [],
+      },
+    });
+
+    expect(controller.state.balances[mockBtcAccount.id]).toBeUndefined();
+
+    const balanceUpdate = {
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountBalancesUpdated',
+      balanceUpdate,
+    );
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
   it('updates balances when receiving "AccountsController:accountBalancesUpdated" event', async () => {
     const mockInitialBalances = {
       [mockBtcNativeAsset]: {

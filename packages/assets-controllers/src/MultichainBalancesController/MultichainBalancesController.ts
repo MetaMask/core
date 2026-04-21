@@ -384,9 +384,8 @@ export class MultichainBalancesController extends BaseController<
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       Object.entries(balanceUpdate.balances).forEach(
         ([accountId, assetBalances]) => {
-          if (accountId in state.balances) {
-            Object.assign(state.balances[accountId], assetBalances);
-          }
+          state.balances[accountId] ??= {};
+          Object.assign(state.balances[accountId], assetBalances);
         },
       );
     });
