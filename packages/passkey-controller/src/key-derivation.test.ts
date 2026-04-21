@@ -64,13 +64,19 @@ function makeAuthenticationResponse(
 
 function makeRecord(derivationMethod: 'prf' | 'userHandle'): PasskeyRecord {
   return {
-    credentialId: CREDENTIAL_ID,
-    derivationMethod,
-    iv: 'iv',
-    encryptedVaultKey: 'ciphertext',
-    publicKey: 'pubkey',
-    counter: 0,
-    prfSalt: derivationMethod === 'prf' ? PRF_SALT : undefined,
+    credential: {
+      id: CREDENTIAL_ID,
+      publicKey: 'pubkey',
+      counter: 0,
+    },
+    encryptedVaultKey: {
+      ciphertext: 'ciphertext',
+      iv: 'iv',
+    },
+    keyDerivation:
+      derivationMethod === 'prf'
+        ? { method: 'prf', prfSalt: PRF_SALT }
+        : { method: 'userHandle' },
   };
 }
 
@@ -80,12 +86,12 @@ describe('deriveKeyFromRegistrationResponse', () => {
       prf: { results: { first: PRF_FIRST } },
     });
 
-    const { encKey, derivationMethod } = deriveKeyFromRegistrationResponse(
+    const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
     );
 
-    expect(derivationMethod).toBe('prf');
+    expect(keyDerivation).toStrictEqual({ method: 'prf', prfSalt: PRF_SALT });
     expect(encKey).toBeInstanceOf(Uint8Array);
     expect(encKey).toHaveLength(32);
   });
@@ -95,12 +101,12 @@ describe('deriveKeyFromRegistrationResponse', () => {
       prf: { enabled: true, results: { first: PRF_FIRST } },
     });
 
-    const { derivationMethod } = deriveKeyFromRegistrationResponse(
+    const { keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
     );
 
-    expect(derivationMethod).toBe('prf');
+    expect(keyDerivation).toStrictEqual({ method: 'prf', prfSalt: PRF_SALT });
   });
 
   it('falls back to userHandle when prf.enabled is true but results.first is absent', () => {
@@ -108,23 +114,23 @@ describe('deriveKeyFromRegistrationResponse', () => {
       prf: { enabled: true },
     });
 
-    const { derivationMethod } = deriveKeyFromRegistrationResponse(
+    const { keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
     );
 
-    expect(derivationMethod).toBe('userHandle');
+    expect(keyDerivation).toStrictEqual({ method: 'userHandle' });
   });
 
   it('falls back to userHandle when PRF is absent', () => {
     const response = makeRegistrationResponse({});
 
-    const { encKey, derivationMethod } = deriveKeyFromRegistrationResponse(
+    const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
     );
 
-    expect(derivationMethod).toBe('userHandle');
+    expect(keyDerivation).toStrictEqual({ method: 'userHandle' });
     expect(encKey).toBeInstanceOf(Uint8Array);
     expect(encKey).toHaveLength(32);
   });
@@ -134,12 +140,12 @@ describe('deriveKeyFromRegistrationResponse', () => {
       prf: { results: { first: '' } },
     });
 
-    const { derivationMethod } = deriveKeyFromRegistrationResponse(
+    const { keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
     );
 
-    expect(derivationMethod).toBe('userHandle');
+    expect(keyDerivation).toStrictEqual({ method: 'userHandle' });
   });
 
   it('produces different keys for different credential IDs', () => {
@@ -181,7 +187,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
 });
 
 describe('deriveKeyFromAuthenticationResponse', () => {
-  it('uses PRF output when derivationMethod is prf', () => {
+  it('uses PRF output when keyDerivation.method is prf', () => {
     const response = makeAuthenticationResponse(
       { prf: { results: { first: PRF_FIRST } } },
       USER_HANDLE,
@@ -196,7 +202,7 @@ describe('deriveKeyFromAuthenticationResponse', () => {
     expect(encKey).toHaveLength(32);
   });
 
-  it('uses userHandle when derivationMethod is userHandle', () => {
+  it('uses userHandle when keyDerivation.method is userHandle', () => {
     const response = makeAuthenticationResponse({}, USER_HANDLE);
 
     const encKey = deriveKeyFromAuthenticationResponse(

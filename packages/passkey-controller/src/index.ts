@@ -18,7 +18,10 @@ export type {
   PasskeyControllerEvents,
 } from './PasskeyController';
 export type {
+  EncryptedVaultKey,
+  PasskeyCredentialInfo,
   PasskeyDerivationMethod,
+  PasskeyKeyDerivation,
   PasskeyRecord,
   PrfEvalExtension,
   PrfClientExtensionResults,

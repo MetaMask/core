@@ -180,13 +180,17 @@ describe('PasskeyController', () => {
   describe('constructor', () => {
     it('merges partial initial state with defaults', () => {
       const record: PasskeyRecord = {
-        credentialId: TEST_CREDENTIAL_ID,
-        derivationMethod: 'userHandle',
-        encryptedVaultKey: 'YQ==',
-        iv: 'YWFhYWFhYWFhYQ==',
-        publicKey: TEST_PUBLIC_KEY,
-        counter: 0,
-        transports: ['internal'],
+        credential: {
+          id: TEST_CREDENTIAL_ID,
+          publicKey: TEST_PUBLIC_KEY,
+          counter: 0,
+          transports: ['internal'],
+        },
+        encryptedVaultKey: {
+          ciphertext: 'YQ==',
+          iv: 'YWFhYWFhYWFhYQ==',
+        },
+        keyDerivation: { method: 'userHandle' },
       };
       const controller = createController({
         state: { passkeyRecord: record },
@@ -295,10 +299,9 @@ describe('PasskeyController', () => {
         vaultKey,
       });
 
-      expect(controller.state.passkeyRecord?.derivationMethod).toBe(
-        'userHandle',
-      );
-      expect(controller.state.passkeyRecord?.prfSalt).toBeUndefined();
+      expect(controller.state.passkeyRecord?.keyDerivation).toStrictEqual({
+        method: 'userHandle',
+      });
 
       const authOptions = controller.generateAuthenticationOptions();
       expect(authOptions.extensions).toStrictEqual({});
@@ -429,10 +432,10 @@ describe('PasskeyController', () => {
 
       expect(controller.isPasskeyEnrolled()).toBe(true);
       const record = controller.state.passkeyRecord;
-      expect(record?.credentialId).toBe(TEST_CREDENTIAL_ID);
-      expect(record?.publicKey).toBe(TEST_PUBLIC_KEY);
-      expect(record?.transports).toStrictEqual(['internal']);
-      expect(record?.derivationMethod).toBe('userHandle');
+      expect(record?.credential.id).toBe(TEST_CREDENTIAL_ID);
+      expect(record?.credential.publicKey).toBe(TEST_PUBLIC_KEY);
+      expect(record?.credential.transports).toStrictEqual(['internal']);
+      expect(record?.keyDerivation.method).toBe('userHandle');
     });
 
     it('uses prf derivation when extension results include PRF output', async () => {
@@ -451,8 +454,11 @@ describe('PasskeyController', () => {
         vaultKey: 'vault-key-prf-path',
       });
 
-      expect(controller.state.passkeyRecord?.derivationMethod).toBe('prf');
-      expect(controller.state.passkeyRecord?.prfSalt).toBeDefined();
+      expect(controller.state.passkeyRecord?.keyDerivation.method).toBe('prf');
+      expect(controller.state.passkeyRecord?.keyDerivation).toMatchObject({
+        method: 'prf',
+        prfSalt: expect.any(String),
+      });
     });
 
     it('uses userHandle derivation when PRF was requested but registration returns no PRF output bytes', async () => {
@@ -482,10 +488,9 @@ describe('PasskeyController', () => {
         vaultKey,
       });
 
-      expect(controller.state.passkeyRecord?.derivationMethod).toBe(
-        'userHandle',
-      );
-      expect(controller.state.passkeyRecord?.prfSalt).toBeUndefined();
+      expect(controller.state.passkeyRecord?.keyDerivation).toStrictEqual({
+        method: 'userHandle',
+      });
 
       const authOptions = controller.generateAuthenticationOptions();
       expect(authOptions.extensions).toStrictEqual({});
@@ -704,7 +709,7 @@ describe('PasskeyController', () => {
         vaultKey,
       });
 
-      expect(controller.state.passkeyRecord?.derivationMethod).toBe(
+      expect(controller.state.passkeyRecord?.keyDerivation.method).toBe(
         'userHandle',
       );
 
@@ -1074,7 +1079,7 @@ describe('PasskeyController', () => {
         vaultKey: 'k',
       });
 
-      expect(controller.state.passkeyRecord?.counter).toBe(0);
+      expect(controller.state.passkeyRecord?.credential.counter).toBe(0);
 
       mockVerifyAuthenticationResponse.mockResolvedValue({
         verified: true,
@@ -1098,7 +1103,7 @@ describe('PasskeyController', () => {
         ),
       );
 
-      expect(controller.state.passkeyRecord?.counter).toBe(5);
+      expect(controller.state.passkeyRecord?.credential.counter).toBe(5);
 
       mockVerifyAuthenticationResponse.mockResolvedValue({
         verified: true,
@@ -1129,7 +1134,7 @@ describe('PasskeyController', () => {
           }),
         }),
       );
-      expect(controller.state.passkeyRecord?.counter).toBe(10);
+      expect(controller.state.passkeyRecord?.credential.counter).toBe(10);
     });
   });
 

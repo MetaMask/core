@@ -228,8 +228,8 @@ export class PasskeyController extends BaseController<
     const challenge = bytesToBase64URL(randomBytes(32).slice());
 
     const extensions: Record<string, unknown> = {};
-    if (record.derivationMethod === 'prf' && record.prfSalt) {
-      extensions.prf = { eval: { first: record.prfSalt } };
+    if (record.keyDerivation.method === 'prf') {
+      extensions.prf = { eval: { first: record.keyDerivation.prfSalt } };
     }
 
     const options: PasskeyAuthenticationOptions = {
@@ -237,9 +237,9 @@ export class PasskeyController extends BaseController<
       rpId: this.#rpID,
       allowCredentials: [
         {
-          id: record.credentialId,
+          id: record.credential.id,
           type: 'public-key',
-          transports: record.transports,
+          transports: record.credential.transports,
         },
       ],
       userVerification: 'preferred',
@@ -295,7 +295,7 @@ export class PasskeyController extends BaseController<
     }
 
     // derive key
-    const { encKey, derivationMethod } = deriveKeyFromRegistrationResponse(
+    const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
       registrationResponse,
       registrationCeremony,
     );
@@ -305,15 +305,14 @@ export class PasskeyController extends BaseController<
 
     // persist passkey record
     this.#setPasskeyRecord({
-      credentialId: registrationInfo.credentialId,
-      derivationMethod,
-      encryptedVaultKey: ciphertext,
-      iv,
-      prfSalt:
-        derivationMethod === 'prf' ? registrationCeremony.prfSalt : undefined,
-      publicKey: bytesToBase64URL(registrationInfo.publicKey),
-      counter: registrationInfo.counter,
-      transports: registrationInfo.transports,
+      credential: {
+        id: registrationInfo.credentialId,
+        publicKey: bytesToBase64URL(registrationInfo.publicKey),
+        counter: registrationInfo.counter,
+        transports: registrationInfo.transports,
+      },
+      encryptedVaultKey: { ciphertext, iv },
+      keyDerivation,
     });
 
     // delete ceremony
@@ -342,8 +341,8 @@ export class PasskeyController extends BaseController<
 
     // decrypt vault key
     const vaultKey = decryptWithKey(
-      passkeyRecord.encryptedVaultKey,
-      passkeyRecord.iv,
+      passkeyRecord.encryptedVaultKey.ciphertext,
+      passkeyRecord.encryptedVaultKey.iv,
       encKey,
     );
 
@@ -391,8 +390,8 @@ export class PasskeyController extends BaseController<
 
     // decrypt vault key
     const decryptedVaultKey = decryptWithKey(
-      passkeyRecord.encryptedVaultKey,
-      passkeyRecord.iv,
+      passkeyRecord.encryptedVaultKey.ciphertext,
+      passkeyRecord.encryptedVaultKey.iv,
       encKey,
     );
 
@@ -405,13 +404,12 @@ export class PasskeyController extends BaseController<
     }
 
     // encrypt new vault key
-    const { ciphertext, iv: newIv } = encryptWithKey(newVaultKey, encKey);
+    const { ciphertext, iv } = encryptWithKey(newVaultKey, encKey);
 
     // persist passkey record
     this.#setPasskeyRecord({
       ...passkeyRecord,
-      encryptedVaultKey: ciphertext,
-      iv: newIv,
+      encryptedVaultKey: { ciphertext, iv },
     });
   }
 
@@ -468,10 +466,10 @@ export class PasskeyController extends BaseController<
           expectedOrigin: this.#expectedOrigin,
           expectedRPID: this.#rpID,
           credential: {
-            id: record.credentialId,
-            publicKey: base64URLToBytes(record.publicKey),
-            counter: record.counter,
-            transports: record.transports,
+            id: record.credential.id,
+            publicKey: base64URLToBytes(record.credential.publicKey),
+            counter: record.credential.counter,
+            transports: record.credential.transports,
           },
           // UV optional for device compatibility; vault key remains password-gated.
           requireUserVerification: false,
@@ -484,7 +482,10 @@ export class PasskeyController extends BaseController<
       // persist passkey record with updated counter
       const updatedRecord: PasskeyRecord = {
         ...record,
-        counter: authenticationInfo.newCounter,
+        credential: {
+          ...record.credential,
+          counter: authenticationInfo.newCounter,
+        },
       };
       this.#setPasskeyRecord(updatedRecord);
 

@@ -1,5 +1,3 @@
-export type PasskeyDerivationMethod = 'prf' | 'userHandle';
-
 export type Base64String = string;
 
 export type Base64URLString = string;
@@ -13,23 +11,59 @@ export type AuthenticatorTransportFuture =
   | 'smart-card'
   | 'usb';
 
-export type PasskeyRecord = {
-  /** WebAuthn credential ID (base64url) */
-  credentialId: Base64URLString;
-  /** PRF or userHandle */
-  derivationMethod: PasskeyDerivationMethod;
-  /** AES-GCM IV for the encryption operation */
-  iv: Base64String;
-  /** PRF salt (present when derivationMethod === 'prf') */
-  prfSalt?: Base64URLString;
-  /** vault key encrypted with passkey-derived key */
-  encryptedVaultKey: Base64String;
-  /** Credential public key for signature verification (base64url-encoded COSE key) */
+/**
+ * WebAuthn credential metadata used to identify the passkey and verify
+ * subsequent assertions.
+ */
+export type PasskeyCredentialInfo = {
+  /** WebAuthn credential ID (base64url). */
+  id: Base64URLString;
+  /** COSE-encoded credential public key (base64url) used to verify assertions. */
   publicKey: Base64URLString;
-  /** Authenticator signature counter for replay detection */
+  /** Authenticator signature counter for replay/clone detection. */
   counter: number;
-  /** Authenticator transports for allowCredentials hints */
+  /** Authenticator transports hint for `allowCredentials`. */
   transports?: AuthenticatorTransportFuture[];
+};
+
+/**
+ * Vault key wrapped under the passkey-derived AES-256-GCM key.
+ */
+export type EncryptedVaultKey = {
+  /** Base64-encoded AES-256-GCM ciphertext of the vault key. */
+  ciphertext: Base64String;
+  /** Base64-encoded AES-GCM IV used during encryption. */
+  iv: Base64String;
+};
+
+/**
+ * Parameters needed to reproduce the AES-256 wrapping key at unlock time.
+ *
+ * Encoded as a discriminated union so PRF-only fields (e.g. `prfSalt`) can
+ * only exist on the PRF branch, removing the "optional but actually
+ * required" footgun.
+ */
+export type PasskeyKeyDerivation =
+  | {
+      method: 'prf';
+      /**
+       * PRF salt sent in `get()` extension options to reproduce the same PRF
+       * output that was generated at registration.
+       */
+      prfSalt: Base64URLString;
+    }
+  | { method: 'userHandle' };
+
+/** Discriminator value for {@link PasskeyKeyDerivation}. */
+export type PasskeyDerivationMethod = PasskeyKeyDerivation['method'];
+
+export type PasskeyRecord = {
+  /** WebAuthn credential metadata used for assertion verification & re-discovery. */
+  credential: PasskeyCredentialInfo;
+  /** Vault key wrapped under the passkey-derived key. */
+  encryptedVaultKey: EncryptedVaultKey;
+  /** How the wrapping key is reconstructed at unlock time. */
+  keyDerivation: PasskeyKeyDerivation;
 };
 
 /**

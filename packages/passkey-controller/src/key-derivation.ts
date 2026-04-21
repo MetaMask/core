@@ -1,4 +1,5 @@
 import type {
+  PasskeyKeyDerivation,
   PasskeyRecord,
   PasskeyRegistrationCeremony,
   PrfClientExtensionResults,
@@ -23,38 +24,39 @@ import type {
  *   `navigator.credentials.create()`.
  * @param registrationCeremony - In-flight registration ceremony state from
  *   when `generateRegistrationOptions()` was called.
- * @returns The derived 32-byte AES wrapping key and which derivation
- *   method (PRF vs userHandle) was used.
+ * @returns The derived 32-byte AES wrapping key and the
+ *   {@link PasskeyKeyDerivation} parameters needed to reproduce it.
  */
 export function deriveKeyFromRegistrationResponse(
   registrationResponse: PasskeyRegistrationResponse,
   registrationCeremony: PasskeyRegistrationCeremony,
 ): {
   encKey: Uint8Array;
-  derivationMethod: 'prf' | 'userHandle';
+  keyDerivation: PasskeyKeyDerivation;
 } {
   const credentialId = registrationResponse.id;
-  const prf = (
+  const prfFirst = (
     registrationResponse.clientExtensionResults as PrfClientExtensionResults
-  )?.prf;
-  const prfFirst = prf?.results?.first;
+  )?.prf?.results?.first;
   const hasPrfOutput = typeof prfFirst === 'string' && prfFirst.length > 0;
-  const derivationMethod: 'prf' | 'userHandle' = hasPrfOutput
-    ? 'prf'
-    : 'userHandle';
-  const ikm: Uint8Array =
-    derivationMethod === 'prf'
+
+  const keyDerivation: PasskeyKeyDerivation = hasPrfOutput
+    ? { method: 'prf', prfSalt: registrationCeremony.prfSalt }
+    : { method: 'userHandle' };
+  const ikm =
+    keyDerivation.method === 'prf'
       ? base64URLToBytes(prfFirst as string)
       : base64URLToBytes(registrationCeremony.userHandle);
   const encKey = deriveEncryptionKey(ikm, base64URLToBytes(credentialId));
-  return { encKey, derivationMethod };
+
+  return { encKey, keyDerivation };
 }
 
 /**
  * Derives an AES-256 wrapping key from a WebAuthn authentication ceremony
  * response.
  *
- * The derivation method is determined by the stored `PasskeyRecord`:
+ * The derivation method is determined by `record.keyDerivation`:
  * - `prf` -- uses the PRF evaluation result from `clientExtensionResults`.
  * - `userHandle` -- uses the `userHandle` returned in the assertion.
  *
@@ -76,7 +78,7 @@ export function deriveKeyFromAuthenticationResponse(
   )?.prf?.results?.first;
 
   let ikm: Uint8Array;
-  if (record.derivationMethod === 'prf') {
+  if (record.keyDerivation.method === 'prf') {
     ikm = base64URLToBytes(prfFirst as string);
   } else if (userHandle) {
     ikm = base64URLToBytes(userHandle);
@@ -84,5 +86,5 @@ export function deriveKeyFromAuthenticationResponse(
     throw new Error('Passkey assertion missing required key material');
   }
 
-  return deriveEncryptionKey(ikm, base64URLToBytes(record.credentialId));
+  return deriveEncryptionKey(ikm, base64URLToBytes(record.credential.id));
 }
