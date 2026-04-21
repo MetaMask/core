@@ -780,7 +780,7 @@ export class AssetsController extends BaseController<
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      getNativeAssetForChain: (chainId: string): string | undefined =>
+      getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
         this.#getNativeAssetMap()[chainId],
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
@@ -792,7 +792,7 @@ export class AssetsController extends BaseController<
     });
     this.#tokenDataSource = new TokenDataSource(this.messenger, {
       queryApiClient,
-      getNativeAssetIds: (): string[] => {
+      getNativeAssetIds: (): Caip19AssetId[] => {
         return this.#getNativeAssetIdsForEnabledChains();
       },
     });
