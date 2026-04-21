@@ -219,20 +219,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       'TransactionController:transactionStatusUpdated',
       ({ txMeta, historyKey, historyItem }) => {
         if (!txMeta) {
-          console.error(
-            '======TransactionController:transactionStatusUpdated NOT FOUND',
-          );
           return;
         }
         const { type, hash, status, id, actionId, batchId } = txMeta;
-        console.error('======TransactionController:transactionStatusUpdated', {
-          type,
-          hash,
-          status,
-          id,
-          actionId,
-          batchId,
-        });
 
         // Allow event publishing if the txMeta is a swap/bridge OR if the
         // corresponding history item exists
@@ -253,7 +242,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           (!isSwapOrBridgeTransaction && !historyKey && !historyItem) ||
           isApprovalConfirmation
         ) {
-          console.error('======approval tx confirmed');
           return;
         }
 
@@ -335,8 +323,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyKey,
       txHash: txMeta.hash,
     });
-    console.log('======TransactionController:transactionConfirmed', txMeta);
-
     switch (txMeta.type) {
       case TransactionType.swap:
         this.#updateHistoryItem({

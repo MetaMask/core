@@ -5734,17 +5734,6 @@ describe('BridgeStatusController', () => {
         expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
           [
             [
-              "======TransactionController:transactionStatusUpdated",
-              {
-                "actionId": undefined,
-                "batchId": undefined,
-                "hash": undefined,
-                "id": "perpsBridgeTxMetaId1",
-                "status": "confirmed",
-                "type": "bridge",
-              },
-            ],
-            [
               "Error getting JWT token for bridge-api request",
               [Error: AuthenticationController:getBearerToken not implemented],
             ],
