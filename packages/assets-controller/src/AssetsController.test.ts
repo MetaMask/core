@@ -1117,6 +1117,7 @@ describe('AssetsController', () => {
             lastUpdated: 1_700_000_000_000,
           },
         },
+        assetsInfo: {},
         selectedCurrency: 'eur',
       };
 

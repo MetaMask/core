@@ -295,7 +295,7 @@ describe('formatStateForTransactionPay', () => {
         [ACCOUNT_1.id]: { [ETH_NATIVE_ID]: { amount: '100' } },
         [account2.id]: { [ETH_NATIVE_ID]: { amount: '200' } },
       },
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {},
       selectedCurrency: 'usd',
       nativeAssetIdentifiers: EVM_NATIVE_IDS,
@@ -347,6 +347,7 @@ describe('formatStateForTransactionPay', () => {
         },
       },
       assetsInfo: {
+        [ETH_NATIVE_ID]: ETH_NATIVE_METADATA,
         [USDC_ASSET_ID]: {
           type: 'erc20',
           decimals: 6,
