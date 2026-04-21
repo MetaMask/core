@@ -835,10 +835,10 @@ export class AssetsController extends BaseController<
 
   #initializeNativeAssetsMap(queryApiClient: ApiPlatformClient): void {
     const buildNativeAssetsFromConstant = (): Record<
-      CaipChainId,
+      ChainId,
       Caip19AssetId
     > => {
-      const nativeAssetsMap: Record<CaipChainId, Caip19AssetId> = {};
+      const nativeAssetsMap: Record<ChainId, Caip19AssetId> = {};
       for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
         const { chainId } = parseCaipAssetType(nativeAssetId);
         nativeAssetsMap[chainId] = nativeAssetId;
@@ -849,7 +849,7 @@ export class AssetsController extends BaseController<
     queryApiClient.queryClient
       .fetchQuery({
         queryKey: NATIVE_ASSETS_QUERY_KEY,
-        queryFn: async (): Promise<Record<CaipChainId, Caip19AssetId>> => {
+        queryFn: async (): Promise<Record<ChainId, Caip19AssetId>> => {
           // TODO: Build from backend API when it is available.
           return buildNativeAssetsFromConstant();
         },
@@ -1787,9 +1787,9 @@ export class AssetsController extends BaseController<
    *
    * @returns Cached map, or empty object if not yet populated.
    */
-  #getNativeAssetMap(): Record<CaipChainId, Caip19AssetId> {
+  #getNativeAssetMap(): Record<ChainId, Caip19AssetId> {
     return (
-      this.#queryApiClient.getCachedData<Record<CaipChainId, Caip19AssetId>>(
+      this.#queryApiClient.getCachedData<Record<ChainId, Caip19AssetId>>(
         NATIVE_ASSETS_QUERY_KEY,
       ) ?? {}
     );

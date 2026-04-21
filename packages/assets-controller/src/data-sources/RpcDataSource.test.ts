@@ -213,7 +213,7 @@ async function withController<ReturnValue>(
     registerRpcDataSourceActions(rootMessenger, { networkState });
   }
 
-  const defaultNativeAssetMap: Record<string, string> = {
+  const defaultNativeAssetMap: Record<ChainId, Caip19AssetId> = {
     [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
   };
 
@@ -221,7 +221,7 @@ async function withController<ReturnValue>(
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
-    getNativeAssetForChain: (chainId: string): string | undefined =>
+    getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
       defaultNativeAssetMap[chainId],
     ...options,
   });
