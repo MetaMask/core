@@ -64,10 +64,6 @@ export class Wallet {
   createProviderRpc(args) {
     return createProviderRpc({
       messenger: this.messenger,
-      createPermissionMiddleware:
-        this.#instances.PermissionController.createPermissionMiddleware.bind(
-          this.#instances.PermissionController,
-        ),
       ...args,
     });
   }

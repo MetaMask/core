@@ -55,7 +55,10 @@ export function initialize({
 
   Object.values(castInstances).forEach((instance) => {
     if ('init' in instance) {
-      instance.init().catch(console.error);
+      const potentialPromise = instance.init();
+      if (potentialPromise instanceof Promise) {
+        potentialPromise.catch(console.error);
+      }
     }
   });
 

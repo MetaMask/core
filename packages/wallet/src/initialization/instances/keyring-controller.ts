@@ -94,6 +94,7 @@ export const keyringController: InitializationConfiguration<
         'SnapController:handleRequest',
         'SnapController:getSnap',
         'AccountsController:updateAccounts',
+        'SnapController:isMinimumPlatformVersion',
       ],
     });
 

@@ -5,6 +5,11 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
+import {
+  CaipAccountId,
+  CaipChainId,
+  parseCaipAccountId,
+} from '@metamask/utils';
 
 import { Wallet } from './Wallet';
 
@@ -73,4 +78,60 @@ export async function sendTransaction(
   await wallet.messenger.call('ApprovalController:acceptRequest', approvalId);
 
   return { transactionMeta, result };
+}
+
+/**
+ * Sign a Solana transaction using the wallet.
+ *
+ * @param wallet - The wallet object.
+ * @param scope - The CAIP-2 scope.
+ * @param address - The CAIP-10 address.
+ * @param transaction - A base64 encoded Solana transaction.
+ * @returns The result.
+ */
+export async function signSolanaTransaction(
+  wallet: Wallet,
+  scope: CaipChainId,
+  address: CaipAccountId,
+  transaction: string,
+): Promise<{ signedTransaction: string }> {
+  const promise = wallet.messenger.call(
+    'MultichainRoutingService:handleRequest',
+    {
+      origin: 'metamask',
+      connectedAddresses: [address],
+      scope,
+      request: {
+        method: 'signTransaction',
+        params: {
+          account: {
+            address: parseCaipAccountId(address).address,
+          },
+          transaction,
+          scope,
+        },
+      },
+    },
+  );
+
+  // TODO: Figure out a better way to do this.
+  const approval = await new Promise((resolve) => {
+    wallet.messenger.subscribe(
+      'ApprovalController:stateChange',
+      (approvals) => {
+        if (approvals.length > 0) {
+          resolve(approvals[0]);
+        }
+      },
+      (state) => Object.values(state.pendingApprovals),
+    );
+  });
+
+  await wallet.messenger.call(
+    'ApprovalController:acceptRequest',
+    approval.id,
+    true,
+  );
+
+  return promise;
 }
