@@ -213,6 +213,8 @@ export class TokensController extends BaseController<
 
   static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
 
+  #enrichIntervalId: ReturnType<typeof setInterval> | undefined;
+
   /**
    * Tokens controller options
    *
@@ -268,7 +270,7 @@ export class TokensController extends BaseController<
     this.#enrichTokenMetadata().catch(() => {
       // Silently handle enrichment errors on startup
     });
-    setInterval(() => {
+    this.#enrichIntervalId = setInterval(() => {
       this.#enrichTokenMetadata().catch(() => {
         // Silently handle enrichment errors
       });
@@ -456,7 +458,7 @@ export class TokensController extends BaseController<
             token.name = cachedToken.name;
             hasChanges = true;
           }
-          if (cachedToken.rwaData) {
+          if (cachedToken.rwaData && !token.rwaData) {
             token.rwaData = cachedToken.rwaData;
             hasChanges = true;
           }
@@ -579,6 +581,15 @@ export class TokensController extends BaseController<
       this.update((state) => {
         Object.assign(state, newState);
       });
+
+      // Only enrich if the token ended up without rwaData (i.e. caller didn't
+      // provide it and the single-token metadata endpoint didn't return it).
+      if (!newEntry.rwaData) {
+        this.#enrichTokenMetadata().catch(() => {
+          // Silently handle enrichment errors
+        });
+      }
+
       return newTokens;
     } finally {
       releaseLock();
@@ -657,6 +668,14 @@ export class TokensController extends BaseController<
         state.allDetectedTokens = newAllDetectedTokens;
         state.allIgnoredTokens = newAllIgnoredTokens;
       });
+
+      // Only enrich if any token in the batch is missing rwaData.
+      const needsEnrichment = tokensToImport.some((token) => !token.rwaData);
+      if (needsEnrichment) {
+        this.#enrichTokenMetadata().catch(() => {
+          // Silently handle enrichment errors
+        });
+      }
     } finally {
       releaseLock();
     }
@@ -1220,6 +1239,15 @@ export class TokensController extends BaseController<
       this.#selectedAccountId,
     );
     return account?.address ?? '';
+  }
+
+  override destroy(): void {
+    super.destroy();
+    if (this.#enrichIntervalId !== undefined) {
+      clearInterval(this.#enrichIntervalId);
+      this.#enrichIntervalId = undefined;
+    }
+    this.#abortController.abort();
   }
 
   /**
