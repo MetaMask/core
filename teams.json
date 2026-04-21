@@ -5,6 +5,7 @@
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
+  "metamask/authenticated-user-storage": "team-auth-engineers",
   "metamask/profile-sync-controller": "team-accounts-framework",
   "metamask/ramps-controller": "team-money-movement",
   "metamask/assets-controller": "team-assets",
@@ -77,5 +78,6 @@
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
   "metamask/config-registry-controller": "team-networks",
-  "metamask/money-account-controller": "team-accounts-framework"
+  "metamask/money-account-controller": "team-accounts-framework",
+  "metamask/money-account-upgrade-controller": "team-earn"
 }
