@@ -80,7 +80,7 @@ const PerpsPreferenceSchema = type({
 const SocialAIPreferenceSchema = type({
   enabled: boolean(),
   txAmountLimit: optional(number()),
-  traderProfileIds: array(string()),
+  mutedTraderProfileIds: array(string()),
 });
 
 const NotificationPreferencesSchema = type({

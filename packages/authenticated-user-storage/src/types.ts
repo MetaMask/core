@@ -96,7 +96,7 @@ export type PerpsPreference = {
 export type SocialAIPreference = {
   enabled: boolean;
   txAmountLimit?: number;
-  traderProfileIds: string[];
+  mutedTraderProfileIds: string[];
 };
 
 /** Notification preferences for the authenticated user. */
