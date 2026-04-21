@@ -203,7 +203,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #selectedAccountId: string;
 
-  readonly #tokenListCache = new Map<Hex, { data: TokenListMap; timestamp: number }>();
+  readonly #tokenListCache = new Map<
+    Hex,
+    { data: TokenListMap; timestamp: number }
+  >();
 
   static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
 

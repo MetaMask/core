@@ -206,7 +206,10 @@ export class TokensController extends BaseController<
 
   readonly #abortController: AbortController;
 
-  readonly #tokenListCache = new Map<Hex, { data: TokenListMap; timestamp: number }>();
+  readonly #tokenListCache = new Map<
+    Hex,
+    { data: TokenListMap; timestamp: number }
+  >();
 
   static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
 
