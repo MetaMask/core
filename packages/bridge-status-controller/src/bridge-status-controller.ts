@@ -662,7 +662,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     } else {
       this.#trackPollingStatusUpdatedEvent(
         bridgeTxMetaId,
-        PollingStatus.StaleTransactionHash,
+        PollingStatus.InvalidTransactionHash,
       );
       // Delete the history item so polling doesn't start over on the next restart
       this.#deleteHistoryItem(bridgeTxMetaId);

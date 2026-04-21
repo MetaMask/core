@@ -27,7 +27,7 @@ export enum UnifiedSwapBridgeEventName {
 
 export enum PollingStatus {
   MaxPollingReached = 'max_polling_reached',
-  StaleTransactionHash = 'stale_transaction_hash',
+  InvalidTransactionHash = 'invalid_transaction_hash',
   ManuallyRestarted = 'manually_restarted',
 }
 
