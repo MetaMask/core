@@ -117,6 +117,86 @@ describe('AcrossStrategy', () => {
     ).toBe(true);
   });
 
+  it('ignores synthetic gas legs for supported perps direct deposits', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress:
+              '0x0000000000000000000000000000000000000000' as Hex,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when all requests are synthetic zero-minimum legs', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress:
+              '0x0000000000000000000000000000000000000000' as Hex,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('treats max-amount requests as actionable even with zero minimums', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            isMaxAmount: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1' as Hex,
+            sourceTokenAddress: '0xabc' as Hex,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2' as Hex,
+            targetTokenAddress: '0xdef' as Hex,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it('returns false for unsupported perps deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
