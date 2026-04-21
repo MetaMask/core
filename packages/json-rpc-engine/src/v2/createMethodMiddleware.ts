@@ -27,7 +27,7 @@ type HandlerHooks<Handler> = Handler extends {
   : never;
 
 export type MethodHandler<
-  Hooks extends Record<string, unknown> = Record<string, unknown>,
+  Hooks extends Record<string, unknown> = never,
   MessengerActions extends ActionConstraint = never,
   Parameters extends JsonRpcParams = JsonRpcParams,
   Result extends Json = Json,
@@ -40,9 +40,12 @@ export type MethodHandler<
     messenger: Messenger<string, MessengerActions>;
     hooks: Hooks;
   }) => Promise<Result> | Result;
-  hookNames?: { [Key in keyof Hooks]: true };
-  actionNames?: MessengerActions['type'][];
-};
+} & ([Hooks] extends [never]
+  ? { hookNames?: undefined }
+  : { hookNames: { [Key in keyof Hooks]: true } }) &
+  ([MessengerActions] extends [never]
+    ? { actionNames?: undefined }
+    : { actionNames: MessengerActions['type'][] });
 
 type AnyMethodHandler = {
   implementation(
