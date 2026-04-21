@@ -1817,7 +1817,7 @@ export class AssetsController extends BaseController<
     }
 
     if (
-      parsed.assetNamespace === 'eip155' &&
+      parsed.assetNamespace === 'erc20' &&
       parsed.assetReference === ZERO_ADDRESS
     ) {
       return true;
