@@ -5,10 +5,10 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
+import { assert } from '@metamask/utils';
 
 import { encryptorFactory } from '../../encryption';
 import { InitializationConfiguration } from '../types';
-import { assert } from '@metamask/utils';
 
 const createSnapKeyringBuilder = (messenger: KeyringControllerMessenger) => {
   const SnapKeyringBuilder = (() => {
@@ -16,9 +16,16 @@ const createSnapKeyringBuilder = (messenger: KeyringControllerMessenger) => {
       messenger,
       // TODO: Partial implementation.
       callbacks: {
-        addAccount: (_address: string, snapId: string, handleUserInput: (accepted: boolean) => Promise<void>) => {
+        addAccount: (
+          _address: string,
+          snapId: string,
+          handleUserInput: (accepted: boolean) => Promise<void>,
+        ) => {
           // TODO: Improve check.
-          assert(snapId.startsWith('npm:@metamask/'), 'Preinstalled Snaps only allowed for now.');
+          assert(
+            snapId.startsWith('npm:@metamask/'),
+            'Preinstalled Snaps only allowed for now.',
+          );
           return handleUserInput(true);
         },
         addressExists: async (address: string) => {

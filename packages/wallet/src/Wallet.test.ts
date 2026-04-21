@@ -76,7 +76,7 @@ describe('Wallet', () => {
       '0xc6d5a3c98ec9073b54fa0969957bd582e8d874bf',
       'CYWSQQ2iiFL6EZzuqvMM9o22CZX3N8PowvvkpBXqLK4e',
       'bc1quezrxxup6e9u62xusarwd3dd9kqp4lzawm4hpw',
-      'TFSzU7EqVpZipKvPcUFtoNsHbx6DFzkAma'
+      'TFSzU7EqVpZipKvPcUFtoNsHbx6DFzkAma',
     ]);
   });
 
