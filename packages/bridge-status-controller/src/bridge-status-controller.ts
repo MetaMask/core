@@ -66,6 +66,7 @@ import {
   shouldPollHistoryItem,
   incrementPollingAttempts,
   isHistoryItemTooOld,
+  getMatchingHistoryEntryForApprovalTxMeta,
 } from './utils/history';
 import {
   getIntentFromQuote,
@@ -103,6 +104,7 @@ import {
   getTransactions,
   submitEvmTransaction,
   checkIsDelegatedAccount,
+  isCrossChainTx,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -214,45 +216,35 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyKey?: string;
         historyItem?: BridgeHistoryItem;
         txMeta: TransactionMeta;
+        isApprovalTxMeta: boolean;
       }
     >(
       'TransactionController:transactionStatusUpdated',
-      ({ txMeta, historyKey, historyItem }) => {
+      ({ txMeta, historyKey, historyItem, isApprovalTxMeta }) => {
         if (!txMeta) {
           return;
         }
-        const { type, hash, status, id, actionId, batchId } = txMeta;
+        const { type, status } = txMeta;
 
         // Allow event publishing if the txMeta is a swap/bridge OR if the
         // corresponding history item exists
-        const isSwapOrBridgeTransaction =
-          type &&
-          [
-            TransactionType.swap,
-            TransactionType.bridge,
-            TransactionType.swapApproval,
-            TransactionType.bridgeApproval,
-          ].includes(type);
-
-        const isApprovalConfirmation =
-          txMeta.id === historyItem?.approvalTxId &&
-          status === TransactionStatus.confirmed;
-
-        if (
-          (!isSwapOrBridgeTransaction && !historyKey && !historyItem) ||
-          isApprovalConfirmation
-        ) {
+        const isSwapOrBridgeTransaction = type && isCrossChainTx(type);
+        if (!isSwapOrBridgeTransaction && !historyKey && !historyItem) {
           return;
         }
 
         switch (status) {
           case TransactionStatus.confirmed:
-            this.#onTransactionConfirmed({ txMeta, historyKey });
+            this.#onTransactionConfirmed({
+              txMeta,
+              historyKey,
+              isApprovalTxMeta,
+            });
             break;
           case TransactionStatus.failed:
           case TransactionStatus.dropped:
           case TransactionStatus.rejected:
-            this.#onTransactionFailed({ txMeta, historyKey });
+            this.#onTransactionFailed({ txMeta, historyKey, isApprovalTxMeta });
             break;
           default:
             break;
@@ -263,11 +255,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.state.txHistory,
           transactionMeta,
         );
+        const approvalEntry = getMatchingHistoryEntryForApprovalTxMeta(
+          this.state.txHistory,
+          transactionMeta,
+        );
+        const entryToUse = entry ?? approvalEntry;
 
         return {
-          historyKey: entry?.[0],
-          historyItem: entry?.[1],
+          historyKey: entryToUse?.[0],
+          historyItem: entryToUse?.[1],
           txMeta: transactionMeta,
+          isApprovalTxMeta:
+            entryToUse?.[1]?.approvalTxId === transactionMeta.id,
         };
       },
     );
@@ -281,9 +280,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #onTransactionFailed = ({
     txMeta,
     historyKey,
+    isApprovalTxMeta,
   }: {
     txMeta: TransactionMeta;
     historyKey?: string;
+    isApprovalTxMeta: boolean;
   }): void => {
     // Check if the history item is already marked as a failure
     const isHistoryItemAlreadyFailed = historyKey
@@ -293,11 +294,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#updateHistoryItem({
       historyKey,
       status: StatusTypes.FAILED,
-      txHash:
-        txMeta.type &&
-        [TransactionType.bridge, TransactionType.swap].includes(txMeta.type)
-          ? txMeta.hash
-          : undefined,
+      txHash: isApprovalTxMeta ? undefined : txMeta.hash,
     });
 
     if (txMeta.status === TransactionStatus.rejected) {
@@ -326,14 +323,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #onTransactionConfirmed = ({
     txMeta,
     historyKey,
+    isApprovalTxMeta,
   }: {
     txMeta: TransactionMeta;
     historyKey?: string;
+    isApprovalTxMeta: boolean;
   }): void => {
+    // Return early if the confirmed txMeta is for an approval since we
+    // still need to wait for the trade to be confirmed
+    if (isApprovalTxMeta) {
+      return;
+    }
+
     this.#updateHistoryItem({
       historyKey,
       txHash: txMeta.hash,
     });
+
     switch (txMeta.type) {
       case TransactionType.swap:
         this.#updateHistoryItem({
@@ -570,7 +576,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     const txHistoryItem = this.state.txHistory[txId];
-    if (shouldPollHistoryItem(txHistoryItem)) {
+    if (txHistoryItem && shouldPollHistoryItem(txHistoryItem)) {
       this.#pollingTokensByTxMetaId[txId] = this.startPolling({
         bridgeTxMetaId: txId,
       });
@@ -717,7 +723,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
         // Throw errors to increase polling attempts counter
         if (isHistoryItemTooOld(this.messenger, historyItem)) {
-          throw new Error(`History item is too old: ${bridgeTxMetaId}}`);
+          throw new Error(`History item is too old: ${bridgeTxMetaId}`);
         }
 
         if (!srcTxHash) {
@@ -840,7 +846,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       srcTxHash ||
       isNonEvmChainId(txHistory[bridgeTxMetaId].quote.srcChainId)
     ) {
-      // throw new Error(`Src tx hash not found for non-EVM chain: ${srcTxHash}`);
       return srcTxHash;
     }
 

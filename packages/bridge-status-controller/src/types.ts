@@ -116,7 +116,7 @@ export type BridgeHistoryItem = {
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
-  startTime?: number; // timestamp in ms
+  startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
   completionTime?: number; // timestamp in ms
@@ -225,7 +225,7 @@ export type StartPollingForBridgeTxStatusArgs = {
    */
   originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
-  startTime?: BridgeHistoryItem['startTime'];
+  startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];

@@ -5,7 +5,7 @@ import { BridgeStatusControllerMessenger } from '../types';
 
 export const getMaxPendingHistoryItemAgeMs = (
   messenger: BridgeStatusControllerMessenger,
-) => {
+): number => {
   const bridgeFeatureFlags = getBridgeFeatureFlags(messenger);
   return (
     bridgeFeatureFlags.maxPendingHistoryItemAgeMs ??

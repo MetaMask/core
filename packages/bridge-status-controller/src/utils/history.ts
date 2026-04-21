@@ -41,7 +41,7 @@ export const rekeyHistoryItemInState = (
 };
 
 /**
- * Returns the history entry that matches the txMeta by id, actionId, batchId, txHash, or approvalTxId
+ * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
  *
  * @param txHistory - The transaction history
  * @param txMeta - The transaction meta
@@ -58,7 +58,6 @@ export const getMatchingHistoryEntryForTxMeta = (
       txMetaId,
       actionId,
       batchId,
-      approvalTxId,
       status: {
         srcChain: { txHash },
       },
@@ -67,12 +66,29 @@ export const getMatchingHistoryEntryForTxMeta = (
       key === txMeta.id ||
       key === txMeta.actionId ||
       txMetaId === txMeta.id ||
-      (actionId && actionId === txMeta.actionId) ||
-      (batchId && batchId === txMeta.batchId) ||
-      (txHash && txHash.toLowerCase() === txMeta.hash?.toLowerCase()) ||
-      (approvalTxId && approvalTxId === txMeta.id)
+      (actionId ? actionId === txMeta.actionId : false) ||
+      (batchId ? batchId === txMeta.batchId : false) ||
+      (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
     );
   });
+};
+
+/**
+ * Returns the history entry whose approvalTxId matches the approval transaction
+ *
+ * @param txHistory - The transaction history
+ * @param txMeta - The transaction meta
+ * @returns The history entry that matches the txMeta
+ */
+export const getMatchingHistoryEntryForApprovalTxMeta = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txMeta: TransactionMeta,
+): [string, BridgeHistoryItem] | undefined => {
+  const historyEntries = Object.entries(txHistory);
+
+  return historyEntries.find(([_, value]) =>
+    value.approvalTxId ? value.approvalTxId === txMeta.id : false,
+  );
 };
 
 /**
@@ -196,11 +212,7 @@ export const isHistoryItemTooOld = (
 ): boolean => {
   const maxPendingHistoryItemAgeMs = getMaxPendingHistoryItemAgeMs(messenger);
 
-  const isWithinMaxPendingHistoryItemAgeMs = historyItem.startTime
-    ? Date.now() - historyItem.startTime <= maxPendingHistoryItemAgeMs
-    : false;
-
-  return !isWithinMaxPendingHistoryItemAgeMs;
+  return Date.now() - historyItem.startTime > maxPendingHistoryItemAgeMs;
 };
 
 export const incrementPollingAttempts = (
