@@ -25,7 +25,7 @@ export type PermissionMiddlewareActions =
   | PermissionControllerExecuteRestrictedMethodAction
   | PermissionControllerHasUnrestrictedMethodAction;
 
-type CreatePermissionMiddlewareOptions = {
+export type CreatePermissionMiddlewareOptions = {
   messenger: Messenger<string, PermissionMiddlewareActions>;
   subject: PermissionSubjectMetadata;
 };

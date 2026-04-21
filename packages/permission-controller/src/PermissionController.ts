@@ -666,7 +666,10 @@ export class PermissionController<
   }
 
   /**
-   * Checks whether the given method is an unrestricted method.
+   * Checks whether the given method was declared as unrestricted at
+   * construction time. Methods unknown to the controller return `false` and
+   * would be treated as restricted by callers such as the permission
+   * middleware.
    *
    * @param method - The name of the method to check.
    * @returns Whether the method is unrestricted.
@@ -1014,7 +1017,7 @@ export class PermissionController<
   /**
    * Revokes all permissions from the specified origin.
    *
-   * Throws an error of the origin has no permissions.
+   * Throws an error if the origin has no permissions.
    *
    * @param origin - The origin whose permissions to revoke.
    */

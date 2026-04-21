@@ -73,7 +73,7 @@ export type PermissionControllerHasPermissionsAction = {
 /**
  * Revokes all permissions from the specified origin.
  *
- * Throws an error of the origin has no permissions.
+ * Throws an error if the origin has no permissions.
  *
  * @param origin - The origin whose permissions to revoke.
  */

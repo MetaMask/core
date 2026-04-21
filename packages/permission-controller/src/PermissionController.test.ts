@@ -6220,6 +6220,66 @@ describe('PermissionController', () => {
           .caveats[0],
       );
     });
+
+    it('action: PermissionController:hasUnrestrictedMethod', () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      // eslint-disable-next-line no-new
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          'wallet_unrestrictedMethod',
+        ),
+      ).toBe(true);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          PermissionNames.wallet_getSecretArray,
+        ),
+      ).toBe(false);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          'wallet_unknownMethod',
+        ),
+      ).toBe(false);
+    });
+
+    it('action: PermissionController:executeRestrictedMethod', async () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {},
+        },
+      });
+
+      const result = await messenger.call(
+        'PermissionController:executeRestrictedMethod',
+        origin,
+        PermissionNames.wallet_getSecretArray,
+      );
+
+      expect(result).toStrictEqual(['a', 'b', 'c']);
+    });
   });
 
   describe('permission middleware', () => {
@@ -6599,6 +6659,133 @@ describe('PermissionController', () => {
           }),
         ).rejects.toThrow(
           'Unauthorized to perform action. Try requesting the required permission(s) first.',
+        );
+      });
+
+      it('executes a restricted method with a caveat', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['b'] },
+              ],
+            },
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['b']);
+      });
+
+      it('executes a restricted method with multiple caveats', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['a', 'c'] },
+                { type: CaveatTypes.reverseArrayResponse, value: null },
+              ],
+            },
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['c', 'a']);
+      });
+
+      it('throws if the method does not exist', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'wallet_foo',
+          }),
+        ).rejects.toThrow(errors.methodNotFound('wallet_foo', { origin }));
+      });
+
+      it('throws if the restricted method returns undefined', async () => {
+        const permissionSpecifications = getDefaultPermissionSpecifications();
+        // @ts-expect-error Intentional destructive testing
+        permissionSpecifications.wallet_doubleNumber.methodImplementation =
+          (): undefined => undefined;
+
+        const { controller, middlewareMessenger } = setup({
+          permissionSpecifications,
+        });
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_doubleNumber]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              subject: { origin },
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: PermissionNames.wallet_doubleNumber,
+          }),
+        ).rejects.toThrow(
+          `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
         );
       });
     });

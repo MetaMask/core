@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Decouple the permission middleware from `PermissionController` and expose it as a standalone function ([#8532](https://github.com/MetaMask/core/pull/8532))
-  - Removes the `createPermissionMiddleware` property from `PermissionController`. Consumers should instead import `createPermissionMiddlewareV2` from `@metamask/permission-controller` and call it with a messenger and subject metadata.
-  - A `createPermissionMiddleware` function is exported for legacy `JsonRpcEngine` compatibility.
+  - The standalone `createPermissionMiddleware` replaces the former `PermissionController.prototype.createPermissionMiddleware`; it is imported from `@metamask/permission-controller` and called with a messenger and subject metadata, and targets the legacy `JsonRpcEngine`.
+  - New integrations should prefer `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2`.
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
