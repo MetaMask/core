@@ -193,7 +193,11 @@ describe('formatExchangeRatesForBridge', () => {
     const result = formatExchangeRatesForBridge({
       assetsInfo: {
         [ethNativeId]: NATIVE_METADATA,
-        [usdcId]: { type: 'erc20', decimals: 6, symbol: 'USDC' } as AssetMetadata,
+        [usdcId]: {
+          type: 'erc20',
+          decimals: 6,
+          symbol: 'USDC',
+        } as AssetMetadata,
       },
       assetsPrice: {
         [ethNativeId]: price({ price: 2000 }),
