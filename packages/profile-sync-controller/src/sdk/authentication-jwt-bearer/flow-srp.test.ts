@@ -218,6 +218,32 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     expect(token).toBe(validJwt);
     expect(mockGetNonce).not.toHaveBeenCalled();
   });
+
+  it('forces re-login when cached session is missing canonicalProfileId', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ exp: futureExp }));
+    const validJwt = `${header}.${payload}.fake-sig`;
+
+    const { auth, store } = createAuth();
+    store.value = {
+      profile: {
+        profileId: 'p1',
+        metaMetricsId: 'm1',
+        identifierId: 'i1',
+        canonicalProfileId: '',
+      },
+      token: {
+        accessToken: validJwt,
+        expiresIn: 86400,
+        obtainedAt: Date.now(),
+      },
+    };
+
+    const token = await auth.getAccessToken();
+    expect(token).toBe('access');
+    expect(mockGetNonce).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('SRPJwtBearerAuth profileId resolution', () => {

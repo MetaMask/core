@@ -195,6 +195,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       return null;
     }
 
+    // get canonical profile id from server if not present in the cached session
+    if (!auth.profile.canonicalProfileId) {
+      return null;
+    }
+
     const currentTime = Date.now();
     const sessionAge = currentTime - auth.token.obtainedAt;
     const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;

@@ -791,6 +791,100 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('refreshCanonicalProfileId', () => {
+    it('should throw error if not logged in', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: { isSignedIn: false },
+        metametrics,
+      });
+
+      await expect(controller.refreshCanonicalProfileId()).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+
+    it('should call performSignIn and return canonical for multi-SRP wallets', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({
+        mockPairProfiles: {
+          status: 200,
+          body: {
+            profile: {
+              identifier_id: 'id-1',
+              metametrics_id: 'mm-1',
+              profile_id: 'fresh-canonical',
+            },
+            profile_aliases: [
+              {
+                alias_profile_id: 'p1',
+                canonical_profile_id: 'fresh-canonical',
+                identifier_ids: [{ id: 'h1', type: 'SRP' }],
+              },
+              {
+                alias_profile_id: 'p2',
+                canonical_profile_id: 'fresh-canonical',
+                identifier_ids: [{ id: 'h2', type: 'SRP' }],
+              },
+            ],
+          },
+        },
+      });
+      const { messenger } = createMockAuthenticationMessenger();
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      const canonical = await controller.refreshCanonicalProfileId();
+      expect(canonical).toBe('fresh-canonical');
+    });
+
+    it('should force re-login and return canonical for single-SRP wallets', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+
+      mockSnapGetAllPublicKeys.mockResolvedValue([
+        ['SINGLE_ENTROPY_SOURCE_ID', 'MOCK_PUBLIC_KEY'],
+      ]);
+
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      const canonical = await controller.refreshCanonicalProfileId();
+      expect(canonical).toBe(MOCK_LOGIN_RESPONSE.profile.profile_id);
+      expect(
+        controller.state.srpSessionData?.['SINGLE_ENTROPY_SOURCE_ID'],
+      ).toBeDefined();
+    });
+
+    it('should throw if snap returns no entropy sources', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+
+      mockSnapGetAllPublicKeys.mockResolvedValue([]);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await expect(controller.refreshCanonicalProfileId()).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+  });
+
   describe('getUserProfileMetaMetrics', () => {
     it('should throw error if not logged in', async () => {
       const metametrics = createMockAuthMetaMetrics();

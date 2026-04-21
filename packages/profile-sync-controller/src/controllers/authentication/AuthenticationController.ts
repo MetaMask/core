@@ -90,6 +90,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'performSignOut',
   'getBearerToken',
   'getSessionProfile',
+  'refreshCanonicalProfileId',
   'getUserProfileLineage',
   'isSignedIn',
 ] as const;
@@ -402,8 +403,12 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Will return a session profile.
-   * Logs a user in if a user is not logged in.
+   * Returns the cached session profile, logging in if no session exists.
+   *
+   * The returned `canonicalProfileId` reflects the value from the most recent
+   * login or pairing and may be stale if pairing occurred on another device
+   * since then. For guaranteed freshness, use `refreshCanonicalProfileId()`
+   * before calling this method.
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
@@ -416,6 +421,49 @@ export class AuthenticationController extends BaseController<
     const resolvedId =
       entropySourceId ?? (await this.#getPrimaryEntropySourceId());
     return await this.#auth.getUserProfile(resolvedId);
+  }
+
+  /**
+   * Forces a fresh retrieval of the canonical profile ID from the server
+   * and propagates it to all cached SRP sessions in `srpSessionData`.
+   *
+   * **This method is expensive.** For multi-SRP wallets it triggers a full
+   * `performSignIn` (N logins + pairing). For single-SRP wallets it
+   * invalidates the cached session and forces a re-login. Call this before
+   * any operation that requires a correct canonical (e.g. storage
+   * migrations, identity-critical analytics). For best-effort reads, use
+   * `getSessionProfile().canonicalProfileId` instead.
+   *
+   * @returns The refreshed canonical profile ID.
+   */
+  public async refreshCanonicalProfileId(): Promise<string> {
+    this.#assertIsUnlocked('refreshCanonicalProfileId');
+
+    const allPublicKeys = await this.#snapGetAllPublicKeys();
+
+    if (allPublicKeys.length >= 2) {
+      await this.performSignIn();
+    } else {
+      const primaryId = await this.#getPrimaryEntropySourceId();
+      this.#clearSrpSessionData(primaryId);
+      await this.#auth.getAccessToken(primaryId);
+    }
+
+    const canonical = this.#getCanonicalProfileId();
+    if (!canonical) {
+      throw new Error(
+        'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
+      );
+    }
+    return canonical;
+  }
+
+  #clearSrpSessionData(entropySourceId: string): void {
+    this.update((state) => {
+      if (state.srpSessionData?.[entropySourceId]) {
+        delete state.srpSessionData[entropySourceId];
+      }
+    });
   }
 
   public async getUserProfileLineage(
