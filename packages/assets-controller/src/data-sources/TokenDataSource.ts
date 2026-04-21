@@ -49,6 +49,8 @@ enum CaipAssetNamespace {
   Token = 'token',
 }
 
+const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
 // ============================================================================
 // OPTIONS
 // ============================================================================
@@ -419,7 +421,8 @@ export class TokenDataSource {
           evmErc20Ids.filter(
             (id) =>
               customAssetIds.has(id) ||
-              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES,
+              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
+              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
           ),
         );
 

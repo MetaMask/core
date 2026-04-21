@@ -53,7 +53,7 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   socialAI: {
     enabled: true,
     txAmountLimit: 100,
-    traderProfileIds: [
+    mutedTraderProfileIds: [
       'b3a7c9d1-4e2f-4a8b-9c6d-1f2e3a4b5c6d',
       'e8f2a1b3-5c4d-4e6f-8a9b-2c3d4e5f6a7b',
     ],
