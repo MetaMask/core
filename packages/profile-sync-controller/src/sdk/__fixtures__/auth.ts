@@ -112,7 +112,15 @@ export const arrangeAuthAPIs = (options?: {
   mockPairIdentifiers?: MockReply;
   mockPairProfiles?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
-}): Record<string, nock.Scope> => {
+}): {
+  mockNonceUrl: nock.Scope;
+  mockOAuth2TokenUrl: nock.Scope;
+  mockSrpLoginUrl: nock.Scope;
+  mockSiweLoginUrl: nock.Scope;
+  mockPairIdentifiersUrl: nock.Scope;
+  mockPairProfilesUrl: nock.Scope;
+  mockUserProfileLineageUrl: nock.Scope;
+} => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
   const mockSrpLoginUrl = handleMockSrpLogin(options?.mockSrpLoginUrl);
