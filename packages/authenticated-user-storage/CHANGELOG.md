@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0]
 
-### Uncategorized
-
-- Revert "Update Release 929.0.0" ([#8539](https://github.com/MetaMask/core/pull/8539))
-- Update Release 929.0.0 ([#8538](https://github.com/MetaMask/core/pull/8538))
-
 ### Added
 
 - Initial release ([#8260](https://github.com/MetaMask/core/pull/8260))
