@@ -2157,7 +2157,7 @@ export class AssetsController extends BaseController<
         const assetChainId = extractChainId(typedAssetId);
 
         // Skip native tokens on Tempo networks
-        if (this.#shouldHideNativeToken(assetChainId, typedAssetId, metadata)) {
+        if (this.#shouldHideNativeToken(assetChainId, metadata)) {
           continue;
         }
 
@@ -2206,15 +2206,10 @@ export class AssetsController extends BaseController<
    * Determines if a native token should be hidden on specific networks.
    *
    * @param chainId - The CAIP-2 chain ID (e.g., "eip155:42431").
-   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:42431/slip44:60").
    * @param metadata - The asset metadata.
    * @returns True if the token should be hidden, false otherwise.
    */
-  #shouldHideNativeToken(
-    chainId: ChainId,
-    assetId: Caip19AssetId,
-    metadata: AssetMetadata,
-  ): boolean {
+  #shouldHideNativeToken(chainId: ChainId, metadata: AssetMetadata): boolean {
     // Check if it's a chain that should skip native tokens
     if (
       !CHAIN_IDS_WITH_NO_NATIVE_TOKEN.includes(
@@ -2224,9 +2219,7 @@ export class AssetsController extends BaseController<
       return false;
     }
 
-    const isNative = metadata.type === 'native' || this.#isNativeAsset(assetId);
-
-    return isNative;
+    return metadata.type === 'native';
   }
 
   /**
