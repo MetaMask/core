@@ -624,9 +624,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * - The srcTxHash being invalid for the chain. This case will never resolve so we stop polling for it to avoid hammering the Bridge API forever.
    *
    * @param bridgeTxMetaId - The txMetaId of the bridge tx
+   * @param pollingStatus - The polling status to track in the metrics event
    */
   readonly #handleFetchFailure = async (
     bridgeTxMetaId: string,
+    pollingStatus: PollingStatus,
   ): Promise<void> => {
     // Increment the polling attempts counter
     const newAttempts = incrementPollingAttempts(
@@ -642,7 +644,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
     const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
-    // After the attempts exceed the max, keep polling with exponential backoff
+    // Track polling status updated event
+    this.#trackPollingStatusUpdatedEvent(bridgeTxMetaId, pollingStatus);
+
+    // After the max attempts, keep polling with exponential backoff
     // If the historyItem age is less than the configured maxPendingHistoryItemAgeMs flag, wait for a valid srcTxHash
     if (
       await shouldWaitForFinalBridgeStatus(
@@ -659,17 +664,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
     }
 
-    // Track polling status updated event
-    if (newAttempts.counter === MAX_ATTEMPTS) {
-      this.#trackPollingStatusUpdatedEvent(
-        bridgeTxMetaId,
-        PollingStatus.MaxPollingReached,
-      );
-    } else {
-      this.#trackPollingStatusUpdatedEvent(
-        bridgeTxMetaId,
-        PollingStatus.InvalidTransactionHash,
-      );
+    if (pollingStatus === PollingStatus.InvalidTransactionHash) {
       // Delete the history item so polling doesn't start over on the next restart
       this.#deleteHistoryItem(bridgeTxMetaId);
     }
@@ -694,6 +689,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // 3. Fetch transcation status
 
+    let pollingStatus = PollingStatus.MaxPollingReached;
     try {
       let status: BridgeHistoryItem['status'];
       let validationFailures: string[] = [];
@@ -721,8 +717,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
         const srcTxHash = this.#setAndGetSrcTxHash(bridgeTxMetaId);
 
-        // Throw errors to increase polling attempts counter
-        if (isHistoryItemTooOld(this.messenger, historyItem)) {
+        // Throw error to increase the polling attempts counter after at least 1
+        // status fetch has been attempted
+        if (
+          historyItem.attempts?.counter &&
+          isHistoryItemTooOld(this.messenger, historyItem)
+        ) {
+          pollingStatus = PollingStatus.InvalidTransactionHash;
           throw new Error(`History item is too old: ${bridgeTxMetaId}`);
         }
 
@@ -823,7 +824,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch (error) {
       console.warn('Failed to fetch bridge tx status', error);
-      await this.#handleFetchFailure(bridgeTxMetaId);
+      await this.#handleFetchFailure(bridgeTxMetaId, pollingStatus);
     }
   };
 

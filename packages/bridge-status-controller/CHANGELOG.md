@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Remove stale bridge transactions from `txHistory` to prevent excessive polling. Once a history item exceeds the configured maximum age, polling backs off exponentially and also checks for the src tx hash's receipt. If there is no receipt, the history item's hash is presumed to be invalid and is deleted from state. ([#8479](https://github.com/MetaMask/core/pull/8479))
+- Remove stale bridge transactions from `txHistory` to prevent excessive polling. Once a history item exceeds the configured maximum age, the status is fetched once, then the src tx hash's receipt is retrieved. If there is no receipt, the history item's hash is presumed to be invalid and the entry is deleted from state. ([#8479](https://github.com/MetaMask/core/pull/8479))
 - Add missing action types for public `BridgeStatusController` methods ([#8367](https://github.com/MetaMask/core/pull/8367))
   - The following types are now available:
     - `BridgeStatusControllerSubmitTxAction`
