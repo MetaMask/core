@@ -68,7 +68,7 @@ const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
     batchBalanceOf: jest.fn(),
   }) as unknown as jest.Mocked<MulticallClient>;
 
-function createMockStateForBalanceFetcher(
+function createMockAssetsBalanceState(
   accountId: string,
   balances: Record<string, { amount: string }> = {},
 ): AssetsBalanceState {
@@ -80,11 +80,11 @@ function createMockStateForBalanceFetcher(
 }
 
 function createMockMessenger(
-  state?: AssetsBalanceState,
+  assetsBalanceState?: AssetsBalanceState,
 ): BalanceFetcherMessenger {
   return {
     call: (_action: 'AssetsController:getState'): AssetsBalanceState => {
-      return state ?? { assetsBalance: {} };
+      return assetsBalanceState ?? { assetsBalance: {} };
     },
   };
 }
@@ -104,7 +104,7 @@ function createMockBalanceResponse(
 
 type WithControllerOptions = {
   config?: BalanceFetcherConfig;
-  stateForBalanceFetcher?: AssetsBalanceState;
+  assetsBalanceState?: AssetsBalanceState;
 };
 
 type WithControllerCallback<ReturnValue> = (params: {
@@ -127,11 +127,11 @@ async function withController<ReturnValue>(
   const [options, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
     config = { isNativeAsset: (): boolean => false },
-    stateForBalanceFetcher,
+    assetsBalanceState,
   } = options;
 
   const mockMulticallClient = createMockMulticallClient();
-  const mockMessenger = createMockMessenger(stateForBalanceFetcher);
+  const mockMessenger = createMockMessenger(assetsBalanceState);
   const controller = new BalanceFetcher(
     mockMulticallClient,
     mockMessenger,
@@ -205,13 +205,13 @@ describe('BalanceFetcher', () => {
 
   describe('setOnBalanceUpdate', () => {
     it('sets the balance update callback', async () => {
-      const mockState = createMockStateForBalanceFetcher(TEST_ACCOUNT_ID, {
+      const mockState = createMockAssetsBalanceState(TEST_ACCOUNT_ID, {
         [NATIVE_ETH_ASSET_ID]: { amount: '0' },
       });
 
       await withController(
         {
-          stateForBalanceFetcher: mockState,
+          assetsBalanceState: mockState,
           config: {
             isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
           },
