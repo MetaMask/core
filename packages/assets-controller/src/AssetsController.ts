@@ -793,7 +793,7 @@ export class AssetsController extends BaseController<
     this.#tokenDataSource = new TokenDataSource(this.messenger, {
       queryApiClient,
       getNativeAssetIds: (): string[] => {
-        return Object.values(this.#getNativeAssetMap());
+        return this.#getNativeAssetIdsForEnabledChains();
       },
     });
     this.#priceDataSource = new PriceDataSource({
@@ -1787,9 +1787,9 @@ export class AssetsController extends BaseController<
    *
    * @returns Cached map, or empty object if not yet populated.
    */
-  #getNativeAssetMap(): Record<string, string> {
+  #getNativeAssetMap(): Record<CaipChainId, Caip19AssetId> {
     return (
-      this.#queryApiClient.getCachedData<Record<string, string>>(
+      this.#queryApiClient.getCachedData<Record<CaipChainId, Caip19AssetId>>(
         NATIVE_ASSETS_QUERY_KEY,
       ) ?? {}
     );
@@ -1821,7 +1821,7 @@ export class AssetsController extends BaseController<
     for (const chainId of chains) {
       const nativeId = nativeAssetMap[chainId];
       if (nativeId) {
-        ids.push(nativeId as Caip19AssetId);
+        ids.push(nativeId);
       }
     }
     return ids;
