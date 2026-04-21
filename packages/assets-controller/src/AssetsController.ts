@@ -854,9 +854,13 @@ export class AssetsController extends BaseController<
         staleTime: Infinity,
         gcTime: Infinity,
       })
-      .catch(() => {
+      .catch((error) => {
         // Failure to populate native asset cache is non-fatal;
         // #isNativeAsset falls back to the seed data from buildNativeAssetsFromConstant.
+        log(
+          'Failed to populate native asset cache, falling back to seed data',
+          error,
+        );
       });
 
     // Seed the cache synchronously so that synchronous consumers (e.g.
