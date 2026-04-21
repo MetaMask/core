@@ -33,6 +33,7 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
+  NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
@@ -276,6 +277,8 @@ type AllowedActions =
   // RpcDataSource
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  // StakedBalanceDataSource
+  | NetworkEnablementControllerGetStateAction
   // SnapDataSource
   | SnapControllerGetRunnableSnapsAction
   | SnapControllerHandleRequestAction
