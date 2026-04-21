@@ -1,9 +1,9 @@
-const NodeEnvironment = require('jest-environment-node');
+const { TestEnvironment } = require('jest-environment-node');
 
 /**
  * Passkey orchestration uses the Web Crypto API (`crypto.getRandomValues`) in Node tests.
  */
-class CustomTestEnvironment extends NodeEnvironment {
+class CustomTestEnvironment extends TestEnvironment {
   async setup() {
     await super.setup();
     if (typeof this.global.crypto === 'undefined') {

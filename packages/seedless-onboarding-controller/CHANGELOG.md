@@ -7,6 +7,173 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: CI on README and deps
+- fix: refactor to follow controller guidelines
+- fix: address review comments
+- chore: update deps
+- Merge branch 'main' into feat/TO-540-passkey-controller
+- fix: address review comments
+- refactor: restructure passkey record state
+- feat: added authenticated user storage ([#8260](https://github.com/MetaMask/core/pull/8260))
+- add money account upgrade controller ([#8426](https://github.com/MetaMask/core/pull/8426))
+- Release 927.0.0 ([#8525](https://github.com/MetaMask/core/pull/8525))
+- Release/926.0.0 ([#8523](https://github.com/MetaMask/core/pull/8523))
+- feat: normalize bridge hardware type ([#8503](https://github.com/MetaMask/core/pull/8503))
+- feat(social-controllers): source profileId from JWT on follow/unfollow/updateFollowing ([#8520](https://github.com/MetaMask/core/pull/8520))
+- feat(card): add cardDelegation transaction type ([#8508](https://github.com/MetaMask/core/pull/8508))
+- fix(transaction-pay-controller): proxy Across status polling via configured api base ([#8512](https://github.com/MetaMask/core/pull/8512))
+- feat: skip verification of passkey authentication response when renewing vault key protection
+- feat: add hints to passkey registration and authentication options
+- feat: allow verifying passkey authentication
+- chore: refactor passkey controller
+- refactor: use lowercase file names for webauthn module
+- feat: allow multiple passkey ceremony at the same time
+- Release/925.0.0 ([#8516](https://github.com/MetaMask/core/pull/8516))
+- feat(perps-controller): sync controller from mobile c2248a8a9e ([#8515](https://github.com/MetaMask/core/pull/8515))
+- Release/924.0.0 ([#8514](https://github.com/MetaMask/core/pull/8514))
+- Release/923.0.0 ([#8509](https://github.com/MetaMask/core/pull/8509))
+- feat: add chomp API service ([#8413](https://github.com/MetaMask/core/pull/8413))
+- Release 922.0.0 ([#8507](https://github.com/MetaMask/core/pull/8507))
+- fix(AccountTrackerController): prevent balance wipe during account sync ([#8505](https://github.com/MetaMask/core/pull/8505))
+- feat: Expose `createPermissionMiddleware` via messenger ([#8502](https://github.com/MetaMask/core/pull/8502))
+- fix(transaction-pay-controller): stop adding subsidized fee to target amount ([#8488](https://github.com/MetaMask/core/pull/8488))
+- Release/921.0.0 ([#8495](https://github.com/MetaMask/core/pull/8495))
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+- ci: Run some jobs on Node.js 24 ([#8500](https://github.com/MetaMask/core/pull/8500))
+- feat!: Replace ESLint with direct call to Prettier or Oxfmt in messenger CLI ([#8486](https://github.com/MetaMask/core/pull/8486))
+- feat: allow clearing state in passkey controller
+- fix(transaction-pay-controller): resolve correct networkClientId for source chain in relay execute ([#8492](https://github.com/MetaMask/core/pull/8492))
+- Release/920.0.0 ([#8494](https://github.com/MetaMask/core/pull/8494))
+- chore: bump `accounts` deps ([#8464](https://github.com/MetaMask/core/pull/8464))
+- feat: adds auth to social controllers ([#8485](https://github.com/MetaMask/core/pull/8485))
+- Release/919.0.0 ([#8482](https://github.com/MetaMask/core/pull/8482))
+- chore: refactor docs
+- feat: use rp ID and name from platform
+- feat: accept prf availability from browser when generating registration options
+- Release/918.0.0 ([#8478](https://github.com/MetaMask/core/pull/8478))
+- chore: add periodic check for spl tokens ([#8400](https://github.com/MetaMask/core/pull/8400))
+- feat: add passkey verification and refactor code
+- feat: added money-account-balance-service to root tsconfig files ([#8477](https://github.com/MetaMask/core/pull/8477))
+- Release 917.0.0 ([#8476](https://github.com/MetaMask/core/pull/8476))
+- Release/916.0.0 ([#8474](https://github.com/MetaMask/core/pull/8474))
+- Deprecate AbstractRpcService and RpcServiceRequestable ([#8475](https://github.com/MetaMask/core/pull/8475))
+- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
+- fix(perps-controller): restore MYX webpackIgnore workaround ([#8473](https://github.com/MetaMask/core/pull/8473))
+- feat: implement no-retry policy for TransakService verify OTP ([#8468](https://github.com/MetaMask/core/pull/8468))
+- feat: port verification of authentication and registration responses from simplewebauthn
+- fix: improve assets controller snap accounts subscription and websocket ([#8430](https://github.com/MetaMask/core/pull/8430))
+- Release/915.0.0 ([#8472](https://github.com/MetaMask/core/pull/8472))
+- Release/914.0.0 ([#8470](https://github.com/MetaMask/core/pull/8470))
+- fix: Fix `batch` `transaction_type` in metrics for pay transactions ([#8469](https://github.com/MetaMask/core/pull/8469))
+- chore: add imageUrl ([#8448](https://github.com/MetaMask/core/pull/8448))
+- feat(social-controllers): add followingProfileIds to controller state ([#8459](https://github.com/MetaMask/core/pull/8459))
+- Release/913.0.0 ([#8466](https://github.com/MetaMask/core/pull/8466))
+- feat(perps): sync controller from mobile ([#8460](https://github.com/MetaMask/core/pull/8460))
+- refactor: change method names and use crypto packages
+- Add status to `PermissionInfoWithMetadata` ([#8445](https://github.com/MetaMask/core/pull/8445))
+- feat: MUSD-248 create money-account-balance-service ([#8428](https://github.com/MetaMask/core/pull/8428))
+- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release/911.0.0 ([#8452](https://github.com/MetaMask/core/pull/8452))
+- feat: skip simulation when enforced simulations container is active ([#8431](https://github.com/MetaMask/core/pull/8431))
+- feat(account-tree-controller): always fire `:selectedAccountGroupChange` on init ([#8427](https://github.com/MetaMask/core/pull/8427))
+- feat(account-tree-controller): persist `accountTree` ([#8437](https://github.com/MetaMask/core/pull/8437))
+- fix: link existing push token when notification accounts are added ([#8449](https://github.com/MetaMask/core/pull/8449))
+- feat: add mantle testnet gas fee ([#8386](https://github.com/MetaMask/core/pull/8386))
+- feat: allow update encryption key
+- Release/910.0.0 ([#8447](https://github.com/MetaMask/core/pull/8447))
+- Release/909.0.0 ([#8444](https://github.com/MetaMask/core/pull/8444))
+- fix: set submittedTime at pay publish hook start for accurate time-to-complete metrics ([#8439](https://github.com/MetaMask/core/pull/8439))
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- Release/908.0.0 ([#8440](https://github.com/MetaMask/core/pull/8440))
+- feat: MUSD-626 update earn controller to follow init pattern ([#8421](https://github.com/MetaMask/core/pull/8421))
+- feat(keyring-controller): add `withKeyringV2` support ([#8390](https://github.com/MetaMask/core/pull/8390))
+- feat(transaction-controller): add atomic option ([#8320](https://github.com/MetaMask/core/pull/8320))
+- fix: revert change on extension checking single NFT ownership ([#8435](https://github.com/MetaMask/core/pull/8435))
+- Release/907.0.0 ([#8432](https://github.com/MetaMask/core/pull/8432))
+- Release 906.0.0 ([#8425](https://github.com/MetaMask/core/pull/8425))
+- fix(perps-controller): restore webpackIgnore comment stripped by ts-bridge ([#8424](https://github.com/MetaMask/core/pull/8424))
+- fix: batch NFT ownership checks via Multicall3 ([#8281](https://github.com/MetaMask/core/pull/8281))
+- feat(keyring-controller): persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
+- Fix: assets controller startup empty accounts ([#8412](https://github.com/MetaMask/core/pull/8412))
+- feat(social-controllers): add intent and category fields to Trade type ([#8410](https://github.com/MetaMask/core/pull/8410))
+- feat: update configuration of passkeys
+- chore: Remove storage functionality from Delegation Controller ([#8330](https://github.com/MetaMask/core/pull/8330))
+- refactor: passkey controller to return registration and authentication options
+- feat: init passkey controller
+- feat: expose `getAccountAddressRelationship` and its request type ([#8402](https://github.com/MetaMask/core/pull/8402))
+- feat(STX-433): remove submission method from transaction meta ([#8409](https://github.com/MetaMask/core/pull/8409))
+- Release 905.0.0 ([#8407](https://github.com/MetaMask/core/pull/8407))
+- chore: Expose `KeyringController:signTransaction` through messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
+- feat(perps-controller): make package safe for extension consumers (re-do of #8374) ([#8398](https://github.com/MetaMask/core/pull/8398))
+- feat(ramps-controller): add optional fiat buy limits to Provider type ([#8405](https://github.com/MetaMask/core/pull/8405))
+- Release/904.0.0 ([#8406](https://github.com/MetaMask/core/pull/8406))
+- Revert "Update Release 905.0.0 (#8399) and release 904.0.0 (#8397)" ([#8399](https://github.com/MetaMask/core/pull/8399))
+- Update Release 905.0.0 ([#8399](https://github.com/MetaMask/core/pull/8399))
+- Release/904.0.0 ([#8397](https://github.com/MetaMask/core/pull/8397))
+- feat: adopt messenger-cli pattern for 4 controller packages ([#8391](https://github.com/MetaMask/core/pull/8391))
+- chore: Update bridge controllers to expose all methods through messenger ([#8367](https://github.com/MetaMask/core/pull/8367))
+- fix(assets-controller): hardened error handling ([#8389](https://github.com/MetaMask/core/pull/8389))
+- feat(STX-433): add submissionMethod to transaction metadata ([#8375](https://github.com/MetaMask/core/pull/8375))
+- feat: improve rpc data source ([#8385](https://github.com/MetaMask/core/pull/8385))
+- fix(transaction-pay): allow perps withdraw to Arbitrum USDC by skipping same-token filter for HyperLiquid source ([#8387](https://github.com/MetaMask/core/pull/8387))
+- feat: Enable Across support for perps deposits ([#8334](https://github.com/MetaMask/core/pull/8334))
+- feat(assets-controller): batch API requests and split pipeline for faster asset loading ([#8383](https://github.com/MetaMask/core/pull/8383))
+- Release/903.0.0 ([#8382](https://github.com/MetaMask/core/pull/8382))
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- chore: rename Ramp Team to Money Movement Team ([#8381](https://github.com/MetaMask/core/pull/8381))
+- Release/902.0.0 ([#8380](https://github.com/MetaMask/core/pull/8380))
+- fix(ramps): Remove dual-path fetching from RampsController, let client own data lifecycle ([#8354](https://github.com/MetaMask/core/pull/8354))
+- Ensure that README content is kept up to date automatically ([#8379](https://github.com/MetaMask/core/pull/8379))
+- Deprecate <ControllerName>:stateChange in favor of :stateChanged ([#8187](https://github.com/MetaMask/core/pull/8187))
+- Drop eslint peer dep in messenger package ([#8371](https://github.com/MetaMask/core/pull/8371))
+- Release/900.0.0 ([#8370](https://github.com/MetaMask/core/pull/8370))
+- refactor(compliance): remove initial block wallets call ([#8365](https://github.com/MetaMask/core/pull/8365))
+- Release/899.0.0 ([#8369](https://github.com/MetaMask/core/pull/8369))
+- Feat/tsa 317 social service ([#8335](https://github.com/MetaMask/core/pull/8335))
+- Release/898.0.0 ([#8368](https://github.com/MetaMask/core/pull/8368))
+- feat: add `money-account-controller` ([#8361](https://github.com/MetaMask/core/pull/8361))
+- feat: Expose all PerpsController methods through messenger ([#8352](https://github.com/MetaMask/core/pull/8352))
+- Migrate SampleGasPriceService to BaseDataService ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Prevent calling messenger actions in controller/service constructors ([#8353](https://github.com/MetaMask/core/pull/8353))
+- feat(accounts-controller): filter out `MoneyKeyring` accounts ([#8362](https://github.com/MetaMask/core/pull/8362))
+- Add selectors for `ConnectivityController` ([#7701](https://github.com/MetaMask/core/pull/7701))
+- feat(keyring-controller): add `KeyringTypes.money` ([#8360](https://github.com/MetaMask/core/pull/8360))
+- Release/895.0.0 ([#8359](https://github.com/MetaMask/core/pull/8359))
+- feat(keyring-controller): add `withKeyringUnsafe` action ([#8358](https://github.com/MetaMask/core/pull/8358))
+- feat(keyring-controller): add `isKeyringNotFoundError` ([#8351](https://github.com/MetaMask/core/pull/8351))
+- feat: require messenger and Blockaid bulk scan in TokenDataSource ([#8329](https://github.com/MetaMask/core/pull/8329))
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- Release/894.0.0 ([#8355](https://github.com/MetaMask/core/pull/8355))
+- feat: inject new parameters in addTransaction for gas fee tokens (Tempo) ([#8052](https://github.com/MetaMask/core/pull/8052))
+- feat: Expose NetworkController methods through messenger ([#8350](https://github.com/MetaMask/core/pull/8350))
+- feat(keyring-controller): add `filter` selector callback to `withKeyring` ([#8348](https://github.com/MetaMask/core/pull/8348))
+- fix: hide native tokens on Tempo networks (testnet and mainnet) ([#7882](https://github.com/MetaMask/core/pull/7882))
+- fix(account-tree-controller): remove dynamic identifiers from Backup and sync thrown error messages ([#8349](https://github.com/MetaMask/core/pull/8349))
+- fix: add missing @metamask/messenger dependency ([#8318](https://github.com/MetaMask/core/pull/8318))
+- Release/893.0.0 ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Release/892.0.0 ([#8340](https://github.com/MetaMask/core/pull/8340))
+- feat: ctrl utils add info chains no native token ([#8336](https://github.com/MetaMask/core/pull/8336))
+- feat: bridgeController consume complete event ([#8306](https://github.com/MetaMask/core/pull/8306))
+- feat: replaced metamask-earn team with earn in codeowners ([#8328](https://github.com/MetaMask/core/pull/8328))
+- feat(perps): latest controller sync ([#8333](https://github.com/MetaMask/core/pull/8333))
+- feat(transaction-pay-controller): add route-based strategy resolution ([#8282](https://github.com/MetaMask/core/pull/8282))
+- feat: introduces the new home for the social controllers ([#8321](https://github.com/MetaMask/core/pull/8321))
+- Release/891.0.0 ([#8327](https://github.com/MetaMask/core/pull/8327))
+- fix: market overview caip19 bug fix ([#8326](https://github.com/MetaMask/core/pull/8326))
+- chore: remove `@metamask/error-reporting-service` package ([#8323](https://github.com/MetaMask/core/pull/8323))
+- Release 890.0.0 ([#8325](https://github.com/MetaMask/core/pull/8325))
+- refactor(transaction-controller): encapsulate provider logic ([#8273](https://github.com/MetaMask/core/pull/8273))
+- ci: Separate lint steps to speed up CI ([#8322](https://github.com/MetaMask/core/pull/8322))
+- feat(transaction-pay-controller): add HyperLiquid withdrawal submission via Relay ([#8314](https://github.com/MetaMask/core/pull/8314))
+- test(base-data-service): Use `registerMethodActionHandlers` ([#8324](https://github.com/MetaMask/core/pull/8324))
+- chore!: Bump Snaps packages and handle breaking changes ([#8319](https://github.com/MetaMask/core/pull/8319))
+- feat: (TokenBalancesController) add batching around update balance requests ([#8246](https://github.com/MetaMask/core/pull/8246))
+
 ### Added
 
 - Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
@@ -271,7 +438,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller.([#6169](https://github.com/MetaMask/core/pull/6169))
-
 - Added `revokeRefreshToken` function to revoke refresh token and update vault with the new revoke token.([#6187](https://github.com/MetaMask/core/pull/6187))
 
 ## [2.4.0]
@@ -320,7 +486,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
+- Added `PrivateKey sync` feature to the controller. ([#5948](https://github.com/MetaMask/core/pull/5948))
   - **BREAKING** Updated controller methods signatures.
   - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
   - added `addNewSecretData` method implementation to support adding different secret data types.
@@ -343,7 +509,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault
   - check for token expired in toprf call, refresh token and retry if expired
   - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
-- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
+- Removed `recoveryRatelimitCache` from the controller state.. ([#5976](https://github.com/MetaMask/core/pull/5976))
 - **BREAKING:** Changed `syncLatestGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
   - removed parameter `oldPassword`
   - no longer verifying old password
