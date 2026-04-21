@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Exempt mUSD token from EVM ERC-20 minimum-occurrence spam filter so it is no longer incorrectly hidden ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Exempt mUSD token from EVM ERC-20 minimum-occurrence spam filter so it is no longer incorrectly hidden ([#8541](https://github.com/MetaMask/core/pull/8541))
 
 ## [6.0.0]
 
