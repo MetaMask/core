@@ -1,5 +1,6 @@
 export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from '../getUniqueId';
+export { createOriginMiddleware } from './createOriginMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 export type {
