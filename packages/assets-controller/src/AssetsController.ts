@@ -54,6 +54,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
+  CaipChainId,
   isCaipChainId,
   isStrictHexString,
   parseCaipAssetType,
@@ -745,39 +746,7 @@ export class AssetsController extends BaseController<
     this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
-    queryApiClient.queryClient
-      .fetchQuery({
-        queryKey: NATIVE_ASSETS_QUERY_KEY,
-        queryFn: async (): Promise<Record<string, string>> => {
-          // Today: build from constant. Tomorrow: replace body with API call.
-          const map: Record<string, string> = {};
-          for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
-            const { chainId } = parseCaipAssetType(nativeAssetId);
-            map[chainId] = nativeAssetId;
-          }
-          return map;
-        },
-        staleTime: Infinity,
-        gcTime: Infinity,
-      })
-      .catch(() => {
-        // Failure to populate native asset cache is non-fatal;
-        // isNativeAsset falls back to SPOT_PRICES_SUPPORT_INFO heuristics.
-      });
-
-    // Seed the cache synchronously so that synchronous consumers (e.g.
-    // isNativeAsset, #resolveNativeAssetIds) have data available immediately.
-    // When fetchQuery resolves (currently instant, future: API), it overwrites
-    // this with potentially fresher data.
-    const initialNativeAssetMap: Record<string, string> = {};
-    for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
-      const { chainId } = parseCaipAssetType(nativeAssetId);
-      initialNativeAssetMap[chainId] = nativeAssetId;
-    }
-    queryApiClient.setCachedData(
-      NATIVE_ASSETS_QUERY_KEY,
-      initialNativeAssetMap,
-    );
+    this.#initializeNativeAssetsMap(queryApiClient);
 
     this.#onActiveChainsUpdated = (
       dataSourceName: string,
@@ -863,6 +832,45 @@ export class AssetsController extends BaseController<
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
+
+  #initializeNativeAssetsMap(queryApiClient: ApiPlatformClient): void {
+    const buildNativeAssetsFromConstant = (): Record<
+      CaipChainId,
+      Caip19AssetId
+    > => {
+      const nativeAssetsMap: Record<CaipChainId, Caip19AssetId> = {};
+      for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
+        const { chainId } = parseCaipAssetType(nativeAssetId);
+        nativeAssetsMap[chainId] = nativeAssetId;
+      }
+      return nativeAssetsMap;
+    };
+
+    queryApiClient.queryClient
+      .fetchQuery({
+        queryKey: NATIVE_ASSETS_QUERY_KEY,
+        queryFn: async (): Promise<Record<CaipChainId, Caip19AssetId>> => {
+          // TODO: Build from backend API when it is available.
+          return buildNativeAssetsFromConstant();
+        },
+        staleTime: Infinity,
+        gcTime: Infinity,
+      })
+      .catch(() => {
+        // Failure to populate native asset cache is non-fatal;
+        // isNativeAsset falls back to SPOT_PRICES_SUPPORT_INFO heuristics.
+      });
+
+    // Seed the cache synchronously so that synchronous consumers (e.g.
+    // isNativeAsset, #resolveNativeAssetIds) have data available immediately.
+    // When fetchQuery resolves (currently instant, future: API), it overwrites
+    // this with potentially fresher data.
+    const initialNativeAssetMap = buildNativeAssetsFromConstant();
+    queryApiClient.setCachedData(
+      NATIVE_ASSETS_QUERY_KEY,
+      initialNativeAssetMap,
+    );
+  }
 
   #initializeState(): void {
     const { enabledNetworkMap } = this.messenger.call(
