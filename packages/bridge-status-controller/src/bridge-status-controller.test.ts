@@ -938,6 +938,7 @@ describe('BridgeStatusController constructor', () => {
       txHash: '0xsrcTxHash2',
       provider: 'undefined' as const,
       expectedStatusFetchCount: 1,
+      expectedHistoryTxMetaId: 'unknownTxMetaId1',
     },
     {
       title: 'no tx hash, has txMeta',
@@ -1414,16 +1415,14 @@ describe('BridgeStatusController', () => {
       });
 
       await withController(async ({ controller, messenger, rootMessenger }) => {
-        registerDefaultActionHandlers(rootMessenger, {
-          status: TransactionStatus.confirmed,
-        });
+        registerDefaultActionHandlers(rootMessenger);
         const messengerCallSpy = jest.spyOn(messenger, 'call');
         const messengerPublishSpy = jest.spyOn(messenger, 'publish');
         const fetchBridgeTxStatusSpy = jest.spyOn(
           bridgeStatusUtils,
           'fetchBridgeTxStatus',
         );
-        const stopPollingByPollingTokenSpy = jest.spyOn(
+        const stopPollingByNetworkClientIdSpy = jest.spyOn(
           controller,
           'stopPollingByPollingToken',
         );
@@ -1444,7 +1443,7 @@ describe('BridgeStatusController', () => {
 
         // Assertions
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-        expect(stopPollingByPollingTokenSpy).toHaveBeenCalledTimes(1);
+        expect(stopPollingByNetworkClientIdSpy).toHaveBeenCalledTimes(1);
         expect(controller.state.txHistory).toStrictEqual(
           MockTxHistory.getComplete(),
         );
@@ -5027,9 +5026,7 @@ describe('BridgeStatusController', () => {
         addTransactionBatchFn: jest.fn(),
         state: {
           txHistory: {
-            ...MockTxHistory.getPending({
-              startTime: Date.now() - 1000,
-            }),
+            ...MockTxHistory.getPending(),
             ...MockTxHistory.getPendingSwap(),
             ...MockTxHistory.getPending({
               txMetaId: 'bridgeTxMetaId1WithApproval',
@@ -5038,13 +5035,11 @@ describe('BridgeStatusController', () => {
             ...MockTxHistory.getPendingSwap({
               txMetaId: 'perpsSwapTxMetaId1',
               featureId: FeatureId.PERPS as never,
-              startTime: Date.now() - 1000,
             }),
             ...MockTxHistory.getPending({
               txMetaId: 'perpsBridgeTxMetaId1',
               srcTxHash: '0xperpsSrcTxHash1',
               featureId: FeatureId.PERPS as never,
-              startTime: Date.now() - 1000,
             }),
             // ActionId-keyed entries for pre-submission failure tests
             'pre-submission-action-id': {

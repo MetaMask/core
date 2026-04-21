@@ -672,6 +672,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (
       // Skip if the history item is finalized or not old
       !(
+        this.state.txHistory[bridgeTxMetaId] &&
         isHistoryItemTooOld(
           this.messenger,
           this.state.txHistory[bridgeTxMetaId],

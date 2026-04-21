@@ -138,8 +138,8 @@ export const shouldWaitForFinalBridgeStatus = async (
       historyItem.quote.srcChainId,
     );
   } catch {
-    // This  happens when the network is disabled while the tx is pending
-    return false;
+    // This happens when the network is disabled while the tx is pending
+    return true;
   }
 
   if (!historyItem.status.srcChain.txHash) {
