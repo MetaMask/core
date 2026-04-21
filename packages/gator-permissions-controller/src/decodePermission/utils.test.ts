@@ -22,6 +22,7 @@ const buildContracts = (): DeployedContractsByName => ({
   ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
   NonceEnforcer: '0x8888888888888888888888888888888888888888',
   AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
+  RedeemerEnforcer: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
 });
 
 describe('getChecksumEnforcersByChainId', () => {
@@ -51,6 +52,7 @@ describe('getChecksumEnforcersByChainId', () => {
       allowedCalldataEnforcer: getChecksumAddress(
         contracts.AllowedCalldataEnforcer,
       ),
+      redeemerEnforcer: getChecksumAddress(contracts.RedeemerEnforcer),
     });
   });
 
@@ -76,6 +78,7 @@ describe('createPermissionRulesForChainId', () => {
       timestampEnforcer,
       nonceEnforcer,
       allowedCalldataEnforcer,
+      redeemerEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
     // erc20-token-stream
@@ -96,9 +99,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-stream'].permissionType).toBe(
       'native-token-stream',
     );
-    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(1);
+    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(2);
     expect(
       byType['native-token-stream'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-stream'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -116,9 +122,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].permissionType).toBe(
       'native-token-periodic',
     );
-    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(1);
+    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(2);
     expect(
       byType['native-token-periodic'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-periodic'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -136,9 +145,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].permissionType).toBe(
       'erc20-token-stream',
     );
-    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-stream'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-stream'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -156,9 +168,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].permissionType).toBe(
       'erc20-token-periodic',
     );
-    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-periodic'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-periodic'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -176,9 +191,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-revocation'].permissionType).toBe(
       'erc20-token-revocation',
     );
-    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-revocation'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
     expect(

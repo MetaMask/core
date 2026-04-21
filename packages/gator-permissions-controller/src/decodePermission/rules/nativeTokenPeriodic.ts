@@ -23,10 +23,12 @@ export function makeNativeTokenPeriodicRule(
     nativeTokenPeriodicEnforcer,
     exactCalldataEnforcer,
     nonceEnforcer,
+    redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'native-token-periodic',
     optionalEnforcers: [timestampEnforcer],
+    redeemerEnforcer,
     timestampEnforcer,
     requiredEnforcers: {
       [nativeTokenPeriodicEnforcer]: 1,

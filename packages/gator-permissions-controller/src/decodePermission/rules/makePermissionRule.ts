@@ -1,7 +1,10 @@
 import type { Caveat } from '@metamask/delegation-core';
+import type { Rule } from '@metamask/7715-permission-types';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { EXECUTION_PERMISSION_REDEEMER_RULE_TYPE } from '../../constants';
+import { decodeRedeemerEnforcerTerms } from '../redeemer';
 import type {
   ChecksumCaveat,
   DecodedPermission,
@@ -22,6 +25,7 @@ import {
  *
  * @param args - The arguments to this function.
  * @param args.optionalEnforcers - Enforcer addresses that may appear in addition to required.
+ * @param args.redeemerEnforcer - Address of the RedeemerEnforcer (optional caveat).
  * @param args.timestampEnforcer - Address of the TimestampEnforcer used to extract expiry.
  * @param args.permissionType - The permission type identifier.
  * @param args.requiredEnforcers - Map of required enforcer address to required count.
@@ -30,12 +34,14 @@ import {
  */
 export function makePermissionRule({
   optionalEnforcers,
+  redeemerEnforcer,
   timestampEnforcer,
   permissionType,
   requiredEnforcers,
   validateAndDecodeData,
 }: {
   optionalEnforcers: Hex[];
+  redeemerEnforcer: Hex;
   timestampEnforcer: Hex;
   permissionType: PermissionType;
   requiredEnforcers: Record<Hex, number>;
@@ -43,7 +49,10 @@ export function makePermissionRule({
     caveats: ChecksumCaveat[],
   ) => DecodedPermission['permission']['data'];
 }): PermissionRule {
-  const optionalEnforcersSet = new Set(optionalEnforcers);
+  const optionalEnforcersSet = new Set([
+    ...optionalEnforcers,
+    redeemerEnforcer,
+  ]);
   const requiredEnforcersMap = new Map(
     Object.entries(requiredEnforcers),
   ) as Map<Hex, number>;
@@ -94,7 +103,25 @@ export function makePermissionRule({
 
         const data = validateAndDecodeData(checksumCaveats);
 
-        return { isValid: true, expiry, data };
+        const redeemerTerms = getTermsByEnforcer({
+          caveats: checksumCaveats,
+          enforcer: redeemerEnforcer,
+          throwIfNotFound: false,
+        });
+
+        let rules: Rule[] | undefined;
+        if (redeemerTerms) {
+          rules = [
+            {
+              type: EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
+              data: {
+                addresses: decodeRedeemerEnforcerTerms(redeemerTerms),
+              },
+            },
+          ];
+        }
+
+        return { isValid: true, expiry, data, rules };
       } catch (caughtError) {
         return { isValid: false, error: caughtError as Error };
       }
