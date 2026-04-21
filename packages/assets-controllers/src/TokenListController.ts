@@ -23,7 +23,6 @@ import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
 } from './assetsUtil';
-import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
 import { TokenRwaData, fetchTokenListByChainId } from './token-service';
 
 // 4 Hour Interval Cache Refresh Threshold
@@ -62,19 +61,7 @@ export type TokenListStateChange = ControllerStateChangeEvent<
   TokenListState
 >;
 
-/**
- * Event emitted after a token list is successfully fetched from the API for a
- * given chain. Carries the processed token list directly so consumers can use
- * it without going through tokensChainsCache.
- */
-export type TokenListTokenListFetchedEvent = {
-  type: `${typeof name}:tokenListFetched`;
-  payload: [{ chainId: Hex; tokenList: TokenListMap }];
-};
-
-export type TokenListControllerEvents =
-  | TokenListStateChange
-  | TokenListTokenListFetchedEvent;
+export type TokenListControllerEvents = TokenListStateChange;
 
 export type GetTokenListState = ControllerGetStateAction<
   typeof name,
@@ -384,15 +371,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         name,
       );
 
-      // Filter keys that belong to tokensChainsCache (per-chain files),
-      // excluding V4-supported chains which no longer use this cache.
-      const cacheKeys = allKeys.filter((key) => {
-        if (!key.startsWith(`${TokenListController.#storageKeyPrefix}:`)) {
-          return false;
-        }
-        const chainId = key.split(':')[1] as Hex;
-        return !SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId);
-      });
+      // Filter keys that belong to tokensChainsCache (per-chain files)
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      );
 
       // Load all chains in parallel
       const chainCaches = await Promise.all(
@@ -426,28 +408,10 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         }
       });
 
-      // Chains in state _before loading persisted state_, from a recent update.
-      // Exclude V4-supported chains — they are purged from state here so stale
-      // data carried over from Redux persistence does not get re-written to storage.
+      // Chains in state _before loading persisted state_, from a recent update
       const chainsInState = new Set(
-        (Object.keys(this.state.tokensChainsCache) as Hex[]).filter(
-          (chainId) => !SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId),
-        ),
+        Object.keys(this.state.tokensChainsCache) as Hex[],
       );
-
-      // Purge any V4 chain entries that survived in state (e.g. from stale
-      // Redux persistence before the client migration ran).
-      const v4ChainsInState = (
-        Object.keys(this.state.tokensChainsCache) as Hex[]
-      ).filter((chainId) => SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId));
-
-      if (v4ChainsInState.length > 0) {
-        this.update((state) => {
-          for (const chainId of v4ChainsInState) {
-            delete state.tokensChainsCache[chainId];
-          }
-        });
-      }
 
       // Merge loaded cache with existing state, preferring existing data
       // (which may be fresher if fetched during initialization)
@@ -668,27 +632,14 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         };
       }
 
-      // Publish the processed token list so subscribers (e.g. TokensController)
-      // can enrich their state directly from the API response without going
-      // through tokensChainsCache.
-      this.messenger.publish(`${name}:tokenListFetched`, {
-        chainId,
-        tokenList,
+      // Update state - persistence happens automatically via subscription
+      const newDataCache: DataCache = {
+        data: tokenList,
+        timestamp: Date.now(),
+      };
+      this.update((state) => {
+        state.tokensChainsCache[chainId] = newDataCache;
       });
-
-      // For chains supported by the Accounts API, token detection is handled
-      // via the WS/polling paths which call the v3 API directly. Writing the
-      // full token list to tokensChainsCache is unnecessary and wastes storage.
-      if (!SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId)) {
-        const newDataCache: DataCache = {
-          data: tokenList,
-          timestamp: Date.now(),
-        };
-        this.update((state) => {
-          state.tokensChainsCache[chainId] = newDataCache;
-        });
-      }
-
       return;
     }
 
@@ -696,8 +647,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     // Only initialize with a new timestamp if there's no existing cache.
     // If there's existing cache, keep it as-is without updating the timestamp
     // to avoid making stale data appear "fresh" and preventing retry attempts.
-    // V4-supported chains never write to tokensChainsCache so skip entirely.
-    if (!tokensFromAPI && !SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId)) {
+    if (!tokensFromAPI) {
       const existingCache = this.state.tokensChainsCache[chainId];
       if (!existingCache) {
         // No existing cache - initialize empty (persistence happens automatically)
@@ -711,11 +661,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   isCacheValid(chainId: Hex): boolean {
-    // V4-supported chains never write to tokensChainsCache, so the cache is
-    // never valid for them — always fetch fresh from the API.
-    if (SUPPORTED_NETWORKS_ACCOUNTS_API_V4.includes(chainId)) {
-      return false;
-    }
     const { tokensChainsCache }: TokenListState = this.state;
     const timestamp: number | undefined = tokensChainsCache[chainId]?.timestamp;
     const now = Date.now();

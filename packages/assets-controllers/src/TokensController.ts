@@ -50,15 +50,11 @@ import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
+  fetchTokenListByChainId,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
-import type {
-  TokenListMap,
-  TokenListStateChange,
-  TokenListToken,
-  TokenListTokenListFetchedEvent,
-} from './TokenListController';
+import type { TokenListMap, TokenListToken } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
@@ -163,8 +159,6 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
-  | TokenListTokenListFetchedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
@@ -211,6 +205,10 @@ export class TokensController extends BaseController<
   readonly #provider: Provider;
 
   readonly #abortController: AbortController;
+
+  readonly #tokenListCache = new Map<Hex, { data: TokenListMap; timestamp: number }>();
+
+  static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
 
   /**
    * Tokens controller options
@@ -264,12 +262,14 @@ export class TokensController extends BaseController<
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
-    this.messenger.subscribe(
-      'TokenListController:tokenListFetched',
-      ({ chainId, tokenList }) => {
-        this.#enrichTokensFromTokenList(chainId, tokenList);
-      },
-    );
+    this.#enrichTokenMetadata().catch(() => {
+      // Silently handle enrichment errors on startup
+    });
+    setInterval(() => {
+      this.#enrichTokenMetadata().catch(() => {
+        // Silently handle enrichment errors
+      });
+    }, TokensController.#tokenListCacheMaxAge);
   }
 
   #handleOnAccountRemoved(accountAddress: string) {
@@ -308,43 +308,6 @@ export class TokensController extends BaseController<
       state.allTokens = newAllTokens;
       state.allIgnoredTokens = newAllIgnoredTokens;
       state.allDetectedTokens = newAllDetectedTokens;
-    });
-  }
-
-  /**
-   * Enriches tokens in `allTokens` for a given chain using data from a freshly
-   * fetched token list. Updates `name` (when missing) and `rwaData` for the
-   * currently selected address.
-   *
-   * @param chainId - The chain whose token list was just fetched.
-   * @param tokenList - The processed token list from the API response.
-   */
-  #enrichTokensFromTokenList(chainId: Hex, tokenList: TokenListMap): void {
-    const { allTokens } = this.state;
-    const selectedAddress = this.#getSelectedAddress();
-
-    const tokensForChainAndAddress = allTokens[chainId]?.[selectedAddress];
-
-    if (!tokensForChainAndAddress?.length) {
-      return;
-    }
-
-    // Deep clone the `allTokens` object to ensure mutability
-    const updatedAllTokens = cloneDeep(allTokens);
-    const tokens = updatedAllTokens[chainId][selectedAddress];
-
-    for (const token of tokens) {
-      const cachedToken = tokenList[token.address.toLowerCase()];
-      if (cachedToken && cachedToken.name && !token.name) {
-        token.name = cachedToken.name; // Update the token name
-      }
-      if (cachedToken?.rwaData) {
-        token.rwaData = cachedToken.rwaData; // Update the token RWA data
-      }
-    }
-
-    this.update((state) => {
-      state.allTokens = updatedAllTokens;
     });
   }
 
@@ -407,6 +370,102 @@ export class TokensController extends BaseController<
         return undefined;
       }
       throw error;
+    }
+  }
+
+  #resolveRwaData(
+    callerRwaData: TokenRwaData | undefined,
+    tokenMetadata: TokenListToken | undefined,
+  ): { rwaData: TokenRwaData } | Record<string, never> {
+    if (callerRwaData !== undefined) {
+      return { rwaData: callerRwaData };
+    }
+    if (tokenMetadata?.rwaData) {
+      return { rwaData: tokenMetadata.rwaData };
+    }
+    return {};
+  }
+
+  async #getTokenListForChain(chainId: Hex): Promise<TokenListMap> {
+    const cached = this.#tokenListCache.get(chainId);
+    const now = Date.now();
+
+    if (
+      cached &&
+      now - cached.timestamp < TokensController.#tokenListCacheMaxAge
+    ) {
+      return cached.data;
+    }
+
+    const tokensFromAPI = await safelyExecute(
+      () =>
+        fetchTokenListByChainId(
+          chainId,
+          this.#abortController.signal,
+        ) as Promise<TokenListToken[]>,
+    );
+
+    if (!tokensFromAPI) {
+      return cached?.data ?? {};
+    }
+
+    const tokenList: TokenListMap = {};
+    for (const token of tokensFromAPI) {
+      tokenList[token.address] = {
+        ...token,
+        aggregators: formatAggregatorNames(token.aggregators),
+        iconUrl: formatIconUrlWithProxy({
+          chainId,
+          tokenAddress: token.address,
+        }),
+      };
+    }
+
+    this.#tokenListCache.set(chainId, { data: tokenList, timestamp: now });
+    return tokenList;
+  }
+
+  async #enrichTokenMetadata(): Promise<void> {
+    const { allTokens } = this.state;
+    const chainIds = Object.keys(allTokens) as Hex[];
+
+    if (chainIds.length === 0) {
+      return;
+    }
+
+    const updatedAllTokens = cloneDeep(allTokens);
+    let hasChanges = false;
+
+    for (const chainId of chainIds) {
+      const tokenList = await this.#getTokenListForChain(chainId);
+      if (Object.keys(tokenList).length === 0) {
+        continue;
+      }
+
+      const accountsForChain = updatedAllTokens[chainId];
+      for (const [, tokens] of Object.entries(accountsForChain)) {
+        for (const token of tokens) {
+          const cachedToken = tokenList[token.address.toLowerCase()];
+          if (!cachedToken) {
+            continue;
+          }
+          if (cachedToken.name && !token.name) {
+            token.name = cachedToken.name;
+            hasChanges = true;
+          }
+          if (cachedToken.rwaData) {
+            token.rwaData = cachedToken.rwaData;
+            hasChanges = true;
+          }
+        }
+      }
+    }
+
+    if (hasChanges) {
+      this.update(() => ({
+        ...this.state,
+        allTokens: updatedAllTokens,
+      }));
     }
   }
 
@@ -480,8 +539,8 @@ export class TokensController extends BaseController<
               }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
-        name,
-        ...(rwaData !== undefined && { rwaData }),
+        name: name ?? tokenMetadata?.name,
+        ...this.#resolveRwaData(rwaData, tokenMetadata),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),

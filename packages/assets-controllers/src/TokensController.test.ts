@@ -38,7 +38,7 @@ import {
 } from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
-import { TOKEN_END_POINT_API } from './token-service';
+import { TOKEN_END_POINT_API, fetchTokenListByChainId } from './token-service';
 import type { TokenRwaData } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
@@ -54,6 +54,15 @@ jest.mock('uuid', () => ({
 }));
 jest.mock('./Standards/ERC20Standard');
 jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
+jest.mock('./token-service', () => ({
+  ...jest.requireActual('./token-service'),
+  fetchTokenListByChainId: jest.fn(),
+}));
+
+const mockFetchTokenListByChainId =
+  fetchTokenListByChainId as jest.MockedFunction<
+    typeof fetchTokenListByChainId
+  >;
 
 type AllActions =
   | MessengerActions<TokensControllerMessenger>
@@ -80,6 +89,7 @@ describe('TokensController', () => {
     ContractMock.mockReturnValue(
       buildMockEthersERC721Contract({ supportsInterface: false }),
     );
+    mockFetchTokenListByChainId.mockResolvedValue(undefined);
   });
 
   it('should set default state', async () => {
@@ -3261,123 +3271,103 @@ describe('TokensController', () => {
     });
   });
 
-  describe('when TokenListController:stateChange is published', () => {
-    it('updates the name of each token to match its counterpart in the token list', async () => {
-      await withController(async ({ controller, messenger }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+  describe('addToken metadata fallbacks', () => {
+    it('uses name from API metadata when caller does not provide one', async () => {
+      await withController(async ({ controller }) => {
+        nock(TOKEN_END_POINT_API)
+          .get(
+            `/token/${convertHexToDecimal(
+              ChainId.mainnet,
+            )}?address=0x01&includeRwaData=true`,
+          )
+          .reply(200, {
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+            occurrences: 1,
+            name: 'BarFromAPI',
+            aggregators: [],
+          });
+
         await controller.addToken({
           address: '0x01',
           symbol: 'bar',
           decimals: 2,
           networkClientId: 'mainnet',
         });
-        expect(
-          controller.state.allTokens[ChainId.mainnet][
-            defaultMockInternalAccount.address
-          ][0],
-        ).toStrictEqual({
-          address: '0x01',
-          decimals: 2,
-          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-          symbol: 'bar',
-          isERC721: false,
-          aggregators: [],
-          name: undefined,
-        });
-
-        messenger.publish(
-          'TokenListController:stateChange',
-          {
-            tokensChainsCache: {
-              [ChainId.mainnet]: {
-                timestamp: 1,
-                data: {
-                  '0x01': {
-                    address: '0x01',
-                    symbol: 'bar',
-                    decimals: 2,
-                    occurrences: 1,
-                    name: 'BarName',
-                    iconUrl:
-                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-                    aggregators: ['Aave'],
-                  },
-                },
-              },
-            },
-          },
-          [],
-        );
 
         expect(
           controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
-          ][0],
-        ).toStrictEqual({
-          address: '0x01',
-          decimals: 2,
-          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-          symbol: 'bar',
-          isERC721: false,
-          aggregators: [],
-          name: 'BarName',
-        });
+          ][0].name,
+        ).toBe('BarFromAPI');
       });
     });
 
-    it('overwrites rwaData for tokens with cached rwaData', async () => {
-      await withController(async ({ controller, messenger }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+    it('uses rwaData from API metadata when caller does not provide one', async () => {
+      await withController(async ({ controller }) => {
+        nock(TOKEN_END_POINT_API)
+          .get(
+            `/token/${convertHexToDecimal(
+              ChainId.mainnet,
+            )}?address=0x01&includeRwaData=true`,
+          )
+          .reply(200, {
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+            occurrences: 1,
+            name: 'Bar',
+            aggregators: [],
+            rwaData: { ticker: 'BAR' },
+          });
 
-        await controller.addTokens(
-          [
-            {
-              address: '0x01',
-              symbol: 'bar',
-              decimals: 2,
-              aggregators: [],
-              image: undefined,
-              name: undefined,
-              rwaData: { ticker: 'OLD' },
-            },
-          ],
-          'mainnet',
-        );
-
-        messenger.publish(
-          'TokenListController:stateChange',
-          {
-            tokensChainsCache: {
-              [ChainId.mainnet]: {
-                timestamp: 1,
-                data: {
-                  '0x01': {
-                    address: '0x01',
-                    symbol: 'bar',
-                    decimals: 2,
-                    occurrences: 1,
-                    name: 'BarName',
-                    iconUrl:
-                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-                    aggregators: ['Aave'],
-                    rwaData: { ticker: 'NEW' },
-                  },
-                },
-              },
-            },
-          },
-          [],
-        );
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
+          networkClientId: 'mainnet',
+        });
 
         expect(
           controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ][0].rwaData,
-        ).toStrictEqual({ ticker: 'NEW' });
+        ).toStrictEqual({ ticker: 'BAR' });
+      });
+    });
+
+    it('prefers caller-provided rwaData over API metadata', async () => {
+      await withController(async ({ controller }) => {
+        nock(TOKEN_END_POINT_API)
+          .get(
+            `/token/${convertHexToDecimal(
+              ChainId.mainnet,
+            )}?address=0x01&includeRwaData=true`,
+          )
+          .reply(200, {
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+            occurrences: 1,
+            name: 'Bar',
+            aggregators: [],
+            rwaData: { ticker: 'FROM_API' },
+          });
+
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
+          networkClientId: 'mainnet',
+          rwaData: { ticker: 'FROM_CALLER' },
+        });
+
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ][0].rwaData,
+        ).toStrictEqual({ ticker: 'FROM_CALLER' });
       });
     });
   });
@@ -3934,7 +3924,6 @@ async function withController<ReturnValue>(
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
-      'TokenListController:stateChange',
       'KeyringController:accountRemoved',
     ],
   });
