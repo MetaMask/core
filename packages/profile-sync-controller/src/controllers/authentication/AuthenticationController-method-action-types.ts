@@ -54,8 +54,14 @@ export type AuthenticationControllerGetSessionProfileAction = {
  * and propagates it to all cached SRP sessions.
  *
  * This method invalidates the primary SRP's cached session and forces a
- * re-login. Only the primary SRP is re-logged-in regardless of how many
- * SRPs exist.
+ * re-login. Use it before operations that require a guaranteed-fresh
+ * canonical (e.g. storage key derivation for Accounts ADR 0005). For
+ * best-effort reads, use
+ * `getSessionProfile().canonicalProfileId` instead.
+ *
+ * Only the primary SRP is re-logged-in regardless of how many SRPs exist —
+ * the server returns the current canonical for the entire pairing group
+ * from any single SRP login.
  *
  * @returns The refreshed canonical profile ID.
  */
