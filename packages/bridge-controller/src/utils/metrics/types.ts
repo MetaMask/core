@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
+import type { SortOrder, StatusTypes } from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
@@ -8,7 +9,6 @@ import type {
   MetricsSwapType,
   PollingStatus,
 } from './constants';
-import type { SortOrder, StatusTypes } from '../../types';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml
@@ -22,12 +22,20 @@ export type RequestParams = {
   token_address_destination: CaipAssetType | null;
 };
 
+export type AccountHardwareType =
+  | 'Ledger'
+  | 'Trezor'
+  | 'QR Hardware'
+  | 'Lattice'
+  | null;
+
 export type RequestMetadata = {
   slippage_limit?: number; // undefined === auto
   custom_slippage: boolean;
   usd_amount_source: number; // Use quoteResponse when available
   stx_enabled: boolean;
   is_hardware_wallet: boolean;
+  account_hardware_type: AccountHardwareType;
   swap_type: MetricsSwapType;
   security_warnings: string[];
 };
@@ -63,7 +71,8 @@ export type InputKeys =
   | 'token_destination'
   | 'chain_source'
   | 'chain_destination'
-  | 'slippage';
+  | 'slippage'
+  | 'token_amount_source';
 
 export type InputValues = {
   token_source: CaipAssetType;
@@ -71,6 +80,7 @@ export type InputValues = {
   chain_source: CaipChainId;
   chain_destination: CaipChainId;
   slippage: number;
+  token_amount_source: string;
 };
 
 export type QuoteWarning =
@@ -83,12 +93,15 @@ export type QuoteWarning =
   | 'tx_alert';
 
 /**
- * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This is the base type without the `location` property which is added to all events
+ * via the RequiredEventContextFromClient mapped type.
  */
-export type RequiredEventContextFromClient = {
-  [UnifiedSwapBridgeEventName.ButtonClicked]: {
-    location: MetaMetricsSwapsEventSource;
-  } & Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'>;
+type RequiredEventContextFromClientBase = {
+  [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
+    RequestParams,
+    'token_symbol_source' | 'token_symbol_destination'
+  >;
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
@@ -97,8 +110,10 @@ export type RequiredEventContextFromClient = {
       | 'token_destination'
       | 'chain_source'
       | 'chain_destination'
-      | 'slippage';
+      | 'slippage'
+      | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
+    input_amount_preset?: string;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -156,11 +171,14 @@ export type RequiredEventContextFromClient = {
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
-    (TradeData &
+      (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<
           RequestMetadata,
-          'stx_enabled' | 'usd_amount_source' | 'is_hardware_wallet'
+          | 'stx_enabled'
+          | 'usd_amount_source'
+          | 'is_hardware_wallet'
+          | 'account_hardware_type'
         > &
         Pick<
           RequestParams,
@@ -213,6 +231,10 @@ export type RequiredEventContextFromClient = {
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
+    refresh_count: number;
+  };
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
+    asset_location: 'source' | 'destination';
   };
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -231,11 +253,32 @@ export type RequiredEventContextFromClient = {
 };
 
 /**
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This combines the event-specific properties from RequiredEventContextFromClientBase
+ * with an optional `location` property. When `location` is omitted, the controller
+ * falls back to the value stored via `setLocation()` (defaults to MainView).
+ *
+ * `ab_tests` is the legacy field and `active_ab_tests` is the newer field.
+ * Both are kept for a migration window and are treated as separate payloads.
+ */
+export type RequiredEventContextFromClient = {
+  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
+    location?: MetaMetricsSwapsEventSource;
+    ab_tests?: Record<string, string>;
+    active_ab_tests?: { key: string; value: string }[];
+  };
+};
+
+/**
  * Properties that can be derived from the bridge controller state
  */
 export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: RequestParams;
-  [UnifiedSwapBridgeEventName.PageViewed]: RequestParams;
+  [UnifiedSwapBridgeEventName.PageViewed]: RequestParams &
+    Omit<
+      RequestMetadata,
+      'stx_enabled' | 'usd_amount_source' | 'security_warnings'
+    >;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
     input_value: string;
@@ -281,21 +324,26 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: RequestParams & {
     refresh_count: number;
   };
-  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams & {
-    refresh_count: number;
-  };
+  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams;
+  [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
 
 /**
  * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
  * and properties from the bridge controller
+ *
+ * `ab_tests` will be deprecated in favor of `active_ab_tests` in the future.
+ * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
  */
 export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
 > =
   | {
       action_type: MetricsActionType;
+      location: MetaMetricsSwapsEventSource;
+      ab_tests?: Record<string, string>;
+      active_ab_tests?: { key: string; value: string }[];
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];

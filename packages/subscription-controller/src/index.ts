@@ -2,32 +2,43 @@ export type {
   SubscriptionControllerActions,
   SubscriptionControllerState,
   SubscriptionControllerEvents,
-  SubscriptionControllerGetSubscriptionsAction,
-  SubscriptionControllerGetSubscriptionByProductAction,
-  SubscriptionControllerCancelSubscriptionAction,
-  SubscriptionControllerStartShieldSubscriptionWithCardAction,
-  SubscriptionControllerGetPricingAction,
-  SubscriptionControllerGetCryptoApproveTransactionParamsAction,
-  SubscriptionControllerStartSubscriptionWithCryptoAction,
-  SubscriptionControllerGetBillingPortalUrlAction,
-  SubscriptionControllerUpdatePaymentMethodAction,
   SubscriptionControllerGetStateAction,
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
-  SubscriptionControllerSubmitSponsorshipIntentsAction,
-  SubscriptionControllerCacheLastSelectedPaymentMethodAction,
-  SubscriptionControllerClearLastSelectedPaymentMethodAction,
-  SubscriptionControllerLinkRewardsAction,
-  SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction,
   AllowedActions,
   AllowedEvents,
 } from './SubscriptionController';
+export type {
+  SubscriptionControllerGetPricingAction,
+  SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerGetSubscriptionByProductAction,
+  SubscriptionControllerGetSubscriptionsEligibilitiesAction,
+  SubscriptionControllerCancelSubscriptionAction,
+  SubscriptionControllerUnCancelSubscriptionAction,
+  SubscriptionControllerStartShieldSubscriptionWithCardAction,
+  SubscriptionControllerStartSubscriptionWithCryptoAction,
+  SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction,
+  SubscriptionControllerGetCryptoApproveTransactionParamsAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
+  SubscriptionControllerGetBillingPortalUrlAction,
+  SubscriptionControllerCacheLastSelectedPaymentMethodAction,
+  SubscriptionControllerClearLastSelectedPaymentMethodAction,
+  SubscriptionControllerSubmitSponsorshipIntentsAction,
+  SubscriptionControllerSubmitUserEventAction,
+  SubscriptionControllerAssignUserToCohortAction,
+  SubscriptionControllerLinkRewardsAction,
+  SubscriptionControllerGetTokenApproveAmountAction,
+  SubscriptionControllerGetTokenMinimumBalanceAmountAction,
+  SubscriptionControllerClearStateAction,
+  SubscriptionControllerTriggerAccessTokenRefreshAction,
+} from './SubscriptionController-method-action-types';
 export {
   SubscriptionController,
   getDefaultSubscriptionControllerState,
 } from './SubscriptionController';
 export type {
+  SubscriptionApiError,
   Subscription,
   AuthUtils,
   CancelSubscriptionRequest,
@@ -86,6 +97,10 @@ export {
   MODAL_TYPE,
 } from './types';
 export { SubscriptionServiceError } from './errors';
-export { Env, SubscriptionControllerErrorMessage } from './constants';
+export {
+  Env,
+  SubscriptionControllerErrorMessage,
+  SubscriptionServiceErrorMessage,
+} from './constants';
 export type { SubscriptionServiceConfig } from './SubscriptionService';
 export { SubscriptionService } from './SubscriptionService';

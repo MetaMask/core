@@ -40,20 +40,3 @@ export const NOTIFICATION_API_TRIGGER_TYPES_SET: Set<string> = new Set([
   TRIGGER_TYPES.ERC1155_RECEIVED,
   TRIGGER_TYPES.PLATFORM,
 ]);
-
-export const NOTIFICATION_CHAINS_ID = {
-  ETHEREUM: '1',
-  OPTIMISM: '10',
-  BSC: '56',
-  BASE: '8453',
-  POLYGON: '137',
-  ARBITRUM: '42161',
-  AVALANCHE: '43114',
-  LINEA: '59144',
-  SEI: '1329',
-} as const;
-
-// Kept as SCREAMING_SNAKE_CASE for backwards compatibility
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export type NOTIFICATION_CHAINS_IDS =
-  (typeof NOTIFICATION_CHAINS_ID)[keyof typeof NOTIFICATION_CHAINS_ID];

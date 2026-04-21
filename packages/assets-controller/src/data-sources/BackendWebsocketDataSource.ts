@@ -8,12 +8,13 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
-import { AbstractDataSource } from './AbstractDataSource';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
@@ -23,6 +24,11 @@ import type {
   AssetBalance,
   DataResponse,
 } from '../types';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 
 // ============================================================================
 // CONSTANTS
@@ -153,20 +159,21 @@ function buildAccountActivityChannel(
 
 /**
  * Normalize API chain identifier to CAIP-2 ChainId.
- * Passes through strings already in namespace:reference form (e.g. eip155:1, solana:5eykt...).
+ * Passes through strings already in CAIP-2 form (e.g. eip155:1, solana:5eykt...).
  * Converts bare decimals to eip155:decimal.
+ * Uses @metamask/utils for CAIP parsing.
  *
  * @param chainIdOrDecimal - Chain ID string (CAIP-2 or decimal) or decimal number.
  * @returns CAIP-2 ChainId.
  */
 function toChainId(chainIdOrDecimal: number | string): ChainId {
   if (typeof chainIdOrDecimal === 'string') {
-    if (chainIdOrDecimal.includes(':')) {
-      return chainIdOrDecimal as ChainId;
+    if (isCaipChainId(chainIdOrDecimal)) {
+      return chainIdOrDecimal;
     }
-    return `eip155:${chainIdOrDecimal}` as ChainId;
+    return toCaipChainId(KnownCaipNamespace.Eip155, chainIdOrDecimal);
   }
-  return `eip155:${chainIdOrDecimal}` as ChainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, String(chainIdOrDecimal));
 }
 
 // Note: AccountActivityMessage and BalanceUpdate types are imported from @metamask/core-backend
@@ -220,6 +227,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** Chains the backend API reports as supported (preserved across disconnects). */
+  #supportedChains: ChainId[] = [];
+
+  /** Whether the WebSocket is currently connected. Chains are only claimed when true. */
+  #isConnected = false;
+
   /** WebSocket subscriptions by our internal subscription ID */
   readonly #wsSubscriptions: Map<string, WebSocketSubscription> = new Map();
 
@@ -250,10 +263,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
-      const previous = [...this.state.activeChains];
-      this.updateActiveChains(chains, (updatedChains) =>
-        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
-      );
+      this.#supportedChains = chains;
+
+      // Only claim chains if the websocket is already connected.
+      // If not connected, chains stay unclaimed so AccountsApiDataSource
+      // can pick them up via polling. They'll be claimed on reconnect.
+      if (this.#isConnected) {
+        const previous = [...this.state.activeChains];
+        this.updateActiveChains(chains, (updatedChains) =>
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+        );
+      }
 
       this.#chainsRefreshTimer = setInterval(() => {
         this.#refreshActiveChains().catch(console.error);
@@ -266,6 +286,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #refreshActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
+      this.#supportedChains = chains;
+
+      // Only update activeChains if connected; otherwise keep them unclaimed.
+      if (!this.#isConnected) {
+        return;
+      }
+
       const previousChains = new Set(this.state.activeChains);
       const newChains = new Set(chains);
 
@@ -304,10 +331,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       'BackendWebSocketService:connectionStateChanged',
       (connectionInfo: ConnectionStatePayload) => {
         if (connectionInfo.state === ('connected' as WebSocketState)) {
-          this.#processPendingSubscriptions().catch(console.error);
+          this.#isConnected = true;
+          this.#handleReconnect();
         } else if (
           connectionInfo.state === ('disconnected' as WebSocketState)
         ) {
+          this.#isConnected = false;
           this.#handleDisconnect();
         }
       },
@@ -316,8 +345,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   /**
    * Sync active chains from AccountsApiDataSource.
-   * Called by AssetsController.handleActiveChainsUpdate when the callback is
-   * invoked for BackendWebsocketDataSource (no messenger call; controller already updated).
+   * When the data source invokes the onActiveChainsUpdated callback, the
+   * controller processes the active chains update (no messenger call; controller already updated).
    *
    * @param chains - Updated active chain IDs from AccountsApiDataSource.
    */
@@ -330,19 +359,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
    * Moves all active subscriptions to pending for re-subscription on reconnect.
    */
   #handleDisconnect(): void {
-    log('WebSocket disconnected, preserving subscriptions for reconnect', {
+    log('WebSocket disconnected, releasing chains for fallback', {
       activeSubscriptionCount: this.activeSubscriptions.size,
       wsSubscriptionCount: this.#wsSubscriptions.size,
+      chainCount: this.state.activeChains.length,
     });
 
     // Move active subscriptions to pending for re-subscription
     for (const [subscriptionId] of this.activeSubscriptions) {
       const originalRequest = this.#subscriptionRequests.get(subscriptionId);
       if (originalRequest) {
-        // Mark as update since it was previously active
         this.#pendingSubscriptions.set(subscriptionId, {
           ...originalRequest,
-          isUpdate: false, // Treat as new subscription since server cleared it
+          isUpdate: false,
         });
       }
     }
@@ -352,30 +381,42 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
     // Clear active subscriptions (they're no longer valid)
     this.activeSubscriptions.clear();
+
+    // Release chains so the chain-claiming loop assigns them to
+    // AccountsApiDataSource (polling fallback) on the next #subscribeAssets.
+    const previous = [...this.state.activeChains];
+    if (previous.length > 0) {
+      this.updateActiveChains([], (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
+    }
   }
 
   /**
-   * Process any pending subscriptions that were queued while WebSocket was disconnected.
+   * Handle WebSocket reconnection.
+   * Clears stale pending subscriptions and restores activeChains so the
+   * chain-claiming loop re-assigns them to this data source, triggering
+   * fresh subscriptions with current accounts and chains.
    */
-  async #processPendingSubscriptions(): Promise<void> {
-    if (this.#pendingSubscriptions.size === 0) {
-      return;
-    }
+  #handleReconnect(): void {
+    log('WebSocket reconnected, reclaiming chains', {
+      supportedChainCount: this.#supportedChains.length,
+      pendingSubscriptionCount: this.#pendingSubscriptions.size,
+    });
 
-    // Process all pending subscriptions
-    const pendingEntries = Array.from(this.#pendingSubscriptions.entries());
+    // Discard stale pending subscriptions captured at disconnect time.
+    // The chain reclaim below triggers #onActiveChainsUpdated →
+    // #subscribeAssets() in AssetsController, which creates fresh
+    // subscriptions with current accounts and chains. Processing the
+    // stale pending entries afterwards would overwrite those with
+    // outdated request data.
+    this.#pendingSubscriptions.clear();
 
-    for (const [subscriptionId, request] of pendingEntries) {
-      try {
-        // Remove from pending before processing to avoid infinite loop
-        this.#pendingSubscriptions.delete(subscriptionId);
-        await this.subscribe(request);
-      } catch (error) {
-        log('Failed to process pending subscription', {
-          subscriptionId,
-          error,
-        });
-      }
+    if (this.#supportedChains.length > 0) {
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains(this.#supportedChains, (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
     }
   }
 
@@ -601,13 +642,23 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const isNative = asset.type.includes('/slip44:');
       const tokenType = isNative ? 'native' : 'erc20';
 
-      // Parse balance amount (already in hex format like "0xc350")
-      const balanceAmount = postBalance.amount.startsWith('0x')
+      // We assume decimals are always present; skip malformed updates
+      if (asset.decimals === undefined) {
+        continue;
+      }
+
+      // Parse raw balance (hex like "0x26f0e5" or decimal string)
+      const rawBalanceStr = postBalance.amount.startsWith('0x')
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
+      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
+      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
+        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
+        .toString();
+
       assetsBalance[accountId][assetId] = {
-        amount: balanceAmount,
+        amount: humanReadableAmount,
       };
 
       assetsMetadata[assetId] = {
@@ -618,10 +669,10 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       };
     }
 
-    const response: DataResponse = {};
+    const response: DataResponse = { updateMode: 'merge' };
     if (Object.keys(assetsBalance[accountId]).length > 0) {
       response.assetsBalance = assetsBalance;
-      response.assetsMetadata = assetsMetadata;
+      response.assetsInfo = assetsMetadata;
     }
 
     return response;

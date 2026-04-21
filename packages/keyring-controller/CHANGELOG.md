@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
+- Persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
+  - If a keyring's serialized state differs after deserialization (e.g. a migration ran, or metadata was missing), the vault is now re-persisted so the change is not lost on the next unlock.
+- Added `KeyringV2` support ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - The controller now maintains a list of `KeyringV2` instance in memory alongside previous `Keyring` instance.
+  - This new keyring interface is more generic and will become the new standard to interact with keyring (creating accounts, executing logic that involves accounts like signing, etc...).
+  - For now, most `KeyringV2` are wrappers (read adapters) around existing `Keyring` instance.
+- Added `withKeyringV2Unsafe` method and `KeyringController:withKeyringV2Unsafe` messenger action for lock-free read-only access to `KeyringV2` adapters ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - Mirrors `withKeyringUnsafe` semantics: no mutex acquired, no persistence or rollback.
+  - Caller is responsible for ensuring the operation is read-only and accesses only immutable keyring data.
+- Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - Accepts a `KeyringSelectorV2` to select keyrings by `type`, `address`, `id`, or `filter`.
+  - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/eth-hd-keyring` from `^13.1.1` to `^14.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/eth-simple-keyring` from `^11.1.2` to `^12.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^10.1.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+
+## [25.2.0]
+
+### Added
+
+- Added `filter` selector variant to `withKeyring` ([#8348](https://github.com/MetaMask/core/pull/8348))
+  - `KeyringSelector` now accepts `{ filter: ({ keyring, metadata }) => boolean }`, which selects the first keyring for which the predicate returns `true`.
+- Add `isKeyringNotFoundError` ([#8351](https://github.com/MetaMask/core/pull/8351))
+  - This function can be used when trying to access a non-existing keyring using `withKeyring`.
+- Added `withKeyringUnsafe` action ([#8358](https://github.com/MetaMask/core/pull/8358))
+  - This new variant of `withKeyring` allows to fetch a keyring instance the same way.
+  - Mutations are not allowed and won't be replicated in the vault.
+  - Can be used to read immutable data safely.
+- Add `KeyringTypes.money` enum value ([#8360](https://github.com/MetaMask/core/pull/8360))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.6.0` ([#7857](https://github.com/MetaMask/core/pull/7857), [#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
 ## [25.1.0]
 
 ### Added
@@ -922,14 +970,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/keyring`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...HEAD
+[25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...@metamask/keyring-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.0.0...@metamask/keyring-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...@metamask/keyring-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...@metamask/keyring-controller@24.0.0

@@ -9,6 +9,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import type { ChainId, DataRequest } from '../types';
 import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
@@ -17,8 +19,6 @@ import type {
   BackendWebsocketDataSourceAllowedActions,
   BackendWebsocketDataSourceAllowedEvents,
 } from './BackendWebsocketDataSource';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest } from '../types';
 
 type AllActions = BackendWebsocketDataSourceAllowedActions;
 type AllEvents = BackendWebsocketDataSourceAllowedEvents;
@@ -354,7 +354,11 @@ describe('BackendWebsocketDataSource', () => {
     triggerConnectionStateChange(WebSocketState.CONNECTED);
     await new Promise(process.nextTick);
 
-    expect(wsSubscribeMock).toHaveBeenCalled();
+    // Stale pending subscriptions are cleared on reconnect rather than
+    // being re-processed. The chain reclaim via updateActiveChains
+    // triggers onActiveChainsUpdated, causing AssetsController to create
+    // fresh subscriptions with current data.
+    expect(wsSubscribeMock).not.toHaveBeenCalled();
 
     controller.destroy();
   });
@@ -497,11 +501,12 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  it('handles WebSocket disconnect by moving subscriptions to pending', async () => {
+  it('handles WebSocket disconnect by releasing chains and reclaiming on reconnect', async () => {
     const {
       controller,
       wsSubscribeMock,
       getConnectionInfoMock,
+      activeChainsUpdateHandler,
       triggerConnectionStateChange,
     } = setupController({
       initialActiveChains: [CHAIN_MAINNET],
@@ -539,10 +544,19 @@ describe('BackendWebsocketDataSource', () => {
       requestTimeout: 30000,
     });
 
+    activeChainsUpdateHandler.mockClear();
     triggerConnectionStateChange(WebSocketState.CONNECTED);
     await new Promise(process.nextTick);
 
-    expect(wsSubscribeMock).toHaveBeenCalledTimes(2);
+    // Stale pending subscriptions are NOT re-processed on reconnect.
+    // Instead, chain reclaim fires onActiveChainsUpdated so
+    // AssetsController creates fresh subscriptions with current data.
+    expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'BackendWebsocketDataSource',
+      [CHAIN_MAINNET],
+      expect.any(Array),
+    );
 
     controller.destroy();
   });
@@ -593,14 +607,15 @@ describe('BackendWebsocketDataSource', () => {
     notificationCallback(notification);
     await new Promise(process.nextTick);
 
+    // Raw 10e18 wei (0x8ac7230489e80000) with 18 decimals → human-readable "10"
     expect(assetsUpdateHandler).toHaveBeenCalledWith(
       expect.objectContaining({
         assetsBalance: expect.objectContaining({
           'mock-account-id': expect.objectContaining({
-            'eip155:8453/slip44:60': { amount: '10000000000000000000' },
+            'eip155:8453/slip44:60': { amount: '10' },
           }),
         }),
-        assetsMetadata: expect.objectContaining({
+        assetsInfo: expect.objectContaining({
           'eip155:8453/slip44:60': expect.objectContaining({
             type: 'native',
             symbol: 'ETH',
@@ -659,16 +674,17 @@ describe('BackendWebsocketDataSource', () => {
     notificationCallback(notification);
     await new Promise(process.nextTick);
 
+    // Raw 1000000 (1 USDC) with 6 decimals → human-readable "1"
     expect(assetsUpdateHandler).toHaveBeenCalledWith(
       expect.objectContaining({
         assetsBalance: expect.objectContaining({
           'mock-account-id': expect.objectContaining({
             'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': {
-              amount: '1000000',
+              amount: '1',
             },
           }),
         }),
-        assetsMetadata: expect.objectContaining({
+        assetsInfo: expect.objectContaining({
           'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48':
             expect.objectContaining({
               type: 'erc20',
@@ -678,6 +694,122 @@ describe('BackendWebsocketDataSource', () => {
         }),
       }),
     );
+
+    controller.destroy();
+  });
+
+  it('converts raw WebSocket balance (hex) to human-readable using asset decimals', async () => {
+    const { controller, wsSubscribeMock, assetsUpdateHandler } =
+      setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
+
+    let notificationCallback: (
+      notification: ServerNotificationMessage,
+    ) => void = () => undefined;
+
+    wsSubscribeMock.mockImplementation(({ callback }) => {
+      notificationCallback = callback;
+      return Promise.resolve(createMockWsSubscription());
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    // 0x26f0e5 = 2552037 raw; USDC 6 decimals → 2.552037
+    const notification = createMockNotification({
+      channel: `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
+      data: {
+        address: MOCK_ADDRESS,
+        tx: { chain: CHAIN_MAINNET },
+        updates: [
+          {
+            asset: {
+              type: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              unit: 'USDC',
+              decimals: 6,
+            },
+            postBalance: {
+              amount: '0x26f0e5',
+            },
+          },
+        ],
+      },
+    });
+
+    notificationCallback(notification);
+    await new Promise(process.nextTick);
+
+    // assetId key is as in notification (mixed case)
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: expect.objectContaining({
+          'mock-account-id': expect.objectContaining({
+            'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
+              amount: '2.552037',
+            },
+          }),
+        }),
+      }),
+    );
+
+    controller.destroy();
+  });
+
+  it('skips balance update when asset.decimals is missing', async () => {
+    const { controller, wsSubscribeMock, assetsUpdateHandler } =
+      setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
+
+    let notificationCallback: (
+      notification: ServerNotificationMessage,
+    ) => void = () => undefined;
+
+    wsSubscribeMock.mockImplementation(({ callback }) => {
+      notificationCallback = callback;
+      return Promise.resolve(createMockWsSubscription());
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    // No decimals on asset → update is skipped (we assume decimals are always present)
+    const notification = createMockNotification({
+      channel: `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
+      data: {
+        address: MOCK_ADDRESS,
+        tx: { chain: CHAIN_MAINNET },
+        updates: [
+          {
+            asset: {
+              type: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
+              unit: 'UNKNOWN',
+              decimals: undefined,
+            },
+            postBalance: {
+              amount: '1000000000000000000',
+            },
+          },
+        ],
+      },
+    });
+
+    notificationCallback(notification);
+    await new Promise(process.nextTick);
+
+    // No valid updates → response has only updateMode, no assetsBalance
+    expect(assetsUpdateHandler).toHaveBeenCalledWith({ updateMode: 'merge' });
 
     controller.destroy();
   });

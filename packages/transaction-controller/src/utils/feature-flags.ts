@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -106,7 +106,7 @@ export type TransactionControllerFeatureFlags = {
     pollingIntervalMs?: number;
 
     /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
-    useWebsockets?: boolean;
+    useBackendWebSocketService?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -486,12 +486,13 @@ export function getTimeoutAttempts(
  * @param messenger - The controller messenger instance.
  * @returns True if WebSocket updates are enabled, false otherwise.
  */
-export function isIncomingTransactionsUseWebsocketsEnabled(
+export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
   messenger: TransactionControllerMessenger,
 ): boolean {
   const featureFlags = getFeatureFlags(messenger);
   return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.useWebsockets ?? false
+    featureFlags?.[FeatureFlag.IncomingTransactions]
+      ?.useBackendWebSocketService ?? false
   );
 }
 

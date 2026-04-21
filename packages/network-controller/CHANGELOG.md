@@ -7,10 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `NetworkController` methods through its messenger ([#8350](https://github.com/MetaMask/core/pull/8350))
+  - The following actions are now available:
+    - `NetworkController:enableRpcFailover`
+    - `NetworkController:disableRpcFailover`
+    - `NetworkController:getProviderAndBlockTracker`
+    - `NetworkController:getNetworkClientRegistry`
+    - `NetworkController:initializeProvider`
+    - `NetworkController:lookupNetwork`
+    - `NetworkController:lookupNetworkByClientId`
+    - `NetworkController:get1559CompatibilityWithNetworkClientId`
+    - `NetworkController:resetConnection`
+    - `NetworkController:rollbackToPreviousProvider`
+    - `NetworkController:loadBackup`
+  - Corresponding action types are available as well.
+- Add `getEthQuery` method to `NetworkController` ([#8350](https://github.com/MetaMask/core/pull/8350))
+
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Deprecated
+
+- `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
+- Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
+  - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
+
+## [30.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/connectivity-controller` from `^0.1.0` to `^0.2.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/eth-json-rpc-middleware` from `^23.1.0` to `^23.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/eth-json-rpc-provider` from `^6.0.0` to `^6.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.4` ([#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [30.0.0]
+
+### Added
+
+- Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
+  - This field contains the JSON-RPC method name (e.g. `eth_blockNumber`) that was being processed when the event fired, enabling identification of which methods produce the most slow requests or retry exhaustions.
+- Add `type` and `retryReason` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7988](https://github.com/MetaMask/core/pull/7988))
+  - `type` (`DegradedEventType`) is `'slow_success'` when the request succeeded but was slow, or `'retries_exhausted'` when retries ran out.
+  - `retryReason` (`RetryReason`, only present when `type` is `'retries_exhausted'`) classifies the error that was retried (e.g. `'non_successful_http_status'`, `'timed_out'`, `'connection_failed'`).
+
+### Changed
+
+- **BREAKING:** The `RpcServiceRequestable` type's `onDegraded` listener now receives `rpcMethodName: string` in its data parameter ([#7954](https://github.com/MetaMask/core/pull/7954))
+  - Implementors of this interface will need to accept the new field in their `onDegraded` callback signature.
 - Bump `@metamask/eth-json-rpc-middleware` from `^23.0.0` to `^23.1.0` ([#7810](https://github.com/MetaMask/core/pull/7810))
 - Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [29.0.0]
 
@@ -1095,14 +1149,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.1...HEAD
+[30.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.0...@metamask/network-controller@30.0.1
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...@metamask/network-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...@metamask/network-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...@metamask/network-controller@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0

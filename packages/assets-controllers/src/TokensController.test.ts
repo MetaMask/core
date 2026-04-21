@@ -28,9 +28,14 @@ import type {
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Patch } from 'immer';
 import nock from 'nock';
-import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
+import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -41,12 +46,6 @@ import type {
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
@@ -81,10 +80,6 @@ describe('TokensController', () => {
     ContractMock.mockReturnValue(
       buildMockEthersERC721Contract({ supportsInterface: false }),
     );
-  });
-
-  afterEach(() => {
-    sinon.restore();
   });
 
   it('should set default state', async () => {
@@ -2808,8 +2803,8 @@ describe('TokensController', () => {
 
           await promiseForApprovals;
 
-          await approvalController.accept(requestId);
-          await approvalController.accept('67890');
+          await approvalController.acceptRequest(requestId);
+          await approvalController.acceptRequest('67890');
           await acceptedRequest;
 
           expect(
@@ -3774,7 +3769,7 @@ describe('TokensController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -3786,7 +3781,7 @@ describe('TokensController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -3799,10 +3794,10 @@ describe('TokensController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "allDetectedTokens": Object {},
-            "allIgnoredTokens": Object {},
-            "allTokens": Object {},
+          {
+            "allDetectedTokens": {},
+            "allIgnoredTokens": {},
+            "allTokens": {},
           }
         `);
       });
@@ -3817,10 +3812,10 @@ describe('TokensController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "allDetectedTokens": Object {},
-            "allIgnoredTokens": Object {},
-            "allTokens": Object {},
+          {
+            "allDetectedTokens": {},
+            "allIgnoredTokens": {},
+            "allTokens": {},
           }
         `);
       });

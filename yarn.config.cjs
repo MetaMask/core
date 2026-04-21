@@ -24,9 +24,14 @@ const { inspect } = require('util');
  * This should trend towards empty.
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@metamask/core-backend': ['5.0.0'],
-  // '@metamask/json-rpc-engine': ['^9.0.3'],
+  '@tanstack/query-core': ['^4.43.0'],
 };
+
+/**
+ * These packages are allowed as peer dependencies without requiring installation as
+ * devDependencies.
+ */
+const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -79,7 +84,7 @@ module.exports = defineConfig({
         expectWorkspaceDescription(workspace);
 
         // All non-root packages must have the same set of NPM keywords.
-        expectWorkspaceField(workspace, 'keywords', ['MetaMask', 'Ethereum']);
+        expectWorkspaceField(workspace, 'keywords', ['Ethereum', 'MetaMask']);
 
         // All non-root packages must have a homepage URL that includes its name.
         expectWorkspaceField(
@@ -112,7 +117,10 @@ module.exports = defineConfig({
 
         // All non-root packages must set up ESM- and CommonJS-compatible
         // exports correctly.
-        if (workspace.ident !== '@metamask/foundryup') {
+        if (
+          workspace.ident !== '@metamask/foundryup' &&
+          workspace.ident !== '@metamask/messenger-cli'
+        ) {
           expectCorrectWorkspaceExports(workspace);
         }
 
@@ -131,20 +139,8 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "build:docs" script.
-        expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
-
-        if (isPrivate) {
-          // All private, non-root packages must not have a "publish:preview"
-          // script.
-          workspace.unset('scripts.publish:preview');
-        } else {
-          // All non-private, non-root packages must have the same
-          // "publish:preview" script.
-          expectWorkspaceField(
-            workspace,
-            'scripts.publish:preview',
-            'yarn npm publish --tag preview',
-          );
+        if (workspace.ident !== '@metamask/messenger-cli') {
+          expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }
 
         // No non-root packages may have a "prepack" script.
@@ -759,6 +755,10 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
 
     if (!peerDependency) {
+      continue;
+    }
+
+    if (ALLOWED_PEER_DEPENDENCIES.includes(dependencyIdent)) {
       continue;
     }
 

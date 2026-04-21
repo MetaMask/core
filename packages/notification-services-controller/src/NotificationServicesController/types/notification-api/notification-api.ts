@@ -1,8 +1,8 @@
+import type { TRIGGER_TYPES } from '../../constants/notification-schema';
+import type { Compute } from '../type-utils';
 // Types derived from external Notification API schema - naming follows API conventions
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { components } from './schema';
-import type { TRIGGER_TYPES } from '../../constants/notification-schema';
-import type { Compute } from '../type-utils';
 
 export type Data_MetamaskSwapCompleted =
   components['schemas']['Data_MetamaskSwapCompleted'];
@@ -24,6 +24,8 @@ export type Data_ERC20Sent = components['schemas']['Data_ERC20Sent'];
 export type Data_ERC20Received = components['schemas']['Data_ERC20Received'];
 export type Data_ERC721Sent = components['schemas']['Data_ERC721Sent'];
 export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
+export type NetworkMetadata = components['schemas']['NetworkMetadata'];
+export type BlockExplorer = components['schemas']['BlockExplorer'];
 
 type Notification = components['schemas']['NotificationOutputV3'][number];
 type PlatformNotification = Extract<

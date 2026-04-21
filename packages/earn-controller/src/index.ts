@@ -20,6 +20,28 @@ export {
   EarnController,
 } from './EarnController';
 
+export type {
+  EarnControllerRefreshPooledStakesAction,
+  EarnControllerRefreshEarnEligibilityAction,
+  EarnControllerRefreshPooledStakingVaultMetadataAction,
+  EarnControllerRefreshPooledStakingVaultDailyApysAction,
+  EarnControllerRefreshPooledStakingVaultApyAveragesAction,
+  EarnControllerRefreshPooledStakingDataAction,
+  EarnControllerRefreshLendingMarketsAction,
+  EarnControllerRefreshLendingPositionsAction,
+  EarnControllerRefreshLendingDataAction,
+  EarnControllerRefreshTronStakingApyAction,
+  EarnControllerGetTronStakingApyAction,
+  EarnControllerGetLendingPositionHistoryAction,
+  EarnControllerGetLendingMarketDailyApysAndAveragesAction,
+  EarnControllerExecuteLendingDepositAction,
+  EarnControllerExecuteLendingWithdrawAction,
+  EarnControllerExecuteLendingTokenApproveAction,
+  EarnControllerGetLendingTokenAllowanceAction,
+  EarnControllerGetLendingTokenMaxWithdrawAction,
+  EarnControllerGetLendingTokenMaxDepositAction,
+} from './EarnController-method-action-types';
+
 export {
   selectLendingMarkets,
   selectLendingPositions,

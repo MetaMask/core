@@ -10,14 +10,9 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 
-import {
-  createSnapPublicKeyRequest,
-  createSnapAllPublicKeysRequest,
-  createSnapSignMessageRequest,
-} from './auth-snap-requests';
 import type {
   LoginResponse,
   SRPInterface,
@@ -31,6 +26,12 @@ import {
   JwtBearerAuth,
 } from '../../sdk';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import {
+  createSnapPublicKeyRequest,
+  createSnapAllPublicKeysRequest,
+  createSnapSignMessageRequest,
+} from './auth-snap-requests';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
 
 const controllerName = 'AuthenticationController';
 
@@ -83,38 +84,23 @@ type ControllerConfig = {
   env: Env;
 };
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof AuthenticationController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: AuthenticationController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<
-  | 'performSignIn'
-  | 'performSignOut'
-  | 'getBearerToken'
-  | 'getSessionProfile'
-  | 'getUserProfileLineage'
-  | 'isSignedIn'
->;
+const MESSENGER_EXPOSED_METHODS = [
+  'performSignIn',
+  'performSignOut',
+  'getBearerToken',
+  'getSessionProfile',
+  'getUserProfileLineage',
+  'isSignedIn',
+] as const;
+
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | AuthenticationControllerGetStateAction;
+  | AuthenticationControllerGetStateAction
+  | AuthenticationControllerMethodActions;
+
 export type AuthenticationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AuthenticationControllerState
 >;
-export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
-export type AuthenticationControllerPerformSignOut =
-  ActionsObj['performSignOut'];
-export type AuthenticationControllerGetBearerToken =
-  ActionsObj['getBearerToken'];
-export type AuthenticationControllerGetSessionProfile =
-  ActionsObj['getSessionProfile'];
-export type AuthenticationControllerGetUserProfileLineage =
-  ActionsObj['getUserProfileLineage'];
-export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -125,7 +111,9 @@ export type AuthenticationControllerStateChangeEvent =
 export type Events = AuthenticationControllerStateChangeEvent;
 
 // Allowed Actions
-type AllowedActions = HandleSnapRequest | KeyringControllerGetStateAction;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | SnapControllerHandleRequestAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
@@ -140,7 +128,7 @@ export type AuthenticationControllerMessenger = Messenger<
  * Controller that enables authentication for restricted endpoints.
  * Used for Backup & Sync, Notifications, and other services.
  */
-export default class AuthenticationController extends BaseController<
+export class AuthenticationController extends BaseController<
   typeof controllerName,
   AuthenticationControllerState,
   AuthenticationControllerMessenger
@@ -154,6 +142,8 @@ export default class AuthenticationController extends BaseController<
   };
 
   #isUnlocked = false;
+
+  #cachedPrimaryEntropySourceId?: string;
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -223,85 +213,43 @@ export default class AuthenticationController extends BaseController<
     );
 
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
-  }
 
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getBearerToken',
-      this.getBearerToken.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getSessionProfile',
-      this.getSessionProfile.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:isSignedIn',
-      this.isSignedIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignIn',
-      this.performSignIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignOut',
-      this.performSignOut.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getUserProfileLineage',
-      this.getUserProfileLineage.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
   async #getLoginResponseFromState(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
-    if (entropySourceId) {
-      if (!this.state.srpSessionData?.[entropySourceId]) {
-        return null;
-      }
-      return this.state.srpSessionData[entropySourceId];
-    }
-
-    const primarySrpLoginResponse = Object.values(
-      this.state.srpSessionData || {},
-    )?.[0];
-
-    if (!primarySrpLoginResponse) {
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    if (!this.state.srpSessionData?.[resolvedId]) {
       return null;
     }
-
-    return primarySrpLoginResponse;
+    return this.state.srpSessionData[resolvedId];
   }
 
   async #setLoginResponseToState(
     loginResponse: LoginResponse,
     entropySourceId?: string,
   ) {
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
-      if (entropySourceId) {
-        state.isSignedIn = true;
-        if (!state.srpSessionData) {
-          state.srpSessionData = {};
-        }
-        state.srpSessionData[entropySourceId] = {
-          ...loginResponse,
-          profile: {
-            ...loginResponse.profile,
-            metaMetricsId,
-          },
-        };
+      state.isSignedIn = true;
+      if (!state.srpSessionData) {
+        state.srpSessionData = {};
       }
+      state.srpSessionData[resolvedId] = {
+        ...loginResponse,
+        profile: {
+          ...loginResponse.profile,
+          metaMetricsId,
+        },
+      };
     });
   }
 
@@ -309,6 +257,29 @@ export default class AuthenticationController extends BaseController<
     if (!this.#isUnlocked) {
       throw new Error(`${methodName} - unable to proceed, wallet is locked`);
     }
+  }
+
+  async #getPrimaryEntropySourceId(): Promise<string> {
+    if (this.#cachedPrimaryEntropySourceId) {
+      return this.#cachedPrimaryEntropySourceId;
+    }
+    const allPublicKeys = await this.#snapGetAllPublicKeys();
+
+    if (allPublicKeys.length === 0) {
+      throw new Error(
+        '#getPrimaryEntropySourceId - No entropy sources found from snap',
+      );
+    }
+
+    const primaryId = allPublicKeys[0][0];
+    if (!primaryId) {
+      throw new Error(
+        '#getPrimaryEntropySourceId - Primary entropy source ID is undefined',
+      );
+    }
+
+    this.#cachedPrimaryEntropySourceId = primaryId;
+    return this.#cachedPrimaryEntropySourceId;
   }
 
   public async performSignIn(): Promise<string[]> {
@@ -328,6 +299,7 @@ export default class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
+    this.#cachedPrimaryEntropySourceId = undefined;
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
@@ -343,7 +315,9 @@ export default class AuthenticationController extends BaseController<
 
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    return await this.#auth.getAccessToken(entropySourceId);
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getAccessToken(resolvedId);
   }
 
   /**
@@ -358,12 +332,18 @@ export default class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    return await this.#auth.getUserProfile(entropySourceId);
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getUserProfile(resolvedId);
   }
 
-  public async getUserProfileLineage(): Promise<UserProfileLineage> {
+  public async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    return await this.#auth.getUserProfileLineage();
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getUserProfileLineage(resolvedId);
   }
 
   public isSignedIn(): boolean {

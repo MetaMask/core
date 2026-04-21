@@ -3,6 +3,7 @@ export {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController';
+export type { PendingTokenMetadata } from './AssetsController';
 
 // State and messenger types
 export type {
@@ -27,7 +28,8 @@ export type {
   AssetsControllerGetCustomAssetsAction,
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
-  AssetsControllerMethodActions,
+  AssetsControllerGetExchangeRatesForBridgeAction,
+  AssetsControllerGetStateForTransactionPayAction,
 } from './AssetsController-method-action-types';
 
 // Core types
@@ -65,10 +67,12 @@ export type {
   DataType,
   DataRequest,
   DataResponse,
+  AssetsUpdateMode,
   // Middleware types
   Context,
   NextFunction,
   Middleware,
+  AssetsDataSource,
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
@@ -91,9 +95,9 @@ export type { DataSourceState, SubscriptionRequest } from './data-sources';
 export { AccountsApiDataSource } from './data-sources';
 
 export type {
+  AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
-  AccountsApiDataSourceAllowedActions,
 } from './data-sources';
 
 // Data sources - BackendWebsocket
@@ -105,8 +109,6 @@ export {
 export type {
   BackendWebsocketDataSourceOptions,
   BackendWebsocketDataSourceState,
-  BackendWebsocketDataSourceAllowedActions,
-  BackendWebsocketDataSourceAllowedEvents,
 } from './data-sources';
 
 // Data sources - RPC
@@ -116,8 +118,6 @@ export type {
   RpcDataSourceConfig,
   RpcDataSourceOptions,
   RpcDataSourceState,
-  RpcDataSourceAllowedActions,
-  RpcDataSourceAllowedEvents,
   ChainStatus,
 } from './data-sources';
 
@@ -136,8 +136,6 @@ export {
 export type {
   SnapDataSourceState,
   SnapDataSourceOptions,
-  SnapDataSourceAllowedActions,
-  SnapDataSourceAllowedEvents,
 } from './data-sources';
 
 // Enrichment data sources
@@ -145,7 +143,7 @@ export { TokenDataSource, PriceDataSource } from './data-sources';
 
 export type {
   TokenDataSourceOptions,
-  TokenDataSourceAllowedActions,
+  PriceDataSourceConfig,
   PriceDataSourceOptions,
 } from './data-sources';
 
@@ -153,7 +151,17 @@ export type {
 export { DetectionMiddleware } from './middlewares';
 
 // Utilities
-export { normalizeAssetId } from './utils';
+export {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+export type {
+  AccountForLegacyFormat,
+  BridgeExchangeRatesFormat,
+  LegacyToken,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // Selectors
 export {

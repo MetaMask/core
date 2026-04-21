@@ -9,7 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [4.2.0]
+
+### Added
+
+- Expose missing public `RemoteFeatureFlagController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))
+  - The following actions are now available:
+    - `RemoteFeatureFlagController:enable`
+    - `RemoteFeatureFlagController:disable`
+  - Corresponding action types (e.g. `RemoteFeatureFlagControllerEnableAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [4.1.0]
+
+### Added
+
+- Add optional `prevClientVersion` constructor argument to invalidate cached flags when the client version changes ([#7827](https://github.com/MetaMask/core/pull/7827))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.19.0` ([#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [4.0.0]
 
@@ -182,7 +209,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.1.0...@metamask/remote-feature-flag-controller@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.0.0...@metamask/remote-feature-flag-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@3.1.0...@metamask/remote-feature-flag-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@3.0.0...@metamask/remote-feature-flag-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@2.0.1...@metamask/remote-feature-flag-controller@3.0.0

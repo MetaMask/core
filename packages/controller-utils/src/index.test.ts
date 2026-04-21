@@ -3,7 +3,7 @@ import * as allExports from '.';
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+      [
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",
@@ -51,6 +51,7 @@ describe('@metamask/controller-utils', () => {
         "DAY",
         "DAYS",
         "NETWORKS_BYPASSING_VALIDATION",
+        "CHAIN_IDS_WITH_NO_NATIVE_TOKEN",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",

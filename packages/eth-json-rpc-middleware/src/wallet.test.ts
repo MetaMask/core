@@ -8,8 +8,8 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
-import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 import { createHandleParams, createRequest } from '../test/util/helpers';
+import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',

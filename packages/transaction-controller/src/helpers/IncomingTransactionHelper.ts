@@ -8,15 +8,15 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import {
   getIncomingTransactionsPollingInterval,
-  isIncomingTransactionsUseWebsocketsEnabled,
+  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
 import { caip2ToHex } from '../utils/utils';
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 
 export enum WebSocketState {
   CONNECTED = 'connected',
@@ -71,9 +71,11 @@ export class IncomingTransactionHelper {
     transactions: TransactionMeta[],
   ) => TransactionMeta[];
 
+  #isTransactionHistoryRetrievalActive = false;
+
   readonly #updateTransactions?: boolean;
 
-  readonly #useWebsockets: boolean;
+  readonly #useBackendWebSocketService: boolean;
 
   // Chains that need polling (start with all supported, remove as they come up)
   readonly #chainsToPoll: Hex[] = [...SUPPORTED_CHAIN_IDS];
@@ -140,9 +142,10 @@ export class IncomingTransactionHelper {
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
-    this.#useWebsockets = isIncomingTransactionsUseWebsocketsEnabled(messenger);
+    this.#useBackendWebSocketService =
+      isIncomingTransactionsUseBackendWebSocketServiceEnabled(messenger);
 
-    if (this.#useWebsockets) {
+    if (this.#useBackendWebSocketService) {
       this.#messenger.subscribe(
         'BackendWebSocketService:connectionStateChanged',
         this.#connectionStateChangedHandler,
@@ -157,7 +160,7 @@ export class IncomingTransactionHelper {
 
   start(): void {
     // When websockets are disabled, allow normal polling (legacy mode)
-    if (this.#useWebsockets) {
+    if (this.#useBackendWebSocketService) {
       return;
     }
 
@@ -219,7 +222,13 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    if (this.#isTransactionHistoryRetrievalActive) {
+      return;
+    }
+
     log('Started transaction history retrieval (event-driven)');
+
+    this.#isTransactionHistoryRetrievalActive = true;
 
     this.update().catch((error) => {
       log('Initial update in transaction history retrieval failed', error);
@@ -237,7 +246,13 @@ export class IncomingTransactionHelper {
   }
 
   #stopTransactionHistoryRetrieval(): void {
+    if (!this.#isTransactionHistoryRetrievalActive) {
+      return;
+    }
+
     log('Stopped transaction history retrieval');
+
+    this.#isTransactionHistoryRetrievalActive = false;
 
     this.#messenger.unsubscribe(
       'AccountActivityService:transactionUpdated',
@@ -274,7 +289,9 @@ export class IncomingTransactionHelper {
 
     try {
       // When websockets enabled, only poll chains that are not confirmed up
-      const chainIds = this.#useWebsockets ? this.#chainsToPoll : undefined;
+      const chainIds = this.#useBackendWebSocketService
+        ? this.#chainsToPoll
+        : undefined;
       await this.update({ chainIds, isInterval: true });
     } catch (error) {
       console.error('Error while checking incoming transactions', error);
@@ -424,7 +441,7 @@ export class IncomingTransactionHelper {
   }
 
   #onNetworkStatusChanged(chainIds: string[], status: 'up' | 'down'): void {
-    if (!this.#useWebsockets) {
+    if (!this.#useBackendWebSocketService) {
       return;
     }
 

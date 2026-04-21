@@ -2,6 +2,14 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
+import type {
+  GenericQuoteRequest,
+  QuoteResponse,
+  Quote,
+  NonEvmFees,
+  L1GasFees,
+  TxData,
+} from '../types';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -18,14 +26,6 @@ import {
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './quote';
-import type {
-  GenericQuoteRequest,
-  QuoteResponse,
-  Quote,
-  NonEvmFees,
-  L1GasFees,
-  TxData,
-} from '../types';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {
@@ -441,18 +441,18 @@ describe('Quote Metadata Utils', () => {
       });
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
-          "effective": Object {
+        {
+          "effective": {
             "amount": "0.003584",
             "usd": "5.376",
             "valueInCurrency": "7.168",
           },
-          "max": Object {
+          "max": {
             "amount": "0.006934",
             "usd": "10.401",
             "valueInCurrency": "13.868",
           },
-          "total": Object {
+          "total": {
             "amount": "0.003584",
             "usd": "5.376",
             "valueInCurrency": "7.168",
@@ -477,18 +477,18 @@ describe('Quote Metadata Utils', () => {
       });
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
-          "effective": Object {
+        {
+          "effective": {
             "amount": "0.00166",
             "usd": "2.49",
             "valueInCurrency": "3.32",
           },
-          "max": Object {
+          "max": {
             "amount": "0.006934",
             "usd": "10.401",
             "valueInCurrency": "13.868",
           },
-          "total": Object {
+          "total": {
             "amount": "0.003584",
             "usd": "5.376",
             "valueInCurrency": "7.168",

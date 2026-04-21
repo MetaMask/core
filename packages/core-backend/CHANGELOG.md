@@ -9,6 +9,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.2.0` ([#8325](https://github.com/MetaMask/core/pull/8325), [#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [6.2.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [6.2.0]
+
+### Added
+
+- Add `includeOccurrences` option to `V3AssetsQueryOptions` so the tokens v3 assets API can be called with `includeOccurrences: true` to return token list occurrence counts in the response ([#8227](https://github.com/MetaMask/core/pull/8227))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
+## [6.1.0]
+
+### Added
+
+- Add `includeAggregators` option to `V3AssetsQueryOptions` so the tokens v3 assets API can be called with `includeAggregators: true` to return DEX/aggregator integrations in the response ([#8021](https://github.com/MetaMask/core/pull/8021))
+- Add `includeTokenSecurityData` option to `fetchV3TrendingTokens` and `getV3TrendingTokensQueryOptions` to request token security data from the API ([#8106](https://github.com/MetaMask/core/pull/8106))
+- Export new types `TokenSecurityData`, `TokenSecurityFeature`, `TokenSecurityHolder`, `TokenSecurityMarket`, `TokenSecurityFees`, `TokenSecurityFinancialStats`, and `TokenSecurityMetadata` ([#8106](https://github.com/MetaMask/core/pull/8106))
+- Add `getV4MultiAccountTransactionsInfiniteQueryOptions` for paginated transaction queries with `useInfiniteQuery` ([#8002](https://github.com/MetaMask/core/pull/8002))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [6.0.0]
+
+### Added
+
+- Add `ApiPlatformClientService` to expose `ApiPlatformClient` via the messenger without a controller ([#7928](https://github.com/MetaMask/core/pull/7928))
+  - Consumers call `messenger.call('ApiPlatformClientService:getApiPlatformClient')` to obtain the shared client for accounts, prices, token, and tokens APIs
+- Export TanStack Query options for all API endpoints via `get*QueryOptions` helpers ([#7928](https://github.com/MetaMask/core/pull/7928))
+  - Each fetch method (e.g. `fetchV5MultiAccountBalances`) has a corresponding `get*QueryOptions` (e.g. `getV5MultiAccountBalancesQueryOptions`) returning the same options object used internally
+  - Enables reuse with `useQuery`, `useInfiniteQuery`, `useSuspenseQuery`, and other TanStack Query APIs
+- Extend `FetchOptions` to allow TanStack Query options (e.g. `select`, `initialPageParam`, `retry`, `initialData`) to be passed through to `get*QueryOptions` and merged into the returned query options
+  - Export `getQueryOptionsOverrides` helper for stripping `queryKey`/`queryFn` from options when merging
+  - All API clients (accounts, prices, token, tokens) merge user overrides first, then apply `staleTime`/`gcTime` defaults so cache timing is consistent and extra options (e.g. `select`) are preserved
+
+### Changed
+
+- **BREAKING:** Merge `fetchV2BalancesWithOptions` into `fetchV2Balances` ([#7928](https://github.com/MetaMask/core/pull/7928))
+  - `fetchV2Balances(address, queryOptions?, options?)` now accepts the full query options: `networks`, `filterSupportedTokens`, `includeTokenAddresses`, `includeStakedAssets`
+  - `getV2BalancesQueryOptions` accepts the same full query options for use with TanStack Query
+  - `fetchV2BalancesWithOptions` and `getV2BalancesWithOptionsQueryOptions` have been removed; use `fetchV2Balances` and `getV2BalancesQueryOptions` with the desired options instead
+- **BREAKING:** Align v4 multi-account transactions with API ([#7928](https://github.com/MetaMask/core/pull/7928))
+  - First parameter renamed from `accountIds` to `accountAddresses` in `fetchV4MultiAccountTransactions` and `getV4MultiAccountTransactionsQueryOptions`
+  - Query options now include: `startTimestamp`, `endTimestamp`, `limit`, `after`, `before`, `maxLogsPerTx`, `lang` in addition to `networks`, `cursor`, `sortDirection`, `includeLogs`, `includeTxMetadata`
+  - `includeValueTransfers` has been removed from the options (not in API spec)
+- Accounts, prices, and tokens clients: `fetch*` and `get*QueryOptions` now short-circuit on empty required inputs (e.g. empty address, empty account IDs or asset lists) and return empty results without calling the API ([#7928](https://github.com/MetaMask/core/pull/7928))
+
+## [5.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/profile-sync-controller` from `^27.0.0` to `^27.1.0` ([#7849](https://github.com/MetaMask/core/pull/7849))
 
 ## [5.1.0]
@@ -190,7 +261,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...HEAD
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...@metamask/core-backend@6.2.1
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.1...@metamask/core-backend@6.2.0
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.0...@metamask/core-backend@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.0.0...@metamask/core-backend@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.1...@metamask/core-backend@6.0.0
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.0...@metamask/core-backend@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.0.0...@metamask/core-backend@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.1.0...@metamask/core-backend@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.0.0...@metamask/core-backend@4.1.0

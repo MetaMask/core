@@ -190,7 +190,7 @@ export type AssetMetadata =
  * Base price attributes.
  */
 export type BaseAssetPrice = {
-  /** Current price in USD */
+  /** Current price in selected currency */
   price: number;
   /** Timestamp of last price update */
   lastUpdated: number;
@@ -200,11 +200,10 @@ export type BaseAssetPrice = {
  * Price data for fungible tokens (native, ERC20, SPL)
  * Matches V3SpotPricesResponse from the Price API.
  */
-export type FungibleAssetPrice = {
+export type FungibleAssetPrice = BaseAssetPrice & {
+  assetPriceType: 'fungible';
   /** CoinGecko ID */
   id?: string;
-  /** Current price in USD */
-  price: number;
   /** Market capitalization */
   marketCap?: number;
   /** All-time high price */
@@ -239,14 +238,15 @@ export type FungibleAssetPrice = {
   pricePercentChange200d?: number;
   /** 1y price change percentage */
   pricePercentChange1y?: number;
-  /** Timestamp of last price update (added by client) */
-  lastUpdated: number;
+  /** Current price in USD */
+  usdPrice: number;
 };
 
 /**
  * Price data for NFT collections
  */
-export type NFTAssetPrice = {
+export type NFTAssetPrice = BaseAssetPrice & {
+  assetPriceType: 'nft';
   /** Floor price */
   floorPrice?: number;
   /** Last sale price */
@@ -257,16 +257,13 @@ export type NFTAssetPrice = {
   averagePrice?: number;
   /** Number of sales in 24h */
   sales24h?: number;
-} & BaseAssetPrice;
+};
 
 /**
  * Union type representing all possible asset price types.
  * All types must be JSON-serializable.
  */
-export type AssetPrice =
-  | FungibleAssetPrice
-  | NFTAssetPrice
-  | (BaseAssetPrice & { [key: string]: Json });
+export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
 
 // ============================================================================
 // BALANCE TYPES (vary by asset type)
@@ -344,6 +341,8 @@ export type DataRequest = {
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
+  /** Specific CAIP-19 asset IDs for price update */
+  assetsForPriceUpdate?: Caip19AssetId[];
 };
 
 /**
@@ -351,7 +350,7 @@ export type DataRequest = {
  */
 export type DataResponse = {
   /** Metadata for assets (shared across accounts) */
-  assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+  assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
   /** Price data for assets (shared across accounts) */
   assetsPrice?: Record<Caip19AssetId, AssetPrice>;
   /** Balance data per account */
@@ -360,7 +359,22 @@ export type DataResponse = {
   errors?: Record<ChainId, string>;
   /** Detected assets (assets that do not have metadata) */
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
+  /**
+   * How to apply this response to state. See {@link AssetsUpdateMode}.
+   * Defaults to `'merge'` if omitted.
+   */
+  updateMode?: AssetsUpdateMode;
 };
+
+/**
+ * Type of {@link DataResponse.updateMode}: how the controller applies the response to state.
+ *
+ * - **full**: Response is the full set for the scope. Assets in state but not in the
+ *   response are cleared (except custom assets). Use for initial fetch or full refresh.
+ * - **merge**: Only assets present in the response are updated; nothing is removed.
+ *   Use for event-driven or incremental updates.
+ */
+export type AssetsUpdateMode = 'full' | 'merge';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
@@ -419,7 +433,7 @@ export type MiddlewareDataSource = {
  * Internal state structure for AssetsController following normalized design.
  *
  * Keys use CAIP identifiers:
- * - assetsMetadata keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
+ * - assetsInfo keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
  * - assetsBalance outer keys: Account IDs (InternalAccount.id UUIDs)
  * - assetsBalance inner keys: CAIP-19 asset IDs
  * - assetsPrice keys: CAIP-19 asset IDs
@@ -429,7 +443,7 @@ export type MiddlewareDataSource = {
  */
 export type AssetsControllerStateInternal = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
+  assetsInfo: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
   assetsBalance: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
   /** Price data for assets */
@@ -451,6 +465,12 @@ export type Context = {
   response: DataResponse;
   /** Get current assets state */
   getAssetsState: () => AssetsControllerStateInternal;
+  /**
+   * Optional breakdown of latency (ms) per data source, e.g. from parallel
+   * middlewares. Keys are source names (often "MiddlewareName.SourceName").
+   * Merged into the controller's durationByDataSource for tracing.
+   */
+  durationByDataSource?: Record<string, number>;
 };
 
 /**
@@ -465,6 +485,16 @@ export type Middleware = (
   context: Context,
   next: NextFunction,
 ) => Promise<Context>;
+
+/**
+ * An assets data source: any object that can participate in the assets
+ * middleware chain with a display name (e.g. for tracing). Used by
+ * createParallelMiddleware and by the controller when executing the chain.
+ */
+export type AssetsDataSource = {
+  getName(): string;
+  assetsMiddleware: Middleware;
+};
 
 /**
  * Wraps a middleware to only execute if specific dataTypes are requested.

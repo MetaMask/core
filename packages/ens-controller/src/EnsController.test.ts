@@ -17,15 +17,15 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 
+import {
+  buildMockGetNetworkClientById,
+  buildCustomNetworkClientConfiguration,
+} from '../../network-controller/tests/helpers';
 import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
 import type {
   EnsControllerState,
   EnsControllerMessenger,
 } from './EnsController';
-import {
-  buildMockGetNetworkClientById,
-  buildCustomNetworkClientConfiguration,
-} from '../../network-controller/tests/helpers';
 
 const defaultState: EnsControllerState = {
   ensEntries: {},
@@ -729,7 +729,7 @@ describe('EnsController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -746,52 +746,52 @@ describe('EnsController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "ensEntries": Object {
-            "0x1": Object {
-              ".": Object {
+        {
+          "ensEntries": {
+            "0x1": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x1",
                 "ensName": ".",
               },
             },
-            "0x3": Object {
-              ".": Object {
+            "0x3": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x3",
                 "ensName": ".",
               },
             },
-            "0x4": Object {
-              ".": Object {
+            "0x4": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x4",
                 "ensName": ".",
               },
             },
-            "0x4268": Object {
-              ".": Object {
+            "0x4268": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x4268",
                 "ensName": ".",
               },
             },
-            "0x5": Object {
-              ".": Object {
+            "0x5": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x5",
                 "ensName": ".",
               },
             },
-            "0xaa36a7": Object {
-              ".": Object {
+            "0xaa36a7": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0xaa36a7",
                 "ensName": ".",
               },
             },
           },
-          "ensResolutionsByAddress": Object {},
+          "ensResolutionsByAddress": {},
         }
       `);
     });
@@ -810,52 +810,52 @@ describe('EnsController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "ensEntries": Object {
-            "0x1": Object {
-              ".": Object {
+        {
+          "ensEntries": {
+            "0x1": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x1",
                 "ensName": ".",
               },
             },
-            "0x3": Object {
-              ".": Object {
+            "0x3": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x3",
                 "ensName": ".",
               },
             },
-            "0x4": Object {
-              ".": Object {
+            "0x4": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x4",
                 "ensName": ".",
               },
             },
-            "0x4268": Object {
-              ".": Object {
+            "0x4268": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x4268",
                 "ensName": ".",
               },
             },
-            "0x5": Object {
-              ".": Object {
+            "0x5": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x5",
                 "ensName": ".",
               },
             },
-            "0xaa36a7": Object {
-              ".": Object {
+            "0xaa36a7": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0xaa36a7",
                 "ensName": ".",
               },
             },
           },
-          "ensResolutionsByAddress": Object {},
+          "ensResolutionsByAddress": {},
         }
       `);
     });
@@ -874,52 +874,52 @@ describe('EnsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "ensEntries": Object {
-            "0x1": Object {
-              ".": Object {
+        {
+          "ensEntries": {
+            "0x1": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x1",
                 "ensName": ".",
               },
             },
-            "0x3": Object {
-              ".": Object {
+            "0x3": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x3",
                 "ensName": ".",
               },
             },
-            "0x4": Object {
-              ".": Object {
+            "0x4": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x4",
                 "ensName": ".",
               },
             },
-            "0x4268": Object {
-              ".": Object {
+            "0x4268": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x4268",
                 "ensName": ".",
               },
             },
-            "0x5": Object {
-              ".": Object {
+            "0x5": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0x5",
                 "ensName": ".",
               },
             },
-            "0xaa36a7": Object {
-              ".": Object {
+            "0xaa36a7": {
+              ".": {
                 "address": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
                 "chainId": "0xaa36a7",
                 "ensName": ".",
               },
             },
           },
-          "ensResolutionsByAddress": Object {},
+          "ensResolutionsByAddress": {},
         }
       `);
     });

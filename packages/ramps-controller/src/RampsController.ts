@@ -6,8 +6,11 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import type { Draft } from 'immer';
 
+import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type {
+  BuyWidget,
   Country,
   TokensResponse,
   Provider,
@@ -17,10 +20,11 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  GetQuotesParams,
   RampsToken,
   RampsServiceActions,
+  RampsOrder,
 } from './RampsService';
+import { RampsOrderStatus } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -28,6 +32,9 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -46,6 +53,49 @@ import {
   createErrorState,
   RequestStatus,
 } from './RequestCache';
+import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+  TransakOrder,
+} from './TransakService';
+import type { TransakServiceActions } from './TransakService';
+import type {
+  TransakServiceSetApiKeyAction,
+  TransakServiceSetAccessTokenAction,
+  TransakServiceClearAccessTokenAction,
+  TransakServiceSendUserOtpAction,
+  TransakServiceVerifyUserOtpAction,
+  TransakServiceLogoutAction,
+  TransakServiceGetUserDetailsAction,
+  TransakServiceGetBuyQuoteAction,
+  TransakServiceGetKycRequirementAction,
+  TransakServiceGetAdditionalRequirementsAction,
+  TransakServiceCreateOrderAction,
+  TransakServiceGetOrderAction,
+  TransakServiceGetUserLimitsAction,
+  TransakServiceRequestOttAction,
+  TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceSubmitPurposeOfUsageFormAction,
+  TransakServicePatchUserAction,
+  TransakServiceSubmitSsnDetailsAction,
+  TransakServiceConfirmPaymentAction,
+  TransakServiceGetTranslationAction,
+  TransakServiceGetIdProofStatusAction,
+  TransakServiceCancelOrderAction,
+  TransakServiceCancelAllActiveOrdersAction,
+  TransakServiceGetActiveOrdersAction,
+} from './TransakService-method-action-types';
 
 // === GENERAL ===
 
@@ -61,15 +111,44 @@ export const controllerName = 'RampsController';
  * Any host (e.g. mobile) that creates a RampsController messenger must delegate
  * these actions from the root messenger so the controller can function.
  */
-export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceActions['type'][] =
-  [
-    'RampsService:getGeolocation',
-    'RampsService:getCountries',
-    'RampsService:getTokens',
-    'RampsService:getProviders',
-    'RampsService:getPaymentMethods',
-    'RampsService:getQuotes',
-  ];
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
+  | RampsServiceActions['type']
+  | TransakServiceActions['type']
+)[] = [
+  'RampsService:getGeolocation',
+  'RampsService:getCountries',
+  'RampsService:getTokens',
+  'RampsService:getProviders',
+  'RampsService:getPaymentMethods',
+  'RampsService:getQuotes',
+  'RampsService:getBuyWidgetUrl',
+  'RampsService:getOrder',
+  'RampsService:getOrderFromCallback',
+  'TransakService:setApiKey',
+  'TransakService:setAccessToken',
+  'TransakService:clearAccessToken',
+  'TransakService:sendUserOtp',
+  'TransakService:verifyUserOtp',
+  'TransakService:logout',
+  'TransakService:getUserDetails',
+  'TransakService:getBuyQuote',
+  'TransakService:getKycRequirement',
+  'TransakService:getAdditionalRequirements',
+  'TransakService:createOrder',
+  'TransakService:getOrder',
+  'TransakService:getUserLimits',
+  'TransakService:requestOtt',
+  'TransakService:generatePaymentWidgetUrl',
+  'TransakService:submitPurposeOfUsageForm',
+  'TransakService:patchUser',
+  'TransakService:submitSsnDetails',
+  'TransakService:confirmPayment',
+  'TransakService:getTranslation',
+  'TransakService:getIdProofStatus',
+  'TransakService:cancelOrder',
+  'TransakService:cancelAllActiveOrders',
+  'TransakService:getActiveOrders',
+];
 
 /**
  * Default TTL for quotes requests (15 seconds).
@@ -123,6 +202,25 @@ export type ResourceState<TData, TSelected = null> = {
 };
 
 /**
+ * Describes the transak-specific state managed by the RampsController.
+ * This state is used by the unified V2 native flow.
+ */
+export type TransakState = {
+  isAuthenticated: boolean;
+  userDetails: ResourceState<TransakUserDetails | null>;
+  buyQuote: ResourceState<TransakBuyQuote | null>;
+  kycRequirement: ResourceState<TransakKycRequirement | null>;
+};
+
+/**
+ * Describes the state for all native providers managed by the RampsController.
+ * Each native provider has its own nested state object.
+ */
+export type NativeProvidersState = {
+  transak: TransakState;
+};
+
+/**
  * Describes the shape of the state object for {@link RampsController}.
  */
 export type RampsControllerState = {
@@ -152,16 +250,28 @@ export type RampsControllerState = {
    */
   paymentMethods: ResourceState<PaymentMethod[], PaymentMethod | null>;
   /**
-   * Quotes resource state with data, selected, loading, and error.
-   * Data contains quotes from multiple providers for the given parameters.
-   * Selected contains the currently selected quote for the user.
-   */
-  quotes: ResourceState<QuotesResponse | null, Quote | null>;
-  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
   requests: RequestCacheType;
+  /**
+   * State for native providers in the unified V2 flow.
+   * Each provider has its own nested state containing authentication,
+   * user details, quote, and KYC data.
+   */
+  nativeProviders: NativeProvidersState;
+  /**
+   * The controller is the authority for V2 orders — it polls, updates,
+   * and persists them.
+   */
+  orders: RampsOrder[];
+  /**
+   * Whether the currently selected provider was auto-selected by the system
+   * (no order history, no Transak) rather than chosen by the user or derived
+   * from order history. When true, the UI should silently switch providers on
+   * token conflict instead of showing the "Token Not Available" modal.
+   */
+  providerAutoSelected: boolean;
 };
 
 /**
@@ -181,13 +291,13 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providers: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
   tokens: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -198,16 +308,28 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
-  quotes: {
+  requests: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
     usedInUi: true,
   },
-  requests: {
+  nativeProviders: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
+    usedInUi: true,
+  },
+  orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  providerAutoSelected: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     usedInUi: true,
   },
 } satisfies StateMetadata<RampsControllerState>;
@@ -257,16 +379,47 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       PaymentMethod[],
       PaymentMethod | null
     >([], null),
-    quotes: createDefaultResourceState<QuotesResponse | null, Quote | null>(
-      null,
-      null,
-    ),
     requests: {},
+    nativeProviders: {
+      transak: {
+        isAuthenticated: false,
+        userDetails: createDefaultResourceState<TransakUserDetails | null>(
+          null,
+        ),
+        buyQuote: createDefaultResourceState<TransakBuyQuote | null>(null),
+        kycRequirement:
+          createDefaultResourceState<TransakKycRequirement | null>(null),
+      },
+    },
+    orders: [],
+    providerAutoSelected: false,
   };
 }
 
+const DEPENDENT_RESOURCE_KEYS = [
+  'providers',
+  'tokens',
+  'paymentMethods',
+] as const;
+
+type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
+
+const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
+
+function resetResource(
+  state: Draft<RampsControllerState>,
+  resourceType: DependentResourceKey,
+  defaultResource: RampsControllerState[DependentResourceKey],
+): void {
+  const resource = state[resourceType];
+  resource.data = defaultResource.data;
+  resource.selected = defaultResource.selected;
+  resource.isLoading = defaultResource.isLoading;
+  resource.error = defaultResource.error;
+}
+
 /**
- * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
+ * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods).
  * Mutates state in place; use from within controller update() for atomic updates.
  *
  * @param state - The state object to mutate.
@@ -274,28 +427,17 @@ export function getDefaultRampsControllerState(): RampsControllerState {
  * @param options.clearUserRegionData - When true, sets userRegion to null (e.g. for full cleanup).
  */
 function resetDependentResources(
-  state: RampsControllerState,
+  state: Draft<RampsControllerState>,
   options?: { clearUserRegionData?: boolean },
 ): void {
   if (options?.clearUserRegionData) {
     state.userRegion = null;
   }
-  state.providers.selected = null;
-  state.providers.data = [];
-  state.providers.isLoading = false;
-  state.providers.error = null;
-  state.tokens.selected = null;
-  state.tokens.data = null;
-  state.tokens.isLoading = false;
-  state.tokens.error = null;
-  state.paymentMethods.data = [];
-  state.paymentMethods.selected = null;
-  state.paymentMethods.isLoading = false;
-  state.paymentMethods.error = null;
-  state.quotes.data = null;
-  state.quotes.selected = null;
-  state.quotes.isLoading = false;
-  state.quotes.error = null;
+  const defaultState = getDefaultRampsControllerState();
+  for (const key of DEPENDENT_RESOURCE_KEYS) {
+    resetResource(state, key, defaultState[key]);
+  }
+  state.providerAutoSelected = false;
 }
 
 // === MESSENGER ===
@@ -311,7 +453,9 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 /**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -322,7 +466,34 @@ type AllowedActions =
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction;
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction
+  | TransakServiceSetApiKeyAction
+  | TransakServiceSetAccessTokenAction
+  | TransakServiceClearAccessTokenAction
+  | TransakServiceSendUserOtpAction
+  | TransakServiceVerifyUserOtpAction
+  | TransakServiceLogoutAction
+  | TransakServiceGetUserDetailsAction
+  | TransakServiceGetBuyQuoteAction
+  | TransakServiceGetKycRequirementAction
+  | TransakServiceGetAdditionalRequirementsAction
+  | TransakServiceCreateOrderAction
+  | TransakServiceGetOrderAction
+  | TransakServiceGetUserLimitsAction
+  | TransakServiceRequestOttAction
+  | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceSubmitPurposeOfUsageFormAction
+  | TransakServicePatchUserAction
+  | TransakServiceSubmitSsnDetailsAction
+  | TransakServiceConfirmPaymentAction
+  | TransakServiceGetTranslationAction
+  | TransakServiceGetIdProofStatusAction
+  | TransakServiceCancelOrderAction
+  | TransakServiceCancelAllActiveOrdersAction
+  | TransakServiceGetActiveOrdersAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -333,9 +504,20 @@ export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
+ * Published when a V2 order's status transitions.
+ * Consumed by mobile's init layer for notifications and analytics.
+ */
+export type RampsControllerOrderStatusChangedEvent = {
+  type: `${typeof controllerName}:orderStatusChanged`;
+  payload: [{ order: RampsOrder; previousStatus: RampsOrderStatus }];
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerEvents = RampsControllerStateChangeEvent;
+export type RampsControllerEvents =
+  | RampsControllerStateChangeEvent
+  | RampsControllerOrderStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -430,7 +612,85 @@ function findRegionFromCode(
   };
 }
 
+export function normalizeProviderCode(providerCode: string): string {
+  return providerCode.replace(/^\/providers\//u, '');
+}
+
+// === ORDER POLLING CONSTANTS ===
+
+const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
+  RampsOrderStatus.Completed,
+  RampsOrderStatus.Failed,
+  RampsOrderStatus.Cancelled,
+  RampsOrderStatus.IdExpired,
+]);
+
+const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
+  RampsOrderStatus.Pending,
+  RampsOrderStatus.Created,
+  RampsOrderStatus.Unknown,
+  RampsOrderStatus.Precreated,
+]);
+
+const DEFAULT_POLLING_INTERVAL_MS = 30_000;
+const MAX_ERROR_COUNT = 5;
+
+type OrderPollingMetadata = {
+  lastTimeFetched: number;
+  errorCount: number;
+};
+
 // === CONTROLLER DEFINITION ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'executeRequest',
+  'abortRequest',
+  'getRequestState',
+  'setUserRegion',
+  'setSelectedProvider',
+  'init',
+  'getCountries',
+  'getTokens',
+  'setSelectedToken',
+  'getProviders',
+  'getPaymentMethods',
+  'setSelectedPaymentMethod',
+  'getQuotes',
+  'addOrder',
+  'removeOrder',
+  'startOrderPolling',
+  'stopOrderPolling',
+  'getBuyWidgetData',
+  'addPrecreatedOrder',
+  'getOrder',
+  'getOrderFromCallback',
+  'transakSetApiKey',
+  'transakSetAccessToken',
+  'transakClearAccessToken',
+  'transakSetAuthenticated',
+  'transakResetState',
+  'transakSendUserOtp',
+  'transakVerifyUserOtp',
+  'transakLogout',
+  'transakGetUserDetails',
+  'transakGetBuyQuote',
+  'transakGetKycRequirement',
+  'transakGetAdditionalRequirements',
+  'transakCreateOrder',
+  'transakGetOrder',
+  'transakGetUserLimits',
+  'transakRequestOtt',
+  'transakGeneratePaymentWidgetUrl',
+  'transakSubmitPurposeOfUsageForm',
+  'transakPatchUser',
+  'transakSubmitSsnDetails',
+  'transakConfirmPayment',
+  'transakGetTranslation',
+  'transakGetIdProofStatus',
+  'transakCancelOrder',
+  'transakCancelAllActiveOrders',
+  'transakGetActiveOrders',
+] as const;
 
 /**
  * Manages cryptocurrency on/off ramps functionality.
@@ -463,20 +723,18 @@ export class RampsController extends BaseController<
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
   /**
-   * Interval ID for automatic quote polling.
-   * Set when startQuotePolling() is called, cleared when stopQuotePolling() is called.
+   * Monotonic generation per resource type used to invalidate stale in-flight
+   * requests after region/token/provider dependent-resource resets.
    */
-  #quotePollingInterval: ReturnType<typeof setInterval> | null = null;
+  readonly #pendingResourceGeneration: Map<ResourceType, number> = new Map();
 
-  /**
-   * Options used for quote polling (walletAddress, amount, redirectUrl).
-   * Stored so polling can be restarted when dependencies change.
-   */
-  #quotePollingOptions: {
-    walletAddress: string;
-    amount: number;
-    redirectUrl?: string;
-  } | null = null;
+  readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
+
+  #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  #isPolling = false;
+
+  #initPromise: Promise<void> | null = null;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -489,14 +747,23 @@ export class RampsController extends BaseController<
   }
 
   #clearPendingResourceCountForDependentResources(): void {
-    const types: ResourceType[] = [
-      'providers',
-      'tokens',
-      'paymentMethods',
-      'quotes',
-    ];
-    for (const resourceType of types) {
+    for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+      const generation = this.#pendingResourceGeneration.get(resourceType) ?? 0;
+      this.#pendingResourceGeneration.set(resourceType, generation + 1);
+    }
+  }
+
+  #abortDependentRequests(): void {
+    for (const [cacheKey, pending] of this.#pendingRequests.entries()) {
+      if (
+        pending.resourceType &&
+        DEPENDENT_RESOURCE_KEYS_SET.has(pending.resourceType)
+      ) {
+        pending.abortController.abort();
+        this.#pendingRequests.delete(cacheKey);
+        this.#removeRequestState(cacheKey);
+      }
     }
   }
 
@@ -530,33 +797,55 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
-   * Executes a request with caching and deduplication.
+   * Executes a request with caching, deduplication, and at most one in-flight
+   * request per resource type.
    *
-   * If a request with the same cache key is already in flight, returns the
-   * existing promise. If valid cached data exists, returns it without making
-   * a new request.
+   * 1. **Same cache key in flight** – If a request with this cache key is
+   *    already pending, returns that promise (deduplication; no second request).
    *
-   * @param cacheKey - Unique identifier for this request.
-   * @param fetcher - Function that performs the actual fetch. Receives an AbortSignal.
-   * @param options - Options for cache behavior.
-   * @returns The result of the request.
+   * 2. **Cache hit** – If valid, non-expired data exists in state.requests for
+   *    this key and forceRefresh is not set, returns that data without fetching.
+   *
+   * 3. **New request** – Creates an AbortController and fires the fetcher.
+   *    If options.resourceType is set, tags the pending request with that
+   *    resource type (so #abortDependentRequests can cancel it on region
+   *    change or cleanup) and ref-counts resource-level loading state.
+   *    On success or error, updates request state and resource error;
+   *    in finally, clears resource loading only if this request was not
+   *    aborted.
+   *
+   * @param cacheKey - Unique identifier for this request (e.g. from createCacheKey).
+   * @param fetcher - Async function that performs the fetch. Receives an AbortSignal
+   *   that is aborted when this request is superseded by another for the same resource.
+   * @param options - Optional forceRefresh, ttl, and resourceType for loading/error state.
+   * @returns The result of the request (from cache, joined promise, or fetcher).
    */
   async executeRequest<TResult>(
     cacheKey: string,
     fetcher: (signal: AbortSignal) => Promise<TResult>,
     options?: ExecuteRequestOptions,
   ): Promise<TResult> {
+    // Get TTL for verifying cache expiration
     const ttl = options?.ttl ?? this.#requestCacheTTL;
 
-    // Check for existing pending request - join it instead of making a duplicate
+    // DEDUPLICATION:
+    // Check if a request is already in flight for this cache key
+    // If so, return the original promise for that request
     const pending = this.#pendingRequests.get(cacheKey);
     if (pending) {
       return pending.promise as Promise<TResult>;
     }
 
+    // CACHE HIT:
+    // If cache is not expired, return the cached data
     if (!options?.forceRefresh) {
       const cached = this.state.requests[cacheKey];
       if (cached && !isCacheExpired(cached, ttl)) {
@@ -564,10 +853,14 @@ export class RampsController extends BaseController<
       }
     }
 
-    // Create abort controller for this request
+    // Create a new abort controller for this request
+    // Record the time the request was started
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
     const { resourceType } = options ?? {};
+    const resourceGeneration = resourceType
+      ? (this.#pendingResourceGeneration.get(resourceType) ?? 0)
+      : undefined;
 
     // Update state to loading
     this.#updateRequestState(cacheKey, createLoadingState());
@@ -587,7 +880,6 @@ export class RampsController extends BaseController<
       try {
         const data = await fetcher(abortController.signal);
 
-        // Don't update state if aborted
         if (abortController.signal.aborted) {
           throw new Error('Request was aborted');
         }
@@ -598,30 +890,23 @@ export class RampsController extends BaseController<
         );
 
         if (resourceType) {
-          // We need the extra logic because there are two situations where we’re allowed to clear the error:
-          // No callback → always clear
-          // Callback present → clear only when isResultCurrent() returns true.
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, null);
           }
         }
-
         return data;
       } catch (error) {
-        // Don't update state if aborted
         if (abortController.signal.aborted) {
           throw error;
         }
 
         const errorMessage = (error as Error)?.message ?? 'Unknown error';
-
         this.#updateRequestState(
           cacheKey,
           createErrorState(errorMessage, lastFetchedAt),
         );
-
         if (resourceType) {
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
@@ -629,31 +914,38 @@ export class RampsController extends BaseController<
             this.#setResourceError(resourceType, errorMessage);
           }
         }
-
         throw error;
       } finally {
-        // Only delete if this is still our entry (not replaced by a new request)
-        const currentPending = this.#pendingRequests.get(cacheKey);
-        if (currentPending?.abortController === abortController) {
+        if (
+          this.#pendingRequests.get(cacheKey)?.abortController ===
+          abortController
+        ) {
           this.#pendingRequests.delete(cacheKey);
         }
 
         // Clear resource-level loading state only when no requests for this resource remain
-        if (resourceType) {
-          const count = this.#pendingResourceCount.get(resourceType) ?? 0;
-          const next = Math.max(0, count - 1);
-          if (next === 0) {
-            this.#pendingResourceCount.delete(resourceType);
-            this.#setResourceLoading(resourceType, false);
-          } else {
-            this.#pendingResourceCount.set(resourceType, next);
+        if (resourceType && !abortController.signal.aborted) {
+          const currentGeneration =
+            this.#pendingResourceGeneration.get(resourceType) ?? 0;
+          if (currentGeneration === resourceGeneration) {
+            const count = this.#pendingResourceCount.get(resourceType) ?? 0;
+            const next = Math.max(0, count - 1);
+            if (next === 0) {
+              this.#pendingResourceCount.delete(resourceType);
+              this.#setResourceLoading(resourceType, false);
+            } else {
+              this.#pendingResourceCount.set(resourceType, next);
+            }
           }
         }
       }
     })();
 
-    // Store pending request for deduplication
-    this.#pendingRequests.set(cacheKey, { promise, abortController });
+    this.#pendingRequests.set(cacheKey, {
+      promise,
+      abortController,
+      resourceType,
+    });
 
     return promise;
   }
@@ -676,56 +968,59 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Removes a request state from the cache.
+   * Mutates state.requests inside update(); cast is centralized here.
    *
-   * @param cacheKey - The cache key to remove.
+   * @param fn - Callback that mutates the requests record.
    */
-  #removeRequestState(cacheKey: string): void {
+  #mutateRequests(
+    fn: (requests: Record<string, RequestState | undefined>) => void,
+  ): void {
     this.update((state) => {
       const requests = state.requests as unknown as Record<
         string,
         RequestState | undefined
       >;
+      fn(requests);
+    });
+  }
+
+  #removeRequestState(cacheKey: string): void {
+    this.#mutateRequests((requests) => {
       delete requests[cacheKey];
     });
   }
 
   #cleanupState(): void {
-    this.stopQuotePolling();
+    this.#abortDependentRequests();
     this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
-      resetDependentResources(state as unknown as RampsControllerState, {
-        clearUserRegionData: true,
-      }),
+      resetDependentResources(state, { clearUserRegionData: true }),
     );
   }
 
-  /**
-   * Executes a promise without awaiting, swallowing errors.
-   * Errors are stored in state via executeRequest.
-   *
-   * @param promise - The promise to execute.
-   */
-  #fireAndForget<Result>(promise: Promise<Result>): void {
-    promise.catch((_error: unknown) => undefined);
+  #requireRegion(): string {
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      throw new Error(
+        'Region is required. Cannot proceed without valid region information.',
+      );
+    }
+    return regionCode;
   }
 
-  /**
-   * Restarts quote polling if it's currently active.
-   * Used when dependencies change (token, provider, payment method).
-   * Will only restart if all dependencies are still met (startQuotePolling validates this).
-   */
-  #restartPollingIfActive(): void {
-    if (this.#quotePollingInterval !== null && this.#quotePollingOptions) {
-      const options = this.#quotePollingOptions;
-      this.stopQuotePolling();
-      try {
-        this.startQuotePolling(options);
-      } catch {
-        // Dependencies not met yet, polling will need to be manually restarted
-        // when dependencies are available
-      }
-    }
+  #isRegionCurrent(normalizedRegion: string): boolean {
+    const current = this.state.userRegion?.regionCode;
+    return current === undefined || current === normalizedRegion;
+  }
+
+  #isTokenCurrent(normalizedAssetId: string): boolean {
+    const current = this.state.tokens.selected?.assetId ?? '';
+    return current === normalizedAssetId;
+  }
+
+  #isProviderCurrent(normalizedProviderId: string): boolean {
+    const current = this.state.providers.selected?.id ?? '';
+    return current === normalizedProviderId;
   }
 
   /**
@@ -789,39 +1084,25 @@ export class RampsController extends BaseController<
   #updateRequestState(cacheKey: string, requestState: RequestState): void {
     const maxSize = this.#requestCacheMaxSize;
     const ttl = this.#requestCacheTTL;
-
-    this.update((state) => {
-      const requests = state.requests as unknown as Record<
-        string,
-        RequestState | undefined
-      >;
+    this.#mutateRequests((requests) => {
       requests[cacheKey] = requestState;
-
-      // Evict expired entries based on TTL
-      // Only evict SUCCESS states that have exceeded their TTL
       const keys = Object.keys(requests);
       for (const key of keys) {
         const entry = requests[key];
         if (
-          entry &&
-          entry.status === RequestStatus.SUCCESS &&
+          entry?.status === RequestStatus.SUCCESS &&
           isCacheExpired(entry, ttl)
         ) {
           delete requests[key];
         }
       }
-
-      // Evict oldest entries if cache still exceeds max size
       const remainingKeys = Object.keys(requests);
       if (remainingKeys.length > maxSize) {
-        // Sort by timestamp (oldest first)
         const sortedKeys = remainingKeys.sort((a, b) => {
           const aTime = requests[a]?.timestamp ?? 0;
           const bTime = requests[b]?.timestamp ?? 0;
           return aTime - bTime;
         });
-
-        // Remove oldest entries until we're under the limit
         const entriesToRemove = remainingKeys.length - maxSize;
         for (let i = 0; i < entriesToRemove; i++) {
           const keyToRemove = sortedKeys[i];
@@ -866,42 +1147,23 @@ export class RampsController extends BaseController<
       }
 
       const regionChanged =
+        Boolean(options?.forceRefresh) ||
         normalizedRegion !== this.state.userRegion?.regionCode;
 
-      const needsRefetch =
-        regionChanged ||
-        !this.state.tokens.data ||
-        this.state.providers.data.length === 0;
-
       if (regionChanged) {
+        // Note: we intentionally do NOT abort in-flight requests here.
+        // Aborting causes data loss during rapid region switching (e.g.
+        // user taps France → Finland → France quickly). Instead we let
+        // old requests complete naturally; isResultCurrent guards in
+        // getProviders/getPaymentMethods discard stale results.
         this.#clearPendingResourceCountForDependentResources();
-      }
-      if (regionChanged) {
-        this.stopQuotePolling();
       }
       this.update((state) => {
         if (regionChanged) {
-          resetDependentResources(state as unknown as RampsControllerState);
+          resetDependentResources(state);
         }
         state.userRegion = userRegion;
       });
-
-      if (needsRefetch) {
-        const refetchPromises: Promise<unknown>[] = [];
-        if (regionChanged || !this.state.tokens.data) {
-          refetchPromises.push(
-            this.getTokens(userRegion.regionCode, 'buy', options),
-          );
-        }
-        if (regionChanged || this.state.providers.data.length === 0) {
-          refetchPromises.push(
-            this.getProviders(userRegion.regionCode, options),
-          );
-        }
-        if (refetchPromises.length > 0) {
-          this.#fireAndForget(Promise.all(refetchPromises));
-        }
-      }
 
       return userRegion;
     } catch (error) {
@@ -911,75 +1173,99 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected provider by ID, or clears the selection.
-   * Looks up the provider from the current providers in state and automatically
-   * fetches payment methods for that provider.
+   * Sets the user's selected provider.
    *
-   * @param providerId - The provider ID (e.g., "/providers/moonpay"), or null to clear.
-   * @throws If region is not set, providers are not loaded, or provider is not found.
+   * Accepts either a Provider object (stored directly) or a provider ID
+   * string (looked up from state). The object form is preferred when the
+   * caller already has the full data (e.g. from React Query cache).
+   *
+   * @param providerOrId - A Provider object, a provider ID string (e.g., "/providers/moonpay"), or null to clear.
+   * @param options - Optional settings for the selection.
+   * @param options.autoSelected - When true, marks the provider as system-guessed
+   *   (soft selection). The UI will silently auto-switch on token conflict instead
+   *   of showing the "Token Not Available" modal. Defaults to false.
    */
-  setSelectedProvider(providerId: string | null): void {
-    if (providerId === null) {
-      this.stopQuotePolling();
+  setSelectedProvider(
+    providerOrId: string | Provider | null,
+    options?: { autoSelected?: boolean },
+  ): void {
+    if (providerOrId === null) {
       this.update((state) => {
         state.providers.selected = null;
-        state.paymentMethods.data = [];
-        state.paymentMethods.selected = null;
+        state.providerAutoSelected = false;
       });
       return;
     }
 
-    const regionCode = this.state.userRegion?.regionCode;
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Cannot set selected provider without valid region information.',
-      );
+    this.#requireRegion();
+
+    // If a full Provider object is passed, store it directly (avoids
+    // depending on state.providers.data being populated).
+    if (typeof providerOrId !== 'string') {
+      this.update((state) => {
+        state.providers.selected = providerOrId;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
+      return;
     }
 
+    // ID string: look up from state
     const providers = this.state.providers.data;
-    if (!providers || providers.length === 0) {
-      throw new Error(
-        'Providers not loaded. Cannot set selected provider before providers are fetched.',
-      );
+    const provider = providers?.find((prov) => prov.id === providerOrId);
+
+    if (provider) {
+      this.update((state) => {
+        state.providers.selected = provider;
+        state.providerAutoSelected = options?.autoSelected ?? false;
+      });
     }
-
-    const provider = providers.find((prov) => prov.id === providerId);
-    if (!provider) {
-      throw new Error(
-        `Provider with ID "${providerId}" not found in available providers.`,
-      );
-    }
-
-    this.update((state) => {
-      state.providers.selected = provider;
-      state.paymentMethods.data = [];
-      state.paymentMethods.selected = null;
-      state.quotes.selected = null;
-    });
-
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }).then(() => {
-        // Restart quote polling after payment methods are fetched
-        this.#restartPollingIfActive();
-        return undefined;
-      }),
-    );
   }
 
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
    *
-   * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and use the existing region.
+   * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
+   * Skips getCountries when countries are already loaded; skips geolocation when
+   * userRegion already exists.
    *
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries(options);
+    if (!options?.forceRefresh && this.#initPromise !== null) {
+      return this.#initPromise;
+    }
 
-    let regionCode = this.state.userRegion?.regionCode;
+    if (options?.forceRefresh) {
+      this.#initPromise = null;
+    }
+
+    const initPromise = this.#runInit(options).then(
+      () => undefined,
+      (error) => {
+        if (this.#initPromise === initPromise) {
+          this.#initPromise = null;
+        }
+        throw error;
+      },
+    );
+    this.#initPromise = initPromise;
+    return initPromise;
+  }
+
+  async #runInit(options?: ExecuteRequestOptions): Promise<void> {
+    const forceRefresh = options?.forceRefresh === true;
+    const hasCountries = this.state.countries.data.length > 0;
+
+    if (forceRefresh || !hasCountries) {
+      await this.getCountries(options);
+    }
+
+    // Always prefer the user's persisted region. Geolocation is only used to
+    // seed the initial value; once the user (or a prior init) has set a region
+    // we must respect that choice — even on forceRefresh.
+    let regionCode: string | undefined = this.state.userRegion?.regionCode;
     regionCode ??= await this.messenger.call('RampsService:getGeolocation');
 
     if (!regionCode) {
@@ -989,18 +1275,6 @@ export class RampsController extends BaseController<
     }
 
     await this.setUserRegion(regionCode, options);
-  }
-
-  hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.state.userRegion?.regionCode;
-    if (!regionCode) {
-      throw new Error(
-        'Region code is required. Cannot hydrate state without valid region information.',
-      );
-    }
-
-    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
-    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
@@ -1023,7 +1297,7 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.countries.data = countries;
+      state.countries.data = Array.isArray(countries) ? [...countries] : [];
     });
 
     return countries;
@@ -1046,13 +1320,7 @@ export class RampsController extends BaseController<
       provider?: string | string[];
     },
   ): Promise<TokensResponse> {
-    const regionToUse = region ?? this.state.userRegion?.regionCode;
-
-    if (!regionToUse) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
+    const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getTokens', [
@@ -1076,9 +1344,7 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'tokens',
-        isResultCurrent: () =>
-          this.state.userRegion?.regionCode === undefined ||
-          this.state.userRegion?.regionCode === normalizedRegion,
+        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
 
@@ -1103,22 +1369,13 @@ export class RampsController extends BaseController<
    */
   setSelectedToken(assetId?: string): void {
     if (!assetId) {
-      this.stopQuotePolling();
       this.update((state) => {
         state.tokens.selected = null;
-        state.paymentMethods.data = [];
-        state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const regionCode = this.state.userRegion?.regionCode;
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Cannot set selected token without valid region information.',
-      );
-    }
-
+    this.#requireRegion();
     const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
@@ -1138,19 +1395,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      state.paymentMethods.data = [];
-      state.paymentMethods.selected = null;
-      state.quotes.selected = null;
     });
-
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { assetId: token.assetId }).then(
-        () => {
-          this.#restartPollingIfActive();
-          return undefined;
-        },
-      ),
-    );
   }
 
   /**
@@ -1174,13 +1419,7 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
-    const regionToUse = region ?? this.state.userRegion?.regionCode;
-
-    if (!regionToUse) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
+    const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getProviders', [
@@ -1208,9 +1447,7 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'providers',
-        isResultCurrent: () =>
-          this.state.userRegion?.regionCode === undefined ||
-          this.state.userRegion?.regionCode === normalizedRegion,
+        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
 
@@ -1244,19 +1481,13 @@ export class RampsController extends BaseController<
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
-    const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
+    const regionCode = region ?? this.#requireRegion();
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
       options?.provider ?? this.state.providers.selected?.id ?? '';
-
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
 
     if (!fiatToUse) {
       throw new Error(
@@ -1287,13 +1518,9 @@ export class RampsController extends BaseController<
         ...options,
         resourceType: 'paymentMethods',
         isResultCurrent: () => {
-          const regionMatch =
-            this.state.userRegion?.regionCode === undefined ||
-            this.state.userRegion?.regionCode === normalizedRegion;
-          const tokenMatch =
-            (this.state.tokens.selected?.assetId ?? '') === assetIdToUse;
-          const providerMatch =
-            (this.state.providers.selected?.id ?? '') === providerToUse;
+          const regionMatch = this.#isRegionCurrent(normalizedRegion);
+          const tokenMatch = this.#isTokenCurrent(assetIdToUse);
+          const providerMatch = this.#isProviderCurrent(providerToUse);
           return regionMatch && tokenMatch && providerMatch;
         },
       },
@@ -1326,47 +1553,48 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Sets the user's selected payment method by ID.
-   * Looks up the payment method from the current payment methods in state.
+   * Sets the user's selected payment method.
    *
-   * @param paymentMethodId - The payment method ID (e.g., "/payments/debit-credit-card"), or null to clear.
-   * @throws If payment methods are not loaded or payment method is not found.
+   * Accepts either a payment method ID (looked up from state) or a full
+   * PaymentMethod object (stored directly). The object form is preferred
+   * when the caller already has the full data (e.g. from React Query cache),
+   * as it avoids depending on controller state being populated.
+   *
+   * @param paymentMethodOrId - A PaymentMethod object, a payment method ID string, or undefined/null to clear.
    */
-  setSelectedPaymentMethod(paymentMethodId?: string): void {
-    if (!paymentMethodId) {
+  setSelectedPaymentMethod(
+    paymentMethodOrId?: string | PaymentMethod | null,
+  ): void {
+    if (!paymentMethodOrId) {
       this.update((state) => {
         state.paymentMethods.selected = null;
       });
       return;
     }
 
-    const paymentMethods = this.state.paymentMethods.data;
-    if (!paymentMethods || paymentMethods.length === 0) {
-      throw new Error(
-        'Payment methods not loaded. Cannot set selected payment method before payment methods are fetched.',
-      );
+    // If a full object is passed, store it directly
+    if (typeof paymentMethodOrId !== 'string') {
+      this.update((state) => {
+        state.paymentMethods.selected = paymentMethodOrId;
+      });
+      return;
     }
 
-    const paymentMethod = paymentMethods.find(
+    // ID string: look up from state
+    const paymentMethodId = paymentMethodOrId;
+    const paymentMethods = this.state.paymentMethods.data;
+    const paymentMethod = paymentMethods?.find(
       (pm) => pm.id === paymentMethodId,
     );
-    if (!paymentMethod) {
-      throw new Error(
-        `Payment method with ID "${paymentMethodId}" not found in available payment methods.`,
-      );
-    }
 
     this.update((state) => {
-      state.paymentMethods.selected = paymentMethod;
+      state.paymentMethods.selected = paymentMethod ?? null;
     });
-
-    // Restart quote polling if active
-    this.#restartPollingIfActive();
   }
 
   /**
    * Fetches quotes from all providers for a given set of parameters.
-   * The quotes are saved in the controller state once fetched.
+   * Uses the controller's request cache; callers manage the response in local state.
    *
    * @param options - The parameters for fetching quotes.
    * @param options.region - User's region code. If not provided, uses userRegion from state.
@@ -1375,7 +1603,7 @@ export class RampsController extends BaseController<
    * @param options.amount - The amount (in fiat for buy, crypto for sell).
    * @param options.walletAddress - The destination wallet address.
    * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
-   * @param options.provider - Optional provider ID to filter quotes.
+   * @param options.providers - Optional provider IDs to filter quotes.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1385,28 +1613,26 @@ export class RampsController extends BaseController<
   async getQuotes(options: {
     region?: string;
     fiat?: string;
-    assetId: string;
+    assetId?: string;
     amount: number;
     walletAddress: string;
     paymentMethods?: string[];
-    provider?: string;
+    providers?: string[];
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
-    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
+    const regionToUse = options.region ?? this.#requireRegion();
     const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
+    const providersToUse =
+      options.providers ??
+      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
-
-    if (!regionToUse) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
+    const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
     if (!fiatToUse) {
       throw new Error(
@@ -1414,7 +1640,16 @@ export class RampsController extends BaseController<
       );
     }
 
-    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0) {
+    const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
+    if (normalizedAssetIdForValidation === '') {
+      throw new Error('assetId is required.');
+    }
+
+    if (
+      !paymentMethodsToUse ||
+      paymentMethodsToUse.length === 0 ||
+      paymentMethodsToUse.some((pm) => pm.trim() === '')
+    ) {
       throw new Error(
         'Payment methods are required. Either provide paymentMethods parameter or ensure paymentMethods are set in controller state.',
       );
@@ -1424,17 +1659,13 @@ export class RampsController extends BaseController<
       throw new Error('Amount must be a positive finite number.');
     }
 
-    if (!options.assetId || options.assetId.trim() === '') {
-      throw new Error('assetId is required.');
-    }
-
     if (!options.walletAddress || options.walletAddress.trim() === '') {
       throw new Error('walletAddress is required.');
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
-    const normalizedAssetId = options.assetId.trim();
+    const normalizedAssetId = normalizedAssetIdForValidation;
     const normalizedWalletAddress = options.walletAddress.trim();
 
     const cacheKey = createCacheKey('getQuotes', [
@@ -1444,24 +1675,24 @@ export class RampsController extends BaseController<
       options.amount,
       normalizedWalletAddress,
       [...paymentMethodsToUse].sort().join(','),
-      options.provider,
+      [...providersToUse].sort().join(','),
       options.redirectUrl,
       action,
     ]);
 
-    const params: GetQuotesParams = {
+    const params = {
       region: normalizedRegion,
       fiat: normalizedFiat,
       assetId: normalizedAssetId,
       amount: options.amount,
       walletAddress: normalizedWalletAddress,
       paymentMethods: paymentMethodsToUse,
-      provider: options.provider,
+      providers: providersToUse,
       redirectUrl: options.redirectUrl,
       action,
     };
 
-    const response = await this.executeRequest(
+    return this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
@@ -1469,159 +1700,872 @@ export class RampsController extends BaseController<
       {
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
-        resourceType: 'quotes',
-        isResultCurrent: () =>
-          this.state.userRegion?.regionCode === undefined ||
-          this.state.userRegion?.regionCode === normalizedRegion,
       },
     );
+  }
 
+  // === ORDER MANAGEMENT ===
+
+  /**
+   * Adds or updates a V2 order in controller state.
+   * If an order with the same providerOrderId already exists, the incoming
+   * fields are merged on top of the existing order so that fields not present
+   * in the update (e.g. paymentDetails from the Transak API) are preserved.
+   *
+   * @param order - The RampsOrder to add or update.
+   */
+  addOrder(order: RampsOrder): void {
     this.update((state) => {
-      const userRegionCode = state.userRegion?.regionCode;
-
-      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.quotes.data = response;
+      const idx = state.orders.findIndex(
+        (existing) => existing.providerOrderId === order.providerOrderId,
+      );
+      if (idx === -1) {
+        state.orders.push(order as Draft<RampsOrder>);
+      } else {
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+        } as Draft<RampsOrder>;
       }
     });
-
-    return response;
   }
 
   /**
-   * Starts automatic quote polling with a 15-second refresh interval.
-   * Fetches quotes immediately and then every 15 seconds.
-   * If the response contains exactly one quote, it is auto-selected.
-   * If multiple quotes are returned, the existing selection is preserved if still valid.
+   * Removes a V2 order from controller state by providerOrderId.
    *
-   * @param options - Parameters for fetching quotes.
-   * @param options.walletAddress - The destination wallet address.
-   * @param options.amount - The amount (in fiat for buy, crypto for sell).
-   * @param options.redirectUrl - Optional redirect URL after order completion.
-   * @throws If required dependencies (region, token, provider, payment method) are not set.
+   * @param providerOrderId - The provider order ID to remove.
    */
-  startQuotePolling(options: {
-    walletAddress: string;
-    amount: number;
-    redirectUrl?: string;
-  }): void {
-    // Validate required dependencies
-    const regionCode = this.state.userRegion?.regionCode;
-    const token = this.state.tokens.selected;
-    const provider = this.state.providers.selected;
-    const paymentMethod = this.state.paymentMethods.selected;
-
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Cannot start quote polling without valid region information.',
+  removeOrder(providerOrderId: string): void {
+    this.update((state) => {
+      state.orders = state.orders.filter(
+        (order) => order.providerOrderId !== providerOrderId,
       );
-    }
+    });
 
-    if (!token) {
-      throw new Error(
-        'Token is required. Cannot start quote polling without a selected token.',
-      );
-    }
+    this.#orderPollingMeta.delete(providerOrderId);
+  }
 
-    if (!provider) {
-      throw new Error(
-        'Provider is required. Cannot start quote polling without a selected provider.',
-      );
-    }
-
-    if (!paymentMethod) {
+  /**
+   * Refreshes a single order via the V2 API and updates it in state.
+   * Publishes orderStatusChanged if the status transitioned.
+   *
+   * @param order - The order to refresh (needs provider and providerOrderId).
+   */
+  async #refreshOrder(order: RampsOrder): Promise<void> {
+    const providerCode = order.provider?.id ?? '';
+    if (!providerCode || !order.providerOrderId || !order.walletAddress) {
       return;
     }
 
-    // Stop any existing polling first
-    this.stopQuotePolling();
+    const previousStatus = order.status;
 
-    // Store options for restarts (must be after stop to avoid being cleared)
-    this.#quotePollingOptions = options;
+    try {
+      const updatedOrder = await this.getOrder(
+        providerCode,
+        order.providerOrderId,
+        order.walletAddress,
+      );
 
-    // Define the fetch function
-    const fetchQuotes = (): void => {
-      this.#fireAndForget(
-        this.getQuotes({
-          assetId: token.assetId,
-          amount: options.amount,
-          walletAddress: options.walletAddress,
-          redirectUrl: options.redirectUrl,
-          paymentMethods: [paymentMethod.id],
-          provider: provider.id,
-          forceRefresh: true,
-        }).then((response) => {
-          // Auto-select logic: only when exactly one quote is returned
-          this.update((state) => {
-            if (response.success.length === 1) {
-              state.quotes.selected = response.success[0];
-            } else {
-              // Keep existing selection if still valid, but update with fresh data
-              const currentSelection = state.quotes.selected;
-              if (currentSelection) {
-                const freshQuote = response.success.find(
-                  (quote) =>
-                    quote.provider === currentSelection.provider &&
-                    quote.quote.paymentMethod ===
-                      currentSelection.quote.paymentMethod,
-                );
-                // Update with fresh quote data, or clear if no longer valid
-                state.quotes.selected = freshQuote ?? null;
-              }
+      const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+
+      if (updatedOrder.status === RampsOrderStatus.Unknown) {
+        meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      } else {
+        meta.errorCount = 0;
+      }
+
+      meta.lastTimeFetched = Date.now();
+      this.#orderPollingMeta.set(order.providerOrderId, meta);
+
+      if (
+        previousStatus !== updatedOrder.status &&
+        previousStatus !== undefined
+      ) {
+        this.messenger.publish('RampsController:orderStatusChanged', {
+          order: updatedOrder,
+          previousStatus,
+        });
+      }
+
+      if (TERMINAL_ORDER_STATUSES.has(updatedOrder.status)) {
+        this.#orderPollingMeta.delete(order.providerOrderId);
+      }
+    } catch {
+      const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+      meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      meta.lastTimeFetched = Date.now();
+      this.#orderPollingMeta.set(order.providerOrderId, meta);
+    }
+  }
+
+  /**
+   * Starts polling all pending V2 orders at a fixed interval.
+   * Each poll cycle iterates orders with non-terminal statuses,
+   * respects pollingSecondsMinimum and backoff from error count.
+   */
+  startOrderPolling(): void {
+    if (this.#orderPollingTimer) {
+      return;
+    }
+
+    this.#orderPollingTimer = setInterval(() => {
+      this.#pollPendingOrders().catch(() => undefined);
+    }, DEFAULT_POLLING_INTERVAL_MS);
+
+    this.#pollPendingOrders().catch(() => undefined);
+  }
+
+  /**
+   * Stops order polling and clears the interval.
+   */
+  stopOrderPolling(): void {
+    if (this.#orderPollingTimer) {
+      clearInterval(this.#orderPollingTimer);
+      this.#orderPollingTimer = null;
+    }
+  }
+
+  async #pollPendingOrders(): Promise<void> {
+    if (this.#isPolling) {
+      return;
+    }
+    this.#isPolling = true;
+    try {
+      const pendingOrders = this.state.orders.filter((order) =>
+        PENDING_ORDER_STATUSES.has(order.status),
+      );
+
+      const now = Date.now();
+
+      await Promise.allSettled(
+        pendingOrders.map(async (order) => {
+          const meta = this.#orderPollingMeta.get(order.providerOrderId);
+
+          if (meta) {
+            const backoffMs =
+              meta.errorCount > 0
+                ? Math.min(
+                    DEFAULT_POLLING_INTERVAL_MS *
+                      Math.pow(2, meta.errorCount - 1),
+                    5 * 60 * 1000,
+                  )
+                : 0;
+
+            const pollingMinMs = (order.pollingSecondsMinimum ?? 0) * 1000;
+            const minWait = Math.max(backoffMs, pollingMinMs);
+
+            if (now - meta.lastTimeFetched < minWait) {
+              return;
             }
-          });
-          return undefined;
+          }
+
+          await this.#refreshOrder(order);
         }),
       );
-    };
-
-    // Fetch immediately
-    fetchQuotes();
-
-    // Set up 15-second polling
-    this.#quotePollingInterval = setInterval(fetchQuotes, 15000);
-  }
-
-  /**
-   * Stops automatic quote polling.
-   * Does not clear quotes data or selection, only stops the interval.
-   */
-  stopQuotePolling(): void {
-    if (this.#quotePollingInterval !== null) {
-      clearInterval(this.#quotePollingInterval);
-      this.#quotePollingInterval = null;
+    } finally {
+      this.#isPolling = false;
     }
-    this.#quotePollingOptions = null;
-  }
-
-  /**
-   * Manually sets the selected quote.
-   *
-   * @param quote - The quote to select, or null to clear the selection.
-   */
-  setSelectedQuote(quote: Quote | null): void {
-    this.update((state) => {
-      state.quotes.selected = quote;
-    });
   }
 
   /**
    * Cleans up controller resources.
-   * Stops any active quote polling to prevent memory leaks.
    * Should be called when the controller is no longer needed.
    */
   override destroy(): void {
-    this.stopQuotePolling();
+    this.stopOrderPolling();
     super.destroy();
   }
 
   /**
-   * Extracts the widget URL from a quote for redirect providers.
-   * Returns the widget URL if available, or null if the quote doesn't have one.
+   * Fetches the widget data from a quote for redirect providers.
+   * Makes a request to the buyURL endpoint via the RampsService to get the
+   * actual provider widget URL and optional order ID for polling.
    *
-   * @param quote - The quote to extract the widget URL from.
-   * @returns The widget URL string, or null if not available.
+   * @param quote - The quote to fetch the widget URL from.
+   * @returns Promise resolving to the full BuyWidget (url, browser, orderId), or null if not available (missing buyURL or empty url in response).
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
    */
-  getWidgetUrl(quote: Quote): string | null {
-    return quote.quote?.widgetUrl ?? null;
+  async getBuyWidgetData(quote: Quote): Promise<BuyWidget | null> {
+    const buyUrl = quote.quote?.buyURL;
+    if (!buyUrl) {
+      return null;
+    }
+
+    const buyWidget = await this.messenger.call(
+      'RampsService:getBuyWidgetUrl',
+      buyUrl,
+    );
+    if (!buyWidget?.url) {
+      return null;
+    }
+    return buyWidget;
+  }
+
+  /**
+   * Registers an order ID for polling until the order is created or resolved.
+   * Adds a minimal stub order to controller state; the existing order polling
+   * will fetch the full order when the provider has created it.
+   *
+   * @param params - Object containing order identifiers and wallet info.
+   * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
+   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.walletAddress - Wallet address for the order.
+   * @param params.chainId - Optional chain ID for the order.
+   */
+  addPrecreatedOrder(params: {
+    orderId: string;
+    providerCode: string;
+    walletAddress: string;
+    chainId?: string;
+  }): void {
+    const { orderId, providerCode, walletAddress, chainId } = params;
+
+    const orderCode = orderId.includes('/orders/')
+      ? orderId.split('/orders/')[1]
+      : orderId;
+    if (!orderCode?.trim()) {
+      return;
+    }
+    const normalizedProviderCode = normalizeProviderCode(providerCode);
+
+    const stubOrder: RampsOrder = {
+      providerOrderId: orderCode,
+      provider: {
+        id: `/providers/${normalizedProviderCode}`,
+        name: '',
+        environmentType: '',
+        description: '',
+        hqAddress: '',
+        links: [],
+        logos: { light: '', dark: '', height: 0, width: 0 },
+      },
+      walletAddress,
+      status: RampsOrderStatus.Precreated,
+      orderType: 'buy',
+      createdAt: Date.now(),
+      isOnlyLink: false,
+      success: false,
+      cryptoAmount: 0,
+      fiatAmount: 0,
+      providerOrderLink: '',
+      totalFeesFiat: 0,
+      txHash: '',
+      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      canBeUpdated: true,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+    };
+
+    this.addOrder(stubOrder);
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * Returns a normalized RampsOrder for all provider types (aggregator and native).
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    const order = await this.messenger.call(
+      'RampsService:getOrder',
+      providerCode,
+      orderCode,
+      wallet,
+    );
+
+    const healedWalletAddress = order.walletAddress || wallet;
+    const healedOrder = {
+      ...order,
+      walletAddress: healedWalletAddress,
+      providerOrderId: orderCode,
+    };
+
+    this.update((state) => {
+      const idx = state.orders.findIndex(
+        (existing: RampsOrder) => existing.providerOrderId === orderCode,
+      );
+      if (idx === -1) {
+        state.orders.push(healedOrder as Draft<RampsOrder>);
+      } else {
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...healedOrder,
+        } as Draft<RampsOrder>;
+      }
+    });
+
+    return healedOrder;
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 backend for provider-specific parsing,
+   * then fetches the full order. This is the V2 equivalent of the aggregator
+   * SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    const order = await this.messenger.call(
+      'RampsService:getOrderFromCallback',
+      providerCode,
+      callbackUrl,
+      wallet,
+    );
+
+    return order;
+  }
+
+  // === TRANSAK METHODS ===
+  //
+  // Auth state is managed at two levels:
+  // - TransakService stores the access token (needed for API calls)
+  // - RampsController stores isAuthenticated (needed for UI state)
+  // Both are kept in sync by the controller methods below.
+
+  /**
+   * Checks whether an error is a 401 HTTP error (expired/missing token) and,
+   * if so, marks the Transak session as unauthenticated so the UI stays in
+   * sync with the cleared token inside TransakService.
+   *
+   * @param error - The caught error to inspect.
+   */
+  #syncTransakAuthOnError(error: unknown): void {
+    if (
+      error instanceof Error &&
+      'httpStatus' in error &&
+      (error as Error & { httpStatus: number }).httpStatus === 401
+    ) {
+      this.transakSetAuthenticated(false);
+    }
+  }
+
+  /**
+   * Sets the Transak API key used for all Transak API requests.
+   *
+   * @param apiKey - The Transak API key.
+   */
+  transakSetApiKey(apiKey: string): void {
+    this.messenger.call('TransakService:setApiKey', apiKey);
+  }
+
+  /**
+   * Sets the Transak access token and marks the user as authenticated.
+   *
+   * @param token - The access token received from Transak auth.
+   */
+  transakSetAccessToken(token: TransakAccessToken): void {
+    this.messenger.call('TransakService:setAccessToken', token);
+    this.transakSetAuthenticated(true);
+  }
+
+  /**
+   * Clears the Transak access token and marks the user as unauthenticated.
+   */
+  transakClearAccessToken(): void {
+    this.messenger.call('TransakService:clearAccessToken');
+    this.transakSetAuthenticated(false);
+  }
+
+  /**
+   * Updates the Transak authentication flag in controller state.
+   *
+   * @param isAuthenticated - Whether the user is authenticated with Transak.
+   */
+  transakSetAuthenticated(isAuthenticated: boolean): void {
+    this.update((state) => {
+      state.nativeProviders.transak.isAuthenticated = isAuthenticated;
+    });
+  }
+
+  /**
+   * Resets all Transak state back to defaults (unauthenticated, no data).
+   */
+  transakResetState(): void {
+    this.messenger.call('TransakService:clearAccessToken');
+    this.update((state) => {
+      state.nativeProviders.transak =
+        getDefaultRampsControllerState().nativeProviders.transak;
+    });
+  }
+
+  /**
+   * Sends a one-time password to the user's email for Transak authentication.
+   *
+   * @param email - The user's email address.
+   * @returns The OTP response containing a state token for verification.
+   */
+  async transakSendUserOtp(email: string): Promise<{
+    isTncAccepted: boolean;
+    stateToken: string;
+    email: string;
+    expiresIn: number;
+  }> {
+    return this.messenger.call('TransakService:sendUserOtp', email);
+  }
+
+  /**
+   * Verifies a one-time password and authenticates the user with Transak.
+   * Updates the controller's authentication state on success.
+   *
+   * @param email - The user's email address.
+   * @param verificationCode - The OTP code entered by the user.
+   * @param stateToken - The state token from the sendUserOtp response.
+   * @returns The access token for subsequent authenticated requests.
+   */
+  async transakVerifyUserOtp(
+    email: string,
+    verificationCode: string,
+    stateToken: string,
+  ): Promise<TransakAccessToken> {
+    const token = await this.messenger.call(
+      'TransakService:verifyUserOtp',
+      email,
+      verificationCode,
+      stateToken,
+    );
+    this.transakSetAuthenticated(true);
+    return token;
+  }
+
+  /**
+   * Logs the user out of Transak. Clears authentication state and user details
+   * regardless of whether the API call succeeds or fails.
+   *
+   * @returns A message indicating the logout result.
+   */
+  async transakLogout(): Promise<string> {
+    try {
+      const result = await this.messenger.call('TransakService:logout');
+      return result;
+    } finally {
+      this.transakClearAccessToken();
+      this.update((state) => {
+        state.nativeProviders.transak.userDetails.data = null;
+      });
+    }
+  }
+
+  /**
+   * Fetches the authenticated user's details from Transak.
+   * Updates the userDetails resource state with loading/success/error states.
+   *
+   * @returns The user's profile and KYC details.
+   */
+  async transakGetUserDetails(): Promise<TransakUserDetails> {
+    this.update((state) => {
+      state.nativeProviders.transak.userDetails.isLoading = true;
+      state.nativeProviders.transak.userDetails.error = null;
+    });
+    try {
+      const details = await this.messenger.call(
+        'TransakService:getUserDetails',
+      );
+      this.update((state) => {
+        state.nativeProviders.transak.userDetails.data = details;
+        state.nativeProviders.transak.userDetails.isLoading = false;
+      });
+      return details;
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      this.update((state) => {
+        state.nativeProviders.transak.userDetails.isLoading = false;
+        state.nativeProviders.transak.userDetails.error = errorMessage;
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches a buy quote from Transak for the given parameters.
+   * Updates the buyQuote resource state with loading/success/error states.
+   *
+   * @param fiatCurrency - The fiat currency code (e.g., "USD").
+   * @param cryptoCurrency - The cryptocurrency identifier.
+   * @param network - The blockchain network identifier.
+   * @param paymentMethod - The payment method identifier.
+   * @param fiatAmount - The fiat amount as a string.
+   * @returns The buy quote with pricing and fee details.
+   */
+  async transakGetBuyQuote(
+    fiatCurrency: string,
+    cryptoCurrency: string,
+    network: string,
+    paymentMethod: string,
+    fiatAmount: string,
+  ): Promise<TransakBuyQuote> {
+    this.update((state) => {
+      state.nativeProviders.transak.buyQuote.isLoading = true;
+      state.nativeProviders.transak.buyQuote.error = null;
+    });
+    try {
+      const quote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        cryptoCurrency,
+        network,
+        paymentMethod,
+        fiatAmount,
+      );
+      this.update((state) => {
+        state.nativeProviders.transak.buyQuote.data = quote;
+        state.nativeProviders.transak.buyQuote.isLoading = false;
+      });
+      return quote;
+    } catch (error) {
+      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      this.update((state) => {
+        state.nativeProviders.transak.buyQuote.isLoading = false;
+        state.nativeProviders.transak.buyQuote.error = errorMessage;
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches the KYC requirement for a given quote.
+   * Updates the kycRequirement resource state with loading/success/error states.
+   *
+   * @param quoteId - The quote ID to check KYC requirements for.
+   * @returns The KYC requirement status and whether the user can place an order.
+   */
+  async transakGetKycRequirement(
+    quoteId: string,
+  ): Promise<TransakKycRequirement> {
+    this.update((state) => {
+      state.nativeProviders.transak.kycRequirement.isLoading = true;
+      state.nativeProviders.transak.kycRequirement.error = null;
+    });
+    try {
+      const requirement = await this.messenger.call(
+        'TransakService:getKycRequirement',
+        quoteId,
+      );
+      this.update((state) => {
+        state.nativeProviders.transak.kycRequirement.data = requirement;
+        state.nativeProviders.transak.kycRequirement.isLoading = false;
+      });
+      return requirement;
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      this.update((state) => {
+        state.nativeProviders.transak.kycRequirement.isLoading = false;
+        state.nativeProviders.transak.kycRequirement.error = errorMessage;
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches additional KYC requirements (e.g., ID proof, address proof) for a quote.
+   *
+   * @param quoteId - The quote ID to check additional requirements for.
+   * @returns The list of additional forms required.
+   */
+  async transakGetAdditionalRequirements(
+    quoteId: string,
+  ): Promise<TransakAdditionalRequirementsResponse> {
+    try {
+      return await this.messenger.call(
+        'TransakService:getAdditionalRequirements',
+        quoteId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Creates a new order on Transak. If an existing order conflicts (HTTP 409),
+   * active orders are cancelled and the creation is retried.
+   *
+   * @param quoteId - The quote ID to create an order from.
+   * @param walletAddress - The destination wallet address.
+   * @param paymentMethodId - The payment method to use.
+   * @returns The created deposit order.
+   */
+  async transakCreateOrder(
+    quoteId: string,
+    walletAddress: string,
+    paymentMethodId: string,
+  ): Promise<TransakDepositOrder> {
+    try {
+      return await this.messenger.call(
+        'TransakService:createOrder',
+        quoteId,
+        walletAddress,
+        paymentMethodId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches an existing order from Transak by order ID.
+   *
+   * @param orderId - The order ID (deposit format or raw Transak format).
+   * @param wallet - The wallet address associated with the order.
+   * @param paymentDetails - Optional payment details to attach to the order.
+   * @returns The deposit order details.
+   */
+  async transakGetOrder(
+    orderId: string,
+    wallet: string,
+    paymentDetails?: TransakOrderPaymentMethod[],
+  ): Promise<TransakDepositOrder> {
+    return this.messenger.call(
+      'TransakService:getOrder',
+      orderId,
+      wallet,
+      paymentDetails,
+    );
+  }
+
+  /**
+   * Fetches the user's spending limits for a given currency and payment method.
+   *
+   * @param fiatCurrency - The fiat currency code.
+   * @param paymentMethod - The payment method identifier.
+   * @param kycType - The KYC level type.
+   * @returns The user's limits, spending, and remaining amounts.
+   */
+  async transakGetUserLimits(
+    fiatCurrency: string,
+    paymentMethod: string,
+    kycType: string,
+  ): Promise<TransakUserLimits> {
+    try {
+      return await this.messenger.call(
+        'TransakService:getUserLimits',
+        fiatCurrency,
+        paymentMethod,
+        kycType,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Requests a one-time token (OTT) for the Transak payment widget.
+   *
+   * @returns The OTT response containing the token.
+   */
+  async transakRequestOtt(): Promise<TransakOttResponse> {
+    try {
+      return await this.messenger.call('TransakService:requestOtt');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generates a URL for the Transak payment widget with pre-filled parameters.
+   *
+   * @param ottToken - The one-time token for widget authentication.
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional URL parameters.
+   * @returns The fully constructed widget URL string.
+   */
+  transakGeneratePaymentWidgetUrl(
+    ottToken: string,
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): string {
+    return this.messenger.call(
+      'TransakService:generatePaymentWidgetUrl',
+      ottToken,
+      quote,
+      walletAddress,
+      extraParams,
+    );
+  }
+
+  /**
+   * Submits the user's purpose of usage form for KYC compliance.
+   *
+   * @param purpose - Array of purpose strings selected by the user.
+   * @returns A promise that resolves when the form is submitted.
+   */
+  async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
+    try {
+      return await this.messenger.call(
+        'TransakService:submitPurposeOfUsageForm',
+        purpose,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates the user's personal or address details on Transak.
+   *
+   * @param data - The user data fields to update.
+   * @returns The API response data.
+   */
+  async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
+    try {
+      return await this.messenger.call('TransakService:patchUser', data);
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submits the user's SSN for identity verification.
+   *
+   * @param ssn - The Social Security Number.
+   * @param quoteId - The quote ID associated with the order requiring SSN.
+   * @returns The API response data.
+   */
+  async transakSubmitSsnDetails(
+    ssn: string,
+    quoteId: string,
+  ): Promise<unknown> {
+    try {
+      return await this.messenger.call(
+        'TransakService:submitSsnDetails',
+        ssn,
+        quoteId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Confirms payment for an order after the user has completed payment.
+   *
+   * @param orderId - The order ID to confirm payment for.
+   * @param paymentMethodId - The payment method used.
+   * @returns Whether the payment confirmation was successful.
+   */
+  async transakConfirmPayment(
+    orderId: string,
+    paymentMethodId: string,
+  ): Promise<{ success: boolean }> {
+    try {
+      return await this.messenger.call(
+        'TransakService:confirmPayment',
+        orderId,
+        paymentMethodId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Translates generic ramps identifiers to Transak-specific identifiers.
+   *
+   * @param request - The translation request with optional identifiers to translate.
+   * @returns The translated Transak-specific identifiers.
+   */
+  async transakGetTranslation(
+    request: TransakTranslationRequest,
+  ): Promise<TransakQuoteTranslation> {
+    return this.messenger.call('TransakService:getTranslation', request);
+  }
+
+  /**
+   * Checks the status of an ID proof submission for KYC.
+   *
+   * @param workFlowRunId - The workflow run ID to check status for.
+   * @returns The current ID proof status.
+   */
+  async transakGetIdProofStatus(
+    workFlowRunId: string,
+  ): Promise<TransakIdProofStatus> {
+    try {
+      return await this.messenger.call(
+        'TransakService:getIdProofStatus',
+        workFlowRunId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancels a specific Transak order.
+   *
+   * @param depositOrderId - The deposit order ID to cancel.
+   * @returns A promise that resolves when the order is cancelled.
+   */
+  async transakCancelOrder(depositOrderId: string): Promise<void> {
+    try {
+      return await this.messenger.call(
+        'TransakService:cancelOrder',
+        depositOrderId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancels all active Transak orders. Individual cancellation failures
+   * are collected and returned rather than thrown.
+   *
+   * @returns An array of errors from any failed cancellations (empty if all succeeded).
+   */
+  async transakCancelAllActiveOrders(): Promise<Error[]> {
+    try {
+      return await this.messenger.call('TransakService:cancelAllActiveOrders');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches all active Transak orders for the authenticated user.
+   *
+   * @returns The list of active orders.
+   */
+  async transakGetActiveOrders(): Promise<TransakOrder[]> {
+    try {
+      return await this.messenger.call('TransakService:getActiveOrders');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 }

@@ -7,6 +7,7 @@ import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import type { Messenger } from '@metamask/messenger';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
+import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
@@ -18,6 +19,7 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
+import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
 import { Slip44Service } from './services';
 import {
   deriveKeys,
@@ -26,6 +28,19 @@ import {
 } from './utils';
 
 const controllerName = 'NetworkEnablementController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'init',
+  'initNativeAssetIdentifiers',
+  'enableNetwork',
+  'disableNetwork',
+  'enableNetworkInNamespace',
+  'enableAllPopularNetworks',
+  'isNetworkEnabled',
+  'listPopularNetworks',
+  'listPopularEvmNetworks',
+  'listPopularMultichainNetworks',
+] as const;
 
 /**
  * Information about an ordered network.
@@ -77,17 +92,6 @@ export type NetworkEnablementControllerGetStateAction =
     typeof controllerName,
     NetworkEnablementControllerState
   >;
-
-export type NetworkEnablementControllerSetEnabledNetworksAction = {
-  type: `${typeof controllerName}:enableNetwork`;
-  handler: NetworkEnablementController['enableNetwork'];
-};
-
-export type NetworkEnablementControllerDisableNetworkAction = {
-  type: `${typeof controllerName}:disableNetwork`;
-  handler: NetworkEnablementController['disableNetwork'];
-};
-
 /**
  * All actions that {@link NetworkEnablementController} calls internally.
  */
@@ -97,8 +101,7 @@ export type AllowedActions =
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
-  | NetworkEnablementControllerSetEnabledNetworksAction
-  | NetworkEnablementControllerDisableNetworkAction;
+  | NetworkEnablementControllerMethodActions;
 
 export type NetworkEnablementControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -240,6 +243,8 @@ export class NetworkEnablementController extends BaseController<
       },
     });
 
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
       // eslint-disable-next-line no-void
       void this.#onAddNetwork(chainId);
@@ -362,12 +367,10 @@ export class NetworkEnablementController extends BaseController<
 
       // Enable all popular EVM networks that exist in NetworkController configurations
       POPULAR_NETWORKS.forEach((chainId) => {
-        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+        const { namespace, storageKey } = deriveKeys(chainId);
 
         // Check if network exists in NetworkController configurations
-        if (
-          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
-        ) {
+        if (networkControllerState.networkConfigurationsByChainId[chainId]) {
           // Ensure namespace bucket exists
           this.#ensureNamespaceBucket(state, namespace);
           // Enable the network
@@ -644,13 +647,11 @@ export class NetworkEnablementController extends BaseController<
     const enabledPopularNetworksCount = POPULAR_NETWORKS.reduce(
       (count, chainId) => {
         // Only check networks that actually exist in NetworkController configurations
-        if (
-          !networkControllerState.networkConfigurationsByChainId[chainId as Hex]
-        ) {
+        if (!networkControllerState.networkConfigurationsByChainId[chainId]) {
           return count; // Skip networks that don't exist
         }
 
-        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+        const { namespace, storageKey } = deriveKeys(chainId);
         const isEnabled = this.state.enabledNetworkMap[namespace]?.[storageKey];
         return isEnabled ? count + 1 : count;
       },
@@ -747,5 +748,59 @@ export class NetworkEnablementController extends BaseController<
         slip44CoinType,
       );
     });
+  }
+
+  /**
+   * Returns popular EVM network chain IDs in hex form, restricted to networks
+   * that exist in NetworkController (networkConfigurationsByChainId). Source list
+   * is POPULAR_NETWORKS.
+   *
+   * @returns Hex chain IDs for popular EVM networks that are configured.
+   */
+  listPopularEvmNetworks(): Hex[] {
+    const networkControllerState = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return POPULAR_NETWORKS.filter(
+      (chainIdHex) =>
+        networkControllerState.networkConfigurationsByChainId[chainIdHex],
+    );
+  }
+
+  /**
+   * Returns popular multichain (Bitcoin, Solana, Tron) mainnet chain IDs in
+   * CAIP-2 form, restricted to networks that exist in MultichainNetworkController
+   * (multichainNetworkConfigurationsByChainId).
+   *
+   * @returns CAIP-2 chain IDs for Bitcoin, Solana, and Tron mainnets that are configured.
+   */
+  listPopularMultichainNetworks(): CaipChainId[] {
+    const multichainState = this.messenger.call(
+      'MultichainNetworkController:getState',
+    );
+    const multichainMainnets = [
+      BtcScope.Mainnet,
+      SolScope.Mainnet,
+      TrxScope.Mainnet,
+    ] as const;
+    return multichainMainnets.filter(
+      (chainId) =>
+        multichainState.multichainNetworkConfigurationsByChainId[chainId],
+    );
+  }
+
+  /**
+   * Returns the list of popular network chain IDs in CAIP-2 form, restricted to
+   * networks that exist in NetworkController (networkConfigurationsByChainId) and
+   * MultichainNetworkController (multichainNetworkConfigurationsByChainId). EVM
+   * popular networks come from POPULAR_NETWORKS; multichain popular are Bitcoin,
+   * Solana, and Tron mainnets.
+   *
+   * @returns CAIP-2 chain IDs for popular EVM networks and multichain mainnets that are configured.
+   */
+  listPopularNetworks(): CaipChainId[] {
+    const evmHex = this.listPopularEvmNetworks();
+    const evmCaip = evmHex.map((chainIdHex) => toEvmCaipChainId(chainIdHex));
+    return [...evmCaip, ...this.listPopularMultichainNetworks()];
   }
 }

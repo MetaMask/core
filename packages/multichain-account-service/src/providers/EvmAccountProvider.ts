@@ -3,27 +3,38 @@ import type { Bip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  EthAccountType,
+  EthScope,
+} from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { AccountId } from '@metamask/keyring-utils';
 import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { traceFallback } from '../analytics';
+import { TraceName } from '../analytics/traces';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
+import type { MultichainAccountServiceMessenger } from '../types';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 import { withRetry, withTimeout } from './utils';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import type { MultichainAccountServiceMessenger } from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -66,6 +77,14 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   readonly #config: EvmAccountProviderConfig;
 
   readonly #trace: TraceCallback;
+
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [EthScope.Eoa],
+    bip44: {
+      deriveIndex: true,
+      deriveIndexRange: true,
+    },
+  };
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -166,18 +185,83 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   /**
    * Create accounts for the EVM provider.
    *
-   * @param opts - The options for the creation of the accounts.
-   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
-   * @param opts.groupIndex - The index of the group to create the accounts for.
+   * @param options - The options for the creation of the accounts.
    * @returns The accounts for the EVM provider.
    */
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
+    ]);
+
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+
+      // Use a single withKeyring call for the entire range.
+      const accountIds = await this.withKeyring<EthKeyring, AccountId[]>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          const existing = await keyring.getAccounts();
+
+          // Validate no gaps: we can only create accounts starting from existing.length.
+          if (range.from > existing.length) {
+            throw new Error(
+              `Bad account creation request, group index range would create gaps (${range.from} (from) > ${existing.length} (next available index))`,
+            );
+          }
+
+          const result: AccountId[] = [];
+
+          // Collect existing accounts within the range.
+          for (
+            let groupIndex = range.from;
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            if (groupIndex < existing.length) {
+              // Account already exists.
+              result.push(this.#getAccountId(existing[groupIndex]));
+            }
+          }
+
+          // Determine if we need to create new accounts.
+          const from = Math.max(range.from, existing.length);
+          if (from <= range.to) {
+            // Calculate how many new accounts to create.
+            const accountsToCreate = range.to - existing.length + 1;
+
+            // Create all new accounts in one call.
+            const newAccounts = await keyring.addAccounts(accountsToCreate);
+            result.push(
+              ...newAccounts.map((address) => this.#getAccountId(address)),
+            );
+          }
+
+          return result;
+        },
+      );
+
+      const accounts: InternalAccount[] = [];
+      for (const account of this.messenger.call(
+        'AccountsController:getAccounts',
+        accountIds,
+      )) {
+        assertInternalAccountExists(account);
+        this.accounts.add(account.id);
+        accounts.push(account);
+      }
+
+      assertAreBip44Accounts(accounts);
+      return accounts;
+    }
+
+    // Handle Bip44DeriveIndex (single account creation).
+    const { groupIndex } = options;
+
     const [address] = await this.#createAccount({
       entropySource,
       groupIndex,
@@ -218,10 +302,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const response = await withRetry(
       () =>
         withTimeout(
-          provider.request({
-            method,
-            params: [address, 'latest'],
-          }),
+          () =>
+            provider.request({
+              method,
+              params: [address, 'latest'],
+            }),
           this.#config.discovery.timeoutMs,
         ),
       {

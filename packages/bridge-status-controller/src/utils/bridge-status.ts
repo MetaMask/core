@@ -1,7 +1,7 @@
-import type { Quote } from '@metamask/bridge-controller';
+import { getClientHeaders } from '@metamask/bridge-controller';
+import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { validateBridgeStatusResponse } from './validators';
 import { REFRESH_INTERVAL_MS } from '../constants';
 import type {
   StatusResponse,
@@ -9,13 +9,11 @@ import type {
   StatusRequestDto,
   FetchFunction,
   BridgeHistoryItem,
+  StatusRequest,
 } from '../types';
+import { validateBridgeStatusResponse } from './validators';
 
-export const getClientIdHeader = (clientId: string) => ({
-  'X-Client-Id': clientId,
-});
-
-export const getBridgeStatusUrl = (bridgeApiBaseUrl: string) =>
+export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;
 
 export const getStatusRequestDto = (
@@ -42,6 +40,7 @@ export const getStatusRequestDto = (
 export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<{ status: StatusResponse; validationFailures: string[] }> => {
@@ -52,7 +51,7 @@ export const fetchBridgeTxStatus = async (
   const url = `${getBridgeStatusUrl(bridgeApiBaseUrl)}?${params.toString()}`;
 
   const rawTxStatus: unknown = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
+    headers: getClientHeaders({ clientId, jwt }),
   });
 
   const validationFailures: string[] = [];
@@ -62,14 +61,11 @@ export const fetchBridgeTxStatus = async (
   } catch (error) {
     // Build validation failure event properties
     if (error instanceof StructError) {
-      error.failures().forEach(({ branch, path }) => {
+      error.failures().forEach(({ path }) => {
         const aggregatorId =
-          branch?.[0]?.quote?.bridgeId ||
-          branch?.[0]?.quote?.bridges?.[0] ||
-          (rawTxStatus as StatusResponse)?.bridge ||
-          statusRequest.bridge ||
-          statusRequest.bridgeId ||
-          'unknown';
+          (rawTxStatus as StatusResponse)?.bridge ??
+          (statusRequest.bridge || statusRequest.bridgeId) ??
+          ('unknown' as string);
         const pathString = path?.join('.') || 'unknown';
         validationFailures.push([aggregatorId, pathString].join('|'));
       });
@@ -99,7 +95,7 @@ export const getStatusRequestWithSrcTxHash = (
 
 export const shouldSkipFetchDueToFetchFailures = (
   attempts?: BridgeHistoryItem['attempts'],
-) => {
+): boolean => {
   // If there's an attempt, it means we've failed at least once,
   // so we need to check if we need to wait longer due to exponential backoff
   if (attempts) {
@@ -114,4 +110,22 @@ export const shouldSkipFetchDueToFetchFailures = (
     }
   }
   return false;
+};
+
+/**
+ * @deprecated Use getStatusRequestWithSrcTxHash instead
+ * @param quoteResponse - The quote response to get the status request parameters from
+ * @returns The status request parameters
+ */
+export const getStatusRequestParams = (
+  quoteResponse: QuoteResponse,
+): StatusRequest => {
+  return {
+    bridgeId: quoteResponse.quote.bridgeId,
+    bridge: quoteResponse.quote.bridges[0],
+    srcChainId: quoteResponse.quote.srcChainId,
+    destChainId: quoteResponse.quote.destChainId,
+    quote: quoteResponse.quote,
+    refuel: Boolean(quoteResponse.quote.refuel),
+  };
 };

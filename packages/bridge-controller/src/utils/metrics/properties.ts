@@ -1,12 +1,5 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
-import { MetricsSwapType } from './constants';
-import type {
-  InputKeys,
-  InputValues,
-  QuoteWarning,
-  RequestParams,
-} from './types';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import { ChainId } from '../../types';
 import type {
@@ -21,6 +14,14 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters';
+import { MetricsSwapType } from './constants';
+import type {
+  AccountHardwareType,
+  InputKeys,
+  InputValues,
+  QuoteWarning,
+  RequestParams,
+} from './types';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
@@ -106,10 +107,28 @@ export const getRequestParams = ({
   };
 };
 
+export const getAccountHardwareType = (
+  selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
+): AccountHardwareType => {
+  // Unified bridge analytics only support the schema enum values for hardware accounts.
+  switch (selectedAccount?.metadata?.keyring.type) {
+    case 'Ledger Hardware':
+      return 'Ledger';
+    case 'Trezor Hardware':
+      return 'Trezor';
+    case 'QR Hardware Wallet Device':
+      return 'QR Hardware';
+    case 'Lattice Hardware':
+      return 'Lattice';
+    default:
+      return null;
+  }
+};
+
 export const isHardwareWallet = (
   selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
+  return getAccountHardwareType(selectedAccount) !== null;
 };
 
 /**

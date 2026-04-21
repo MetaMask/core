@@ -1,5 +1,15 @@
 import type { Eip1193Provider } from 'ethers';
 
+import type { MetaMetricsAuth } from '../../shared/types/services';
+import { ValidationError, RateLimitedError } from '../errors';
+import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
+import {
+  MESSAGE_SIGNING_SNAP,
+  assertMessageStartsWithMetamask,
+  connectSnap,
+  isSnapConnected,
+} from '../utils/messaging-signing-snap-requests';
+import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   authenticate,
   authorizeOIDC,
@@ -17,16 +27,6 @@ import type {
   UserProfileLineage,
 } from './types';
 import * as timeUtils from './utils/time';
-import type { MetaMetricsAuth } from '../../shared/types/services';
-import { ValidationError, RateLimitedError } from '../errors';
-import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
-import {
-  MESSAGE_SIGNING_SNAP,
-  assertMessageStartsWithMetamask,
-  connectSnap,
-  isSnapConnected,
-} from '../utils/messaging-signing-snap-requests';
-import { validateLoginResponse } from '../utils/validate-login-response';
 
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
@@ -77,7 +77,10 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   readonly #metametrics?: MetaMetricsAuth;
 
   // Map to store ongoing login promises by entropySourceId
-  readonly #ongoingLogins = new Map<string, Promise<LoginResponse>>();
+  readonly #ongoingLogins = new Map<
+    string | undefined,
+    Promise<LoginResponse>
+  >();
 
   // Default cooldown when 429 has no Retry-After header
   readonly #cooldownDefaultMs: number;
@@ -140,8 +143,10 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await this.#options.signing.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileLineage(): Promise<UserProfileLineage> {
-    const accessToken = await this.getAccessToken();
+  async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
+    const accessToken = await this.getAccessToken(entropySourceId);
     return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
@@ -234,11 +239,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async #deferredLogin(entropySourceId?: string): Promise<LoginResponse> {
-    // Use a key that accounts for undefined entropySourceId
-    const loginKey = entropySourceId ?? '__default__';
-
     // Check if there's already an ongoing login for this entropySourceId
-    const existingLogin = this.#ongoingLogins.get(loginKey);
+    const existingLogin = this.#ongoingLogins.get(entropySourceId);
     if (existingLogin) {
       return existingLogin;
     }
@@ -247,15 +249,14 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const loginPromise = this.#loginWithRetry(entropySourceId);
 
     // Store the promise in the map
-    this.#ongoingLogins.set(loginKey, loginPromise);
+    this.#ongoingLogins.set(entropySourceId, loginPromise);
 
     try {
       // Wait for the login to complete
-      const result = await loginPromise;
-      return result;
+      return await loginPromise;
     } finally {
       // Always clean up the ongoing login promise when done
-      this.#ongoingLogins.delete(loginKey);
+      this.#ongoingLogins.delete(entropySourceId);
     }
   }
 

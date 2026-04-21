@@ -1,4 +1,9 @@
-import { StatusTypes, FeeType, ActionTypes } from '@metamask/bridge-controller';
+import {
+  StatusTypes,
+  FeeType,
+  ActionTypes,
+  MetaMetricsSwapsEventSource,
+} from '@metamask/bridge-controller';
 import {
   MetricsSwapType,
   MetricsActionType,
@@ -10,6 +15,7 @@ import type {
 import { TransactionType } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
+import type { BridgeHistoryItem } from '../types';
 import {
   getTxStatusesFromHistory,
   getFinalizedTxProperties,
@@ -17,8 +23,8 @@ import {
   getTradeDataFromHistory,
   getRequestMetadataFromHistory,
   getEVMTxPropertiesFromTransactionMeta,
+  getPreConfirmationPropertiesFromQuote,
 } from './metrics';
-import type { BridgeHistoryItem } from '../types';
 
 describe('metrics utils', () => {
   const mockHistoryItem: BridgeHistoryItem = {
@@ -249,7 +255,7 @@ describe('metrics utils', () => {
         } as never,
       );
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0.016666666666666666,
           "quote_vs_execution_ratio": 1.1251337476231986,
           "quoted_vs_used_gas_ratio": 2.8325818363563227,
@@ -292,7 +298,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -335,7 +341,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -397,7 +403,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0.9799999911934969,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -458,7 +464,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -498,7 +504,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 1,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -561,7 +567,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -604,7 +610,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -640,7 +646,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 0,
@@ -662,7 +668,7 @@ describe('metrics utils', () => {
         },
       });
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0.016666666666666666,
           "quote_vs_execution_ratio": 1.1251337476231986,
           "quoted_vs_used_gas_ratio": 0,
@@ -782,7 +788,7 @@ describe('metrics utils', () => {
     it('should return correct trade data', () => {
       const result = getTradeDataFromHistory(mockHistoryItem);
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "gas_included": false,
           "gas_included_7702": false,
           "provider": "across_across",
@@ -869,6 +875,7 @@ describe('metrics utils', () => {
         usd_amount_source: 2000,
         swap_type: 'crosschain',
         is_hardware_wallet: false,
+        account_hardware_type: null,
         stx_enabled: false,
       });
     });
@@ -894,6 +901,32 @@ describe('metrics utils', () => {
         hardwareWalletAccount,
       );
       expect(result.is_hardware_wallet).toBe(true);
+      expect(result.account_hardware_type).toBe('Ledger');
+    });
+
+    it('should keep Lattice accounts as Lattice', () => {
+      const latticeAccount = {
+        id: 'test-account',
+        type: 'eip155:eoa' as const,
+        address: '0xaccount1',
+        options: {},
+        metadata: {
+          name: 'Test Account',
+          importTime: 1234567890,
+          keyring: {
+            type: 'Lattice Hardware',
+          },
+        },
+        scopes: [],
+        methods: [],
+      };
+
+      const result = getRequestMetadataFromHistory(
+        mockHistoryItem,
+        latticeAccount,
+      );
+      expect(result.is_hardware_wallet).toBe(true);
+      expect(result.account_hardware_type).toBe('Lattice');
     });
 
     it('should handle missing pricing data', () => {
@@ -964,6 +997,36 @@ describe('metrics utils', () => {
     });
   });
 
+  describe('getPreConfirmationPropertiesFromQuote', () => {
+    it('should include both ab_tests and active_ab_tests when both sets are provided', () => {
+      const abTests = { token_details_layout: 'treatment' };
+      const activeAbTests = [
+        { key: 'bridge_quote_sorting', value: 'variant_b' },
+      ];
+      const result = getPreConfirmationPropertiesFromQuote(
+        {
+          quote: mockHistoryItem.quote,
+          estimatedProcessingTimeInSeconds: 900,
+          adjustedReturn: { usd: '1980' },
+          sentAmount: { usd: '2000' },
+          gasFee: { effective: { usd: '2.54739' } },
+        } as never,
+        false,
+        null,
+        MetaMetricsSwapsEventSource.MainView,
+        abTests,
+        activeAbTests,
+      );
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          ab_tests: abTests,
+          active_ab_tests: activeAbTests,
+        }),
+      );
+    });
+  });
+
   describe('getEVMSwapTxPropertiesFromTransactionMeta', () => {
     const mockTransactionMeta: TransactionMeta = {
       id: 'test-tx-id',
@@ -991,7 +1054,7 @@ describe('metrics utils', () => {
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
-        usd_amount_source: 100,
+        usd_amount_source: 0,
         source_transaction: 'COMPLETE',
         stx_enabled: false,
         token_address_source: 'eip155:1/slip44:60',
@@ -999,6 +1062,7 @@ describe('metrics utils', () => {
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         custom_slippage: false,
         is_hardware_wallet: false,
+        account_hardware_type: null,
         swap_type: MetricsSwapType.SINGLE,
         security_warnings: [],
         price_impact: 0,

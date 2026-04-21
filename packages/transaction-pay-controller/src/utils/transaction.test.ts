@@ -7,17 +7,18 @@ import type { TransactionControllerState } from '@metamask/transaction-controlle
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash';
 
+import { getMessengerMock } from '../tests/messenger-mock';
+import type { TransactionData, TransactionPayRequiredToken } from '../types';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
   collectTransactionIds,
   getTransaction,
+  isPredictWithdrawTransaction,
   pollTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
-import { getMessengerMock } from '../tests/messenger-mock';
-import type { TransactionData, TransactionPayRequiredToken } from '../types';
 
 jest.mock('./required-tokens');
 
@@ -380,6 +381,64 @@ describe('Transaction Utils', () => {
 
       expect(mockCallback).toHaveBeenCalledTimes(1);
       expect(mockCallback).toHaveBeenCalledWith('tx1');
+    });
+  });
+
+  describe('isPredictWithdrawTransaction', () => {
+    it('returns true when the transaction type is predictWithdraw', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta;
+
+      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
+    });
+
+    it('returns true when a nested transaction has type predictWithdraw', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+      } as TransactionMeta;
+
+      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
+    });
+
+    it('returns true when one of multiple nested transactions has type predictWithdraw', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [
+          { type: TransactionType.simpleSend },
+          { type: TransactionType.predictWithdraw },
+        ],
+      } as TransactionMeta;
+
+      expect(isPredictWithdrawTransaction(transaction)).toBe(true);
+    });
+
+    it('returns false when nested transactions have different types', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [{ type: TransactionType.simpleSend }],
+      } as TransactionMeta;
+
+      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false when nestedTransactions is undefined', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+      } as TransactionMeta;
+
+      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false when nestedTransactions is empty', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [],
+      } as TransactionMeta;
+
+      expect(isPredictWithdrawTransaction(transaction)).toBe(false);
     });
   });
 });

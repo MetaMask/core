@@ -1,5 +1,3 @@
-import * as sinon from 'sinon';
-
 import { ListKeys, ListNames } from './PhishingController';
 import type { PhishingListState } from './PhishingController';
 import type { TokenScanResultType } from './types';
@@ -79,15 +77,26 @@ const exampleRemoveDiff = {
 };
 
 describe('fetchTimeNow', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask'],
+      now: testTime,
+    });
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
   });
 });
 
 describe('applyDiffs', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('adds a valid addition diff to the state then sets lastUpdated to be the time of the latest diff', () => {
     const result = applyDiffs(
       exampleListState,
@@ -115,7 +124,10 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask'],
+      now: testTime,
+    });
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -127,7 +139,10 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if the removal diff is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask'],
+      now: testTime,
+    });
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -149,7 +164,10 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask'],
+      now: testTime,
+    });
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -164,7 +182,10 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'queueMicrotask'],
+      now: testTime,
+    });
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -1131,6 +1152,20 @@ describe('buildCacheKey', () => {
     const result = buildCacheKey(chainId, address);
     expect(result).toBe('0x89:0xabcdef123456');
   });
+
+  it('should preserve address casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+    const result = buildCacheKey(chainId, address, true);
+    expect(result).toBe('solana:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
+  });
+
+  it('should lowercase address when caseSensitive is false (default)', () => {
+    const chainId = 'solana';
+    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+    const result = buildCacheKey(chainId, address);
+    expect(result).toBe('solana:gh9zwemdlj8dsckntktqpbnwlnnbjuszag9vp2kgtkjr');
+  });
 });
 
 describe('resolveChainName', () => {
@@ -1144,6 +1179,10 @@ describe('resolveChainName', () => {
     expect(resolveChainName('0X1')).toBe('ethereum');
     expect(resolveChainName('0X89')).toBe('polygon');
     expect(resolveChainName('0XA')).toBe('optimism');
+  });
+
+  it('should resolve non-EVM chain names', () => {
+    expect(resolveChainName('solana')).toBe('solana');
   });
 
   it('should return null for unknown chain IDs', () => {
@@ -1245,6 +1284,38 @@ describe('splitCacheHits', () => {
     expect(mockCache.get).toHaveBeenCalledWith('0x1:0xtoken1');
     expect(result.cachedResults).toHaveProperty('0xtoken1');
     expect(result.cachedResults['0xtoken1'].address).toBe('0xtoken1');
+  });
+
+  it('should preserve address casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const tokens = ['Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'];
+
+    mockCache.get.mockReturnValue(undefined);
+
+    const result = splitCacheHits(mockCache, chainId, tokens, true);
+
+    // tokensToFetch should preserve original casing
+    expect(result.tokensToFetch).toStrictEqual([
+      'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+    ]);
+  });
+
+  it('should return cached result with preserved casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const token = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+
+    mockCache.get.mockReturnValue({
+      result_type: 'Benign' as TokenScanResultType,
+    });
+
+    const result = splitCacheHits(mockCache, chainId, [token], true);
+
+    expect(result.cachedResults[token]).toStrictEqual({
+      result_type: 'Benign',
+      chain: 'solana',
+      address: token,
+    });
+    expect(result.tokensToFetch).toStrictEqual([]);
   });
 });
 

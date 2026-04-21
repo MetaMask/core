@@ -29,6 +29,11 @@ import {
   isEvmCaipChainId,
 } from '../utils';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'setActiveNetwork',
+  'getNetworksWithTransactionActivityByAccounts',
+] as const;
+
 /**
  * The MultichainNetworkController is responsible for fetching and caching account
  * balances.
@@ -302,13 +307,9 @@ export class MultichainNetworkController extends BaseController<
    * Registers message handlers.
    */
   #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'MultichainNetworkController:setActiveNetwork',
-      this.setActiveNetwork.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'MultichainNetworkController:getNetworksWithTransactionActivityByAccounts',
-      this.getNetworksWithTransactionActivityByAccounts.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 }

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add actions and events for accessing and interacting with the new query cache for `SampleGasPricesService` ([#8343](https://github.com/MetaMask/core/pull/8343))
+  - New actions and events are:
+    - `SampleGasPricesServiceInvalidateQueriesAction`
+    - `SampleGasPricesServiceCacheUpdatedEvent`
+    - `SampleGasPricesServiceGranularCacheUpdatedEvent`
+  - Additionally, the actions are available within `SampleGasPricesServiceActions` and the events are available within `SampleGasPricesServiceEvents`
+- Add optional `queryClientConfig` constructor argument which can be used to configure the underlying TanStack Query client ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Add `destroy` method to `BaseDataService` ([#8343](https://github.com/MetaMask/core/pull/8343))
+
+### Changed
+
+- **BREAKING:** `SampleGasPricesService` now inherits from `BaseDataService` from `@metamask/base-data-service` ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Update `SampleGasPricesService.fetchGasPrices` (and messenger action) so requests to API will be cached and/or deduplicated ([#8343](https://github.com/MetaMask/core/pull/8343))
+- Add new dependencies ([#8343](https://github.com/MetaMask/core/pull/8343))
+  - Add `@metamask/base-data-service` ^0.1.1
+  - Add `@tanstack/query-core` ^4.43.0
+  - Add `@metamask/superstruct` ^3.2.1
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak`, and `onDegraded` ([#8343](https://github.com/MetaMask/core/pull/8343))
+  - You are free to implement these methods in your "real" service class if you need them, but we no longer require you to do so.
+
+## [4.0.4]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [4.0.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
 ## [4.0.2]
 
 ### Changed
@@ -98,7 +140,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.4...HEAD
+[4.0.4]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.3...@metamask/sample-controllers@4.0.4
+[4.0.3]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.2...@metamask/sample-controllers@4.0.3
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.1...@metamask/sample-controllers@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.0...@metamask/sample-controllers@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@3.0.0...@metamask/sample-controllers@4.0.0

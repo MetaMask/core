@@ -60,7 +60,7 @@ describe('ConnectivityController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "connectivityStatus": "online",
           }
         `);
@@ -76,7 +76,7 @@ describe('ConnectivityController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "connectivityStatus": "online",
           }
         `);
@@ -91,7 +91,7 @@ describe('ConnectivityController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -104,7 +104,7 @@ describe('ConnectivityController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "connectivityStatus": "online",
           }
         `);
@@ -122,12 +122,12 @@ describe('ConnectivityController', () => {
 
       await withController(
         { options: { connectivityAdapter: mockAdapter } },
-        async ({ controller }) => {
+        async ({ rootMessenger, controller }) => {
           expect(controller.state.connectivityStatus).toBe(
             CONNECTIVITY_STATUSES.Online,
           );
 
-          await controller.init();
+          await rootMessenger.call('ConnectivityController:init');
 
           expect(mockAdapter.getStatus).toHaveBeenCalledTimes(1);
           expect(controller.state.connectivityStatus).toBe(
@@ -149,13 +149,13 @@ describe('ConnectivityController', () => {
 
       await withController(
         { options: { connectivityAdapter: mockAdapter } },
-        async ({ controller }) => {
-          await controller.init();
+        async ({ rootMessenger, controller }) => {
+          await rootMessenger.call('ConnectivityController:init');
           expect(controller.state.connectivityStatus).toBe(
             CONNECTIVITY_STATUSES.Online,
           );
 
-          await controller.init();
+          await rootMessenger.call('ConnectivityController:init');
           expect(controller.state.connectivityStatus).toBe(
             CONNECTIVITY_STATUSES.Offline,
           );

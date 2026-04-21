@@ -6,17 +6,18 @@ import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  getNativeToken,
-  getTokenBalance,
-  getTokenFiatRate,
-  getTokenInfo,
-} from './token';
 import type {
   FiatRates,
   TransactionPayControllerMessenger,
   TransactionPayRequiredToken,
 } from '../types';
+import {
+  computeTokenAmounts,
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+  getTokenInfo,
+} from './token';
 
 const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
 
@@ -189,17 +190,18 @@ function buildRequiredToken(
   }
 
   const {
-    amountHuman: balanceHuman,
-    amountRaw: balanceRaw,
-    amountFiat: balanceFiat,
-    amountUsd: balanceUsd,
-  } = calculateAmounts(tokenBalance, tokenDecimals, fiatRates);
+    human: balanceHuman,
+    raw: balanceRaw,
+    fiat: balanceFiat,
+    usd: balanceUsd,
+  } = computeTokenAmounts(tokenBalance, tokenDecimals, fiatRates);
 
-  const { amountHuman, amountRaw, amountFiat, amountUsd } = calculateAmounts(
-    amountRawHex,
-    tokenDecimals,
-    fiatRates,
-  );
+  const {
+    human: amountHuman,
+    raw: amountRaw,
+    fiat: amountFiat,
+    usd: amountUsd,
+  } = computeTokenAmounts(amountRawHex, tokenDecimals, fiatRates);
 
   return {
     address: tokenAddress,
@@ -216,46 +218,6 @@ function buildRequiredToken(
     decimals: tokenDecimals,
     skipIfBalance: false,
     symbol,
-  };
-}
-
-/**
- * Calculates the various amount representations for a token value.
- *
- * @param amountRawInput - Raw amount.
- * @param decimals - Number of decimals for the token.
- * @param fiatRates - Fiat rates for the token.
- * @returns Object containing amount in fiat, human-readable, raw, and USD formats.
- */
-function calculateAmounts(
-  amountRawInput: BigNumber.Value,
-  decimals: number,
-  fiatRates: FiatRates,
-): {
-  amountFiat: string;
-  amountHuman: string;
-  amountRaw: string;
-  amountUsd: string;
-} {
-  const amountRawValue = new BigNumber(amountRawInput);
-  const amountHumanValue = amountRawValue.shiftedBy(-decimals);
-
-  const amountFiat = amountHumanValue
-    .multipliedBy(fiatRates.fiatRate)
-    .toString(10);
-
-  const amountUsd = amountHumanValue
-    .multipliedBy(fiatRates.usdRate)
-    .toString(10);
-
-  const amountRaw = amountRawValue.toFixed(0);
-  const amountHuman = amountHumanValue.toString(10);
-
-  return {
-    amountFiat,
-    amountHuman,
-    amountRaw,
-    amountUsd,
   };
 }
 
@@ -285,7 +247,7 @@ function getTokenTransferData(transactionMeta: TransactionMeta):
   );
 
   const nestedCall =
-    nestedCallIndex === undefined
+    nestedCallIndex === undefined || nestedCallIndex === -1
       ? undefined
       : nestedTransactions?.[nestedCallIndex];
 

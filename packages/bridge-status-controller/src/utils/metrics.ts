@@ -1,18 +1,23 @@
+/* eslint-disable camelcase */
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import {
   StatusTypes,
+  getAccountHardwareType,
   formatChainIdToHex,
   isEthUsdt,
   formatChainIdToCaip,
   formatProviderLabel,
   isCustomSlippage,
   getSwapType,
-  isHardwareWallet,
   formatAddressToAssetId,
   MetricsActionType,
   MetricsSwapType,
+  MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type {
+  AccountHardwareType,
   QuoteFetchData,
   QuoteMetadata,
   QuoteResponse,
@@ -29,12 +34,12 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import type { BridgeHistoryItem } from '../types';
 import { calcActualGasUsed } from './gas';
 import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
 } from './swap-received-amount';
-import type { BridgeHistoryItem } from '../types';
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -171,13 +176,19 @@ export const getPriceImpactFromQuote = (
  *
  * @param quoteResponse - The quote response
  * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
- * @param isHardwareAccount - whether the tx is submitted using a hardware wallet
+ * @param accountHardwareType - The hardware wallet type used to submit the tx, or null if not a hardware wallet
+ * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
+ * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
+ * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target)
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   isStxEnabledOnClient: boolean,
-  isHardwareAccount: boolean,
+  accountHardwareType: AccountHardwareType,
+  location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
+  abTests?: Record<string, string>,
+  activeAbTests?: { key: string; value: string }[],
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -187,7 +198,8 @@ export const getPreConfirmationPropertiesFromQuote = (
     token_symbol_source: quote.srcAsset.symbol,
     chain_id_destination: formatChainIdToCaip(quote.destChainId),
     token_symbol_destination: quote.destAsset.symbol,
-    is_hardware_wallet: isHardwareAccount,
+    account_hardware_type: accountHardwareType,
+    is_hardware_wallet: accountHardwareType !== null,
     swap_type: getSwapType(
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
@@ -196,6 +208,15 @@ export const getPreConfirmationPropertiesFromQuote = (
     stx_enabled: isStxEnabledOnClient,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     custom_slippage: false, // TODO detect whether the user changed the default slippage
+    location,
+    ...(abTests &&
+      Object.keys(abTests).length > 0 && {
+        ab_tests: abTests,
+      }),
+    ...(activeAbTests &&
+      activeAbTests.length > 0 && {
+        active_ab_tests: activeAbTests,
+      }),
   };
 };
 
@@ -219,13 +240,15 @@ export const getRequestMetadataFromHistory = (
   account?: AccountsControllerState['internalAccounts']['accounts'][string],
 ): RequestMetadata => {
   const { quote, slippagePercentage, isStxEnabled } = historyItem;
+  const accountHardwareType = getAccountHardwareType(account);
 
   return {
     slippage_limit: slippagePercentage,
     custom_slippage: isCustomSlippage(slippagePercentage),
     usd_amount_source: Number(historyItem.pricingData?.amountSentInUsd ?? 0),
     swap_type: getSwapType(quote.srcChainId, quote.destChainId),
-    is_hardware_wallet: isHardwareWallet(account),
+    account_hardware_type: accountHardwareType,
+    is_hardware_wallet: accountHardwareType !== null,
     stx_enabled: isStxEnabled ?? false,
     security_warnings: [],
   };
@@ -235,11 +258,15 @@ export const getRequestMetadataFromHistory = (
  * Get the properties for a swap transaction that is not in the txHistory
  *
  * @param transactionMeta - The transaction meta
+ * @param account - The account that submitted the transaction
  * @returns The properties for the swap transaction
  */
 export const getEVMTxPropertiesFromTransactionMeta = (
   transactionMeta: TransactionMeta,
+  account?: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
+  const accountHardwareType = getAccountHardwareType(account);
+
   return {
     source_transaction: [
       TransactionStatus.failed,
@@ -253,7 +280,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
     token_symbol_destination: transactionMeta.destinationTokenSymbol ?? '',
-    usd_amount_source: 100,
+    usd_amount_source: 0,
     stx_enabled: false,
     token_address_source:
       formatAddressToAssetId(
@@ -266,7 +293,8 @@ export const getEVMTxPropertiesFromTransactionMeta = (
         transactionMeta.chainId,
       ) ?? ('' as CaipAssetType),
     custom_slippage: false,
-    is_hardware_wallet: false,
+    account_hardware_type: accountHardwareType,
+    is_hardware_wallet: accountHardwareType !== null,
     swap_type:
       transactionMeta.type &&
       [TransactionType.swap, TransactionType.swapApproval].includes(

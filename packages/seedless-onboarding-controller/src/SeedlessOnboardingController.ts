@@ -1,18 +1,30 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
-import type { StateMetadata } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import type {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
   ChangeEncryptionKeyResult,
   KeyPair,
   RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
+  FetchedSecretDataItem,
 } from '@metamask/toprf-secure-backup';
 import {
   ToprfSecureBackup,
   TOPRFErrorCode,
   TOPRFError,
+  EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
@@ -28,6 +40,7 @@ import { Mutex } from 'async-mutex';
 import {
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
+  assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions';
 import type { AuthConnection } from './constants';
@@ -36,26 +49,31 @@ import {
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   Web3AuthNetwork,
 } from './constants';
-import { PasswordSyncError, RecoveryError } from './errors';
+import {
+  PasswordSyncError,
+  RecoveryError,
+  SeedlessOnboardingError,
+} from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SecretMetadata } from './SecretMetadata';
+import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types';
 import type {
   MutuallyExclusiveCallback,
-  SeedlessOnboardingControllerMessenger,
-  SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
-  VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
+  ToprfKeyDeriver,
 } from './types';
 import {
+  compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
@@ -63,6 +81,140 @@ import {
 } from './utils';
 
 const log = createModuleLogger(projectLogger, controllerName);
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchMetadataAccessCreds',
+  'preloadToprfNodeDetails',
+  'authenticate',
+  'createToprfKeyAndBackupSeedPhrase',
+  'addNewSecretData',
+  'fetchAllSecretData',
+  'changePassword',
+  'updateBackupMetadataState',
+  'verifyVaultPassword',
+  'getSecretDataBackupState',
+  'submitPassword',
+  'setLocked',
+  'syncLatestGlobalPassword',
+  'submitGlobalPassword',
+  'checkIsPasswordOutdated',
+  'getIsUserAuthenticated',
+  'clearState',
+  'storeKeyringEncryptionKey',
+  'loadKeyringEncryptionKey',
+  'refreshAuthTokens',
+  'revokePendingRefreshTokens',
+  'rotateRefreshToken',
+  'getAccessToken',
+  'checkNodeAuthTokenExpired',
+  'checkMetadataAccessTokenExpired',
+  'checkAccessTokenExpired',
+] as const;
+
+// Actions
+export type SeedlessOnboardingControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    SeedlessOnboardingControllerState
+  >;
+
+export type SeedlessOnboardingControllerActions =
+  | SeedlessOnboardingControllerGetStateAction
+  | SeedlessOnboardingControllerMethodActions;
+
+type AllowedActions = never;
+
+// Events
+export type SeedlessOnboardingControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    SeedlessOnboardingControllerState
+  >;
+export type SeedlessOnboardingControllerEvents =
+  SeedlessOnboardingControllerStateChangeEvent;
+
+type AllowedEvents = never;
+
+// Messenger
+export type SeedlessOnboardingControllerMessenger = Messenger<
+  typeof controllerName,
+  SeedlessOnboardingControllerActions | AllowedActions,
+  SeedlessOnboardingControllerEvents | AllowedEvents
+>;
+
+/**
+ * Seedless Onboarding Controller Options.
+ *
+ * @param messenger - The messenger to use for this controller.
+ * @param state - The initial state to set on this controller.
+ * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
+ */
+export type SeedlessOnboardingControllerOptions<
+  EncryptionKey = encryptionUtils.EncryptionKey,
+  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> =
+    DefaultEncryptionResult<SupportedKeyDerivationParams>,
+> = {
+  messenger: SeedlessOnboardingControllerMessenger;
+
+  /**
+   * Initial state to set on this controller.
+   */
+  state?: Partial<SeedlessOnboardingControllerState>;
+
+  /**
+   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationParams,
+    EncryptionResult
+  >;
+
+  /**
+   * A function to get a new jwt token using refresh token.
+   */
+  refreshJWTToken: RefreshJWTToken;
+
+  /**
+   * A function to revoke the refresh token.
+   */
+  revokeRefreshToken: RevokeRefreshToken;
+
+  /**
+   * A function to renew the refresh token and get new revoke token.
+   */
+  renewRefreshToken: RenewRefreshToken;
+
+  /**
+   * Optional key derivation interface for the TOPRF client.
+   *
+   * If provided, it will be used as an additional step during
+   * key derivation. This can be used, for example, to inject a slow key
+   * derivation step to protect against local brute force attacks on the
+   * password.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  toprfKeyDeriver?: ToprfKeyDeriver;
+
+  /**
+   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
+   *
+   * @default Web3AuthNetwork.Mainnet
+   */
+  network?: Web3AuthNetwork;
+
+  /**
+   * The TTL of the password outdated cache in milliseconds.
+   *
+   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
+   */
+  passwordOutdatedCacheTTL?: number;
+};
 
 /**
  * Get the initial state for the Seedless Onboarding Controller with defaults.
@@ -76,6 +228,7 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
   const initialState = {
     socialBackupsMetadata: [],
     isSeedlessOnboardingUserAuthenticated: false,
+    migrationVersion: 0,
     ...overrides,
   };
 
@@ -224,24 +377,41 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    migrationVersion: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
   };
 
 export class SeedlessOnboardingController<
-  EncryptionKey,
+  EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> =
+    DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor<
+  readonly #vaultEncryptor: Encryptor<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >;
 
   readonly #controllerOperationMutex = new Mutex();
 
   readonly #vaultOperationMutex = new Mutex();
+
+  /**
+   * In-flight promise for `refreshAuthTokens`.  Any concurrent caller that
+   * arrives while a refresh is already in-progress will share this promise
+   * rather than issuing a second HTTP request with the same refresh token.
+   */
+  #pendingRefreshPromise: Promise<void> | undefined;
 
   readonly toprfClient: ToprfSecureBackup;
 
@@ -296,7 +466,8 @@ export class SeedlessOnboardingController<
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >) {
     super({
       name: controllerName,
@@ -318,6 +489,11 @@ export class SeedlessOnboardingController<
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   async fetchMetadataAccessCreds(): Promise<{
@@ -330,10 +506,11 @@ export class SeedlessOnboardingController<
       );
     }
 
-    // Check if token is expired and refresh if needed
+    // Use the same 90%-lifetime threshold as checkMetadataAccessTokenExpired
+    // so both code paths agree on when a refresh is needed.
     const decodedToken = decodeJWTToken(metadataAccessToken);
-    if (decodedToken.exp < Math.floor(Date.now() / 1000)) {
-      // Token is expired, refresh it
+    if (isTokenNearExpiry(decodedToken.exp, decodedToken.iat)) {
+      // Token is near expiry or already expired, refresh it
       await this.refreshAuthTokens();
 
       // Get the new token after refresh
@@ -370,7 +547,7 @@ export class SeedlessOnboardingController<
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
    * @param params.socialLoginEmail - The user email from Social login.
-   * @param params.refreshToken - refresh token for refreshing expired nodeAuthTokens.
+   * @param params.refreshToken - Refresh token issued during OAuth login. Written to state when provided.
    * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
    * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
    * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
@@ -436,8 +613,11 @@ export class SeedlessOnboardingController<
         return authenticationResult;
       } catch (error) {
         log('Error authenticating user', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          {
+            cause: error,
+          },
         );
       }
     };
@@ -473,7 +653,7 @@ export class SeedlessOnboardingController<
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data: seedPhrase,
-          type: SecretType.Mnemonic,
+          dataType: EncAccountDataType.PrimarySrp,
           encKey,
           authKeyPair,
           options: {
@@ -493,6 +673,9 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        // Mark migration as complete since this new backup was created with the new data format (dataType)
+        this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
       };
 
       await this.#executeWithTokenRefresh(
@@ -503,30 +686,36 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * encrypt and add a new secret data to the metadata store.
+   * Encrypt and add a new secret data to the metadata store.
    *
    * @param data - The data to add.
-   * @param type - The type of the secret data.
+   * @param dataType - The data type classification for the secret data.
    * @param options - Optional options object, which includes optional data to be added to the metadata store.
    * @param options.keyringId - The keyring id of the backup keyring (SRP).
    * @returns A promise that resolves to the success of the operation.
    */
   async addNewSecretData(
     data: Uint8Array,
-    type: SecretType,
+    dataType: EncAccountDataType,
     options?: {
       keyringId?: string;
     },
   ): Promise<void> {
+    if (dataType === EncAccountDataType.PrimarySrp) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.PrimarySrpCannotBeAddedViaAddNewSecretData,
+      );
+    }
+
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
-      await this.#assertPasswordInSync({
-        skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
-      });
-
       const performBackup = async (): Promise<void> => {
+        await this.#assertPasswordInSync({
+          skipCache: true,
+          skipLock: true, // skip lock since we already have the lock
+        });
+
         // verify the password and unlock the vault
         const { toprfEncryptionKey, toprfAuthKeyPair } =
           await this.#unlockVaultAndGetVaultData();
@@ -534,7 +723,7 @@ export class SeedlessOnboardingController<
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data,
-          type,
+          dataType,
           encKey: toprfEncryptionKey,
           authKeyPair: toprfAuthKeyPair,
           options,
@@ -546,12 +735,171 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Fetches all encrypted secret data and metadata for user's account from the metadata store.
+   * Run any pending seedless onboarding migrations.
+   *
+   * This method should be called by clients after the controller is unlocked
+   * to ensure legacy data is migrated to the latest format.
+   *
+   * Migrations are idempotent - running this multiple times is safe.
+   * The migration version is tracked in state to prevent re-running migrations.
+   *
+   * @returns A promise that resolves to `true` if data was actually migrated
+   * (items were updated on the server), `false` otherwise.
+   * @throws If the password is outdated (changed on another device).
+   */
+  async runMigrations(): Promise<boolean> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
+
+      if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
+        return this.#migrateDataTypes();
+      }
+      return false;
+    });
+  }
+
+  /**
+   * Set the migration version directly.
+   *
+   * Use this for new users who don't have legacy data to migrate,
+   * avoiding an unnecessary API call from `runMigrations()`.
+   *
+   * @param version - The migration version to set.
+   */
+  setMigrationVersion(version: SeedlessOnboardingMigrationVersion): void {
+    this.#setMigrationVersion(version);
+  }
+
+  /**
+   * Assigns dataType (PrimarySrp/ImportedSrp/ImportedPrivateKey) to legacy secrets
+   * that were created before the dataType field was introduced.
+   *
+   * This migration:
+   * 1. Fetches all secret data items
+   * 2. Identifies items that need migration (version !== 'v2' OR dataType not set)
+   * 3. Assigns PrimarySrp to the first mnemonic (by timestamp)
+   * 4. Assigns ImportedSrp to subsequent mnemonics
+   * 5. Assigns ImportedPrivateKey to private keys
+   * 6. Updates the items via SDK (which sets version to 'v2' and dataType)
+   * 7. Updates the migration version in state
+   *
+   * Note: The SDK's updateSecretDataItem automatically sets version to 'v2'
+   * when updating dataType, ensuring migrated items are marked as v2.
+   *
+   * @returns A promise that resolves to `true` if items were actually updated
+   * on the server, `false` if no items needed migration.
+   */
+  async #migrateDataTypes(): Promise<boolean> {
+    return await this.#executeWithTokenRefresh(async () => {
+      const { toprfEncryptionKey, toprfAuthKeyPair } =
+        await this.#unlockVaultAndGetVaultData();
+
+      let secretDatas: SecretMetadata[];
+      try {
+        secretDatas = await this.#fetchAllSecretDataFromMetadataStore(
+          toprfEncryptionKey,
+          toprfAuthKeyPair,
+        );
+      } catch (error) {
+        // If no secret data found, just update migration version
+        if (
+          error instanceof Error &&
+          error.message ===
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
+        ) {
+          this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+          return false;
+        }
+        throw error;
+      }
+
+      let hasPrimarySrp = secretDatas.some(
+        (secret) =>
+          secret.itemId &&
+          secret.itemId !== 'PW_BACKUP' &&
+          secret.dataType === EncAccountDataType.PrimarySrp,
+      );
+
+      const updates: { itemId: string; dataType: EncAccountDataType }[] = [];
+
+      for (const secret of secretDatas) {
+        if (!secret.itemId || secret.itemId === 'PW_BACKUP') {
+          continue;
+        }
+
+        // Skip items that are already migrated (v2 with dataType set)
+        // Check both storageVersion and dataType since this migration is specific to dataType
+        const isAlreadyMigrated =
+          secret.storageVersion === 'v2' &&
+          secret.dataType !== undefined &&
+          secret.dataType !== null;
+        if (isAlreadyMigrated) {
+          continue;
+        }
+
+        let dataType: EncAccountDataType;
+
+        if (SecretMetadata.matchesType(secret, SecretType.Mnemonic)) {
+          // Preserve existing PrimarySrp designation
+          if (secret.dataType === EncAccountDataType.PrimarySrp) {
+            dataType = EncAccountDataType.PrimarySrp;
+          } else if (hasPrimarySrp) {
+            dataType = EncAccountDataType.ImportedSrp;
+          } else {
+            dataType = EncAccountDataType.PrimarySrp;
+            hasPrimarySrp = true;
+          }
+        } else if (SecretMetadata.matchesType(secret, SecretType.PrivateKey)) {
+          dataType = EncAccountDataType.ImportedPrivateKey;
+        } else {
+          continue;
+        }
+
+        updates.push({ itemId: secret.itemId, dataType });
+      }
+
+      if (updates.length === 1) {
+        await this.toprfClient.updateSecretDataItem({
+          itemId: updates[0].itemId,
+          dataType: updates[0].dataType,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      } else if (updates.length > 1) {
+        await this.toprfClient.batchUpdateSecretDataItems({
+          updateItems: updates,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      }
+
+      this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+
+      return updates.length > 0;
+    }, 'migrateDataTypes');
+  }
+
+  /**
+   * Set the migration version in state.
+   *
+   * @param version - The migration version to set.
+   */
+  #setMigrationVersion(version: number): void {
+    this.update((state) => {
+      state.migrationVersion = version;
+    });
+  }
+
+  /**
+   * Fetches all secret data items from the metadata store.
    *
    * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
    *
    * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
-   * @returns A promise that resolves to the secret data.
+   * @returns A promise that resolves to the secret metadata items.
    */
   async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
@@ -617,12 +965,11 @@ export class SeedlessOnboardingController<
         skipLock: true, // skip lock since we already have the lock
       });
 
-      const { latestKeyIndex } = await this.#assertPasswordInSync({
-        skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
-      });
-
       const attemptChangePassword = async (): Promise<void> => {
+        const { latestKeyIndex } = await this.#assertPasswordInSync({
+          skipCache: true,
+          skipLock: true, // skip lock since we already have the lock
+        });
         // load keyring encryption key if it exists
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
@@ -663,8 +1010,11 @@ export class SeedlessOnboardingController<
         );
       } catch (error) {
         log('Error changing password', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          {
+            cause: error,
+          },
         );
       }
     });
@@ -735,7 +1085,7 @@ export class SeedlessOnboardingController<
   /**
    * Submit the password to the controller, verify the password validity and unlock the controller.
    *
-   * This method will be used especially when user rehydrate/unlock the wallet.
+   * This method will be used especially when user unlock the wallet.
    * The provided password will be verified against the encrypted vault, encryption key will be derived and saved in the controller state.
    *
    * This operation is useful when user performs some actions that requires the user password/encryption key. e.g. add new srp backup
@@ -745,7 +1095,36 @@ export class SeedlessOnboardingController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      await this.#unlockVaultAndGetVaultData({ password });
+      // get the access token from the state before unlocking, it might be the new token set from the `refreshAuthTokens` method.
+      const { accessToken: accessTokenBeforeUnlock } = this.state;
+
+      const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
+        password,
+      });
+
+      const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
+
+      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
+      // than the token stored in the vault.
+      const latestAccessToken = this.#pickLatestAccessToken(
+        accessTokenBeforeUnlock,
+        accessTokenFromDecryptedVault,
+      );
+
+      // update the state and vault with the latest access token `ONLY` if it's different from the current access token in the state.
+      if (latestAccessToken !== accessTokenFromDecryptedVault) {
+        const updatedVaultData = {
+          ...deserializedVaultData,
+          accessToken: latestAccessToken,
+        };
+
+        await this.#updateVault({
+          password,
+          vaultData: updatedVaultData,
+          pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
+        });
+      }
+
       this.#setUnlocked();
     });
   }
@@ -856,25 +1235,36 @@ export class SeedlessOnboardingController<
     globalPassword: string;
     maxKeyChainLength: number;
   }): Promise<void> {
-    const { pwEncKey: curPwEncKey, authKeyPair: curAuthKeyPair } =
+    const { pwEncKey: globalPwEncKey, authKeyPair: globalAuthKeyPair } =
       await this.#recoverEncKey(globalPassword);
 
     try {
       // Recover vault encryption key.
       const res = await this.toprfClient.recoverPwEncKey({
         targetAuthPubKey,
-        curPwEncKey,
-        curAuthKeyPair,
+        curPwEncKey: globalPwEncKey,
+        curAuthKeyPair: globalAuthKeyPair,
         maxPwChainLength: maxKeyChainLength,
       });
       const { pwEncKey } = res;
       const vaultKey = await this.#loadSeedlessEncryptionKey(pwEncKey);
 
+      // accessToken before unlocking vault and flooding the state with values from the decrypted vault
+      // it might be the new token set from the `refreshAuthTokens` method.
+      const { accessToken: accessTokenBeforeUnlock } = this.state;
+
       // Unlock the controller
-      await this.#unlockVaultAndGetVaultData({
+      const decryptedVaultData = await this.#unlockVaultAndGetVaultData({
         encryptionKey: vaultKey,
       });
       this.#setUnlocked();
+
+      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
+      // than the token stored in the vault. The vault will be updated later by syncLatestGlobalPassword.
+      this.#pickLatestAccessToken(
+        accessTokenBeforeUnlock,
+        decryptedVaultData.accessToken,
+      );
     } catch (error) {
       if (this.#isAuthTokenError(error)) {
         throw error;
@@ -940,8 +1330,11 @@ export class SeedlessOnboardingController<
           })
           .catch((error) => {
             log('Error fetching auth pub key', error);
-            throw new Error(
+            throw new SeedlessOnboardingError(
               SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+              {
+                cause: error,
+              },
             );
           });
         globalAuthPubKey = authPubKey;
@@ -992,6 +1385,39 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Compares two access tokens and picks the latest one based on JWT expiration.
+   * If the tokens are different, the state is updated with the latest token.
+   *
+   * @param tokenBeforeUnlock - The access token from state before unlocking (may have been set by refreshAuthTokens).
+   * @param tokenAfterUnlock - The access token from the decrypted vault after unlocking.
+   * @returns The latest access token, or the token after unlock if no reconciliation was needed.
+   */
+  #pickLatestAccessToken(
+    tokenBeforeUnlock: string | undefined,
+    tokenAfterUnlock: string,
+  ): string {
+    let latestToken = tokenAfterUnlock;
+
+    if (
+      tokenBeforeUnlock &&
+      tokenAfterUnlock &&
+      tokenBeforeUnlock !== tokenAfterUnlock
+    ) {
+      latestToken = compareAndGetLatestToken(
+        tokenBeforeUnlock,
+        tokenAfterUnlock,
+      );
+
+      // Update the access token in the state with the latest access token
+      this.update((state) => {
+        state.accessToken = latestToken;
+      });
+    }
+
+    return latestToken;
+  }
+
+  /**
    * Clears the current state of the SeedlessOnboardingController.
    */
   clearState(): void {
@@ -1030,8 +1456,11 @@ export class SeedlessOnboardingController<
         throw error;
       }
       log('Error persisting local encryption key', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
+        {
+          cause: error,
+        },
       );
     }
   }
@@ -1182,10 +1611,10 @@ export class SeedlessOnboardingController<
     encKey: Uint8Array,
     authKeyPair: KeyPair,
   ): Promise<SecretMetadata[]> {
-    let secretData: Uint8Array[] = [];
+    let secretDataItems: FetchedSecretDataItem[] = [];
     try {
       // fetch and decrypt the secret data from the metadata store
-      secretData = await this.toprfClient.fetchAllSecretDataItems({
+      secretDataItems = await this.toprfClient.fetchAllSecretDataItems({
         decKey: encKey,
         authKeyPair,
       });
@@ -1194,22 +1623,45 @@ export class SeedlessOnboardingController<
       if (this.#isAuthTokenError(error)) {
         throw error;
       }
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+        {
+          cause: error,
+        },
       );
     }
 
     // user must have at least one secret data
-    if (secretData?.length > 0) {
-      const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
-      // validate the primary secret data is a mnemonic (SRP)
-      const primarySecret = secrets[0];
-      if (primarySecret.type !== SecretType.Mnemonic) {
+    if (secretDataItems?.length > 0) {
+      const results: SecretMetadata[] = secretDataItems.map((item) =>
+        SecretMetadata.fromRawMetadata(item.data, {
+          itemId: item.itemId,
+          dataType: item.dataType,
+          createdAt: item.createdAt,
+          storageVersion: item.version,
+        }),
+      );
+
+      // Sort: PrimarySrp first, then by createdAt/timestamp (oldest first)
+      results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
+
+      // Validate the first item is the primary SRP
+      const firstItem = results[0];
+      const isDataTypePrimary =
+        firstItem.dataType === undefined ||
+        firstItem.dataType === null ||
+        firstItem.dataType === EncAccountDataType.PrimarySrp;
+      const isMnemonic = SecretMetadata.matchesType(
+        firstItem,
+        SecretType.Mnemonic,
+      );
+
+      if (!isDataTypePrimary || !isMnemonic) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
       }
-      return secrets;
+      return results;
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
@@ -1273,24 +1725,27 @@ export class SeedlessOnboardingController<
    *
    * @param params - The parameters for encrypting and storing the secret data backup.
    * @param params.data - The secret data to store.
-   * @param params.type - The type of the secret data.
+   * @param params.dataType - The data type classification for the secret data.
    * @param params.encKey - The encryption key to store.
    * @param params.authKeyPair - The authentication key pair to store.
-   * @param params.options - Optional options object, which includes optional data to be added to the metadata store.
-   * @param params.options.keyringId - The keyring id of the backup keyring (SRP).
+   * @param params.options - Optional options object.
+   * @param params.options.keyringId - The keyring id of the backup keyring (required for SRP types).
    *
    * @returns A promise that resolves to the success of the operation.
    */
   async #encryptAndStoreSecretData(params: {
     data: Uint8Array;
-    type: SecretType;
+    dataType: EncAccountDataType;
     encKey: Uint8Array;
     authKeyPair: KeyPair;
     options?: {
       keyringId?: string;
     };
   }): Promise<void> {
-    const { options, data, encKey, authKeyPair, type } = params;
+    const { options, data, encKey, authKeyPair, dataType } = params;
+
+    const secretMetadata = new SecretMetadata(data, { dataType });
+    const { type } = secretMetadata;
 
     // before encrypting and create backup, we will check the state if the secret data is already backed up
     const backupState = this.getSecretDataBackupState(data, type);
@@ -1298,9 +1753,6 @@ export class SeedlessOnboardingController<
       return;
     }
 
-    const secretMetadata = new SecretMetadata(data, {
-      type,
-    });
     const secretData = secretMetadata.toBytes();
 
     const keyringId = options?.keyringId as string;
@@ -1316,6 +1768,7 @@ export class SeedlessOnboardingController<
           encKey,
           secretData,
           authKeyPair,
+          dataType,
         });
         return {
           keyringId,
@@ -1593,7 +2046,7 @@ export class SeedlessOnboardingController<
    * Encrypt and update the vault with the given authentication data.
    *
    * @param params - The parameters for updating the vault.
-   * @param params.password - The password to encrypt the vault.
+   * @param params.password - The optional password to encrypt the vault. If not provided, the vault will be encrypted with the encryption key in the state.
    * @param params.vaultData - The raw vault data to update the vault with.
    * @param params.pwEncKey - The global password encryption key.
    * @returns A promise that resolves to the updated vault.
@@ -1603,38 +2056,95 @@ export class SeedlessOnboardingController<
     vaultData,
     pwEncKey,
   }: {
-    password: string;
+    password?: string;
     vaultData: DeserializedVaultData;
     pwEncKey: Uint8Array;
   }): Promise<void> {
     await this.#withVaultLock(async () => {
-      assertIsValidPassword(password);
-
-      // cache the vault data to avoid decrypting the vault data multiple times
-      this.#cachedDecryptedVaultData = vaultData;
-
       const serializedVaultData = serializeVaultData(vaultData);
 
-      // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
-      // from the password using an intentionally slow key derivation function.
-      // We should make sure that we only call it very intentionally.
-      const { vault, exportedKeyString } =
-        await this.#vaultEncryptor.encryptWithDetail(
-          password,
+      const { vaultEncryptionKey, vaultEncryptionSalt, vault } = this.state;
+
+      const updatedState: Partial<SeedlessOnboardingControllerState> = {
+        vault,
+        vaultEncryptionKey,
+        vaultEncryptionSalt,
+        encryptedSeedlessEncryptionKey:
+          this.state.encryptedSeedlessEncryptionKey,
+      };
+
+      // if the password is provided (not undefined), encrypt the vault with the password
+      // We gonna prioritize the password encryption here, in case of the operation is `Change Password`.
+      // We don't wanna re-use the old encryption key from the state.
+      if (password !== undefined) {
+        assertIsValidPassword(password);
+
+        // Note that vault encryption using the password is a very costly operation as it involves deriving the encryption key
+        // from the password using an intentionally slow key derivation function.
+        // We should make sure that we only call it very intentionally.
+        const { vault: updatedEncVault, exportedKeyString } =
+          await this.#vaultEncryptor.encryptWithDetail(
+            password,
+            serializedVaultData,
+          );
+
+        updatedState.vault = updatedEncVault;
+        updatedState.vaultEncryptionKey = exportedKeyString;
+        updatedState.vaultEncryptionSalt = JSON.parse(updatedEncVault).salt;
+
+        // encrypt the seedless encryption key with the password encryption key from TOPRF network
+        updatedState.encryptedSeedlessEncryptionKey =
+          this.#encryptSeedlessEncryptionKey(exportedKeyString, pwEncKey);
+      } else if (vaultEncryptionKey && vaultEncryptionSalt) {
+        const encryptionKey =
+          await this.#vaultEncryptor.importKey(vaultEncryptionKey);
+        const updatedEncVault = await this.#vaultEncryptor.encryptWithKey(
+          encryptionKey,
           serializedVaultData,
         );
 
-      // Encrypt vault key.
-      const aes = managedNonce(gcm)(pwEncKey);
-      const encryptedKey = aes.encrypt(utf8ToBytes(exportedKeyString));
+        // NOTE: Referenced from keyring-controller!
+        // We need to include the salt used to derive the encryption key, to be able to derive it from password again.
+        updatedEncVault.salt = vaultEncryptionSalt;
 
+        updatedState.vault = JSON.stringify(updatedEncVault);
+        updatedState.vaultEncryptionKey = vaultEncryptionKey;
+        updatedState.vaultEncryptionSalt = vaultEncryptionSalt;
+      } else {
+        // neither password nor encryption key is provided
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.MissingCredentials,
+        );
+      }
+
+      // update the state with the updated vault data
       this.update((state) => {
-        state.vault = vault;
-        state.vaultEncryptionKey = exportedKeyString;
-        state.vaultEncryptionSalt = JSON.parse(vault).salt;
-        state.encryptedSeedlessEncryptionKey = bytesToBase64(encryptedKey);
+        state.vault = updatedState.vault;
+        state.vaultEncryptionKey = updatedState.vaultEncryptionKey;
+        state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
+        state.encryptedSeedlessEncryptionKey =
+          updatedState.encryptedSeedlessEncryptionKey;
       });
+
+      // cache the vault data to avoid decrypting the vault data multiple times
+      this.#cachedDecryptedVaultData = vaultData;
     });
+  }
+
+  /**
+   * Encrypt the seedless encryption key with the password encryption key from TOPRF network.
+   *
+   * @param vaultEncryptionKey - The key which is used to encrypt the vault.
+   * @param pwEncKey - The password encryption key from TOPRF network.
+   * @returns The encrypted seedless encryption key.
+   */
+  #encryptSeedlessEncryptionKey(
+    vaultEncryptionKey: string,
+    pwEncKey: Uint8Array,
+  ): string {
+    const aes = managedNonce(gcm)(pwEncKey);
+    const encryptedKey = aes.encrypt(utf8ToBytes(vaultEncryptionKey));
+    return bytesToBase64(encryptedKey);
   }
 
   /**
@@ -1804,8 +2314,11 @@ export class SeedlessOnboardingController<
       })
       .catch((error) => {
         log('Error fetching auth pub key', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          {
+            cause: error,
+          },
         );
       });
     const isPasswordOutdated = await this.checkIsPasswordOutdated({
@@ -1827,14 +2340,39 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Refresh expired nodeAuthTokens, accessToken, and metadataAccessToken using the stored refresh token.
+   * Refresh expired nodeAuthTokens, accessToken, and metadataAccessToken using
+   * the stored refresh token.
    *
-   * This method retrieves the refresh token from the vault and uses it to obtain
-   * new nodeAuthTokens when the current ones have expired.
+   * Concurrent callers share a single in-flight HTTP request — if a refresh is
+   * already in-progress the returned promise resolves when that request settles
+   * rather than firing a duplicate request with the same token.
    *
-   * @returns A promise that resolves to the new nodeAuthTokens.
+   * @returns A promise that resolves when the tokens have been refreshed.
    */
   async refreshAuthTokens(): Promise<void> {
+    // Coalesce concurrent calls to avoid issuing parallel HTTP requests
+    // with the same refresh token.
+    if (this.#pendingRefreshPromise) {
+      return this.#pendingRefreshPromise;
+    }
+
+    const promise = this.#doRefreshAuthTokens().finally(() => {
+      if (this.#pendingRefreshPromise === promise) {
+        this.#pendingRefreshPromise = undefined;
+      }
+    });
+
+    this.#pendingRefreshPromise = promise;
+
+    return promise;
+  }
+
+  /**
+   * Internal implementation of token refresh.  Called exclusively by
+   * `refreshAuthTokens` which gates concurrent access via
+   * `#pendingRefreshPromise`.
+   */
+  async #doRefreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
     const { refreshToken } = this.state;
 
@@ -1842,86 +2380,191 @@ export class SeedlessOnboardingController<
       connection: this.state.authConnection,
       refreshToken,
     }).catch((error) => {
-      log('Error refreshing JWT tokens', error);
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+      // Distinguish a server-side token rejection (401) from transient
+      // failures so callers can apply the appropriate recovery strategy.
+      const httpStatusCode = (error as Error & { statusCode?: number })
+        .statusCode;
+      log('Error refreshing JWT tokens', error, { httpStatusCode });
+      const isTokenRevoked =
+        error instanceof Error &&
+        error.name === 'RefreshTokenHttpError' &&
+        httpStatusCode === 401;
+      throw new SeedlessOnboardingError(
+        isTokenRevoked
+          ? SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken
+          : SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+        {
+          cause: error,
+        },
       );
     });
 
     try {
       const { idTokens, accessToken, metadataAccessToken } = res;
-      // re-authenticate with the new id tokens to set new node auth tokens
-      // NOTE: here we can't provide the `revokeToken` value to the `authenticate` method because `refreshAuthTokens` method can be called when the wallet (vault) is locked
-      await this.authenticate({
+      // Re-authenticate with the refreshed id tokens to update node auth
+      // tokens, accessToken, and metadataAccessToken in state.
+      await this.#reAuthenticate({
         idTokens,
         accessToken,
         metadataAccessToken,
-        authConnection: this.state.authConnection,
-        authConnectionId: this.state.authConnectionId,
-        groupedAuthConnectionId: this.state.groupedAuthConnectionId,
-        userId: this.state.userId,
-        refreshToken,
-        skipLock: true,
       });
+
+      // update the vault with new access token if wallet is unlocked
+      if (this.#isUnlocked && this.#cachedDecryptedVaultData) {
+        const updatedVaultData = {
+          ...this.#cachedDecryptedVaultData,
+          accessToken,
+        };
+        const pwEncKey = this.#cachedDecryptedVaultData.toprfPwEncryptionKey;
+
+        await this.#updateVault({
+          vaultData: updatedVaultData,
+          pwEncKey,
+        });
+
+        // Proactively rotate the refresh token now that we have vault access.
+        await this.rotateRefreshToken().catch((error) => {
+          // Rotation failure is intentionally non-fatal: the JWT refresh
+          // itself succeeded and the caller should not be blocked.
+          // However the user is now operating with a stale refresh token
+          // that may be revoked server-side, so log prominently.
+          log(
+            'Failed to rotate refresh token after successful JWT refresh. ' +
+              'The user may be logged out when the old token is revoked.',
+            error,
+          );
+        });
+      }
     } catch (error) {
       log('Error refreshing node auth tokens', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        {
+          cause: error,
+        },
       );
     }
   }
 
   /**
-   * Renew the refresh token - get new refresh token and new revoke token
-   * and also updates the vault with the new revoke token.
-   * This method is to be called after user is authenticated.
+   * Re-authenticate the user using freshly issued tokens from a JWT refresh.
    *
-   * @param password - The password to encrypt the vault.
-   * @returns A Promise that resolves to void.
+   * Unlike the public `authenticate` method, this variant is called exclusively
+   * from token-refresh paths where the user's identity has already been
+   * established.  It only accepts the tokens returned by the JWT-refresh
+   * service (`idTokens`, `accessToken`, `metadataAccessToken`) and reads all
+   * other auth-connection details from the existing controller state.
+   *
+   * `refreshToken` and `revokeToken` are intentionally absent — token-refresh
+   * paths must not touch `state.refreshToken` directly; that field is managed
+   * exclusively by `rotateRefreshToken`.
+   *
+   * @param params - Tokens issued by the JWT-refresh service.
+   * @param params.idTokens - New node id tokens.
+   * @param params.accessToken - New access token.
+   * @param params.metadataAccessToken - New metadata access token.
+   * @returns A promise that resolves to the authentication result.
    */
-  async renewRefreshToken(password: string): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      this.#assertIsAuthenticatedUser(this.state);
-      const { refreshToken, vaultEncryptionKey } = this.state;
-      const {
-        toprfEncryptionKey: rawToprfEncryptionKey,
-        toprfPwEncryptionKey: rawToprfPwEncryptionKey,
-        toprfAuthKeyPair: rawToprfAuthKeyPair,
-        revokeToken,
-      } = await this.#unlockVaultAndGetVaultData({
-        password,
-        encryptionKey: vaultEncryptionKey,
+  async #reAuthenticate(params: {
+    idTokens: string[];
+    accessToken: string;
+    metadataAccessToken: string;
+  }): Promise<AuthenticateResult> {
+    const { idTokens, accessToken, metadataAccessToken } = params;
+    const {
+      authConnection,
+      authConnectionId,
+      groupedAuthConnectionId,
+      userId,
+      socialLoginEmail,
+    } = this.state;
+
+    try {
+      const authenticationResult = await this.toprfClient.authenticate({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        authConnectionId: authConnectionId!,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        userId: userId!,
+        idTokens,
+        groupedAuthConnectionId,
       });
 
-      const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken(
+      this.update((state) => {
+        state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
+        state.authConnection = authConnection;
+        state.authConnectionId = authConnectionId;
+        state.groupedAuthConnectionId = groupedAuthConnectionId;
+        state.userId = userId;
+        state.socialLoginEmail = socialLoginEmail;
+        state.metadataAccessToken = metadataAccessToken;
+        state.accessToken = accessToken;
+        assertIsSeedlessOnboardingUserAuthenticated(state);
+        state.isSeedlessOnboardingUserAuthenticated = true;
+      });
+
+      return authenticationResult;
+    } catch (error) {
+      log('Error re-authenticating user', error);
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.AuthenticationError,
         {
-          connection: this.state.authConnection,
-          revokeToken,
+          cause: error,
         },
       );
+    }
+  }
 
-      if (newRevokeToken && newRefreshToken) {
-        this.update((state) => {
-          // set new revoke token in state temporarily for persisting in vault
-          state.revokeToken = newRevokeToken;
-          // set new refresh token to persist in state
-          state.refreshToken = newRefreshToken;
-        });
+  /**
+   * Rotate the refresh token — fetch a new refresh/revoke token pair from the
+   * auth service and persist the new revoke token in the vault.
+   *
+   * This method should be called after a successful JWT refresh.
+   *
+   * @returns A Promise that resolves to void.
+   */
+  async rotateRefreshToken(): Promise<void> {
+    this.#assertIsAuthenticatedUser(this.state);
 
-        // add the old refresh token to the list to be revoked later when possible
-        this.#addRefreshTokenToRevokeList({
-          refreshToken,
-          revokeToken,
-        });
-
-        await this.#createNewVaultWithAuthData({
-          password,
-          rawToprfEncryptionKey,
-          rawToprfPwEncryptionKey,
-          rawToprfAuthKeyPair,
-        });
-      }
+    const vaultData = this.#cachedDecryptedVaultData;
+    // Safety net: the caller (#doRefreshAuthTokens) already guards with
+    // `this.#isUnlocked && this.#cachedDecryptedVaultData`, so this branch
+    // is unreachable in normal flow. This check is added to satisfy the linter and
+    // to make sure any future caller of this method does not bypass the check.
+    /* istanbul ignore if */
+    if (!vaultData) {
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.VaultLocked,
+      );
+    }
+    const { refreshToken } = this.state;
+    const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
+    const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
+      connection: this.state.authConnection,
+      revokeToken,
     });
+
+    if (newRevokeToken && newRefreshToken) {
+      // Persist the new revoke token to the vault first. Only update state after
+      // the vault write succeeds, so state and vault stay in sync if the write fails.
+      await this.#updateVault({
+        vaultData: {
+          ...vaultData,
+          revokeToken: newRevokeToken,
+        },
+        pwEncKey,
+      });
+
+      this.update((state) => {
+        state.revokeToken = newRevokeToken;
+        state.refreshToken = newRefreshToken;
+      });
+
+      // add the old refresh token to the list to be revoked later when possible
+      this.#addRefreshTokenToRevokeList({
+        refreshToken,
+        revokeToken,
+      });
+    }
   }
 
   /**
@@ -1967,6 +2610,23 @@ export class SeedlessOnboardingController<
             );
         });
       }
+    });
+  }
+
+  /**
+   * Get the access token from the state.
+   *
+   * If the tokens are expired, the method will refresh them and return the new access token.
+   *
+   * @returns The access token.
+   */
+  async getAccessToken(): Promise<string | undefined> {
+    return this.#withControllerLock(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+
+      return this.#executeWithTokenRefresh(async () => {
+        return this.state.accessToken;
+      }, 'getAccessToken');
     });
   }
 
@@ -2047,22 +2707,7 @@ export class SeedlessOnboardingController<
     operationName: string,
   ): Promise<Result> {
     try {
-      // proactively check for expired tokens and refresh them if needed
-      const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
-      const isMetadataAccessTokenExpired =
-        this.checkMetadataAccessTokenExpired();
-      // access token is only accessible when the vault is unlocked
-      // so skip the check if the vault is locked
-      let isAccessTokenExpired = false;
-      if (this.#isUnlocked) {
-        isAccessTokenExpired = this.checkAccessTokenExpired();
-      }
-
-      if (
-        isNodeAuthTokenExpired ||
-        isMetadataAccessTokenExpired ||
-        isAccessTokenExpired
-      ) {
+      if (this.#checkTokensExpired()) {
         log(
           `JWT token expired during ${operationName}, attempting to refresh tokens`,
           'node auth token exp check',
@@ -2095,6 +2740,29 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Check if the tokens are expired.
+   *
+   * @returns True if the tokens are expired, false otherwise.
+   */
+  #checkTokensExpired(): boolean {
+    // proactively check for expired tokens and refresh them if needed
+    const isNodeAuthTokenExpired = this.checkNodeAuthTokenExpired();
+    const isMetadataAccessTokenExpired = this.checkMetadataAccessTokenExpired();
+    // access token is only accessible when the vault is unlocked
+    // so skip the check if the vault is locked
+    let isAccessTokenExpired = false;
+    if (this.#isUnlocked) {
+      isAccessTokenExpired = this.checkAccessTokenExpired();
+    }
+
+    return (
+      isNodeAuthTokenExpired ||
+      isMetadataAccessTokenExpired ||
+      isAccessTokenExpired
+    );
+  }
+
+  /**
    * Check if the current node auth token is expired.
    *
    * @returns True if the current node auth token is expired, false otherwise.
@@ -2107,14 +2775,16 @@ export class SeedlessOnboardingController<
     const firstAuthToken = nodeAuthTokens[0]?.authToken;
     // node auth token is base64 encoded json object
     const decodedToken = decodeNodeAuthToken(firstAuthToken);
-    // check if the token is expired
-    return decodedToken.exp < Date.now() / 1000;
+    // Node auth tokens do not carry a reliable iat field — use exact expiry.
+    return isTokenNearExpiry(decodedToken.exp);
   }
 
   /**
-   * Check if the current metadata access token is expired.
+   * Check if the current metadata access token should be refreshed.
+   * Returns true when the token is expired or when less than 10% of its
+   * lifetime remains (proactive refresh).
    *
-   * @returns True if the metadata access token is expired, false otherwise.
+   * @returns True if the metadata access token should be refreshed, false otherwise.
    */
   public checkMetadataAccessTokenExpired(): boolean {
     try {
@@ -2122,17 +2792,19 @@ export class SeedlessOnboardingController<
       const { metadataAccessToken } = this.state;
       // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
       const decodedToken = decodeJWTToken(metadataAccessToken as string);
-      return decodedToken.exp < Math.floor(Date.now() / 1000);
+      return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
   }
 
   /**
-   * Check if the current access token is expired.
+   * Check if the current access token should be refreshed.
+   * Returns true when the token is expired or when less than 10% of its
+   * lifetime remains (proactive refresh).
    * When the vault is locked, the access token is not accessible, so we return false.
    *
-   * @returns True if the access token is expired, false otherwise.
+   * @returns True if the access token should be refreshed, false otherwise.
    */
   public checkAccessTokenExpired(): boolean {
     try {
@@ -2142,7 +2814,7 @@ export class SeedlessOnboardingController<
         return true; // Consider missing token as expired
       }
       const decodedToken = decodeJWTToken(accessToken);
-      return decodedToken.exp < Math.floor(Date.now() / 1000);
+      return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
@@ -2150,21 +2822,30 @@ export class SeedlessOnboardingController<
 }
 
 /**
- * Assert that the provided password is a valid non-empty string.
+ * Determine whether a token should be proactively refreshed.
  *
- * @param password - The password to check.
- * @throws If the password is not a valid string.
+ * When `iat` is provided: returns `true` when less than 10% of the token's
+ * lifetime remains (i.e. we are in the last 10% before expiry).
+ * When `iat` is omitted (e.g. node auth tokens): returns `true` when the token
+ * is already expired.
+ *
+ * @param exp - Token expiration time in seconds (Unix epoch).
+ * @param iat - Optional issued-at time in seconds (Unix epoch). Required for 10% threshold.
+ * @returns True if the token should be refreshed.
  */
-function assertIsValidPassword(password: unknown): asserts password is string {
-  if (typeof password !== 'string') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+function isTokenNearExpiry(exp: number, iat?: number): boolean {
+  const now = Date.now() / 1000;
+  if (iat === undefined) {
+    return now >= exp;
   }
-
-  if (!password?.length) {
-    throw new Error(
-      SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
-    );
+  const lifetime = exp - iat;
+  // Guard against malformed tokens where iat >= exp (zero or negative lifetime).
+  // Fall back to exact-expiry check so bad tokens are always considered stale.
+  if (lifetime <= 0) {
+    return now >= exp;
   }
+  const remaining = exp - now;
+  return remaining <= 0.1 * lifetime;
 }
 
 /**

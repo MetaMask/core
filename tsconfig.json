@@ -42,7 +42,13 @@
       "path": "./packages/assets-controllers"
     },
     {
+      "path": "./packages/authenticated-user-storage"
+    },
+    {
       "path": "./packages/base-controller"
+    },
+    {
+      "path": "./packages/base-data-service"
     },
     {
       "path": "./packages/bridge-controller"
@@ -57,10 +63,22 @@
       "path": "./packages/chain-agnostic-permission"
     },
     {
+      "path": "./packages/chomp-api-service"
+    },
+    {
       "path": "./packages/claims-controller"
     },
     {
+      "path": "./packages/client-controller"
+    },
+    {
+      "path": "./packages/compliance-controller"
+    },
+    {
       "path": "./packages/composable-controller"
+    },
+    {
+      "path": "./packages/config-registry-controller"
     },
     {
       "path": "./packages/connectivity-controller"
@@ -84,9 +102,6 @@
       "path": "./packages/ens-controller"
     },
     {
-      "path": "./packages/error-reporting-service"
-    },
-    {
       "path": "./packages/eth-block-tracker"
     },
     {
@@ -105,6 +120,9 @@
       "path": "./packages/gator-permissions-controller"
     },
     {
+      "path": "./packages/geolocation-controller"
+    },
+    {
       "path": "./packages/json-rpc-engine"
     },
     {
@@ -118,6 +136,18 @@
     },
     {
       "path": "./packages/messenger"
+    },
+    {
+      "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/money-account-balance-service"
+    },
+    {
+      "path": "./packages/money-account-controller"
+    },
+    {
+      "path": "./packages/money-account-upgrade-controller"
     },
     {
       "path": "./packages/multichain-account-service"
@@ -174,6 +204,9 @@
       "path": "./packages/rate-limit-controller"
     },
     {
+      "path": "./packages/react-data-query"
+    },
+    {
       "path": "./packages/remote-feature-flag-controller"
     },
     {
@@ -190,6 +223,9 @@
     },
     {
       "path": "./packages/signature-controller"
+    },
+    {
+      "path": "./packages/social-controllers"
     },
     {
       "path": "./packages/subscription-controller"

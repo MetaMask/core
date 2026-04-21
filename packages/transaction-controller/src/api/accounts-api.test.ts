@@ -1,6 +1,7 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
+import { FirstTimeInteractionError } from '../errors';
 import type {
   GetAccountAddressRelationshipRequest,
   GetAccountTransactionsResponse,
@@ -9,7 +10,6 @@ import {
   getAccountAddressRelationship,
   getAccountTransactions,
 } from './accounts-api';
-import { FirstTimeInteractionError } from '../errors';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

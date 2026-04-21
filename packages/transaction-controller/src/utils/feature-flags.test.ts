@@ -7,6 +7,7 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 
+import type { TransactionControllerMessenger } from '..';
 import type { TransactionControllerFeatureFlags } from './feature-flags';
 import {
   getAcceleratedPollingParams,
@@ -22,10 +23,9 @@ import {
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
-  isIncomingTransactionsUseWebsocketsEnabled,
+  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
-import type { TransactionControllerMessenger } from '..';
 
 jest.mock('./signature');
 
@@ -868,28 +868,32 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('isIncomingTransactionsUseWebsocketsEnabled', () => {
-    it('returns true when useWebsockets is true', () => {
+  describe('isIncomingTransactionsUseBackendWebSocketServiceEnabled', () => {
+    it('returns true when useBackendWebSocketService is true', () => {
       mockFeatureFlags({
         [FeatureFlag.IncomingTransactions]: {
-          useWebsockets: true,
+          useBackendWebSocketService: true,
         },
       });
 
       expect(
-        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(true);
     });
 
-    it('returns false when useWebsockets is false', () => {
+    it('returns false when useBackendWebSocketService is false', () => {
       mockFeatureFlags({
         [FeatureFlag.IncomingTransactions]: {
-          useWebsockets: false,
+          useBackendWebSocketService: false,
         },
       });
 
       expect(
-        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(false);
     });
 
@@ -897,17 +901,21 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       expect(
-        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(false);
     });
 
-    it('returns false when useWebsockets property is not present', () => {
+    it('returns false when useBackendWebSocketService property is not present', () => {
       mockFeatureFlags({
         [FeatureFlag.IncomingTransactions]: {},
       });
 
       expect(
-        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(false);
     });
   });

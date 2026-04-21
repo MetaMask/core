@@ -230,7 +230,7 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   ETH: 'slip44:60',
   POL: 'slip44:966',
   BNB: 'slip44:714',
-  AVAX: 'slip44:9000',
+  AVAX: 'slip44:9005',
   TESTETH: 'slip44:60',
   SEI: 'slip44:19000118',
   TRX: 'slip44:195',

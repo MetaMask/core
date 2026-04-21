@@ -13,6 +13,8 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
+import type { AddressBookControllerMethodActions } from './AddressBookController-method-action-types';
+
 /**
  * ContactEntry representation
  */
@@ -73,6 +75,8 @@ export const controllerName = 'AddressBookController';
  */
 const WALLET_ACCOUNTS_CHAIN_ID = '*';
 
+const MESSENGER_EXPOSED_METHODS = ['list', 'set', 'delete', 'clear'] as const;
+
 /**
  * The action that can be performed to get the state of the {@link AddressBookController}.
  */
@@ -80,30 +84,6 @@ export type AddressBookControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AddressBookControllerState
 >;
-
-/**
- * The action that can be performed to list contacts from the {@link AddressBookController}.
- */
-export type AddressBookControllerListAction = {
-  type: `${typeof controllerName}:list`;
-  handler: AddressBookController['list'];
-};
-
-/**
- * The action that can be performed to set a contact in the {@link AddressBookController}.
- */
-export type AddressBookControllerSetAction = {
-  type: `${typeof controllerName}:set`;
-  handler: AddressBookController['set'];
-};
-
-/**
- * The action that can be performed to delete a contact from the {@link AddressBookController}.
- */
-export type AddressBookControllerDeleteAction = {
-  type: `${typeof controllerName}:delete`;
-  handler: AddressBookController['delete'];
-};
 
 /**
  * Event emitted when a contact is added or updated
@@ -126,9 +106,7 @@ export type AddressBookControllerContactDeletedEvent = {
  */
 export type AddressBookControllerActions =
   | AddressBookControllerGetStateAction
-  | AddressBookControllerListAction
-  | AddressBookControllerSetAction
-  | AddressBookControllerDeleteAction;
+  | AddressBookControllerMethodActions;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -206,7 +184,10 @@ export class AddressBookController extends BaseController<
       state: mergedState,
     });
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -336,24 +317,6 @@ export class AddressBookController extends BaseController<
     }
 
     return true;
-  }
-
-  /**
-   * Registers message handlers for the AddressBookController.
-   */
-  #registerMessageHandlers() {
-    this.messenger.registerActionHandler(
-      `${controllerName}:list`,
-      this.list.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:set`,
-      this.set.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:delete`,
-      this.delete.bind(this),
-    );
   }
 }
 

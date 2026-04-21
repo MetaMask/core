@@ -17,6 +17,9 @@ import type {
 import type { INotification } from '../types/notification/notification';
 import { isVersionInBounds } from '../utils/isVersionInBounds';
 
+// Feature announcements older than this (by sys.updatedAt) are excluded from the feed.
+const FEATURE_ANNOUNCEMENT_MAX_AGE_MONTHS = 3;
+
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
 const DEFAULT_CLIENT_ID = ':client_id';
@@ -103,72 +106,81 @@ const fetchFeatureAnnouncementNotifications = async (
 
   const contentfulNotifications = data?.items ?? [];
   const rawNotifications: FeatureAnnouncementRawNotification[] =
-    contentfulNotifications.map((item: TypeFeatureAnnouncement) => {
-      const { fields } = item;
-      const imageFields = fields.image
-        ? (findIncludedItem(fields.image.sys.id) as ImageFields['fields'])
-        : undefined;
+    contentfulNotifications
+      .filter((item: TypeFeatureAnnouncement) => {
+        const updatedAt = new Date(item.sys.updatedAt);
+        const limitDate = new Date();
+        limitDate.setMonth(
+          limitDate.getMonth() - FEATURE_ANNOUNCEMENT_MAX_AGE_MONTHS,
+        );
+        return updatedAt > limitDate;
+      })
+      .map((item: TypeFeatureAnnouncement) => {
+        const { fields } = item;
+        const imageFields = fields.image
+          ? (findIncludedItem(fields.image.sys.id) as ImageFields['fields'])
+          : undefined;
 
-      const externalLinkFields = fields.externalLink
-        ? (findIncludedItem(
-            fields.externalLink.sys.id,
-          ) as TypeExternalLinkFields['fields'])
-        : undefined;
-      const portfolioLinkFields = fields.portfolioLink
-        ? (findIncludedItem(
-            fields.portfolioLink.sys.id,
-          ) as TypePortfolioLinkFields['fields'])
-        : undefined;
-      const extensionLinkFields = fields.extensionLink
-        ? (findIncludedItem(
-            fields.extensionLink.sys.id,
-          ) as TypeExtensionLinkFields['fields'])
-        : undefined;
-      const mobileLinkFields = fields.mobileLink
-        ? (findIncludedItem(
-            fields.mobileLink.sys.id,
-          ) as TypeMobileLinkFields['fields'])
-        : undefined;
+        const externalLinkFields = fields.externalLink
+          ? (findIncludedItem(
+              fields.externalLink.sys.id,
+            ) as TypeExternalLinkFields['fields'])
+          : undefined;
+        const portfolioLinkFields = fields.portfolioLink
+          ? (findIncludedItem(
+              fields.portfolioLink.sys.id,
+            ) as TypePortfolioLinkFields['fields'])
+          : undefined;
+        const extensionLinkFields = fields.extensionLink
+          ? (findIncludedItem(
+              fields.extensionLink.sys.id,
+            ) as TypeExtensionLinkFields['fields'])
+          : undefined;
+        const mobileLinkFields = fields.mobileLink
+          ? (findIncludedItem(
+              fields.mobileLink.sys.id,
+            ) as TypeMobileLinkFields['fields'])
+          : undefined;
 
-      const notification: FeatureAnnouncementRawNotification = {
-        type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
-        createdAt: new Date(item.sys.createdAt).toString(),
-        data: {
-          id: fields.id,
-          category: fields.category,
-          title: fields.title,
-          longDescription: documentToHtmlString(fields.longDescription),
-          shortDescription: fields.shortDescription,
-          image: {
-            title: imageFields?.title,
-            description: imageFields?.description,
-            url: imageFields?.file?.url ?? '',
+        const notification: FeatureAnnouncementRawNotification = {
+          type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+          createdAt: new Date(item.sys.createdAt).toString(),
+          data: {
+            id: fields.id,
+            category: fields.category,
+            title: fields.title,
+            longDescription: documentToHtmlString(fields.longDescription),
+            shortDescription: fields.shortDescription,
+            image: {
+              title: imageFields?.title,
+              description: imageFields?.description,
+              url: imageFields?.file?.url ?? '',
+            },
+            externalLink: externalLinkFields && {
+              externalLinkText: externalLinkFields?.externalLinkText,
+              externalLinkUrl: externalLinkFields?.externalLinkUrl,
+            },
+            portfolioLink: portfolioLinkFields && {
+              portfolioLinkText: portfolioLinkFields?.portfolioLinkText,
+              portfolioLinkUrl: portfolioLinkFields?.portfolioLinkUrl,
+            },
+            extensionLink: extensionLinkFields && {
+              extensionLinkText: extensionLinkFields?.extensionLinkText,
+              extensionLinkRoute: extensionLinkFields?.extensionLinkRoute,
+            },
+            mobileLink: mobileLinkFields && {
+              mobileLinkText: mobileLinkFields?.mobileLinkText,
+              mobileLinkUrl: mobileLinkFields?.mobileLinkUrl,
+            },
+            extensionMinimumVersionNumber: fields.extensionMinimumVersionNumber,
+            mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
+            extensionMaximumVersionNumber: fields.extensionMaximumVersionNumber,
+            mobileMaximumVersionNumber: fields.mobileMaximumVersionNumber,
           },
-          externalLink: externalLinkFields && {
-            externalLinkText: externalLinkFields?.externalLinkText,
-            externalLinkUrl: externalLinkFields?.externalLinkUrl,
-          },
-          portfolioLink: portfolioLinkFields && {
-            portfolioLinkText: portfolioLinkFields?.portfolioLinkText,
-            portfolioLinkUrl: portfolioLinkFields?.portfolioLinkUrl,
-          },
-          extensionLink: extensionLinkFields && {
-            extensionLinkText: extensionLinkFields?.extensionLinkText,
-            extensionLinkRoute: extensionLinkFields?.extensionLinkRoute,
-          },
-          mobileLink: mobileLinkFields && {
-            mobileLinkText: mobileLinkFields?.mobileLinkText,
-            mobileLinkUrl: mobileLinkFields?.mobileLinkUrl,
-          },
-          extensionMinimumVersionNumber: fields.extensionMinimumVersionNumber,
-          mobileMinimumVersionNumber: fields.mobileMinimumVersionNumber,
-          extensionMaximumVersionNumber: fields.extensionMaximumVersionNumber,
-          mobileMaximumVersionNumber: fields.mobileMaximumVersionNumber,
-        },
-      };
+        };
 
-      return notification;
-    });
+        return notification;
+      });
 
   const versionKeys = {
     extension: {

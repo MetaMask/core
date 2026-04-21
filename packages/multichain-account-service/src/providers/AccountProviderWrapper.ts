@@ -1,9 +1,14 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 
 /**
  * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.
@@ -26,6 +31,10 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     return this.provider.getName();
   }
 
+  get capabilities(): KeyringCapabilities {
+    return this.provider.capabilities;
+  }
+
   /**
    * Forward initialization to the wrapped provider to ensure both
    * instances share the same visible account IDs.
@@ -45,6 +54,11 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     this.isEnabled = enabled;
   }
 
+  /**
+   * Check if the provider is disabled.
+   *
+   * @returns True if the provider is disabled, false otherwise.
+   */
   isDisabled(): boolean {
     return !this.isEnabled;
   }
@@ -73,16 +87,6 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
       return [];
     }
     return this.provider.getAccounts();
-  }
-
-  override async alignAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>['id'][]> {
-    if (this.isDisabled()) {
-      return [];
-    }
-    return await this.provider.alignAccounts(options);
   }
 
   /**
@@ -116,14 +120,11 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    * Implement abstract method: Create accounts, returns empty array when disabled.
    *
    * @param options - Account creation options.
-   * @param options.entropySource - The entropy source to use.
-   * @param options.groupIndex - The group index to use.
    * @returns Promise resolving to created accounts, or empty array if disabled.
    */
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
       return [];
     }

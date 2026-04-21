@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type nock from 'nock';
 
+import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
 import {
   mockEndpointBatchUpsertUserStorage,
@@ -13,8 +14,7 @@ import {
 } from './__fixtures__/mockServices';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
-import UserStorageController, { defaultState } from './UserStorageController';
-import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
+import { UserStorageController, defaultState } from './UserStorageController';
 
 describe('UserStorageController', () => {
   describe('constructor', () => {
@@ -769,7 +769,7 @@ describe('metadata', () => {
         'includeInDebugSnapshot',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
@@ -789,7 +789,7 @@ describe('metadata', () => {
         'includeInStateLogs',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
@@ -805,7 +805,7 @@ describe('metadata', () => {
     expect(
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
@@ -825,7 +825,7 @@ describe('metadata', () => {
         'usedInUi',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isBackupAndSyncUpdateLoading": false,

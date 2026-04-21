@@ -1,5 +1,14 @@
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
+/**
+ * Error response from the Subscription API.
+ */
+export type SubscriptionApiError = {
+  errorCode?: string;
+  message?: string;
+  statusCode?: number;
+};
+
 export const PRODUCT_TYPES = {
   SHIELD: 'shield',
 } as const;

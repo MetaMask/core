@@ -10,13 +10,13 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 
-import { SnapRule } from './snap';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger';
 import type { AccountGroupObjectOf } from '../group';
 import type { AccountWalletObjectOf, AccountWalletSnapObject } from '../wallet';
+import { SnapRule } from './snap';
 
 const ETH_EOA_METHODS = [
   EthMethod.PersonalSign,
@@ -139,7 +139,7 @@ describe('SnapRule', () => {
 
       // Mock SnapController to return snap with proposed name
       messenger.registerActionHandler(
-        'SnapController:get',
+        'SnapController:getSnap',
         () => MOCK_SNAP_1 as unknown as Snap,
       );
 
@@ -176,7 +176,7 @@ describe('SnapRule', () => {
 
       // Mock SnapController to return snap without proposed name
       messenger.registerActionHandler(
-        'SnapController:get',
+        'SnapController:getSnap',
         () => snapWithoutProposedName as unknown as Snap,
       );
 
@@ -205,7 +205,10 @@ describe('SnapRule', () => {
       const rule = new SnapRule(accountTreeControllerMessenger);
 
       // Mock SnapController to return undefined (snap not found)
-      messenger.registerActionHandler('SnapController:get', () => undefined);
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => undefined,
+      );
 
       const snapId = 'npm:@metamask/missing-snap';
       const wallet: AccountWalletObjectOf<AccountWalletType.Snap> = {

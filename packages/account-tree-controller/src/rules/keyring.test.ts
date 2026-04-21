@@ -8,7 +8,6 @@ import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
@@ -18,6 +17,7 @@ import type {
   AccountWalletKeyringObject,
   AccountWalletObjectOf,
 } from '../wallet';
+import { KeyringRule, getAccountWalletNameFromKeyringType } from './keyring';
 
 describe('keyring', () => {
   describe('getAccountWalletNameFromKeyringType', () => {

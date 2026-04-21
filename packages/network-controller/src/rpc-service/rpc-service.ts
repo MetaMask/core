@@ -16,13 +16,18 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
-import { CircuitState, IDisposable } from 'cockatiel';
+import { CircuitState } from 'cockatiel';
 import deepmerge from 'deepmerge';
 import type { Logger } from 'loglevel';
 
-import type { AbstractRpcService } from './abstract-rpc-service';
-import type { FetchOptions } from './shared';
 import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  CockatielEventToEventListenerWithData,
+  ExcludeCockatielEventData,
+  ExtendCockatielEventData,
+  ExtractCockatielEventData,
+  FetchOptions,
+} from './shared';
 
 /**
  * Options for the RpcService constructor.
@@ -198,11 +203,47 @@ function isNockError(message: string): boolean {
  * @param error - The error object to test.
  * @returns True if the error indicates a JSON parse error, false otherwise.
  */
-function isJsonParseError(error: unknown): boolean {
+export function isJsonParseError(error: unknown): boolean {
   return (
     error instanceof SyntaxError ||
     /invalid json/iu.test(getErrorMessage(error))
   );
+}
+
+/**
+ * Determines whether the given error represents a HTTP server error
+ * (502, 503, or 504) that should be retried.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error has an httpStatus of 502, 503, or 504.
+ */
+export function isHttpServerError(error: Error): boolean {
+  return (
+    'httpStatus' in error &&
+    (error.httpStatus === 502 ||
+      error.httpStatus === 503 ||
+      error.httpStatus === 504)
+  );
+}
+
+/**
+ * Determines whether the given error has a `code` property of `ETIMEDOUT`.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error code is `ETIMEDOUT`.
+ */
+export function isTimeoutError(error: Error): boolean {
+  return hasProperty(error, 'code') && error.code === 'ETIMEDOUT';
+}
+
+/**
+ * Determines whether the given error has a `code` property of `ECONNRESET`.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error code is `ECONNRESET`.
+ */
+export function isConnectionResetError(error: Error): boolean {
+  return hasProperty(error, 'code') && error.code === 'ECONNRESET';
 }
 
 /**
@@ -238,7 +279,7 @@ function stripCredentialsFromUrl(url: URL): URL {
  * failures, retrying requests using exponential backoff. It also offers a hook
  * which can used to respond to slow requests.
  */
-export class RpcService implements AbstractRpcService {
+export class RpcService {
   /**
    * The URL of the RPC endpoint.
    */
@@ -249,6 +290,17 @@ export class RpcService implements AbstractRpcService {
    * execution of the service was successful).
    */
   lastError: Error | undefined;
+
+  /**
+   * The RPC method name of the current request being processed. This is passed
+   * to `onDegraded` event listeners.
+   *
+   * Initialised to `''` so the type is `string` throughout the event chain.
+   * The empty string is unreachable in practice because the method name is
+   * guaranteed to be set after the current request is completed but before
+   * any `onDegraded` callbacks are called.
+   */
+  #currentRpcMethodName = '';
 
   /**
    * The function used to make an HTTP request.
@@ -313,12 +365,11 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           isJsonParseError(error) ||
           // Ignore server overload errors
-          ('httpStatus' in error &&
-            (error.httpStatus === 502 ||
-              error.httpStatus === 503 ||
-              error.httpStatus === 504)) ||
-          (hasProperty(error, 'code') &&
-            (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
+          isHttpServerError(error) ||
+          // Ignore timeout errors
+          isTimeoutError(error) ||
+          // Ignore connection reset errors
+          isConnectionResetError(error)
         );
       }),
     });
@@ -349,7 +400,12 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onRetry} returns.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<AbstractRpcService['onRetry']>[0]): IDisposable {
+  onRetry(
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onRetry'],
+      { endpointUrl: string }
+    >,
+  ): ReturnType<ServicePolicy['onRetry']> {
     return this.#policy.onRetry((data) => {
       listener({ ...data, endpointUrl: this.endpointUrl.toString() });
     });
@@ -363,7 +419,17 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onBreak} returns.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<AbstractRpcService['onBreak']>[0]): IDisposable {
+  onBreak(
+    listener: (
+      data: ExcludeCockatielEventData<
+        ExtendCockatielEventData<
+          ExtractCockatielEventData<ServicePolicy['onBreak']>,
+          { endpointUrl: string }
+        >,
+        'isolated'
+      >,
+    ) => void,
+  ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak((data) => {
       // `{ isolated: true }` is a special object that shows up when `isolate`
       // is called on the circuit breaker. Usually `isolate` is used to hold the
@@ -377,7 +443,10 @@ export class RpcService implements AbstractRpcService {
       // RpcService. However, we are making a bet that we won't need to use it
       // other than how we are already using it.
       if (!('isolated' in data)) {
-        listener({ ...data, endpointUrl: this.endpointUrl.toString() });
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+        });
       }
     });
   }
@@ -391,10 +460,24 @@ export class RpcService implements AbstractRpcService {
    * @see {@link createServicePolicy}
    */
   onDegraded(
-    listener: Parameters<AbstractRpcService['onDegraded']>[0],
-  ): IDisposable {
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onDegraded'],
+      { endpointUrl: string; rpcMethodName: string }
+    >,
+  ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded((data) => {
-      listener({ ...(data ?? {}), endpointUrl: this.endpointUrl.toString() });
+      if (data === undefined) {
+        listener({
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+        });
+      } else {
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+        });
+      }
     });
   }
 
@@ -406,8 +489,11 @@ export class RpcService implements AbstractRpcService {
    * @see {@link createServicePolicy}
    */
   onAvailable(
-    listener: Parameters<AbstractRpcService['onAvailable']>[0],
-  ): IDisposable {
+    listener: CockatielEventToEventListenerWithData<
+      ServicePolicy['onAvailable'],
+      { endpointUrl: string }
+    >,
+  ): ReturnType<ServicePolicy['onAvailable']> {
     return this.#policy.onAvailable(() => {
       listener({ endpointUrl: this.endpointUrl.toString() });
     });
@@ -466,7 +552,10 @@ export class RpcService implements AbstractRpcService {
       jsonRpcRequest,
       fetchOptions,
     );
-    return await this.#executeAndProcessRequest<Result>(completeFetchOptions);
+    return await this.#executeAndProcessRequest<Result>(
+      completeFetchOptions,
+      jsonRpcRequest.method,
+    );
   }
 
   /**
@@ -536,6 +625,7 @@ export class RpcService implements AbstractRpcService {
    *
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
+   * @param rpcMethodName - The JSON-RPC method name of the current request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws An "authorized" JSON-RPC error (code -32006) if the response HTTP status is 401.
    * @throws A "rate limiting" JSON-RPC error (code -32005) if the response HTTP status is 429.
@@ -545,6 +635,7 @@ export class RpcService implements AbstractRpcService {
    */
   async #executeAndProcessRequest<Result extends Json>(
     fetchOptions: FetchOptions,
+    rpcMethodName: string,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
     let response: Response | undefined;
     try {
@@ -554,25 +645,43 @@ export class RpcService implements AbstractRpcService {
       );
       const jsonDecodedResponse = await this.#policy.execute(
         async (context) => {
-          log(
-            'REQUEST INITIATED:',
-            this.endpointUrl.toString(),
-            '::',
-            fetchOptions,
-            // @ts-expect-error This property _is_ here, the type of
-            // ServicePolicy is just wrong.
-            `(attempt ${context.attempt + 1})`,
-          );
-          response = await this.#fetch(this.endpointUrl, fetchOptions);
-          if (!response.ok) {
-            throw new HttpError(response.status);
+          try {
+            log(
+              'REQUEST INITIATED:',
+              this.endpointUrl.toString(),
+              '::',
+              fetchOptions,
+              // @ts-expect-error This property _is_ here, the type of
+              // ServicePolicy is just wrong.
+              `(attempt ${context.attempt + 1})`,
+            );
+            response = await this.#fetch(this.endpointUrl, fetchOptions);
+            if (!response.ok) {
+              throw new HttpError(response.status);
+            }
+            log(
+              'REQUEST SUCCESSFUL:',
+              this.endpointUrl.toString(),
+              response.status,
+            );
+            return await response.json();
+          } finally {
+            // Track the RPC method for the request that has just taken place.
+            // We pass this property to `onDegraded` event listeners.
+            //
+            // We set this property after the request completes and not before
+            // the request starts to account for race conditions. That is, if
+            // there are two requests that are being performed concurrently, and
+            // the second request fails fast but the first request succeeds
+            // slowly, when `onDegraded` is called we want it to include the
+            // first request as the RPC method, not the second.
+            //
+            // Also, we set this property within a `finally` block inside of the
+            // function passed to `policy.execute` to ensure that it is set
+            // before `onDegraded` gets called, no matter the outcome of the
+            // request.
+            this.#currentRpcMethodName = rpcMethodName;
           }
-          log(
-            'REQUEST SUCCESSFUL:',
-            this.endpointUrl.toString(),
-            response.status,
-          );
-          return await response.json();
         },
       );
       this.lastError = undefined;

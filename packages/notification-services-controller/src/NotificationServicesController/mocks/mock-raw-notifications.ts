@@ -20,6 +20,14 @@ export function createMockNotificationEthSent(): NormalisedAPINotification {
       tx_hash:
         '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'eth_sent',
         network_fee: {
@@ -58,6 +66,14 @@ export function createMockNotificationEthReceived(): NormalisedAPINotification {
       tx_hash:
         '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'eth_received',
         network_fee: {
@@ -96,6 +112,14 @@ export function createMockNotificationERC20Sent(): NormalisedAPINotification {
       tx_hash:
         '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'erc20_sent',
         network_fee: {
@@ -140,6 +164,14 @@ export function createMockNotificationERC20Received(): NormalisedAPINotification
       tx_hash:
         '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'erc20_received',
         network_fee: {
@@ -182,6 +214,14 @@ export function createMockNotificationERC721Sent(): NormalisedAPINotification {
       block_timestamp: '1700043467',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         to: '0xf47f628fe3bd2595e9ab384bfffc3859b448e451',
         nft: {
@@ -229,6 +269,14 @@ export function createMockNotificationERC721Received(): NormalisedAPINotificatio
       block_timestamp: '1699980623',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         to: '0xba7f3daa8adfdad686574406ab9bd5d2f0a49d2e',
         nft: {
@@ -276,6 +324,14 @@ export function createMockNotificationERC1155Sent(): NormalisedAPINotification {
       block_timestamp: '1700510003',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         to: '0x15bd77ccacf2da39b84f0c31fee2e451225bb190',
         nft: {
@@ -323,6 +379,14 @@ export function createMockNotificationERC1155Received(): NormalisedAPINotificati
       block_timestamp: '1700510003',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         to: '0x15bd77ccacf2da39b84f0c31fee2e451225bb190',
         nft: {
@@ -370,6 +434,14 @@ export function createMockNotificationMetaMaskSwapsCompleted(): NormalisedAPINot
       block_timestamp: '1697637275',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'metamask_swap_completed',
         rate: '1558.27',
@@ -423,6 +495,14 @@ export function createMockNotificationRocketPoolStakeCompleted(): NormalisedAPIN
       block_timestamp: '1700145059',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'rocketpool_stake_completed',
         stake_in: {
@@ -475,6 +555,14 @@ export function createMockNotificationRocketPoolUnStakeCompleted(): NormalisedAP
       block_timestamp: '1697718011',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'rocketpool_unstake_completed',
         stake_in: {
@@ -527,6 +615,14 @@ export function createMockNotificationLidoStakeCompleted(): NormalisedAPINotific
       block_timestamp: '1698961091',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'lido_stake_completed',
         stake_in: {
@@ -579,6 +675,14 @@ export function createMockNotificationLidoWithdrawalRequested(): NormalisedAPINo
       block_timestamp: '1697638415',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'lido_withdrawal_requested',
         stake_in: {
@@ -631,6 +735,14 @@ export function createMockNotificationLidoWithdrawalCompleted(): NormalisedAPINo
       block_timestamp: '1697643851',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'lido_withdrawal_completed',
         stake_in: {
@@ -683,6 +795,14 @@ export function createMockNotificationLidoReadyToBeWithdrawn(): NormalisedAPINot
       block_timestamp: '1697643851',
       chain_id: 1,
       address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+      network: {
+        name: 'Ethereum',
+        native_symbol: 'ETH',
+        block_explorer: {
+          url: 'https://etherscan.io',
+          name: 'Etherscan',
+        },
+      },
       data: {
         kind: 'lido_stake_ready_to_be_withdrawn',
         request_id: '123456789',

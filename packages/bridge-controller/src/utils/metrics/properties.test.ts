@@ -1,8 +1,13 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
+import type { QuoteResponse } from '../../types';
+import { getNativeAssetForChainId } from '../bridge';
+import { formatChainIdToCaip } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
 import {
+  getAccountHardwareType,
+  isHardwareWallet,
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
   getSwapTypeFromQuote,
@@ -10,9 +15,6 @@ import {
   getRequestParams,
   getQuotesReceivedProperties,
 } from './properties';
-import type { QuoteResponse } from '../../types';
-import { getNativeAssetForChainId } from '../bridge';
-import { formatChainIdToCaip } from '../caip-formatters';
 
 describe('properties', () => {
   beforeEach(() => {
@@ -225,6 +227,39 @@ describe('properties', () => {
     });
   });
 
+  describe('getAccountHardwareType', () => {
+    it('returns null for non-hardware accounts', () => {
+      expect(
+        getAccountHardwareType({
+          metadata: {
+            keyring: {
+              type: 'HD Key Tree',
+            },
+          },
+        } as never),
+      ).toBeNull();
+      expect(isHardwareWallet(undefined)).toBe(false);
+    });
+
+    it.each([
+      ['Ledger Hardware', 'Ledger'],
+      ['Trezor Hardware', 'Trezor'],
+      ['QR Hardware Wallet Device', 'QR Hardware'],
+      ['Lattice Hardware', 'Lattice'],
+    ] as const)('maps %s to %s', (keyringType, expected) => {
+      const account = {
+        metadata: {
+          keyring: {
+            type: keyringType,
+          },
+        },
+      } as never;
+
+      expect(getAccountHardwareType(account)).toBe(expected);
+      expect(isHardwareWallet(account)).toBe(true);
+    });
+  });
+
   describe('getRequestParams', () => {
     beforeEach(() => {
       jest.clearAllMocks();
@@ -358,9 +393,8 @@ describe('properties', () => {
         },
       });
 
-      expect(result).toMatchInlineSnapshot(
-        `
-        Object {
+      expect(result).toMatchInlineSnapshot(`
+        {
           "best_quote_provider": "bridge2_bridge2",
           "can_submit": false,
           "gas_included": false,
@@ -371,10 +405,9 @@ describe('properties', () => {
           "usd_balance_source": 0,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
-          "warnings": Array [],
+          "warnings": [],
         }
-      `,
-      );
+      `);
     });
   });
 });

@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
     steps:
@@ -26,19 +26,30 @@ jobs:
         shell: bash
 
   lint:
-    name: Lint
+    name: Lint (${{ matrix.script }})
     runs-on: ubuntu-latest
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
+        script:
+          - lint:eslint
+          - lint:misc:check
+          - constraints
+          - lint:dependencies
+          - lint:teams
+          - messenger-action-types:check
+          - readme-content:check
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn lint
+      - name: Run yarn ${{ matrix.script }}
+        run: yarn "$SCRIPT"
+        env:
+          SCRIPT: ${{ matrix.script }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -53,7 +64,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
@@ -70,13 +81,23 @@ jobs:
             exit 1
           fi
 
+  validate-changelog-diffs:
+    name: Validate changelog diffs
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Validate changelog diffs
+        uses: ./.github/actions/check-merge-queue-changelogs
+
   build:
     name: Build
     runs-on: ubuntu-latest
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
@@ -98,7 +119,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2

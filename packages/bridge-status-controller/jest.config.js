@@ -16,10 +16,24 @@ module.exports = merge(baseConfig, {
 
   coverageProvider: 'v8',
 
+  coveragePathIgnorePatterns: ['.*/index\\.ts', '.*-method-action-types\\.ts'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
+    './src/bridge-status-controller.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+    './src/bridge-status-controller.intent.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
     global: {
-      branches: 93.31,
+      branches: 96.5,
       functions: 100,
       lines: 100,
       statements: 100,

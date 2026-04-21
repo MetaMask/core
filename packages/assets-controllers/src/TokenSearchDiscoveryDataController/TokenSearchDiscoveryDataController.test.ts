@@ -9,6 +9,12 @@ import type {
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 
+import type {
+  AbstractTokenPricesService,
+  EvmAssetWithMarketData,
+} from '../token-prices-service/abstract-token-prices-service';
+import { fetchTokenMetadata } from '../token-service';
+import type { Token } from '../TokenRatesController';
 import {
   getDefaultTokenSearchDiscoveryDataControllerState,
   TokenSearchDiscoveryDataController,
@@ -20,12 +26,6 @@ import type {
   TokenSearchDiscoveryDataControllerState,
 } from './TokenSearchDiscoveryDataController';
 import type { NotFoundTokenDisplayData, FoundTokenDisplayData } from './types';
-import type {
-  AbstractTokenPricesService,
-  EvmAssetWithMarketData,
-} from '../token-prices-service/abstract-token-prices-service';
-import { fetchTokenMetadata } from '../token-service';
-import type { Token } from '../TokenRatesController';
 
 jest.mock('../token-service', () => {
   const mockFetchTokenMetadata = jest.fn();
@@ -711,7 +711,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -723,7 +723,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -736,8 +736,8 @@ describe('TokenSearchDiscoveryDataController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "tokenDisplayData": Array [],
+          {
+            "tokenDisplayData": [],
           }
         `);
       });
@@ -752,8 +752,8 @@ describe('TokenSearchDiscoveryDataController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "tokenDisplayData": Array [],
+          {
+            "tokenDisplayData": [],
           }
         `);
       });

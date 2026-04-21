@@ -33,38 +33,6 @@ export class GatorPermissionsFetchError extends GatorPermissionsControllerError 
   }
 }
 
-export class GatorPermissionsMapSerializationError extends GatorPermissionsControllerError {
-  data: unknown;
-
-  constructor({
-    cause,
-    message,
-    data,
-  }: {
-    cause: Error;
-    message: string;
-    data?: unknown;
-  }) {
-    super({
-      cause,
-      message,
-      code: GatorPermissionsControllerErrorCode.GatorPermissionsMapSerializationError,
-    });
-
-    this.data = data;
-  }
-}
-
-export class GatorPermissionsNotEnabledError extends GatorPermissionsControllerError {
-  constructor() {
-    super({
-      cause: new Error('Gator permissions are not enabled'),
-      message: 'Gator permissions are not enabled',
-      code: GatorPermissionsControllerErrorCode.GatorPermissionsNotEnabled,
-    });
-  }
-}
-
 export class GatorPermissionsProviderError extends GatorPermissionsControllerError {
   constructor({
     cause,

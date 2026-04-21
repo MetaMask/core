@@ -9,7 +9,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
-import { getStrategy } from '../utils/strategy';
+import { getStrategyByName } from '../utils/strategy';
+import { updateTransaction } from '../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -68,7 +69,18 @@ export class TransactionPayPublishHook {
       return EMPTY_RESULT;
     }
 
-    const strategy = getStrategy(this.#messenger, transactionMeta);
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.#messenger,
+        note: 'Set submittedTime at pay publish hook start',
+      },
+      (tx) => {
+        tx.submittedTime = new Date().getTime();
+      },
+    );
+
+    const strategy = getStrategyByName(quotes[0].strategy);
 
     return await strategy.execute({
       isSmartTransaction: this.#isSmartTransaction,

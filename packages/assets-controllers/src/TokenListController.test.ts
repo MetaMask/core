@@ -13,10 +13,16 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildInfuraNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import * as tokenService from './token-service';
 import type {
   TokenListMap,
@@ -25,12 +31,6 @@ import type {
   DataCache,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
-import { advanceTime } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildInfuraNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();
@@ -480,32 +480,39 @@ type RootMessenger = Messenger<
 const mockStorage = new Map<string, unknown>();
 
 const getMessenger = (): RootMessenger => {
-  const messenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   // Register StorageService mock handlers
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
+  messenger.registerActionHandler(
     'StorageService:getItem',
-    (controllerNamespace: string, key: string) => {
+    async (
+      controllerNamespace: string,
+      key: string,
+    ): Promise<StorageGetResult> => {
       const storageKey = `${controllerNamespace}:${key}`;
       const value = mockStorage.get(storageKey);
-      return value ? { result: value } : {};
+      const result = (value ? { result: value } : {}) as StorageGetResult;
+      return result;
     },
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
+  messenger.registerActionHandler(
     'StorageService:setItem',
-    (controllerNamespace: string, key: string, value: unknown) => {
+    async (
+      controllerNamespace: string,
+      key: string,
+      value: unknown,
+    ): Promise<void> => {
       const storageKey = `${controllerNamespace}:${key}`;
       mockStorage.set(storageKey, value);
     },
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
+  messenger.registerActionHandler(
     'StorageService:getAllKeys',
-    (controllerNamespace: string) => {
+    async (controllerNamespace: string): Promise<string[]> => {
       const keys: string[] = [];
       const prefix = `${controllerNamespace}:`;
       mockStorage.forEach((_value, key) => {
@@ -555,7 +562,6 @@ describe('TokenListController', () => {
 
   afterEach(() => {
     jest.clearAllTimers();
-    sinon.restore();
   });
 
   it('should set default state', async () => {
@@ -656,7 +662,9 @@ describe('TokenListController', () => {
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
+      onNetworkStateChange: (callback): void => {
+        onNetworkStateChangeCallback = callback;
+      },
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -750,10 +758,9 @@ describe('TokenListController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -765,19 +772,18 @@ describe('TokenListController', () => {
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledTwice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(2);
 
     controller.destroy();
   });
 
   it('should not poll after being stopped', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -790,20 +796,19 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -817,23 +822,22 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(tokenListMock.calledTwice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(2);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledThrice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(3);
     controller.destroy();
   });
 
   it('should call fetchTokenList on network that supports token detection', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -846,15 +850,14 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
+    expect(tokenListMock).toHaveBeenCalled();
     controller.destroy();
   });
 
   it('should not call fetchTokenList on network that does not support token detection', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -867,10 +870,9 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(false);
+    expect(tokenListMock).not.toHaveBeenCalled();
 
     controller.destroy();
-    tokenListMock.restore();
   });
 
   it('should update tokensChainsCache from api', async () => {
@@ -1077,15 +1079,92 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  describe('startPolling', () => {
-    let clock: sinon.SinonFakeTimers;
-    const pollingIntervalTime = 1000;
+  describe('_executePoll', () => {
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
+    });
+
+    const arrange = ({
+      initializationDelayMs = 50,
+    }: {
+      initializationDelayMs?: number;
+    } = {}): {
+      controller: TokenListController;
+      fetchTokenListByChainIdSpy: jest.SpyInstance;
+      resolveMockWaitForInit: () => Promise<void>;
+    } => {
+      const messenger = getMessenger();
+
+      // Mock getAllKeys that takes time to resolve
+      messenger.unregisterActionHandler('StorageService:getAllKeys');
+      messenger.registerActionHandler(
+        'StorageService:getAllKeys',
+        () =>
+          new Promise<string[]>((resolve) => {
+            setTimeout(() => resolve([]), initializationDelayMs);
+          }),
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      const resolveMockWaitForInit = async (): Promise<void> => {
+        await jestAdvanceTime({ duration: 50 });
+      };
+
+      return {
+        controller,
+        fetchTokenListByChainIdSpy,
+        resolveMockWaitForInit,
+      };
+    };
+
+    it('waits for initialize to finish before polling', async () => {
+      const { controller, fetchTokenListByChainIdSpy, resolveMockWaitForInit } =
+        arrange();
+
+      const initializePromise = controller.initialize();
+      const pollPromise = controller._executePoll({
+        chainId: ChainId.mainnet,
+      });
+
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+
+      await resolveMockWaitForInit();
+      await initializePromise;
+      await pollPromise;
+
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('polls normally when initialization is not in progress', async () => {
+      const { controller, fetchTokenListByChainIdSpy } = arrange({
+        initializationDelayMs: 0,
+      });
+
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('startPolling', () => {
+    const pollingIntervalTime = 1000;
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
     });
 
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
@@ -1117,7 +1196,7 @@ describe('TokenListController', () => {
       });
 
       controller.startPolling({ chainId: ChainId.sepolia });
-      await advanceTime({ clock, duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
@@ -1182,7 +1261,7 @@ describe('TokenListController', () => {
       });
 
       // wait a polling interval
-      await advanceTime({ clock, duration: pollingIntervalTime });
+      await jestAdvanceTime({ duration: pollingIntervalTime });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
 
@@ -1198,7 +1277,7 @@ describe('TokenListController', () => {
       controller.startPolling({
         chainId: '0x38',
       });
-      await advanceTime({ clock, duration: pollingIntervalTime });
+      await jestAdvanceTime({ duration: pollingIntervalTime });
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid
@@ -1233,8 +1312,8 @@ describe('TokenListController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokensChainsCache": Object {},
+        {
+          "tokensChainsCache": {},
         }
       `);
     });
@@ -1251,7 +1330,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -1266,7 +1345,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -1282,8 +1361,8 @@ describe('TokenListController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokensChainsCache": Object {},
+        {
+          "tokensChainsCache": {},
         }
       `);
     });
@@ -1592,38 +1671,45 @@ describe('TokenListController', () => {
       );
 
       // Create messenger with getItem that returns error for goerli
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const messengerWithErrors = getMessenger();
 
       // Register getItem handler that returns error for goerli
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:getItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+        ): Promise<StorageGetResult> => {
           if (key === `tokensChainsCache:${ChainId.goerli}`) {
-            return { error: 'Failed to load chain data' };
+            return {
+              error: 'Failed to load chain data',
+            } as unknown as StorageGetResult;
           }
           const storageKey = `${controllerNamespace}:${key}`;
           const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
+          return (value ? { result: value } : {}) as StorageGetResult;
         },
       );
 
       // Register other handlers normally
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
           const storageKey = `${controllerNamespace}:${key}`;
           mockStorage.set(storageKey, value);
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:getAllKeys');
+      messengerWithErrors.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
@@ -1673,43 +1759,14 @@ describe('TokenListController', () => {
 
     it('should handle StorageService errors when saving cache', async () => {
       // Create a messenger with setItem that throws errors
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const messengerWithErrors = getMessenger();
 
       // Register all handlers, but make setItem throw
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:setItem',
         () => {
           throw new Error('Storage write failed');
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
-          const keys: string[] = [];
-          const prefix = `${controllerNamespace}:`;
-          mockStorage.forEach((_value, key) => {
-            // Only include keys for this namespace
-            if (key.startsWith(prefix)) {
-              const keyWithoutNamespace = key.substring(prefix.length);
-              keys.push(keyWithoutNamespace);
-            }
-          });
-          return keys;
         },
       );
 
@@ -1751,33 +1808,15 @@ describe('TokenListController', () => {
 
     it('should handle errors during debounced persistence', async () => {
       // Create messenger where setItem throws to cause persistence to fail
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      // Register getItem to return empty
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getItem',
-        () => {
-          return {};
-        },
-      );
+      const messengerWithErrors = getMessenger();
 
       // Register setItem to throw error
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:setItem',
         () => {
           throw new Error('Failed to save to storage');
         },
-      );
-
-      // Register getAllKeys normally
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getAllKeys',
-        () => [],
       );
 
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
@@ -1828,34 +1867,26 @@ describe('TokenListController', () => {
       let getItemCallCount = 0;
       let getAllKeysCallCount = 0;
 
-      const trackingMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const trackingMessenger = getMessenger();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getItem');
+      trackingMessenger.registerActionHandler(
         'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+        ): Promise<StorageGetResult> => {
           getItemCallCount += 1;
           const storageKey = `${controllerNamespace}:${key}`;
           const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
+          return (value ? { result: value } : {}) as StorageGetResult;
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.set(storageKey, value);
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           getAllKeysCallCount += 1;
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
@@ -1919,34 +1950,26 @@ describe('TokenListController', () => {
       // Track how many times setItem is called
       let setItemCallCount = 0;
 
-      const trackingMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const trackingMessenger = getMessenger();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:setItem');
+      trackingMessenger.registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
           setItemCallCount += 1;
           const storageKey = `${controllerNamespace}:${key}`;
           mockStorage.set(storageKey, value);
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
@@ -1999,34 +2022,26 @@ describe('TokenListController', () => {
       // Track setItem calls and which chains are persisted
       const persistedChains: string[] = [];
 
-      const trackingMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const trackingMessenger = getMessenger();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:setItem');
+      trackingMessenger.registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
           persistedChains.push(key);
           const storageKey = `${controllerNamespace}:${key}`;
           mockStorage.set(storageKey, value);
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {

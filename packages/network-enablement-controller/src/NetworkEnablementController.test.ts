@@ -13,8 +13,8 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import { useFakeTimers } from 'sinon';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
 import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
 import type {
@@ -22,7 +22,6 @@ import type {
   NativeAssetIdentifiersMap,
 } from './NetworkEnablementController';
 import { Slip44Service } from './services';
-import { advanceTime } from '../../../tests/helpers';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {
@@ -72,12 +71,32 @@ function getRootMessenger(): RootMessenger {
   });
 }
 
+type MultichainGetStateReturn = {
+  multichainNetworkConfigurationsByChainId: Record<string, unknown>;
+  selectedMultichainNetworkChainId: string;
+  isEvmSelected: boolean;
+  networksWithTransactionActivity: Record<string, unknown>;
+};
+
+const defaultMultichainGetState = (): MultichainGetStateReturn => ({
+  multichainNetworkConfigurationsByChainId: {
+    [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
+    [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
+    [TrxScope.Mainnet]: { chainId: TrxScope.Mainnet, name: 'Tron' },
+  },
+  selectedMultichainNetworkChainId: 'eip155:1',
+  isEvmSelected: true,
+  networksWithTransactionActivity: {},
+});
+
 const setupController = ({
   config,
+  multichainGetState = defaultMultichainGetState,
 }: {
   config?: Partial<
     ConstructorParameters<typeof NetworkEnablementController>[0]
   >;
+  multichainGetState?: () => MultichainGetStateReturn;
 } = {}): {
   controller: NetworkEnablementController;
   rootMessenger: RootMessenger;
@@ -129,6 +148,11 @@ const setupController = ({
     })),
   );
 
+  rootMessenger.registerActionHandler(
+    'MultichainNetworkController:getState',
+    jest.fn().mockImplementation(multichainGetState),
+  );
+
   const controller = new NetworkEnablementController({
     messenger: networkEnablementControllerMessenger,
     ...config,
@@ -142,10 +166,8 @@ const setupController = ({
 };
 
 describe('NetworkEnablementController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     // Mock Slip44Service.getEvmSlip44 to avoid network calls
     jest
       .spyOn(Slip44Service, 'getEvmSlip44')
@@ -155,7 +177,7 @@ describe('NetworkEnablementController', () => {
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -215,7 +237,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
@@ -272,7 +294,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiers = {
@@ -334,7 +356,7 @@ describe('NetworkEnablementController', () => {
       } as TransactionMeta, // Simplified structure for testing
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -351,7 +373,7 @@ describe('NetworkEnablementController', () => {
       // Missing transactionMeta entirely
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -368,7 +390,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: null,
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -379,7 +401,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: undefined,
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should still remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -413,7 +435,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiersForFallback = {
@@ -1382,7 +1404,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // The added network should be enabled (exclusive behavior of network addition)
       expect(controller.isNetworkEnabled('0x2')).toBe(true);
@@ -1546,7 +1568,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -1767,7 +1789,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -2046,7 +2068,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Now it should be added but not enabled (keeps current selection in popular mode)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -2087,7 +2109,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Bitcoin should be enabled, all others should be disabled due to exclusive behavior
       expect(
@@ -2118,6 +2140,119 @@ describe('NetworkEnablementController', () => {
       expect(() => controller.isNetworkEnabled(null)).toThrow(
         'Value must be a hexadecimal string.',
       );
+    });
+  });
+
+  describe('listPopularNetworks', () => {
+    it('returns only popular EVM networks that exist in NetworkController and multichain mainnets that exist in MultichainNetworkController', () => {
+      const { controller } = setupController();
+      const result = controller.listPopularNetworks();
+
+      // Default setup: 3 EVM (0x1, 0xe708, 0x2105) + 3 multichain (Btc, Sol, Trx)
+      expect(result).toContain('eip155:1');
+      expect(result).toContain('eip155:59144');
+      expect(result).toContain('eip155:8453');
+      expect(result).toContain(BtcScope.Mainnet);
+      expect(result).toContain(SolScope.Mainnet);
+      expect(result).toContain(TrxScope.Mainnet);
+      expect(result).toHaveLength(6);
+    });
+
+    it('excludes multichain mainnets when not in MultichainNetworkController state', () => {
+      const { controller } = setupController({
+        multichainGetState: () => ({
+          multichainNetworkConfigurationsByChainId: {},
+          selectedMultichainNetworkChainId: 'eip155:1',
+          isEvmSelected: true,
+          networksWithTransactionActivity: {},
+        }),
+      });
+      const result = controller.listPopularNetworks();
+
+      expect(result).toContain('eip155:1');
+      expect(result).toContain('eip155:59144');
+      expect(result).toContain('eip155:8453');
+      expect(result).not.toContain(BtcScope.Mainnet);
+      expect(result).not.toContain(SolScope.Mainnet);
+      expect(result).not.toContain(TrxScope.Mainnet);
+      expect(result).toHaveLength(3);
+    });
+
+    it('returns same result as calling messenger action when registered', () => {
+      const { controller, rootMessenger } = setupController();
+
+      const viaAction = rootMessenger.call(
+        'NetworkEnablementController:listPopularNetworks',
+      );
+      const viaMethod = controller.listPopularNetworks();
+      expect(viaAction).toStrictEqual(viaMethod);
+    });
+
+    it('listPopularNetworks equals listPopularEvmNetworks (as CAIP-2) + listPopularMultichainNetworks', () => {
+      const { controller } = setupController();
+      const all = controller.listPopularNetworks();
+      const evmHex = controller.listPopularEvmNetworks();
+      const multichain = controller.listPopularMultichainNetworks();
+      const evmCaip = evmHex.map((chainIdHex) => toEvmCaipChainId(chainIdHex));
+      expect(all).toStrictEqual([...evmCaip, ...multichain]);
+    });
+  });
+
+  describe('listPopularEvmNetworks', () => {
+    it('returns only popular EVM chain IDs in hex that exist in NetworkController state', () => {
+      const { controller } = setupController();
+      const result = controller.listPopularEvmNetworks();
+
+      expect(result).toContain('0x1');
+      expect(result).toContain('0xe708');
+      expect(result).toContain('0x2105');
+      expect(result).toHaveLength(3);
+      expect(result.every((id) => id.startsWith('0x'))).toBe(true);
+    });
+
+    it('returns same result as calling messenger action when registered', () => {
+      const { controller, rootMessenger } = setupController();
+
+      const viaAction = rootMessenger.call(
+        'NetworkEnablementController:listPopularEvmNetworks',
+      );
+      const viaMethod = controller.listPopularEvmNetworks();
+      expect(viaAction).toStrictEqual(viaMethod);
+    });
+  });
+
+  describe('listPopularMultichainNetworks', () => {
+    it('returns only Bitcoin, Solana, Tron mainnets that exist in MultichainNetworkController state', () => {
+      const { controller } = setupController();
+      const result = controller.listPopularMultichainNetworks();
+
+      expect(result).toContain(BtcScope.Mainnet);
+      expect(result).toContain(SolScope.Mainnet);
+      expect(result).toContain(TrxScope.Mainnet);
+      expect(result).toHaveLength(3);
+    });
+
+    it('returns empty when none of the multichain mainnets are configured', () => {
+      const { controller } = setupController({
+        multichainGetState: () => ({
+          multichainNetworkConfigurationsByChainId: {},
+          selectedMultichainNetworkChainId: 'eip155:1',
+          isEvmSelected: true,
+          networksWithTransactionActivity: {},
+        }),
+      });
+      const result = controller.listPopularMultichainNetworks();
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns same result as calling messenger action when registered', () => {
+      const { controller, rootMessenger } = setupController();
+
+      const viaAction = rootMessenger.call(
+        'NetworkEnablementController:listPopularMultichainNetworks',
+      );
+      const viaMethod = controller.listPopularMultichainNetworks();
+      expect(viaAction).toStrictEqual(viaMethod);
     });
   });
 
@@ -2294,7 +2429,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Bitcoin testnet should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
@@ -2528,7 +2663,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Tron Nile should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
@@ -2904,7 +3039,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should switch to Avalanche (disable all others, enable Avalanche)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -2937,7 +3072,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should switch to the non-popular network (disable all others, enable new one)
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
@@ -2970,7 +3105,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should keep current selection (add Polygon but don't enable it)
       expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon enabled
@@ -3004,7 +3139,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should switch to Avalanche since we're not in popular networks mode (2 ≤ 2, not >2)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);

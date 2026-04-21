@@ -11,26 +11,32 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
+  TransactionControllerAddTransactionAction,
+  TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
+  TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionFailedEvent,
+  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { BridgeStatusController } from './bridge-status-controller';
+import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
 
@@ -103,6 +109,9 @@ export type RefuelStatusResponse = object & StatusResponse;
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
@@ -131,6 +140,22 @@ export type BridgeHistoryItem = {
   featureId?: FeatureId;
   isStxEnabled?: boolean;
   /**
+   * The location/entry point from which the user initiated the swap or bridge.
+   * Used to attribute swaps to specific flows (e.g. Trending Explore).
+   */
+  location?: MetaMetricsSwapsEventSource;
+  /**
+   * Legacy A/B test metrics context (`ab_tests`) kept for backward compatibility.
+   * Keys are test names, values are variant names (e.g. { token_details_layout: 'treatment' }).
+   */
+  abTests?: Record<string, string>;
+  /**
+   * New A/B test metrics context (`active_ab_tests`) that replaces `ab_tests`.
+   * Kept separate so migration can run both payloads in parallel.
+   * This field is an array of test objects.
+   */
+  activeAbTests?: { key: string; value: string }[];
+  /**
    * Attempts tracking for exponential backoff on failed fetches.
    * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
    */
@@ -140,6 +165,10 @@ export type BridgeHistoryItem = {
   };
 };
 
+/**
+ * @deprecated Use the separate action types instead (e.g.
+ * `BridgeStatusControllerStartPollingForBridgeTxStatusAction`).
+ */
 export enum BridgeStatusAction {
   StartPollingForBridgeTxStatus = 'StartPollingForBridgeTxStatus',
   WipeBridgeStatus = 'WipeBridgeStatus',
@@ -189,8 +218,12 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: TransactionMeta;
-  statusRequest: StatusRequest;
+  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
+  actionId?: string;
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
+  originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
@@ -198,6 +231,11 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
+  location?: BridgeHistoryItem['location'];
+  // Legacy field for `ab_tests` metrics payload.
+  abTests?: BridgeHistoryItem['abTests'];
+  // New field for `active_ab_tests` metrics payload.
+  activeAbTests?: BridgeHistoryItem['activeAbTests'];
   accountAddress: string;
 };
 
@@ -220,49 +258,14 @@ export type BridgeStatusControllerState = {
 };
 
 // Actions
-type BridgeStatusControllerAction<
-  FunctionName extends keyof BridgeStatusController,
-> = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:${FunctionName}`;
-  handler: BridgeStatusController[FunctionName];
-};
-
 export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState
 >;
 
-// Maps to BridgeController function names
-export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
-  BridgeStatusControllerAction<'startPollingForBridgeTxStatus'>;
-
-export type BridgeStatusControllerWipeBridgeStatusAction =
-  BridgeStatusControllerAction<'wipeBridgeStatus'>;
-
-export type BridgeStatusControllerResetStateAction =
-  BridgeStatusControllerAction<'resetState'>;
-
-export type BridgeStatusControllerSubmitTxAction =
-  BridgeStatusControllerAction<'submitTx'>;
-
-export type BridgeStatusControllerSubmitIntentAction =
-  BridgeStatusControllerAction<'submitIntent'>;
-
-export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
-  BridgeStatusControllerAction<'restartPollingForFailedAttempts'>;
-
-export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
-  BridgeStatusControllerAction<'getBridgeHistoryItemByTxMetaId'>;
-
 export type BridgeStatusControllerActions =
-  | BridgeStatusControllerStartPollingForBridgeTxStatusAction
-  | BridgeStatusControllerWipeBridgeStatusAction
-  | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerSubmitIntentAction
-  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
+  | BridgeStatusControllerMethodActions;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -289,13 +292,18 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | TransactionControllerGetStateAction
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerEstimateGasFeeAction
+  | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | AuthenticationControllerGetBearerTokenAction
+  | KeyringControllerSignTypedMessageAction;
 
 /**
  * The external events available to the BridgeStatusController.

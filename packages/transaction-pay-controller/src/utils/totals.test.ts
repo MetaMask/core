@@ -1,7 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { calculateTransactionGasCost } from './gas';
-import { calculateTotals } from './totals';
 import { TransactionPayStrategy } from '..';
 import type { TransactionPayControllerMessenger } from '..';
 import type {
@@ -9,6 +7,8 @@ import type {
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../types';
+import { calculateTransactionGasCost } from './gas';
+import { calculateTotals } from './totals';
 
 jest.mock('./gas');
 
@@ -21,6 +21,10 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
   },
   estimatedDuration: 123,
   fees: {
+    metaMask: {
+      fiat: '0.50',
+      usd: '0.25',
+    },
     provider: {
       fiat: '1.11',
       usd: '2.22',
@@ -54,9 +58,7 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
   },
   strategy: TransactionPayStrategy.Test,
   targetAmount: {
-    human: '9.99',
     fiat: '9.99',
-    raw: '999000000000000',
     usd: '10.10',
   },
 };
@@ -79,6 +81,10 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   estimatedDuration: 234,
   fees: {
     isSourceGasFeeToken: true,
+    metaMask: {
+      fiat: '1.00',
+      usd: '0.75',
+    },
     provider: {
       fiat: '7.77',
       usd: '8.88',
@@ -112,9 +118,7 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   strategy: TransactionPayStrategy.Test,
   targetAmount: {
-    human: '15.15',
     fiat: '15.15',
-    raw: '1515000000000000',
     usd: '16.16',
   },
 };
@@ -158,8 +162,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('43.3');
-      expect(result.total.usd).toBe('51.08');
+      expect(result.total.fiat).toBe('44.8');
+      expect(result.total.usd).toBe('52.08');
     });
 
     it('returns adjusted total when isMaxAmount is true', () => {
@@ -171,8 +175,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('64');
-      expect(result.total.usd).toBe('70.68');
+      expect(result.total.fiat).toBe('65.5');
+      expect(result.total.usd).toBe('71.68');
     });
 
     it('returns total excluding token amount not in quote', () => {
@@ -191,8 +195,20 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('39.97');
-      expect(result.total.usd).toBe('46.64');
+      expect(result.total.fiat).toBe('41.47');
+      expect(result.total.usd).toBe('47.64');
+    });
+
+    it('returns metaMask fees', () => {
+      const result = calculateTotals({
+        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.fees.metaMask.fiat).toBe('1.5');
+      expect(result.fees.metaMask.usd).toBe('1');
     });
 
     it('returns provider fees', () => {

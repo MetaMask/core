@@ -7,8 +7,7 @@ export type ResourceType =
   | 'countries'
   | 'providers'
   | 'tokens'
-  | 'paymentMethods'
-  | 'quotes';
+  | 'paymentMethods';
 
 /**
  * Status of a cached request.
@@ -160,4 +159,6 @@ export type ExecuteRequestOptions = {
 export type PendingRequest<TResult = unknown> = {
   promise: Promise<TResult>;
   abortController: AbortController;
+  /** When set, used to abort other in-flight requests for this resource when a new one starts. */
+  resourceType?: ResourceType;
 };

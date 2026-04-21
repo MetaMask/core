@@ -1,14 +1,14 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { AssetsControllerState } from '../AssetsController';
+import type { Caip19AssetId } from '../types';
 import type { AccountsById, EnabledNetworkMap } from './balance';
 import {
   getAggregatedBalanceForAccount,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './balance';
-import type { AssetsControllerState } from '../AssetsController';
-import type { Caip19AssetId } from '../types';
 
 describe('balance selectors', () => {
   const accountId1 = 'account-id-1';
@@ -56,8 +56,8 @@ describe('balance selectors', () => {
           metadata: {},
         },
       },
-      selectedAccountGroup: '',
     },
+    selectedAccountGroup: '',
     isAccountTreeSyncingInProgress: false,
     hasAccountTreeSyncingSyncedAtLeastOnce: true,
     accountGroupsMetadata: {},
@@ -86,8 +86,8 @@ describe('balance selectors', () => {
         ...accountTreeState,
         accountTree: {
           wallets: {},
-          selectedAccountGroup: '',
         },
+        selectedAccountGroup: '',
       };
       expect(getGroupIdForAccount(emptyTree, accountId1)).toBeUndefined();
     });
@@ -129,8 +129,8 @@ describe('balance selectors', () => {
         ...accountTreeState,
         accountTree: {
           wallets: {},
-          selectedAccountGroup: '',
         },
+        selectedAccountGroup: '',
       };
       const result = getInternalAccountsForGroup(
         emptyTree,
@@ -167,7 +167,7 @@ describe('balance selectors', () => {
             [assetUsdc]: { amount: '100' },
           },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -210,7 +210,7 @@ describe('balance selectors', () => {
             [assetUsdc]: { amount: '1000' },
           },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -258,7 +258,7 @@ describe('balance selectors', () => {
             [assetUsdc]: { amount: '100' },
           },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -300,7 +300,7 @@ describe('balance selectors', () => {
             [assetPolygon]: { amount: '10' },
           },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -335,7 +335,7 @@ describe('balance selectors', () => {
           [accountId1]: { [assetEth]: { amount: '1' } },
           [accountId2]: { [assetEth]: { amount: '2' } },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -367,7 +367,7 @@ describe('balance selectors', () => {
           [accountId1]: { [assetEth]: { amount: '1' } },
           [accountId2]: { [assetEth]: { amount: '99' } },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -392,7 +392,7 @@ describe('balance selectors', () => {
           [accountId1]: { [assetEth]: { amount: '1' } },
           [accountId2]: { [assetUsdc]: { amount: '500' } },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',
@@ -428,7 +428,7 @@ describe('balance selectors', () => {
     it('returns empty entries when state has no balance for account', () => {
       const state: AssetsControllerState = {
         assetsBalance: {},
-        assetsMetadata: {},
+        assetsInfo: {},
         assetsPrice: {},
         customAssets: {},
         assetPreferences: {},
@@ -450,7 +450,7 @@ describe('balance selectors', () => {
             [assetPolygon]: { amount: '10' },
           },
         },
-        assetsMetadata: {
+        assetsInfo: {
           [assetEth]: {
             type: 'native',
             symbol: 'ETH',

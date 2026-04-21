@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.20.0]
+
+### Added
+
+- Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
+
+## [11.19.0]
+
+### Added
+
+- Add `megaeth-mainnet` to `BUILT_IN_NETWORKS` ([#7994](https://github.com/MetaMask/core/pull/7994))
+
 ## [11.18.0]
 
 ### Changed
@@ -603,7 +615,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/constants.ts` (but see below)
     - `src/util.ts` (but see below)
@@ -611,7 +622,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkType` and `NetworkChainsId` from `src/network/NetworkController.ts` (via `types.ts`)
   - `ESTIMATE_GAS_ERROR`, which used to be exported by `src/constants.ts`, is now available via the `@metamask/gas-fee-controller` package.
   - A number of functions and types that were previously exported by `src/util.ts` are now available via other packages. Here's a breakdown of these exports and their new locations:
-
     - `@metamask/assets-controllers`:
       - `SupportedTokenDetectionNetworks`
       - `addUrlProtocolPrefix`
@@ -641,7 +651,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...HEAD
+[11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
+[11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
 [11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
 [11.16.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...@metamask/controller-utils@11.16.0

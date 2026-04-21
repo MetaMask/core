@@ -48,7 +48,7 @@ export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
  * Actions from other messengers that {@link ProfileMetricsService} calls.
  */
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link ProfileMetricsService} exposes to other consumers.
@@ -198,11 +198,11 @@ export class ProfileMetricsService {
    * @returns The response from the API.
    */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
-    const authToken = await this.#messenger.call(
-      'AuthenticationController:getBearerToken',
-      data.entropySourceId ?? undefined,
-    );
     await this.#policy.execute(async () => {
+      const authToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+        data.entropySourceId ?? undefined,
+      );
       const url = new URL(`${this.#baseURL}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',
@@ -214,6 +214,11 @@ export class ProfileMetricsService {
           metametrics_id: data.metametricsId,
           accounts: data.accounts,
         }),
+        // The auth API is stateless (no cookies used)
+        // prevent marketing cookies scoped to
+        // .metamask.io from being forwarded to api which
+        // causes 431 Request Header Fields Too Large errors.
+        credentials: 'omit',
       });
       if (!localResponse.ok) {
         throw new HttpError(

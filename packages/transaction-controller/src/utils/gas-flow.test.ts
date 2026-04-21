@@ -1,6 +1,5 @@
 import type { GasFeeEstimates as GasFeeControllerEstimates } from '@metamask/gas-fee-controller';
 
-import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
@@ -10,6 +9,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateType, TransactionStatus } from '../types';
+import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

@@ -5,10 +5,10 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { stripSnapPrefix } from '@metamask/snaps-utils';
 
-import { getAccountGroupPrefixFromKeyringType } from './keyring';
 import { BaseRule } from '../rule';
 import type { Rule, RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
+import { getAccountGroupPrefixFromKeyringType } from './keyring';
 
 /**
  * Snap account type.
@@ -76,6 +76,7 @@ export class SnapRule
         metadata: {
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };
@@ -85,7 +86,7 @@ export class SnapRule
     wallet: AccountWalletObjectOf<AccountWalletType.Snap>,
   ): string {
     const snapId = wallet.metadata.snap.id;
-    const snap = this.messenger.call('SnapController:get', snapId);
+    const snap = this.messenger.call('SnapController:getSnap', snapId);
     const snapName = snap
       ? // TODO: Handle localization here, but that's a "client thing", so we don't have a `core` controller
         // to refer to.

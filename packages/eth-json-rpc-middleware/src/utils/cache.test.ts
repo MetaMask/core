@@ -87,7 +87,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByHash:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+            `"eth_getBlockByHash:["0x0000000000000000000000000000000000000000"]"`,
           );
         });
 
@@ -100,7 +100,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByNumber:[\\"latest\\"]"`,
+            `"eth_getBlockByNumber:["latest"]"`,
           );
         });
 
@@ -113,7 +113,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByNumber:[\\"latest\\",true]"`,
+            `"eth_getBlockByNumber:["latest",true]"`,
           );
         });
 
@@ -129,7 +129,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBalance:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+            `"eth_getBalance:["0x0000000000000000000000000000000000000000"]"`,
           );
         });
 
@@ -142,7 +142,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getCode:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+            `"eth_getCode:["0x0000000000000000000000000000000000000000"]"`,
           );
         });
       });
@@ -158,7 +158,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByHash:{\\"hash\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+            `"eth_getBlockByHash:{"hash":"0x0000000000000000000000000000000000000000"}"`,
           );
         });
 
@@ -172,7 +172,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\"}"`,
+            `"eth_getBlockByNumber:{"block":"latest"}"`,
           );
         });
 
@@ -186,7 +186,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\",\\"showTransactionDetails\\":true}"`,
+            `"eth_getBlockByNumber:{"block":"latest","showTransactionDetails":true}"`,
           );
         });
 
@@ -203,7 +203,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBalance:{\\"address\\":\\"0x0000000000000000000000000000000000000000\\",\\"block\\":\\"latest\\"}"`,
+            `"eth_getBalance:{"address":"0x0000000000000000000000000000000000000000","block":"latest"}"`,
           );
         });
 
@@ -217,7 +217,7 @@ describe('cache utils', () => {
           });
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getCode:{\\"data\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+            `"eth_getCode:{"data":"0x0000000000000000000000000000000000000000"}"`,
           );
         });
       });
@@ -264,7 +264,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByHash:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+            `"eth_getBlockByHash:["0x0000000000000000000000000000000000000000"]"`,
           );
         });
 
@@ -310,7 +310,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBalance:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+            `"eth_getBalance:["0x0000000000000000000000000000000000000000"]"`,
           );
         });
 
@@ -326,7 +326,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getCode:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+            `"eth_getCode:["0x0000000000000000000000000000000000000000"]"`,
           );
         });
       });
@@ -345,7 +345,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByHash:{\\"hash\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+            `"eth_getBlockByHash:{"hash":"0x0000000000000000000000000000000000000000"}"`,
           );
         });
 
@@ -362,7 +362,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\"}"`,
+            `"eth_getBlockByNumber:{"block":"latest"}"`,
           );
         });
 
@@ -379,7 +379,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\",\\"showTransactionDetails\\":true}"`,
+            `"eth_getBlockByNumber:{"block":"latest","showTransactionDetails":true}"`,
           );
         });
 
@@ -399,7 +399,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getBalance:{\\"address\\":\\"0x0000000000000000000000000000000000000000\\",\\"block\\":\\"latest\\"}"`,
+            `"eth_getBalance:{"address":"0x0000000000000000000000000000000000000000","block":"latest"}"`,
           );
         });
 
@@ -416,7 +416,7 @@ describe('cache utils', () => {
           );
 
           expect(identifier).toMatchInlineSnapshot(
-            `"eth_getCode:{\\"data\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+            `"eth_getCode:{"data":"0x0000000000000000000000000000000000000000"}"`,
           );
         });
       });
@@ -515,7 +515,7 @@ describe('cache utils', () => {
       }, {});
 
       expect(blockTagIndexes).toMatchInlineSnapshot(`
-        Object {
+        {
           "eth_blockNumber": undefined,
           "eth_call": 1,
           "eth_compileLLL": undefined,
@@ -571,7 +571,7 @@ describe('cache utils', () => {
       );
 
       expect(cacheTypes).toMatchInlineSnapshot(`
-        Object {
+        {
           "eth_blockNumber": "block",
           "eth_call": "block",
           "eth_compileLLL": "perma",

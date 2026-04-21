@@ -8,7 +8,6 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerStateChangeEvent,
   KeyringControllerGetStateAction,
@@ -19,10 +18,17 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { assert } from '@metamask/utils';
+import { debounce } from 'lodash';
 import log from 'loglevel';
 
 import type { NormalisedAPINotification } from '.';
+import type {
+  NotificationServicesPushControllerStateChangeEvent,
+  NotificationServicesPushControllerOnNewNotificationEvent,
+} from '../NotificationServicesPushController';
+import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
 import { TRIGGER_TYPES } from './constants/notification-schema';
+import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types';
 import {
   processAndFilterNotifications,
   safeProcessNotification,
@@ -41,16 +47,11 @@ import type {
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
 import type { OrderInput } from './types/perps';
-import type {
-  NotificationServicesPushControllerEnablePushNotificationsAction,
-  NotificationServicesPushControllerDisablePushNotificationsAction,
-  NotificationServicesPushControllerSubscribeToNotificationsAction,
-  NotificationServicesPushControllerStateChangeEvent,
-  NotificationServicesPushControllerOnNewNotificationEvent,
-} from '../NotificationServicesPushController';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
+
+export const ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS = 1000;
 
 /**
  * State shape for NotificationServicesController
@@ -186,52 +187,47 @@ const locallyPersistedNotificationTypes = new Set<TRIGGER_TYPES>([
   TRIGGER_TYPES.SNAP,
 ]);
 
+const MESSENGER_EXPOSED_METHODS = [
+  'init',
+  'enablePushNotifications',
+  'disablePushNotifications',
+  'checkAccountsPresence',
+  'setFeatureAnnouncementsEnabled',
+  'createOnChainTriggers',
+  'enableMetamaskNotifications',
+  'disableNotificationServices',
+  'disableAccounts',
+  'enableAccounts',
+  'fetchAndUpdateMetamaskNotifications',
+  'getNotificationsByType',
+  'deleteNotificationById',
+  'deleteNotificationsById',
+  'markMetamaskNotificationsAsRead',
+  'updateMetamaskNotificationsList',
+  'sendPerpPlaceOrderNotification',
+] as const;
+
 export type NotificationServicesControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     NotificationServicesControllerState
   >;
 
-export type NotificationServicesControllerUpdateMetamaskNotificationsList = {
-  type: `${typeof controllerName}:updateMetamaskNotificationsList`;
-  handler: NotificationServicesController['updateMetamaskNotificationsList'];
-};
-
-export type NotificationServicesControllerDisableNotificationServices = {
-  type: `${typeof controllerName}:disableNotificationServices`;
-  handler: NotificationServicesController['disableNotificationServices'];
-};
-
-export type NotificationServicesControllerGetNotificationsByType = {
-  type: `${typeof controllerName}:getNotificationsByType`;
-  handler: NotificationServicesController['getNotificationsByType'];
-};
-
-export type NotificationServicesControllerDeleteNotificationsById = {
-  type: `${typeof controllerName}:deleteNotificationsById`;
-  handler: NotificationServicesController['deleteNotificationsById'];
-};
-
 // Messenger Actions
 export type Actions =
   | NotificationServicesControllerGetStateAction
-  | NotificationServicesControllerUpdateMetamaskNotificationsList
-  | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerGetNotificationsByType
-  | NotificationServicesControllerDeleteNotificationsById;
+  | NotificationServicesControllerMethodActions;
 
 // Allowed Actions
 type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetStateAction
   // Auth Controller Requests
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerIsSignedIn
-  | AuthenticationController.AuthenticationControllerPerformSignIn
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction
+  | AuthenticationController.AuthenticationControllerPerformSignInAction
   // Push Notifications Controller Requests
-  | NotificationServicesPushControllerEnablePushNotificationsAction
-  | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerSubscribeToNotificationsAction;
+  | NotificationServicesPushControllerMethodActions;
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
@@ -283,7 +279,7 @@ type FeatureAnnouncementEnv = {
 /**
  * Controller that enables wallet notifications and feature announcements
  */
-export default class NotificationServicesController extends BaseController<
+export class NotificationServicesController extends BaseController<
   typeof controllerName,
   NotificationServicesControllerState,
   NotificationServicesControllerMessenger
@@ -342,8 +338,18 @@ export default class NotificationServicesController extends BaseController<
           'NotificationServicesPushController:enablePushNotifications',
           addresses,
         );
-      } catch (error) {
-        log.error('Silently failed to enable push notifications', error);
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
+    addPushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:addPushNotificationLinks',
+          addresses,
+        );
+      } catch {
+        // Do nothing, failing silently.
       }
     },
     disablePushNotifications: async (): Promise<void> => {
@@ -351,8 +357,18 @@ export default class NotificationServicesController extends BaseController<
         await this.messenger.call(
           'NotificationServicesPushController:disablePushNotifications',
         );
-      } catch (error) {
-        log.error('Silently failed to disable push notifications', error);
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
+    deletePushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:deletePushNotificationLinks',
+          addresses,
+        );
+      } catch {
+        // Do nothing, failing silently.
       }
     },
     subscribe: (): void => {
@@ -396,11 +412,24 @@ export default class NotificationServicesController extends BaseController<
 
     getNotificationAccounts: (): string[] | null => {
       const { keyrings } = this.messenger.call('KeyringController:getState');
-      const firstHDKeyring = keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.hd.toString(),
-      );
-      const keyringAccounts = firstHDKeyring?.accounts ?? null;
-      return keyringAccounts;
+      const keyringAccounts = [
+        ...new Set(
+          keyrings
+            .flatMap((keyring) => keyring.accounts)
+            .map((address) => {
+              try {
+                return toChecksumHexAddress(address);
+              } catch {
+                return null;
+              }
+            })
+            .filter(
+              (address): address is string =>
+                address !== null && isValidHexAddress(address),
+            ),
+        ),
+      ];
+      return keyringAccounts.length > 0 ? keyringAccounts : null;
     },
 
     /**
@@ -478,11 +507,11 @@ export default class NotificationServicesController extends BaseController<
      * And call effects to subscribe/unsubscribe to notifications.
      */
     subscribe: (): void => {
-      this.messenger.subscribe(
-        'KeyringController:stateChange',
-        // Using void return for async callback - result is intentionally ignored
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async (totalAccounts, prevTotalAccounts): Promise<void> => {
+      const debouncedUpdateAccountNotifications = debounce(
+        async (
+          totalAccounts?: number,
+          prevTotalAccounts?: number,
+        ): Promise<void> => {
           const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
           if (
             !this.state.isNotificationServicesEnabled ||
@@ -503,7 +532,15 @@ export default class NotificationServicesController extends BaseController<
           }
           await Promise.allSettled(promises);
         },
-        (state: KeyringControllerState) => {
+        ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
+      );
+
+      this.messenger.subscribe(
+        'KeyringController:stateChange',
+        // Using void return for async callback - result is intentionally ignored
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        debouncedUpdateAccountNotifications,
+        (state: KeyringControllerState): number => {
           return (
             state?.keyrings?.flatMap?.((keyring) => keyring.accounts)?.length ??
             0
@@ -553,7 +590,12 @@ export default class NotificationServicesController extends BaseController<
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#locale = env.locale ?? ((): string => 'en');
     this.#env = env.env ?? 'prd';
-    this.#registerMessageHandlers();
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#clearLoadingStates();
   }
 
@@ -570,28 +612,6 @@ export default class NotificationServicesController extends BaseController<
     this.#pushNotifications.initializePushNotifications();
     this.#accounts.subscribe();
     this.#pushNotifications.subscribe();
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateMetamaskNotificationsList`,
-      this.updateMetamaskNotificationsList.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:disableNotificationServices`,
-      this.disableNotificationServices.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getNotificationsByType`,
-      this.getNotificationsByType.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:deleteNotificationsById`,
-      this.deleteNotificationsById.bind(this),
-    );
   }
 
   #clearLoadingStates(): void {
@@ -728,8 +748,8 @@ export default class NotificationServicesController extends BaseController<
       if (addresses.length > 0) {
         await this.#pushNotifications.enablePushNotifications(addresses);
       }
-    } catch (error) {
-      log.error('Failed to enable push notifications', error);
+    } catch {
+      // Do nothing, failing silently.
     }
   }
 
@@ -939,8 +959,9 @@ export default class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: false })),
         this.#env,
       );
-    } catch (error) {
-      log.error('Failed to delete OnChain triggers', error);
+
+      await this.#pushNotifications.deletePushNotificationLinks(accounts);
+    } catch {
       throw new Error('Failed to delete OnChain triggers');
     } finally {
       this.#clearUpdatingAccountsState(accounts);
@@ -972,6 +993,8 @@ export default class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: true })),
         this.#env,
       );
+
+      await this.#pushNotifications.addPushNotificationLinks(accounts);
     } catch (error) {
       log.error('Failed to update OnChain triggers', error);
       throw new Error('Failed to update OnChain triggers');

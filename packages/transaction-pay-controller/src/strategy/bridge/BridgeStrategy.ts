@@ -1,13 +1,6 @@
 import { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import {
-  getBridgeBatchTransactions,
-  getBridgeQuotes,
-  getBridgeRefreshInterval,
-} from './bridge-quotes';
-import { submitBridgeQuotes } from './bridge-submit';
-import type { TransactionPayBridgeQuote } from './types';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -16,6 +9,13 @@ import type {
   PayStrategyGetRefreshIntervalRequest,
   TransactionPayQuote,
 } from '../../types';
+import {
+  getBridgeBatchTransactions,
+  getBridgeQuotes,
+  getBridgeRefreshInterval,
+} from './bridge-quotes';
+import { submitBridgeQuotes } from './bridge-submit';
+import type { TransactionPayBridgeQuote } from './types';
 
 export class BridgeStrategy implements PayStrategy<TransactionPayBridgeQuote> {
   async getQuotes(

@@ -19,7 +19,12 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex): string {
-  const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
+  const occurrenceFloor =
+    chainId === ChainId['linea-mainnet'] ||
+    chainId === ChainId['megaeth-mainnet'] ||
+    chainId === '0x1079' // Tempo Mainnet
+      ? 1
+      : 3;
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
@@ -57,6 +62,7 @@ export type SortTrendingBy =
  * @param options.limit - Optional limit for the number of results (defaults to 10).
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
  * @returns The token search URL.
  */
 function getTokenSearchURL(options: {
@@ -65,8 +71,9 @@ function getTokenSearchURL(options: {
   limit?: number;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
+  includeTokenSecurityData?: boolean;
 }): string {
-  const { chainIds, query, ...optionalParams } = options;
+  const { chainIds, query, limit, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
@@ -77,7 +84,57 @@ function getTokenSearchURL(options: {
       queryParams.append(key, String(value));
     }
   });
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
+
+  let numberOfItems;
+  if (limit) {
+    if (limit <= 50) {
+      numberOfItems = limit;
+    } else if (query.includes('Ondo') && limit <= 500) {
+      // There is an exception on the API side https://github.com/consensys-vertical-apps/va-mmcx-token-api/pull/287
+      numberOfItems = limit;
+    } else {
+      numberOfItems = 50;
+    }
+  }
+
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}&${queryParams.toString()}`;
+}
+
+/**
+ * Get the token assets URL for the given asset IDs.
+ *
+ * @param options - Options for getting token assets.
+ * @param options.assetIds - Array of CAIP-19 asset IDs (e.g., ['eip155:1/erc20:0x...', 'solana:5eykt.../slip44:501']).
+ * @param options.includeAggregators - Optional flag to include aggregator list in the results (defaults to false).
+ * @param options.includeCoingeckoId - Optional flag to include CoinGecko ID in the results (defaults to false).
+ * @param options.includeLabels - Optional flag to include labels in the results (defaults to false).
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeOccurrences - Optional flag to include occurrence count in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @returns The token assets URL.
+ */
+function getTokenAssetsURL(options: {
+  assetIds: CaipAssetType[];
+  includeAggregators?: boolean;
+  includeCoingeckoId?: boolean;
+  includeLabels?: boolean;
+  includeMarketData?: boolean;
+  includeOccurrences?: boolean;
+  includeTokenSecurityData?: boolean;
+  includeRwaData?: boolean;
+}): string {
+  const { assetIds, ...queryOptions } = options;
+  const encodedAssetIds = assetIds
+    .map((id) => encodeURIComponent(id))
+    .join(',');
+  const queryParams = new URLSearchParams();
+  Object.entries(queryOptions).forEach(([key, value]) => {
+    if (value !== undefined) {
+      queryParams.append(key, String(value));
+    }
+  });
+  return `${TOKEN_END_POINT_API}/assets?assetIds=${encodedAssetIds}${queryParams.toString() ? `&${queryParams.toString()}` : ''}`;
 }
 
 /**
@@ -94,6 +151,7 @@ function getTokenSearchURL(options: {
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -107,6 +165,7 @@ function getTrendingTokensURL(options: {
   excludeLabels?: string[];
   includeRwaData?: boolean;
   usePriceApiData?: boolean;
+  includeTokenSecurityData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
@@ -180,6 +239,60 @@ export type TokenRwaData = {
   instrumentType?: string;
 };
 
+export type TokenSecurityFeature = {
+  featureId: string;
+  type: string;
+  description: string;
+};
+
+export type TokenSecurityHolder = {
+  label: string;
+  name: string | null;
+  address: string;
+  holdingPercentage: number;
+};
+
+export type TokenSecurityMarket = {
+  marketType: string;
+  marketName: string;
+  pairName: string;
+  reserveUSD: number;
+};
+
+export type TokenSecurityFees = {
+  transfer: number;
+  transferFeeMaxAmount: number | null;
+  buy: number;
+  sell: number | null;
+};
+
+export type TokenSecurityFinancialStats = {
+  supply: number;
+  topHolders: TokenSecurityHolder[];
+  holdersCount: number;
+  tradeVolume24h: number | null;
+  lockedLiquidityPct: number | null;
+  markets: TokenSecurityMarket[];
+};
+
+export type TokenSecurityMetadata = {
+  externalLinks: {
+    homepage: string | null;
+    twitterPage: string | null;
+    telegramChannelId: string | null;
+  };
+};
+
+export type TokenSecurityData = {
+  resultType: string;
+  maliciousScore: string;
+  fees: TokenSecurityFees;
+  features: TokenSecurityFeature[];
+  financialStats: TokenSecurityFinancialStats;
+  metadata: TokenSecurityMetadata;
+  created: string;
+};
+
 export type TokenSearchItem = {
   assetId: CaipAssetType;
   name: string;
@@ -187,12 +300,15 @@ export type TokenSearchItem = {
   decimals: number;
   /** Optional RWA data for tokens when includeRwaData is true */
   rwaData?: TokenRwaData;
+  /** Optional security data for tokens when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
 };
 
 type SearchTokenOptions = {
   limit?: number;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
+  includeTokenSecurityData?: boolean;
 };
 
 /**
@@ -204,7 +320,8 @@ type SearchTokenOptions = {
  * @param options.limit - The maximum number of results to return.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
- * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * @returns Object containing count, data array, and an optional error message if the request failed.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
@@ -213,14 +330,16 @@ export async function searchTokens(
     limit = 10,
     includeMarketData = false,
     includeRwaData = true,
+    includeTokenSecurityData,
   }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[] }> {
+): Promise<{ count: number; data: TokenSearchItem[]; error?: string }> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
     includeMarketData,
     includeRwaData,
+    includeTokenSecurityData,
   });
 
   try {
@@ -236,11 +355,10 @@ export async function searchTokens(
     }
 
     // Handle non-expected responses
-    return { count: 0, data: [] };
+    return { count: 0, data: [], error: 'Unexpected API response format' };
   } catch (error) {
-    // Handle 400 errors and other failures by returning count 0 and empty array
-    console.log('Search request failed:', error);
-    return { count: 0, data: [] };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { count: 0, data: [], error: errorMessage };
   }
 }
 
@@ -266,6 +384,8 @@ export type TrendingAsset = {
   labels?: string[];
   /** Optional RWA data for tokens when includeRwaData is true */
   rwaData?: TokenRwaData;
+  /** Optional security data for tokens when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
 };
 
 /**
@@ -282,6 +402,7 @@ export type TrendingAsset = {
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to true).
  * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to true).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -296,6 +417,7 @@ export async function getTrendingTokens({
   excludeLabels,
   includeRwaData = true,
   usePriceApiData = true,
+  includeTokenSecurityData,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -307,6 +429,7 @@ export async function getTrendingTokens({
   excludeLabels?: string[];
   includeRwaData?: boolean;
   usePriceApiData?: boolean;
+  includeTokenSecurityData?: boolean;
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -324,6 +447,7 @@ export async function getTrendingTokens({
     excludeLabels,
     includeRwaData,
     usePriceApiData,
+    includeTokenSecurityData,
   });
 
   try {
@@ -339,6 +463,92 @@ export async function getTrendingTokens({
     return [];
   } catch (error) {
     console.error('Trending tokens request failed:', error);
+    return [];
+  }
+}
+
+/**
+ * The token asset type returned by the /assets endpoint.
+ */
+export type TokenAsset = {
+  assetId: CaipAssetType;
+  name: string;
+  symbol: string;
+  decimals: number;
+  /** Aggregator list when includeAggregators is true */
+  aggregators?: string[];
+  /** CoinGecko ID when includeCoingeckoId is true */
+  coingeckoId?: string;
+  /** Labels when includeLabels is true */
+  labels?: string[];
+  /** Occurrence count when includeOccurrences is true */
+  occurrences?: number;
+  /** RWA data when includeRwaData is true */
+  rwaData?: TokenRwaData;
+  /** Security data when includeTokenSecurityData is true */
+  securityData?: TokenSecurityData;
+};
+
+type FetchTokenAssetsOptions = {
+  includeAggregators?: boolean;
+  includeCoingeckoId?: boolean;
+  includeLabels?: boolean;
+  includeMarketData?: boolean;
+  includeOccurrences?: boolean;
+  includeTokenSecurityData?: boolean;
+  includeRwaData?: boolean;
+};
+
+/**
+ * Fetch asset metadata for the given CAIP-19 asset IDs.
+ *
+ * @param assetIds - Array of CAIP-19 asset IDs (e.g., ['eip155:1/erc20:0x...', 'solana:5eykt.../slip44:501']).
+ * @param options - Additional fetch options.
+ * @param options.includeAggregators - Optional flag to include aggregator list in the results (defaults to false).
+ * @param options.includeCoingeckoId - Optional flag to include CoinGecko ID in the results (defaults to false).
+ * @param options.includeLabels - Optional flag to include labels in the results (defaults to false).
+ * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
+ * @param options.includeOccurrences - Optional flag to include occurrence count in the results (defaults to false).
+ * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @returns Array of token assets, or empty array if the request failed or no IDs were provided.
+ */
+export async function fetchTokenAssets(
+  assetIds: CaipAssetType[],
+  {
+    includeAggregators,
+    includeCoingeckoId,
+    includeLabels,
+    includeMarketData,
+    includeOccurrences,
+    includeTokenSecurityData,
+    includeRwaData,
+  }: FetchTokenAssetsOptions = {},
+): Promise<TokenAsset[]> {
+  if (assetIds.length === 0) {
+    return [];
+  }
+
+  const tokenAssetsURL = getTokenAssetsURL({
+    assetIds,
+    includeAggregators,
+    includeCoingeckoId,
+    includeLabels,
+    includeMarketData,
+    includeOccurrences,
+    includeTokenSecurityData,
+    includeRwaData,
+  });
+
+  try {
+    const result = await handleFetch(tokenAssetsURL);
+
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return [];
+  } catch {
     return [];
   }
 }

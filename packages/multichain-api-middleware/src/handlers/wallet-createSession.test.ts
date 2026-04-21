@@ -104,6 +104,7 @@ const createMockedHandler = () => {
     sessionProperties?: Record<string, Json>;
   }>;
   const getNonEvmAccountAddresses = jest.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
@@ -114,6 +115,7 @@ const createMockedHandler = () => {
       getNonEvmSupportedMethods,
       isNonEvmScopeSupported,
       getNonEvmAccountAddresses,
+      sortAccountIdsByLastSelected,
       trackSessionCreatedEvent,
     });
 
@@ -128,6 +130,7 @@ const createMockedHandler = () => {
     getNonEvmSupportedMethods,
     isNonEvmScopeSupported,
     getNonEvmAccountAddresses,
+    sortAccountIdsByLastSelected,
     handler,
   };
 };
@@ -850,8 +853,7 @@ describe('wallet_createSession', () => {
                   },
                 },
                 sessionProperties: {
-                  [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                    true,
+                  [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                 },
               },
             },
@@ -1106,8 +1108,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1174,8 +1175,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1235,8 +1235,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },

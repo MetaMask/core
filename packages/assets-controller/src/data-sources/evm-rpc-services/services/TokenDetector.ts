@@ -1,7 +1,9 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
+import { projectLogger, createModuleLogger } from '../../../logger';
 import type { MulticallClient } from '../clients';
+import type { TokensApiClient } from '../clients/TokensApiClient';
 import type {
   AccountId,
   Address,
@@ -13,20 +15,18 @@ import type {
   TokenDetectionOptions,
   TokenDetectionResult,
   TokenListEntry,
-  TokenListState,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
 
+const log = createModuleLogger(projectLogger, 'TokenDetector');
+
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
-/**
- * Minimal messenger interface for TokenDetector.
- */
-export type TokenDetectorMessenger = {
-  call: (action: 'TokenListController:getState') => TokenListState;
-};
-
 export type TokenDetectorConfig = {
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 3 minutes) */
@@ -52,31 +52,36 @@ export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
 
 /**
  * TokenDetector - Detects tokens with non-zero balances via multicall.
+ * Fetches the token list from the Tokens API and uses multicall to check balances.
  * Extends StaticIntervalPollingControllerOnly for built-in polling support.
  */
 export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #messenger: TokenDetectorMessenger;
+  readonly #tokensApiClient: TokensApiClient;
 
   readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
+
+  readonly #tokenListCache: Map<ChainId, TokenListEntry[]> = new Map();
 
   #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
 
   constructor(
     multicallClient: MulticallClient,
-    messenger: TokenDetectorMessenger,
+    tokensApiClient: TokensApiClient,
     config?: TokenDetectorConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
-    this.#messenger = messenger;
+    this.#tokensApiClient = tokensApiClient;
     this.#config = {
+      tokenDetectionEnabled:
+        config?.tokenDetectionEnabled ?? ((): boolean => true),
+      useExternalService: config?.useExternalService ?? ((): boolean => true),
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
 
-    // Set the polling interval
     this.setIntervalLength(
       config?.pollingInterval ?? DEFAULT_DETECTION_INTERVAL,
     );
@@ -98,50 +103,31 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @param input - The polling input.
    */
   async _executePoll(input: DetectionPollingInput): Promise<void> {
-    // Check if token list is available for this chain
-    const tokensToCheck = this.getTokensToCheck(input.chainId);
-    if (tokensToCheck.length === 0) {
-      // No tokens in list for chain, will retry on next poll
-      return;
-    }
+    try {
+      const result = await this.detectTokens(
+        input.chainId,
+        input.accountId,
+        input.accountAddress,
+      );
 
-    const result = await this.detectTokens(
-      input.chainId,
-      input.accountId,
-      input.accountAddress,
-    );
-
-    if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
-      this.#onDetectionUpdate(result);
+      if (this.#onDetectionUpdate && result.detectedAssets.length > 0) {
+        this.#onDetectionUpdate(result);
+      }
+    } catch (error) {
+      log('Token detection poll failed', { chainId: input.chainId, error });
     }
   }
 
-  getTokensToCheck(chainId: ChainId): Address[] {
-    const tokenListState = this.#messenger.call('TokenListController:getState');
-
-    // Defensive check for tokensChainsCache
-    if (!tokenListState?.tokensChainsCache) {
-      return [];
-    }
-
-    // Try direct lookup first
-    let chainCacheEntry = tokenListState.tokensChainsCache[chainId];
-
-    // If not found, try normalizing the chain ID (e.g., 0x0a -> 0xa)
-    if (!chainCacheEntry) {
-      const normalizedChainId: ChainId = `0x${parseInt(chainId, 16).toString(
-        16,
-      )}`;
-      chainCacheEntry = tokenListState.tokensChainsCache[normalizedChainId];
-    }
-
-    const chainTokenList = chainCacheEntry?.data;
-
-    if (!chainTokenList) {
-      return [];
-    }
-
-    return Object.keys(chainTokenList) as Address[];
+  /**
+   * Fetch the list of token addresses to check for the given chain.
+   * Calls the Tokens API and caches the result for metadata lookups.
+   *
+   * @param chainId - Chain ID in hex format.
+   * @returns Array of token contract addresses.
+   */
+  async getTokensToCheck(chainId: ChainId): Promise<Address[]> {
+    const tokenList = await this.#fetchAndCacheTokenList(chainId);
+    return tokenList.map((entry) => entry.address as Address);
   }
 
   async detectTokens(
@@ -150,10 +136,26 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     accountAddress: Address,
     options?: TokenDetectionOptions,
   ): Promise<TokenDetectionResult> {
+    const tokenDetectionEnabled =
+      options?.tokenDetectionEnabled ?? this.#config.tokenDetectionEnabled();
+    const useExternalService =
+      options?.useExternalService ?? this.#config.useExternalService();
+    if (!tokenDetectionEnabled || !useExternalService) {
+      return {
+        chainId,
+        accountId,
+        accountAddress,
+        detectedAssets: [],
+        detectedBalances: [],
+        zeroBalanceAddresses: [],
+        failedAddresses: [],
+        timestamp: Date.now(),
+      };
+    }
     const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
     const timestamp = Date.now();
 
-    const tokensToCheck = this.getTokensToCheck(chainId);
+    const tokensToCheck = await this.getTokensToCheck(chainId);
 
     if (tokensToCheck.length === 0) {
       return {
@@ -219,6 +221,22 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     };
   }
 
+  async #fetchAndCacheTokenList(chainId: ChainId): Promise<TokenListEntry[]> {
+    try {
+      const list = await this.#tokensApiClient.fetchTokenList(chainId);
+      this.#tokenListCache.set(chainId, list);
+      return list;
+    } catch (error) {
+      const cached = this.#tokenListCache.get(chainId);
+      log('Failed to fetch token list; using stale cache', {
+        chainId,
+        cachedCount: cached?.length ?? 0,
+        error,
+      });
+      return cached ?? [];
+    }
+  }
+
   #processBalanceResponses(
     responses: BalanceOfResponse[],
     accumulator: {
@@ -268,7 +286,11 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       );
       detectedAssets.push(asset);
 
-      const decimals = tokenMetadata?.decimals ?? 18;
+      if (tokenMetadata?.decimals === undefined) {
+        continue;
+      }
+
+      const { decimals } = tokenMetadata;
       const formattedBalance = this.#formatBalance(balance, decimals);
 
       detectedBalances.push({
@@ -314,29 +336,15 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     chainId: ChainId,
     tokenAddress: Address,
   ): TokenListEntry | undefined {
-    const tokenListState = this.#messenger.call('TokenListController:getState');
-    if (!tokenListState?.tokensChainsCache) {
-      return undefined;
-    }
-
-    const chainCacheEntry = tokenListState.tokensChainsCache[chainId];
-    const chainTokenList = chainCacheEntry?.data;
-    if (!chainTokenList) {
-      return undefined;
-    }
-
-    if (chainTokenList[tokenAddress]) {
-      return chainTokenList[tokenAddress];
-    }
-
+    const list = this.#tokenListCache.get(chainId) ?? [];
     const lowerAddress = tokenAddress.toLowerCase();
-    for (const [address, metadata] of Object.entries(chainTokenList)) {
-      if (address.toLowerCase() === lowerAddress) {
-        return metadata;
-      }
+
+    const exact = list.find((entry) => entry.address === tokenAddress);
+    if (exact) {
+      return exact;
     }
 
-    return undefined;
+    return list.find((entry) => entry.address.toLowerCase() === lowerAddress);
   }
 
   #createAsset(

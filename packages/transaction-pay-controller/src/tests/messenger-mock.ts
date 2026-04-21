@@ -2,7 +2,10 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type { BridgeStatusControllerGetStateAction } from '@metamask/bridge-status-controller';
+import type {
+  BridgeStatusControllerGetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+} from '@metamask/bridge-status-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -23,11 +26,10 @@ import type {
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
 import type { TransactionPayControllerMessenger } from '..';
-import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
-} from '../types';
+} from '../TransactionPayController-method-action-types';
 import type { TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
@@ -126,6 +128,8 @@ export function getMessengerMock({
   const estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
   > = jest.fn();
+
+  const getAssetsControllerStateMock = jest.fn();
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -241,12 +245,18 @@ export function getMessengerMock({
       'TransactionController:estimateGasBatch',
       estimateGasBatchMock,
     );
+
+    messenger.registerActionHandler(
+      'AssetsController:getStateForTransactionPay',
+      getAssetsControllerStateMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
     addTransactionMock,
+    getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,

@@ -1,5 +1,7 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
+import { NetworkClientType } from '../../src/types';
 import type { ProviderType } from './helpers';
 import {
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
@@ -7,8 +9,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodAssumingNoBlockParamOptions = {
   providerType: ProviderType;
@@ -121,7 +121,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
             pollingInterval,
           }),
         },
-        async ({ blockTracker, makeRpcCall, clock }) => {
+        async ({ blockTracker, makeRpcCall }) => {
           const waitForTwoBlocks = new Promise<void>((resolve) => {
             let numberOfBlocks = 0;
 
@@ -137,7 +137,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           await waitForTwoBlocks;
           const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
@@ -236,7 +236,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           const firstResult = await resultPromises[0];
           // The inflight cache middleware uses setTimeout to run the handlers,
           // so run them now
-          client.clock.runAll();
+          jest.runAllTimers();
           const remainingResults = await Promise.all(resultPromises.slice(1));
           return [firstResult, ...remainingResults];
         },
@@ -426,10 +426,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
           });
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -457,10 +456,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
           comms.mockNextBlockTrackerRequest();
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -526,10 +524,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -553,10 +550,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
           });
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );

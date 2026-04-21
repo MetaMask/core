@@ -7,6 +7,193 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.2.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Fixed
+
+- `TransakService.verifyUserOtp` no longer retries on failure, preventing single-use OTP attempts from being silently consumed when consumers configure a non-zero `maxRetries` in `policyOptions` ([#8468](https://github.com/MetaMask/core/pull/8468))
+
+## [13.1.0]
+
+### Added
+
+- Add optional provider fiat/payment buy limits to `Provider` so consumers can validate quote amounts before requesting quotes ([#8405](https://github.com/MetaMask/core/pull/8405))
+
+## [13.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- **BREAKING:** Removed controller-side data fetching (`fireAndForget`) from `setSelectedToken`, `setSelectedProvider`, and `setUserRegion`; ramp data fetching is now fully driven by the client ([#8354](https://github.com/MetaMask/core/pull/8354))
+  - Client migration: trigger `getTokens`, `getProviders`, and `getPaymentMethods` from the client layer (for example, React Query hooks/effects) when region/provider/token changes.
+  - `setSelectedProvider`/`setSelectedToken`/`setUserRegion` now focus on selection/state updates and no longer implicitly fetch dependent resources.
+- `setSelectedProvider` and `setSelectedPaymentMethod` accept a full object in addition to an ID string; no longer throw when data is not loaded ([#8354](https://github.com/MetaMask/core/pull/8354))
+
+### Fixed
+
+- `init` no longer overrides a persisted `userRegion` with the geolocation endpoint response ([#8354](https://github.com/MetaMask/core/pull/8354))
+
+## [12.1.0]
+
+### Added
+
+- Add `providerAutoSelected` boolean to `RampsControllerState` to track whether the selected provider was system-guessed (soft selection) or user-chosen ([#8305](https://github.com/MetaMask/core/pull/8305))
+- Add optional `options` parameter to `setSelectedProvider` accepting `{ autoSelected?: boolean }` to control the `providerAutoSelected` flag ([#8305](https://github.com/MetaMask/core/pull/8305))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Stop persisting `providers` and `tokens` state across sessions to prevent stale data when API availability changes ([#8307](https://github.com/MetaMask/core/pull/8307))
+- `RampsService.getOrder` and `getOrderFromCallback` accept provider codes with or without a `/providers/` prefix; API paths use the short provider segment. `RampsController` forwards provider ids from order polling to the service without stripping the prefix. ([#8278](https://github.com/MetaMask/core/pull/8278))
+
+### Fixed
+
+- `addPrecreatedOrder` normalizes `providerCode` (stripping a leading `/providers/` when present) and sets stub `provider.id` to `/providers/{code}` so precreated stubs match the resource id shape used elsewhere for polling. ([#8289](https://github.com/MetaMask/core/pull/8289))
+
+## [12.0.1]
+
+### Added
+
+- Expose all public `RampsController` methods through its messenger ([#8221](https://github.com/MetaMask/core/pull/8221))
+  - The following actions are now available:
+    - `RampsController:executeRequest`
+    - `RampsController:abortRequest`
+    - `RampsController:getRequestState`
+    - `RampsController:setUserRegion`
+    - `RampsController:setSelectedProvider`
+    - `RampsController:init`
+    - `RampsController:getCountries`
+    - `RampsController:getTokens`
+    - `RampsController:getProviders`
+    - `RampsController:getPaymentMethods`
+    - `RampsController:setSelectedPaymentMethod`
+    - `RampsController:addOrder`
+    - `RampsController:removeOrder`
+    - `RampsController:startOrderPolling`
+    - `RampsController:stopOrderPolling`
+    - `RampsController:getBuyWidgetData`
+    - `RampsController:addPrecreatedOrder`
+    - `RampsController:getOrderFromCallback`
+    - `RampsController:transakSetApiKey`
+    - `RampsController:transakSetAccessToken`
+    - `RampsController:transakClearAccessToken`
+    - `RampsController:transakSetAuthenticated`
+    - `RampsController:transakResetState`
+    - `RampsController:transakSendUserOtp`
+    - `RampsController:transakVerifyUserOtp`
+    - `RampsController:transakLogout`
+    - `RampsController:transakGetUserDetails`
+    - `RampsController:transakGetBuyQuote`
+    - `RampsController:transakGetKycRequirement`
+    - `RampsController:transakGetAdditionalRequirements`
+    - `RampsController:transakCreateOrder`
+    - `RampsController:transakGetOrder`
+    - `RampsController:transakGetUserLimits`
+    - `RampsController:transakRequestOtt`
+    - `RampsController:transakGeneratePaymentWidgetUrl`
+    - `RampsController:transakSubmitPurposeOfUsageForm`
+    - `RampsController:transakPatchUser`
+    - `RampsController:transakSubmitSsnDetails`
+    - `RampsController:transakConfirmPayment`
+    - `RampsController:transakGetTranslation`
+    - `RampsController:transakGetIdProofStatus`
+    - `RampsController:transakCancelOrder`
+    - `RampsController:transakCancelAllActiveOrders`
+    - `RampsController:transakGetActiveOrders`
+  - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`)
+
+### Fixed
+
+- Fix `getOrder` wallet handling so API requests and event payloads stay valid and consistent ([#8251](https://github.com/MetaMask/core/pull/8251))
+  - `RampsService.getOrder` no longer sends an empty `wallet` query parameter, avoiding invalid API responses (e.g. 400).
+  - `RampsController.getOrder` persists and returns a healed order (`walletAddress` and `providerOrderId`) so controller state matches the return value and `RampsController:orderStatusChanged` listeners.
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Update state hydration to make `init()` idempotent and remove `hydrateState()` ([#8157](https://github.com/MetaMask/core/pull/8157))
+
+### Removed
+
+- Remove `hydrateState()` — use `init()` as the single entry point for controller hydration
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Replace `getWidgetUrl` with `getBuyWidgetData` (returns `BuyWidget | null`); add `addPrecreatedOrder` for custom-action ramp flows (e.g., PayPal, Robinhood, Coinbase) ([#8100](https://github.com/MetaMask/core/pull/8100))
+
+## [10.2.0]
+
+### Fixed
+
+- `setSelectedProvider` no longer fetches payment methods when the selected token is explicitly not supported by the new provider, preventing empty payment method state with no user feedback ([#8103](https://github.com/MetaMask/core/pull/8103))
+
+## [10.1.0]
+
+### Added
+
+- Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `apiMessage` property to `TransakApiError` to surface human-readable error messages from the Transak API (e.g. OTP rate-limit cooldown) ([#8072](https://github.com/MetaMask/core/pull/8072))
+- Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
+- Add messenger actions for `RampsController:setSelectedToken`, `RampsController:getQuotes`, and `RampsController:getOrder`, register their handlers in `RampsController`, and export the action types from the package index ([#8081](https://github.com/MetaMask/core/pull/8081))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `state.quotes` and `state.widgetUrl` from RampsController state. Quote and widget URL data are now managed by consuming components ([#8013](https://github.com/MetaMask/core/pull/8013))
+- **BREAKING:** Remove `fetchQuotesForSelection()` and `setSelectedQuote()`. Components call `getQuotes()` directly and manage selection locally ([#8013](https://github.com/MetaMask/core/pull/8013))
+- Simplify `getWidgetUrl()` to a pure fetch-and-return API; it no longer reads or writes controller state ([#8013](https://github.com/MetaMask/core/pull/8013))
+- Improve `TransakService` error handling ([#8010](https://github.com/MetaMask/core/pull/8010))
+- **BREAKING:** Replace `startQuotePolling()`/`stopQuotePolling()` with `fetchQuotesForSelection()` — quotes are now fetched once per call instead of polling on a 15-second interval ([#7999](https://github.com/MetaMask/core/pull/7999))
+
+### Removed
+
+- Remove `stopQuotePolling()` method (no interval to stop) ([#7999](https://github.com/MetaMask/core/pull/7999))
+- Remove internal polling restart logic (`#restartPollingIfActive`) from `setSelectedProvider`, `setSelectedToken`, and `setSelectedPaymentMethod` ([#7999](https://github.com/MetaMask/core/pull/7999))
+
+### Fixed
+
+- Fix RampsController flaky test ([#8018](https://github.com/MetaMask/core/pull/8018))
+
+## [9.0.0]
+
+### Added
+
+- Add `getOrder` and `getOrderFromCallback` methods to `RampsService` and `RampsController` for V2 unified order polling, along with new `RampsOrder`, `RampsOrderFiatCurrency`, `RampsOrderCryptoCurrency`, `RampsOrderPaymentMethod`, and `RampsOrderStatus` types ([#7934](https://github.com/MetaMask/core/pull/7934))
+
+### Changed
+
+- **BREAKING:** Use concrete types in `RampsOrder` instead of `string | Object` unions for `provider`, `cryptoCurrency`, `fiatCurrency`, `paymentMethod`, and `network` fields ([#8000](https://github.com/MetaMask/core/pull/8000))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [8.1.0]
+
+### Added
+
+- Add `widgetUrl` resource state that automatically fetches and stores the buy widget URL whenever the selected quote changes ([#7920](https://github.com/MetaMask/core/pull/7920))
+- Add `TransakService` for native Transak deposit flow with OTP auth, KYC, quoting, order lifecycle, and payment widget URL generation ([#7922](https://github.com/MetaMask/core/pull/7922))
+- Add `nativeProviders.transak` state slice and controller convenience methods for driving the Transak native deposit flow ([#7922](https://github.com/MetaMask/core/pull/7922))
+
+### Changed
+
+- Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Quote filter param renamed from `provider` to `providers` array in `getQuotes()` and `RampsService.getQuotes()` ([#7892](https://github.com/MetaMask/core/pull/7892))
+- **BREAKING:** Make `getWidgetUrl()` async to fetch the actual provider widget URL from the `buyURL` endpoint ([#7881](https://github.com/MetaMask/core/pull/7881))
+
 ## [7.1.0]
 
 ### Fixed
@@ -88,7 +275,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove eligibility concept from RampsController. The `eligibility` state, `updateEligibility()` method, and `getEligibility()` service method have been removed. The `Eligibility` type and `RampsServiceGetEligibilityAction` are no longer exported. ([#7651](https://github.com/MetaMask/core/pull/7645))
+- **BREAKING:** Remove eligibility concept from RampsController. The `eligibility` state, `updateEligibility()` method, and `getEligibility()` service method have been removed. The `Eligibility` type and `RampsServiceGetEligibilityAction` are no longer exported. ([#7651](https://github.com/MetaMask/core/pull/7651))
 
 ## [3.0.0]
 
@@ -134,7 +321,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...HEAD
+[13.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...@metamask/ramps-controller@13.2.0
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...@metamask/ramps-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...@metamask/ramps-controller@12.1.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...@metamask/ramps-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.2.0...@metamask/ramps-controller@11.0.0
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.1.0...@metamask/ramps-controller@10.2.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...@metamask/ramps-controller@10.1.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@9.0.0...@metamask/ramps-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.1.0...@metamask/ramps-controller@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.0.0...@metamask/ramps-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...@metamask/ramps-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.0.0...@metamask/ramps-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@6.0.0...@metamask/ramps-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...@metamask/ramps-controller@6.0.0

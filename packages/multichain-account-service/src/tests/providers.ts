@@ -1,15 +1,15 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { BtcScope, EthScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
-import {
-  AccountProviderWrapper,
-  EvmAccountProvider,
-  BaseBip44AccountProvider,
-} from '../providers';
+import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
+import { GroupIndexRange } from '../utils';
 
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
   accounts: Set<KeyringAccount['id']>;
+  capabilities: KeyringCapabilities;
   constructor: jest.Mock;
   alignAccounts: jest.Mock;
   init: jest.Mock;
@@ -31,6 +31,16 @@ export function makeMockAccountProvider(
   return {
     mockAccounts: accounts,
     accounts: new Set(),
+    capabilities: {
+      scopes: [
+        SolScope.Devnet,
+        SolScope.Testnet,
+        BtcScope.Testnet,
+        TrxScope.Shasta,
+        EthScope.Eoa,
+      ],
+      bip44: { deriveIndex: true },
+    },
     constructor: jest.fn(),
     alignAccounts: jest.fn(),
     init: jest.fn(),
@@ -69,7 +79,7 @@ export function setupBip44AccountProvider({
   });
   mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
-  const getAccounts = () =>
+  const getAccounts = (): KeyringAccount[] =>
     mocks.mockAccounts.filter((account) =>
       [...mocks.accounts].includes(account.id),
     );
@@ -83,55 +93,6 @@ export function setupBip44AccountProvider({
       getAccounts().find((account) => account.id === id),
   );
   mocks.createAccounts.mockResolvedValue([]);
-  mocks.alignAccounts.mockImplementation(
-    async ({
-      entropySource,
-      groupIndex,
-    }: {
-      entropySource: EntropySourceId;
-      groupIndex: number;
-    }) => {
-      if (mocks.isDisabled()) {
-        const wrapperAlign = (
-          AccountProviderWrapper.prototype as unknown as {
-            alignAccounts: (
-              this: { isEnabled: boolean },
-              opts: { entropySource: EntropySourceId; groupIndex: number },
-            ) => Promise<string[]>;
-          }
-        ).alignAccounts;
-        const ids = await wrapperAlign.call(
-          { isEnabled: false, isDisabled: () => true },
-          { entropySource, groupIndex },
-        );
-        return ids;
-      }
-      const createdAccounts = await mocks.createAccounts({
-        entropySource,
-        groupIndex,
-      });
-
-      const baseAlign = (
-        BaseBip44AccountProvider.prototype as unknown as {
-          alignAccounts: (
-            this: {
-              createAccounts: (o: {
-                entropySource: EntropySourceId;
-                groupIndex: number;
-              }) => Promise<unknown[]>;
-            },
-            opts: { entropySource: EntropySourceId; groupIndex: number },
-          ) => Promise<string[]>;
-        }
-      ).alignAccounts;
-      const ids = await baseAlign.call(
-        { createAccounts: async () => createdAccounts },
-        { entropySource, groupIndex },
-      );
-
-      return ids;
-    },
-  );
   mocks.init.mockImplementation(
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
       accountIds.forEach((id) => mocks.accounts.add(id));
@@ -177,4 +138,20 @@ export function mockCreateAccountsOnce(
 
     return created;
   });
+}
+
+/**
+ * Helper to convert a group index range to an array of group indices, inclusive of the
+ * start and end indices.
+ *
+ * @param range - The range.
+ * @param range.from - The starting index of the range (inclusive).
+ * @param range.to - The ending index of the range (inclusive).
+ * @returns An array of group indices from `from` to `to`, inclusive.
+ */
+export function toGroupIndexRangeArray({
+  from = 0,
+  to,
+}: GroupIndexRange): number[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
 }

@@ -7,31 +7,20 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import {
+  AiDigestControllerErrorMessage,
   controllerName,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
 } from './ai-digest-constants';
 import type {
   AiDigestControllerState,
-  DigestEntry,
   DigestService,
-  DigestData,
+  MarketInsightsReport,
+  MarketInsightsEntry,
+  MarketOverview,
+  MarketOverviewEntry,
 } from './ai-digest-types';
-
-export type AiDigestControllerFetchDigestAction = {
-  type: `${typeof controllerName}:fetchDigest`;
-  handler: AiDigestController['fetchDigest'];
-};
-
-export type AiDigestControllerClearDigestAction = {
-  type: `${typeof controllerName}:clearDigest`;
-  handler: AiDigestController['clearDigest'];
-};
-
-export type AiDigestControllerClearAllDigestsAction = {
-  type: `${typeof controllerName}:clearAllDigests`;
-  handler: AiDigestController['clearAllDigests'];
-};
+import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types';
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -39,10 +28,8 @@ export type AiDigestControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type AiDigestControllerActions =
-  | AiDigestControllerFetchDigestAction
-  | AiDigestControllerClearDigestAction
-  | AiDigestControllerClearAllDigestsAction
-  | AiDigestControllerGetStateAction;
+  | AiDigestControllerGetStateAction
+  | AiDigestControllerMethodActions;
 
 export type AiDigestControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -65,18 +52,30 @@ export type AiDigestControllerOptions = {
 
 export function getDefaultAiDigestControllerState(): AiDigestControllerState {
   return {
-    digests: {},
+    marketInsights: {},
+    marketOverview: null,
   };
 }
 
 const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
-  digests: {
+  marketInsights: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  marketOverview: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchMarketInsights',
+  'fetchMarketOverview',
+] as const;
 
 export class AiDigestController extends BaseController<
   typeof controllerName,
@@ -97,71 +96,110 @@ export class AiDigestController extends BaseController<
     });
 
     this.#digestService = digestService;
-    this.#registerMessageHandlers();
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchDigest`,
-      this.fetchDigest.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:clearDigest`,
-      this.clearDigest.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:clearAllDigests`,
-      this.clearAllDigests.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
-  async fetchDigest(assetId: string): Promise<DigestData> {
-    const existingDigest = this.state.digests[assetId];
-    if (existingDigest) {
-      const age = Date.now() - existingDigest.fetchedAt;
+  /**
+   * Fetches market insights for a given asset identifier.
+   * Returns cached data if still fresh, otherwise calls the service.
+   *
+   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
+   * market symbol (e.g. `ETH`). The service handles choosing the correct API
+   * query parameter automatically.
+   *
+   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
+   * @returns The market insights report, or `null` if none exists.
+   */
+  async fetchMarketInsights(
+    assetIdentifier: string,
+  ): Promise<MarketInsightsReport | null> {
+    if (!assetIdentifier) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER);
+    }
+
+    const existing = this.state.marketInsights[assetIdentifier];
+    if (existing) {
+      const age = Date.now() - existing.fetchedAt;
       if (age < CACHE_DURATION_MS) {
-        return existingDigest.data;
+        return existing.data;
       }
     }
 
-    const data = await this.#digestService.fetchDigest(assetId);
+    const data = await this.#digestService.searchDigest(assetIdentifier);
 
-    const entry: DigestEntry = {
-      asset: assetId,
+    if (data === null) {
+      // No insights available for this asset — clear any stale cache entry
+      this.update((state) => {
+        delete state.marketInsights[assetIdentifier];
+      });
+      return null;
+    }
+
+    const entry: MarketInsightsEntry = {
+      assetIdentifier,
       fetchedAt: Date.now(),
       data,
     };
 
     this.update((state) => {
-      state.digests[assetId] = entry;
-      this.#evictStaleEntries(state);
+      state.marketInsights[assetIdentifier] = entry;
+      this.#evictStaleCachedEntries(state.marketInsights);
     });
 
     return data;
   }
 
-  clearDigest(assetId: string): void {
-    this.update((state) => {
-      delete state.digests[assetId];
-    });
-  }
+  /**
+   * Fetches the market overview report.
+   * Returns cached data if still fresh, otherwise calls the service.
+   *
+   * @returns The market overview report, or `null` if none exists.
+   */
+  async fetchMarketOverview(): Promise<MarketOverview | null> {
+    const existing = this.state.marketOverview;
+    if (existing) {
+      const age = Date.now() - existing.fetchedAt;
+      if (age < CACHE_DURATION_MS) {
+        return existing.data;
+      }
+    }
 
-  clearAllDigests(): void {
+    const data = await this.#digestService.fetchMarketOverview();
+
+    if (data === null) {
+      this.update((state) => {
+        state.marketOverview = null;
+      });
+      return null;
+    }
+
+    const entry: MarketOverviewEntry = {
+      fetchedAt: Date.now(),
+      data,
+    };
+
     this.update((state) => {
-      state.digests = {};
+      state.marketOverview = entry;
     });
+
+    return data;
   }
 
   /**
    * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
    *
-   * @param state - The current controller state to evict entries from.
+   * @param cache - The cache record to evict entries from.
    */
-  #evictStaleEntries(state: AiDigestControllerState): void {
+  #evictStaleCachedEntries<EntryType extends { fetchedAt: number }>(
+    cache: Record<string, EntryType>,
+  ): void {
     const now = Date.now();
-    const entries = Object.entries(state.digests);
+    const entries = Object.entries(cache);
     const keysToDelete: string[] = [];
-    const freshEntries: [string, DigestEntry][] = [];
+    const freshEntries: [string, EntryType][] = [];
 
     for (const [key, entry] of entries) {
       if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
@@ -171,7 +209,6 @@ export class AiDigestController extends BaseController<
       }
     }
 
-    // Evict oldest entries if over max cache size
     if (freshEntries.length > MAX_CACHE_ENTRIES) {
       freshEntries.sort((a, b) => a[1].fetchedAt - b[1].fetchedAt);
       const entriesToRemove = freshEntries.length - MAX_CACHE_ENTRIES;
@@ -181,7 +218,7 @@ export class AiDigestController extends BaseController<
     }
 
     for (const key of keysToDelete) {
-      delete state.digests[key];
+      delete cache[key];
     }
   }
 }

@@ -2,12 +2,6 @@
 import type { Json, JsonRpcId } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 
-import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import type { EmptyContext } from './MiddlewareContext';
-import { MiddlewareContext } from './MiddlewareContext';
-import { isRequest, JsonRpcEngineError, stringify } from './utils';
-import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 import {
   makeNotification,
   makeNotificationMiddleware,
@@ -15,6 +9,12 @@ import {
   makeRequest,
   makeRequestMiddleware,
 } from '../../tests/utils';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import type { EmptyContext } from './MiddlewareContext';
+import { MiddlewareContext } from './MiddlewareContext';
+import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 
 const jsonrpc = '2.0' as const;
 
@@ -694,6 +694,24 @@ describe('JsonRpcEngineV2', () => {
           new TypeError(
             `Cannot assign to read only property 'foo' of object '#<Object>'`,
           ),
+        );
+      });
+
+      it('returns non-frozen objects', async () => {
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            (): { foo: string; baz: { qux: number } } => ({
+              foo: 'bar',
+              baz: { qux: 1 },
+            }),
+          ],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(Object.isFrozen(result)).toBe(false);
+        expect(Object.isFrozen((result as { baz: { qux: number } }).baz)).toBe(
+          false,
         );
       });
     });

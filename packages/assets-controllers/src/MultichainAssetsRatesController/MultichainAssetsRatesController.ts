@@ -17,7 +17,7 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type {
   SnapId,
   AssetConversion,
@@ -34,7 +34,6 @@ import { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
-import { MAP_CAIP_CURRENCIES } from './constant';
 import type {
   CurrencyRateState,
   CurrencyRateStateChange,
@@ -44,6 +43,8 @@ import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
+import { MAP_CAIP_CURRENCIES } from './constant';
+import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types';
 
 /**
  * The name of the MultichainAssetsRatesController.
@@ -76,14 +77,6 @@ export type MultichainAssetsRatesControllerGetStateAction =
     MultichainAssetsRatesControllerState
   >;
 
-/**
- * Action to update the rates of all supported tokens.
- */
-export type MultichainAssetsRatesControllerUpdateRatesAction = {
-  type: `${typeof controllerName}:updateAssetsRates`;
-  handler: MultichainAssetsRatesController['updateAssetsRates'];
-};
-
 type UnifiedAssetConversion = AssetConversion & {
   marketData?: FungibleAssetMarketData;
 };
@@ -114,7 +107,7 @@ export type MultichainAssetsRatesControllerStateChange =
  */
 export type MultichainAssetsRatesControllerActions =
   | MultichainAssetsRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerUpdateRatesAction;
+  | MultichainAssetsRatesControllerMethodActions;
 
 /**
  * Events emitted by MultichainAssetsRatesController.
@@ -126,7 +119,7 @@ export type MultichainAssetsRatesControllerEvents =
  * Actions that this controller is allowed to call.
  */
 export type AllowedActions =
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | AccountsControllerListMultichainAccountsAction
   | GetCurrencyRateState
   | MultichainAssetsControllerGetStateAction
@@ -188,6 +181,11 @@ type SnapRequestArgs<T> = {
   params: T;
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'updateAssetsRates',
+  'fetchHistoricalPricesForAsset',
+] as const;
+
 /**
  * Controller that manages multichain token conversion rates.
  *
@@ -232,6 +230,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     });
 
     this.setIntervalLength(interval);
+
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     // Subscribe to keyring lock/unlock events.
     this.messenger.subscribe('KeyringController:lock', () => {

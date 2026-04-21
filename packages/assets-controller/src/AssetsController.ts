@@ -1,17 +1,24 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
+import { clientControllerSelectors } from '@metamask/client-controller';
+import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
+  SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
   KeyringControllerLockEvent,
@@ -20,11 +27,37 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+} from '@metamask/network-controller';
+import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
-import { parseCaipAssetType } from '@metamask/utils';
+import type {
+  GetPermissions,
+  PermissionControllerStateChange,
+} from '@metamask/permission-controller';
+import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  SnapControllerGetRunnableSnapsAction,
+  SnapControllerHandleRequestAction,
+} from '@metamask/snaps-controllers';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionControllerUnapprovedTransactionAddedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
+import {
+  isCaipChainId,
+  isStrictHexString,
+  parseCaipAssetType,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
@@ -35,21 +68,34 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
+import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
+import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
+import {
+  createParallelBalanceMiddleware,
+  createParallelMiddleware,
+} from './middlewares/ParallelMiddleware';
 import type {
   AccountId,
   AssetPreferences,
+  AssetsControllerStateInternal,
+  AssetsDataSource,
+  AssetsUpdateMode,
   ChainId,
   Caip19AssetId,
   AssetMetadata,
+  FungibleAssetMetadata,
   AssetPrice,
   AssetBalance,
   AccountWithSupportedChains,
@@ -57,13 +103,42 @@ import type {
   DataType,
   DataRequest,
   DataResponse,
+  FetchContext,
+  FetchNextFunction,
   NextFunction,
   Middleware,
   SubscriptionResponse,
   Asset,
-  AssetsControllerStateInternal,
 } from './types';
-import { normalizeAssetId } from './utils';
+import {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+import type {
+  BridgeExchangeRatesFormat,
+  TransactionPayLegacyFormat,
+} from './utils';
+
+// ============================================================================
+// PENDING TOKEN METADATA (UI input format for addCustomAsset)
+// ============================================================================
+
+/**
+ * Metadata format passed from the UI when adding a custom token.
+ * Mirrors the "pendingTokens" shape used by the extension.
+ */
+export type PendingTokenMetadata = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  iconUrl?: string;
+  aggregators?: string[];
+  occurrences?: number;
+  chainId: string;
+  unlisted?: boolean;
+};
 
 // ============================================================================
 // CONTROLLER CONSTANTS
@@ -77,6 +152,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssetsBalance',
   'getAssetMetadata',
   'getAssetsPrice',
+  'getExchangeRatesForBridge',
+  'getStateForTransactionPay',
   'addCustomAsset',
   'removeCustomAsset',
   'getCustomAssets',
@@ -86,6 +163,17 @@ const MESSENGER_EXPOSED_METHODS = [
 
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
+
+// ============================================================================
+// TRACE NAMES — used in Sentry spans (search these strings in Discover)
+// ============================================================================
+const TRACE_FIRST_INIT_FETCH = 'AssetsControllerFirstInitFetch';
+const TRACE_FULL_FETCH = 'AssetsFullFetch';
+const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
+const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
+const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
+const TRACE_SUBSCRIPTION_ERROR = 'AssetsSubscriptionError';
+const TRACE_STATE_SIZE = 'AssetsStateSize';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -103,7 +191,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
  */
 export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   /** Per-account balance data */
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
   /** Price data for assets */
@@ -112,6 +200,8 @@ export type AssetsControllerState = {
   customAssets: { [accountId: string]: Caip19AssetId[] };
   /** UI preferences per asset (e.g. hidden) */
   assetPreferences: { [assetId: string]: AssetPreferences };
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**
@@ -121,11 +211,12 @@ export type AssetsControllerState = {
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
-    assetsMetadata: {},
+    assetsInfo: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
+    selectedCurrency: 'usd',
   };
 }
 
@@ -176,17 +267,43 @@ export type AssetsControllerEvents =
   | AssetsControllerAssetsDetectedEvent;
 
 type AllowedActions =
+  // AssetsController
+  | AccountsControllerGetSelectedAccountAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  // RpcDataSource
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  // RpcDataSource, StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
-  // BackendWebsocketDataSource calls BackendWebSocketService
-  | BackendWebSocketServiceActions;
+  // SnapDataSource
+  | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
+  | GetPermissions
+  // BackendWebsocketDataSource
+  | BackendWebSocketServiceActions
+  // PhishingController
+  | PhishingControllerBulkScanTokensAction;
 
 type AllowedEvents =
+  // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | NetworkEnablementControllerEvents
-  | BackendWebSocketServiceEvents
+  | AccountTreeControllerStateChangeEvent
+  | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | PreferencesControllerStateChangeEvent
+  | TransactionControllerUnapprovedTransactionAddedEvent
+  // RpcDataSource, StakedBalanceDataSource
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent
+  // StakedBalanceDataSource
+  | NetworkEnablementControllerEvents
+  // SnapDataSource
+  | AccountsControllerAccountBalancesUpdatedEvent
+  | PermissionControllerStateChange
+  // BackendWebsocketDataSource
+  | BackendWebSocketServiceEvents;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -206,12 +323,50 @@ export type AssetsControllerOptions = {
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
   /**
+   * Getter for basic functionality (matches the "Basic functionality" setting in the UI).
+   * When it returns true, internet services are on: token/price APIs are used for metadata, price,
+   * and price subscription. When false, only RPC is used (no token/price APIs).
+   * No value is stored; the getter is invoked when needed.
+   * Defaults to () => true when not provided (APIs enabled).
+   */
+  isBasicFunctionality?: () => boolean;
+  /**
+   * Called by the controller with an onChange callback. The consumer subscribes to its own
+   * basic-functionality source (e.g. PreferencesController:stateChange in extension, or a
+   * different mechanism in mobile) and invokes onChange(isBasic) when the value changes.
+   * The controller will then refresh its subscriptions. May return an unsubscribe function
+   * called on controller destroy. Optional; when omitted, basic-functionality changes are not
+   * subscribed to (e.g. host can notify via root messenger or another path).
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: (isBasic: boolean) => void,
+  ) => void | (() => void);
+  /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
    */
   queryApiClient: ApiPlatformClient;
   /** Optional configuration for RpcDataSource. */
   rpcDataSourceConfig?: RpcDataSourceConfig;
+  /**
+   * Optional trace callback. When provided, the controller invokes it with a
+   * trace request when the first init/fetch completes (e.g. after unlock).
+   * Use this to report first init fetch duration to Sentry (e.g. via addBreadcrumb or setMeasurement).
+   */
+  trace?: TraceCallback;
+  /** Optional configuration for AccountsApiDataSource. */
+  accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
+  /** Optional configuration for PriceDataSource. */
+  priceDataSourceConfig?: PriceDataSourceConfig;
+  /** Optional configuration for StakedBalanceDataSource. */
+  stakedBalanceDataSourceConfig?: StakedBalanceDataSourceConfig;
+  /**
+   * Function returning whether onboarding is complete. When false,
+   * RPC and staked balance data sources skip fetch and subscribe
+   * (no on-chain calls until the user has finished onboarding).
+   * Defaults to () => true.
+   */
+  isOnboarded?: () => boolean;
 };
 
 // ============================================================================
@@ -219,7 +374,7 @@ export type AssetsControllerOptions = {
 // ============================================================================
 
 const stateMetadata: StateMetadata<AssetsControllerState> = {
-  assetsMetadata: {
+  assetsInfo: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -249,6 +404,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  selectedCurrency: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 // ============================================================================
@@ -271,11 +432,11 @@ function extractChainId(assetId: Caip19AssetId): ChainId {
 function normalizeResponse(response: DataResponse): DataResponse {
   const normalized: DataResponse = {};
 
-  if (response.assetsMetadata) {
-    normalized.assetsMetadata = {};
-    for (const [assetId, metadata] of Object.entries(response.assetsMetadata)) {
+  if (response.assetsInfo) {
+    normalized.assetsInfo = {};
+    for (const [assetId, metadata] of Object.entries(response.assetsInfo)) {
       const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-      normalized.assetsMetadata[normalizedId] = metadata;
+      normalized.assetsInfo[normalizedId] = metadata;
     }
   }
 
@@ -317,6 +478,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
     normalized.errors = { ...response.errors };
   }
 
+  if (response.updateMode) {
+    normalized.updateMode = response.updateMode;
+  }
+
   return normalized;
 }
 
@@ -340,8 +505,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
  *    based on which chains they support. When active chains change, the controller
  *    dynamically adjusts subscriptions.
  *
- * 4. **Keyring Lifecycle**: Listens to KeyringController unlock/lock events to
- *    start/stop subscriptions when the wallet is unlocked or locked.
+ * 4. **Client + Keyring Lifecycle**: Starts subscriptions only when both the UI is
+ *    open (ClientController) and the wallet is unlocked (KeyringController).
+ *    Stops when either the UI closes or the keyring locks. See client-controller
+ *    README for the combined pattern.
  *
  * ## Architecture
  *
@@ -357,8 +524,100 @@ export class AssetsController extends BaseController<
   /** Whether the controller is enabled */
   readonly #isEnabled: boolean;
 
+  /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
+  readonly #isBasicFunctionality: () => boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
+
+  /** Optional trace callback for first init/fetch measurement (duration). */
+  readonly #trace?: TraceCallback;
+
+  /** Whether we have already reported first init fetch for this session (reset on #stop). */
+  #firstInitFetchReported = false;
+
+  /** Whether we have already reported state size for this session (reset on #stop). */
+  #stateSizeReported = false;
+
+  /**
+   * Fire-and-forget trace helper. Swallows errors so telemetry never breaks the controller.
+   *
+   * @param name - Trace / span name visible in Sentry.
+   * @param data - Key-value pairs attached as span data.
+   * @param tags - Key-value pairs used for Sentry filtering.
+   */
+  #emitTrace(
+    name: string,
+    data: Record<string, number | string | boolean>,
+    tags: Record<string, number | string | boolean> = {
+      controller: 'AssetsController',
+    },
+  ): void {
+    if (!this.#trace) {
+      return;
+    }
+    this.#trace({ name, data, tags }, () => undefined).catch(() => {
+      // Telemetry failure must not break.
+    });
+  }
+
+  /**
+   * Emit a state-size trace once on app start (first state update after unlock).
+   */
+  #emitStateSizeTrace(): void {
+    if (!this.#trace || this.#stateSizeReported) {
+      return;
+    }
+    this.#stateSizeReported = true;
+
+    const {
+      assetsBalance: balances,
+      customAssets,
+      assetsInfo,
+      assetsPrice,
+    } = this.state;
+
+    // Count balance entries and collect unique asset IDs / chain IDs in one pass.
+    let balanceEntries = 0;
+    const uniqueAssets = new Set<string>();
+    const uniqueNetworks = new Set<string>();
+
+    for (const acct of Object.values(balances)) {
+      const assetIds = Object.keys(acct);
+      balanceEntries += assetIds.length;
+      for (const assetId of assetIds) {
+        uniqueAssets.add(assetId);
+        // CAIP-19 format: "eip155:1/slip44:60" — chainId is everything before "/"
+        const slash = assetId.indexOf('/');
+        if (slash > 0) {
+          uniqueNetworks.add(assetId.slice(0, slash));
+        }
+      }
+    }
+
+    let customAssetEntries = 0;
+    for (const ids of Object.values(customAssets)) {
+      if (Array.isArray(ids)) {
+        customAssetEntries += ids.length;
+      }
+    }
+
+    this.#emitTrace(TRACE_STATE_SIZE, {
+      balance_entries: balanceEntries,
+      balance_accounts: Object.keys(balances).length,
+      unique_asset_count: uniqueAssets.size,
+      network_count: uniqueNetworks.size,
+      metadata_entries: Object.keys(assetsInfo).length,
+      price_entries: Object.keys(assetsPrice).length,
+      custom_asset_entries: customAssetEntries,
+    });
+  }
+
+  /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
+  #uiOpen = false;
+
+  /** Whether the keyring is unlocked. Combined with #uiOpen for #updateActive. */
+  #keyringUnlocked = false;
 
   readonly #controllerMutex = new Mutex();
 
@@ -374,16 +633,33 @@ export class AssetsController extends BaseController<
   #enabledChains: Set<ChainId> = new Set();
 
   /**
+   * Snapshot of account IDs that were active when the last subscription/fetch
+   * cycle ran. Used by #handleAccountTreeStateChange to skip redundant
+   * re-subscriptions when the account set hasn't actually changed.
+   */
+  #lastKnownAccountIds: ReadonlySet<string> = new Set();
+
+  /**
    * Get the currently selected accounts from AccountTreeController.
    * This includes all accounts in the same group as the selected account
    * (EVM, Bitcoin, Solana, Tron, etc. that belong to the same logical account group).
    *
    * @returns Array of InternalAccount objects from the selected account group.
    */
-  get #selectedAccounts(): InternalAccount[] {
-    return this.messenger.call(
+  #getSelectedAccounts(): InternalAccount[] {
+    const accounts = this.messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
+    if (accounts.length > 0) {
+      return accounts;
+    }
+    const selectedAccount = this.messenger.call(
+      'AccountsController:getSelectedAccount',
+    );
+    if (selectedAccount) {
+      return [selectedAccount];
+    }
+    return [];
   }
 
   readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
@@ -394,12 +670,16 @@ export class AssetsController extends BaseController<
 
   readonly #rpcDataSource: RpcDataSource;
 
+  readonly #stakedBalanceDataSource: StakedBalanceDataSource;
+
   /**
-   * Subscription balance data sources in assignment priority order (first that supports a chain gets it).
+   * All balance data sources in priority order for chain-claiming and cleanup.
+   * Note: StakedBalanceDataSource is excluded because it provides supplementary
+   * data and should not participate in chain-claiming.
    *
    * @returns The four balance data source instances in priority order.
    */
-  get #subscriptionBalanceDataSources(): [
+  get #allBalanceDataSources(): [
     BackendWebsocketDataSource,
     AccountsApiDataSource,
     SnapDataSource,
@@ -419,13 +699,28 @@ export class AssetsController extends BaseController<
 
   readonly #tokenDataSource: TokenDataSource;
 
+  #unsubscribeBasicFunctionality: (() => void) | null = null;
+
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
   constructor({
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
+    isBasicFunctionality,
+    subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
+    trace,
+    accountsApiDataSourceConfig,
+    priceDataSourceConfig,
+    stakedBalanceDataSourceConfig,
+    isOnboarded,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -438,39 +733,64 @@ export class AssetsController extends BaseController<
     });
 
     this.#isEnabled = isEnabled();
+    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+    this.#trace = trace;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
-    const onActiveChainsUpdated = (
+    this.#onActiveChainsUpdated = (
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
-    ): void =>
-      this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+    ): void => {
+      try {
+        this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+      } catch (error) {
+        log('Failed to handle active chains update', {
+          dataSourceName,
+          error,
+        });
+      }
+    };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...rpcConfig,
+      isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
     });
-    this.#tokenDataSource = new TokenDataSource({
+    this.#stakedBalanceDataSource = new StakedBalanceDataSource({
+      messenger: this.messenger,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      ...stakedBalanceDataSourceConfig,
+    });
+    this.#tokenDataSource = new TokenDataSource(this.messenger, {
       queryApiClient,
+      getNativeAssetIds: (): string[] => {
+        const { nativeAssetIdentifiers } = this.messenger.call(
+          'NetworkEnablementController:getState',
+        );
+        return Object.values(nativeAssetIdentifiers);
+      },
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
+      ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
 
@@ -486,6 +806,18 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+    // Subscriptions start only when both UI is open and keyring unlocked -> #updateActive().
+
+    // Subscribe to basic-functionality changes after construction so a synchronous
+    // onChange during subscribe cannot run before data sources are initialized.
+    if (subscribeToBasicFunctionalityChange) {
+      const unsubscribe = subscribeToBasicFunctionalityChange((isBasic) =>
+        this.handleBasicFunctionalityChange(isBasic),
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
   }
 
   // ============================================================================
@@ -549,7 +881,7 @@ export class AssetsController extends BaseController<
    * @returns The normalized chain reference in decimal format.
    */
   #normalizeChainReference(namespace: string, reference: string): string {
-    if (namespace === 'eip155' && reference.startsWith('0x')) {
+    if (namespace === 'eip155' && isStrictHexString(reference)) {
       // Convert hex to decimal for EIP155 chains
       return parseInt(reference, 16).toString();
     }
@@ -565,6 +897,17 @@ export class AssetsController extends BaseController<
       },
     );
 
+    // Catch the initial tree build. On returning users,
+    // `selectedAccountGroupChange` does NOT fire when the persisted group
+    // is unchanged, and `accountTreeChange` doesn't fire either (init()
+    // rebuilds from persisted accounts without publishing it).
+    // The base-controller `:stateChange` event is guaranteed to fire
+    // when init() calls this.update(). #start() is idempotent so
+    // repeated fires are safe.
+    this.messenger.subscribe('AccountTreeController:stateChange', () => {
+      this.#handleAccountTreeStateChange();
+    });
+
     // Subscribe to network enablement changes (only enabledNetworkMap)
     this.messenger.subscribe(
       'NetworkEnablementController:stateChange',
@@ -575,9 +918,119 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Keyring lifecycle: start when unlocked, stop when locked
-    this.messenger.subscribe('KeyringController:unlock', () => this.#start());
-    this.messenger.subscribe('KeyringController:lock', () => this.#stop());
+    // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
+    this.messenger.subscribe(
+      'ClientController:stateChange',
+      (isUiOpen: boolean) => {
+        this.#uiOpen = isUiOpen;
+        this.#updateActive();
+      },
+      clientControllerSelectors.selectIsUiOpen,
+    );
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#keyringUnlocked = true;
+      this.#updateActive();
+    });
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#keyringUnlocked = false;
+      this.#updateActive();
+    });
+
+    // Subscribe to unapproved transactions - TXs that need confirmation
+    // Ensures that balances for the account making transaction are updated (e.g. for gas estimations)
+    this.messenger.subscribe(
+      'TransactionController:unapprovedTransactionAdded',
+      (transactionMeta: TransactionMeta) => {
+        this.#onUnapprovedTransactionAdded(transactionMeta);
+      },
+    );
+  }
+
+  #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
+    const hexChainId = transactionMeta.chainId;
+    if (!hexChainId) {
+      return;
+    }
+
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
+    if (!fromAddress) {
+      return;
+    }
+
+    const matchedAccount = this.#getSelectedAccounts().find(
+      (account) => account.address.toLowerCase() === fromAddress,
+    );
+    if (!matchedAccount) {
+      return;
+    }
+
+    this.getAssets([matchedAccount], {
+      chainIds: [caipChainId],
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to refresh assets after unapproved transaction added', {
+        error,
+      });
+    });
+  }
+
+  /**
+   * Start or stop asset tracking based on client (UI) open state and keyring
+   * unlock state. Only runs when both UI is open and keyring is unlocked.
+   */
+  #updateActive(): void {
+    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
+    if (shouldRun) {
+      this.#start();
+    } else {
+      this.#stop();
+    }
+  }
+
+  /**
+   * Handle AccountTreeController state changes.
+   * If already running, re-subscribe only when the set of selected accounts
+   * has actually changed (e.g. a snap account was added after initial startup).
+   * This guards against the many tree mutations that don't affect which
+   * accounts are selected — without this check every tree update would
+   * trigger a redundant full re-subscribe + forceUpdate fetch.
+   * If not running yet, delegate to #start() for the normal start flow.
+   */
+  #handleAccountTreeStateChange(): void {
+    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
+    if (!shouldRun) {
+      return;
+    }
+    if (this.#activeSubscriptions.size > 0) {
+      const accounts = this.#getSelectedAccounts();
+      const currentIds = new Set(accounts.map((a) => a.id));
+
+      const accountsChanged =
+        currentIds.size !== this.#lastKnownAccountIds.size ||
+        [...currentIds].some((id) => !this.#lastKnownAccountIds.has(id));
+
+      if (!accountsChanged) {
+        return;
+      }
+
+      log('Account tree changed with new accounts, re-subscribing', {
+        previousCount: this.#lastKnownAccountIds.size,
+        currentCount: currentIds.size,
+      });
+
+      this.#lastKnownAccountIds = currentIds;
+      this.#subscribeAssets();
+      this.#ensureNativeBalancesDefaultZero();
+      this.getAssets(accounts, {
+        chainIds: [...this.#enabledChains],
+        forceUpdate: true,
+      }).catch((error) => {
+        log('Failed to fetch assets after tree change', error);
+      });
+    } else {
+      this.#start();
+    }
   }
 
   #registerActionHandlers(): void {
@@ -604,11 +1057,14 @@ export class AssetsController extends BaseController<
    * @param activeChains - Currently active (supported and available) chain IDs for this source.
    * @param previousChains - Previous chains; used to compute added/removed.
    */
-  handleActiveChainsUpdate(
+  #handleActiveChainsUpdate(
     dataSourceId: string,
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
+    if (!this.#isEnabled) {
+      return;
+    }
     log('Data source active chains changed', {
       dataSourceId,
       chainCount: activeChains.length,
@@ -627,20 +1083,35 @@ export class AssetsController extends BaseController<
     }
 
     // If chains were added and we have selected accounts, do one-time fetch
-    if (addedChains.length > 0 && this.#selectedAccounts.length > 0) {
+    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
       const addedEnabledChains = addedChains.filter((chain) =>
         this.#enabledChains.has(chain),
       );
       if (addedEnabledChains.length > 0) {
         log('Fetching balances for newly added chains', { addedEnabledChains });
-        this.getAssets(this.#selectedAccounts, {
+        this.getAssets(this.#getSelectedAccounts(), {
           chainIds: addedEnabledChains,
           forceUpdate: true,
+          updateMode: 'merge',
         }).catch((error) => {
           log('Failed to fetch balance for added chains', { error });
         });
       }
     }
+  }
+
+  /**
+   * Returns the callback passed to data sources for reporting active chain updates.
+   * Used by tests to simulate a data source reporting chain changes.
+   *
+   * @returns The onActiveChainsUpdated callback.
+   */
+  getOnActiveChainsUpdated(): (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void {
+    return this.#onActiveChainsUpdated;
   }
 
   // ============================================================================
@@ -649,19 +1120,46 @@ export class AssetsController extends BaseController<
 
   /**
    * Execute middlewares with request/response context.
+   * Returns response and exclusive duration per source (sum ≈ wall time).
    *
-   * @param middlewares - Middlewares to execute in order.
+   * @param sources - Data sources or middlewares with getName() and assetsMiddleware (executed in order).
    * @param request - The data request.
    * @param initialResponse - Optional initial response (for enriching existing data).
-   * @returns The final DataResponse after all middlewares have processed.
+   * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
-    middlewares: Middleware[],
+    sources: AssetsDataSource[],
     request: DataRequest,
     initialResponse: DataResponse = {},
-  ): Promise<DataResponse> {
-    const chain = middlewares.reduceRight<NextFunction>(
-      (next, middleware) =>
+  ): Promise<{
+    response: DataResponse;
+    durationByDataSource: Record<string, number>;
+  }> {
+    const names = sources.map((source) => source.getName());
+    const middlewares = sources.map((source) => source.assetsMiddleware);
+    const inclusive: number[] = [];
+    const wrapped = middlewares.map(
+      (middleware, i) =>
+        (async (
+          ctx: FetchContext,
+          next: FetchNextFunction,
+        ): Promise<{
+          request: DataRequest;
+          response: DataResponse;
+          getAssetsState: () => AssetsControllerStateInternal;
+        }> => {
+          const start = performance.now();
+          try {
+            return await middleware(ctx, next);
+          } finally {
+            inclusive[i] = performance.now() - start;
+          }
+        }) as Middleware,
+    );
+
+    const middlewareErrors: string[] = [];
+    const chain = wrapped.reduceRight<NextFunction>(
+      (next, middleware, index) =>
         async (
           ctx,
         ): Promise<{
@@ -672,6 +1170,8 @@ export class AssetsController extends BaseController<
           try {
             return await middleware(ctx, next);
           } catch (error) {
+            const sourceName = names[index] ?? `middleware_${index}`;
+            middlewareErrors.push(sourceName);
             console.error('[AssetsController] Middleware failed:', error);
             return next(ctx);
           }
@@ -684,7 +1184,44 @@ export class AssetsController extends BaseController<
       response: initialResponse,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
     });
-    return result.response;
+
+    const durationByDataSource: Record<string, number> = {};
+    for (let i = 0; i < inclusive.length; i++) {
+      const nextInc = i + 1 < inclusive.length ? (inclusive[i + 1] ?? 0) : 0;
+      const exclusive = Math.max(0, (inclusive[i] ?? 0) - nextInc);
+      const name = names[i];
+      if (name !== undefined) {
+        durationByDataSource[name] = exclusive;
+      }
+    }
+    if (result.durationByDataSource) {
+      for (const [key, ms] of Object.entries(result.durationByDataSource)) {
+        durationByDataSource[key] = ms;
+      }
+    }
+
+    // Emit per-source timing traces for the Assets Health dashboard
+    for (const [sourceName, durationMs] of Object.entries(
+      durationByDataSource,
+    )) {
+      this.#emitTrace(TRACE_DATA_SOURCE_TIMING, {
+        source: sourceName,
+        duration_ms: durationMs,
+        chain_count: request.chainIds.length,
+        account_count: request.accountsWithSupportedChains.length,
+      });
+    }
+
+    // Emit error traces for failed middlewares
+    if (middlewareErrors.length > 0) {
+      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
+        failed_sources: middlewareErrors.join(','),
+        error_count: middlewareErrors.length,
+        chain_count: request.chainIds.length,
+      });
+    }
+
+    return { response: result.response, durationByDataSource };
   }
 
   // ============================================================================
@@ -698,11 +1235,18 @@ export class AssetsController extends BaseController<
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
       dataTypes?: DataType[];
+      assetsForPriceUpdate?: Caip19AssetId[];
+      /** When set to 'merge', fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
+      updateMode?: AssetsUpdateMode;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
     const assetTypes = options?.assetTypes ?? ['fungible'];
     const dataTypes = options?.dataTypes ?? ['balance', 'metadata', 'price'];
+
+    if (accounts.length === 0 || chainIds.length === 0) {
+      return this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    }
 
     // Collect custom assets for all requested accounts
     const customAssets: Caip19AssetId[] = [];
@@ -712,27 +1256,104 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
+      const startTime = performance.now();
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
-      const response = await this.#executeMiddlewares(
-        [
-          this.#accountsApiDataSource.assetsMiddleware,
-          this.#snapDataSource.assetsMiddleware,
-          this.#rpcDataSource.assetsMiddleware,
-          this.#detectionMiddleware.assetsMiddleware,
-          this.#tokenDataSource.assetsMiddleware,
-          this.#priceDataSource.assetsMiddleware,
-        ],
+      // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
+      // Snap and RPC are excluded here due to their latency (snap triggers account
+      // creation, RPC is slow on many chains). Results are committed to state
+      // immediately so the UI can display balances without waiting for them.
+      //
+      // Both the fast and background pipelines use 'merge' mode because neither
+      // alone represents the full set of data sources. Using 'full' in either
+      // would wipe balances from the sources handled by the other pipeline.
+      const fastSources = this.#isBasicFunctionality()
+        ? [
+            createParallelBalanceMiddleware([
+              this.#accountsApiDataSource,
+              this.#stakedBalanceDataSource,
+            ]),
+            this.#detectionMiddleware,
+            createParallelMiddleware([
+              this.#tokenDataSource,
+              this.#priceDataSource,
+            ]),
+          ]
+        : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
+      const { response, durationByDataSource } = await this.#executeMiddlewares(
+        fastSources,
         request,
       );
-      await this.#updateState(response);
+      // The fast pipeline only contains a subset of data sources (AccountsApi +
+      // StakedBalance), so it must always merge to avoid wiping Snap/RPC
+      // balances that the background pipeline hasn't yet replaced.
+      await this.#updateState({ ...response, updateMode: 'merge' });
+
+      // Background pipeline: snap and RPC run in parallel after the fast path
+      // commits to state. Their balances are merged together before detection.
+      // Token + price enrichment matches the pre-split behavior: only when basic
+      // functionality is on (RPC-only mode must not call token/price APIs).
+      const slowSources = this.#isBasicFunctionality()
+        ? [this.#snapDataSource, this.#rpcDataSource]
+        : [this.#rpcDataSource];
+
+      this.#executeMiddlewares(
+        [
+          createParallelBalanceMiddleware(slowSources),
+          this.#detectionMiddleware,
+          ...(this.#isBasicFunctionality()
+            ? [
+                createParallelMiddleware([
+                  this.#tokenDataSource,
+                  this.#priceDataSource,
+                ]),
+              ]
+            : []),
+        ],
+        request,
+      )
+        .then(({ response: slowResponse }) =>
+          this.#updateState({ ...slowResponse, updateMode: 'merge' }),
+        )
+        .catch((error) => log('Background pipeline failed', { error }));
+
+      const durationMs = performance.now() - startTime;
+
+      // Emit trace for every full fetch (Assets Health dashboard)
+      this.#emitTrace(TRACE_FULL_FETCH, {
+        duration_ms: durationMs,
+        chain_count: chainIds.length,
+        account_count: accounts.length,
+        basic_functionality: this.#isBasicFunctionality(),
+        asset_count: response.assetsBalance
+          ? Object.values(response.assetsBalance).reduce(
+              (sum, acct) => sum + Object.keys(acct).length,
+              0,
+            )
+          : 0,
+        price_count: response.assetsPrice
+          ? Object.keys(response.assetsPrice).length
+          : 0,
+        ...durationByDataSource,
+      });
+
+      if (!this.#firstInitFetchReported) {
+        this.#firstInitFetchReported = true;
+        this.#emitTrace(TRACE_FIRST_INIT_FETCH, {
+          duration_ms: durationMs,
+          chain_ids: JSON.stringify(chainIds),
+          ...durationByDataSource,
+        });
+      }
     }
 
-    return this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    return result;
   }
 
   async getAssetsBalance(
@@ -766,7 +1387,7 @@ export class AssetsController extends BaseController<
   }
 
   getAssetMetadata(assetId: Caip19AssetId): AssetMetadata | undefined {
-    return this.state.assetsMetadata[assetId] as AssetMetadata | undefined;
+    return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
   }
 
   async getAssetsPrice(
@@ -797,6 +1418,58 @@ export class AssetsController extends BaseController<
     return result;
   }
 
+  /**
+   * Returns exchange rates in the format expected by the bridge controller
+   * (conversionRates, currencyRates, marketData, currentCurrency) so that
+   * when useAssetsControllerForRates is true the bridge can use a single
+   * action instead of MultichainAssetsRatesController, TokenRatesController,
+   * and CurrencyRateController.
+   *
+   * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+   */
+  getExchangeRatesForBridge(): BridgeExchangeRatesFormat {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatExchangeRatesForBridge({
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+    });
+  }
+
+  /**
+   * Returns state in the legacy format expected by transaction-pay-controller
+   * (TokenBalancesController, AccountTrackerController, TokensController,
+   * TokenRatesController, CurrencyRateController shapes) so that when
+   * useAssetsController is true the transaction-pay-controller can use a
+   * single action instead of five separate getState calls.
+   *
+   * @returns Legacy-compatible state for transaction-pay-controller.
+   */
+  getStateForTransactionPay(): TransactionPayLegacyFormat {
+    const accounts = this.#getSelectedAccounts();
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatStateForTransactionPay({
+      assetsBalance: this.state.assetsBalance,
+      assetsInfo: this.state.assetsInfo,
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+    });
+  }
+
   // ============================================================================
   // CUSTOM ASSETS MANAGEMENT
   // ============================================================================
@@ -806,12 +1479,18 @@ export class AssetsController extends BaseController<
    * Custom assets are included in subscription and fetch operations.
    * Adding a custom asset also unhides it if it was previously hidden.
    *
+   * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
+   * flow), the token metadata is persisted immediately into `assetsInfo` so the
+   * UI can render it without waiting for the next pipeline fetch.
+   *
    * @param accountId - The account ID to add the custom asset for.
    * @param assetId - The CAIP-19 asset ID to add.
+   * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
    */
   async addCustomAsset(
     accountId: AccountId,
     assetId: Caip19AssetId,
+    pendingMetadata?: PendingTokenMetadata,
   ): Promise<void> {
     const normalizedAssetId = normalizeAssetId(assetId);
 
@@ -836,15 +1515,40 @@ export class AssetsController extends BaseController<
           delete state.assetPreferences[normalizedAssetId];
         }
       }
+
+      // Persist metadata from the UI so the token is immediately renderable
+      if (pendingMetadata) {
+        const parsed = parseCaipAssetType(normalizedAssetId);
+        let tokenType: FungibleAssetMetadata['type'] = 'erc20';
+        if (parsed.assetNamespace === 'slip44') {
+          tokenType = 'native';
+        } else if (parsed.assetNamespace === 'spl') {
+          tokenType = 'spl';
+        }
+
+        const assetMetadata: FungibleAssetMetadata = {
+          type: tokenType,
+          symbol: pendingMetadata.symbol,
+          name: pendingMetadata.name,
+          decimals: pendingMetadata.decimals,
+          image: pendingMetadata.iconUrl,
+          aggregators: pendingMetadata.aggregators,
+          occurrences: pendingMetadata.occurrences,
+        };
+
+        (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
+          assetMetadata;
+      }
     });
 
-    // Fetch data for the newly added custom asset
-    const account = this.#selectedAccounts.find((a) => a.id === accountId);
+    // Fetch data for the newly added custom asset (merge to preserve other chains)
+    const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
       await this.getAssets([account], {
         chainIds: [chainId],
         forceUpdate: true,
+        updateMode: 'merge',
       });
     }
   }
@@ -930,6 +1634,46 @@ export class AssetsController extends BaseController<
   }
 
   // ============================================================================
+  // CURRENT CURRENCY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Set the current currency.
+   *
+   * @param selectedCurrency - The ISO 4217 currency code to set.
+   */
+  setSelectedCurrency(selectedCurrency: SupportedCurrency): void {
+    const previousCurrency = this.state.selectedCurrency;
+
+    if (previousCurrency === selectedCurrency) {
+      return;
+    }
+
+    this.update((state) => {
+      state.selectedCurrency = selectedCurrency;
+    });
+
+    log('Current currency changed', {
+      previousCurrency,
+      selectedCurrency,
+    });
+
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
+
+    this.getAssets(this.#getSelectedAccounts(), {
+      forceUpdate: true,
+      dataTypes: ['price'],
+      assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
+        (balances) => Object.keys(balances) as Caip19AssetId[],
+      ),
+    }).catch((error) => {
+      log('Failed to fetch asset prices after current currency change', error);
+    });
+  }
+
+  // ============================================================================
   // SUBSCRIPTIONS
   // ============================================================================
 
@@ -939,25 +1683,21 @@ export class AssetsController extends BaseController<
    *
    * @param accounts - Accounts to subscribe price updates for.
    * @param chainIds - Chain IDs to filter prices for.
-   * @param options - Subscription options.
-   * @param options.updateInterval - Polling interval in ms.
    */
-  subscribeAssetsPrice(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-    options: { updateInterval?: number } = {},
-  ): void {
-    const { updateInterval = this.#defaultUpdateInterval } = options;
+  subscribeAssetsPrice(accounts: InternalAccount[], chainIds: ChainId[]): void {
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
 
+    const request = this.#buildDataRequest(accounts, chainIds, {
+      dataTypes: ['price'],
+    });
     const subscribeReq: SubscriptionRequest = {
-      request: this.#buildDataRequest(accounts, chainIds, {
-        dataTypes: ['price'],
-        updateInterval,
-      }),
+      request,
       subscriptionId: subscriptionKey,
       isUpdate,
       onAssetsUpdate: (response) =>
@@ -999,9 +1739,86 @@ export class AssetsController extends BaseController<
   // STATE MANAGEMENT
   // ============================================================================
 
+  /**
+   * Resolves native asset IDs (CAIP-19) for the given chains by looking them up
+   * in NetworkEnablementController.nativeAssetIdentifiers.
+   * Chains without a registered native identifier are skipped.
+   *
+   * @param chains - The chain IDs to resolve native assets for.
+   * @returns Array of native asset IDs for the chains that have a registered identifier.
+   */
+  #resolveNativeAssetIds(chains: Iterable<ChainId>): Caip19AssetId[] {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const ids: Caip19AssetId[] = [];
+    for (const chainId of chains) {
+      const nativeId = nativeAssetIdentifiers?.[chainId];
+      if (nativeId) {
+        ids.push(nativeId as Caip19AssetId);
+      }
+    }
+    return ids;
+  }
+
+  /**
+   * Returns native asset IDs for all enabled chains.
+   *
+   * @returns Array of native asset IDs, one per enabled chain that has a registered identifier.
+   */
+  #getNativeAssetIdsForEnabledChains(): Caip19AssetId[] {
+    return this.#resolveNativeAssetIds(this.#enabledChains);
+  }
+
+  /**
+   * Returns native asset IDs for the chains that this account supports
+   * (account scopes ∩ enabled chains).
+   *
+   * @param account - The account (scopes determine which chains apply).
+   * @returns Array of native asset IDs, one per supported chain that has a registered identifier.
+   */
+  #getNativeAssetIdsForAccount(account: InternalAccount): Caip19AssetId[] {
+    return this.#resolveNativeAssetIds(
+      this.#getEnabledChainsForAccount(account),
+    );
+  }
+
+  /**
+   * Ensures assetsBalance has a 0 balance for each native token (from
+   * NetworkEnablementController.nativeAssetIdentifiers) for each selected account.
+   * Only adds natives for chains that the account supports (correct accountId ↔ chain mapping).
+   */
+  #ensureNativeBalancesDefaultZero(): void {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      for (const account of accounts) {
+        const accountId = account.id;
+        const nativeAssetIds = this.#getNativeAssetIdsForAccount(account);
+        if (nativeAssetIds.length === 0) {
+          continue;
+        }
+        if (!balances[accountId]) {
+          balances[accountId] = {};
+        }
+        for (const nativeAssetId of nativeAssetIds) {
+          if (!(nativeAssetId in balances[accountId])) {
+            balances[accountId][nativeAssetId] = { amount: '0' };
+          }
+        }
+      }
+    });
+  }
+
   async #updateState(response: DataResponse): Promise<void> {
-    // Normalize asset IDs (checksum EVM addresses) before storing in state
     const normalizedResponse = normalizeResponse(response);
+    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -1023,26 +1840,43 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         // Use type assertions to avoid deep type instantiation issues with Immer Draft types
-        const metadata = state.assetsMetadata as Record<string, AssetMetadata>;
+        const metadata = state.assetsInfo as Record<string, AssetMetadata>;
         const balances = state.assetsBalance as Record<
           string,
           Record<string, AssetBalance>
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsMetadata) {
+        if (normalizedResponse.assetsInfo) {
           for (const [key, value] of Object.entries(
-            normalizedResponse.assetsMetadata,
+            normalizedResponse.assetsInfo,
           )) {
             if (
-              !isEqual(
-                previousState.assetsMetadata[key as Caip19AssetId],
-                value,
-              )
+              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
             ) {
               changedMetadata.push(key);
             }
-            metadata[key] = value;
+
+            const existing = metadata[key] as FungibleAssetMetadata | undefined;
+            const incoming = value as FungibleAssetMetadata;
+
+            // When the API returns no symbol or name for this token, it has no
+            // real knowledge of it (e.g. a user-deployed token not indexed by
+            // the API). Preserve richer metadata already in state (e.g. from
+            // pendingMetadata set by addCustomAsset) so that the correct
+            // decimals/symbol/name/image are not overwritten with empty values.
+            if (existing && !incoming.symbol && !incoming.name) {
+              metadata[key] = {
+                ...existing,
+                ...incoming,
+                symbol: existing.symbol,
+                name: existing.name,
+                decimals: existing.decimals ?? incoming.decimals,
+                image: existing.image ?? incoming.image,
+              };
+            } else {
+              metadata[key] = value;
+            }
           }
         }
 
@@ -1052,21 +1886,55 @@ export class AssetsController extends BaseController<
           )) {
             const previousBalances =
               previousState.assetsBalance[accountId] ?? {};
+            const customAssetIds =
+              (state.customAssets as Record<string, Caip19AssetId[]>)[
+                accountId
+              ] ?? [];
 
-            if (!balances[accountId]) {
-              balances[accountId] = {};
+            // Full: response is authoritative; preserve custom assets not in response.
+            // Merge: response overlays previous balances.
+            // Callers that fetch partial data (e.g. newly added chains) must set updateMode: 'merge'.
+            const effective: Record<string, AssetBalance> =
+              mode === 'merge'
+                ? { ...previousBalances, ...accountBalances }
+                : ((): Record<string, AssetBalance> => {
+                    const next: Record<string, AssetBalance> = {
+                      ...accountBalances,
+                    };
+                    for (const customId of customAssetIds) {
+                      if (!(customId in next)) {
+                        const prev = previousBalances[customId];
+                        next[customId] =
+                          prev ?? ({ amount: '0' } as AssetBalance);
+                      }
+                    }
+                    return next;
+                  })();
+
+            // Ensure native tokens have an entry (0 if missing) for chains this account supports
+            const account = this.#getSelectedAccounts().find(
+              (a) => a.id === accountId,
+            );
+            const nativeAssetIdsForAccount = account
+              ? this.#getNativeAssetIdsForAccount(account)
+              : this.#getNativeAssetIdsForEnabledChains();
+            for (const nativeAssetId of nativeAssetIdsForAccount) {
+              if (!(nativeAssetId in effective)) {
+                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
+              }
             }
 
-            for (const [assetId, balance] of Object.entries(accountBalances)) {
+            for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as { amount: string } | undefined;
-              const balanceData = balance as { amount: string };
-              const newAmount = balanceData.amount;
+              const newAmount = (balance as { amount: string }).amount;
               const oldAmount = previousBalance?.amount;
-
-              // Track if balance actually changed
-              if (oldAmount !== newAmount) {
+              const isNewDefaultNativeZero =
+                oldAmount === undefined &&
+                newAmount === '0' &&
+                nativeAssetIdsForAccount.includes(assetId as Caip19AssetId);
+              if (oldAmount !== newAmount && !isNewDefaultNativeZero) {
                 changedBalances.push({
                   accountId,
                   assetId,
@@ -1075,8 +1943,7 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-
-            Object.assign(balances[accountId], accountBalances);
+            balances[accountId] = effective;
           }
         }
 
@@ -1089,6 +1956,9 @@ export class AssetsController extends BaseController<
           }
         }
       });
+
+      // Emit state size trace (throttled to avoid JSON.stringify on every update)
+      this.#emitStateSizeTrace();
 
       // Calculate changed prices
       const changedPriceAssets: string[] = normalizedResponse.assetsPrice
@@ -1184,7 +2054,7 @@ export class AssetsController extends BaseController<
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
 
-        const metadataRaw = this.state.assetsMetadata[typedAssetId];
+        const metadataRaw = this.state.assetsInfo[typedAssetId];
 
         // Skip assets without metadata
         if (!metadataRaw) {
@@ -1200,6 +2070,11 @@ export class AssetsController extends BaseController<
         }
 
         const assetChainId = extractChainId(typedAssetId);
+
+        // Skip native tokens on Tempo networks
+        if (this.#shouldHideNativeToken(assetChainId, typedAssetId, metadata)) {
+          continue;
+        }
 
         if (!chainIdSet.has(assetChainId)) {
           continue;
@@ -1243,6 +2118,34 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Determines if a native token should be hidden on specific networks.
+   *
+   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:42431").
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:42431/slip44:60").
+   * @param metadata - The asset metadata.
+   * @returns True if the token should be hidden, false otherwise.
+   */
+  #shouldHideNativeToken(
+    chainId: ChainId,
+    assetId: Caip19AssetId,
+    metadata: AssetMetadata,
+  ): boolean {
+    // Check if it's a chain that should skip native tokens
+    if (
+      !CHAIN_IDS_WITH_NO_NATIVE_TOKEN.includes(
+        chainId as (typeof CHAIN_IDS_WITH_NO_NATIVE_TOKEN)[number],
+      )
+    ) {
+      return false;
+    }
+
+    // Check if it's a native token (either by metadata type or assetId format)
+    const isNative = metadata.type === 'native' || assetId.includes('/slip44:');
+
+    return isNative;
+  }
+
+  /**
    * Maps a token standard to its corresponding asset type.
    *
    * @param tokenStandard - The token standard from metadata.
@@ -1271,23 +2174,35 @@ export class AssetsController extends BaseController<
 
   /**
    * Start asset tracking: subscribe to updates and fetch current balances.
-   * Called when app opens, account changes, or keyring unlocks.
+   * Idempotent — returns early if accounts/chains are not yet available or
+   * subscriptions are already active.
    */
   #start(): void {
+    const accounts = this.#getSelectedAccounts();
+    const chainIds = [...this.#enabledChains];
+
+    if (accounts.length === 0 || chainIds.length === 0) {
+      return;
+    }
+
+    if (this.#activeSubscriptions.size > 0) {
+      return;
+    }
+
     log('Starting asset tracking', {
-      selectedAccountCount: this.#selectedAccounts.length,
-      enabledChainCount: this.#enabledChains.size,
+      selectedAccountCount: accounts.length,
+      enabledChainCount: chainIds.length,
     });
 
+    this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
     this.#subscribeAssets();
-    if (this.#selectedAccounts.length > 0) {
-      this.getAssets(this.#selectedAccounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      }).catch((error) => {
-        log('Failed to fetch assets', error);
-      });
-    }
+    this.#ensureNativeBalancesDefaultZero();
+    this.getAssets(accounts, {
+      chainIds,
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to fetch assets', error);
+    });
   }
 
   /**
@@ -1300,19 +2215,26 @@ export class AssetsController extends BaseController<
       hasPriceSubscription: this.#activeSubscriptions.has('ds:PriceDataSource'),
     });
 
+    this.#firstInitFetchReported = false;
+    this.#stateSizeReported = false;
+    this.#lastKnownAccountIds = new Set();
+
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
 
     // Stop balance subscriptions by properly notifying data sources via messenger
-    // This ensures data sources stop their polling timers
-    // Convert to array first to avoid modifying map during iteration
+    // This ensures data sources stop their polling timers.
+    // Use #allBalanceDataSources + staked balance source so we unsubscribe from
+    // every source that may have been subscribed.
+    const allSources = [
+      ...this.#allBalanceDataSources,
+      this.#stakedBalanceDataSource,
+    ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#subscriptionBalanceDataSources.find(
-          (ds) => ds.getName() === sourceId,
-        );
+        const source = allSources.find((ds) => ds.getName() === sourceId);
         if (source) {
           this.#unsubscribeDataSource(source);
         }
@@ -1322,20 +2244,36 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Handle basic functionality toggle change. Call this from the consumer (extension or mobile)
+   * when the user changes the "Basic functionality" setting. Refreshes subscriptions so the
+   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used (true = APIs on,
+   * false = RPC only).
+   *
+   * @param _isBasic - The new value (for call-site clarity; the getter is the source of truth).
+   */
+  handleBasicFunctionalityChange(_isBasic: boolean): void {
+    this.#stop();
+    this.#subscribeAssets();
+  }
+
+  /**
    * Subscribe to asset updates for all selected accounts.
    */
   #subscribeAssets(): void {
-    if (this.#selectedAccounts.length === 0) {
+    const accounts = this.#getSelectedAccounts();
+    const enabledChains = [...this.#enabledChains];
+    if (accounts.length === 0 || enabledChains.length === 0) {
       return;
     }
 
     // Subscribe to balance updates (batched by data source)
-    this.#subscribeAssetsBalance(this.#selectedAccounts, [
-      ...this.#enabledChains,
-    ]);
+    this.#subscribeAssetsBalance(accounts, enabledChains);
+
+    // Subscribe to staked balance updates (separate from regular balance chain-claiming)
+    this.#subscribeStakedBalance(accounts, enabledChains);
 
     // Subscribe to price updates for all assets held by selected accounts
-    this.subscribeAssetsPrice(this.#selectedAccounts, [...this.#enabledChains]);
+    this.subscribeAssetsPrice(accounts, enabledChains);
   }
 
   /**
@@ -1361,8 +2299,12 @@ export class AssetsController extends BaseController<
       new Set(chainIds),
     );
     const remainingChains = new Set(chainToAccounts.keys());
+    // When basic functionality is on, use all balance data sources; when off, RPC only.
+    const balanceDataSources = this.#isBasicFunctionality()
+      ? this.#allBalanceDataSources
+      : [this.#rpcDataSource];
 
-    for (const source of this.#subscriptionBalanceDataSources) {
+    for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
 
@@ -1389,6 +2331,35 @@ export class AssetsController extends BaseController<
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
     }
+  }
+
+  /**
+   * Subscribe to staked balance updates.
+   * Unlike regular balance data sources, the staked balance data source provides
+   * supplementary data and does not participate in chain-claiming.
+   *
+   * @param accounts - Accounts to subscribe staked balance updates for.
+   * @param chainIds - Chain IDs to subscribe for.
+   */
+  #subscribeStakedBalance(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): void {
+    const source = this.#stakedBalanceDataSource;
+    if (!source) {
+      return;
+    }
+    const availableChains = new Set(source.getActiveChainsSync());
+    const assignedChains = chainIds.filter((chainId) =>
+      availableChains.has(chainId),
+    );
+
+    if (assignedChains.length === 0) {
+      this.#unsubscribeDataSource(source);
+      return;
+    }
+
+    this.#subscribeDataSource(source, accounts, assignedChains);
   }
 
   /**
@@ -1454,7 +2425,8 @@ export class AssetsController extends BaseController<
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
-      onAssetsUpdate: (response) => this.handleAssetsUpdate(response, sourceId),
+      onAssetsUpdate: (response, request) =>
+        this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
     };
 
@@ -1463,6 +2435,10 @@ export class AssetsController extends BaseController<
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
       );
+      this.#emitTrace(TRACE_SUBSCRIPTION_ERROR, {
+        source: sourceId,
+        error_message: String(error),
+      });
     });
 
     // Track subscription
@@ -1516,12 +2492,16 @@ export class AssetsController extends BaseController<
     > = {},
   ): DataRequest {
     const chainIdSet = new Set(chainIds);
+    // Force update will pass in additional chains for wildcard account scope
+    // Enables updates for chains that are not selected (e.g. for unapproved transactions)
+    const forceUpdateChains = partial.forceUpdate ? chainIds : undefined;
     const accountsWithSupportedChains: AccountWithSupportedChains[] =
       accounts.map((account) => ({
         account,
-        supportedChains: this.#getEnabledChainsForAccount(account).filter(
-          (chain) => chainIdSet.has(chain),
-        ),
+        supportedChains: this.#getEnabledChainsForAccount(
+          account,
+          forceUpdateChains,
+        ).filter((chain) => chainIdSet.has(chain)),
       }));
     return {
       accountsWithSupportedChains,
@@ -1535,24 +2515,46 @@ export class AssetsController extends BaseController<
    * Returns the intersection of the account's scopes and the enabled chains.
    *
    * @param account - The account to get supported chains for.
+   * @param additionalChains - Optional extra chains to include for wildcard scopes.
    * @returns Array of ChainIds that the account supports and are enabled.
    */
-  #getEnabledChainsForAccount(account: InternalAccount): ChainId[] {
+  #getEnabledChainsForAccount(
+    account: InternalAccount,
+    additionalChains?: ChainId[],
+  ): ChainId[] {
     // Account scopes are CAIP-2 chain IDs like "eip155:1", "solana:mainnet", "bip122:..."
     const scopes = account.scopes ?? [];
     const result: ChainId[] = [];
 
     for (const scope of scopes) {
-      const [namespace, reference] = (scope as string).split(':');
+      const scopeStr = scope as string;
+      if (!isCaipChainId(scopeStr)) {
+        result.push(scope);
+        continue;
+      }
+      const { namespace, reference } = parseCaipChainId(scopeStr);
 
       // Wildcard scope (e.g., "eip155:0" means all enabled chains in that namespace)
       if (reference === '0') {
+        // Add enabled chains
         for (const chain of this.#enabledChains) {
-          if (chain.startsWith(`${namespace}:`)) {
-            result.push(chain);
+          if (isCaipChainId(chain)) {
+            const chainParsed = parseCaipChainId(chain);
+            if (chainParsed.namespace === namespace) {
+              result.push(chain);
+            }
           }
         }
-      } else if (namespace === 'eip155' && reference?.startsWith('0x')) {
+        // Add additional chains
+        for (const chain of additionalChains ?? []) {
+          if (isCaipChainId(chain)) {
+            const chainParsed = parseCaipChainId(chain);
+            if (chainParsed.namespace === namespace) {
+              result.push(chain);
+            }
+          }
+        }
+      } else if (namespace === 'eip155' && isStrictHexString(reference)) {
         // Normalize hex to decimal for EIP155
         result.push(`eip155:${parseInt(reference, 16)}` as ChainId);
       } else {
@@ -1568,12 +2570,14 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   async #handleAccountGroupChanged(): Promise<void> {
-    const accounts = this.#selectedAccounts;
+    const accounts = this.#getSelectedAccounts();
 
     log('Account group changed', {
       accountCount: accounts.length,
       accountIds: accounts.map((a) => a.id),
     });
+
+    this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
 
     // Subscribe and fetch for the new account group
     this.#subscribeAssets();
@@ -1583,6 +2587,8 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
       });
     }
+
+    this.#ensureNativeBalancesDefaultZero();
   }
 
   async #handleEnabledNetworksChanged(
@@ -1621,19 +2627,23 @@ export class AssetsController extends BaseController<
     // Refresh subscriptions for new chain set
     this.#subscribeAssets();
 
-    // Do one-time fetch for newly enabled chains
-    if (addedChains.length > 0 && this.#selectedAccounts.length > 0) {
-      await this.getAssets(this.#selectedAccounts, {
+    // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
+    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
+      await this.getAssets(this.#getSelectedAccounts(), {
         chainIds: addedChains,
         forceUpdate: true,
+        updateMode: 'merge',
       });
     }
+
+    this.#ensureNativeBalancesDefaultZero();
   }
 
   /**
    * Handle assets updated from a data source.
    * Called via the onAssetsUpdate callback passed in SubscriptionRequest when the controller subscribes to a data source.
-   * Enriches the response with token metadata (via middlewares) before updating state.
+   * Runs detection, then (when basic functionality is enabled) token metadata and price enrichment before updating state.
+   * When basic functionality is disabled (RPC-only mode), only detection runs; token and price APIs are not used.
    *
    * @param response - The data response with updated assets
    * @param sourceId - The data source ID reporting the update
@@ -1644,29 +2654,58 @@ export class AssetsController extends BaseController<
     sourceId: string,
     request?: DataRequest,
   ): Promise<void> {
+    const updateStart = performance.now();
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
       hasPrice: Boolean(response.assetsPrice),
     });
 
-    // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
-    // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
-    const enrichedResponse = await this.#executeMiddlewares(
-      [
-        this.#detectionMiddleware.assetsMiddleware,
-        this.#tokenDataSource.assetsMiddleware,
-        this.#priceDataSource.assetsMiddleware,
-      ],
-      request ?? {
-        accountsWithSupportedChains: [],
-        chainIds: [],
-        dataTypes: ['balance', 'metadata', 'price'],
-      },
+    const resolvedRequest: DataRequest = request ?? {
+      accountsWithSupportedChains: [],
+      chainIds: [],
+      dataTypes: ['balance', 'metadata', 'price'],
+    };
+
+    // RPC-only mode (basic functionality off): never run token/price APIs. Strip
+    // those data types so downstream middleware cannot treat them as requested.
+    const pipelineRequest: DataRequest = this.#isBasicFunctionality()
+      ? resolvedRequest
+      : {
+          ...resolvedRequest,
+          dataTypes: resolvedRequest.dataTypes.filter(
+            (dt) => dt !== 'metadata' && dt !== 'price',
+          ),
+        };
+
+    const enrichmentSources: AssetsDataSource[] = [this.#detectionMiddleware];
+    if (this.#isBasicFunctionality()) {
+      enrichmentSources.push(
+        createParallelMiddleware([
+          this.#tokenDataSource,
+          this.#priceDataSource,
+        ]),
+      );
+    }
+
+    const { response: enrichedResponse } = await this.#executeMiddlewares(
+      enrichmentSources,
+      pipelineRequest,
       response,
     );
 
     await this.#updateState(enrichedResponse);
+
+    this.#emitTrace(TRACE_UPDATE_PIPELINE, {
+      source: sourceId,
+      duration_ms: performance.now() - updateStart,
+      has_balance: Boolean(response.assetsBalance),
+      has_price: Boolean(response.assetsPrice),
+      has_metadata: Boolean(enrichedResponse.assetsInfo),
+      balance_account_count: response.assetsBalance
+        ? Object.keys(response.assetsBalance).length
+        : 0,
+    });
   }
 
   // ============================================================================
@@ -1675,7 +2714,7 @@ export class AssetsController extends BaseController<
 
   destroy(): void {
     log('Destroying AssetsController', {
-      dataSourceCount: this.#subscriptionBalanceDataSources.length,
+      dataSourceCount: this.#allBalanceDataSources.length,
       subscriptionCount: this.#activeSubscriptions.size,
     });
 
@@ -1683,23 +2722,28 @@ export class AssetsController extends BaseController<
     this.#backendWebsocketDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
-    if (
-      this.#rpcDataSource &&
-      'destroy' in this.#rpcDataSource &&
-      typeof (this.#rpcDataSource as { destroy: () => void }).destroy ===
-        'function'
-    ) {
-      (this.#rpcDataSource as { destroy: () => void }).destroy();
-    }
+    this.#rpcDataSource?.destroy?.();
+    this.#stakedBalanceDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();
+
+    if (this.#unsubscribeBasicFunctionality) {
+      this.#unsubscribeBasicFunctionality();
+      this.#unsubscribeBasicFunctionality = null;
+    }
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getExchangeRatesForBridge',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getStateForTransactionPay',
+    );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:removeCustomAsset',

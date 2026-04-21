@@ -6,14 +6,13 @@ import type {
 } from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
-import { useFakeTimers } from 'sinon';
 
+import { jestAdvanceTime } from '../../../../tests/helpers';
 import {
   MultichainTrackingHelper,
   MultichainTrackingHelperOptions,
 } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
-import { advanceTime } from '../../../../tests/helpers';
 
 jest.mock(
   '@metamask/eth-query',
@@ -81,7 +80,7 @@ function newMultichainTrackingHelper(
   mockNonceLock: { releaseLock: jest.Mock };
   mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>>;
   mockPendingTransactionTrackers: Record<
-    Hex,
+    NetworkClientId,
     jest.Mocked<PendingTransactionTracker>
   >;
 } {
@@ -179,19 +178,23 @@ function newMultichainTrackingHelper(
     });
 
   const mockPendingTransactionTrackers: Record<
-    Hex,
+    NetworkClientId,
     jest.Mocked<PendingTransactionTracker>
   > = {};
   const mockCreatePendingTransactionTracker = jest
     .fn()
-    .mockImplementation(({ chainId }: { chainId: Hex }) => {
-      const mockPendingTransactionTracker = {
-        start: jest.fn(),
-        stop: jest.fn(),
-      } as unknown as jest.Mocked<PendingTransactionTracker>;
-      mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker;
-      return mockPendingTransactionTracker;
-    });
+    .mockImplementation(
+      ({ networkClientId }: { networkClientId: NetworkClientId }) => {
+        const mockPendingTransactionTracker = {
+          start: jest.fn(),
+          stop: jest.fn(),
+        } as unknown as jest.Mocked<PendingTransactionTracker>;
+
+        mockPendingTransactionTrackers[networkClientId] =
+          mockPendingTransactionTracker;
+        return mockPendingTransactionTracker;
+      },
+    );
 
   const options = {
     isMultichainEnabled: true,
@@ -322,9 +325,7 @@ describe('MultichainTrackingHelper', () => {
 
       expect(options.createPendingTransactionTracker).toHaveBeenCalledTimes(1);
       expect(options.createPendingTransactionTracker).toHaveBeenCalledWith({
-        provider: MOCK_PROVIDERS.mainnet,
         blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
-        chainId: '0x1',
         networkClientId: 'mainnet',
       });
 
@@ -351,10 +352,10 @@ describe('MultichainTrackingHelper', () => {
 
       helper.stopAllTracking();
 
-      expect(mockPendingTransactionTrackers['0x1'].stop).toHaveBeenCalled();
+      expect(mockPendingTransactionTrackers.mainnet.stop).toHaveBeenCalled();
       expect(
         options.removePendingTransactionTrackerListeners,
-      ).toHaveBeenCalledWith(mockPendingTransactionTrackers['0x1']);
+      ).toHaveBeenCalledWith(mockPendingTransactionTrackers.mainnet);
       expect(helper.has('mainnet')).toBe(false);
     });
   });
@@ -473,7 +474,7 @@ describe('MultichainTrackingHelper', () => {
     });
 
     it('should block on attempts to get the lock for the same chainId and key combination', async () => {
-      const clock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
       const { helper } = newMultichainTrackingHelper();
 
       const firstReleaseLockPromise = helper.acquireNonceLockForChainIdKey({
@@ -492,7 +493,7 @@ describe('MultichainTrackingHelper', () => {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
-          await advanceTime({ clock, duration: 100 });
+          await jestAdvanceTime({ duration: 100 });
           resolve(null);
         });
 
@@ -505,7 +506,7 @@ describe('MultichainTrackingHelper', () => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstReleaseLock();
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       secondReleaseLockIfAcquired = await Promise.race([
         secondReleaseLockPromise,
@@ -514,7 +515,7 @@ describe('MultichainTrackingHelper', () => {
 
       expect(secondReleaseLockIfAcquired).toStrictEqual(expect.any(Function));
 
-      clock.restore();
+      jest.useRealTimers();
     });
   });
 

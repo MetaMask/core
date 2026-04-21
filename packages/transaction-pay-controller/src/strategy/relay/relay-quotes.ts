@@ -1,46 +1,65 @@
 /* eslint-disable require-atomic-updates */
 
 import { Interface } from '@ethersproject/abi';
-import { successfulFetch, toHex } from '@metamask/controller-utils';
+import { toHex } from '@metamask/controller-utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE, TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
-import type {
-  BatchTransactionParams,
-  TransactionMeta,
-} from '../../../../transaction-controller/src';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
+  HYPERCORE_USDC_ADDRESS,
+  HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
+  USDC_DECIMALS,
+  STABLECOINS,
 } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   Amount,
   FiatRates,
-  FiatValue,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
-  getEIP7702SupportedChains,
   getFeatureFlags,
-  getGasBuffer,
+  getRelayOriginGasOverhead,
   getSlippage,
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import { calculateGasCost } from '../../utils/gas';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
+import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
+  normalizeTokenAddress,
+  TokenAddressTarget,
 } from '../../utils/token';
+import { isPredictWithdrawTransaction } from '../../utils/transaction';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from './gas-station';
+import { fetchRelayQuote } from './relay-api';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+import type {
+  RelayQuote,
+  RelayQuoteMetamask,
+  RelayQuoteRequest,
+  RelayTransactionStep,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -59,20 +78,105 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests
-      .filter((singleRequest) => singleRequest.targetAmountMinimum !== '0')
+      // Ignore gas fee token requests (which have both target=0 and source=0)
+      // but keep post-quote requests (identified by isPostQuote flag)
+      .filter(
+        (singleRequest) =>
+          singleRequest.targetAmountMinimum !== '0' ||
+          singleRequest.isPostQuote,
+      )
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);
 
     return await Promise.all(
       normalizedRequests.map((singleRequest) =>
-        getSingleQuote(singleRequest, request),
+        getQuoteWithMaxAmountHandling(singleRequest, request),
       ),
     );
   } catch (error) {
     log('Error fetching quotes', { error });
     throw new Error(`Failed to fetch Relay quotes: ${String(error)}`);
+  }
+}
+
+async function getQuoteWithMaxAmountHandling(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const { isMaxAmount } = request;
+
+  if (!isMaxAmount) {
+    return getQuoteWithPostQuoteGasHandling(request, fullRequest);
+  }
+
+  return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
+}
+
+/**
+ * For post-quote flows, fetch an initial quote to compute gas cost in source
+ * token, then re-quote with the source amount reduced by the gas cost.
+ * This ensures Relay reserves enough for the gas fee token payment.
+ *
+ * For non-post-quote flows, just returns a single quote.
+ *
+ * @param request - Quote request.
+ * @param fullRequest - Full request context.
+ * @returns The final quote (phase 2 for post-quote, or phase 1 for normal).
+ */
+async function getQuoteWithPostQuoteGasHandling(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const phase1Quote = await getSingleQuote(request, fullRequest);
+
+  if (!request.isPostQuote || !phase1Quote.fees.isSourceGasFeeToken) {
+    return phase1Quote;
+  }
+
+  const gasCostRaw = phase1Quote.fees.sourceNetwork.max.raw;
+
+  const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
+    .minus(gasCostRaw)
+    .integerValue(BigNumber.ROUND_DOWN);
+
+  log('Subtracting gas from source for post-quote two-call', {
+    originalSourceAmount: request.sourceTokenAmount,
+    gasCostRaw,
+    adjustedSourceAmount: adjustedSourceAmount.toString(10),
+  });
+
+  if (!adjustedSourceAmount.isGreaterThan(0)) {
+    log(
+      'Insufficient balance after gas subtraction for post-quote, using phase 1',
+    );
+    return phase1Quote;
+  }
+
+  try {
+    const phase2Quote = await getSingleQuote(
+      {
+        ...request,
+        sourceTokenAmount: adjustedSourceAmount.toFixed(
+          0,
+          BigNumber.ROUND_DOWN,
+        ),
+      },
+      fullRequest,
+    );
+
+    if (
+      phase1Quote.fees.isSourceGasFeeToken &&
+      !phase2Quote.fees.isSourceGasFeeToken
+    ) {
+      log('Phase 2 lost gas fee token eligibility, falling back to phase 1');
+      return phase1Quote;
+    }
+
+    return phase2Quote;
+  } catch (error) {
+    log('Phase 2 quote failed, falling back to phase 1', { error });
+    return phase1Quote;
   }
 }
 
@@ -111,36 +215,49 @@ async function getSingleQuote(
   );
 
   try {
+    // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
+    // and we show them how much they'll receive after fees.
+    // For regular flows with a target amount, use EXPECTED_OUTPUT.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const useExactInput = isMaxAmount || request.isPostQuote;
+
+    const useExecute =
+      isRelayExecuteEnabled(messenger) &&
+      isEIP7702Chain(messenger, sourceChainId);
+
     const body: RelayQuoteRequest = {
-      amount: isMaxAmount ? sourceTokenAmount : targetAmountMinimum,
+      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
+      ...(useExecute
+        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
+        : {}),
       recipient: from,
       slippageTolerance,
-      tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
-    await processTransactions(transaction, request, body, messenger);
+    // Skip transaction processing for post-quote flows - the original transaction
+    // will be included in the batch separately, not as part of the quote
+    if (!request.isPostQuote) {
+      await processTransactions(transaction, request, body, messenger);
+    } else if (request.refundTo) {
+      // For post-quote flows, honour the caller-specified refund address so that
+      // failed Relay transactions refund to the correct account (e.g. the Predict
+      // Safe proxy) rather than defaulting to the EOA.
+      body.refundTo = request.refundTo;
+    }
 
-    const url = getFeatureFlags(messenger).relayQuoteUrl;
+    log('Request body', body);
 
-    log('Request body', { body, url });
-
-    const response = await successfulFetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    const quote = (await response.json()) as RelayQuote;
-    quote.request = body;
+    const quote = await fetchRelayQuote(messenger, body);
 
     log('Fetched relay quote', quote);
 
-    return normalizeQuote(quote, request, fullRequest);
+    return await normalizeQuote(quote, request, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -247,29 +364,45 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
   };
 
   const isHyperliquidDeposit =
+    !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
       ARBITRUM_USDC_ADDRESS.toLowerCase();
 
-  const isPolygonNativeSource =
-    request.sourceChainId === CHAIN_ID_POLYGON &&
-    request.sourceTokenAddress === getNativeToken(request.sourceChainId);
-
-  if (isPolygonNativeSource) {
-    newRequest.sourceTokenAddress = NATIVE_TOKEN_ADDRESS;
-  }
+  newRequest.sourceTokenAddress = normalizeTokenAddress(
+    newRequest.sourceTokenAddress,
+    newRequest.sourceChainId,
+    TokenAddressTarget.Relay,
+  );
+  newRequest.targetTokenAddress = normalizeTokenAddress(
+    newRequest.targetTokenAddress,
+    newRequest.targetChainId,
+    TokenAddressTarget.Relay,
+  );
 
   if (isHyperliquidDeposit) {
     newRequest.targetChainId = CHAIN_ID_HYPERCORE;
-    newRequest.targetTokenAddress = '0x00000000000000000000000000000000';
+    newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
     newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(2)
+      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
       .toString(10);
 
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
       normalizedRequest: newRequest,
     });
+  }
+
+  // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
+  if (request.isHyperliquidSource) {
+    newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
+    newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
+
+    if (newRequest.sourceTokenAmount) {
+      newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
+        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
+        .toString(10);
+    }
   }
 
   return newRequest;
@@ -299,16 +432,28 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
-  const provider = getFiatValueFromUsd(
-    calculateProviderFee(quote),
-    usdToFiatRate,
-  );
+  const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(quote);
+
+  const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
+  const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
+
+  // Subtract app fee from provider fee since totalImpact.usd already includes it
+  const providerFeeUsd = calculateProviderFee(quote).minus(appFeeUsd);
+  const provider = subsidizedFeeUsd.gt(0)
+    ? { usd: '0', fiat: '0' }
+    : getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
 
   const {
     gasLimits,
+    is7702,
     isGasFeeToken: isSourceGasFeeToken,
     ...sourceNetwork
-  } = await calculateSourceNetworkCost(quote, messenger, request);
+  } = await calculateSourceNetworkCost(
+    quote,
+    messenger,
+    request,
+    fullRequest.transaction,
+  );
 
   const targetNetwork = {
     usd: '0',
@@ -321,14 +466,21 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
-  const targetAmount: Amount = {
-    human: currencyOut.amountFormatted,
-    raw: currencyOut.amount,
-    ...getFiatValueFromUsd(new BigNumber(currencyOut.amountUsd), usdToFiatRate),
-  };
+  const isTargetStablecoin = isStablecoin(
+    request.targetChainId,
+    request.targetTokenAddress,
+  );
 
-  const metamask = {
-    gasLimits,
+  const targetAmountUsd = isTargetStablecoin
+    ? new BigNumber(currencyOut.amountFormatted)
+    : new BigNumber(currencyOut.amountUsd);
+
+  const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
+
+  const metamask: RelayQuoteMetamask = {
+    ...quote.metamask,
+    gasLimits: is7702 ? [gasLimits[0]] : gasLimits,
+    is7702,
   };
 
   return {
@@ -336,6 +488,7 @@ async function normalizeQuote(
     estimatedDuration: details.timeEstimate,
     fees: {
       isSourceGasFeeToken,
+      metaMask: metaMaskFee,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -373,25 +526,6 @@ function calculateDustUsd(quote: RelayQuote, request: QuoteRequest): BigNumber {
 }
 
 /**
- * Converts USD value to fiat value.
- *
- * @param usdValue - USD value.
- * @param usdToFiatRate - USD to fiat rate.
- * @returns Fiat value.
- */
-function getFiatValueFromUsd(
-  usdValue: BigNumber,
-  usdToFiatRate: BigNumber,
-): FiatValue {
-  const fiatValue = usdValue.multipliedBy(usdToFiatRate);
-
-  return {
-    usd: usdValue.toString(10),
-    fiat: fiatValue.toString(10),
-  };
-}
-
-/**
  * Calculates USD to fiat rate.
  *
  * @param messenger - Controller messenger.
@@ -405,7 +539,15 @@ function getFiatRates(
   sourceFiatRate: FiatRates;
   usdToFiatRate: BigNumber;
 } {
-  const { sourceChainId, sourceTokenAddress } = request;
+  // For HyperLiquid source, the normalized chain/token (HyperCore + Perps USDC)
+  // won't have a fiat rate entry. Use Arbitrum USDC instead since Perps USDC
+  // is pegged 1:1.
+  const sourceChainId = request.isHyperliquidSource
+    ? CHAIN_ID_ARBITRUM
+    : request.sourceChainId;
+  const sourceTokenAddress = request.isHyperliquidSource
+    ? ARBITRUM_USDC_ADDRESS
+    : request.sourceTokenAddress;
 
   const finalSourceTokenAddress =
     sourceChainId === CHAIN_ID_POLYGON &&
@@ -433,36 +575,91 @@ function getFiatRates(
 /**
  * Calculates source network cost from a Relay quote.
  *
+ * For post-quote flows (e.g. predictWithdraw), the cost also includes the
+ * original transaction's gas (the user's Polygon USDC.e transfer) in addition
+ * to the Relay deposit transaction gas, by appending the original
+ * transaction's params so that gas estimation and gas-fee-token logic handle
+ * both transactions together.
+ *
+ * When the execute flow is active (indicated by `quote.metamask.isExecute`),
+ * network fees are zeroed because the relayer covers them.
+ *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
  * @param request - Quote request.
+ * @param transaction - Original transaction metadata.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
+  transaction: TransactionMeta,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
     isGasFeeToken?: boolean;
+    is7702: boolean;
   }
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  const allParams = quote.steps
+  if (quote.metamask?.isExecute) {
+    log('Zeroing network fees for execute flow');
+
+    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+    return {
+      estimate: zeroAmount,
+      max: zeroAmount,
+      gasLimits: [],
+      is7702: false,
+    };
+  }
+
+  // HyperLiquid withdrawals are gasless -- the "deposit" step is an HL
+  // sendAsset (off-chain signature), not an on-chain transaction.
+  if (request.isHyperliquidSource) {
+    log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
+
+    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+    return {
+      estimate: zeroAmount,
+      max: zeroAmount,
+      gasLimits: [],
+      is7702: false,
+    };
+  }
+
+  const txSteps = quote.steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const relayParams = txSteps
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
-  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
-
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
-    allParams[0];
+    relayParams[0];
 
-  const { totalGasEstimate, totalGasLimit, gasLimits } =
-    await calculateSourceNetworkGasLimit(allParams, messenger);
+  const isPredictWithdraw =
+    request.isPostQuote && isPredictWithdrawTransaction(transaction);
+
+  const fromOverride = isPredictWithdraw ? request.refundTo : undefined;
+
+  const relayOnlyGas = await calculateSourceNetworkGasLimit(
+    relayParams,
+    messenger,
+    fromOverride,
+  );
+
+  const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
+    request.isPostQuote
+      ? combinePostQuoteGas(relayOnlyGas, transaction)
+      : relayOnlyGas;
 
   log('Gas limit', {
+    is7702,
     totalGasEstimate,
     totalGasLimit,
     gasLimits,
@@ -492,28 +689,26 @@ async function calculateSourceNetworkCost(
     getNativeToken(sourceChainId),
   );
 
-  const result = { estimate, max, gasLimits };
+  const result = { estimate, max, gasLimits, is7702 };
 
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
     return result;
   }
 
-  if (relayDisabledGasStationChains.includes(sourceChainId)) {
+  const gasStationEligibility = getGasStationEligibility(
+    messenger,
+    sourceChainId,
+  );
+
+  if (gasStationEligibility.isDisabledChain) {
     log('Skipping gas station as disabled chain', {
       sourceChainId,
-      disabledChainIds: relayDisabledGasStationChains,
     });
 
     return result;
   }
 
-  const supportedChains = getEIP7702SupportedChains(messenger);
-  const chainSupportsGasStation = supportedChains.some(
-    (supportedChainId) =>
-      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
-  );
-
-  if (!chainSupportsGasStation) {
+  if (!gasStationEligibility.chainSupportsGasStation) {
     log('Skipping gas station as chain does not support EIP-7702', {
       sourceChainId,
     });
@@ -526,59 +721,60 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
-  const gasFeeTokens = await messenger.call(
-    'TransactionController:getGasFeeTokens',
-    {
-      chainId: sourceChainId,
-      data,
-      from,
-      to,
-      value: toHex(value ?? '0'),
-    },
-  );
-
-  log('Source gas fee tokens', { gasFeeTokens });
-
-  const gasFeeToken = gasFeeTokens.find(
-    (singleGasFeeToken) =>
-      singleGasFeeToken.tokenAddress.toLowerCase() ===
-      sourceTokenAddress.toLowerCase(),
-  );
-
-  if (!gasFeeToken) {
-    log('No matching gas fee token found', {
+  if (isPredictWithdraw && request.refundTo) {
+    log('Using proxy address for predict withdraw gas station simulation', {
+      proxyAddress: request.refundTo,
       sourceTokenAddress,
-      gasFeeTokens,
+      totalGasEstimate,
     });
+
+    const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+      firstStepData: {
+        data,
+        to,
+        value,
+      },
+      messenger,
+      request: {
+        from: request.refundTo,
+        sourceChainId,
+        sourceTokenAddress,
+      },
+      totalGasEstimate,
+      totalItemCount: relayParams.length + 1,
+    });
+
+    if (gasFeeTokenCost) {
+      log('Using predict withdraw gas fee token for source network', {
+        gasFeeTokenCost,
+      });
+
+      return {
+        isGasFeeToken: true,
+        estimate: gasFeeTokenCost,
+        max: gasFeeTokenCost,
+        gasLimits,
+        is7702,
+      };
+    }
 
     return result;
   }
 
-  let finalAmount = gasFeeToken.amount;
-
-  if (allParams.length > 1) {
-    const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
-      gasFeeToken.gas,
-      16,
-    );
-
-    const finalAmountValue = gasRate.multipliedBy(totalGasEstimate);
-
-    finalAmount = toHex(finalAmountValue.toFixed(0));
-
-    log('Estimated gas fee token amount for batch', {
-      finalAmount: finalAmountValue.toString(10),
-      gasRate: gasRate.toString(10),
-      totalGasEstimate,
-    });
-  }
-
-  const finalGasFeeToken = { ...gasFeeToken, amount: finalAmount };
-
-  const gasFeeTokenCost = calculateGasFeeTokenCost({
-    chainId: sourceChainId,
-    gasFeeToken: finalGasFeeToken,
+  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+    firstStepData: {
+      data,
+      to,
+      value,
+    },
     messenger,
+    request: {
+      from,
+      sourceChainId,
+      sourceTokenAddress,
+    },
+    totalGasEstimate,
+    totalItemCount: Math.max(relayParams.length, gasLimits.length),
   });
 
   if (!gasFeeTokenCost) {
@@ -594,29 +790,128 @@ async function calculateSourceNetworkCost(
     estimate: gasFeeTokenCost,
     max: gasFeeTokenCost,
     gasLimits,
+    is7702,
   };
 }
 
 /**
- * Calculate the total gas limit for the source network transactions.
+ * Calculate the total gas limit for the source network.
  *
- * @param params - Array of transaction parameters.
+ * @param params - Array of relay transaction parameters.
  * @param messenger - Controller messenger.
- * @returns - Total gas limit.
+ * @param fromOverride - Optional address to use as `from` in gas estimation
+ * instead of the address in the relay params. Used in predict withdraw flows
+ * to estimate with the proxy/Safe address that holds the source token balance.
+ * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
-  params: RelayQuote['steps'][0]['items'][0]['data'][],
+  params: RelayTransactionStep['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
+  fromOverride?: Hex,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
   gasLimits: number[];
+  is7702: boolean;
 }> {
-  if (params.length === 1) {
-    return calculateSourceNetworkGasLimitSingle(params[0], messenger);
+  const transactions = params.map((singleParams) =>
+    toRelayQuoteGasTransaction(singleParams, fromOverride),
+  );
+
+  const relayGasResult = await estimateQuoteGasLimits({
+    fallbackGas: getFeatureFlags(messenger).relayFallbackGas,
+    fallbackOnSimulationFailure: true,
+    messenger,
+    transactions,
+  });
+
+  return {
+    gasLimits: relayGasResult.gasLimits.map((gasLimit) => gasLimit.max),
+    is7702: relayGasResult.is7702,
+    totalGasEstimate: relayGasResult.totalGasEstimate,
+    totalGasLimit: relayGasResult.totalGasLimit,
+  };
+}
+
+function toRelayQuoteGasTransaction(
+  singleParams: RelayTransactionStep['items'][0]['data'],
+  fromOverride?: Hex,
+): QuoteGasTransaction {
+  return {
+    chainId: toHex(singleParams.chainId),
+    data: singleParams.data,
+    from: fromOverride ?? singleParams.from,
+    gas: fromOverride ? undefined : singleParams.gas,
+    to: singleParams.to,
+    value: singleParams.value ?? '0',
+  };
+}
+
+/**
+ * Combine the original transaction's gas with relay gas for post-quote flows.
+ *
+ * Prefers gas from `nestedTransactions` (preserves the caller-provided value)
+ * since TransactionController may re-estimate `txParams.gas` during batch
+ * creation.
+ *
+ * @param relayGas - Gas estimates from relay transactions.
+ * @param relayGas.totalGasEstimate - Estimated gas total.
+ * @param relayGas.totalGasLimit - Maximum gas total.
+ * @param relayGas.gasLimits - Per-transaction gas limits.
+ * @param relayGas.is7702 - Whether the relay gas came from a combined 7702 batch estimate.
+ * @param transaction - Original transaction metadata.
+ * @returns Combined gas estimates including the original transaction.
+ */
+function combinePostQuoteGas(
+  relayGas: {
+    totalGasEstimate: number;
+    totalGasLimit: number;
+    gasLimits: number[];
+    is7702: boolean;
+  },
+  transaction: TransactionMeta,
+): {
+  totalGasEstimate: number;
+  totalGasLimit: number;
+  gasLimits: number[];
+  is7702: boolean;
+} {
+  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
+  const rawGas = nestedGas ?? transaction.txParams.gas;
+  const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
+
+  if (originalTxGas === undefined) {
+    return relayGas;
   }
 
-  return calculateSourceNetworkGasLimitBatch(params, messenger);
+  let { gasLimits } = relayGas;
+
+  if (relayGas.is7702) {
+    // Combined 7702 gas limit — add the original tx gas so the batch
+    // keeps using a single 7702 limit.
+    gasLimits = [gasLimits[0] + originalTxGas];
+  } else {
+    // Multiple individual gas limits — prepend the original tx gas
+    // so the list order matches relay-submit's transaction order.
+    gasLimits = [originalTxGas, ...gasLimits];
+  }
+
+  const totalGasEstimate = relayGas.totalGasEstimate + originalTxGas;
+  const totalGasLimit = relayGas.totalGasLimit + originalTxGas;
+
+  log('Combined original tx gas with relay gas', {
+    originalTxGas,
+    is7702: relayGas.is7702,
+    gasLimits,
+    totalGasLimit,
+  });
+
+  return {
+    totalGasEstimate,
+    totalGasLimit,
+    gasLimits,
+    is7702: relayGas.is7702,
+  };
 }
 
 /**
@@ -653,186 +948,25 @@ function getTransferRecipient(data: Hex): Hex {
     .decodeFunctionData('transfer', data)
     .to.toLowerCase();
 }
+function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
+  const subsidizedFee = quote.fees?.subsidized;
+  const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');
+  const amountFormatted = new BigNumber(subsidizedFee?.amountFormatted ?? '0');
 
-async function calculateSourceNetworkGasLimitSingle(
-  params: RelayQuote['steps'][0]['items'][0]['data'],
-  messenger: TransactionPayControllerMessenger,
-): Promise<{
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-}> {
-  const paramGasLimit = params.gas
-    ? new BigNumber(params.gas).toNumber()
-    : undefined;
-
-  if (paramGasLimit) {
-    log('Using single gas limit from params', { paramGasLimit });
-
-    return {
-      totalGasEstimate: paramGasLimit,
-      totalGasLimit: paramGasLimit,
-      gasLimits: [paramGasLimit],
-    };
+  if (!subsidizedFee || amountUsd.isZero()) {
+    return new BigNumber(0);
   }
 
-  try {
-    const {
-      chainId: chainIdNumber,
-      data,
-      from,
-      to,
-      value: valueString,
-    } = params;
-
-    const chainId = toHex(chainIdNumber);
-    const value = toHex(valueString ?? '0');
-    const gasBuffer = getGasBuffer(messenger, chainId);
-
-    const networkClientId = messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
-
-    const { gas: gasHex, simulationFails } = await messenger.call(
-      'TransactionController:estimateGas',
-      { from, data, to, value },
-      networkClientId,
-    );
-
-    const estimatedGas = new BigNumber(gasHex).toNumber();
-    const bufferedGas = Math.ceil(estimatedGas * gasBuffer);
-
-    if (!simulationFails) {
-      log('Estimated gas limit for single transaction', {
-        chainId,
-        estimatedGas,
-        bufferedGas,
-        gasBuffer,
-      });
-
-      return {
-        totalGasEstimate: bufferedGas,
-        totalGasLimit: bufferedGas,
-        gasLimits: [bufferedGas],
-      };
-    }
-  } catch (error) {
-    log('Failed to estimate gas limit for single transaction', error);
-  }
-
-  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
-
-  log('Using fallback gas for single transaction', { fallbackGas });
-
-  return {
-    totalGasEstimate: fallbackGas.estimate,
-    totalGasLimit: fallbackGas.max,
-    gasLimits: [fallbackGas.max],
-  };
-}
-
-/**
- * Calculate the gas limits for a batch of transactions.
- *
- * @param params - Array of transaction parameters.
- * @param messenger - Controller messenger.
- * @returns - Gas limits.
- */
-async function calculateSourceNetworkGasLimitBatch(
-  params: RelayQuote['steps'][0]['items'][0]['data'][],
-  messenger: TransactionPayControllerMessenger,
-): Promise<{
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-}> {
-  try {
-    const { chainId: chainIdNumber, from } = params[0];
-    const chainId = toHex(chainIdNumber);
-    const gasBuffer = getGasBuffer(messenger, chainId);
-
-    const transactions: BatchTransactionParams[] = params.map(
-      (singleParams) => ({
-        ...singleParams,
-        gas: singleParams.gas ? toHex(singleParams.gas) : undefined,
-        maxFeePerGas: undefined,
-        maxPriorityFeePerGas: undefined,
-        value: toHex(singleParams.value ?? '0'),
-      }),
-    );
-
-    const paramGasLimits = params.map((singleParams) =>
-      singleParams.gas ? new BigNumber(singleParams.gas).toNumber() : undefined,
-    );
-
-    const { totalGasLimit, gasLimits } = await messenger.call(
-      'TransactionController:estimateGasBatch',
-      {
-        chainId,
-        from,
-        transactions,
-      },
-    );
-
-    const bufferedGasLimits = gasLimits.map((limit, index) => {
-      const useBuffer =
-        gasLimits.length === 1 || paramGasLimits[index] !== gasLimits[index];
-
-      const buffer = useBuffer ? gasBuffer : 1;
-
-      return Math.ceil(limit * buffer);
-    });
-
-    const bufferedTotalGasLimit = bufferedGasLimits.reduce(
-      (acc, limit) => acc + limit,
-      0,
-    );
-
-    log('Estimated gas limit for batch', {
-      chainId,
-      totalGasLimit,
-      gasLimits,
-      bufferedTotalGasLimit,
-      bufferedGasLimits,
-      gasBuffer,
-    });
-
-    return {
-      totalGasEstimate: bufferedTotalGasLimit,
-      totalGasLimit: bufferedTotalGasLimit,
-      gasLimits: bufferedGasLimits,
-    };
-  } catch (error) {
-    log('Failed to estimate gas limit for batch', error);
-  }
-
-  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
-
-  const totalGasEstimate = params.reduce((acc, singleParams) => {
-    const gas = singleParams.gas ?? fallbackGas.estimate;
-    return acc + new BigNumber(gas).toNumber();
-  }, 0);
-
-  const gasLimits = params.map((singleParams) => {
-    const gas = singleParams.gas ?? fallbackGas.max;
-    return new BigNumber(gas).toNumber();
-  });
-
-  const totalGasLimit = gasLimits.reduce(
-    (acc, singleGasLimit) => acc + singleGasLimit,
-    0,
+  const isSubsidizedStablecoin = isStablecoin(
+    toHex(subsidizedFee.currency.chainId),
+    subsidizedFee.currency.address,
   );
 
-  log('Using fallback gas for batch', {
-    totalGasEstimate,
-    totalGasLimit,
-    gasLimits,
-  });
+  return isSubsidizedStablecoin ? amountFormatted : amountUsd;
+}
 
-  return {
-    totalGasEstimate,
-    totalGasLimit,
-    gasLimits,
-  };
+function isStablecoin(chainId: string, tokenAddress: string): boolean {
+  return Boolean(
+    STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
+  );
 }
