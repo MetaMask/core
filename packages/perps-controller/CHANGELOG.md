@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `availableToTradeBalance` to perps account state so funded-state checks can distinguish HyperLiquid spot-backed buying power from withdrawable balance ([#0000](https://github.com/MetaMask/core/pull/0000))
+
+### Fixed
+
+- Include spot USDC in HyperLiquid funded-state balance for both one-shot account fetches and live streamed account updates while keeping `availableBalance` mapped to withdrawable funds ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [3.2.0]
 
 ### Added
