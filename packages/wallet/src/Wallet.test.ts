@@ -48,13 +48,12 @@ describe('Wallet', () => {
   let wallet: Wallet;
 
   beforeEach(() => {
-    enableNetConnect();
     // jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(async () => {
     await wallet?.destroy();
-    disableNetConnect();
+    enableNetConnect();
     jest.useRealTimers();
   });
 
