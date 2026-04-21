@@ -54,7 +54,6 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
-  CaipChainId,
   isCaipChainId,
   isStrictHexString,
   parseCaipAssetType,
