@@ -598,11 +598,7 @@ function registerDefaultActionHandlers(
     txHash = '0xsrcTxHash1',
     txMetaId = 'bridgeTxMetaId1',
     status = TransactionStatus.confirmed,
-    provider = {
-      request: jest.fn().mockResolvedValue('0xreceipt1'),
-      sendAsync: jest.fn(),
-      send: jest.fn(),
-    },
+    provider,
     maxPendingHistoryItemAgeMs = DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   }: {
     account?: string;
@@ -610,7 +606,7 @@ function registerDefaultActionHandlers(
     txHash?: string;
     txMetaId?: string;
     status?: TransactionStatus;
-    provider?: Partial<Provider>;
+    provider?: 'undefined' | Partial<Provider>;
     maxPendingHistoryItemAgeMs?: number;
   } = {},
 ) {
@@ -636,6 +632,12 @@ function registerDefaultActionHandlers(
     selectedNetworkClientId: 'networkClientId',
   }));
 
+  const mockProvider = provider ?? {
+    request: jest.fn().mockResolvedValue('0xreceipt1'),
+    sendAsync: jest.fn(),
+    send: jest.fn(),
+  };
+
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     () => ({
@@ -643,13 +645,19 @@ function registerDefaultActionHandlers(
         chainId: numberToHex(srcChainId),
       },
       // @ts-expect-error: Partial mock.
-      provider,
+      provider: provider === 'undefined' ? undefined : mockProvider,
     }),
   );
 
   rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-    // @ts-expect-error: Partial mock.
-    transactions: [{ id: txMetaId, hash: txHash, status }],
+    transactions: [
+      {
+        // @ts-expect-error: this is ok
+        id: txMetaId === 'undefined' ? undefined : txMetaId,
+        hash: txHash,
+        status,
+      },
+    ],
   }));
 
   rootMessenger.registerActionHandler(
@@ -897,17 +905,26 @@ describe('BridgeStatusController constructor', () => {
       txHash: '0xsrcTxHash2',
       providerAction: async () => await Promise.resolve('txReceipt1'),
       expectedHistoryTxMetaId: 'unknownTxMetaId1',
+      expectedStatusFetchCount: 1,
     },
     {
       title: 'tx hash, provider returns no receipt',
       txHash: '0xsrcTxHash2',
       providerAction: async () => await Promise.resolve(),
+      expectedStatusFetchCount: 1,
     },
     {
       title: 'tx hash, provider throws error',
       txHash: '0xsrcTxHash2',
       providerAction: async () =>
         await Promise.reject(new Error('Provider error')),
+      expectedStatusFetchCount: 1,
+    },
+    {
+      title: 'tx hash, no provider',
+      txHash: '0xsrcTxHash2',
+      provider: 'undefined' as const,
+      expectedStatusFetchCount: 1,
     },
     {
       title: 'no tx hash, has txMeta',
@@ -915,6 +932,7 @@ describe('BridgeStatusController constructor', () => {
         id: 'txMetaId2',
         hash: '0xsrcTxHash3',
       },
+      expectedStatusFetchCount: 1,
     },
     {
       title: 'no tx hash, no txMeta',
@@ -928,8 +946,8 @@ describe('BridgeStatusController constructor', () => {
         id: 'solanaTxMetaId1',
       },
       srcChainId: ChainId.SOLANA,
-      expectedHistoryTxMetaId: 'solanaTxMetaId1',
-      txHash: 'solanaTxMetaId1',
+      expectedStatusFetchCount: 1,
+      txHash: 'solanaTxHash',
     },
     {
       title: 'no txHash, no txMeta, provider returns no receipt',
@@ -961,6 +979,8 @@ describe('BridgeStatusController constructor', () => {
       txMeta,
       expectedHistoryTxMetaId,
       srcChainId,
+      provider: providerParam,
+      expectedStatusFetchCount = 0,
     }) => {
       // Setup
       jest.useFakeTimers();
@@ -995,29 +1015,28 @@ describe('BridgeStatusController constructor', () => {
               txHistory: {
                 [historyKey]: {
                   ...txHistoryItem,
-                  attempts: {
-                    counter: MAX_ATTEMPTS + 1,
-                    lastAttemptTime: Date.now() - 1280000 - 1000,
-                  },
+                  attempts: undefined,
                   startTime,
                 },
               },
             },
-            fetchFn: jest
-              .fn()
-              .mockResolvedValueOnce(MockStatusResponse.getPending()),
+            fetchFn: jest.fn().mockResolvedValueOnce(
+              MockStatusResponse.getPending({
+                srcTxHash: txMeta?.hash ?? txHash,
+              }),
+            ),
           },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({ controller, rootMessenger, messenger }) => {
           const stopPollingSpy = jest.spyOn(
             controller,
             'stopPollingByPollingToken',
           );
-          const messengerCallSpy = jest.spyOn(rootMessenger, 'call');
+          const messengerCallSpy = jest.spyOn(messenger, 'call');
 
           registerDefaultActionHandlers(rootMessenger, {
-            provider,
-            txMetaId: txMeta?.id === 'undefined' ? undefined : txMeta?.id,
+            provider: providerParam ?? provider,
+            txMetaId: txMeta?.id,
             txHash: txMeta?.hash,
           });
           controller.startPolling({ bridgeTxMetaId: historyKey });
@@ -1026,32 +1045,92 @@ describe('BridgeStatusController constructor', () => {
             controller.state.txHistory[historyKey].status.status,
           ).toStrictEqual(StatusTypes.PENDING);
 
-          jest.advanceTimersByTime(DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS);
+          jest.advanceTimersByTime(11000);
           await flushPromises();
 
           // Assertions
-          expect(messengerCallSpy.mock.calls).toStrictEqual([]);
-          expect(fetchBridgeTxStatusSpy.mock.calls).toHaveLength(0);
+          expect(fetchBridgeTxStatusSpy.mock.calls).toHaveLength(
+            expectedStatusFetchCount,
+          );
           expect(controller.state.txHistory[historyKey]?.txMetaId).toBe(
             expectedHistoryTxMetaId,
           );
           expect(
             consoleWarnSpy.mock.calls.map((call) => JSON.stringify(call)),
-          ).toStrictEqual(['["Failed to fetch bridge tx status",{}]']);
+          ).toStrictEqual([]);
 
           expect(controller.state.txHistory[historyKey]?.status.status).toBe(
             expectedHistoryTxMetaId ? StatusTypes.PENDING : undefined,
           );
           expect(
             controller.state.txHistory[historyKey]?.attempts?.counter,
-          ).toBe(expectedHistoryTxMetaId ? MAX_ATTEMPTS + 2 : undefined);
+          ).toBeUndefined();
+
+          // Should always stop polling for the tx after 2 days
           expect(stopPollingSpy.mock.calls).toStrictEqual(
             expectedHistoryTxMetaId ? [] : [['test-uuid-1234']],
           );
+
           expect(
             controller.state.txHistory[historyKey]?.status.srcChain.txHash,
           ).toBe(expectedHistoryTxMetaId ? txHash : undefined);
-          expect(provider.request.mock.calls.flat()).toMatchSnapshot();
+
+          expect(provider.request.mock.calls.flat()).toMatchSnapshot(
+            'provider tx receipt calls',
+          );
+
+          expect(
+            messengerCallSpy.mock.calls.find(
+              (call) =>
+                call[1] === UnifiedSwapBridgeEventName.PollingStatusUpdated,
+            ),
+          ).toStrictEqual(
+            expectedHistoryTxMetaId
+              ? undefined
+              : [
+                  'BridgeController:trackUnifiedSwapBridgeEvent',
+                  'Unified SwapBridge Polling Status Updated',
+                  {
+                    account_hardware_type: null,
+                    action_type: 'swapbridge-v1',
+                    actual_time_minutes: 0,
+                    allowance_reset_transaction: undefined,
+                    approval_transaction: undefined,
+                    chain_id_destination: 'eip155:10',
+                    // eslint-disable-next-line jest/no-conditional-expect
+                    chain_id_source: expect.any(String),
+                    custom_slippage: true,
+                    destination_transaction: 'PENDING',
+                    gas_included: false,
+                    gas_included_7702: false,
+                    is_hardware_wallet: false,
+                    location: 'Main View',
+                    polling_status: 'invalid_transaction_hash',
+                    price_impact: 0,
+                    provider: 'lifi_across',
+                    quote_vs_execution_ratio: 0,
+                    quoted_time_minutes: 0.25,
+                    quoted_vs_used_gas_ratio: 0,
+                    retry_attempts: 0,
+                    security_warnings: [],
+                    slippage_limit: 0,
+                    // eslint-disable-next-line jest/no-conditional-expect
+                    source_transaction: expect.any(String),
+                    stx_enabled: false,
+                    swap_type: 'crosschain',
+                    token_address_destination: 'eip155:10/slip44:60',
+                    // eslint-disable-next-line jest/no-conditional-expect
+                    token_address_source: expect.any(String),
+                    token_symbol_destination: 'ETH',
+                    token_symbol_source: 'ETH',
+                    usd_actual_gas: 0,
+                    usd_actual_return: 0,
+                    usd_amount_source: 0,
+                    usd_quoted_gas: 2.5778,
+                    usd_quoted_return: 0,
+                  },
+                ],
+          );
         },
       );
     },
@@ -1169,12 +1248,10 @@ describe('BridgeStatusController', () => {
           }
 
           // Assertions
-          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(
-            MAX_ATTEMPTS + 1,
-          );
+          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(MAX_ATTEMPTS);
           expect(
             controller.state.txHistory.bridgeTxMetaId1?.attempts?.counter,
-          ).toBe(MAX_ATTEMPTS + 1);
+          ).toBe(MAX_ATTEMPTS);
 
           // Verify polling stops after max attempts - even with a long wait, no more calls
           const callCountBeforeExtraTime =
@@ -1187,10 +1264,6 @@ describe('BridgeStatusController', () => {
           controller.stopAllPolling();
           expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
             [
-              [
-                "Failed to fetch bridge tx status",
-                [Error: Persistent error],
-              ],
               [
                 "Failed to fetch bridge tx status",
                 [Error: Persistent error],

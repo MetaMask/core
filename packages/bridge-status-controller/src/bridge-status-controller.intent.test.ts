@@ -1045,9 +1045,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     expect(messenger.call.mock.calls).toMatchInlineSnapshot(`
       [
         [
-          "RemoteFeatureFlagController:getState",
-        ],
-        [
           "AuthenticationController:getBearerToken",
         ],
         [
@@ -1065,6 +1062,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
             "token_address_destination": "eip155:10/slip44:60",
             "token_address_source": "eip155:1/slip44:60",
           },
+        ],
+        [
+          "RemoteFeatureFlagController:getState",
         ],
       ]
     `);

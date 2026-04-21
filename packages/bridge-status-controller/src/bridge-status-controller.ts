@@ -64,7 +64,6 @@ import {
   getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
-  incrementPollingAttempts,
   isHistoryItemTooOld,
   getMatchingHistoryEntryForApprovalTxMeta,
 } from './utils/history';
@@ -617,38 +616,65 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
-   * Handles the failure to fetch the bridge tx status or recognize the transaction hash
-   * We eventually stop polling for the tx if we fail too many times or if the transaction is stale
+   * Handles the failure to fetch the bridge tx status
+   * We eventually stop polling for the tx if we fail too many times
    * Failures (500 errors) can be due to:
    * - The srcTxHash not being available immediately for STX
    * - The srcTxHash being invalid for the chain. This case will never resolve so we stop polling for it to avoid hammering the Bridge API forever.
    *
    * @param bridgeTxMetaId - The txMetaId of the bridge tx
-   * @param pollingStatus - The polling status to track in the metrics event
    */
-  readonly #handleFetchFailure = async (
-    bridgeTxMetaId: string,
-    pollingStatus: PollingStatus,
-  ): Promise<void> => {
-    // Increment the polling attempts counter
-    const newAttempts = incrementPollingAttempts(
-      this.state.txHistory[bridgeTxMetaId],
-    );
+  readonly #handleFetchFailure = (bridgeTxMetaId: string): void => {
+    const { attempts } = this.state.txHistory[bridgeTxMetaId];
+
+    const newAttempts = attempts
+      ? {
+          counter: attempts.counter + 1,
+          lastAttemptTime: Date.now(),
+        }
+      : {
+          counter: 1,
+          lastAttemptTime: Date.now(),
+        };
+
+    // If we've failed too many times, stop polling for the tx
+    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+    if (newAttempts.counter >= MAX_ATTEMPTS && pollingToken) {
+      this.stopPollingByPollingToken(pollingToken);
+      delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+
+      // Track max polling reached event
+      const historyItem = this.state.txHistory[bridgeTxMetaId];
+      if (historyItem && !historyItem.featureId) {
+        // Track polling status updated event
+        this.#trackPollingStatusUpdatedEvent(
+          bridgeTxMetaId,
+          PollingStatus.MaxPollingReached,
+        );
+      }
+    }
+
+    // Update the attempts counter
     this.#updateHistoryItem({
       historyKey: bridgeTxMetaId,
       attempts: newAttempts,
     });
-    // Continue polling every 10s until the max attempts is reached
-    if (newAttempts.counter < MAX_ATTEMPTS) {
+  };
+
+  /**
+   * Checks if the history item should be preserved so its status can be fetched.
+   *
+   * @param bridgeTxMetaId - The txMetaId of the bridge tx
+   */
+  readonly #handleOldHistoryItem = async (
+    bridgeTxMetaId: string,
+  ): Promise<void> => {
+    if (
+      !isHistoryItemTooOld(this.messenger, this.state.txHistory[bridgeTxMetaId])
+    ) {
       return;
     }
-    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-
-    // Track polling status updated event
-    this.#trackPollingStatusUpdatedEvent(bridgeTxMetaId, pollingStatus);
-
-    // After the max attempts, keep polling with exponential backoff
-    // If the historyItem age is less than the configured maxPendingHistoryItemAgeMs flag, wait for a valid srcTxHash
+    // Continue polling on next restart if the history item is valid
     if (
       await shouldWaitForFinalBridgeStatus(
         this.messenger,
@@ -658,16 +684,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    // If we've failed too many times and the srcTxHash is invalid, stop polling for the tx
+    const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+
+    // Track polling status updated event
+    this.#trackPollingStatusUpdatedEvent(
+      bridgeTxMetaId,
+      PollingStatus.InvalidTransactionHash,
+    );
+
+    // If we've failed too many times, stop polling for the tx
     if (pollingToken) {
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
     }
 
-    if (pollingStatus === PollingStatus.InvalidTransactionHash) {
-      // Delete the history item so polling doesn't start over on the next restart
-      this.#deleteHistoryItem(bridgeTxMetaId);
-    }
+    // Delete the history item so polling doesn't start over on the next restart
+    this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
   readonly #fetchBridgeTxStatus = async ({
@@ -687,9 +719,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    // 3. Fetch transcation status
+    // 3. Fetch transaction status
 
-    let pollingStatus = PollingStatus.MaxPollingReached;
     try {
       let status: BridgeHistoryItem['status'];
       let validationFailures: string[] = [];
@@ -716,16 +747,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
         // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
         const srcTxHash = this.#setAndGetSrcTxHash(bridgeTxMetaId);
-
-        // Throw error to increase the polling attempts counter after at least 1
-        // status fetch has been attempted
-        if (
-          historyItem.attempts?.counter &&
-          isHistoryItemTooOld(this.messenger, historyItem)
-        ) {
-          pollingStatus = PollingStatus.InvalidTransactionHash;
-          throw new Error(`History item is too old: ${bridgeTxMetaId}`);
-        }
 
         if (!srcTxHash) {
           return;
@@ -824,7 +845,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
     } catch (error) {
       console.warn('Failed to fetch bridge tx status', error);
-      await this.#handleFetchFailure(bridgeTxMetaId, pollingStatus);
+      this.#handleFetchFailure(bridgeTxMetaId);
+    } finally {
+      await this.#handleOldHistoryItem(bridgeTxMetaId);
     }
   };
 

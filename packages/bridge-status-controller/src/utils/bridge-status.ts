@@ -127,7 +127,7 @@ export const shouldWaitForFinalBridgeStatus = async (
   historyItem: BridgeHistoryItem,
 ): Promise<boolean> => {
   if (isNonEvmChainId(historyItem.quote.srcChainId)) {
-    return true;
+    return false;
   }
 
   // Otherwise check if the tx has been mined on chain

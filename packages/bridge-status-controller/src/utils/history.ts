@@ -214,19 +214,3 @@ export const isHistoryItemTooOld = (
 
   return Date.now() - historyItem.startTime > maxPendingHistoryItemAgeMs;
 };
-
-export const incrementPollingAttempts = (
-  historyItem: BridgeHistoryItem,
-): NonNullable<BridgeHistoryItem['attempts']> => {
-  const { attempts } = historyItem;
-  const newAttempts = attempts
-    ? {
-        counter: attempts.counter + 1,
-        lastAttemptTime: Date.now(),
-      }
-    : {
-        counter: 1,
-        lastAttemptTime: Date.now(),
-      };
-  return newAttempts;
-};
