@@ -1,4 +1,4 @@
-import type { FungibleAssetPrice } from '../types';
+import type { AssetMetadata, FungibleAssetPrice } from '../types';
 import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 
 /**
@@ -30,6 +30,12 @@ const EVM_NETWORK_CONFIGS: Record<string, { nativeCurrency: string }> = {
   '0x1': { nativeCurrency: 'ETH' },
   '0xa': { nativeCurrency: 'ETH' },
 };
+
+const NATIVE_METADATA = {
+  type: 'native',
+  decimals: 18,
+  symbol: 'ETH',
+} as AssetMetadata;
 
 describe('formatExchangeRatesForBridge', () => {
   it('returns empty conversionRates, currencyRates, marketData when assetsPrice is empty', () => {
@@ -108,6 +114,13 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses native currency symbol from networkConfigurationsByChainId', () => {
     const polNativeId = 'eip155:137/slip44:966';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {
+        [polNativeId]: {
+          type: 'native',
+          decimals: 18,
+          symbol: 'POL',
+        } as AssetMetadata,
+      },
       assetsPrice: {
         [polNativeId]: price({ price: 0.5, lastUpdated: 1_700_000_000_000 }),
       },
@@ -130,6 +143,7 @@ describe('formatExchangeRatesForBridge', () => {
   it('includes EVM native asset in marketData and currencyRates', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: { [ethNativeId]: NATIVE_METADATA },
       assetsPrice: {
         [ethNativeId]: price({
           price: 2000,
@@ -168,6 +182,10 @@ describe('formatExchangeRatesForBridge', () => {
     const usdcId = 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
     const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {
+        [ethNativeId]: NATIVE_METADATA,
+        [usdcId]: { type: 'erc20', decimals: 6, symbol: 'USDC' } as AssetMetadata,
+      },
       assetsPrice: {
         [ethNativeId]: price({ price: 2000 }),
         [usdcId]: price({
@@ -264,6 +282,10 @@ describe('formatExchangeRatesForBridge', () => {
     const mainnetNative = 'eip155:1/slip44:60';
     const optimismNative = 'eip155:10/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {
+        [mainnetNative]: NATIVE_METADATA,
+        [optimismNative]: NATIVE_METADATA,
+      },
       assetsPrice: {
         [mainnetNative]: price({ price: 2000 }),
         [optimismNative]: price({ price: 1998 }),
@@ -309,6 +331,7 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses price for currencyRates conversionRate and usdPrice for usdConversionRate when selectedCurrency is not usd', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: { [ethNativeId]: NATIVE_METADATA },
       assetsPrice: {
         [ethNativeId]: price({
           price: 1840,

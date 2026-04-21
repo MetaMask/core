@@ -71,12 +71,13 @@ const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
 function createMockStateForBalanceFetcher(
   accountId: string,
   balances: Record<string, { amount: string }> = {},
+  assetsInfo: Record<string, { type: string }> = {},
 ): StateForBalanceFetcher {
   return {
     assetsBalance: {
       [accountId]: balances,
     },
-    assetsInfo: {},
+    assetsInfo,
   };
 }
 
@@ -202,9 +203,11 @@ describe('BalanceFetcher', () => {
 
   describe('setOnBalanceUpdate', () => {
     it('sets the balance update callback', async () => {
-      const mockState = createMockStateForBalanceFetcher(TEST_ACCOUNT_ID, {
-        [NATIVE_ETH_ASSET_ID]: { amount: '0' },
-      });
+      const mockState = createMockStateForBalanceFetcher(
+        TEST_ACCOUNT_ID,
+        { [NATIVE_ETH_ASSET_ID]: { amount: '0' } },
+        { [NATIVE_ETH_ASSET_ID]: { type: 'native' } },
+      );
 
       await withController(
         { stateForBalanceFetcher: mockState },

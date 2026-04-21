@@ -1127,6 +1127,7 @@ describe('AssetsController', () => {
 
         expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledTimes(1);
         expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledWith({
+          assetsInfo: initialState.assetsInfo,
           assetsPrice: initialState.assetsPrice,
           selectedCurrency: 'eur',
           nativeAssetIdentifiers: expect.objectContaining({
