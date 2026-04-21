@@ -285,13 +285,9 @@ export class RpcDataSource extends AbstractDataSource<
       {
         pollingInterval: balanceInterval,
         isNativeAsset: (assetId: Caip19AssetId): boolean => {
-          try {
-            const { chainId } = parseCaipAssetType(assetId);
-            const nativeId = this.#getNativeAssetForChain(chainId);
-            return nativeId?.toLowerCase() === assetId.toLowerCase();
-          } catch {
-            return false;
-          }
+          const { chainId } = parseCaipAssetType(assetId);
+          const nativeId = this.#getNativeAssetForChain(chainId);
+          return nativeId?.toLowerCase() === assetId.toLowerCase();
         },
       },
     );
