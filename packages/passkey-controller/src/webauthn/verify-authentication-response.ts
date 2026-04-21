@@ -1,15 +1,15 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 import { sha256 } from '@noble/hashes/sha2';
 
+import type { AuthenticatorTransportFuture } from '../types';
+import { concatUint8Arrays } from '../utils/bytes';
+import { base64URLToBytes } from '../utils/encoding';
 import { decodeClientDataJSON } from './decode-client-data-json';
 import { matchExpectedRPID } from './match-expected-rp-id';
 import { parseAuthenticatorData } from './parse-authenticator-data';
 import type { ParsedAuthenticatorData } from './types';
 import type { PasskeyAuthenticationResponse } from './types';
 import { verifySignature } from './verify-signature';
-import type { AuthenticatorTransportFuture } from '../types';
-import { concatUint8Arrays } from '../utils/bytes';
-import { base64URLToBytes } from '../utils/encoding';
 
 export type VerifiedAuthenticationResponse =
   | { verified: false; authenticationInfo?: never }

@@ -2,9 +2,9 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { p256, p384 } from '@noble/curves/nist';
 import { sha256, sha384 } from '@noble/hashes/sha2';
 
-import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
 import { concatUint8Arrays } from '../utils/bytes';
 import { bytesToBase64URL } from '../utils/encoding';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
 
 type COSEPublicKey = Map<number, number | Uint8Array>;
 

@@ -7,8 +7,8 @@ import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 
-import { PasskeyAuthenticationRejectedError } from './errors';
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
+import { PasskeyAuthenticationRejectedError } from './errors';
 import {
   deriveKeyFromAuthenticationResponse,
   deriveKeyFromRegistrationResponse,

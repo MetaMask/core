@@ -21,10 +21,10 @@ The controller follows a two-phase ceremony pattern for both enrollment and auth
 
 The controller supports two key derivation methods, selected automatically during enrollment:
 
-| Strategy | When used | Input key material |
-|---|---|---|
-| **PRF** | Authenticator supports the [WebAuthn PRF extension](https://w3c.github.io/webauthn/#prf-extension) | PRF evaluation output |
-| **userHandle** | PRF is unavailable | Random `userHandle` generated during registration |
+| Strategy       | When used                                                                                          | Input key material                                |
+| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **PRF**        | Authenticator supports the [WebAuthn PRF extension](https://w3c.github.io/webauthn/#prf-extension) | PRF evaluation output                             |
+| **userHandle** | PRF is unavailable                                                                                 | Random `userHandle` generated during registration |
 
 Both strategies feed the input key material through **HKDF-SHA256** with the credential ID as salt and a fixed info string to produce the 32-byte AES-256 wrapping key.
 
@@ -126,14 +126,14 @@ error and rethrows any other thrown value.
 
 ### State
 
-| Property | Type | Description |
-|---|---|---|
+| Property        | Type                    | Description                                                                                   |
+| --------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
 | `passkeyRecord` | `PasskeyRecord \| null` | Enrolled passkey credential data and encrypted vault key. `null` when no passkey is enrolled. |
 
 ### Messenger actions
 
-| Action | Handler |
-|---|---|
+| Action                       | Handler                              |
+| ---------------------------- | ------------------------------------ |
 | `PasskeyController:getState` | Returns the current controller state |
 
 For derived enrollment status outside of components that hold a controller
@@ -142,8 +142,8 @@ reference, use `passkeyControllerSelectors.selectIsPasskeyEnrolled` (see
 
 ### Messenger events
 
-| Event | Payload |
-|---|---|
+| Event                            | Payload                                                      |
+| -------------------------------- | ------------------------------------------------------------ |
 | `PasskeyController:stateChanged` | Emitted when state changes (standard `BaseController` event) |
 
 ## Contributing

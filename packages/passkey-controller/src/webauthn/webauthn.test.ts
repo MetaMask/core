@@ -4,6 +4,7 @@ import { p256 } from '@noble/curves/p256';
 import { p384 } from '@noble/curves/p384';
 import { sha256, sha384 } from '@noble/hashes/sha2';
 
+import { bytesToBase64URL } from '../utils/encoding';
 import { COSEALG, COSEKEYS, COSEKTY, COSECRV } from './constants';
 import type {
   PasskeyRegistrationResponse,
@@ -11,7 +12,6 @@ import type {
 } from './types';
 import { verifyAuthenticationResponse } from './verify-authentication-response';
 import { verifyRegistrationResponse } from './verify-registration-response';
-import { bytesToBase64URL } from '../utils/encoding';
 
 // ---------------------------------------------------------------------------
 // Test Helpers

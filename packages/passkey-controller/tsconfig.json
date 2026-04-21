@@ -11,8 +11,5 @@
       "path": "../messenger"
     }
   ],
-  "include": [
-    "../../types",
-    "./src"
-  ]
+  "include": ["../../types", "./src"]
 }
