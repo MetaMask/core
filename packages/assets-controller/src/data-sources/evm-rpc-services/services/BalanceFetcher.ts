@@ -32,7 +32,7 @@ export type BalanceFetcherConfig = {
   /** Polling interval in ms (default: 30s) */
   pollingInterval?: number;
   /** Determines whether a CAIP-19 asset ID represents a native asset. */
-  isNativeAsset?: (assetId: CaipAssetType) => boolean;
+  isNativeAsset: (assetId: CaipAssetType) => boolean;
 };
 
 /**
@@ -72,23 +72,23 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     Omit<BalanceFetcherConfig, 'pollingInterval' | 'isNativeAsset'>
   >;
 
-  readonly #isNativeAsset: (assetId: string) => boolean;
+  readonly #isNativeAsset: (assetId: CaipAssetType) => boolean;
 
   #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
 
   constructor(
     multicallClient: MulticallClient,
     messenger: BalanceFetcherMessenger,
-    config?: BalanceFetcherConfig,
+    config: BalanceFetcherConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
     this.#messenger = messenger;
     this.#config = {
-      defaultBatchSize: config?.defaultBatchSize ?? 300,
-      defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
+      defaultBatchSize: config.defaultBatchSize ?? 300,
+      defaultTimeoutMs: config.defaultTimeoutMs ?? 30000,
     };
-    this.#isNativeAsset = config?.isNativeAsset ?? (() => false);
+    this.#isNativeAsset = config.isNativeAsset;
 
     // Set the polling interval
     this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);

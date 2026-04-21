@@ -125,7 +125,10 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
   const [options, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { config, stateForBalanceFetcher } = options;
+  const {
+    config = { isNativeAsset: (): boolean => false },
+    stateForBalanceFetcher,
+  } = options;
 
   const mockMulticallClient = createMockMulticallClient();
   const mockMessenger = createMockMessenger(stateForBalanceFetcher);
@@ -171,6 +174,7 @@ describe('BalanceFetcher', () => {
             defaultBatchSize: 100,
             defaultTimeoutMs: 60000,
             pollingInterval: 45000,
+            isNativeAsset: () => false,
           },
         },
         async ({ controller }) => {
@@ -191,7 +195,7 @@ describe('BalanceFetcher', () => {
 
     it('gets polling interval via getIntervalLength', async () => {
       await withController(
-        { config: { pollingInterval: 45000 } },
+        { config: { pollingInterval: 45000, isNativeAsset: () => false } },
         async ({ controller }) => {
           expect(controller.getIntervalLength()).toBe(45000);
         },
@@ -636,7 +640,7 @@ describe('BalanceFetcher', () => {
   describe('batching behavior', () => {
     it('uses custom batch size from options', async () => {
       await withController(
-        { config: { defaultBatchSize: 1 } },
+        { config: { defaultBatchSize: 1, isNativeAsset: () => false } },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -661,7 +665,7 @@ describe('BalanceFetcher', () => {
 
     it('accumulates results across multiple batches', async () => {
       await withController(
-        { config: { defaultBatchSize: 1 } },
+        { config: { defaultBatchSize: 1, isNativeAsset: () => false } },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf
             .mockResolvedValueOnce([
