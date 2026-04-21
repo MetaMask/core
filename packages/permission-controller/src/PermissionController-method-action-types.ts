@@ -6,7 +6,10 @@
 import type { PermissionController } from './PermissionController';
 
 /**
- * Checks whether the given method is an unrestricted method.
+ * Checks whether the given method was declared as unrestricted at
+ * construction time. Methods unknown to the controller return `false` and
+ * would be treated as restricted by callers such as the permission
+ * middleware.
  *
  * @param method - The name of the method to check.
  * @returns Whether the method is unrestricted.
