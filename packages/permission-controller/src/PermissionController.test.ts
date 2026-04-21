@@ -5628,7 +5628,7 @@ describe('PermissionController', () => {
         ),
       ).rejects.toThrow(
         new Error(
-          `Internal request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+          `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
         ),
       );
     });
@@ -6502,7 +6502,7 @@ describe('PermissionController', () => {
       // restricted method returns `undefined`; the JSON-RPC engine wraps it
       // as an internal error response.
       expect(error.message).toBe(
-        `Internal request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+        `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
       );
       expect(error.code).toBe(-32603);
     });

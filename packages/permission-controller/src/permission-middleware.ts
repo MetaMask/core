@@ -111,7 +111,7 @@ export function createPermissionMiddlewareV2({
       'PermissionController:executeRestrictedMethod',
       origin,
       method,
-      params as RestrictedMethodParameters,
+      params,
     );
   };
 }

@@ -2771,9 +2771,11 @@ export class PermissionController<
       params,
     );
 
+    // This is impossible if the restricted method implementation is typed correctly,
+    // but we maintain it for backwards compatibility.
     if (result === undefined) {
       throw new Error(
-        `Internal request for method "${targetName}" as origin "${origin}" returned no result.`,
+        `Request for method "${targetName}" as origin "${origin}" returned no result.`,
       );
     }
 
