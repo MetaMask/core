@@ -98,7 +98,7 @@ export async function estimateGas({
 }): Promise<{
   blockGasLimit: string;
   estimatedGas: string;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   simulationFails: TransactionMeta['simulationFails'];
 }> {
   const request = { ...txParams };
@@ -181,7 +181,7 @@ export async function estimateGas({
   return {
     blockGasLimit,
     estimatedGas,
-    isUpgradeWithDataToSelf: isUpgradeWithData,
+    isUpgradeWithData,
     simulationFails,
   };
 }
@@ -425,18 +425,14 @@ async function getGas(
     return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
-  const {
-    blockGasLimit,
-    estimatedGas,
-    isUpgradeWithDataToSelf,
-    simulationFails,
-  } = await estimateGas({
-    isSimulationEnabled,
-    getSimulationConfig,
-    messenger,
-    networkClientId,
-    txParams: txMeta.txParams,
-  });
+  const { blockGasLimit, estimatedGas, isUpgradeWithData, simulationFails } =
+    await estimateGas({
+      isSimulationEnabled,
+      getSimulationConfig,
+      messenger,
+      networkClientId,
+      txParams: txMeta.txParams,
+    });
 
   log('Original estimated gas', estimatedGas);
 
@@ -455,7 +451,7 @@ async function getGas(
   const bufferMultiplier = getGasEstimateBuffer({
     chainId,
     isCustomRPC: isCustomNetwork,
-    isUpgradeWithDataToSelf,
+    isUpgradeWithData,
     messenger,
   });
 

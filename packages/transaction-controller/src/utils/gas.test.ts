@@ -536,7 +536,7 @@ describe('gas', () => {
         estimatedGas: toHex(GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: undefined,
-        isUpgradeWithDataToSelf: false,
+        isUpgradeWithData: false,
       });
     });
 
@@ -560,7 +560,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         estimatedGas: expect.any(String),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
-        isUpgradeWithDataToSelf: false,
+        isUpgradeWithData: false,
         simulationFails: {
           reason: 'TestError',
           errorKey: 'TestKey',
@@ -596,7 +596,7 @@ describe('gas', () => {
         estimatedGas: toHex(fallbackGas),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
-        isUpgradeWithDataToSelf: false,
+        isUpgradeWithData: false,
       });
     });
 
@@ -621,7 +621,7 @@ describe('gas', () => {
         estimatedGas: toHex(FIXED_ESTIMATE_GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
-        isUpgradeWithDataToSelf: false,
+        isUpgradeWithData: false,
       });
     });
 
@@ -786,7 +786,7 @@ describe('gas', () => {
           estimatedGas: toHex(SIMULATE_GAS_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
-          isUpgradeWithDataToSelf: false,
+          isUpgradeWithData: false,
         });
       });
 
@@ -838,7 +838,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
-          isUpgradeWithDataToSelf: true,
+          isUpgradeWithData: true,
         });
       });
 
@@ -971,7 +971,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
-          isUpgradeWithDataToSelf: true,
+          isUpgradeWithData: true,
         });
       });
 
@@ -1006,7 +1006,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
-          isUpgradeWithDataToSelf: true,
+          isUpgradeWithData: true,
           simulationFails: undefined,
         });
       });
@@ -1042,7 +1042,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: expect.any(String),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
-          isUpgradeWithDataToSelf: true,
+          isUpgradeWithData: true,
           simulationFails: {
             debug: {
               blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
