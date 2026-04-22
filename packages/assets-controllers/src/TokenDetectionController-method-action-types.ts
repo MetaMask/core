@@ -38,7 +38,7 @@ export type TokenDetectionControllerStopAction = {
 };
 
 /**
- * For each token in the token list provided by the TokenListController, checks the token's balance for the selected account address on the active network.
+ * For each token in the token list (fetched directly from the tokens API), checks the token's balance for the selected account address on the active network.
  * On mainnet, if token detection is disabled in preferences, ERC20 token auto detection will be triggered for each contract address in the legacy token list from the @metamask/contract-metadata repo.
  *
  * @param options - Options for token detection.
@@ -58,7 +58,8 @@ export type TokenDetectionControllerDetectTokensAction = {
  * This method:
  * - Checks if useTokenDetection preference is enabled (skips if disabled)
  * - Checks if external services are enabled (skips if disabled)
- * - Tokens are expected to be in the tokensChainsCache with full metadata
+ * - Fetches token metadata from the v3 tokens API and filters out unverified
+ * tokens (occurrences < 3) as a spam prevention measure
  * - Balance fetching is skipped since balances are provided by the websocket
  * - Ignored tokens have been filtered out by the caller
  *
@@ -78,7 +79,8 @@ export type TokenDetectionControllerAddDetectedTokensViaWsAction = {
  * - Checks if useTokenDetection preference is enabled (skips if disabled)
  * - Checks if external services are enabled (skips if disabled)
  * - Filters out tokens already in allTokens or allIgnoredTokens
- * - Tokens are expected to be in the tokensChainsCache with full metadata
+ * - Fetches token metadata from the v3 tokens API and filters out unverified
+ * tokens (occurrences < 3) as a spam prevention measure
  * - Balance fetching is skipped since balances are provided by the caller
  *
  * @param options - The options object
