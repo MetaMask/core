@@ -526,7 +526,7 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
  * when the chain became degraded.
- * @param payload.traceId - The value of the `x-trace-id` response header from
+ * @param payload.traceId - The value of the `X-Trace-Id` response header from
  * the last request attempt, or `undefined` if the header was not present.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
@@ -572,7 +572,7 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
  * when the endpoint became degraded.
- * @param payload.traceId - The value of the `x-trace-id` response header from
+ * @param payload.traceId - The value of the `X-Trace-Id` response header from
  * the last request attempt, or `undefined` if the header was not present.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
