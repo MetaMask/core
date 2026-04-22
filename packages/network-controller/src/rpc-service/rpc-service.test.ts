@@ -1179,7 +1179,7 @@ describe('RpcService', () => {
       );
     });
 
-    it('forwards the x-trace-id response header as traceId in the slow-success case', async () => {
+    it('calls the onDegraded callback with a trace ID if the endpoint takes more than 5 seconds to respond and a trace ID is available', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)
         .post('/', {
@@ -1222,189 +1222,6 @@ describe('RpcService', () => {
           traceId: 'abc-123-trace',
           duration: expect.any(Number),
         }),
-      );
-    });
-
-    it('forwards traceId as undefined when the x-trace-id response header is missing', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(200, () => {
-          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
-          return {
-            id: 1,
-            jsonrpc: '2.0',
-            result: '0x1',
-          };
-        });
-      const onDegradedListener = jest.fn();
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-        isOffline: (): boolean => false,
-      });
-      service.onDegraded(onDegradedListener);
-
-      await service.request({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_chainId',
-        params: [],
-      });
-
-      expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith(
-        expect.objectContaining({ traceId: undefined }),
-      );
-    });
-
-    it('forwards the traceId from the last retry attempt when retries are exhausted', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      for (let i = 0; i < DEFAULT_MAX_RETRIES; i++) {
-        nock(endpointUrl)
-          .post('/', {
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-          })
-          .reply(503, '', { 'x-trace-id': `trace-attempt-${i}` });
-      }
-      // Last attempt
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .reply(503, '', { 'x-trace-id': 'trace-last-attempt' });
-      const onDegradedListener = jest.fn();
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-        policyOptions: {
-          backoff: new ConstantBackoff(0),
-        },
-        isOffline: (): boolean => false,
-      });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimer();
-      });
-      service.onDegraded(onDegradedListener);
-
-      await ignoreRejection(
-        service.request({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        }),
-      );
-
-      expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith(
-        expect.objectContaining({ traceId: 'trace-last-attempt' }),
-      );
-    });
-
-    it('does not leak a stale traceId when the last retry attempt throws before receiving a response', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      // First attempts return 503 with a trace ID header
-      for (let i = 0; i < DEFAULT_MAX_RETRIES; i++) {
-        nock(endpointUrl)
-          .post('/', {
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-          })
-          .reply(503, '', { 'x-trace-id': `trace-attempt-${i}` });
-      }
-      // Last attempt throws a network error before a response is received
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .replyWithError('Connection refused');
-      const onDegradedListener = jest.fn();
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-        policyOptions: {
-          backoff: new ConstantBackoff(0),
-        },
-        isOffline: (): boolean => false,
-      });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimer();
-      });
-      service.onDegraded(onDegradedListener);
-
-      await ignoreRejection(
-        service.request({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        }),
-      );
-
-      expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith(
-        expect.objectContaining({ traceId: undefined }),
-      );
-    });
-
-    it('forwards duration as undefined in the retries-exhausted case', async () => {
-      const endpointUrl = 'https://rpc.example.chain';
-      nock(endpointUrl)
-        .post('/', {
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        })
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(503);
-      const onDegradedListener = jest.fn();
-      const service = new RpcService({
-        fetch,
-        btoa,
-        endpointUrl,
-        policyOptions: {
-          backoff: new ConstantBackoff(0),
-        },
-        isOffline: (): boolean => false,
-      });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimer();
-      });
-      service.onDegraded(onDegradedListener);
-
-      await ignoreRejection(
-        service.request({
-          id: 1,
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
-          params: [],
-        }),
-      );
-
-      expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith(
-        expect.objectContaining({ duration: undefined }),
       );
     });
 
@@ -1722,8 +1539,6 @@ function testsForRetriableFetchErrors({
     };
     await ignoreRejection(service.request(jsonRpcRequest));
     await ignoreRejection(service.request(jsonRpcRequest));
-    // The last retry breaks the circuit
-    await ignoreRejection(service.request(jsonRpcRequest));
 
     expect(onDegradedListener).toHaveBeenCalledTimes(2);
     expect(onDegradedListener).toHaveBeenCalledWith({
@@ -1976,6 +1791,148 @@ function testsForRetriableResponses({
       expectedError,
     );
     expect(scope.isDone()).toBe(true);
+  });
+
+  it('calls the onDegraded callback once for each retry round', async () => {
+    nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(10)
+      .reply(httpStatus, responseBody);
+    const endpointUrl = 'https://rpc.example.chain';
+    const onDegradedListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    service.onDegraded(onDegradedListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onDegradedListener).toHaveBeenCalledTimes(2);
+    expect(onDegradedListener).toHaveBeenCalledWith({
+      endpointUrl: `${endpointUrl}/`,
+      error: expectedOnBreakError,
+      rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: undefined,
+    });
+  });
+
+  it('calls the onDegraded callback with a trace ID if one is available', async () => {
+    nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(10)
+      .reply(httpStatus, responseBody, { 'x-trace-id': 'abc-123-trace' });
+    const endpointUrl = 'https://rpc.example.chain';
+    const onDegradedListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    service.onDegraded(onDegradedListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onDegradedListener).toHaveBeenCalledTimes(2);
+    expect(onDegradedListener).toHaveBeenCalledWith({
+      endpointUrl: `${endpointUrl}/`,
+      error: expectedOnBreakError,
+      rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: 'abc-123-trace',
+    });
+  });
+
+  it('does not leak a stale trace ID when the last retry attempt throws before receiving a response', async () => {
+    const endpointUrl = 'https://rpc.example.chain';
+    const scope = nock(endpointUrl);
+    for (let i = 0; i < DEFAULT_MAX_RETRIES; i++) {
+      scope
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(httpStatus, responseBody, {
+          'x-trace-id': `trace-attempt-${i}`,
+        });
+    }
+    scope
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .replyWithError('Connection refused');
+    const onDegradedListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    service.onDegraded(onDegradedListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onDegradedListener).toHaveBeenCalledTimes(1);
+    expect(onDegradedListener).toHaveBeenCalledWith({
+      endpointUrl: `${endpointUrl}/`,
+      error: expect.objectContaining({
+        message: expect.stringContaining('Connection refused'),
+      }),
+      rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: undefined,
+    });
   });
 
   it('still re-throws the error even after the circuit breaks', async () => {
