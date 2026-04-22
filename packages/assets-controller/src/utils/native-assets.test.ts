@@ -4,7 +4,6 @@ import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
-  CHAINID_NETWORK_URL,
 } from './native-assets';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -36,7 +35,7 @@ describe('buildNativeAssetsFromApi', () => {
     await buildNativeAssetsFromApi();
 
     expect(fetchWithErrorHandlingMock).toHaveBeenCalledWith({
-      url: CHAINID_NETWORK_URL,
+      url: 'https://chainid.network/chains.json',
       timeout: 10_000,
     });
   });

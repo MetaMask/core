@@ -86,10 +86,6 @@ import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
-import {
-  buildNativeAssetsFromConstant,
-  buildNativeAssetsFromApi,
-} from './native-assets';
 import type {
   AccountId,
   AssetPreferences,
@@ -118,6 +114,8 @@ import {
   normalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
+  buildNativeAssetsFromConstant,
+  buildNativeAssetsFromApi,
 } from './utils';
 import type {
   BridgeExchangeRatesFormat,

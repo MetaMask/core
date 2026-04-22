@@ -2,11 +2,11 @@ import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { Caip19AssetId, ChainId } from './types';
+import type { Caip19AssetId, ChainId } from '../types';
 
-export const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
+const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
 
-export type ChainIdNetworkEntry = {
+type ChainIdNetworkEntry = {
   chainId: number;
   slip44?: number;
 };
