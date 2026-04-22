@@ -1,5 +1,4 @@
 import {
-  ConstantBackoff,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
   HttpError,
