@@ -223,13 +223,18 @@ describe('Wallet', () => {
         },
       }),
       getMetaMetricsId: (): string => 'fake-metrics-id',
+      ensureOnboardingComplete: () => Promise.resolve(),
     };
 
     it('exposes controllerMetadata for each initialized controller', () => {
       wallet = new Wallet(options);
 
       const names = Object.keys(wallet.controllerMetadata);
-      expect(names).toStrictEqual(Object.keys(wallet.state));
+      expect(names).toStrictEqual(
+        Object.entries(wallet.state)
+          .filter(([_, state]) => state !== null)
+          .map(([key]) => key),
+      );
       for (const name of names) {
         expect(wallet.controllerMetadata[name]).toBeDefined();
       }

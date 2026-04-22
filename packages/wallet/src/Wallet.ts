@@ -60,7 +60,7 @@ export class Wallet {
   > {
     return this.#controllerMetadata;
   }
-  
+
   createProviderRpc(args) {
     return createProviderRpc({
       messenger: this.messenger,
