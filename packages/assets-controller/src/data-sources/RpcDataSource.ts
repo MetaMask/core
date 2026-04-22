@@ -115,7 +115,7 @@ export type RpcDataSourceOptions = {
     previousChains: ChainId[],
   ) => void;
   /** Resolves CAIP-2 chain ID to CAIP-19 native asset ID from the cached native asset map. */
-  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId | undefined;
+  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -197,9 +197,7 @@ export class RpcDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
-  readonly #getNativeAssetForChain: (
-    chainId: ChainId,
-  ) => Caip19AssetId | undefined;
+  readonly #getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
 
   readonly #timeout: number;
 
@@ -921,7 +919,7 @@ export class RpcDataSource extends AbstractDataSource<
         const hexChainId = caipChainIdToHex(chainId);
 
         // Build a single AssetFetchEntry[] for native + custom ERC-20s
-        const nativeAssetId = this.#buildNativeAssetId(chainId);
+        const nativeAssetId = this.#getNativeAssetForChain(chainId);
         const assetsToFetch: AssetFetchEntry[] = [
           { assetId: nativeAssetId, address: ZERO_ADDRESS },
         ];
@@ -1369,21 +1367,6 @@ export class RpcDataSource extends AbstractDataSource<
       this.#activeSubscriptions.delete(subscriptionId);
       log('Unsubscribed and stopped polling', { subscriptionId });
     }
-  }
-
-  /**
-   * Build the native asset ID for a given chain using the cached native asset
-   * map (injected via constructor callback). Falls back to the ERC20 zero-address
-   * format when the chain has no known native asset mapping.
-   *
-   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:1")
-   * @returns The CAIP-19 native asset ID (e.g., "eip155:1/slip44:60")
-   */
-  #buildNativeAssetId(chainId: ChainId): Caip19AssetId {
-    return (
-      this.#getNativeAssetForChain(chainId) ??
-      `${chainId}/erc20:${ZERO_ADDRESS}`
-    );
   }
 
   /**

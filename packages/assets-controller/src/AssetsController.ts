@@ -784,8 +784,9 @@ export class AssetsController extends BaseController<
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
-        this.#getNativeAssetMap()[chainId],
+      getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
+        this.#getNativeAssetMap()[chainId] ??
+        `${chainId}/erc20:${ZERO_ADDRESS}`,
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
     });
