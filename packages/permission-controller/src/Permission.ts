@@ -484,15 +484,11 @@ export type PermissionSpecificationConstraint =
  * Options for {@link PermissionSpecificationBuilder} functions.
  */
 type PermissionSpecificationBuilderOptions<
-  FactoryHooks extends Record<string, unknown>,
   MethodHooks extends Record<string, unknown>,
-  ValidatorHooks extends Record<string, unknown>,
 > = {
   targetName?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
-  factoryHooks?: FactoryHooks;
   methodHooks?: MethodHooks;
-  validatorHooks?: ValidatorHooks;
 };
 
 /**
@@ -504,8 +500,6 @@ type PermissionSpecificationBuilderOptions<
 export type PermissionSpecificationBuilder<
   Type extends PermissionType,
   Options extends PermissionSpecificationBuilderOptions<
-    Record<string, unknown>,
-    Record<string, unknown>,
     Record<string, unknown>
   >,
   Specification extends PermissionSpecificationConstraint & {
@@ -521,16 +515,10 @@ export type PermissionSpecificationBuilderExportConstraint = {
   targetName: string;
   specificationBuilder: PermissionSpecificationBuilder<
     PermissionType,
-    PermissionSpecificationBuilderOptions<
-      Record<string, unknown>,
-      Record<string, unknown>,
-      Record<string, unknown>
-    >,
+    PermissionSpecificationBuilderOptions<Record<string, unknown>>,
     PermissionSpecificationConstraint
   >;
-  factoryHookNames?: Record<string, true>;
   methodHookNames?: Record<string, true>;
-  validatorHookNames?: Record<string, true>;
 };
 
 type ValidRestrictedMethodSpecification<
