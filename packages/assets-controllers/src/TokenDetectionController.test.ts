@@ -30,21 +30,6 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
-import {
-  TokenDetectionController,
-  controllerName,
-  mapChainIdWithTokenListMap,
-} from './TokenDetectionController';
-import { getDefaultTokenListState } from './TokenListController';
-import type { TokenListState, TokenListToken } from './TokenListController';
-import type { Token } from './TokenRatesController';
-import type {
-  TokensController,
-  TokensControllerState,
-} from './TokensController';
-import { getDefaultTokensState } from './TokensController';
-
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
@@ -56,8 +41,22 @@ import {
   TOKEN_END_POINT_API,
   fetchAndBuildTokenListMap,
 } from './token-service';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
+import {
+  TokenDetectionController,
+  controllerName,
+  mapChainIdWithTokenListMap,
+} from './TokenDetectionController';
+import { getDefaultTokenListState } from './TokenListController';
+import type { TokenListState, TokenListToken } from './TokenListController';
+import type { Token } from './TokenRatesController';
 import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import type { TokenV3Asset } from './tokens-api-v3';
+import type {
+  TokensController,
+  TokensControllerState,
+} from './TokensController';
+import { getDefaultTokensState } from './TokensController';
 
 jest.mock('./token-service', () => ({
   ...jest.requireActual('./token-service'),
