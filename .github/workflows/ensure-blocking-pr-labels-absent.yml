@@ -20,7 +20,7 @@ jobs:
         with:
           is-high-risk-environment: false
       - name: Run command
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             if (context.payload.pull_request.labels.some((label) => label.name === 'DO-NOT-MERGE')) {
