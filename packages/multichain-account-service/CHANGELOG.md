@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Accept P2TR (taproot) accounts as compatible Bitcoin accounts in `BtcAccountProvider`
+- Add testnet4 (`BtcScope.Testnet4`) to Bitcoin provider capabilities and account discovery
+
 ### Changed
 
 - **BREAKING:** The service messenger now requires the `SnapAccountService:ensureReady` action to be declared ([#8715](https://github.com/MetaMask/core/pull/8715))

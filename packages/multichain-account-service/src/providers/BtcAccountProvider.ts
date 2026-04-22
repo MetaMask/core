@@ -47,7 +47,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
   static BTC_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap' as SnapId;
 
   readonly capabilities: KeyringCapabilities = {
-    scopes: [BtcScope.Mainnet, BtcScope.Testnet],
+    scopes: [BtcScope.Mainnet, BtcScope.Testnet, BtcScope.Testnet4],
     bip44: {
       deriveIndex: true,
       deriveIndexRange: true,
@@ -68,7 +68,8 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
-      account.type === BtcAccountType.P2wpkh &&
+      (account.type === BtcAccountType.P2wpkh ||
+        account.type === BtcAccountType.P2tr) &&
       Object.values<string>(BtcAccountType).includes(account.type)
     );
   }
@@ -113,7 +114,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
               withTimeout(
                 () =>
                   client.discoverAccounts(
-                    [BtcScope.Mainnet],
+                    [BtcScope.Mainnet, BtcScope.Testnet4],
                     entropySource,
                     groupIndex,
                   ),

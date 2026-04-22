@@ -295,6 +295,14 @@ describe('BtcAccountProvider', () => {
     expect(provider.isAccountCompatible(account)).toBe(true);
   });
 
+  it('returns true if a P2TR account is compatible', () => {
+    const account = MOCK_BTC_P2TR_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
   it('returns false if an account is not compatible', () => {
     const account = MOCK_HD_ACCOUNT_1;
     const { provider } = setup({
