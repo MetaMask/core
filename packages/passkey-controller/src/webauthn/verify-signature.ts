@@ -1,7 +1,7 @@
 import { concatBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
-import { p256, p384 } from '@noble/curves/nist';
-import { sha256, sha384 } from '@noble/hashes/sha2';
+import { p256, p384, p521 } from '@noble/curves/nist';
+import { sha256, sha384, sha512 } from '@noble/hashes/sha2';
 
 import { bytesToBase64URL } from '../utils/encoding';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
@@ -23,7 +23,7 @@ function getKeyType(cosePublicKey: COSEPublicKey): number {
 }
 
 /**
- * Verify an EC2 (P-256, P-384) signature using @noble/curves.
+ * Verify an EC2 (P-256, P-384, P-521) signature using @noble/curves.
  *
  * ECDSA requires the data to be hashed with the curve-appropriate
  * algorithm before verification: SHA-256 for P-256 and SHA-384 for P-384.
@@ -38,9 +38,14 @@ function verifyEC2(
   signature: Uint8Array,
   data: Uint8Array,
 ): boolean {
+  const alg = cosePublicKey.get(COSEKEYS.Alg);
   const crv = cosePublicKey.get(COSEKEYS.Crv) as number;
   const xCoord = cosePublicKey.get(COSEKEYS.X) as Uint8Array;
   const yCoord = cosePublicKey.get(COSEKEYS.Y) as Uint8Array;
+
+  if (typeof alg !== 'number') {
+    throw new Error('EC2 public key missing alg');
+  }
 
   if (!xCoord || !yCoord) {
     throw new Error('EC2 public key missing x or y coordinate');
@@ -57,6 +62,8 @@ function verifyEC2(
       return p256.verify(signature, sha256(data), uncompressed);
     case COSECRV.P384:
       return p384.verify(signature, sha384(data), uncompressed);
+    case COSECRV.P521:
+      return p521.verify(signature, sha512(data), uncompressed);
     default:
       throw new Error(`Unsupported EC2 curve: ${crv}`);
   }
@@ -75,7 +82,17 @@ function verifyOKP(
   signature: Uint8Array,
   data: Uint8Array,
 ): boolean {
+  const alg = cosePublicKey.get(COSEKEYS.Alg);
+  const crv = cosePublicKey.get(COSEKEYS.Crv);
   const xCoord = cosePublicKey.get(COSEKEYS.X) as Uint8Array;
+
+  if (alg !== COSEALG.EdDSA) {
+    throw new Error(`Unexpected OKP algorithm: ${String(alg)}`);
+  }
+
+  if (crv !== COSECRV.ED25519) {
+    throw new Error(`Unsupported OKP curve: ${String(crv)}`);
+  }
 
   if (!xCoord) {
     throw new Error('OKP public key missing x coordinate');
@@ -85,7 +102,7 @@ function verifyOKP(
 }
 
 /**
- * Verify an RSA (RS256/RS384/RS512) signature using Web Crypto API.
+ * Verify an RSA signature using Web Crypto API.
  *
  * @param cosePublicKey - COSE-encoded RSA public key.
  * @param signature - RSA PKCS#1 v1.5 signature.
@@ -97,24 +114,52 @@ async function verifyRSA(
   signature: Uint8Array,
   data: Uint8Array,
 ): Promise<boolean> {
-  const alg = cosePublicKey.get(COSEKEYS.Alg) as number;
+  const alg = cosePublicKey.get(COSEKEYS.Alg);
   const modulus = cosePublicKey.get(COSEKEYS.N) as Uint8Array;
   const exponent = cosePublicKey.get(COSEKEYS.E) as Uint8Array;
+
+  if (typeof alg !== 'number') {
+    throw new Error('RSA public key missing alg');
+  }
 
   if (!modulus || !exponent) {
     throw new Error('RSA public key missing n or e');
   }
 
+  let keyAlgorithmName: 'RSASSA-PKCS1-v1_5' | 'RSA-PSS';
   let hashAlg: string;
+  let saltLength: number | undefined;
   switch (alg) {
+    case COSEALG.RS1:
+      keyAlgorithmName = 'RSASSA-PKCS1-v1_5';
+      hashAlg = 'SHA-1';
+      break;
     case COSEALG.RS256:
+      keyAlgorithmName = 'RSASSA-PKCS1-v1_5';
       hashAlg = 'SHA-256';
       break;
     case COSEALG.RS384:
+      keyAlgorithmName = 'RSASSA-PKCS1-v1_5';
       hashAlg = 'SHA-384';
       break;
     case COSEALG.RS512:
+      keyAlgorithmName = 'RSASSA-PKCS1-v1_5';
       hashAlg = 'SHA-512';
+      break;
+    case COSEALG.PS256:
+      keyAlgorithmName = 'RSA-PSS';
+      hashAlg = 'SHA-256';
+      saltLength = 32;
+      break;
+    case COSEALG.PS384:
+      keyAlgorithmName = 'RSA-PSS';
+      hashAlg = 'SHA-384';
+      saltLength = 48;
+      break;
+    case COSEALG.PS512:
+      keyAlgorithmName = 'RSA-PSS';
+      hashAlg = 'SHA-512';
+      saltLength = 64;
       break;
     default:
       throw new Error(`Unsupported RSA algorithm: ${alg}`);
@@ -127,16 +172,23 @@ async function verifyRSA(
       n: bytesToBase64URL(modulus),
       e: bytesToBase64URL(exponent),
     },
-    { name: 'RSASSA-PKCS1-v1_5', hash: { name: hashAlg } },
+    { name: keyAlgorithmName, hash: { name: hashAlg } },
     false,
     ['verify'],
   );
 
+  const verifyAlgorithm =
+    keyAlgorithmName === 'RSA-PSS'
+      ? { name: 'RSA-PSS', saltLength: saltLength ?? 0 }
+      : 'RSASSA-PKCS1-v1_5';
+
+  const signatureBytes = Uint8Array.from(signature);
+  const dataBytes = Uint8Array.from(data);
   return globalThis.crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5',
+    verifyAlgorithm,
     key,
-    signature.buffer as ArrayBuffer,
-    data.buffer as ArrayBuffer,
+    signatureBytes,
+    dataBytes,
   );
 }
 

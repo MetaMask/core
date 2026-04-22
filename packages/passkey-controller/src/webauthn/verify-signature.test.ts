@@ -1,6 +1,8 @@
+import { webcrypto } from 'node:crypto';
+
 import { ed25519 } from '@noble/curves/ed25519';
-import { p384 } from '@noble/curves/nist';
-import { sha384 } from '@noble/hashes/sha2';
+import { p384, p521 } from '@noble/curves/nist';
+import { sha384, sha512 } from '@noble/hashes/sha2';
 
 import { base64URLToBytes } from '../utils/encoding';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
@@ -46,7 +48,7 @@ describe('verifySignature', () => {
   });
 
   it('verifies P-384 EC2 signature', async () => {
-    const privateKey = p384.utils.randomPrivateKey();
+    const privateKey = p384.utils.randomSecretKey();
     const publicKeyRaw = p384.getPublicKey(privateKey, false);
 
     const coseMap = new Map<number, number | Uint8Array>();
@@ -101,8 +103,40 @@ describe('verifySignature', () => {
     expect(result).toBe(true);
   });
 
+  it('verifies P-521 EC2 signature from conformance vector', async () => {
+    const coseMap = new Map<number, number | Uint8Array>();
+    coseMap.set(COSEKEYS.Kty, COSEKTY.EC2);
+    coseMap.set(COSEKEYS.Alg, COSEALG.ES512);
+    coseMap.set(COSEKEYS.Crv, COSECRV.P521);
+    coseMap.set(
+      COSEKEYS.X,
+      base64URLToBytes(
+        'AaLbnrCvCuQivbknRW50FjdqPQv4NRF9tHsN4QuVQ3sw8uSspd33o-NTBfjg5JzX9rnpbkKDigb6NugmrVjzNMNK',
+      ),
+    );
+    coseMap.set(
+      COSEKEYS.Y,
+      base64URLToBytes(
+        'AE64axa8L8PkLX5Td0GaX79cLOW9E2-8-ObhL9XT_ih-1XxbGQcA5VhL1gI0xIQq5zYAxgZYey6PmbbqgtcUPRVt',
+      ),
+    );
+
+    const data = base64URLToBytes('5p0h9RZTjLoBlnL2nY5pqOnhGy4q60NzbjDe2rVDR7o');
+    const signature = base64URLToBytes(
+      'MIGHAkFRpbGknlgpETORypMprGBXMkJMfuqgJupy3NcgCOaJJdj3Voz74kV2pjPqkLNpuO9FqVtXeEsUw-jYsBHcMqHZhwJCAQ88uFDJS5g81XVBcLMIgf6ro-F-5jgRAmHx3CRVNGdk81MYbFJhT3hd2w9RdhT8qBG0zzRBXYAcHrKo0qJwQZot',
+    );
+
+    const result = await verifySignature({
+      cosePublicKey: coseMap,
+      signature,
+      data,
+    });
+
+    expect(result).toBe(true);
+  });
+
   it('verifies Ed25519 OKP signature', async () => {
-    const privateKey = ed25519.utils.randomPrivateKey();
+    const privateKey = ed25519.utils.randomSecretKey();
     const publicKey = ed25519.getPublicKey(privateKey);
 
     const coseMap = new Map<number, number | Uint8Array>();
@@ -196,6 +230,44 @@ describe('verifySignature', () => {
     ).rejects.toThrow('OKP public key missing x coordinate');
   });
 
+  it('throws for unsupported OKP algorithm', async () => {
+    const privateKey = ed25519.utils.randomSecretKey();
+    const publicKey = ed25519.getPublicKey(privateKey);
+
+    const coseMap = new Map<number, number | Uint8Array>();
+    coseMap.set(COSEKEYS.Kty, COSEKTY.OKP);
+    coseMap.set(COSEKEYS.Alg, COSEALG.ES256);
+    coseMap.set(COSEKEYS.Crv, COSECRV.ED25519);
+    coseMap.set(COSEKEYS.X, publicKey);
+
+    await expect(
+      verifySignature({
+        cosePublicKey: coseMap,
+        signature: ed25519.sign(new Uint8Array(32), privateKey),
+        data: new Uint8Array(32),
+      }),
+    ).rejects.toThrow('Unexpected OKP algorithm');
+  });
+
+  it('throws for unsupported OKP curve', async () => {
+    const privateKey = ed25519.utils.randomSecretKey();
+    const publicKey = ed25519.getPublicKey(privateKey);
+
+    const coseMap = new Map<number, number | Uint8Array>();
+    coseMap.set(COSEKEYS.Kty, COSEKTY.OKP);
+    coseMap.set(COSEKEYS.Alg, COSEALG.EdDSA);
+    coseMap.set(COSEKEYS.Crv, COSECRV.P256);
+    coseMap.set(COSEKEYS.X, publicKey);
+
+    await expect(
+      verifySignature({
+        cosePublicKey: coseMap,
+        signature: ed25519.sign(new Uint8Array(32), privateKey),
+        data: new Uint8Array(32),
+      }),
+    ).rejects.toThrow('Unsupported OKP curve');
+  });
+
   it('throws for missing kty', async () => {
     const coseMap = new Map<number, number | Uint8Array>();
     coseMap.set(COSEKEYS.Alg, COSEALG.ES256);
@@ -223,9 +295,8 @@ describe('verifySignature', () => {
     ).rejects.toThrow('Unsupported COSE key type');
   });
 
-  /* eslint-disable n/no-unsupported-features/node-builtins */
   it('verifies RSA signature via Web Crypto', async () => {
-    const keyPair = await globalThis.crypto.subtle.generateKey(
+    const keyPair = await webcrypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -238,14 +309,14 @@ describe('verifySignature', () => {
 
     const data = new Uint8Array(32).fill(0xee);
     const signature = new Uint8Array(
-      await globalThis.crypto.subtle.sign(
+      await webcrypto.subtle.sign(
         'RSASSA-PKCS1-v1_5',
         keyPair.privateKey,
         data,
       ),
     );
 
-    const jwk = await globalThis.crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const jwk = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
 
     const nBytes = decodeJwkBase64Url(jwk.n as string);
     const eBytes = decodeJwkBase64Url(jwk.e as string);
@@ -264,7 +335,6 @@ describe('verifySignature', () => {
 
     expect(result).toBe(true);
   });
-  /* eslint-enable n/no-unsupported-features/node-builtins */
 
   it('throws for unsupported RSA algorithm', async () => {
     const coseMap = new Map<number, number | Uint8Array>();
@@ -295,9 +365,99 @@ describe('verifySignature', () => {
       }),
     ).rejects.toThrow('RSA public key missing n or e');
   });
+
+  it('verifies PS256 signature via Web Crypto', async () => {
+    const keyPair = await webcrypto.subtle.generateKey(
+      {
+        name: 'RSA-PSS',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: { name: 'SHA-256' },
+      },
+      true,
+      ['sign', 'verify'],
+    );
+
+    const data = new Uint8Array(32).fill(0x9a);
+    const signature = new Uint8Array(
+      await webcrypto.subtle.sign(
+        { name: 'RSA-PSS', saltLength: 32 },
+        keyPair.privateKey,
+        data,
+      ),
+    );
+
+    const jwk = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const nBytes = decodeJwkBase64Url(jwk.n as string);
+    const eBytes = decodeJwkBase64Url(jwk.e as string);
+
+    const coseMap = new Map<number, number | Uint8Array>();
+    coseMap.set(COSEKEYS.Kty, COSEKTY.RSA);
+    coseMap.set(COSEKEYS.Alg, COSEALG.PS256);
+    coseMap.set(COSEKEYS.N, nBytes);
+    coseMap.set(COSEKEYS.E, eBytes);
+
+    const result = await verifySignature({
+      cosePublicKey: coseMap,
+      signature,
+      data,
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it('verifies RS256 with subarray buffers', async () => {
+    const keyPair = await webcrypto.subtle.generateKey(
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: { name: 'SHA-256' },
+      },
+      true,
+      ['sign', 'verify'],
+    );
+
+    const data = new Uint8Array(32).fill(0x7c);
+    const signature = new Uint8Array(
+      await webcrypto.subtle.sign(
+        'RSASSA-PKCS1-v1_5',
+        keyPair.privateKey,
+        data,
+      ),
+    );
+
+    const signatureContainer = new Uint8Array(signature.length + 8);
+    signatureContainer.set(signature, 4);
+    const signatureSubarray = signatureContainer.subarray(
+      4,
+      4 + signature.length,
+    );
+
+    const dataContainer = new Uint8Array(data.length + 10);
+    dataContainer.set(data, 5);
+    const dataSubarray = dataContainer.subarray(5, 5 + data.length);
+
+    const jwk = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const nBytes = decodeJwkBase64Url(jwk.n as string);
+    const eBytes = decodeJwkBase64Url(jwk.e as string);
+
+    const coseMap = new Map<number, number | Uint8Array>();
+    coseMap.set(COSEKEYS.Kty, COSEKTY.RSA);
+    coseMap.set(COSEKEYS.Alg, COSEALG.RS256);
+    coseMap.set(COSEKEYS.N, nBytes);
+    coseMap.set(COSEKEYS.E, eBytes);
+
+    const result = await verifySignature({
+      cosePublicKey: coseMap,
+      signature: signatureSubarray,
+      data: dataSubarray,
+    });
+
+    expect(result).toBe(true);
+  });
 });
 
-/* eslint-disable n/no-unsupported-features/node-builtins */
 describe('verifySignature RSA hash variants', () => {
   async function generateRSAKeyPairAndSign(
     hashName: string,
@@ -307,7 +467,7 @@ describe('verifySignature RSA hash variants', () => {
     signature: Uint8Array;
     data: Uint8Array;
   }> {
-    const keyPair = await globalThis.crypto.subtle.generateKey(
+    const keyPair = await webcrypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 2048,
@@ -320,14 +480,14 @@ describe('verifySignature RSA hash variants', () => {
 
     const data = new Uint8Array(32).fill(0xff);
     const signature = new Uint8Array(
-      await globalThis.crypto.subtle.sign(
+      await webcrypto.subtle.sign(
         'RSASSA-PKCS1-v1_5',
         keyPair.privateKey,
         data,
       ),
     );
 
-    const jwk = await globalThis.crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const jwk = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
     const nBytes = decodeJwkBase64Url(jwk.n as string);
     const eBytes = decodeJwkBase64Url(jwk.e as string);
 
@@ -365,5 +525,28 @@ describe('verifySignature RSA hash variants', () => {
     });
     expect(result).toBe(true);
   });
+
+  it('verifies ES512/P-521 signature', async () => {
+    const privateKey = p521.utils.randomSecretKey();
+    const publicKeyRaw = p521.getPublicKey(privateKey, false);
+
+    const coseMap = new Map<number, number | Uint8Array>();
+    coseMap.set(COSEKEYS.Kty, COSEKTY.EC2);
+    coseMap.set(COSEKEYS.Alg, COSEALG.ES512);
+    coseMap.set(COSEKEYS.Crv, COSECRV.P521);
+    coseMap.set(COSEKEYS.X, publicKeyRaw.slice(1, 67));
+    coseMap.set(COSEKEYS.Y, publicKeyRaw.slice(67, 133));
+
+    const data = new Uint8Array(32).fill(0xab);
+    const hash = sha512(data);
+    const ecdsaSig = p521.sign(hash, privateKey);
+
+    const result = await verifySignature({
+      cosePublicKey: coseMap,
+      signature: new Uint8Array(ecdsaSig.toDERRawBytes()),
+      data,
+    });
+
+    expect(result).toBe(true);
+  });
 });
-/* eslint-enable n/no-unsupported-features/node-builtins */
