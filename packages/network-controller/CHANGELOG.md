@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `duration` contains the policy execution time in milliseconds when the request succeeded but was slow. It is `undefined` when retries were exhausted; `traceId` contains the value of the `x-trace-id` response header from the last request attempt, or `undefined` if the header was not present.
+  - This is breaking because if you're calling `messenger.subscribe` with a handler function you've explicitly typed, you will need to make sure to update that type to cover these two additional payload properties.
 - Expose missing public `NetworkController` methods through its messenger ([#8350](https://github.com/MetaMask/core/pull/8350))
   - The following actions are now available:
     - `NetworkController:enableRpcFailover`
@@ -24,9 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkController:loadBackup`
   - Corresponding action types are available as well.
 - Add `getEthQuery` method to `NetworkController` ([#8350](https://github.com/MetaMask/core/pull/8350))
-- Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
-  - `duration` contains the policy execution time in milliseconds when the request succeeded but was slow. It is `undefined` when retries were exhausted.
-  - `traceId` contains the value of the `x-trace-id` response header from the last request attempt, or `undefined` if the header was not present.
 
 ### Changed
 
