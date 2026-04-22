@@ -6,7 +6,10 @@ import {
   passkeyControllerSelectors,
   PasskeyController,
 } from './PasskeyController';
-import type { PasskeyControllerMessenger } from './PasskeyController';
+import type {
+  PasskeyControllerMessenger,
+  PasskeyControllerState,
+} from './PasskeyController';
 import type { PasskeyRecord, PrfClientExtensionResults } from './types';
 import type {
   PasskeyRegistrationResponse,
@@ -1270,6 +1273,79 @@ describe('PasskeyController', () => {
       ).toBe(vaultKey);
     });
 
+    it('does not overwrite passkey fields updated while authentication verification awaits', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(99));
+      const vaultKey = 'vault-concurrent-field';
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey,
+      });
+
+      let finishVerify!: (value: unknown) => void;
+      mockVerifyAuthenticationResponse.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishVerify = resolve;
+          }),
+      );
+
+      const authOpts = controller.generateAuthenticationOptions();
+      const retrievePromise = controller.retrieveVaultKeyWithPasskey(
+        minimalAuthenticationResponse(
+          undefined,
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          authOpts.challenge,
+        ),
+      );
+
+      await Promise.resolve();
+
+      const concurrentTransports = ['hybrid', 'internal'] as const;
+      expect(
+        controller.state.passkeyRecord?.credential.transports,
+      ).toStrictEqual(['internal']);
+
+      (
+        controller as unknown as {
+          update: (callback: (state: PasskeyControllerState) => void) => void;
+        }
+      ).update((state) => {
+        if (!state.passkeyRecord) {
+          return;
+        }
+        state.passkeyRecord.credential.transports = [...concurrentTransports];
+      });
+
+      finishVerify({
+        verified: true,
+        authenticationInfo: {
+          credentialId: TEST_CREDENTIAL_ID,
+          newCounter: 3,
+          userVerified: true,
+          origin: TEST_ORIGIN,
+          rpID: TEST_RP_ID,
+        },
+      });
+
+      await retrievePromise;
+
+      expect(
+        controller.state.passkeyRecord?.credential.transports,
+      ).toStrictEqual([...concurrentTransports]);
+      expect(controller.state.passkeyRecord?.credential.counter).toBe(3);
+    });
+
     it('completes registration using the first challenge after a second generateRegistrationOptions', async () => {
       setupRegistrationMocks();
       const controller = createController();
@@ -1293,7 +1369,7 @@ describe('PasskeyController', () => {
 
   describe('ceremony TTL', () => {
     it('drops expired registration ceremonies before protectVaultKeyWithPasskey', async () => {
-      jest.useFakeTimers('modern');
+      jest.useFakeTimers();
       jest.setSystemTime(1_000_000);
       setupRegistrationMocks();
       const controller = createController();

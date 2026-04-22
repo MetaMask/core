@@ -553,12 +553,17 @@ export class PasskeyController extends BaseController<
         );
       }
 
-      // persist passkey record with updated counter
+      // persist passkey record with updated counter without clobbering concurrent updates
+      const latestRecord = this.#requireEnrolled();
+      const mergedCounter = Math.max(
+        result.authenticationInfo.newCounter,
+        latestRecord.credential.counter,
+      );
       const updatedRecord: PasskeyRecord = {
-        ...record,
+        ...latestRecord,
         credential: {
-          ...record.credential,
-          counter: result.authenticationInfo.newCounter,
+          ...latestRecord.credential,
+          counter: mergedCounter,
         },
       };
       this.#setPasskeyRecord(updatedRecord);
