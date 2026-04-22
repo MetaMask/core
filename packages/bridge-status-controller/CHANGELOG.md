@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Remove stale bridge transactions from `txHistory` to prevent excessive polling. Once a history item exceeds the configured maximum age, the status is fetched once, then the src tx hash's receipt is retrieved. If there is no receipt, the history item's hash is presumed to be invalid and the entry is deleted from state. ([#8479](https://github.com/MetaMask/core/pull/8479))
 - Add missing action types for public `BridgeStatusController` methods ([#8367](https://github.com/MetaMask/core/pull/8367))
   - The following types are now available:
     - `BridgeStatusControllerSubmitTxAction`
@@ -17,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace `transactionFailed` and `transactionConfirmed` event subscriptions with `TransactionController:transactionStatusUpdated` ([#8479](https://github.com/MetaMask/core/pull/8479))
+- **BREAKING:** Add `RemoteFeatureFlags:getState` to allowed actions to retrieve max history item age config ([#8479](https://github.com/MetaMask/core/pull/8479))
 - Add `account_hardware_type` field to all cross-chain swap analytics events ([#8503](https://github.com/MetaMask/core/pull/8503))
   - `account_hardware_type` carries the specific hardware wallet brand (e.g. `'Ledger'`, `'QR Hardware'`) or `null` for software wallets
   - `is_hardware_wallet` is now derived from `account_hardware_type !== null`, keeping both fields in sync
@@ -27,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 - Bump `@metamask/bridge-controller` from `^70.0.1` to `^70.1.1` ([#8466](https://github.com/MetaMask/core/pull/8466), [#8474](https://github.com/MetaMask/core/pull/8474))
+
+### Fixed
+
+- Prevent invalid src hashes from being persisted in `txHistory` ([#8479](https://github.com/MetaMask/core/pull/8479))
+  - Make transaction status subscribers generic so that `txHistory` items get updated if there are any transaction updates matching by actionId, txMetaId, hash or type
+  - Skip saving smart transaction hashes on transaction submission. This used to make it possible for invalid src hashes to be stored in state and polled indefinitely. Instead, the txHistory item will now be updated with the confirmed tx hash when the `transactionStatusUpdated` event is published
+  - If there is no srcTxHash in state, attempt to set it based on the local TransactionController state
 
 ## [70.0.5]
 

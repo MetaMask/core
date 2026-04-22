@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `AccountHardwareType` type and `getAccountHardwareType` function to the package exports ([#8503](https://github.com/MetaMask/core/pull/8503))
   - `AccountHardwareType` is a union of `'Ledger' | 'Trezor' | 'QR Hardware' | 'Lattice' | null`
   - `getAccountHardwareType` maps a keyring type string to the corresponding `AccountHardwareType` value
+- Read 'maxPendingHistoryItemAgeMs' feature flag from LaunchDarkly, which indicates when a history item can be treated as a failure ([#8479](https://github.com/MetaMask/core/pull/8479))
+- Add the `invalid_transaction_hash` polling reason to indicate that a history item was removed from state do to having an invalid hash ([#8479](https://github.com/MetaMask/core/pull/8479))
 
 ### Changed
 
