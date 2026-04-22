@@ -177,27 +177,37 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
-        const newAccountAssets = Object.entries(assets).map(
-          ([accountId, { added }]) => ({
+        const updatedAccountAssets = Object.entries(assets).map(
+          ([accountId, { added, removed }]) => ({
             accountId,
-            assets: [...added],
+            added: [...added],
+            removed: [...removed],
           }),
         );
-        await this.#handleOnAccountAssetListUpdated(newAccountAssets);
+
+        await this.#handleOnAccountAssetListUpdated(updatedAccountAssets);
       },
     );
   }
 
   /**
-   * Updates the balances for the given accounts.
+   * Reconciles cached balances after a multichain asset-list update event.
    *
-   * @param accounts - The accounts to update the balances for.
+   * The event payload is treated as a delta:
+   * - balances for `removed` assets are deleted so stale entries cannot remain
+   * - balances for `added` assets are fetched from the snap and merged in
+   * - if an added asset is not returned by the snap, a zero placeholder is stored
+   *   so the asset can still be represented in state
+   *
+   * @param accounts - The per-account asset deltas from the asset-list update event.
    */
   async #handleOnAccountAssetListUpdated(
     accounts: {
       accountId: string;
-      assets: CaipAssetType[];
+      added: CaipAssetType[];
+      removed: CaipAssetType[];
     }[],
   ): Promise<void> {
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
@@ -205,49 +215,47 @@ export class MultichainBalancesController extends BaseController<
     if (!isUnlocked) {
       return;
     }
-    const balancesToUpdate: MultichainBalancesControllerState['balances'] = {};
+    const balancesToAdd: MultichainBalancesControllerState['balances'] = {};
 
-    for (const { accountId, assets } of accounts) {
+    for (const { accountId, added } of accounts) {
+      if (added.length === 0) {
+        continue;
+      }
+
       const account = this.#getAccount(accountId);
       if (account.metadata.snap) {
         const accountBalance = await this.#getBalances(
           account.id,
           account.metadata.snap.id,
-          assets,
+          added,
         );
-        balancesToUpdate[accountId] = accountBalance;
+
+        balancesToAdd[accountId] = accountBalance;
       }
     }
 
-    if (Object.keys(balancesToUpdate).length === 0) {
-      return;
-    }
-
-    const accountsMap = new Map(accounts.map((acc) => [acc.accountId, acc]));
-
     this.update((state: Draft<MultichainBalancesControllerState>) => {
-      for (const [accountId, accountBalances] of Object.entries(
-        balancesToUpdate,
-      )) {
-        if (
-          !state.balances[accountId] ||
-          Object.keys(state.balances[accountId]).length === 0
-        ) {
-          state.balances[accountId] = accountBalances;
-        } else {
-          const acc = accountsMap.get(accountId);
+      for (const { accountId, added, removed } of accounts) {
+        const accountBalances = state.balances[accountId] ?? {};
+        const addedBalances = balancesToAdd[accountId] ?? {};
 
-          const assetsWithoutBalance = new Set(acc?.assets || []);
+        state.balances[accountId] = accountBalances;
 
-          for (const assetId of Object.keys(accountBalances)) {
-            if (!state.balances[accountId][assetId]) {
-              state.balances[accountId][assetId] = accountBalances[assetId];
-            }
-            assetsWithoutBalance.delete(assetId as CaipAssetType);
-          }
+        // Remove balances for assets that disappeared from the account asset list
+        // so stale entries cannot remain in state.
+        for (const assetId of removed) {
+          delete state.balances[accountId][assetId];
+        }
 
-          // Triggered when an asset is added to the accountAssets list manually
-          for (const assetId of assetsWithoutBalance) {
+        // Merge the balances returned by the snap for the newly added assets.
+        for (const [assetId, balance] of Object.entries(addedBalances)) {
+          state.balances[accountId][assetId] = balance;
+        }
+
+        // If the asset list was updated but the snap did not return a balance for
+        // one of the added assets, keep the asset visible with an explicit zero.
+        for (const assetId of added) {
+          if (!state.balances[accountId][assetId]) {
             state.balances[accountId][assetId] = { amount: '0', unit: '' };
           }
         }

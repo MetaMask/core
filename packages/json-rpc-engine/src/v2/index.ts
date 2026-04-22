@@ -1,5 +1,7 @@
 export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from '../getUniqueId';
+export { selectHooks, createMethodMiddleware } from './createMethodMiddleware';
+export type { MethodHandler } from './createMethodMiddleware';
 export { createOriginMiddleware } from './createOriginMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export { JsonRpcEngineV2 } from './JsonRpcEngineV2';
