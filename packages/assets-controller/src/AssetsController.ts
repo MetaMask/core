@@ -68,10 +68,6 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
-import {
-  buildNativeAssetsFromConstant,
-  buildNativeAssetsFromApi,
-} from './native-assets';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
@@ -90,6 +86,10 @@ import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
+import {
+  buildNativeAssetsFromConstant,
+  buildNativeAssetsFromApi,
+} from './native-assets';
 import type {
   AccountId,
   AssetPreferences,
