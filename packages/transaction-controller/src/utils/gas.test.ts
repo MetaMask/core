@@ -1124,6 +1124,14 @@ describe('gas', () => {
         estimateGasResponse: toHex(GAS_MOCK),
       });
 
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          {
+            gasLimit: toHex(INTRINSIC_GAS),
+          },
+        ],
+      } as SimulationResponse);
+
       const result = await estimateGasBatch({
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         from: FROM_MOCK,
@@ -1143,14 +1151,15 @@ describe('gas', () => {
         BATCH_TX_PARAMS_MOCK,
       );
 
+      // Upgrade-only estimation via eth_estimateGas (step 1 of split path)
       expect(rpcRequestMock).toHaveBeenCalledWith({
         messenger: MESSENGER_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         method: 'eth_estimateGas',
         params: [
           expect.objectContaining({
-            to: TO_MOCK,
-            data: DATA_MOCK,
+            to: FROM_MOCK,
+            data: '0x',
             from: FROM_MOCK,
             authorizationList: [
               expect.objectContaining({

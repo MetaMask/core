@@ -102,7 +102,7 @@ export async function estimateGas({
   simulationFails: TransactionMeta['simulationFails'];
 }> {
   const request = { ...txParams };
-  const { authorizationList, data, from, value, to } = request;
+  const { authorizationList, data, value } = request;
   const chainId = getChainId({ messenger, networkClientId });
 
   if (ignoreDelegationSignatures && !isSimulationEnabled) {
@@ -146,9 +146,6 @@ export async function estimateGas({
     Boolean(data) &&
     data !== '0x';
 
-  const isUpgradeWithDataToSelf = isUpgradeWithData &&
-    from?.toLowerCase() === to?.toLowerCase();
-
   try {
     if (isSimulationEnabled && isUpgradeWithData) {
       estimatedGas = await estimateGasUpgradeWithDataToSelf(
@@ -184,7 +181,7 @@ export async function estimateGas({
   return {
     blockGasLimit,
     estimatedGas,
-    isUpgradeWithDataToSelf,
+    isUpgradeWithDataToSelf: isUpgradeWithData,
     simulationFails,
   };
 }
