@@ -39,9 +39,7 @@ describe('tokens-api-v3', () => {
 
   describe('buildCaipAssetId', () => {
     it('builds a CAIP-19 asset ID from chainId and address', () => {
-      expect(buildCaipAssetId('0x1', '0xAbCd')).toBe(
-        'eip155:1/erc20:0xabcd',
-      );
+      expect(buildCaipAssetId('0x1', '0xAbCd')).toBe('eip155:1/erc20:0xabcd');
     });
 
     it('lowercases the token address', () => {
@@ -92,7 +90,10 @@ describe('tokens-api-v3', () => {
 
       await fetchVerifiedTokensByAddresses(MOCK_CHAIN_ID, [MOCK_TOKEN_ADDRESS]);
 
-      const expectedAssetId = buildCaipAssetId(MOCK_CHAIN_ID, MOCK_TOKEN_ADDRESS);
+      const expectedAssetId = buildCaipAssetId(
+        MOCK_CHAIN_ID,
+        MOCK_TOKEN_ADDRESS,
+      );
       const expectedParams = new URLSearchParams({
         assetIds: expectedAssetId,
         includeOccurrences: 'true',
