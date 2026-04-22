@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.2.0]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -95,7 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.2.0...HEAD
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.1...@metamask/eth-json-rpc-middleware@23.2.0
 [23.1.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.0...@metamask/eth-json-rpc-middleware@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.0.0...@metamask/eth-json-rpc-middleware@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...@metamask/eth-json-rpc-middleware@23.0.0
