@@ -5,10 +5,12 @@ import {
   DistributionType,
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
+import { TransactionController } from '@metamask/transaction-controller';
 import { enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
 import type { AnvilInstance } from '../test/anvil';
+import * as initializationModule from './initialization';
 import {
   createSecretRecoveryPhrase,
   importSecretRecoveryPhrase,
@@ -22,20 +24,18 @@ const TEST_PASSWORD = 'testpass';
 
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
-    options: {
-      infuraProjectId: 'fake-infura-project-id',
-      clientVersion: '1.0.0',
-      showApprovalRequest: (): undefined => undefined,
-      clientConfigApiService: new ClientConfigApiService({
-        fetch: globalThis.fetch,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      }),
-      getMetaMetricsId: (): string => 'fake-metrics-id',
-    },
+    infuraProjectId: 'fake-infura-project-id',
+    clientVersion: '1.0.0',
+    showApprovalRequest: (): undefined => undefined,
+    clientConfigApiService: new ClientConfigApiService({
+      fetch: globalThis.fetch,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    }),
+    getMetaMetricsId: (): string => 'fake-metrics-id',
   });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_PHRASE);
@@ -134,20 +134,18 @@ describe('Wallet', () => {
 
   it('can create secret recovery phrase', async () => {
     wallet = new Wallet({
-      options: {
-        infuraProjectId: 'fake-infura-project-id',
-        clientVersion: '1.0.0',
-        showApprovalRequest: (): undefined => undefined,
-        clientConfigApiService: new ClientConfigApiService({
-          fetch: globalThis.fetch,
-          config: {
-            client: ClientType.Extension,
-            distribution: DistributionType.Main,
-            environment: EnvironmentType.Production,
-          },
-        }),
-        getMetaMetricsId: (): string => 'fake-metrics-id',
-      },
+      infuraProjectId: 'fake-infura-project-id',
+      clientVersion: '1.0.0',
+      showApprovalRequest: (): undefined => undefined,
+      clientConfigApiService: new ClientConfigApiService({
+        fetch: globalThis.fetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      }),
+      getMetaMetricsId: (): string => 'fake-metrics-id',
     });
 
     await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
@@ -167,6 +165,94 @@ describe('Wallet', () => {
       encryptionKey: expect.any(String),
       encryptionSalt: expect.any(String),
       vault: expect.any(String),
+    });
+  });
+
+  describe('lifecycle', () => {
+    const options = {
+      infuraProjectId: 'fake-infura-project-id',
+      clientVersion: '1.0.0',
+      showApprovalRequest: (): undefined => undefined,
+      clientConfigApiService: new ClientConfigApiService({
+        fetch: globalThis.fetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      }),
+      getMetaMetricsId: (): string => 'fake-metrics-id',
+    };
+
+    it('exposes controllerMetadata for each initialized controller', () => {
+      wallet = new Wallet(options);
+
+      const names = Object.keys(wallet.controllerMetadata);
+      expect(names).toStrictEqual(Object.keys(wallet.state));
+      for (const name of names) {
+        expect(wallet.controllerMetadata[name]).toBeDefined();
+      }
+    });
+
+    it('omits instances without a metadata property from controllerMetadata', () => {
+      const fakeMetadata = {
+        foo: { persist: true, includeInDebugSnapshot: false },
+      };
+      jest.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
+        WithMeta: { state: {}, metadata: fakeMetadata },
+        NoMeta: { state: {} },
+      } as never);
+
+      wallet = new Wallet(options);
+
+      expect(wallet.controllerMetadata).toStrictEqual({
+        WithMeta: fakeMetadata,
+      });
+      expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+    });
+
+    it('publishes Wallet:destroyed exactly once on destroy', async () => {
+      wallet = new Wallet(options);
+
+      const listener = jest.fn();
+      wallet.messenger.subscribe('Wallet:destroyed', listener);
+
+      await wallet.destroy();
+      await wallet.destroy();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes Wallet:destroyed even if a controller destroy throws synchronously', async () => {
+      wallet = new Wallet(options);
+
+      jest
+        .spyOn(TransactionController.prototype, 'destroy')
+        .mockImplementation(() => {
+          throw new Error('sync destroy error');
+        });
+
+      const listener = jest.fn();
+      wallet.messenger.subscribe('Wallet:destroyed', listener);
+
+      await wallet.destroy();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes Wallet:destroyed even if a controller destroy rejects', async () => {
+      wallet = new Wallet(options);
+
+      jest
+        .spyOn(TransactionController.prototype, 'destroy')
+        .mockRejectedValue(new Error('async destroy error') as never);
+
+      const listener = jest.fn();
+      wallet.messenger.subscribe('Wallet:destroyed', listener);
+
+      await wallet.destroy();
+
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 });

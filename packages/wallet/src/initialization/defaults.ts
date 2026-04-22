@@ -38,12 +38,19 @@ export type DefaultInstances = {
 
 export type DefaultActions = MessengerActions<AllMessengers>;
 
-export type DefaultEvents = MessengerEvents<AllMessengers>;
+export type WalletDestroyedEvent = {
+  type: 'Wallet:destroyed';
+  payload: [];
+};
+
+export type DefaultEvents =
+  | MessengerEvents<AllMessengers>
+  | WalletDestroyedEvent;
 
 export type RootMessenger<
   AllowedActions extends ActionConstraint = ActionConstraint,
   AllowedEvents extends EventConstraint = EventConstraint,
-> = Messenger<'Root', AllowedActions, AllowedEvents>;
+> = Messenger<'Wallet', AllowedActions, AllowedEvents>;
 
 export type DefaultState = {
   [Key in keyof DefaultInstances]: InstanceState<DefaultInstances[Key]>;

@@ -4,5 +4,6 @@ export type {
   DefaultInstances,
   DefaultState,
   RootMessenger,
+  WalletDestroyedEvent,
 } from './defaults';
 export { initialize } from './initialization';

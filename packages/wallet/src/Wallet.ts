@@ -1,5 +1,6 @@
+import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
-import type { Json } from '@metamask/utils';
+import { hasProperty } from '@metamask/utils';
 
 import type {
   DefaultActions,
@@ -11,23 +12,34 @@ import type {
 import { initialize } from './initialization';
 import type { WalletOptions } from './types';
 
-export type WalletConstructorArgs = {
-  state?: Record<string, Json>;
-  options: WalletOptions;
-};
-
 export class Wallet {
   // TODO: Expand types when passing additionalConfigurations.
   public readonly messenger: RootMessenger<DefaultActions, DefaultEvents>;
 
   readonly #instances: DefaultInstances;
 
-  constructor({ state = {}, options }: WalletConstructorArgs) {
+  readonly #controllerMetadata: Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  >;
+
+  #destroyed = false;
+
+  constructor({ state, ...options }: WalletOptions) {
     this.messenger = new Messenger({
-      namespace: 'Root',
+      namespace: 'Wallet',
     });
 
-    this.#instances = initialize({ state, messenger: this.messenger, options });
+    this.#instances = initialize({
+      state: state ?? {},
+      messenger: this.messenger,
+      options,
+    });
+
+    this.#controllerMetadata = Object.fromEntries(
+      Object.entries(this.#instances)
+        .filter(([_, instance]) => hasProperty(instance, 'metadata'))
+        .map(([name, instance]) => [name, instance.metadata]),
+    );
   }
 
   get state(): DefaultState {
@@ -40,17 +52,30 @@ export class Wallet {
     ) as DefaultState;
   }
 
+  get controllerMetadata(): Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  > {
+    return this.#controllerMetadata;
+  }
+
   async destroy(): Promise<void> {
-    await Promise.all(
-      Object.values(this.#instances).map((instance) => {
+    if (this.#destroyed) {
+      return;
+    }
+    this.#destroyed = true;
+
+    await Promise.allSettled(
+      Object.values(this.#instances).map(async (instance) => {
         // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
           // @ts-expect-error Accessing protected property.
-          return instance.destroy();
+          return await instance.destroy();
         }
         /* istanbul ignore next */
         return undefined;
       }),
     );
+
+    this.messenger.publish('Wallet:destroyed');
   }
 }

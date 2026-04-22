@@ -32,6 +32,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./persistence": {
+      "import": {
+        "types": "./dist/persistence/index.d.mts",
+        "default": "./dist/persistence/index.mjs"
+      },
+      "require": {
+        "types": "./dist/persistence/index.d.cts",
+        "default": "./dist/persistence/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -47,7 +57,7 @@
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test:prepare": "./scripts/install-anvil.sh",
+    "test:prepare": "./scripts/install-binaries.sh",
     "test": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
@@ -65,12 +75,14 @@
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/transaction-controller": "^64.3.0",
-    "@metamask/utils": "^11.9.0"
+    "@metamask/utils": "^11.9.0",
+    "better-sqlite3": "^12.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/foundryup": "^1.0.1",
     "@ts-bridge/cli": "^0.6.4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
