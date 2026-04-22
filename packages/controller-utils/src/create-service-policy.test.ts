@@ -86,7 +86,7 @@ describe('createServicePolicy', () => {
       });
 
       describe('if the service execution time is beyond the threshold', () => {
-        it('calls onDegraded listeners once', async () => {
+        it('calls onDegraded listeners once with the execution time', async () => {
           const delay = threshold + 1;
           const mockService = jest.fn(() => {
             return new Promise<void>((resolve) => {
@@ -102,6 +102,9 @@ describe('createServicePolicy', () => {
           await promise;
 
           expect(onDegradedListener).toHaveBeenCalledTimes(1);
+          expect(onDegradedListener).toHaveBeenCalledWith({
+            duration: delay,
+          });
         });
 
         it('does not call onAvailable listeners', async () => {
@@ -1473,7 +1476,7 @@ describe('createServicePolicy', () => {
           });
 
           describe('if the service execution time is beyond the threshold', () => {
-            it('calls onDegraded listeners once', async () => {
+            it('calls onDegraded listeners once with the execution time', async () => {
               let invocationCounter = 0;
               const delay = threshold + 1;
               const mockService = (): Promise<{ some: string }> => {
@@ -1498,27 +1501,9 @@ describe('createServicePolicy', () => {
               await promise;
 
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-
-            it('calls onDegraded listeners with duration when the request succeeds but is slow', async () => {
-              jest.useFakeTimers();
-              const policy = createServicePolicy({
-                degradedThreshold: 2000,
-              });
-              const onDegradedListener = jest.fn();
-
-              policy.onDegraded(onDegradedListener);
-              await policy.execute(async () => {
-                jest.advanceTimersByTime(2001);
-                return 'result';
-              });
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
               expect(onDegradedListener).toHaveBeenCalledWith({
-                duration: expect.any(Number),
+                duration: delay,
               });
-              const { duration } = onDegradedListener.mock.calls[0][0];
-              expect(duration).toBeGreaterThan(2000);
             });
 
             it('does not call onAvailable listeners', async () => {
@@ -1678,7 +1663,7 @@ describe('createServicePolicy', () => {
             });
 
             describe('if the service execution time is beyond the threshold', () => {
-              it('calls onDegraded listeners once', async () => {
+              it('calls onDegraded listeners once with the execution time', async () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
@@ -1707,6 +1692,9 @@ describe('createServicePolicy', () => {
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
+                expect(onDegradedListener).toHaveBeenCalledWith({
+                  duration: delay,
+                });
               });
 
               it('does not call onAvailable listeners', async () => {
@@ -1872,7 +1860,7 @@ describe('createServicePolicy', () => {
             });
 
             describe('if the service execution time is beyond the threshold', () => {
-              it('calls onDegraded listeners once', async () => {
+              it('calls onDegraded listeners once with the execution time', async () => {
                 const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
@@ -1901,6 +1889,9 @@ describe('createServicePolicy', () => {
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
+                expect(onDegradedListener).toHaveBeenCalledWith({
+                  duration: delay,
+                });
               });
 
               it('does not call onAvailable listeners', async () => {
@@ -2279,7 +2270,7 @@ describe('createServicePolicy', () => {
             });
 
             describe('if the service execution time is beyond the threshold', () => {
-              it('calls onDegraded listeners once', async () => {
+              it('calls onDegraded listeners once with the execution time', async () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
                 const delay = threshold + 1;
                 let invocationCounter = 0;
@@ -2305,6 +2296,9 @@ describe('createServicePolicy', () => {
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
+                expect(onDegradedListener).toHaveBeenCalledWith({
+                  duration: delay,
+                });
               });
 
               it('does not call onAvailable listeners', async () => {
@@ -2453,7 +2447,7 @@ describe('createServicePolicy', () => {
             });
 
             describe('if the service execution time is beyond the threshold', () => {
-              it('calls onDegraded listeners once', async () => {
+              it('calls onDegraded listeners once with the execution time', async () => {
                 const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
                 const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
                 let invocationCounter = 0;
@@ -2479,6 +2473,9 @@ describe('createServicePolicy', () => {
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
+                expect(onDegradedListener).toHaveBeenCalledWith({
+                  duration: delay,
+                });
               });
 
               it('does not call onAvailable listeners', async () => {
@@ -2828,7 +2825,7 @@ describe('createServicePolicy', () => {
             });
 
             describe('if the service execution time is beyond the threshold', () => {
-              it('calls onDegraded listeners once', async () => {
+              it('calls onDegraded listeners once with the execution time', async () => {
                 const maxConsecutiveFailures = 5;
                 const maxRetries = maxConsecutiveFailures - 2;
                 const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
@@ -2859,6 +2856,9 @@ describe('createServicePolicy', () => {
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
+                expect(onDegradedListener).toHaveBeenCalledWith({
+                  duration: delay,
+                });
               });
 
               it('does not call onAvailable listeners', async () => {
@@ -3035,7 +3035,7 @@ describe('createServicePolicy', () => {
             });
 
             describe('if the service execution time is beyond the threshold', () => {
-              it('calls onDegraded listeners once', async () => {
+              it('calls onDegraded listeners once with the execution time', async () => {
                 const maxConsecutiveFailures = 5;
                 const maxRetries = maxConsecutiveFailures - 1;
                 const delay = threshold + 1;
@@ -3066,6 +3066,9 @@ describe('createServicePolicy', () => {
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
+                expect(onDegradedListener).toHaveBeenCalledWith({
+                  duration: delay,
+                });
               });
 
               it('does not call onAvailable listeners', async () => {
