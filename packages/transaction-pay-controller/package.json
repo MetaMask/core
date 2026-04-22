@@ -58,7 +58,7 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/assets-controller": "^6.0.0",
-    "@metamask/assets-controllers": "^104.1.0",
+    "@metamask/assets-controllers": "^104.2.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/bridge-controller": "^70.1.1",
     "@metamask/bridge-status-controller": "^70.0.5",

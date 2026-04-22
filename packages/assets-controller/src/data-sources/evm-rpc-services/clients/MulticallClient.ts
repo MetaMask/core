@@ -360,6 +360,14 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
   '0x18c7': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x10e6': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x10b3e': '0x99423C88EB5723A590b4C644426069042f137B9e',
+  // Ink Mainnet
+  '0xdef1': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Stable (988)
+  '0x3dc': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Tempo Mainnet
+  '0x1079': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Tempo Testnet Moderato
+  '0xa5bf': '0xcA11bde05977b3631167028862bE2a173976CA11',
 };
 
 // =============================================================================

@@ -779,6 +779,39 @@ describe('TokenDataSource', () => {
     );
   });
 
+  it.each([
+    { occurrences: 1, label: 'low occurrences' },
+    { occurrences: undefined, label: 'no occurrences' },
+  ])('middleware keeps MUSD token despite $label', async ({ occurrences }) => {
+    const musdAsset =
+      'eip155:1/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(musdAsset, {
+          name: 'mUSD',
+          symbol: 'MUSD',
+          occurrences,
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [musdAsset],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[musdAsset]).toBeDefined();
+  });
+
   it('middleware filters out erc20 assets with missing occurrences', async () => {
     const noOccurrenceAsset =
       'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;

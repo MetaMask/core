@@ -31,6 +31,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/approval-controller`](packages/approval-controller)
 - [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
+- [`@metamask/authenticated-user-storage`](packages/authenticated-user-storage)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/base-data-service`](packages/base-data-service)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
@@ -68,6 +69,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/messenger-cli`](packages/messenger-cli)
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
+- [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
@@ -119,6 +121,7 @@ linkStyle default opacity:0.5
   approval_controller(["@metamask/approval-controller"]);
   assets_controller(["@metamask/assets-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
+  authenticated_user_storage(["@metamask/authenticated-user-storage"]);
   base_controller(["@metamask/base-controller"]);
   base_data_service(["@metamask/base-data-service"]);
   bridge_controller(["@metamask/bridge-controller"]);
@@ -156,6 +159,7 @@ linkStyle default opacity:0.5
   messenger_cli(["@metamask/messenger-cli"]);
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
+  money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
@@ -248,6 +252,9 @@ linkStyle default opacity:0.5
   assets_controllers --> profile_sync_controller;
   assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
+  authenticated_user_storage --> base_data_service;
+  authenticated_user_storage --> controller_utils;
+  authenticated_user_storage --> messenger;
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
   base_data_service --> controller_utils;
@@ -350,6 +357,7 @@ linkStyle default opacity:0.5
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
+  json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> messenger;
@@ -367,6 +375,10 @@ linkStyle default opacity:0.5
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> base_controller;
+  money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> keyring_controller;
+  money_account_upgrade_controller --> messenger;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;

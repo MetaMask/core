@@ -9,5 +9,10 @@
     "noUncheckedIndexedAccess": true,
     "target": "es2020"
   },
+  "references": [
+    {
+      "path": "../messenger/tsconfig.json"
+    }
+  ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }
