@@ -669,27 +669,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleOldHistoryItem = async (
     bridgeTxMetaId: string,
   ): Promise<void> => {
-    if (
-      // Skip if the history item is finalized or not old
-      !(
-        this.state.txHistory[bridgeTxMetaId] &&
-        isHistoryItemTooOld(
-          this.messenger,
-          this.state.txHistory[bridgeTxMetaId],
-        ) &&
-        [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
-          this.state.txHistory[bridgeTxMetaId].status.status,
-        )
-      )
-    ) {
-      return;
-    }
     // Continue polling on next restart if the history item is valid
     if (
-      await shouldWaitForFinalBridgeStatus(
+      this.state.txHistory[bridgeTxMetaId] &&
+      (await shouldWaitForFinalBridgeStatus(
         this.messenger,
         this.state.txHistory[bridgeTxMetaId],
-      )
+      ))
     ) {
       return;
     }

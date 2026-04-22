@@ -1,4 +1,8 @@
-import { getClientHeaders, isNonEvmChainId } from '@metamask/bridge-controller';
+import {
+  getClientHeaders,
+  isNonEvmChainId,
+  StatusTypes,
+} from '@metamask/bridge-controller';
 import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
 import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
@@ -15,6 +19,7 @@ import type {
 } from '../types';
 import { getNetworkClientByChainId } from './network';
 import { validateBridgeStatusResponse } from './validators';
+import { isHistoryItemTooOld } from './history';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;
@@ -127,6 +132,18 @@ export const shouldWaitForFinalBridgeStatus = async (
   messenger: BridgeStatusControllerMessenger,
   historyItem: BridgeHistoryItem,
 ): Promise<boolean> => {
+  // Keep waiting for status if the history is not pending or is not old enough yet
+  if (
+    !(
+      isHistoryItemTooOld(messenger, historyItem) &&
+      [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
+        historyItem.status.status,
+      )
+    )
+  ) {
+    return true;
+  }
+
   if (isNonEvmChainId(historyItem.quote.srcChainId)) {
     return false;
   }
