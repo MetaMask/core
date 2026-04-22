@@ -122,6 +122,8 @@ export class TransactionPayController extends BaseController<
         accountOverride: transactionData.accountOverride,
       };
 
+      const previousAccountOverride = config.accountOverride;
+
       callback(config);
 
       transactionData.accountOverride = config.accountOverride;
@@ -129,6 +131,10 @@ export class TransactionPayController extends BaseController<
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
+
+      if (config.accountOverride !== previousAccountOverride) {
+        transactionData.paymentToken = undefined;
+      }
     });
   }
 
