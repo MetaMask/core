@@ -88,12 +88,17 @@ export async function verifyRegistrationResponse(opts: {
     response: attestationResponse,
   } = response;
 
+  // Ensure credential specified an ID
   if (!id) {
     throw new Error('Missing credential ID');
   }
+
+  // Ensure ID is base64url-encoded
   if (id !== rawId) {
     throw new Error('Credential ID was not base64url-encoded');
   }
+
+  // Make sure credential type is public-key
   if (credentialType !== 'public-key') {
     throw new Error(
       `Unexpected credential type ${String(credentialType)}, expected "public-key"`,
@@ -103,26 +108,44 @@ export async function verifyRegistrationResponse(opts: {
   const clientDataJSON = decodeClientDataJSON(
     attestationResponse.clientDataJSON,
   );
+  const { type, challenge, origin, tokenBinding } = clientDataJSON;
 
-  if (clientDataJSON.type !== 'webauthn.create') {
+  // Make sure we're handling an registration
+  if (type !== 'webauthn.create') {
     throw new Error(
-      `Unexpected registration response type: ${clientDataJSON.type}`,
+      `Unexpected registration response type: ${type}`,
     );
   }
 
-  if (clientDataJSON.challenge !== expectedChallenge) {
+  // Ensure the device provided the challenge we gave it
+  if (challenge !== expectedChallenge) {
     throw new Error(
-      `Unexpected registration response challenge "${clientDataJSON.challenge}", expected "${expectedChallenge}"`,
+      `Unexpected registration response challenge "${challenge}", expected "${expectedChallenge}"`,
     );
   }
 
+  // Check that the origin is our site
   const expectedOrigins = Array.isArray(expectedOrigin)
     ? expectedOrigin
     : [expectedOrigin];
-  if (!expectedOrigins.includes(clientDataJSON.origin)) {
+  if (!expectedOrigins.includes(origin)) {
     throw new Error(
-      `Unexpected registration response origin "${clientDataJSON.origin}", expected one of: ${expectedOrigins.join(', ')}`,
+      `Unexpected registration response origin "${origin}", expected one of: ${expectedOrigins.join(', ')}`,
     );
+  }
+
+  if (tokenBinding) {
+    if (typeof tokenBinding !== 'object') {
+      throw new Error('ClientDataJSON tokenBinding was not an object');
+    }
+
+    if (
+      !['present', 'supported', 'not-supported'].includes(tokenBinding.status)
+    ) {
+      throw new Error(
+        `Unexpected tokenBinding.status value of "${tokenBinding.status}"`,
+      );
+    }
   }
 
   const attestationObjectBytes = base64URLToBytes(
@@ -145,10 +168,12 @@ export async function verifyRegistrationResponse(opts: {
 
   matchExpectedRPID(rpIdHash, [expectedRPID]);
 
+  // Make sure someone was physically present
   if (!flags.up) {
     throw new Error('User presence was required, but user was not present');
   }
 
+  // Enforce user verification if specified
   if (requireUserVerification && !flags.uv) {
     throw new Error(
       'User verification was required, but user could not be verified',
@@ -174,6 +199,8 @@ export async function verifyRegistrationResponse(opts: {
   if (typeof alg !== 'number') {
     throw new Error('Credential public key was missing numeric alg');
   }
+
+  // Make sure the key algorithm is one we specified within the registration options
   if (!supportedAlgorithmIDs.includes(alg)) {
     throw new Error(
       `Unexpected public key alg "${alg}", expected one of "${supportedAlgorithmIDs.join(', ')}"`,

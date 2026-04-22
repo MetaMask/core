@@ -87,39 +87,71 @@ export async function verifyAuthenticationResponse(opts: {
     response: assertionResponse,
   } = response;
 
+  // Ensure credential specified an ID
   if (!id) {
     throw new Error('Missing credential ID');
   }
+
+  // Ensure ID is base64url-encoded
   if (id !== rawId) {
     throw new Error('Credential ID was not base64url-encoded');
   }
+
+  // Make sure credential type is public-key
   if (credentialType !== 'public-key') {
     throw new Error(
       `Unexpected credential type ${String(credentialType)}, expected "public-key"`,
     );
   }
 
+  if (typeof assertionResponse?.clientDataJSON !== 'string') {
+    throw new Error('Credential response clientDataJSON was not a string');
+  }
+
   const clientDataJSON = decodeClientDataJSON(assertionResponse.clientDataJSON);
+  const { type, challenge, origin, tokenBinding } = clientDataJSON;
 
-  if (clientDataJSON.type !== 'webauthn.get') {
+  // Make sure we're handling an authentication
+  if (type !== 'webauthn.get') {
     throw new Error(
-      `Unexpected authentication response type: ${clientDataJSON.type}`,
+      `Unexpected authentication response type: ${type}`,
     );
   }
 
-  if (clientDataJSON.challenge !== expectedChallenge) {
+  // Ensure the device provided the challenge we gave it
+  if (challenge !== expectedChallenge) {
     throw new Error(
-      `Unexpected authentication response challenge "${clientDataJSON.challenge}", expected "${expectedChallenge}"`,
+      `Unexpected authentication response challenge "${challenge}", expected "${expectedChallenge}"`,
     );
   }
 
+  // Check that the origin is our site
   const expectedOrigins = Array.isArray(expectedOrigin)
     ? expectedOrigin
     : [expectedOrigin];
-  if (!expectedOrigins.includes(clientDataJSON.origin)) {
+  if (!expectedOrigins.includes(origin)) {
     throw new Error(
-      `Unexpected authentication response origin "${clientDataJSON.origin}", expected one of: ${expectedOrigins.join(', ')}`,
+      `Unexpected authentication response origin "${origin}", expected one of: ${expectedOrigins.join(', ')}`,
     );
+  }
+
+  if (
+    assertionResponse.userHandle &&
+    typeof assertionResponse.userHandle !== 'string'
+  ) {
+    throw new Error('Credential response userHandle was not a string');
+  }
+
+  if (tokenBinding) {
+    if (typeof tokenBinding !== 'object') {
+      throw new Error('ClientDataJSON tokenBinding was not an object');
+    }
+
+    if (
+      !['present', 'supported', 'notSupported'].includes(tokenBinding.status)
+    ) {
+      throw new Error(`Unexpected tokenBinding status ${tokenBinding.status}`);
+    }
   }
 
   const authDataBuffer = base64URLToBytes(assertionResponse.authenticatorData);
@@ -127,12 +159,15 @@ export async function verifyAuthenticationResponse(opts: {
     parseAuthenticatorData(authDataBuffer);
   const { rpIdHash, flags, counter } = parsedAuthData;
 
+  // Make sure the response's RP ID is ours
   const matchedRPID = matchExpectedRPID(rpIdHash, [expectedRPID]);
 
+  // WebAuthn only requires the user presence flag be true
   if (!flags.up) {
     throw new Error('User not present during authentication');
   }
 
+  // Enforce user verification if required
   if (requireUserVerification && !flags.uv) {
     throw new Error(
       'User verification required, but user could not be verified',
