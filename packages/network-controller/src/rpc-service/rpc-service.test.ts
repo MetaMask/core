@@ -1198,7 +1198,7 @@ describe('RpcService', () => {
               result: '0x1',
             };
           },
-          { 'x-trace-id': 'abc-123-trace' },
+          { 'X-Trace-Id': 'abc-123-trace' },
         );
       const onDegradedListener = jest.fn();
       const service = new RpcService({
@@ -1845,7 +1845,7 @@ function testsForRetriableResponses({
         params: [],
       })
       .times(10)
-      .reply(httpStatus, responseBody, { 'x-trace-id': 'abc-123-trace' });
+      .reply(httpStatus, responseBody, { 'X-Trace-Id': 'abc-123-trace' });
     const endpointUrl = 'https://rpc.example.chain';
     const onDegradedListener = jest.fn();
     const service = new RpcService({
@@ -1891,7 +1891,7 @@ function testsForRetriableResponses({
           params: [],
         })
         .reply(httpStatus, responseBody, {
-          'x-trace-id': `trace-attempt-${i}`,
+          'X-Trace-Id': `trace-attempt-${i}`,
         });
     }
     scope

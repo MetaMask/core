@@ -303,7 +303,7 @@ export class RpcService {
   #currentRpcMethodName = '';
 
   /**
-   * The trace ID from the `x-trace-id` response header of the most recent
+   * The trace ID from the `X-Trace-Id` response header of the most recent
    * request. Passed to `onDegraded` event listeners for debugging.
    *
    * `undefined` when no response has been received yet or when the response
@@ -695,7 +695,7 @@ export class RpcService {
             // the request.
             this.#currentRpcMethodName = rpcMethodName;
             this.#currentTraceId =
-              response?.headers.get('x-trace-id') ?? undefined;
+              response?.headers.get('X-Trace-Id') ?? undefined;
           }
         },
       );
