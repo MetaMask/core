@@ -200,11 +200,11 @@ export function validateTypedDataForPrototypePollution(data: string): void {
 export function validateTypedMessageKeys(data: string): void {
   const parsedData = parseTypedMessage(data);
   const allowedKeys = new Set(Object.keys(TYPED_MESSAGE_SCHEMA.properties));
-  const extraneousKeys = Object.keys(parsedData).filter(
+  const hasExtraneousKey = Object.keys(parsedData).some(
     (key) => !allowedKeys.has(key),
   );
 
-  if (extraneousKeys.length > 0) {
+  if (hasExtraneousKey) {
     throw rpcErrors.invalidInput();
   }
 }
