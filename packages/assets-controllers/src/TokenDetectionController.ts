@@ -326,6 +326,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
 
         if (isDetectionChangedFromPreferences) {
+          // Invalidate the mainnet token list cache so the next detection run
+          // fetches the appropriate list (static vs full API) for the new
+          // preference value rather than serving a stale entry.
+          this.#tokenListCache.delete(ChainId.mainnet);
+
           this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
           }).catch(() => {
@@ -654,16 +659,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   async #getTokenListForChain(chainId: Hex): Promise<TokenListMap> {
-    const cached = this.#tokenListCache.get(chainId);
     const now = Date.now();
 
-    if (
-      cached &&
-      now - cached.timestamp < TokenDetectionController.#tokenListCacheMaxAge
-    ) {
-      return cached.data;
-    }
-
+    // Check the preference-based path first so that changing the preference
+    // (e.g. re-enabling detection on mainnet) always bypasses a stale
+    // static-list cache entry.
     const isMainnetDetectionInactive =
       !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
 
@@ -671,6 +671,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const data = this.#getStaticMainnetTokenList();
       this.#tokenListCache.set(chainId, { data, timestamp: now });
       return data;
+    }
+
+    const cached = this.#tokenListCache.get(chainId);
+
+    if (
+      cached &&
+      now - cached.timestamp < TokenDetectionController.#tokenListCacheMaxAge
+    ) {
+      return cached.data;
     }
 
     const tokenList = await fetchAndBuildTokenListMap(
@@ -780,10 +789,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const verifiedTokens = await fetchVerifiedTokensByAddresses(
-      chainId,
-      tokensSlice,
-    );
+    const verifiedTokens =
+      (await safelyExecute(() =>
+        fetchVerifiedTokensByAddresses(chainId, tokensSlice),
+      )) ?? new Map();
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
@@ -901,10 +910,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const verifiedTokens = await fetchVerifiedTokensByAddresses(
-      chainId,
-      addressesToFetch,
-    );
+    const verifiedTokens =
+      (await safelyExecute(() =>
+        fetchVerifiedTokensByAddresses(chainId, addressesToFetch),
+      )) ?? new Map();
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];

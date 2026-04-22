@@ -3753,6 +3753,217 @@ describe('TokensController', () => {
     });
   });
 
+  describe('enrichTokenMetadata', () => {
+    it('enriches token names from the token list on construction', async () => {
+      const tokenAddress = '0x01';
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            '0x1': [
+              {
+                address: tokenAddress,
+                symbol: 'TKN',
+                decimals: 18,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      mockFetchAndBuildTokenListMap.mockResolvedValue({
+        [tokenAddress]: {
+          address: tokenAddress,
+          symbol: 'TKN',
+          decimals: 18,
+          name: 'Token Name',
+          occurrences: 5,
+          aggregators: [],
+          iconUrl: '',
+        },
+      });
+
+      await withController(
+        { options: { state: initialState } },
+        async ({ controller }) => {
+          // Allow the async enrichment to complete
+          await new Promise(process.nextTick);
+          expect(
+            controller.state.allTokens[ChainId.mainnet]['0x1'][0].name,
+          ).toBe('Token Name');
+        },
+      );
+    });
+
+    it('enriches rwaData from the token list on construction', async () => {
+      const tokenAddress = '0x01';
+      const rwaData = { ticker: 'TICKER', instrumentType: 'bond' };
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            '0x1': [
+              {
+                address: tokenAddress,
+                symbol: 'TKN',
+                decimals: 18,
+                aggregators: [],
+                image: undefined,
+                name: 'Existing Name',
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      mockFetchAndBuildTokenListMap.mockResolvedValue({
+        [tokenAddress]: {
+          address: tokenAddress,
+          symbol: 'TKN',
+          decimals: 18,
+          name: 'Existing Name',
+          occurrences: 5,
+          aggregators: [],
+          iconUrl: '',
+          rwaData,
+        },
+      });
+
+      await withController(
+        { options: { state: initialState } },
+        async ({ controller }) => {
+          await new Promise(process.nextTick);
+          expect(
+            controller.state.allTokens[ChainId.mainnet]['0x1'][0].rwaData,
+          ).toStrictEqual(rwaData);
+        },
+      );
+    });
+
+    it('does not update state when no enrichment is needed', async () => {
+      const tokenAddress = '0x01';
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            '0x1': [
+              {
+                address: tokenAddress,
+                symbol: 'TKN',
+                decimals: 18,
+                aggregators: [],
+                image: undefined,
+                name: 'Already Named',
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      mockFetchAndBuildTokenListMap.mockResolvedValue({
+        [tokenAddress]: {
+          address: tokenAddress,
+          symbol: 'TKN',
+          decimals: 18,
+          name: 'Already Named',
+          occurrences: 5,
+          aggregators: [],
+          iconUrl: '',
+        },
+      });
+
+      await withController(
+        { options: { state: initialState } },
+        async ({ controller }) => {
+          const stateBefore = controller.state;
+          await new Promise(process.nextTick);
+          // State should be the same reference since no changes were made
+          expect(controller.state.allTokens).toStrictEqual(
+            stateBefore.allTokens,
+          );
+        },
+      );
+    });
+
+    it('uses cached token list on repeated enrichment calls', async () => {
+      const tokenAddress = '0x01';
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            '0x1': [
+              {
+                address: tokenAddress,
+                symbol: 'TKN',
+                decimals: 18,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      mockFetchAndBuildTokenListMap.mockResolvedValue({
+        [tokenAddress]: {
+          address: tokenAddress,
+          symbol: 'TKN',
+          decimals: 18,
+          name: 'Token Name',
+          occurrences: 5,
+          aggregators: [],
+          iconUrl: '',
+        },
+      });
+
+      await withController(
+        { options: { state: initialState } },
+        async ({ controller }) => {
+          await new Promise(process.nextTick);
+          // First call should have fetched
+          expect(mockFetchAndBuildTokenListMap).toHaveBeenCalledTimes(1);
+          // Clear mock call count, then trigger enrichment again
+          mockFetchAndBuildTokenListMap.mockClear();
+          // Add a token to trigger enrichment
+          await controller.addToken({
+            address: '0x02',
+            symbol: 'TKN2',
+            decimals: 18,
+            networkClientId: 'mainnet',
+          });
+          await new Promise(process.nextTick);
+          // Second call should use cached list (not call API again)
+          expect(mockFetchAndBuildTokenListMap).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('destroy', () => {
+    it('should clear the enrich interval and abort the abort controller', async () => {
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
+
+      await withController({}, ({ controller }) => {
+        controller.destroy();
+
+        expect(clearIntervalSpy).toHaveBeenCalled();
+        expect(abortSpy).toHaveBeenCalled();
+      });
+
+      clearIntervalSpy.mockRestore();
+      abortSpy.mockRestore();
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {

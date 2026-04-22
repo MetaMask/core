@@ -5,6 +5,7 @@ import nock from 'nock';
 
 import type { SortTrendingBy } from './token-service';
 import {
+  fetchAndBuildTokenListMap,
   fetchTokenAssets,
   fetchTokenListByChainId,
   fetchTokenMetadata,
@@ -1681,6 +1682,60 @@ describe('Token service', () => {
       setupNock();
       const result = await fetchTokenAssets([oneInchAssetId]);
       expect(result).toStrictEqual([]);
+    });
+  });
+
+  describe('fetchAndBuildTokenListMap', () => {
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
+    it('returns a normalized TokenListMap with formatted aggregators and proxied icon URLs', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList)
+        .persist();
+
+      const result = await fetchAndBuildTokenListMap(sampleChainId, signal);
+
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('object');
+      // Each returned address should map to a token object
+      for (const token of sampleTokenList) {
+        expect(result?.[token.address]).toBeDefined();
+        expect(result?.[token.address].address).toBe(token.address);
+        expect(result?.[token.address].symbol).toBe(token.symbol);
+      }
+    });
+
+    it('returns undefined when fetchTokenListByChainId returns undefined (aborted)', async () => {
+      const ac = new AbortController();
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .delay(ONE_SECOND_IN_MILLISECONDS)
+        .reply(200, sampleTokenList)
+        .persist();
+
+      const fetchPromise = fetchAndBuildTokenListMap(sampleChainId, ac.signal);
+      ac.abort();
+
+      expect(await fetchPromise).toBeUndefined();
+    });
+
+    it('returns undefined when the fetch throws an error', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .replyWithError('network failure')
+        .persist();
+
+      const result = await fetchAndBuildTokenListMap(sampleChainId, signal);
+
+      expect(result).toBeUndefined();
     });
   });
 });

@@ -2816,6 +2816,58 @@ describe('TokenDetectionController', () => {
   });
 
   describe('addDetectedTokensViaWs', () => {
+    it('should return early when useTokenDetection is disabled', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => false,
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should return early when useExternalServices is disabled', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useExternalServices: () => false,
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
     it('should add tokens detected from websocket with metadata from cache', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       const checksummedTokenAddress =
@@ -3282,6 +3334,33 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    it('should return early when useExternalServices is disabled', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+            useExternalServices: () => false,
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
     it('should skip tokens already in allTokens', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       const checksummedTokenAddress =
@@ -3612,6 +3691,126 @@ describe('TokenDetectionController', () => {
             ],
             'avalanche',
           );
+        },
+      );
+    });
+  });
+
+  describe('#getTokenListForChain cache behaviour', () => {
+    it('fetches the full API list after detection is re-enabled on mainnet, bypassing the stale static cache', async () => {
+      const mainnetChainId = ChainId.mainnet;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockGetNetworkClientById,
+          mockFindNetworkClientIdByChainId,
+          triggerPreferencesStateChange,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          const mainnetNetworkConfig = {
+            chainId: ChainId.mainnet,
+            name: 'Ethereum Mainnet',
+            nativeCurrency: 'ETH',
+            blockExplorerUrls: [] as string[],
+            defaultBlockExplorerUrlIndex: 0,
+            defaultRpcEndpointIndex: 0,
+            rpcEndpoints: [
+              {
+                networkClientId: 'mainnet' as NetworkClientId,
+                type: RpcEndpointType.Custom,
+                url: 'https://mainnet.infura.io/v3/test',
+                failoverUrls: [] as string[],
+              },
+            ],
+          };
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              [ChainId.mainnet]: mainnetNetworkConfig,
+            },
+          });
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: ChainId.mainnet },
+                provider: {},
+                destroy: {},
+                blockTracker: {},
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+          );
+
+          // Disable detection so the static mainnet list gets cached on first run
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: false,
+          });
+
+          // First run: detection disabled → static list gets cached
+          await controller.detectTokens({
+            chainIds: [mainnetChainId],
+            forceRpc: true,
+          });
+
+          // API should NOT have been called while detection was disabled
+          expect(mockFetchAndBuildTokenListMap).not.toHaveBeenCalledWith(
+            mainnetChainId,
+            expect.anything(),
+          );
+
+          // User re-enables token detection
+          mockFetchAndBuildTokenListMap.mockClear();
+          mockFetchAndBuildTokenListMap.mockResolvedValue({});
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: true,
+          });
+
+          // Second run: detection now enabled → must bypass stale static cache
+          // and call the full API
+          await controller.detectTokens({
+            chainIds: [mainnetChainId],
+            forceRpc: true,
+          });
+
+          expect(mockFetchAndBuildTokenListMap).toHaveBeenCalledWith(
+            mainnetChainId,
+            expect.anything(),
+          );
+        },
+      );
+    });
+  });
+
+  describe('destroy', () => {
+    it('should abort the internal abort controller and stop polling', async () => {
+      await withController(
+        { options: { disabled: false } },
+        async ({ controller }) => {
+          const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
+
+          controller.destroy();
+
+          expect(abortSpy).toHaveBeenCalled();
+          abortSpy.mockRestore();
         },
       );
     });

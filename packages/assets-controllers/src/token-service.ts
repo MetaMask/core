@@ -262,7 +262,7 @@ export async function fetchAndBuildTokenListMap(
   for (const token of tokensFromAPI) {
     tokenList[token.address] = {
       ...token,
-      aggregators: formatAggregatorNames(token.aggregators),
+      aggregators: formatAggregatorNames(token.aggregators ?? []),
       iconUrl: formatIconUrlWithProxy({
         chainId,
         tokenAddress: token.address,
