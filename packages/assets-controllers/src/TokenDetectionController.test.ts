@@ -41,9 +41,9 @@ import {
   TOKEN_END_POINT_API,
   fetchAndBuildTokenListMap,
 } from './token-service';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import type { TokenV3Asset } from './tokens-api-v3';
-import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 
 jest.mock('./token-service', () => ({
   ...jest.requireActual('./token-service'),

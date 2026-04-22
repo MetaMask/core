@@ -44,14 +44,11 @@ import { mapValues, isObject, get } from 'lodash';
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
-import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
-import type {
-  TokenListMap,
-  TokensChainsCache,
-} from './TokenListController';
-import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import { fetchAndBuildTokenListMap } from './token-service';
+import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
+import type { TokenListMap, TokensChainsCache } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import type { TokensControllerGetStateAction } from './TokensController';
 import type {
   TokensControllerAddDetectedTokensAction,

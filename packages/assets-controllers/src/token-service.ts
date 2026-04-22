@@ -247,10 +247,9 @@ export async function fetchAndBuildTokenListMap(
 ): Promise<TokenListMap | undefined> {
   let tokensFromAPI: TokenListToken[] | undefined;
   try {
-    tokensFromAPI = (await fetchTokenListByChainId(
-      chainId,
-      abortSignal,
-    )) as TokenListToken[] | undefined;
+    tokensFromAPI = (await fetchTokenListByChainId(chainId, abortSignal)) as
+      | TokenListToken[]
+      | undefined;
   } catch {
     return undefined;
   }
