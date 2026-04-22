@@ -64,7 +64,6 @@ import {
   getMatchingHistoryEntryForTxMeta,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
-  isHistoryItemTooOld,
   getMatchingHistoryEntryForApprovalTxMeta,
 } from './utils/history';
 import {
