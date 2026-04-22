@@ -6332,7 +6332,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
 
@@ -6363,7 +6363,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
 
@@ -6397,7 +6397,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
 
@@ -6419,7 +6419,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
       engine.push((_req, res, _next, end) => {
@@ -6437,24 +6437,6 @@ describe('PermissionController', () => {
       expect(response.result).toBe('success');
     });
 
-    it('throws an error if the subject has an invalid "origin" property', async () => {
-      const { middlewareMessenger } = setup();
-
-      ['', null, undefined, 2].forEach((invalidOrigin) => {
-        expect(() =>
-          createPermissionMiddleware({
-            messenger: middlewareMessenger,
-            subject: {
-              // @ts-expect-error Intentional destructive testing
-              origin: invalidOrigin,
-            },
-          }),
-        ).toThrow(
-          new Error('The subject "origin" must be a non-empty string.'),
-        );
-      });
-    });
-
     it('returns an error if the subject does not have the requisite permission', async () => {
       const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
@@ -6463,7 +6445,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
 
@@ -6498,7 +6480,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
 
@@ -6544,7 +6526,7 @@ describe('PermissionController', () => {
       engine.push(
         createPermissionMiddleware({
           messenger: middlewareMessenger,
-          subject: { origin },
+          origin,
         }),
       );
 
@@ -6583,7 +6565,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
           ],
         });
@@ -6605,7 +6587,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
             (): string => 'success',
           ],
@@ -6620,24 +6602,6 @@ describe('PermissionController', () => {
         expect(result).toBe('success');
       });
 
-      it('throws an error if the subject has an invalid "origin" property', () => {
-        const { middlewareMessenger } = setup();
-
-        ['', null, undefined, 2].forEach((invalidOrigin) => {
-          expect(() =>
-            createPermissionMiddlewareV2({
-              messenger: middlewareMessenger,
-              subject: {
-                // @ts-expect-error Intentional destructive testing
-                origin: invalidOrigin,
-              },
-            }),
-          ).toThrow(
-            new Error('The subject "origin" must be a non-empty string.'),
-          );
-        });
-      });
-
       it('throws if the subject does not have the requisite permission', async () => {
         const { middlewareMessenger } = setup();
         const origin = 'metamask.io';
@@ -6646,7 +6610,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
           ],
         });
@@ -6681,7 +6645,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
           ],
         });
@@ -6715,7 +6679,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
           ],
         });
@@ -6737,7 +6701,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
           ],
         });
@@ -6773,7 +6737,7 @@ describe('PermissionController', () => {
           middleware: [
             createPermissionMiddlewareV2({
               messenger: middlewareMessenger,
-              subject: { origin },
+              origin,
             }),
           ],
         });

@@ -12,7 +12,6 @@ import type {
 } from '@metamask/utils';
 
 import type { RestrictedMethodParameters } from './Permission';
-import type { PermissionSubjectMetadata } from './PermissionController';
 import type {
   PermissionControllerExecuteRestrictedMethodAction,
   PermissionControllerHasUnrestrictedMethodAction,
@@ -27,7 +26,7 @@ export type PermissionMiddlewareActions =
 
 export type CreatePermissionMiddlewareOptions = {
   messenger: Messenger<string, PermissionMiddlewareActions>;
-  subject: PermissionSubjectMetadata;
+  origin: string;
 };
 
 /**
@@ -43,30 +42,28 @@ export type CreatePermissionMiddlewareOptions = {
  * @param options.messenger - A messenger with the
  * `PermissionController:executeRestrictedMethod` and
  * `PermissionController:hasUnrestrictedMethod` actions.
- * @param options.subject - The subject for which to create the middleware.
+ * @param options.origin - The origin of the subject for which to create the middleware.
  * @returns A `json-rpc-engine` middleware.
  */
 export function createPermissionMiddleware({
   messenger,
-  subject,
+  origin,
 }: CreatePermissionMiddlewareOptions): JsonRpcMiddleware<
   RestrictedMethodParameters,
   Json
 > {
-  const origin = validateOrigin(subject);
-
   const permissionsMiddleware = async (
-    req: JsonRpcRequest<RestrictedMethodParameters>,
-    res: PendingJsonRpcResponse,
+    request: JsonRpcRequest<RestrictedMethodParameters>,
+    response: PendingJsonRpcResponse,
     next: AsyncJsonRpcEngineNextCallback,
   ): Promise<void> => {
-    const { method, params } = req;
+    const { method, params } = request;
 
     if (messenger.call('PermissionController:hasUnrestrictedMethod', method)) {
       return next();
     }
 
-    res.result = await messenger.call(
+    response.result = await messenger.call(
       'PermissionController:executeRestrictedMethod',
       origin,
       method,
@@ -91,15 +88,13 @@ export function createPermissionMiddleware({
  * @param options.messenger - A messenger with the
  * `PermissionController:executeRestrictedMethod` and
  * `PermissionController:hasUnrestrictedMethod` actions.
- * @param options.subject - The subject for which to create the middleware.
+ * @param options.origin - The origin of the subject for which to create the middleware.
  * @returns A `JsonRpcEngineV2` middleware.
  */
 export function createPermissionMiddlewareV2({
   messenger,
-  subject,
+  origin,
 }: CreatePermissionMiddlewareOptions): JsonRpcMiddlewareV2 {
-  const origin = validateOrigin(subject);
-
   return async ({ request, next }) => {
     const { method, params } = request;
 
@@ -114,18 +109,4 @@ export function createPermissionMiddlewareV2({
       params,
     );
   };
-}
-
-/**
- * Validates that the subject has a non-empty origin.
- *
- * @param subject - The subject to validate.
- * @returns The subject's origin.
- */
-function validateOrigin(subject: PermissionSubjectMetadata): string {
-  const { origin } = subject;
-  if (typeof origin !== 'string' || !origin) {
-    throw new Error('The subject "origin" must be a non-empty string.');
-  }
-  return origin;
 }
