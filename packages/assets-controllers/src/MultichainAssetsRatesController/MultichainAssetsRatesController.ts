@@ -260,14 +260,16 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       'MultichainAssetsController:accountAssetListUpdated',
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
-        const newAccountAssets = Object.entries(assets).map(
-          ([accountId, { added }]) => ({
+        // Treat the event payload as a per-account delta so we can fetch only
+        // newly added assets and independently clean up removed ones.
+        const updatedAccountAssets = Object.entries(assets).map(
+          ([accountId, { added, removed }]) => ({
             accountId,
-            assets: [...added],
+            added: [...added],
+            removed: [...removed],
           }),
         );
-        // TODO; removed can be used in future for further cleanup
-        await this.#updateAssetsRatesForNewAssets(newAccountAssets);
+        await this.#updateAssetsRatesForNewAssets(updatedAccountAssets);
       },
     );
   }
@@ -622,15 +624,23 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
-   * Updates the conversion rates for new assets.
+   * Reconciles cached rates after an account asset-list update event.
    *
-   * @param accounts - The accounts to update the conversion rates for.
+   * The event payload is treated as a delta:
+   * - `added` assets are batched by Snap and fetched for fresh rates
+   * - `removed` assets are deleted from cached state only if they are no longer tracked by any account
+   *
+   * This global check is required because rate state is keyed by asset rather
+   * than by account, so the same asset may still be shared by another account.
+   *
+   * @param accounts - The per-account asset deltas from the asset-list update event.
    * @returns A promise that resolves when the rates are updated.
    */
   async #updateAssetsRatesForNewAssets(
     accounts: {
       accountId: string;
-      assets: CaipAssetType[];
+      added: CaipAssetType[];
+      removed: CaipAssetType[];
     }[],
   ): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
@@ -643,16 +653,33 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       // First build a map containing all assets that need to be updated per
       // Snap ID, this will be used to batch the requests.
       const snapIdToAssets = new Map<SnapId, Set<CaipAssetType>>();
+      const removedAssets = new Set<CaipAssetType>();
 
-      for (const { accountId, assets } of accounts) {
-        this.#addAssetsToSnapIdMap(
-          snapIdToAssets,
-          this.#getAccount(accountId),
-          assets,
-        );
+      for (const { accountId, added, removed } of accounts) {
+        if (added.length !== 0) {
+          // Only newly added assets need fresh rate requests.
+          this.#addAssetsToSnapIdMap(
+            snapIdToAssets,
+            this.#getAccount(accountId),
+            added,
+          );
+        }
+
+        // Collect removed assets separately so we can decide later whether they
+        // are truly stale or still referenced by another account.
+        for (const asset of removed) {
+          removedAssets.add(asset);
+        }
       }
 
-      this.#applyUpdatedRates(await this.#getUpdatedRatesFor(snapIdToAssets));
+      const updatedRates = await this.#getUpdatedRatesFor(snapIdToAssets);
+      // Rates are stored globally by asset, so delete only assets that no
+      // longer exist in any account asset list.
+      const assetsToDelete = Array.from(removedAssets).filter(
+        (asset) => !this.#isAssetTracked(asset),
+      );
+
+      this.#applyUpdatedRates(updatedRates, assetsToDelete);
     })().finally(() => {
       releaseLock();
     });
@@ -693,25 +720,54 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
-   * Merges the new rates into the controller's state.
+   * Applies fresh rates and removes stale asset-rate state in one update.
    *
-   * @param updatedRates - The new rates to merge.
+   * @param updatedRates - The latest conversion rates fetched for added assets.
+   * @param removedAssets - Assets that should be purged because they are no longer tracked by any account.
    */
   #applyUpdatedRates(
     updatedRates: Record<
       CaipAssetType,
       UnifiedAssetConversion & { currency: CaipAssetType }
     >,
+    removedAssets: CaipAssetType[] = [],
   ): void {
-    if (Object.keys(updatedRates).length === 0) {
+    if (Object.keys(updatedRates).length === 0 && removedAssets.length === 0) {
       return;
     }
     this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
+      // Drop both current rates and historical prices for assets that are no
+      // longer referenced anywhere in MultichainAssetsController state.
+      for (const asset of removedAssets) {
+        delete state.conversionRates[asset];
+        delete state.historicalPrices[asset];
+      }
+
+      // Merge the freshly fetched rates after cleanup.
       state.conversionRates = {
         ...state.conversionRates,
         ...updatedRates,
       };
     });
+  }
+
+  /**
+   * Checks whether an asset is still tracked by any account in
+   * MultichainAssetsController state.
+   *
+   * @param asset - The asset to check.
+   * @returns True if the asset still exists in any account asset list.
+   */
+  #isAssetTracked(asset: CaipAssetType): boolean {
+    const { accountsAssets } = this.messenger.call(
+      'MultichainAssetsController:getState',
+    );
+
+    // Rate state is global per asset, so inspect all account asset lists before
+    // deciding whether a removed asset should be purged from cache.
+    return Object.values(accountsAssets ?? {}).some((accountAssets) =>
+      accountAssets.includes(asset),
+    );
   }
 
   /**

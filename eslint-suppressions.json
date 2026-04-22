@@ -305,9 +305,6 @@
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     },
     "no-restricted-syntax": {
@@ -2245,11 +2242,6 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
-    "import-x/no-relative-packages": {
       "count": 1
     }
   },
