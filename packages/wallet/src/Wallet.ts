@@ -1,7 +1,6 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
-import type { Duplex } from 'stream';
 
 import type {
   DefaultActions,

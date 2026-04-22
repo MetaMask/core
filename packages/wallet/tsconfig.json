@@ -17,6 +17,12 @@
       "path": "../controller-utils/tsconfig.json"
     },
     {
+      "path": "../json-rpc-engine/tsconfig.json"
+    },
+    {
+      "path": "../json-rpc-middleware-stream/tsconfig.json"
+    },
+    {
       "path": "../keyring-controller/tsconfig.json"
     },
     {
@@ -27,6 +33,12 @@
     },
     {
       "path": "../network-controller/tsconfig.json"
+    },
+    {
+      "path": "../permission-controller/tsconfig.json"
+    },
+    {
+      "path": "../preferences-controller/tsconfig.json"
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.json"
