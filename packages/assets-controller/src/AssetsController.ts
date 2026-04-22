@@ -4,7 +4,6 @@ import type {
   AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
-import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -13,10 +12,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import {
-  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
-  fetchWithErrorHandling,
-} from '@metamask/controller-utils';
+import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
@@ -72,6 +68,10 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
+import {
+  buildNativeAssetsFromConstant,
+  buildNativeAssetsFromApi,
+} from './native-assets';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
@@ -126,13 +126,6 @@ import type {
 import { ZERO_ADDRESS } from './utils/constants';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
-
-const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
-
-type ChainIdNetworkEntry = {
-  chainId: number;
-  slip44?: number;
-};
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -845,60 +838,10 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   #initializeNativeAssetsMap(queryApiClient: ApiPlatformClient): void {
-    const buildNativeAssetsFromConstant = (): Record<
-      ChainId,
-      Caip19AssetId
-    > => {
-      const nativeAssetsMap: Record<ChainId, Caip19AssetId> = {};
-      for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
-        const { chainId } = parseCaipAssetType(nativeAssetId);
-        nativeAssetsMap[chainId] = nativeAssetId;
-      }
-      return nativeAssetsMap;
-    };
-
     queryApiClient.queryClient
       .fetchQuery({
         queryKey: NATIVE_ASSETS_QUERY_KEY,
-        queryFn: async (): Promise<Record<ChainId, Caip19AssetId>> => {
-          const nativeAssetsMap = buildNativeAssetsFromConstant();
-
-          try {
-            const chains: ChainIdNetworkEntry[] | undefined =
-              await fetchWithErrorHandling({
-                url: CHAINID_NETWORK_URL,
-                timeout: 10_000,
-              });
-
-            if (chains && Array.isArray(chains)) {
-              for (const chain of chains) {
-                if (
-                  !chain.chainId ||
-                  !chain.slip44 ||
-                  !Number.isInteger(chain.chainId) ||
-                  chain.chainId < 1 ||
-                  !Number.isInteger(chain.slip44) ||
-                  chain.slip44 < 0
-                ) {
-                  continue;
-                }
-
-                const caipChainId = `eip155:${chain.chainId}` as ChainId;
-                if (!nativeAssetsMap[caipChainId]) {
-                  nativeAssetsMap[caipChainId] =
-                    `eip155:${chain.chainId}/slip44:${chain.slip44}` as Caip19AssetId;
-                }
-              }
-            }
-          } catch (error) {
-            log(
-              'Failed to fetch chain data from chainid.network, using seed data only',
-              error,
-            );
-          }
-
-          return nativeAssetsMap;
-        },
+        queryFn: buildNativeAssetsFromApi,
         staleTime: Infinity,
         gcTime: Infinity,
       })
