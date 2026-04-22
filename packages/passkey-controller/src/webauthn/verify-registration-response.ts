@@ -112,9 +112,7 @@ export async function verifyRegistrationResponse(opts: {
 
   // Make sure we're handling an registration
   if (type !== 'webauthn.create') {
-    throw new Error(
-      `Unexpected registration response type: ${type}`,
-    );
+    throw new Error(`Unexpected registration response type: ${type}`);
   }
 
   // Ensure the device provided the challenge we gave it

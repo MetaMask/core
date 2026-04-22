@@ -122,7 +122,9 @@ describe('verifyAuthenticationResponse', () => {
   });
 
   it('returns { verified: false } when signature does not verify', async () => {
-    const signatureBytes = base64URLToBytes(assertionResponse.response.signature);
+    const signatureBytes = base64URLToBytes(
+      assertionResponse.response.signature,
+    );
     signatureBytes[0] = ((signatureBytes[0] ?? 0) + 1) % 256;
 
     const result = await verifyAuthenticationResponse({
@@ -229,7 +231,9 @@ describe('verifyAuthenticationResponse', () => {
   });
 
   it('throws error if user was not present', async () => {
-    const authData = base64URLToBytes(assertionResponse.response.authenticatorData);
+    const authData = base64URLToBytes(
+      assertionResponse.response.authenticatorData,
+    );
     authData[32] = 0x00;
 
     await expect(
@@ -304,5 +308,95 @@ describe('verifyAuthenticationResponse', () => {
     });
 
     expect(verification.verified).toBe(true);
+  });
+
+  it('throws when clientDataJSON is not a string', async () => {
+    await expect(
+      verifyAuthenticationResponse({
+        response: {
+          ...assertionResponse,
+          response: {
+            ...assertionResponse.response,
+            clientDataJSON: 1 as unknown as string,
+          },
+        },
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+        credential,
+      }),
+    ).rejects.toThrow('Credential response clientDataJSON was not a string');
+  });
+
+  it('throws when userHandle is not a string', async () => {
+    await expect(
+      verifyAuthenticationResponse({
+        response: {
+          ...assertionResponse,
+          response: {
+            ...assertionResponse.response,
+            userHandle: 1 as unknown as string,
+          },
+        },
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+        credential,
+      }),
+    ).rejects.toThrow('Credential response userHandle was not a string');
+  });
+
+  it('throws when tokenBinding is not an object', async () => {
+    const clientDataJSON = bytesToBase64URL(
+      new TextEncoder().encode(
+        JSON.stringify({
+          ...decodeClientDataJSON(assertionResponse.response.clientDataJSON),
+          tokenBinding: 'invalid',
+        }),
+      ),
+    );
+
+    await expect(
+      verifyAuthenticationResponse({
+        response: {
+          ...assertionResponse,
+          response: {
+            ...assertionResponse.response,
+            clientDataJSON,
+          },
+        },
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+        credential,
+      }),
+    ).rejects.toThrow('ClientDataJSON tokenBinding was not an object');
+  });
+
+  it('throws when tokenBinding status is invalid', async () => {
+    const clientDataJSON = bytesToBase64URL(
+      new TextEncoder().encode(
+        JSON.stringify({
+          ...decodeClientDataJSON(assertionResponse.response.clientDataJSON),
+          tokenBinding: { status: 'invalid-status' },
+        }),
+      ),
+    );
+
+    await expect(
+      verifyAuthenticationResponse({
+        response: {
+          ...assertionResponse,
+          response: {
+            ...assertionResponse.response,
+            clientDataJSON,
+          },
+        },
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+        credential,
+      }),
+    ).rejects.toThrow('Unexpected tokenBinding status');
   });
 });

@@ -51,11 +51,7 @@ function verifyEC2(
     throw new Error('EC2 public key missing x or y coordinate');
   }
 
-  const uncompressed = concatBytes([
-    new Uint8Array([0x04]),
-    xCoord,
-    yCoord,
-  ]);
+  const uncompressed = concatBytes([new Uint8Array([0x04]), xCoord, yCoord]);
 
   switch (crv) {
     case COSECRV.P256:

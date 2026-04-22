@@ -705,6 +705,113 @@ describe('verifyRegistrationResponse edge cases', () => {
 
     expect(result.verified).toBe(true);
   });
+
+  it('rejects tokenBinding that is not an object', async () => {
+    const clientDataJSON = bytesToBase64URL(
+      new TextEncoder().encode(
+        JSON.stringify({
+          ...decodeClientDataJSON(attestationNone.response.clientDataJSON),
+          tokenBinding: 'invalid',
+        }),
+      ),
+    );
+
+    await expect(
+      verifyRegistrationResponse({
+        response: {
+          ...attestationNone,
+          response: {
+            ...attestationNone.response,
+            clientDataJSON,
+          },
+        },
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+      }),
+    ).rejects.toThrow('ClientDataJSON tokenBinding was not an object');
+  });
+
+  it('rejects tokenBinding with invalid status', async () => {
+    const clientDataJSON = bytesToBase64URL(
+      new TextEncoder().encode(
+        JSON.stringify({
+          ...decodeClientDataJSON(attestationNone.response.clientDataJSON),
+          tokenBinding: { status: 'invalid-status' },
+        }),
+      ),
+    );
+
+    await expect(
+      verifyRegistrationResponse({
+        response: {
+          ...attestationNone,
+          response: {
+            ...attestationNone.response,
+            clientDataJSON,
+          },
+        },
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+      }),
+    ).rejects.toThrow('Unexpected tokenBinding.status value');
+  });
+
+  it('rejects missing attested credential data', async () => {
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x01,
+      counter: 0,
+    });
+
+    const response = buildRegistrationResponse(authData, 'missing-attested');
+
+    await expect(
+      verifyRegistrationResponse({
+        response,
+        expectedChallenge: TEST_CHALLENGE,
+        expectedOrigin: TEST_ORIGIN,
+        expectedRPID: TEST_RP_ID,
+      }),
+    ).rejects.toThrow('No credential ID was provided by authenticator');
+  });
+
+  it('returns verified false for packed attestation with invalid signature', async () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    const credentialID = new Uint8Array(16).fill(0x91);
+    const aaguid = new Uint8Array(16).fill(0);
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x41,
+      counter: 0,
+      aaguid,
+      credentialID,
+      credentialPublicKey: cosePublicKeyCBOR,
+    });
+
+    const attStmt = new Map<string, unknown>();
+    attStmt.set('alg', COSEALG.ES256);
+    attStmt.set('sig', new Uint8Array(64).fill(0xff));
+
+    const response = buildRegistrationResponse(
+      authData,
+      bytesToBase64URL(credentialID),
+      'packed',
+      attStmt,
+    );
+
+    const verification = await verifyRegistrationResponse({
+      response,
+      expectedChallenge: TEST_CHALLENGE,
+      expectedOrigin: TEST_ORIGIN,
+      expectedRPID: TEST_RP_ID,
+    });
+
+    expect(verification).toStrictEqual({ verified: false });
+  });
 });
 
 describe('verifyRegistrationResponse missing public key fields', () => {
