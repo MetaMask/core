@@ -3,6 +3,7 @@ import {
   extractTradeData,
   isEvmTxData,
   isBitcoinTrade,
+  isStellarTrade,
   isTronTrade,
 } from './trade-utils';
 import type { Trade } from './trade-utils';
@@ -145,10 +146,48 @@ describe('Trade utils', () => {
     });
   });
 
+  describe('isStellarTrade', () => {
+    it('returns true for xdrBase64 object', () => {
+      expect(
+        isStellarTrade({ xdrBase64: 'AAAABg==' } as unknown as Trade),
+      ).toBe(true);
+    });
+
+    it('returns true for xdr object', () => {
+      expect(isStellarTrade({ xdr: 'AAAABg==' } as unknown as Trade)).toBe(
+        true,
+      );
+    });
+
+    it('returns false for Tron trade', () => {
+      expect(
+        isStellarTrade({
+          raw_data_hex: 'ab',
+        } as unknown as Trade),
+      ).toBe(false);
+    });
+  });
+
   describe('extractTradeData', () => {
     it('returns string as-is for Solana trades', () => {
       const solanaTrade = 'base64EncodedSolanaTransaction';
       expect(extractTradeData(solanaTrade)).toBe(solanaTrade);
+    });
+
+    it('returns xdrBase64 for Stellar trade object', () => {
+      expect(
+        extractTradeData({
+          xdrBase64: 'stellarXdrPayload',
+        } as unknown as Trade),
+      ).toBe('stellarXdrPayload');
+    });
+
+    it('returns xdr for Stellar trade object with xdr key', () => {
+      expect(
+        extractTradeData({
+          xdr: 'stellarXdrAlt',
+        } as unknown as Trade),
+      ).toBe('stellarXdrAlt');
     });
 
     it('extracts data property from EVM TxData object', () => {
