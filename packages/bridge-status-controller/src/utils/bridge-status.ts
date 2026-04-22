@@ -17,9 +17,9 @@ import type {
   StatusRequest,
   BridgeStatusControllerMessenger,
 } from '../types';
+import { isHistoryItemTooOld } from './history';
 import { getNetworkClientByChainId } from './network';
 import { validateBridgeStatusResponse } from './validators';
-import { isHistoryItemTooOld } from './history';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;
