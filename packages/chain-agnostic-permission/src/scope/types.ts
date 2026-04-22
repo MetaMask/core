@@ -123,7 +123,8 @@ export type NonWalletKnownCaipNamespace =
   | KnownCaipNamespace.Eip155
   | KnownCaipNamespace.Bip122
   | KnownCaipNamespace.Solana
-  | KnownCaipNamespace.Tron;
+  | KnownCaipNamespace.Tron
+  | KnownCaipNamespace.Stellar;
 
 /**
  * Checks if a scope string is either a 'wallet' scope or a 'wallet:*' scope.
