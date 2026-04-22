@@ -1,5 +1,13 @@
-import type { CaveatConstraint, PermissionConstraint } from '.';
-import { constructPermission } from '.';
+import { Messenger } from '@metamask/messenger';
+
+import type {
+  CaveatConstraint,
+  PermissionConstraint,
+  PermissionSpecificationBuilder,
+  RestrictedMethodSpecificationConstraint,
+} from '.';
+import { constructPermission, PermissionType } from '.';
+import { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger';
 import { findCaveat } from './Permission';
 
 describe('constructPermission', () => {
@@ -84,5 +92,67 @@ describe('findCaveat', () => {
     };
 
     expect(findCaveat(permission, 'doesNotExist')).toBeUndefined();
+  });
+});
+
+describe('permission specification messenger option', () => {
+  type HostAction = {
+    type: 'Host:computeAnswer';
+    handler: () => number;
+  };
+
+  it('closes a scoped messenger into methodImplementation', () => {
+    const rootMessenger = new Messenger<'Root', HostAction>({
+      namespace: 'Root',
+    });
+    const hostMessenger = new Messenger<
+      'Host',
+      HostAction,
+      never,
+      typeof rootMessenger
+    >({ namespace: 'Host', parent: rootMessenger });
+    hostMessenger.registerActionHandler('Host:computeAnswer', () => 42);
+
+    const actionNames = ['Host:computeAnswer'] as const;
+    const targetName = 'wallet_getAnswer';
+
+    const specificationBuilder: PermissionSpecificationBuilder<
+      PermissionType.RestrictedMethod,
+      {
+        messenger?: ReturnType<
+          typeof createRestrictedMethodMessenger<
+            typeof rootMessenger,
+            typeof actionNames
+          >
+        >;
+      },
+      RestrictedMethodSpecificationConstraint
+    > = ({ messenger }) => ({
+      permissionType: PermissionType.RestrictedMethod,
+      targetName,
+      allowedCaveats: null,
+      methodImplementation: (): number => {
+        if (!messenger) {
+          throw new Error('messenger is required');
+        }
+        return messenger.call('Host:computeAnswer');
+      },
+    });
+
+    const messenger = createRestrictedMethodMessenger({
+      rootMessenger,
+      namespace: targetName,
+      actionNames,
+    });
+
+    const specification = specificationBuilder({ messenger });
+
+    expect(
+      specification.methodImplementation({
+        method: targetName,
+        params: [],
+        context: { origin: 'example.com' },
+      }),
+    ).toBe(42);
   });
 });

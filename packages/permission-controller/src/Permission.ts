@@ -485,10 +485,17 @@ export type PermissionSpecificationConstraint =
  */
 type PermissionSpecificationBuilderOptions<
   MethodHooks extends Record<string, unknown>,
+  SpecMessenger = unknown,
 > = {
   targetName?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
   methodHooks?: MethodHooks;
+  /**
+   * A messenger scoped to this permission specification, typically constructed
+   * via {@link createRestrictedMethodMessenger} from the spec's declared
+   * `actionNames`.
+   */
+  messenger?: SpecMessenger;
 };
 
 /**
@@ -519,6 +526,12 @@ export type PermissionSpecificationBuilderExportConstraint = {
     PermissionSpecificationConstraint
   >;
   methodHookNames?: Record<string, true>;
+  /**
+   * The messenger action types this specification requires. Hosts pass these
+   * to {@link createRestrictedMethodMessenger} to build a minimally-scoped
+   * child messenger to inject into the builder.
+   */
+  actionNames?: readonly string[];
 };
 
 type ValidRestrictedMethodSpecification<
