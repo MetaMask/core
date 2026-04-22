@@ -37,14 +37,17 @@ import {
   buildInfuraNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
-import { TOKEN_END_POINT_API, fetchTokenListByChainId } from './token-service';
+import {
+  TOKEN_END_POINT_API,
+  fetchAndBuildTokenListMap,
+} from './token-service';
 import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import type { TokenV3Asset } from './tokens-api-v3';
 import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 
 jest.mock('./token-service', () => ({
   ...jest.requireActual('./token-service'),
-  fetchTokenListByChainId: jest.fn(),
+  fetchAndBuildTokenListMap: jest.fn(),
 }));
 
 jest.mock('./tokens-api-v3', () => ({
@@ -52,9 +55,9 @@ jest.mock('./tokens-api-v3', () => ({
   fetchVerifiedTokensByAddresses: jest.fn(),
 }));
 
-const mockFetchTokenListByChainId =
-  fetchTokenListByChainId as jest.MockedFunction<
-    typeof fetchTokenListByChainId
+const mockFetchAndBuildTokenListMap =
+  fetchAndBuildTokenListMap as jest.MockedFunction<
+    typeof fetchAndBuildTokenListMap
   >;
 
 const mockFetchVerifiedTokensByAddresses =
@@ -248,7 +251,7 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     mockFetchVerifiedTokensByAddresses.mockResolvedValue(new Map());
-    mockFetchTokenListByChainId.mockResolvedValue(undefined);
+    mockFetchAndBuildTokenListMap.mockResolvedValue(undefined);
     nock(TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
@@ -627,10 +630,10 @@ describe('TokenDetectionController', () => {
           });
           await controller.start();
 
-          mockFetchTokenListByChainId.mockImplementation((fetchChainId) => {
+          mockFetchAndBuildTokenListMap.mockImplementation((fetchChainId) => {
             if (fetchChainId === '0xa86a') {
-              return Promise.resolve([
-                {
+              return Promise.resolve({
+                [sampleTokenA.address]: {
                   name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
@@ -639,7 +642,7 @@ describe('TokenDetectionController', () => {
                   aggregators: sampleTokenA.aggregators,
                   iconUrl: sampleTokenA.image,
                 },
-                {
+                [sampleTokenB.address]: {
                   name: sampleTokenB.name,
                   symbol: sampleTokenB.symbol,
                   decimals: sampleTokenB.decimals,
@@ -648,7 +651,7 @@ describe('TokenDetectionController', () => {
                   aggregators: sampleTokenB.aggregators,
                   iconUrl: sampleTokenB.image,
                 },
-              ]);
+              });
             }
             return Promise.resolve(undefined);
           });
@@ -3434,10 +3437,10 @@ describe('TokenDetectionController', () => {
         async ({ controller, callActionSpy }) => {
           // Update the mock to return populated cache data
           // This simulates TokenListController having fetched token list data after construction
-          mockFetchTokenListByChainId.mockImplementation((fetchChainId) => {
+          mockFetchAndBuildTokenListMap.mockImplementation((fetchChainId) => {
             if (fetchChainId === chainId) {
-              return Promise.resolve([
-                {
+              return Promise.resolve({
+                [mockTokenAddress]: {
                   name: 'USD Coin',
                   symbol: 'USDC',
                   decimals: 6,
@@ -3446,7 +3449,7 @@ describe('TokenDetectionController', () => {
                   iconUrl: 'https://example.com/usdc.png',
                   occurrences: 11,
                 },
-              ]);
+              });
             }
             return Promise.resolve(undefined);
           });
@@ -3784,10 +3787,10 @@ async function withController<ReturnValue>(
     ...getDefaultTokenListState(),
     ...mockTokenListState,
   };
-  mockFetchTokenListByChainId.mockImplementation((chainId: Hex) => {
+  mockFetchAndBuildTokenListMap.mockImplementation((chainId: Hex) => {
     const cache = initialTokenListState.tokensChainsCache[chainId];
     if (cache) {
-      return Promise.resolve(Object.values(cache.data));
+      return Promise.resolve(cache.data);
     }
     return Promise.resolve(undefined);
   });

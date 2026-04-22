@@ -38,7 +38,10 @@ import {
 } from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
-import { TOKEN_END_POINT_API, fetchTokenListByChainId } from './token-service';
+import {
+  TOKEN_END_POINT_API,
+  fetchAndBuildTokenListMap,
+} from './token-service';
 import type { TokenRwaData } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
@@ -56,12 +59,12 @@ jest.mock('./Standards/ERC20Standard');
 jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 jest.mock('./token-service', () => ({
   ...jest.requireActual('./token-service'),
-  fetchTokenListByChainId: jest.fn(),
+  fetchAndBuildTokenListMap: jest.fn(),
 }));
 
-const mockFetchTokenListByChainId =
-  fetchTokenListByChainId as jest.MockedFunction<
-    typeof fetchTokenListByChainId
+const mockFetchAndBuildTokenListMap =
+  fetchAndBuildTokenListMap as jest.MockedFunction<
+    typeof fetchAndBuildTokenListMap
   >;
 
 type AllActions =
@@ -89,7 +92,7 @@ describe('TokensController', () => {
     ContractMock.mockReturnValue(
       buildMockEthersERC721Contract({ supportsInterface: false }),
     );
-    mockFetchTokenListByChainId.mockResolvedValue(undefined);
+    mockFetchAndBuildTokenListMap.mockResolvedValue(undefined);
   });
 
   it('should set default state', async () => {

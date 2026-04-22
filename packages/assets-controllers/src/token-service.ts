@@ -6,7 +6,12 @@ import {
 } from '@metamask/controller-utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import { isTokenListSupportedForNetwork } from './assetsUtil';
+import {
+  isTokenListSupportedForNetwork,
+  formatAggregatorNames,
+  formatIconUrlWithProxy,
+} from './assetsUtil';
+import type { TokenListMap, TokenListToken } from './TokenListController';
 
 export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
@@ -224,6 +229,49 @@ export async function fetchTokenListByChainId(
     return result;
   }
   return undefined;
+}
+
+/**
+ * Fetch the token list for the given chain and transform each entry into the
+ * normalized {@link TokenListMap} shape (formatted aggregator names + proxied
+ * icon URL).  Returns `undefined` when the request is aborted or fails so
+ * callers can fall back to a previously cached value.
+ *
+ * @param chainId - The hex chain ID to fetch tokens for.
+ * @param abortSignal - An abort signal used to cancel the request if necessary.
+ * @returns The normalized token list map, or `undefined` on failure.
+ */
+export async function fetchAndBuildTokenListMap(
+  chainId: Hex,
+  abortSignal: AbortSignal,
+): Promise<TokenListMap | undefined> {
+  let tokensFromAPI: TokenListToken[] | undefined;
+  try {
+    tokensFromAPI = (await fetchTokenListByChainId(
+      chainId,
+      abortSignal,
+    )) as TokenListToken[] | undefined;
+  } catch {
+    return undefined;
+  }
+
+  if (!tokensFromAPI) {
+    return undefined;
+  }
+
+  const tokenList: TokenListMap = {};
+  for (const token of tokensFromAPI) {
+    tokenList[token.address] = {
+      ...token,
+      aggregators: formatAggregatorNames(token.aggregators),
+      iconUrl: formatIconUrlWithProxy({
+        chainId,
+        tokenAddress: token.address,
+      }),
+    };
+  }
+
+  return tokenList;
 }
 
 export type TokenRwaData = {

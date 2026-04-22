@@ -50,7 +50,7 @@ import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
-  fetchTokenListByChainId,
+  fetchAndBuildTokenListMap,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
@@ -402,28 +402,13 @@ export class TokensController extends BaseController<
       return cached.data;
     }
 
-    const tokensFromAPI = await safelyExecute(
-      () =>
-        fetchTokenListByChainId(
-          chainId,
-          this.#abortController.signal,
-        ) as Promise<TokenListToken[]>,
+    const tokenList = await fetchAndBuildTokenListMap(
+      chainId,
+      this.#abortController.signal,
     );
 
-    if (!tokensFromAPI) {
+    if (!tokenList) {
       return cached?.data ?? {};
-    }
-
-    const tokenList: TokenListMap = {};
-    for (const token of tokensFromAPI) {
-      tokenList[token.address] = {
-        ...token,
-        aggregators: formatAggregatorNames(token.aggregators),
-        iconUrl: formatIconUrlWithProxy({
-          chainId,
-          tokenAddress: token.address,
-        }),
-      };
     }
 
     this.#tokenListCache.set(chainId, { data: tokenList, timestamp: now });

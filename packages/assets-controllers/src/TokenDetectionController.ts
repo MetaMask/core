@@ -42,20 +42,15 @@ import type { Hex } from '@metamask/utils';
 import { mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
-import {
-  isTokenDetectionSupportedForNetwork,
-  formatAggregatorNames,
-  formatIconUrlWithProxy,
-} from './assetsUtil';
+import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
 import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
 import type {
   TokenListMap,
-  TokenListToken,
   TokensChainsCache,
 } from './TokenListController';
 import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
-import { fetchTokenListByChainId } from './token-service';
+import { fetchAndBuildTokenListMap } from './token-service';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerGetStateAction } from './TokensController';
 import type {
@@ -210,6 +205,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
 
+  readonly #abortController: AbortController;
+
   #disabled: boolean;
 
   #isUnlocked: boolean;
@@ -282,6 +279,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
+    this.#abortController = new AbortController();
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
@@ -678,28 +676,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return data;
     }
 
-    const tokensFromAPI = await safelyExecute(
-      () =>
-        fetchTokenListByChainId(
-          chainId,
-          new AbortController().signal,
-        ) as Promise<TokenListToken[]>,
+    const tokenList = await fetchAndBuildTokenListMap(
+      chainId,
+      this.#abortController.signal,
     );
 
-    if (!tokensFromAPI) {
+    if (!tokenList) {
       return cached?.data ?? {};
-    }
-
-    const tokenList: TokenListMap = {};
-    for (const token of tokensFromAPI) {
-      tokenList[token.address] = {
-        ...token,
-        aggregators: formatAggregatorNames(token.aggregators),
-        iconUrl: formatIconUrlWithProxy({
-          chainId,
-          tokenAddress: token.address,
-        }),
-      };
     }
 
     this.#tokenListCache.set(chainId, { data: tokenList, timestamp: now });
@@ -990,6 +973,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#selectedAccountId,
     );
     return account?.address ?? '';
+  }
+
+  override destroy(): void {
+    super.destroy();
+    this.#stopPolling();
+    this.#abortController.abort();
   }
 }
 
