@@ -30,6 +30,21 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
+import {
+  TokenDetectionController,
+  controllerName,
+  mapChainIdWithTokenListMap,
+} from './TokenDetectionController';
+import { getDefaultTokenListState } from './TokenListController';
+import type { TokenListState, TokenListToken } from './TokenListController';
+import type { Token } from './TokenRatesController';
+import type {
+  TokensController,
+  TokensControllerState,
+} from './TokensController';
+import { getDefaultTokensState } from './TokensController';
+
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
@@ -41,7 +56,6 @@ import {
   TOKEN_END_POINT_API,
   fetchAndBuildTokenListMap,
 } from './token-service';
-import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
 import type { TokenV3Asset } from './tokens-api-v3';
 
@@ -64,19 +78,6 @@ const mockFetchVerifiedTokensByAddresses =
   fetchVerifiedTokensByAddresses as jest.MockedFunction<
     typeof fetchVerifiedTokensByAddresses
   >;
-import {
-  TokenDetectionController,
-  controllerName,
-  mapChainIdWithTokenListMap,
-} from './TokenDetectionController';
-import { getDefaultTokenListState } from './TokenListController';
-import type { TokenListState, TokenListToken } from './TokenListController';
-import type { Token } from './TokenRatesController';
-import type {
-  TokensController,
-  TokensControllerState,
-} from './TokensController';
-import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -3723,19 +3724,19 @@ describe('TokenDetectionController', () => {
           triggerPreferencesStateChange,
         }) => {
           const defaultState = getDefaultNetworkControllerState();
-          const mainnetNetworkConfig = {
+          const mainnetNetworkConfig: NetworkConfiguration = {
             chainId: ChainId.mainnet,
             name: 'Ethereum Mainnet',
             nativeCurrency: 'ETH',
-            blockExplorerUrls: [] as string[],
+            blockExplorerUrls: [],
             defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             rpcEndpoints: [
               {
-                networkClientId: 'mainnet' as NetworkClientId,
+                networkClientId: 'mainnet',
                 type: RpcEndpointType.Custom,
                 url: 'https://mainnet.infura.io/v3/test',
-                failoverUrls: [] as string[],
+                failoverUrls: [],
               },
             ],
           };

@@ -3791,7 +3791,11 @@ describe('TokensController', () => {
         { options: { state: initialState } },
         async ({ controller }) => {
           // Allow the async enrichment to complete
-          await new Promise(process.nextTick);
+          await new Promise<void>((resolve) => {
+            process.nextTick(() => {
+              resolve();
+            });
+          });
           expect(
             controller.state.allTokens[ChainId.mainnet]['0x1'][0].name,
           ).toBe('Token Name');
@@ -3837,7 +3841,11 @@ describe('TokensController', () => {
       await withController(
         { options: { state: initialState } },
         async ({ controller }) => {
-          await new Promise(process.nextTick);
+          await new Promise<void>((resolve) => {
+            process.nextTick(() => {
+              resolve();
+            });
+          });
           expect(
             controller.state.allTokens[ChainId.mainnet]['0x1'][0].rwaData,
           ).toStrictEqual(rwaData);
@@ -3882,7 +3890,11 @@ describe('TokensController', () => {
         { options: { state: initialState } },
         async ({ controller }) => {
           const stateBefore = controller.state;
-          await new Promise(process.nextTick);
+          await new Promise<void>((resolve) => {
+            process.nextTick(() => {
+              resolve();
+            });
+          });
           // State should be the same reference since no changes were made
           expect(controller.state.allTokens).toStrictEqual(
             stateBefore.allTokens,
@@ -3927,7 +3939,11 @@ describe('TokensController', () => {
       await withController(
         { options: { state: initialState } },
         async ({ controller }) => {
-          await new Promise(process.nextTick);
+          await new Promise<void>((resolve) => {
+            process.nextTick(() => {
+              resolve();
+            });
+          });
           // First call should have fetched
           expect(mockFetchAndBuildTokenListMap).toHaveBeenCalledTimes(1);
           // Clear mock call count, then trigger enrichment again
@@ -3939,7 +3955,11 @@ describe('TokensController', () => {
             decimals: 18,
             networkClientId: 'mainnet',
           });
-          await new Promise(process.nextTick);
+          await new Promise<void>((resolve) => {
+            process.nextTick(() => {
+              resolve();
+            });
+          });
           // Second call should use cached list (not call API again)
           expect(mockFetchAndBuildTokenListMap).not.toHaveBeenCalled();
         },

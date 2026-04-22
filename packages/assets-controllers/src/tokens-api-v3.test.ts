@@ -7,6 +7,7 @@ import {
   MIN_OCCURRENCES,
   TOKENS_API_V3_BASE_URL,
 } from './tokens-api-v3';
+import type { TokenV3Asset } from './tokens-api-v3';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -22,7 +23,7 @@ const makeAsset = (
   address: string,
   occurrences: number,
   chainId = MOCK_CHAIN_ID,
-) => ({
+): TokenV3Asset => ({
   assetId: buildCaipAssetId(chainId, address),
   decimals: 18,
   iconUrl: `https://example.com/${address}.png`,
@@ -133,16 +134,16 @@ describe('tokens-api-v3', () => {
     it('deduplicates in-flight requests for identical batches', async () => {
       const addresses = [MOCK_TOKEN_ADDRESS];
 
-      let resolveFirst!: (v: unknown) => void;
-      const firstCallPromise = new Promise((res) => {
-        resolveFirst = res;
+      let resolveFirst!: (value: TokenV3Asset[]) => void;
+      const firstCallPromise = new Promise<TokenV3Asset[]>((resolve) => {
+        resolveFirst = resolve;
       });
       mockHandleFetch.mockReturnValueOnce(firstCallPromise as never);
 
       const [result1, result2] = await Promise.all([
         fetchVerifiedTokensByAddresses(MOCK_CHAIN_ID, addresses),
         fetchVerifiedTokensByAddresses(MOCK_CHAIN_ID, addresses),
-        (async () => {
+        (async (): Promise<void> => {
           resolveFirst([makeAsset(MOCK_TOKEN_ADDRESS, MIN_OCCURRENCES)]);
         })(),
       ]);

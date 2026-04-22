@@ -55,7 +55,7 @@ async function fetchTokenBatch(assetIds: string[]): Promise<TokenV3Asset[]> {
     includeRwaData: 'true',
   });
 
-  const promise = (async () => {
+  const promise = (async (): Promise<TokenV3Asset[]> => {
     try {
       const data = (await handleFetch(
         `${TOKENS_API_V3_BASE_URL}/assets?${params}`,
