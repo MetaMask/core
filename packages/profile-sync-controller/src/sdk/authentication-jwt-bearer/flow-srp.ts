@@ -247,8 +247,15 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         this.#config.env,
       );
 
-      const targetAlias = authResponse.profileAliases.find((alias) =>
+      const matchingAliases = authResponse.profileAliases.filter((alias) =>
         alias.identifierIds.some((id) => id.id === targetIdentifierId),
+      );
+
+      // Pick the leaf alias (single identifier) — it's the original profile
+      // created for this SRP. Multi-identifier aliases are former canonicals
+      // that absorbed other profiles and are not the true original.
+      const targetAlias = matchingAliases.find(
+        (alias) => alias.identifierIds.length === 1,
       );
 
       if (targetAlias) {

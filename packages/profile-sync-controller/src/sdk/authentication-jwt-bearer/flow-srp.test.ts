@@ -330,6 +330,77 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
     );
   });
 
+  it('prefers single-identifier alias over multi-identifier absorbed canonical', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'top-canonical',
+        canonicalProfileId: 'top-canonical',
+      },
+      profileAliases: [
+        {
+          aliasProfileId: 'absorbed-canonical',
+          canonicalProfileId: 'top-canonical',
+          identifierIds: [
+            { id: 'other-hash', type: 'SRP' },
+            { id: 'computed-identifier-hash', type: 'SRP' },
+          ],
+        },
+        {
+          aliasProfileId: 'true-original',
+          canonicalProfileId: 'top-canonical',
+          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+        },
+      ],
+    });
+
+    const { auth } = createAuth();
+    const profile = await auth.getUserProfile();
+
+    expect(profile.profileId).toBe('true-original');
+    expect(profile.canonicalProfileId).toBe('top-canonical');
+  });
+
+  it('keeps canonical when identifier only appears in multi-identifier aliases', async () => {
+    mockAuthenticate.mockResolvedValue({
+      token: 'jwt-token',
+      expiresIn: 60,
+      profile: {
+        identifierId: 'id-1',
+        metaMetricsId: 'mm-1',
+        profileId: 'top-canonical',
+        canonicalProfileId: 'top-canonical',
+      },
+      profileAliases: [
+        {
+          aliasProfileId: 'multi-id-alias-a',
+          canonicalProfileId: 'top-canonical',
+          identifierIds: [
+            { id: 'computed-identifier-hash', type: 'SRP' },
+            { id: 'other-hash', type: 'SRP' },
+          ],
+        },
+        {
+          aliasProfileId: 'multi-id-alias-b',
+          canonicalProfileId: 'top-canonical',
+          identifierIds: [
+            { id: 'computed-identifier-hash', type: 'SRP' },
+            { id: 'yet-another-hash', type: 'SRP' },
+          ],
+        },
+      ],
+    });
+
+    const { auth } = createAuth();
+    const profile = await auth.getUserProfile();
+
+    expect(profile.profileId).toBe('top-canonical');
+    expect(profile.canonicalProfileId).toBe('top-canonical');
+  });
+
   it('keeps canonical as profileId when no alias matches', async () => {
     mockAuthenticate.mockResolvedValue({
       token: 'jwt-token',
