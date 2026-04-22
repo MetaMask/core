@@ -148,7 +148,7 @@ export async function verifyAuthenticationResponse(opts: {
     }
 
     if (
-      !['present', 'supported', 'notSupported'].includes(tokenBinding.status)
+      !['present', 'supported', 'not-supported'].includes(tokenBinding.status)
     ) {
       throw new Error(`Unexpected tokenBinding status ${tokenBinding.status}`);
     }
