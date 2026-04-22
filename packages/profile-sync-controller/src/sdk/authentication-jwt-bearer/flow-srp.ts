@@ -251,12 +251,13 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         alias.identifierIds.some((id) => id.id === targetIdentifierId),
       );
 
-      // Pick the leaf alias (single identifier) — it's the original profile
+      // Prefer the leaf alias (single identifier) — it's the original profile
       // created for this SRP. Multi-identifier aliases are former canonicals
-      // that absorbed other profiles and are not the true original.
-      const targetAlias = matchingAliases.find(
-        (alias) => alias.identifierIds.length === 1,
-      );
+      // that absorbed other profiles; they are correct only when this SRP's
+      // original profile was itself a canonical before being absorbed.
+      const targetAlias =
+        matchingAliases.find((alias) => alias.identifierIds.length === 1) ??
+        matchingAliases[0];
 
       if (targetAlias) {
         profile.profileId = targetAlias.aliasProfileId;

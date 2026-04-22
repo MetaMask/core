@@ -364,7 +364,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
     expect(profile.canonicalProfileId).toBe('top-canonical');
   });
 
-  it('keeps canonical when identifier only appears in multi-identifier aliases', async () => {
+  it('falls back to multi-identifier alias when no single-identifier leaf exists', async () => {
     mockAuthenticate.mockResolvedValue({
       token: 'jwt-token',
       expiresIn: 60,
@@ -376,19 +376,11 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
       },
       profileAliases: [
         {
-          aliasProfileId: 'multi-id-alias-a',
+          aliasProfileId: 'former-canonical-now-alias',
           canonicalProfileId: 'top-canonical',
           identifierIds: [
             { id: 'computed-identifier-hash', type: 'SRP' },
-            { id: 'other-hash', type: 'SRP' },
-          ],
-        },
-        {
-          aliasProfileId: 'multi-id-alias-b',
-          canonicalProfileId: 'top-canonical',
-          identifierIds: [
-            { id: 'computed-identifier-hash', type: 'SRP' },
-            { id: 'yet-another-hash', type: 'SRP' },
+            { id: 'absorbed-hash', type: 'SRP' },
           ],
         },
       ],
@@ -397,7 +389,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
     const { auth } = createAuth();
     const profile = await auth.getUserProfile();
 
-    expect(profile.profileId).toBe('top-canonical');
+    expect(profile.profileId).toBe('former-canonical-now-alias');
     expect(profile.canonicalProfileId).toBe('top-canonical');
   });
 
