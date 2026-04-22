@@ -1,8 +1,8 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
+import { concatBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
 import type { AuthenticatorTransportFuture } from '../types';
-import { concatUint8Arrays } from '../utils/bytes';
 import { base64URLToBytes } from '../utils/encoding';
 import { decodeClientDataJSON } from './decode-client-data-json';
 import { matchExpectedRPID } from './match-expected-rp-id';
@@ -177,7 +177,7 @@ export async function verifyAuthenticationResponse(opts: {
   const clientDataHash = sha256(
     base64URLToBytes(assertionResponse.clientDataJSON),
   );
-  const signatureBase = concatUint8Arrays(authDataBuffer, clientDataHash);
+  const signatureBase = concatBytes([authDataBuffer, clientDataHash]);
 
   const signature = base64URLToBytes(assertionResponse.signature);
 

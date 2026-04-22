@@ -1,8 +1,8 @@
+import { concatBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 import { p256, p384 } from '@noble/curves/nist';
 import { sha256, sha384 } from '@noble/hashes/sha2';
 
-import { concatUint8Arrays } from '../utils/bytes';
 import { bytesToBase64URL } from '../utils/encoding';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
 
@@ -46,11 +46,11 @@ function verifyEC2(
     throw new Error('EC2 public key missing x or y coordinate');
   }
 
-  const uncompressed = concatUint8Arrays(
+  const uncompressed = concatBytes([
     new Uint8Array([0x04]),
     xCoord,
     yCoord,
-  );
+  ]);
 
   switch (crv) {
     case COSECRV.P256:

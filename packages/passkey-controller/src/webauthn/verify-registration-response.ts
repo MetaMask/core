@@ -1,8 +1,8 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
+import { concatBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
 import type { AuthenticatorTransportFuture } from '../types';
-import { concatUint8Arrays } from '../utils/bytes';
 import {
   base64URLToBytes,
   bytesToBase64URL,
@@ -300,7 +300,7 @@ async function verifyPackedAttestation(
   }
 
   const clientDataHash = sha256(base64URLToBytes(clientDataJSONB64url));
-  const signatureBase = concatUint8Arrays(authData, clientDataHash);
+  const signatureBase = concatBytes([authData, clientDataHash]);
 
   return verifySignature({
     cosePublicKey,
