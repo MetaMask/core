@@ -38,20 +38,20 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@docusaurus/core": "^3.9.0",
-    "@docusaurus/preset-classic": "^3.9.0",
-    "@docusaurus/theme-common": "^3.9.0",
-    "@easyops-cn/docusaurus-search-local": "^0.55.0",
-    "@mdx-js/react": "^3.0.0",
+    "@docusaurus/core": "^3.10.0",
+    "@docusaurus/preset-classic": "^3.10.0",
+    "@docusaurus/theme-common": "^3.10.0",
+    "@easyops-cn/docusaurus-search-local": "^0.55.1",
+    "@mdx-js/react": "^3.1.1",
     "@metamask/utils": "^11.9.0",
     "execa": "^5.0.0",
     "prism-react-renderer": "^2.4.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@docusaurus/types": "^3.9.0",
+    "@docusaurus/types": "^3.10.0",
     "@metamask/auto-changelog": "^6.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
