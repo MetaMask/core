@@ -1914,7 +1914,9 @@ describe('Messenger', () => {
       );
       expect(() =>
         delegatedMessenger.call('Source:getRandomString', 'test'),
-      ).toThrow('A handler for Source:getRandomString has not been delegated to Destination');
+      ).toThrow(
+        'A handler for Source:getRandomString has not been delegated to Destination',
+      );
     });
 
     it('allows revoking a delegated action that is delegated elsewhere', () => {
@@ -1967,7 +1969,9 @@ describe('Messenger', () => {
 
       expect(() =>
         firstDelegatedMessenger.call('Source:getLength', 'test'),
-      ).toThrow('A handler for Source:getLength has not been delegated to FirstDestination');
+      ).toThrow(
+        'A handler for Source:getLength has not been delegated to FirstDestination',
+      );
       const thirdResult = secondDelegatedMessenger.call(
         'Source:getLength',
         'third test', // length 10
