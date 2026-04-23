@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose `KeyringController:isUnlocked` method through `KeyringController` messenger
+- Expose `KeyringController:isUnlocked` method through `KeyringController` messenger ([#8573](https://github.com/MetaMask/core/pull/8573))
   - Returns `true` when the vault is unlocked, `false` otherwise. Mirrors `state.isUnlocked` and the `isUnlocked()` instance method, allowing consumers to check lock status via the messenger without holding a controller reference.
 - Add `withController` action to run atomic operations on multiple keyrings (within a single transaction) ([#8416](https://github.com/MetaMask/core/pull/8416))
   - This action uses a `RestrictedController` object that exposes `addNewKeyring` and `removeKeyring` methods to add and remove keyring during the transaction (atomic) call.
