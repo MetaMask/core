@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [70.1.0]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -1142,7 +1144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.1.0...HEAD
+[70.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...@metamask/bridge-status-controller@70.1.0
 [70.0.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.4...@metamask/bridge-status-controller@70.0.5
 [70.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.3...@metamask/bridge-status-controller@70.0.4
 [70.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.2...@metamask/bridge-status-controller@70.0.3
