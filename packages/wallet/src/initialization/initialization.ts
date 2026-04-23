@@ -1,13 +1,18 @@
 import { Json } from '@metamask/utils';
 
+import { createProviderRpc } from '../json-rpc/createProviderRpc';
 import { WalletOptions } from '../types';
-import type { DefaultInstances } from './defaults';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  DefaultInstances,
+} from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 import { InitializationConfiguration } from './types';
 
 export type InitializeArgs = {
   state: Record<string, Json>;
-  messenger: RootMessenger;
+  messenger: RootMessenger<DefaultActions, DefaultEvents>;
   initializationConfigurations?: InitializationConfiguration<
     unknown,
     unknown
@@ -20,7 +25,6 @@ export function initialize({
   messenger,
   initializationConfigurations = [],
   options,
-  createProviderRpc,
 }: InitializeArgs): DefaultInstances {
   const overriddenConfiguration = initializationConfigurations.map(
     (config) => config.name,
@@ -45,7 +49,7 @@ export function initialize({
       state: instanceState,
       messenger: instanceMessenger,
       options,
-      createProviderRpc,
+      createProviderRpc: (args) => createProviderRpc({ ...args, messenger }),
     });
 
     instances[name] = instance;

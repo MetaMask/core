@@ -1,6 +1,7 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { asLegacyMiddleware } from '@metamask/json-rpc-engine/v2';
 import { createEngineStream } from '@metamask/json-rpc-middleware-stream';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import ObjectMultiplex from '@metamask/object-multiplex';
 import { SubjectType } from '@metamask/permission-controller';
 import {
@@ -10,7 +11,11 @@ import {
 import { createDeferredPromise } from '@metamask/utils';
 import { Duplex, pipeline } from 'readable-stream';
 
-import { RootMessenger } from '../initialization';
+import {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../initialization';
 
 const METAMASK_EIP_1193_PROVIDER = 'metamask-provider';
 const METAMASK_CAIP_MULTICHAIN_PROVIDER = 'metamask-multichain-provider';
@@ -31,7 +36,10 @@ export function setupMultiplex(connectionStream: Duplex): ObjectMultiplex {
   return mux;
 }
 
-export function createRpcHooks(origin: string, messenger: RootMessenger) {
+export function createRpcHooks(
+  origin: string,
+  messenger: RootMessenger<DefaultActions, DefaultEvents>,
+) {
   return {
     clearSnapState: messenger.call.bind(
       messenger,
@@ -175,9 +183,6 @@ export function createRpcHooks(origin: string, messenger: RootMessenger) {
       };
     },
     getEntropySources: () => {
-      /**
-       * @type {KeyringController['state']}
-       */
       const state = messenger.call('KeyringController:getState');
 
       return state.keyrings
@@ -243,7 +248,7 @@ export function createProviderRpc({
 }: {
   origin: string;
   subjectType: SubjectType;
-  messenger: RootMessenger;
+  messenger: RootMessenger<DefaultActions, DefaultEvents>;
   stream: Duplex;
 }) {
   const mux = setupMultiplex(stream);

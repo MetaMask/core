@@ -7,6 +7,7 @@ import type {
   MessengerActions,
 } from '@metamask/messenger';
 
+import { createProviderRpc } from '../json-rpc/createProviderRpc';
 import type { WalletOptions } from '../types';
 import type { RootMessenger } from './defaults';
 
@@ -18,6 +19,7 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
   state: InstanceState<Instance>;
   messenger: InstanceMessenger;
   options: WalletOptions;
+  createProviderRpc: typeof createProviderRpc;
 };
 
 /**

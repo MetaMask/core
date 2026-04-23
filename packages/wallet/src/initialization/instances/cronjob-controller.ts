@@ -14,7 +14,7 @@ class DummyStateManager {
     // no-op
   }
   getInitialState() {
-    return {};
+    return undefined;
   }
 }
 

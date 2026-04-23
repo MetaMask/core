@@ -5,7 +5,7 @@ import {
   ExecutionServiceMessenger,
   NodeThreadExecutionService,
 } from '@metamask/snaps-controllers/node';
-import { Duplex } from 'stream';
+import { Duplex } from 'readable-stream';
 
 import { InitializationConfiguration } from '../types';
 
