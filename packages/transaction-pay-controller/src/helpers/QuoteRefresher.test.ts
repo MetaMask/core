@@ -52,7 +52,6 @@ describe('QuoteRefresher', () => {
 
   it('polls if quotes detected in state', async () => {
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
@@ -68,7 +67,6 @@ describe('QuoteRefresher', () => {
 
   it('does not poll if no quotes in state', async () => {
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
@@ -84,7 +82,6 @@ describe('QuoteRefresher', () => {
 
   it('polls again after interval', async () => {
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
@@ -103,7 +100,6 @@ describe('QuoteRefresher', () => {
 
   it('stops polling if quotes removed', async () => {
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData: jest.fn(),
@@ -122,7 +118,6 @@ describe('QuoteRefresher', () => {
     const updateTransactionData = jest.fn();
 
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
@@ -145,7 +140,6 @@ describe('QuoteRefresher', () => {
     const updateTransactionData = jest.fn();
 
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
@@ -172,7 +166,6 @@ describe('QuoteRefresher', () => {
     const updateTransactionData = jest.fn();
 
     new QuoteRefresher({
-      accountSupports7702: jest.fn().mockResolvedValue(true),
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,

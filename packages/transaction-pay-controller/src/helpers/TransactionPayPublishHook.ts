@@ -9,7 +9,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
-import { KEYRING_TYPES_SUPPORTING_7702 } from '../types';
+import { accountSupports7702 } from '../utils/7702';
 import { getStrategyByName } from '../utils/strategy';
 import { updateTransaction } from '../utils/transaction';
 
@@ -84,16 +84,8 @@ export class TransactionPayPublishHook {
     const strategy = getStrategyByName(quotes[0].strategy);
     const from = transactionMeta.txParams.from as Hex;
 
-    const { keyrings } = this.#messenger.call('KeyringController:getState');
-    const keyring = keyrings.find((k) =>
-      k.accounts.some((a) => a.toLowerCase() === from.toLowerCase()),
-    );
-    const accountSupports7702 = keyring
-      ? (KEYRING_TYPES_SUPPORTING_7702 as string[]).includes(keyring.type)
-      : true;
-
     return await strategy.execute({
-      accountSupports7702,
+      accountSupports7702: accountSupports7702(this.#messenger, from),
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,

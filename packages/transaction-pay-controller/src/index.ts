@@ -1,5 +1,4 @@
 export type {
-  AccountSupports7702Callback,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionFiatPayment,

@@ -369,7 +369,6 @@ describe('TransactionPayController', () => {
         .mockResolvedValue(resultMock);
 
       new TransactionPayController({
-        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: getDelegationTransactionMock,
         messenger,
       });
@@ -400,7 +399,6 @@ describe('TransactionPayController', () => {
 
     it('returns callback value if provided', async () => {
       new TransactionPayController({
-        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
         messenger,
@@ -416,7 +414,6 @@ describe('TransactionPayController', () => {
 
     it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
       new TransactionPayController({
-        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] => [
           TransactionPayStrategy.Test,
@@ -440,7 +437,6 @@ describe('TransactionPayController', () => {
       getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
 
       new TransactionPayController({
-        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] => [],
         messenger,
@@ -458,7 +454,6 @@ describe('TransactionPayController', () => {
       getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
 
       new TransactionPayController({
-        accountSupports7702: jest.fn().mockResolvedValue(true),
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] =>
           [undefined] as unknown as TransactionPayStrategy[],
@@ -596,7 +591,6 @@ describe('TransactionPayController', () => {
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
-        accountSupports7702: expect.any(Function),
         getStrategies: expect.any(Function),
         messenger,
         transactionData: expect.objectContaining({
@@ -605,90 +599,6 @@ describe('TransactionPayController', () => {
         transactionId: TRANSACTION_ID_MOCK,
         updateTransactionData: expect.any(Function),
       });
-    });
-  });
-
-  describe('accountSupports7702', () => {
-    it('returns true for HD keyring account', async () => {
-      const controller = createController();
-
-      controller.updatePaymentToken({
-        transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
-
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
-      });
-
-      const { accountSupports7702 } = updateQuotesMock.mock.calls[0][0];
-      const result = await accountSupports7702(
-        '0x1234567890123456789012345678901234567891',
-      );
-
-      expect(result).toBe(true);
-    });
-
-    it('returns false for Ledger keyring account', async () => {
-      getKeyringControllerStateMock.mockReturnValue({
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'Ledger Hardware',
-            accounts: ['0xledger'],
-            metadata: { id: 'ledger', name: 'Ledger' },
-          },
-        ],
-      });
-
-      const controller = createController();
-
-      controller.updatePaymentToken({
-        transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
-
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
-      });
-
-      const { accountSupports7702 } = updateQuotesMock.mock.calls[0][0];
-      const result = await accountSupports7702('0xledger');
-
-      expect(result).toBe(false);
-    });
-
-    it('returns true when keyring is not found', async () => {
-      const controller = createController();
-
-      controller.updatePaymentToken({
-        transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
-
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
-      });
-
-      const { accountSupports7702 } = updateQuotesMock.mock.calls[0][0];
-      const result = await accountSupports7702('0xunknown');
-
-      expect(result).toBe(true);
     });
   });
 

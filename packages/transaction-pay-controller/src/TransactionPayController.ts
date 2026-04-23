@@ -22,7 +22,6 @@ import type {
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
-import { KEYRING_TYPES_SUPPORTING_7702 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
@@ -95,7 +94,6 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
-      accountSupports7702: this.#accountSupports7702.bind(this),
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
@@ -265,7 +263,6 @@ export class TransactionPayController extends BaseController<
 
     if (shouldUpdateQuotes) {
       updateQuotes({
-        accountSupports7702: this.#accountSupports7702.bind(this),
         getStrategies: this.#getStrategiesWithFallback.bind(this),
         messenger: this.messenger,
         transactionData: this.state.transactionData[transactionId],
@@ -273,17 +270,6 @@ export class TransactionPayController extends BaseController<
         updateTransactionData: this.#updateTransactionData.bind(this),
       }).catch(noop);
     }
-  }
-
-  async #accountSupports7702(account: string): Promise<boolean> {
-    const { keyrings } = this.messenger.call('KeyringController:getState');
-    const keyring = keyrings.find((k) =>
-      k.accounts.some((a) => a.toLowerCase() === account.toLowerCase()),
-    );
-
-    return keyring
-      ? (KEYRING_TYPES_SUPPORTING_7702 as string[]).includes(keyring.type)
-      : true;
   }
 
   #getStrategiesWithFallback(

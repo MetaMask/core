@@ -241,7 +241,7 @@ describe('Across Submit', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: false,
-          disableHook: false,
+          disableHook: true,
           disableSequential: true,
           gasLimit7702: toHex(64000),
           transactions: [
@@ -262,7 +262,7 @@ describe('Across Submit', () => {
       );
     });
 
-    it('submits batch sequentially when account does not support 7702', async () => {
+    it('submits batch without 7702 when quote is7702 is false', async () => {
       const nonIs7702Quote = {
         ...QUOTE_MOCK,
         original: {
@@ -278,7 +278,7 @@ describe('Across Submit', () => {
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
-        accountSupports7702: false,
+        accountSupports7702: true,
         messenger,
         quotes: [nonIs7702Quote],
         transaction: TRANSACTION_META_MOCK,
@@ -289,7 +289,9 @@ describe('Across Submit', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: true,
+          disableHook: false,
           disableSequential: false,
+          gasLimit7702: undefined,
         }),
       );
       expect(addTransactionMock).not.toHaveBeenCalled();

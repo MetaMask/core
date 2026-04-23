@@ -51,6 +51,7 @@ import type {
 import type { TransactionBatchResult, TransactionParams } from '../types';
 import {
   ERROR_MESSGE_PUBLIC_KEY,
+  doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -136,7 +137,12 @@ export async function addTransactionBatch(
 
   log('Adding', transactionBatchRequest);
 
-  if (!transactionBatchRequest.disable7702) {
+  const accountCanUse7702 = doesAccountSupportEIP7702(
+    messenger,
+    transactionBatchRequest.from,
+  );
+
+  if (!transactionBatchRequest.disable7702 && accountCanUse7702) {
     try {
       return await addTransactionBatchWith7702(request);
     } catch (error: unknown) {

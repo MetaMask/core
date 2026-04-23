@@ -465,8 +465,8 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('does not add authorization list when account does not support 7702', async () => {
-      request.accountSupports7702 = false;
+    it('does not add authorization list when quote is7702 is false', async () => {
+      request.quotes[0].original.metamask.is7702 = false;
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {
         authorizationList: [
@@ -502,12 +502,14 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith({
         disable7702: true,
-        disableHook: true,
+        disableHook: false,
         disableSequential: false,
         from: FROM_MOCK,
+        gasFeeToken: undefined,
+        gasLimit7702: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
-        overwriteUpgrade: false,
+        overwriteUpgrade: true,
         requireApproval: false,
         transactions: [
           {
@@ -899,11 +901,14 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
+            disable7702: true,
+            disableHook: false,
+            disableSequential: false,
             from: FROM_MOCK,
             gasFeeToken: undefined,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             origin: ORIGIN_METAMASK,
-            overwriteUpgrade: false,
+            overwriteUpgrade: true,
             requireApproval: false,
             transactions: [
               {
@@ -1013,9 +1018,10 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
             disable7702: true,
-            disableHook: true,
+            disableHook: false,
             disableSequential: false,
             gasLimit7702: undefined,
+            overwriteUpgrade: true,
             transactions: [
               expect.objectContaining({
                 params: expect.objectContaining({
@@ -1042,10 +1048,8 @@ describe('Relay Submit Utils', () => {
 
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            disable7702: false,
-            disableHook: false,
-            disableSequential: true,
             gasLimit7702: '0x31955',
+            overwriteUpgrade: true,
             transactions: [
               expect.objectContaining({
                 params: expect.objectContaining({
@@ -1078,10 +1082,8 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          disable7702: false,
-          disableHook: false,
-          disableSequential: true,
           gasLimit7702: '0xa410',
+          overwriteUpgrade: true,
           transactions: [
             expect.objectContaining({
               params: expect.objectContaining({
@@ -1098,9 +1100,7 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('submits batch sequentially when account does not support 7702', async () => {
-      request.accountSupports7702 = false;
-
+    it('uses 7702 mode based on quote metadata regardless of account support', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
@@ -1113,16 +1113,14 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          disable7702: true,
-          disableSequential: false,
+          overwriteUpgrade: true,
+          gasLimit7702: '0x5208',
         }),
       );
       expect(addTransactionMock).not.toHaveBeenCalled();
     });
 
     it('omits per-transaction gas when entry is missing in batch submission', async () => {
-      request.accountSupports7702 = false;
-
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
@@ -1149,9 +1147,7 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('waits for on-chain confirmation for non-7702 accounts with multiple transactions', async () => {
-      request.accountSupports7702 = false;
-
+    it('waits for on-chain confirmation with multiple transactions', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
@@ -1164,9 +1160,7 @@ describe('Relay Submit Utils', () => {
       expect(waitForTransactionConfirmedMock).toHaveBeenCalled();
     });
 
-    it('uses addTransactionBatch for non-7702 accounts with multiple transactions', async () => {
-      request.accountSupports7702 = false;
-
+    it('uses addTransactionBatch with multiple transactions', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
@@ -1179,21 +1173,19 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('still waits for on-chain confirmation for 7702 accounts with multiple transactions', async () => {
-      request.accountSupports7702 = true;
-
+    it('waits for on-chain confirmation with multiple transactions in 7702 mode', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],
       });
+
+      request.quotes[0].original.metamask.is7702 = true;
 
       await submitRelayQuotes(request);
 
       expect(waitForTransactionConfirmedMock).toHaveBeenCalled();
     });
 
-    it('still waits for on-chain confirmation for non-7702 accounts with single transaction', async () => {
-      request.accountSupports7702 = false;
-
+    it('waits for on-chain confirmation with single transaction', async () => {
       await submitRelayQuotes(request);
 
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
@@ -1213,9 +1205,10 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: true,
-          disableHook: true,
+          disableHook: false,
           disableSequential: false,
           gasLimit7702: undefined,
+          overwriteUpgrade: true,
           transactions: [
             expect.objectContaining({
               params: expect.objectContaining({

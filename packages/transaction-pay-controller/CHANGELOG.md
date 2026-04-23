@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ignore synthetic gas legs when determining Across support for perps direct deposits ([#8527](https://github.com/MetaMask/core/pull/8527))
 - Route Across status polling through the configured Across API base and support `depositTxnRef`/`fillTxnRef` for Across status responses ([#8512](https://github.com/MetaMask/core/pull/8512))
+- **BREAKING:** Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on the account keyring type via `KeyringController:getState` ([#8388](https://github.com/MetaMask/core/pull/8388))
+  - `AccountSupports7702Callback` type export has been removed. Use the `accountSupports7702` util from `utils/7702` instead.
+  - The `TransactionPayControllerMessenger` now requires `KeyringController:getState` permission (previously only needed in the publish hook).
 
 ## [19.2.1]
 

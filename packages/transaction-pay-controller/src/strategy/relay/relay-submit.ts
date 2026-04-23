@@ -61,7 +61,6 @@ export async function submitRelayQuotes(
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
-  const { accountSupports7702 } = request;
 
   let transactionHash: Hex | undefined;
 
@@ -70,7 +69,6 @@ export async function submitRelayQuotes(
       quote,
       messenger,
       transaction,
-      accountSupports7702,
     ));
   }
 
@@ -83,14 +81,12 @@ export async function submitRelayQuotes(
  * @param quote - Relay quote to execute.
  * @param messenger - Controller messenger.
  * @param transaction - Original transaction meta.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns An object containing the transaction hash if available.
  */
 async function executeSingleQuote(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-  accountSupports7702: boolean,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
@@ -108,12 +104,7 @@ async function executeSingleQuote(
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else {
-    await submitTransactions(
-      quote,
-      transaction,
-      messenger,
-      accountSupports7702,
-    );
+    await submitTransactions(quote, transaction, messenger);
   }
 
   const targetHash = await waitForRelayCompletion(
@@ -317,14 +308,12 @@ async function validateSourceBalance(
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  accountSupports7702: boolean,
 ): Promise<Hex> {
   const { steps } = quote.original;
   const txSteps = steps.filter(
@@ -382,7 +371,6 @@ async function submitTransactions(
     quote,
     transaction,
     messenger,
-    accountSupports7702,
     normalizedParams,
     allParams,
   );
@@ -482,7 +470,6 @@ async function submitViaRelayExecute(
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @param normalizedParams - Normalized relay-only params (without prepended original tx).
  * @param allParams - All params including any prepended original tx for post-quote flows.
  * @returns Hash of the last submitted transaction.
@@ -491,7 +478,6 @@ async function submitViaTransactionController(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  accountSupports7702: boolean,
   normalizedParams: TransactionParams[],
   allParams: TransactionParams[],
 ): Promise<Hex> {
@@ -549,9 +535,7 @@ async function submitViaTransactionController(
     quote.original.details.currencyOut.currency.chainId;
 
   const authorizationList: AuthorizationList | undefined =
-    accountSupports7702 &&
-    isSameChain &&
-    quote.original.request.authorizationList?.length
+    isSameChain && quote.original.request.authorizationList?.length
       ? quote.original.request.authorizationList.map((a) => ({
           address: a.address,
           chainId: toHex(a.chainId),
@@ -560,8 +544,6 @@ async function submitViaTransactionController(
 
   const { metamask } = quote.original;
   const { gasLimits } = metamask;
-
-  const is7702 = metamask.is7702 && accountSupports7702;
 
   if (allParams.length === 1) {
     const transactionParams = {
@@ -582,7 +564,9 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 = is7702 ? toHex(metamask.gasLimits[0]) : undefined;
+    const gasLimit7702 = metamask.is7702
+      ? toHex(metamask.gasLimits[0])
+      : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
@@ -610,13 +594,13 @@ async function submitViaTransactionController(
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
       disable7702: !gasLimit7702,
-      disableHook: !gasLimit7702,
+      disableHook: Boolean(gasLimit7702),
       disableSequential: Boolean(gasLimit7702),
       gasFeeToken,
       gasLimit7702,
       networkClientId,
       origin: ORIGIN_METAMASK,
-      overwriteUpgrade: is7702,
+      overwriteUpgrade: true,
       requireApproval: false,
       transactions,
     });

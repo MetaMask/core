@@ -189,7 +189,7 @@ async function normalizeQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
-  const { accountSupports7702, messenger } = fullRequest;
+  const { messenger } = fullRequest;
   const { quote } = original;
 
   const { usdToFiatRate, sourceFiatRate, targetFiatRate } = getFiatRates(
@@ -204,7 +204,6 @@ async function normalizeQuote(
     quote,
     messenger,
     request,
-    accountSupports7702,
   );
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
@@ -388,7 +387,6 @@ async function calculateSourceNetworkCost(
   quote: AcrossSwapApprovalResponse,
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
-  accountSupports7702: boolean,
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
@@ -412,7 +410,6 @@ async function calculateSourceNetworkCost(
       to: transaction.to,
       value: transaction.value ?? '0x0',
     })),
-    accountSupports7702,
   });
   const { batchGasLimit, is7702 } = gasEstimates;
 
