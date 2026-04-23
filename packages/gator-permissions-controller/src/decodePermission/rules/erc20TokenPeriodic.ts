@@ -9,6 +9,7 @@ import type {
 import {
   getByteLength,
   getTermsByEnforcer,
+  MAX_PERIOD_DURATION,
   splitHex,
   ZERO_32_BYTES,
 } from '../utils';
@@ -87,6 +88,7 @@ function validateAndDecodeData(
 
   const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =
     splitHex(terms, [20, 32, 32, 32]);
+
   const periodDuration = hexToNumber(periodDurationRaw);
   const periodAmountBigInt = hexToBigInt(periodAmount);
   const startTime = hexToNumber(startTimeRaw);
@@ -100,6 +102,12 @@ function validateAndDecodeData(
   if (periodDuration === 0) {
     throw new Error(
       'Invalid erc20-token-periodic terms: periodDuration must be a positive number',
+    );
+  }
+
+  if (periodDuration > MAX_PERIOD_DURATION) {
+    throw new Error(
+      'Invalid erc20-token-periodic terms: periodDuration must be less than or equal to MAX_PERIOD_DURATION',
     );
   }
 

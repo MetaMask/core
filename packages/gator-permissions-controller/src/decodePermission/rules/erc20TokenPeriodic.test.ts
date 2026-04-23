@@ -9,7 +9,7 @@ import {
 } from '@metamask/delegation-deployments';
 
 import { createPermissionRulesForContracts } from '.';
-import { ZERO_32_BYTES } from '../utils';
+import { MAX_PERIOD_DURATION, ZERO_32_BYTES } from '../utils';
 
 describe('erc20-token-periodic rule', () => {
   const chainId = CHAIN_ID.sepolia;
@@ -326,5 +326,70 @@ describe('erc20-token-periodic rule', () => {
     expect(result.error.message).toContain(
       'Invalid erc20-token-periodic terms: periodAmount must be a positive number',
     );
+  });
+
+  it('rejects when periodDuration exceeds MAX_PERIOD_DURATION', () => {
+    const tokenAddress = '0xffffffffffffffffffffffffffffffffffffffff' as Hex;
+    const terms = createERC20TokenPeriodTransferTerms(
+      {
+        tokenAddress,
+        periodAmount: 100n,
+        periodDuration: MAX_PERIOD_DURATION + 1,
+        startDate: 1715664,
+      },
+      { out: 'hex' },
+    );
+
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      {
+        enforcer: ERC20PeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid erc20-token-periodic terms: periodDuration must be less than or equal to MAX_PERIOD_DURATION',
+    );
+  });
+
+  it('accepts when periodDuration equals MAX_PERIOD_DURATION', () => {
+    const tokenAddress = '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      {
+        enforcer: ERC20PeriodTransferEnforcer,
+        terms: createERC20TokenPeriodTransferTerms(
+          {
+            tokenAddress,
+            periodAmount: 200n,
+            periodDuration: MAX_PERIOD_DURATION,
+            startDate: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(true);
+
+    // this is here as a type guard
+    if (!result.isValid) {
+      throw new Error('Expected valid result');
+    }
+
+    expect(result.data.periodDuration).toBe(MAX_PERIOD_DURATION);
   });
 });
