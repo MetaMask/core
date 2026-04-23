@@ -169,6 +169,7 @@ describe('User Storage', () => {
     const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .get('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200, JSON.stringify([])];
@@ -197,6 +198,7 @@ describe('User Storage', () => {
     const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .get('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200, JSON.stringify([])];
@@ -225,6 +227,7 @@ describe('User Storage', () => {
     const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .get('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200, JSON.stringify([])];
@@ -254,6 +257,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL)
       .persist()
       .put(/.*/u)
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
@@ -283,6 +287,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL)
       .persist()
       .put(/.*/u)
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
@@ -312,6 +317,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL)
       .persist()
       .put(/.*/u)
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
@@ -342,6 +348,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .put('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
@@ -370,6 +377,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .put('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
@@ -398,6 +406,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .put('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
@@ -439,6 +448,7 @@ describe('User Storage', () => {
     const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
       .persist()
       .put('')
+      // eslint-disable-next-line no-invalid-this
       .reply(function () {
         capturedReuploadHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
