@@ -7,7 +7,8 @@
     { "path": "../base-controller" },
     { "path": "../chomp-api-service" },
     { "path": "../keyring-controller" },
-    { "path": "../messenger" }
+    { "path": "../messenger" },
+    { "path": "../network-controller" }
   ],
   "include": ["../../types", "./src"]
 }

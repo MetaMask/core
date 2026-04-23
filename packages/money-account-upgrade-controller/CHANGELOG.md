@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add EIP-7702 authorization step to the upgrade sequence.
+
 ## [1.0.0]
 
 ### Added

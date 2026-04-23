@@ -6,10 +6,12 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
 import { associateAddressStep } from './associate-address';
-import type { MoneyAccountUpgradeControllerMessenger } from './MoneyAccountUpgradeController';
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
+const MOCK_CHAIN_ID = '0x1' as Hex;
+const MOCK_DELEGATOR_IMPL = '0x2222222222222222222222222222222222222222' as Hex;
 const MOCK_SIGNATURE = '0xdeadbeefcafebabe';
 const MOCK_NOW = new Date('2026-04-17T12:00:00.000Z').getTime();
 
@@ -79,7 +81,12 @@ describe('associateAddressStep', () => {
   it('signs the CHOMP Authentication message with the given address', async () => {
     const { messenger, mocks } = setup();
 
-    await associateAddressStep.run({ messenger, address: MOCK_ADDRESS });
+    await associateAddressStep.run({
+      messenger,
+      address: MOCK_ADDRESS,
+      chainId: MOCK_CHAIN_ID,
+      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+    });
 
     expect(mocks.signPersonalMessage).toHaveBeenCalledWith({
       data: `CHOMP Authentication ${MOCK_NOW}`,
@@ -90,7 +97,12 @@ describe('associateAddressStep', () => {
   it('submits the signature, timestamp, and address to the CHOMP API', async () => {
     const { messenger, mocks } = setup();
 
-    await associateAddressStep.run({ messenger, address: MOCK_ADDRESS });
+    await associateAddressStep.run({
+      messenger,
+      address: MOCK_ADDRESS,
+      chainId: MOCK_CHAIN_ID,
+      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+    });
 
     expect(mocks.associateAddress).toHaveBeenCalledWith({
       signature: MOCK_SIGNATURE,
@@ -105,6 +117,8 @@ describe('associateAddressStep', () => {
     const result = await associateAddressStep.run({
       messenger,
       address: MOCK_ADDRESS,
+      chainId: MOCK_CHAIN_ID,
+      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
     });
 
     expect(result).toBe('completed');
@@ -121,6 +135,8 @@ describe('associateAddressStep', () => {
     const result = await associateAddressStep.run({
       messenger,
       address: MOCK_ADDRESS,
+      chainId: MOCK_CHAIN_ID,
+      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
     });
 
     expect(result).toBe('already-done');
@@ -131,7 +147,12 @@ describe('associateAddressStep', () => {
     mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
 
     await expect(
-      associateAddressStep.run({ messenger, address: MOCK_ADDRESS }),
+      associateAddressStep.run({
+        messenger,
+        address: MOCK_ADDRESS,
+        chainId: MOCK_CHAIN_ID,
+        delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+      }),
     ).rejects.toThrow('signing failed');
     expect(mocks.associateAddress).not.toHaveBeenCalled();
   });
@@ -141,7 +162,12 @@ describe('associateAddressStep', () => {
     mocks.associateAddress.mockRejectedValue(new Error('api failed'));
 
     await expect(
-      associateAddressStep.run({ messenger, address: MOCK_ADDRESS }),
+      associateAddressStep.run({
+        messenger,
+        address: MOCK_ADDRESS,
+        chainId: MOCK_CHAIN_ID,
+        delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+      }),
     ).rejects.toThrow('api failed');
   });
 });

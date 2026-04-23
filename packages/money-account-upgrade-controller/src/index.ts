@@ -1,4 +1,4 @@
-export type { Step, StepResult } from './step';
+export type { Step, StepResult } from './steps/step';
 export type { InitConfig, UpgradeConfig } from './types';
 export { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
 export type {
