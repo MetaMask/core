@@ -36,7 +36,7 @@ Every controller has a name, which is used to namespace not only the controller'
 
 The name should be defined in a constant called `CONTROLLER_NAME` so that it can be easily changed if the need arises. The name should be used to initialize the messenger, and it should also be passed to the `BaseController` constructor.
 
-The constant should be used to define actions and events. It may be exported from the file in which it is defined, but should not listed as an export of the package:
+The constant should be used to define actions and events. It may be exported from the file in which it is defined, but should not listed as an export of the package.
 
 🚫 **The messenger namespace is not defined as a constant, but is repeated**
 
