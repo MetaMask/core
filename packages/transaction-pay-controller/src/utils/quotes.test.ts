@@ -7,7 +7,6 @@ import { cloneDeep } from 'lodash';
 import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
-  AccountSupports7702Callback,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayQuote,
@@ -98,8 +97,6 @@ const BATCH_TRANSACTION_MOCK = {
 
 describe('Quotes Utils', () => {
   const { messenger, getControllerStateMock } = getMessengerMock();
-  const accountSupports7702Mock: jest.MockedFunction<AccountSupports7702Callback> =
-    jest.fn();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);
@@ -120,7 +117,6 @@ describe('Quotes Utils', () => {
    */
   async function run(params?: Partial<UpdateQuotesRequest>): Promise<boolean> {
     return await updateQuotes({
-      accountSupports7702: accountSupports7702Mock,
       getStrategies: getStrategiesMock,
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),
@@ -162,7 +158,6 @@ describe('Quotes Utils', () => {
     getQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getBatchTransactionsMock.mockResolvedValue([BATCH_TRANSACTION_MOCK]);
     calculateTotalsMock.mockReturnValue(TOTALS_MOCK);
-    accountSupports7702Mock.mockResolvedValue(true);
 
     getLiveTokenBalanceMock.mockResolvedValue('5000000');
     getTokenFiatRateMock.mockReturnValue({
@@ -505,6 +500,31 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('gets quotes with no minimum if allowUnderMinimum is true', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_DATA_MOCK.tokens?.[0],
+              allowUnderMinimum: true,
+            } as TransactionPayRequiredToken,
+          ],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          expect.objectContaining({
+            targetAmountMinimum: '0',
+          }),
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+    });
+
     it('resolves strategies via getStrategiesByName', async () => {
       await run();
 
@@ -567,9 +587,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('clears batch transactions when account does not support 7702', async () => {
-      accountSupports7702Mock.mockResolvedValue(false);
-
+    it('always passes batch transactions regardless of 7702 support', async () => {
       await run();
 
       const transactionMetaMock = {} as TransactionMeta;
@@ -577,8 +595,8 @@ describe('Quotes Utils', () => {
 
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
-          batchTransactions: undefined,
-          batchTransactionsOptions: undefined,
+          batchTransactions: [BATCH_TRANSACTION_MOCK],
+          batchTransactionsOptions: {},
         }),
       );
     });
@@ -764,7 +782,6 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
-        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
@@ -794,7 +811,6 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
-        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
@@ -825,7 +841,6 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
-        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
@@ -847,7 +862,6 @@ describe('Quotes Utils', () => {
         messenger,
         updateTransactionDataMock,
         getStrategiesMock,
-        accountSupports7702Mock,
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
@@ -899,25 +913,27 @@ describe('Quotes Utils', () => {
         transactionData: POST_QUOTE_TRANSACTION_DATA,
       });
 
-      expect(getQuotesMock).toHaveBeenCalledWith({
-        accountSupports7702: true,
-        messenger,
-        requests: [
-          {
-            from: TRANSACTION_META_MOCK.txParams.from,
-            isMaxAmount: false,
-            isPostQuote: true,
-            sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
-            sourceChainId: SOURCE_TOKEN_MOCK.chainId,
-            sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
-            sourceTokenAmount: '10000000',
-            targetAmountMinimum: '0',
-            targetChainId: DESTINATION_TOKEN_MOCK.chainId,
-            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
-          },
-        ],
-        transaction: TRANSACTION_META_MOCK,
-      });
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              from: TRANSACTION_META_MOCK.txParams.from,
+              isMaxAmount: false,
+              isPostQuote: true,
+              sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
+              sourceChainId: SOURCE_TOKEN_MOCK.chainId,
+              sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
+              sourceTokenAmount: '10000000',
+              targetAmountMinimum: '0',
+              targetChainId: DESTINATION_TOKEN_MOCK.chainId,
+              targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+            },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        }),
+      );
     });
 
     it('includes refundTo in post-quote request when set in transaction data', async () => {

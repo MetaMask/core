@@ -7,7 +7,6 @@ import { createModuleLogger } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
-  AccountSupports7702Callback,
   QuoteRequest,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -18,6 +17,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
+import { accountSupports7702 } from './7702';
 import { getStrategiesByName, getStrategyByName } from './strategy';
 import {
   computeTokenAmounts,
@@ -32,7 +32,6 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 const log = createModuleLogger(projectLogger, 'quotes');
 
 export type UpdateQuotesRequest = {
-  accountSupports7702: AccountSupports7702Callback;
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
   transactionData: TransactionData | undefined;
@@ -50,7 +49,6 @@ export async function updateQuotes(
   request: UpdateQuotesRequest,
 ): Promise<boolean> {
   const {
-    accountSupports7702,
     getStrategies,
     messenger,
     transactionData,
@@ -107,7 +105,7 @@ export async function updateQuotes(
       transactionId,
     });
 
-    const supports7702 = await accountSupports7702(from);
+    const supports7702 = accountSupports7702(messenger, from);
 
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
@@ -129,7 +127,7 @@ export async function updateQuotes(
     log('Calculated totals', { transactionId, totals });
 
     syncTransaction({
-      batchTransactions: supports7702 ? batchTransactions : undefined,
+      batchTransactions,
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
@@ -210,13 +208,11 @@ function syncTransaction({
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
- * @param accountSupports7702 - Callback to check account EIP-7702 support.
  */
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
-  accountSupports7702: AccountSupports7702Callback,
 ): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
@@ -245,7 +241,6 @@ export async function refreshQuotes(
     }
 
     const isUpdated = await updateQuotes({
-      accountSupports7702,
       getStrategies,
       messenger,
       transactionData,

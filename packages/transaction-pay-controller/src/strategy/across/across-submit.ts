@@ -48,7 +48,6 @@ export async function submitAcrossQuotes(
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
-  const { accountSupports7702 } = request;
 
   let transactionHash: Hex | undefined;
 
@@ -57,7 +56,6 @@ export async function submitAcrossQuotes(
       quote,
       messenger,
       transaction,
-      accountSupports7702,
     ));
   }
 
@@ -68,7 +66,6 @@ async function executeSingleQuote(
   quote: TransactionPayQuote<AcrossQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-  accountSupports7702: boolean,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
@@ -89,7 +86,6 @@ async function executeSingleQuote(
     transaction.id,
     acrossDepositType,
     messenger,
-    accountSupports7702,
   );
 
   updateTransaction(
@@ -113,7 +109,6 @@ async function executeSingleQuote(
  * @param parentTransactionId - ID of the parent transaction.
  * @param acrossDepositType - Transaction type used for the swap/deposit step.
  * @param messenger - Controller messenger.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns Hash of the last submitted transaction, if available.
  */
 async function submitTransactions(
@@ -121,13 +116,11 @@ async function submitTransactions(
   parentTransactionId: string,
   acrossDepositType: TransactionType,
   messenger: TransactionPayControllerMessenger,
-  accountSupports7702: boolean,
 ): Promise<Hex | undefined> {
   const { swapTx } = quote.original.quote;
-  const { gasLimits: quoteGasLimits, is7702: apiIs7702 } =
+  const { gasLimits: quoteGasLimits, is7702 } =
     quote.original.metamask;
   const { from } = quote.request;
-  const is7702 = apiIs7702 && accountSupports7702;
   const chainId = toHex(swapTx.chainId);
   const orderedTransactions = getAcrossOrderedTransactions({
     quote: quote.original.quote,
@@ -224,7 +217,7 @@ async function submitTransactions(
 
       await messenger.call('TransactionController:addTransactionBatch', {
         disable7702: !gasLimit7702,
-        disableHook: !gasLimit7702,
+        disableHook: Boolean(gasLimit7702),
         disableSequential: Boolean(gasLimit7702),
         from,
         gasLimit7702,

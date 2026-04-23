@@ -221,8 +221,10 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
+    const { accountSupports7702: supports7702 } = fullRequest;
+
     const useExecute =
-      fullRequest.accountSupports7702 &&
+      supports7702 &&
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
@@ -454,7 +456,6 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
-    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = {
@@ -590,7 +591,6 @@ function getFiatRates(
  * @param messenger - Controller messenger.
  * @param request - Quote request.
  * @param transaction - Original transaction metadata.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
@@ -598,7 +598,6 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
-  accountSupports7702: boolean,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
@@ -655,7 +654,6 @@ async function calculateSourceNetworkCost(
     relayParams,
     messenger,
     fromOverride,
-    accountSupports7702,
   );
 
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
@@ -807,14 +805,12 @@ async function calculateSourceNetworkCost(
  * @param fromOverride - Optional address to use as `from` in gas estimation
  * instead of the address in the relay params. Used in predict withdraw flows
  * to estimate with the proxy/Safe address that holds the source token balance.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
  * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
   params: RelayTransactionStep['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
   fromOverride: Hex | undefined,
-  accountSupports7702: boolean,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
@@ -826,7 +822,6 @@ async function calculateSourceNetworkGasLimit(
   );
 
   const relayGasResult = await estimateQuoteGasLimits({
-    accountSupports7702,
     fallbackGas: getFeatureFlags(messenger).relayFallbackGas,
     fallbackOnSimulationFailure: true,
     messenger,

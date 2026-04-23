@@ -134,9 +134,6 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerEvents | AllowedEvents
 >;
 
-/** Callback to check whether an account supports EIP-7702 authorization signing. */
-export type AccountSupports7702Callback = (account: string) => Promise<boolean>;
-
 /**
  * Keyring types that support EIP-7702 authorization signing.
  * Hardware wallets, snap keyrings, and money keyrings do not support 7702.
