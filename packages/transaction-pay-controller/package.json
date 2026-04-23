@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "19.2.2",
+  "version": "19.3.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "Ethereum",
@@ -60,8 +60,8 @@
     "@metamask/assets-controller": "^6.1.0",
     "@metamask/assets-controllers": "^104.3.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/bridge-controller": "^70.1.1",
-    "@metamask/bridge-status-controller": "^70.0.5",
+    "@metamask/bridge-controller": "^70.2.0",
+    "@metamask/bridge-status-controller": "^71.0.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/gas-fee-controller": "^26.1.1",
     "@metamask/messenger": "^1.1.1",
