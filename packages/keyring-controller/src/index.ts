@@ -4,6 +4,7 @@ export type {
   KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerCreateNewVaultAndKeychainAction,
   KeyringControllerAddNewKeyringAction,
+  KeyringControllerIsUnlockedAction,
   KeyringControllerGetAccountsAction,
   KeyringControllerGetEncryptionPublicKeyAction,
   KeyringControllerDecryptMessageAction,

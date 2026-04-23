@@ -59,6 +59,16 @@ export type KeyringControllerAddNewKeyringAction = {
 };
 
 /**
+ * Returns the status of the vault.
+ *
+ * @returns Boolean returning true if the vault is unlocked.
+ */
+export type KeyringControllerIsUnlockedAction = {
+  type: `KeyringController:isUnlocked`;
+  handler: KeyringController['isUnlocked'];
+};
+
+/**
  * Returns the public addresses of all accounts from every keyring.
  *
  * @returns A promise resolving to an array of addresses.
@@ -401,6 +411,7 @@ export type KeyringControllerMethodActions =
   | KeyringControllerCreateNewVaultAndRestoreAction
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerAddNewKeyringAction
+  | KeyringControllerIsUnlockedAction
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerDecryptMessageAction
