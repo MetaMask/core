@@ -1,7 +1,11 @@
 import { Messenger } from '@metamask/messenger';
 
+import {
+  PasskeyControllerErrorCode,
+  PasskeyControllerErrorMessage,
+} from './constants';
 import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
-import { PasskeyAuthenticationRejectedError } from './errors';
+import { PasskeyControllerError } from './errors';
 import {
   getDefaultPasskeyControllerState,
   passkeyControllerSelectors,
@@ -16,6 +20,7 @@ import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
 } from './webauthn/types';
+import * as passkeyCrypto from './utils/crypto';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
@@ -318,7 +323,7 @@ describe('PasskeyController', () => {
     it('throws when passkey is not enrolled', () => {
       const controller = createController();
       expect(() => controller.generateAuthenticationOptions()).toThrow(
-        'Passkey is not enrolled',
+        PasskeyControllerErrorMessage.NotEnrolled,
       );
     });
 
@@ -363,7 +368,7 @@ describe('PasskeyController', () => {
           registrationResponse: minimalRegistrationResponse(),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('No active passkey registration ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
 
     it('throws when verification fails', async () => {
@@ -382,10 +387,32 @@ describe('PasskeyController', () => {
           ),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('Passkey registration verification failed');
+      ).rejects.toThrow(
+        PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+      );
     });
 
-    it('propagates when verifyRegistrationResponse rejects and clears ceremony state', async () => {
+    it('wraps non-Error verifyRegistrationResponse rejection in RegistrationVerificationFailed', async () => {
+      mockVerifyRegistrationResponse.mockRejectedValue('verify-string-error');
+
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: minimalRegistrationResponse(
+            undefined,
+            regOpts.challenge,
+          ),
+          vaultKey: 'k',
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
+        cause: expect.objectContaining({ message: 'verify-string-error' }),
+      });
+    });
+
+    it('wraps verifyRegistrationResponse rejection in RegistrationVerificationFailed and clears ceremony state', async () => {
       mockVerifyRegistrationResponse.mockRejectedValue(
         new Error('verify-error'),
       );
@@ -401,7 +428,11 @@ describe('PasskeyController', () => {
           ),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('verify-error');
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
+        message: PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+        cause: expect.objectContaining({ message: 'verify-error' }),
+      });
 
       await expect(
         controller.protectVaultKeyWithPasskey({
@@ -411,7 +442,7 @@ describe('PasskeyController', () => {
           ),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('No active passkey registration ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
 
     it('stores passkey record with publicKey after successful verification', async () => {
@@ -511,7 +542,7 @@ describe('PasskeyController', () => {
         controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse('uh'),
         ),
-      ).rejects.toThrow('Passkey is not enrolled');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
     });
 
     it('throws when there is no authentication ceremony', async () => {
@@ -530,7 +561,7 @@ describe('PasskeyController', () => {
         controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse('uh'),
         ),
-      ).rejects.toThrow('No active passkey authentication ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoAuthenticationCeremony);
     });
 
     it('throws when verification fails', async () => {
@@ -555,7 +586,112 @@ describe('PasskeyController', () => {
         controller.retrieveVaultKeyWithPasskey(
           minimalAuthenticationResponse('uh', undefined, authOpts.challenge),
         ),
-      ).rejects.toThrow('Passkey authentication verification failed');
+      ).rejects.toThrow(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+      );
+    });
+
+    it('wraps non-Error verifyAuthenticationResponse rejection in AuthenticationVerificationFailed', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        vaultKey: 'k',
+      });
+
+      mockVerifyAuthenticationResponse.mockRejectedValue(
+        'auth-string-error',
+      );
+
+      const authOpts = controller.generateAuthenticationOptions();
+
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse('uh', undefined, authOpts.challenge),
+        ),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+        cause: expect.objectContaining({ message: 'auth-string-error' }),
+      });
+    });
+
+    it('wraps verifyAuthenticationResponse rejection in AuthenticationVerificationFailed', async () => {
+      setupRegistrationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        vaultKey: 'k',
+      });
+
+      mockVerifyAuthenticationResponse.mockRejectedValue(
+        new Error('auth-verify-error'),
+      );
+
+      const authOpts = controller.generateAuthenticationOptions();
+
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse('uh', undefined, authOpts.challenge),
+        ),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+        message: PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+        cause: expect.objectContaining({ message: 'auth-verify-error' }),
+      });
+    });
+
+    it('wraps non-Error decrypt failure in VaultKeyDecryptionFailed when retrieving vault key', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey: 'secret',
+      });
+
+      const decryptSpy = jest
+        .spyOn(passkeyCrypto, 'decryptWithKey')
+        .mockImplementation(() => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercise non-Error rejection normalization
+          throw 'decrypt-string-fail';
+        });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse(
+            undefined,
+            {
+              clientExtensionResults: prfResults(prfFirst),
+            },
+            authOpts.challenge,
+          ),
+        ),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyDecryptionFailed,
+        cause: expect.objectContaining({
+          message: 'decrypt-string-fail',
+        }),
+      });
+
+      decryptSpy.mockRestore();
     });
 
     it('throws when passkey record disappears while persisting counter after auth', async () => {
@@ -597,7 +733,7 @@ describe('PasskeyController', () => {
             authOpts.challenge,
           ),
         ),
-      ).rejects.toThrow(PasskeyAuthenticationRejectedError);
+      ).rejects.toThrow(PasskeyControllerError);
 
       updateSpy.mockRestore();
     });
@@ -637,7 +773,7 @@ describe('PasskeyController', () => {
             clientExtensionResults: prfResults(prfFirst),
           }),
         ),
-      ).rejects.toThrow('No active passkey authentication ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoAuthenticationCeremony);
     });
   });
 
@@ -778,7 +914,7 @@ describe('PasskeyController', () => {
             authOpts.challenge,
           ),
         ),
-      ).rejects.toThrow('Passkey vault key decryption failed');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.VaultKeyDecryptionFailed);
 
       authOpts = controller.generateAuthenticationOptions();
       await expect(
@@ -789,7 +925,7 @@ describe('PasskeyController', () => {
             authOpts.challenge,
           ),
         ),
-      ).rejects.toThrow('Passkey assertion missing required key material');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.MissingKeyMaterial);
     });
   });
 
@@ -838,7 +974,7 @@ describe('PasskeyController', () => {
           oldVaultKey: 'old',
           newVaultKey: 'new',
         }),
-      ).rejects.toThrow('Passkey is not enrolled');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
     });
 
     it('updates the passkey wrap when before/after vault keys match', async () => {
@@ -919,9 +1055,97 @@ describe('PasskeyController', () => {
           oldVaultKey: 'wrong-expected-key',
           newVaultKey: 'new-key',
         }),
-      ).rejects.toThrow(
-        'Passkey authentication does not match the current vault key',
-      );
+      ).rejects.toThrow(PasskeyControllerErrorMessage.VaultKeyMismatch);
+    });
+
+    it('throws when decrypting the wrapped vault key fails during renewal', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey: 'wrapped-key',
+      });
+
+      const decryptSpy = jest
+        .spyOn(passkeyCrypto, 'decryptWithKey')
+        .mockImplementation(() => {
+          throw new Error('decrypt failed');
+        });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.renewVaultKeyProtection({
+          authenticationResponse: minimalAuthenticationResponse(
+            undefined,
+            {
+              clientExtensionResults: prfResults(prfFirst),
+            },
+            authOpts.challenge,
+          ),
+          oldVaultKey: 'wrapped-key',
+          newVaultKey: 'new-key',
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyDecryptionFailed,
+      });
+
+      decryptSpy.mockRestore();
+    });
+
+    it('wraps non-Error decrypt failure in VaultKeyDecryptionFailed during renewal', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey: 'wrapped-key',
+      });
+
+      const decryptSpy = jest
+        .spyOn(passkeyCrypto, 'decryptWithKey')
+        .mockImplementation(() => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercise non-Error rejection normalization
+          throw 'renew-decrypt-fail';
+        });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.renewVaultKeyProtection({
+          authenticationResponse: minimalAuthenticationResponse(
+            undefined,
+            {
+              clientExtensionResults: prfResults(prfFirst),
+            },
+            authOpts.challenge,
+          ),
+          oldVaultKey: 'wrapped-key',
+          newVaultKey: 'new-key',
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyDecryptionFailed,
+        cause: expect.objectContaining({ message: 'renew-decrypt-fail' }),
+      });
+
+      decryptSpy.mockRestore();
     });
 
     it('throws when passkey record disappears while persisting renewed ciphertext', async () => {
@@ -965,7 +1189,7 @@ describe('PasskeyController', () => {
           oldVaultKey: 'wrapped',
           newVaultKey: 'next',
         }),
-      ).rejects.toThrow(PasskeyAuthenticationRejectedError);
+      ).rejects.toThrow(PasskeyControllerError);
 
       updateSpy.mockRestore();
     });
@@ -1065,7 +1289,7 @@ describe('PasskeyController', () => {
           ),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('No active passkey registration ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
 
     it('clears stored record and resets enrollment', async () => {
@@ -1123,7 +1347,7 @@ describe('PasskeyController', () => {
           ),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('No active passkey registration ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
   });
 
@@ -1480,7 +1704,7 @@ describe('PasskeyController', () => {
           ),
           vaultKey: 'k',
         }),
-      ).rejects.toThrow('No active passkey registration ceremony');
+      ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
 
       jest.useRealTimers();
     });
@@ -1513,7 +1737,9 @@ describe('PasskeyController', () => {
             authOpts.challenge,
           ),
         ),
-      ).rejects.toThrow('Passkey authentication verification failed');
+      ).rejects.toThrow(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+      );
 
       mockVerifyAuthenticationResponse.mockResolvedValue({
         verified: true,

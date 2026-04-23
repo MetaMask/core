@@ -1,4 +1,10 @@
-export { PasskeyAuthenticationRejectedError } from './errors';
+export {
+  controllerName,
+  PasskeyControllerErrorCode,
+  PasskeyControllerErrorMessage,
+} from './constants';
+export { PasskeyControllerError } from './errors';
+export type { PasskeyControllerErrorOptions } from './errors';
 export {
   PasskeyController,
   getDefaultPasskeyControllerState,

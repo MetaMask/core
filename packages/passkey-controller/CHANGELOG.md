@@ -9,13 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#8422](https://github.com/MetaMask/core/pull/8422))
-  - `PasskeyController` for passkey-based vault key protection with WebAuthn, AES-256-GCM wrap/unwrap, and HKDF-derived keys; optional `userName` / `userDisplayName` for the OS passkey UI (default `rpName`); constructor defaults `state` to `{}`
-  - Enrollment and unlock: `generateRegistrationOptions` / `protectVaultKeyWithPasskey`, `generateAuthenticationOptions` / `retrieveVaultKeyWithPasskey`, `renewVaultKeyProtection`, `removePasskey`, `clearState`; `verifyPasskeyAuthentication` validates authentication without returning the vault key
-  - `isPasskeyEnrolled` and `passkeyControllerSelectors.selectIsPasskeyEnrolled`; `destroy` / `removePasskey` / `clearState` clear in-flight ceremony state
-  - Adaptive enrollment key derivation (WebAuthn **PRF** or **userHandle** fallback); self-contained verification (`clientDataJSON` / `authenticatorData`, RSA signatures via `@noble/curves` and Web Crypto; attestation `none` and `packed` self-attestation)
-  - Challenge-keyed in-memory ceremony coordination (`CeremonyManager`), timing/limit constants exported from the package entry (`WEBAUTHN_TIMEOUT_MS`, `CEREMONY_TTL_SLACK_MS`, `CEREMONY_MAX_AGE_MS`, `MAX_CONCURRENT_PASSKEY_CEREMONIES`)
-  - `PasskeyAuthenticationRejectedError` for expected failures; `verifyAuthenticationResponse` returns a discriminated union on success vs failure
-  - Exported controller and WebAuthn types, AES-GCM helpers, and COSE enums (`COSEALG`, `COSEKEYS`, `COSEKTY`, `COSECRV`)
+- Initial `@metamask/passkey-controller` ([#8422](https://github.com/MetaMask/core/pull/8422)): `PasskeyController` for WebAuthn passkey vault key protection (HKDF-derived keys, AES-256-GCM wrap/unwrap), PRF or `userHandle` derivation, challenge-keyed `CeremonyManager`, enrollment/unlock/renewal flows, `verifyPasskeyAuthentication`, selectors, and exported ceremony timing constants.
+- `PasskeyControllerError` with stable `code`, optional `cause` / `context`, `toJSON`, and `toString`; `PasskeyControllerErrorCode`, `PasskeyControllerErrorMessage`, and `controllerName`. Replaces `PasskeyAuthenticationRejectedError`—use `PasskeyControllerError` and `code` for auth failures.
+- **BREAKING:** Operational error messages are prefixed with `PasskeyController - `; prefer `code` or `instanceof PasskeyControllerError` over matching raw strings.
+- `renewVaultKeyProtection` uses the same `vault_key_decryption_failed` code as `retrieveVaultKeyWithPasskey` when AES-GCM decrypt fails.
+- Thrown failures from `verifyRegistrationResponse` / `verifyAuthenticationResponse` are wrapped in `PasskeyControllerError` with `registration_verification_failed` / `authentication_verification_failed` and the underlying error as `cause` (aligned with the `verified: false` path).
+- Debug logging (via `@metamask/utils`) for registration/authentication verification failures, missing ceremony state, vault decrypt failures, and vault key mismatch during renewal.
 
 [Unreleased]: https://github.com/MetaMask/core/

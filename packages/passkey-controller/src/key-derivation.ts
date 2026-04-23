@@ -1,4 +1,8 @@
-import { PasskeyAuthenticationRejectedError } from './errors';
+import {
+  PasskeyControllerErrorCode,
+  PasskeyControllerErrorMessage,
+} from './constants';
+import { PasskeyControllerError } from './errors';
 import type {
   PasskeyKeyDerivation,
   PasskeyRecord,
@@ -66,8 +70,8 @@ export function deriveKeyFromRegistrationResponse(
  * @param record - The persisted passkey record that was created during
  *   enrollment.
  * @returns The derived 32-byte AES wrapping key.
- * @throws If the required key material (PRF result or userHandle) is
- *   missing from the response.
+ * @throws {@link PasskeyControllerError} with code `missing_key_material` if the
+ *   required key material (PRF result or userHandle) is missing from the response.
  */
 export function deriveKeyFromAuthenticationResponse(
   authenticationResponse: PasskeyAuthenticationResponse,
@@ -82,16 +86,18 @@ export function deriveKeyFromAuthenticationResponse(
   let ikm: Uint8Array;
   if (record.keyDerivation.method === 'prf') {
     if (!hasPrfOutput) {
-      throw new PasskeyAuthenticationRejectedError(
-        'Passkey assertion missing required key material',
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.MissingKeyMaterial,
+        { code: PasskeyControllerErrorCode.MissingKeyMaterial },
       );
     }
     ikm = base64URLToBytes(prfFirst);
   } else if (userHandle) {
     ikm = base64URLToBytes(userHandle);
   } else {
-    throw new PasskeyAuthenticationRejectedError(
-      'Passkey assertion missing required key material',
+    throw new PasskeyControllerError(
+      PasskeyControllerErrorMessage.MissingKeyMaterial,
+      { code: PasskeyControllerErrorCode.MissingKeyMaterial },
     );
   }
 

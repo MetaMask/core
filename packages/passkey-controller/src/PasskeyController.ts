@@ -8,7 +8,13 @@ import type { Messenger } from '@metamask/messenger';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
-import { PasskeyAuthenticationRejectedError } from './errors';
+import {
+  controllerName,
+  PasskeyControllerErrorCode,
+  PasskeyControllerErrorMessage,
+} from './constants';
+import { PasskeyControllerError } from './errors';
+import { createModuleLogger, projectLogger } from './logger';
 import {
   deriveKeyFromAuthenticationResponse,
   deriveKeyFromRegistrationResponse,
@@ -26,8 +32,6 @@ import type {
 } from './webauthn/types';
 import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
 import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
-
-const controllerName = 'PasskeyController';
 
 export type PasskeyControllerState = {
   passkeyRecord: PasskeyRecord | null;
@@ -80,6 +84,8 @@ const passkeyControllerMetadata = {
     usedInUi: true,
   },
 } satisfies StateMetadata<PasskeyControllerState>;
+
+const log = createModuleLogger(projectLogger, controllerName);
 
 /**
  * Selectors for {@link PasskeyControllerState}.
@@ -169,7 +175,12 @@ export class PasskeyController extends BaseController<
   #requireEnrolled(): PasskeyRecord {
     const record = this.state.passkeyRecord;
     if (!record) {
-      throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NotEnrolled,
+        {
+          code: PasskeyControllerErrorCode.NotEnrolled,
+        },
+      );
     }
     return record;
   }
@@ -298,15 +309,20 @@ export class PasskeyController extends BaseController<
     registrationResponse: PasskeyRegistrationResponse;
     vaultKey: string;
   }): Promise<void> {
-    // get challenge
     const { registrationResponse, vaultKey } = params;
+
+    // get challenge
     const challenge = this.#getChallengeFromClientData(
       registrationResponse.response.clientDataJSON,
     );
     const registrationCeremony =
       this.#ceremonyManager.getRegistrationCeremony(challenge);
     if (!registrationCeremony) {
-      throw new Error('No active passkey registration ceremony');
+      log('No active passkey registration ceremony for challenge');
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NoRegistrationCeremony,
+        { code: PasskeyControllerErrorCode.NoRegistrationCeremony },
+      );
     }
 
     try {
@@ -317,9 +333,28 @@ export class PasskeyController extends BaseController<
         expectedOrigin: this.#expectedOrigin,
         expectedRPID: this.#rpID,
         requireUserVerification: false,
+      }).catch((error) => {
+        log(
+          'Error verifying passkey registration response',
+          error,
+        );
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+          {
+            code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
+            cause:
+              error instanceof Error ? error : new Error(String(error)),
+          },
+        );
       });
       if (!verified || !registrationInfo) {
-        throw new Error('Passkey registration verification failed');
+        log(
+          'Passkey registration verification returned unverified or missing registration info',
+        );
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.RegistrationVerificationFailed,
+          { code: PasskeyControllerErrorCode.RegistrationVerificationFailed },
+        );
       }
 
       // derive key
@@ -377,9 +412,17 @@ export class PasskeyController extends BaseController<
         passkeyRecord.encryptedVaultKey.iv,
         encKey,
       );
-    } catch {
-      throw new PasskeyAuthenticationRejectedError(
-        'Passkey vault key decryption failed',
+    } catch (cause) {
+      log(
+        'Error decrypting vault key with passkey',
+        cause instanceof Error ? cause : new Error(String(cause)),
+      );
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.VaultKeyDecryptionFailed,
+        {
+          code: PasskeyControllerErrorCode.VaultKeyDecryptionFailed,
+          cause: cause instanceof Error ? cause : new Error(String(cause)),
+        },
       );
     }
 
@@ -390,9 +433,9 @@ export class PasskeyController extends BaseController<
    * Returns whether passkey authentication succeeds for this credential (same
    * work as {@link retrieveVaultKeyWithPasskey} without exposing the vault key).
    *
-   * Returns `false` only when the failure is a normal authentication outcome
-   * ({@link PasskeyAuthenticationRejectedError}). Unexpected errors (e.g. malformed
-   * `clientDataJSON`, internal bugs) are rethrown.
+   * Returns `false` only when the failure is a {@link PasskeyControllerError}
+   * with a defined `code`. Unexpected errors (e.g. malformed `clientDataJSON`,
+   * internal bugs) are rethrown.
    *
    * @param authenticationResponse - Credential from `navigator.credentials.get()`.
    * @returns `true` if authentication succeeds, otherwise `false`.
@@ -404,7 +447,10 @@ export class PasskeyController extends BaseController<
       await this.retrieveVaultKeyWithPasskey(authenticationResponse);
       return true;
     } catch (error: unknown) {
-      if (error instanceof PasskeyAuthenticationRejectedError) {
+      if (
+        error instanceof PasskeyControllerError &&
+        error.code !== undefined
+      ) {
         return false;
       }
       throw error;
@@ -441,17 +487,34 @@ export class PasskeyController extends BaseController<
     );
 
     // decrypt vault key
-    const decryptedVaultKey = decryptWithKey(
-      passkeyRecord.encryptedVaultKey.ciphertext,
-      passkeyRecord.encryptedVaultKey.iv,
-      encKey,
-    );
+    let decryptedVaultKey: string;
+    try {
+      decryptedVaultKey = decryptWithKey(
+        passkeyRecord.encryptedVaultKey.ciphertext,
+        passkeyRecord.encryptedVaultKey.iv,
+        encKey,
+      );
+    } catch (error) {
+      log(
+        'Error decrypting vault key during passkey vault key renewal',
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.VaultKeyDecryptionFailed,
+        {
+          code: PasskeyControllerErrorCode.VaultKeyDecryptionFailed,
+          cause: error instanceof Error ? error : new Error(String(error)),
+        },
+      );
+    }
 
     // check if vault key matches
     const { oldVaultKey, newVaultKey } = params;
     if (decryptedVaultKey !== oldVaultKey) {
-      throw new Error(
-        'Passkey authentication does not match the current vault key',
+      log('Passkey renewal rejected: decrypted vault key does not match oldVaultKey');
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.VaultKeyMismatch,
+        { code: PasskeyControllerErrorCode.VaultKeyMismatch },
       );
     }
 
@@ -461,7 +524,12 @@ export class PasskeyController extends BaseController<
     // persist passkey record (mutate current state only for vault key material)
     this.update((state) => {
       if (!state.passkeyRecord) {
-        throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.NotEnrolled,
+          {
+            code: PasskeyControllerErrorCode.NotEnrolled,
+          },
+        );
       }
       state.passkeyRecord.encryptedVaultKey = { ciphertext, iv };
     });
@@ -512,8 +580,10 @@ export class PasskeyController extends BaseController<
       const authenticationCeremony =
         this.#ceremonyManager.getAuthenticationCeremony(challenge);
       if (!authenticationCeremony) {
-        throw new PasskeyAuthenticationRejectedError(
-          'No active passkey authentication ceremony',
+        log('No active passkey authentication ceremony for challenge');
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.NoAuthenticationCeremony,
+          { code: PasskeyControllerErrorCode.NoAuthenticationCeremony },
         );
       }
 
@@ -531,19 +601,36 @@ export class PasskeyController extends BaseController<
         },
         // UV optional for device compatibility; vault key remains password-gated.
         requireUserVerification: false,
-      });
-
+      }).catch((error) => {
+        log(
+          'Error verifying passkey authentication response',
+          error instanceof Error ? error : new Error(String(error)),
+        );
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+          {
+            code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+            cause:
+              error instanceof Error ? error : new Error(String(error)),
+          },
+        );
+      })
       if (!result.verified) {
-        throw new PasskeyAuthenticationRejectedError(
-          'Passkey authentication verification failed',
+        log('Passkey authentication verification returned unverified');
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+          {
+            code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+          },
         );
       }
 
       // persist passkey record with updated counter without clobbering concurrent updates
       this.update((state) => {
         if (!state.passkeyRecord) {
-          throw new PasskeyAuthenticationRejectedError(
-            'Passkey is not enrolled',
+          throw new PasskeyControllerError(
+            PasskeyControllerErrorMessage.NotEnrolled,
+            { code: PasskeyControllerErrorCode.NotEnrolled },
           );
         }
         const latest = state.passkeyRecord;

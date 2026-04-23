@@ -114,13 +114,17 @@ passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
 
 ### Errors
 
-`PasskeyAuthenticationRejectedError` is thrown when authentication or vault-key
-recovery fails in an expected operational way (for example: not enrolled, no
-active ceremony, failed WebAuthn verification, missing PRF / `userHandle`
-material, or AES-GCM decrypt failure). `retrieveVaultKeyWithPasskey` and
-related paths surface this type so callers can distinguish it from bugs or
-malformed input. `verifyPasskeyAuthentication` returns `false` only for this
-error and rethrows any other thrown value.
+`PasskeyControllerError` is thrown for controller failures. Expected operational
+cases use a stable `code` from `PasskeyControllerErrorCode` (for example:
+`not_enrolled`, `no_registration_ceremony`, `authentication_verification_failed`,
+`missing_key_material`, `vault_key_decryption_failed`). Human-readable strings
+live on `PasskeyControllerErrorMessage`. Use `instanceof PasskeyControllerError`
+and a defined `error.code` to tell these apart from malformed WebAuthn payloads
+and other `Error` values. Thrown errors from the internal WebAuthn verify helpers
+are also surfaced as `PasskeyControllerError` with the same `registration_verification_failed`
+or `authentication_verification_failed` code and the original error as `cause`.
+`verifyPasskeyAuthentication` returns `false` only for
+those controller errors (with `code`) and rethrows everything else.
 
 ## API
 

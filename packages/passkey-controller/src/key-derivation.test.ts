@@ -1,6 +1,7 @@
+import { PasskeyControllerErrorMessage } from './constants';
 import {
-  deriveKeyFromRegistrationResponse,
   deriveKeyFromAuthenticationResponse,
+  deriveKeyFromRegistrationResponse,
 } from './key-derivation';
 import type { PasskeyRecord, PasskeyRegistrationCeremony } from './types';
 import type {
@@ -219,7 +220,7 @@ describe('deriveKeyFromAuthenticationResponse', () => {
 
     expect(() =>
       deriveKeyFromAuthenticationResponse(response, makeRecord('userHandle')),
-    ).toThrow('Passkey assertion missing required key material');
+    ).toThrow(PasskeyControllerErrorMessage.MissingKeyMaterial);
   });
 
   it('throws when PRF derivation is needed but PRF output is missing', () => {
@@ -227,7 +228,7 @@ describe('deriveKeyFromAuthenticationResponse', () => {
 
     expect(() =>
       deriveKeyFromAuthenticationResponse(response, makeRecord('prf')),
-    ).toThrow('Passkey assertion missing required key material');
+    ).toThrow(PasskeyControllerErrorMessage.MissingKeyMaterial);
   });
 
   it('throws when PRF derivation is needed but prf.results.first is empty', () => {
@@ -237,7 +238,7 @@ describe('deriveKeyFromAuthenticationResponse', () => {
 
     expect(() =>
       deriveKeyFromAuthenticationResponse(response, makeRecord('prf')),
-    ).toThrow('Passkey assertion missing required key material');
+    ).toThrow(PasskeyControllerErrorMessage.MissingKeyMaterial);
   });
 
   it('produces consistent keys across registration and authentication', () => {
