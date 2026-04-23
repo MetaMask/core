@@ -32,6 +32,7 @@ import {
 } from './batch';
 import {
   ERROR_MESSGE_PUBLIC_KEY,
+  doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -275,6 +276,7 @@ function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
 }
 
 describe('Batch Utils', () => {
+  const doesAccountSupportEIP7702Mock = jest.mocked(doesAccountSupportEIP7702);
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const validateBatchRequestMock = jest.mocked(validateBatchRequest);
@@ -381,6 +383,7 @@ describe('Batch Utils', () => {
         gasLimits: [GAS_TOTAL_MOCK],
       });
 
+      doesAccountSupportEIP7702Mock.mockReturnValue(true);
       doesChainSupportEIP7702Mock.mockReturnValue(true);
 
       signTransactionMock.mockResolvedValue(TRANSACTION_SIGNATURE_3_MOCK);
@@ -950,6 +953,16 @@ describe('Batch Utils', () => {
       await expect(addTransactionBatch(request)).rejects.toThrow(
         rpcErrors.internal("Can't process batch"),
       );
+    });
+
+    it('skips 7702 path when account does not support EIP-7702', async () => {
+      doesAccountSupportEIP7702Mock.mockReturnValue(false);
+
+      await expect(addTransactionBatch(request)).rejects.toThrow(
+        rpcErrors.internal("Can't process batch"),
+      );
+
+      expect(isAccountUpgradedToEIP7702Mock).not.toHaveBeenCalled();
     });
 
     it('throws if no public key', async () => {
