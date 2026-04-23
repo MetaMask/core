@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The following actions are now available:
+    - `CurrencyRateController:setCurrentCurrency`
+    - `CurrencyRateController:updateExchangeRate`
+  - Corresponding action types (e.g. `CurrencyRateControllerSetCurrentCurrencyAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `CurrencyRateController` messenger.
+
+## [104.3.0]
+
+### Added
+
+- Export `SPOT_PRICES_SUPPORT_INFO` from the token prices service ([#8483](https://github.com/MetaMask/core/pull/8483))
+
 ## [104.2.0]
 
 ### Added
@@ -2941,7 +2961,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...HEAD
+[104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
 [104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
 [104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0
 [104.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...@metamask/assets-controllers@104.0.0

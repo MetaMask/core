@@ -1,4 +1,4 @@
-import type { FungibleAssetPrice } from '../types';
+import type { AssetMetadata, FungibleAssetPrice } from '../types';
 import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 
 /**
@@ -31,11 +31,19 @@ const EVM_NETWORK_CONFIGS: Record<string, { nativeCurrency: string }> = {
   '0xa': { nativeCurrency: 'ETH' },
 };
 
+const NATIVE_METADATA = {
+  type: 'native',
+  decimals: 18,
+  symbol: 'ETH',
+} as AssetMetadata;
+
 describe('formatExchangeRatesForBridge', () => {
   it('returns empty conversionRates, currencyRates, marketData when assetsPrice is empty', () => {
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates).toStrictEqual({});
@@ -47,10 +55,12 @@ describe('formatExchangeRatesForBridge', () => {
   it('includes non-EVM asset in conversionRates with currency from selectedCurrency (usd)', () => {
     const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [bitcoinAssetId]: price({ price: 50000, lastUpdated: 1000000000 }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates[bitcoinAssetId]).toBeDefined();
@@ -65,10 +75,12 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses selectedCurrency eur for conversionRates currency', () => {
     const solanaAssetId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [solanaAssetId]: price({ price: 100 }),
       },
       selectedCurrency: 'eur',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates[solanaAssetId]).toBeDefined();
@@ -81,10 +93,12 @@ describe('formatExchangeRatesForBridge', () => {
   it('does not include EVM assets in conversionRates', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [ethNativeId]: price({ price: 2000 }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates[ethNativeId]).toBeUndefined();
@@ -94,6 +108,7 @@ describe('formatExchangeRatesForBridge', () => {
   it('omits EVM marketData and currencyRates when nativeAssetIdentifiers is empty', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [ethNativeId]: price({ price: 2000 }),
       },
@@ -108,6 +123,13 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses native currency symbol from networkConfigurationsByChainId', () => {
     const polNativeId = 'eip155:137/slip44:966';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {
+        [polNativeId]: {
+          type: 'native',
+          decimals: 18,
+          symbol: 'POL',
+        } as AssetMetadata,
+      },
       assetsPrice: {
         [polNativeId]: price({ price: 0.5, lastUpdated: 1_700_000_000_000 }),
       },
@@ -123,13 +145,14 @@ describe('formatExchangeRatesForBridge', () => {
       conversionRate: 0.5,
       usdConversionRate: 0.5,
     });
-    const nativeAddress = '0x0000000000000000000000000000000000000000';
-    expect(result.marketData['0x89']?.[nativeAddress]?.currency).toBe('POL');
+    const nativeAddressPol = '0x0000000000000000000000000000000000001010';
+    expect(result.marketData['0x89']?.[nativeAddressPol]?.currency).toBe('POL');
   });
 
   it('includes EVM native asset in marketData and currencyRates', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: { [ethNativeId]: NATIVE_METADATA },
       assetsPrice: {
         [ethNativeId]: price({
           price: 2000,
@@ -168,6 +191,14 @@ describe('formatExchangeRatesForBridge', () => {
     const usdcId = 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
     const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {
+        [ethNativeId]: NATIVE_METADATA,
+        [usdcId]: {
+          type: 'erc20',
+          decimals: 6,
+          symbol: 'USDC',
+        } as AssetMetadata,
+      },
       assetsPrice: {
         [ethNativeId]: price({ price: 2000 }),
         [usdcId]: price({
@@ -208,11 +239,13 @@ describe('formatExchangeRatesForBridge', () => {
   it('skips entries with negative price', () => {
     const validId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [validId]: price({ price: 100 }),
         'eip155:1/slip44:60': price({ price: -1 }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates[validId]).toBeDefined();
@@ -225,6 +258,7 @@ describe('formatExchangeRatesForBridge', () => {
   it('includes conversionRates entry marketData from priceData for non-EVM', () => {
     const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [bitcoinAssetId]: price({
           price: 50000,
@@ -234,6 +268,7 @@ describe('formatExchangeRatesForBridge', () => {
         }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const entry = result.conversionRates[bitcoinAssetId];
@@ -249,10 +284,12 @@ describe('formatExchangeRatesForBridge', () => {
     const assetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const lastUpdatedMs = 1_700_000_000_000;
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [assetId]: price({ price: 1, lastUpdated: lastUpdatedMs }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const entry = result.conversionRates[assetId];
@@ -264,6 +301,10 @@ describe('formatExchangeRatesForBridge', () => {
     const mainnetNative = 'eip155:1/slip44:60';
     const optimismNative = 'eip155:10/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {
+        [mainnetNative]: NATIVE_METADATA,
+        [optimismNative]: NATIVE_METADATA,
+      },
       assetsPrice: {
         [mainnetNative]: price({ price: 2000 }),
         [optimismNative]: price({ price: 1998 }),
@@ -283,12 +324,14 @@ describe('formatExchangeRatesForBridge', () => {
 
   it('sets currentCurrency to selectedCurrency', () => {
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         'bip122:000000000019d6689c085ae165831e93/slip44:0': price({
           price: 1,
         }),
       },
       selectedCurrency: 'gbp',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.currentCurrency).toBe('gbp');
@@ -297,8 +340,10 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses lowercase selectedCurrency for MAP_CAIP_CURRENCIES lookup', () => {
     const assetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: { [assetId]: price({ price: 1 }) },
       selectedCurrency: 'USD',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates[assetId].currency).toBe(
@@ -309,6 +354,7 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses price for currencyRates conversionRate and usdPrice for usdConversionRate when selectedCurrency is not usd', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: { [ethNativeId]: NATIVE_METADATA },
       assetsPrice: {
         [ethNativeId]: price({
           price: 1840,
@@ -331,10 +377,12 @@ describe('formatExchangeRatesForBridge', () => {
   it('uses price directly for non-EVM conversionRates rate in selected currency', () => {
     const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
+      assetsInfo: {},
       assetsPrice: {
         [bitcoinAssetId]: price({ price: 46000, usdPrice: 50000 }),
       },
       selectedCurrency: 'eur',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.conversionRates[bitcoinAssetId].rate).toBe(String(46000));
