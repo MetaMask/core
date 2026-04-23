@@ -151,7 +151,8 @@ export class TransactionsController extends BaseController<typeof CONTROLLER_NAM
 export {
   // 🚫 The controller name should not be exported from the package.
   CONTROLLER_NAME,
-  TransactionsController
+  TransactionsController,
+  // ...
 } from './transactions-controller';
 ```
 
@@ -160,6 +161,7 @@ export {
 ```typescript
 /* packages/transactions-controller/src/transactions-controller.ts */
 
+// ✅ Using correct name.
 const CONTROLLER_NAME = 'TransactionsController';
 
 export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
@@ -192,7 +194,11 @@ export class TransactionsController extends BaseController<typeof CONTROLLER_NAM
 
 /* packages/transactions-controller/src/index.ts */
 
-export { TransactionsController } from './transactions-controller';
+export {
+  // ✅ Name is not exported.
+  TransactionsController,
+  // ...
+} from './transactions-controller';
 ```
 
 ## Accept an optional, partial representation of state
