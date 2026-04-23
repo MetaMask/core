@@ -355,13 +355,14 @@ describe('Batch Utils', () => {
       for (const returnValue of returnValues) {
         const index = callIndex;
         addTransactionMock.mockImplementationOnce((_params, options) => {
-          const signature = SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
+          const signature =
+            SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
           Promise.resolve().then(() => {
-            options.publishHook?.(returnValue.transactionMeta, signature).catch(
-              () => {
+            options
+              .publishHook?.(returnValue.transactionMeta, signature)
+              .catch(() => {
                 // Swallow - handled by batch orchestrator.
-              },
-            );
+              });
           });
           return Promise.resolve(returnValue);
         });

@@ -19,11 +19,8 @@ describe('quote gas estimation', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const estimateGasLimitMock = jest.mocked(estimateGasLimit);
 
-  const {
-    estimateGasBatchMock,
-    getKeyringControllerStateMock,
-    messenger,
-  } = getMessengerMock();
+  const { estimateGasBatchMock, getKeyringControllerStateMock, messenger } =
+    getMessengerMock();
 
   const TRANSACTIONS_MOCK = [
     {

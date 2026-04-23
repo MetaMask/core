@@ -707,11 +707,12 @@ async function processTransactionWithHook(
       transactionMeta = signResult.transactionMeta;
     }
 
-    const publishResult = publishHook(transactionMeta, signedTransaction)
-      .then((hookResult) => {
+    const publishResult = publishHook(transactionMeta, signedTransaction).then(
+      (hookResult) => {
         onPublish?.(hookResult);
         return '';
-      });
+      },
+    );
 
     publishResult.catch(() => {
       // Swallow – error is handled by the batch orchestrator.

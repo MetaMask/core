@@ -304,9 +304,9 @@ describe('EIP-7702 Utils', () => {
         ],
       });
 
-      expect(
-        doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK),
-      ).toBe(true);
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
     });
 
     it('returns true for Simple Key Pair keyring', () => {
@@ -321,9 +321,9 @@ describe('EIP-7702 Utils', () => {
         ],
       });
 
-      expect(
-        doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK),
-      ).toBe(true);
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
     });
 
     it('returns false for unsupported keyring type', () => {
@@ -338,9 +338,9 @@ describe('EIP-7702 Utils', () => {
         ],
       });
 
-      expect(
-        doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK),
-      ).toBe(false);
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        false,
+      );
     });
 
     it('returns true when account is not found in any keyring', () => {
@@ -355,9 +355,9 @@ describe('EIP-7702 Utils', () => {
         ],
       });
 
-      expect(
-        doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK),
-      ).toBe(true);
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
     });
 
     it('matches account addresses case-insensitively', () => {
@@ -372,9 +372,9 @@ describe('EIP-7702 Utils', () => {
         ],
       });
 
-      expect(
-        doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK),
-      ).toBe(true);
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
     });
   });
 

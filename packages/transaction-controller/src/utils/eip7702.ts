@@ -59,16 +59,11 @@ export function doesAccountSupportEIP7702(
   account: string,
 ): boolean {
   const { keyrings } = messenger.call('KeyringController:getState');
-  const keyring = keyrings.find(
-    (k: { type: string; accounts: string[] }) =>
-      k.accounts.some(
-        (a: string) => a.toLowerCase() === account.toLowerCase(),
-      ),
+  const keyring = keyrings.find((k: { type: string; accounts: string[] }) =>
+    k.accounts.some((a: string) => a.toLowerCase() === account.toLowerCase()),
   );
 
-  return keyring
-    ? KEYRING_TYPES_SUPPORTING_7702.includes(keyring.type)
-    : true;
+  return keyring ? KEYRING_TYPES_SUPPORTING_7702.includes(keyring.type) : true;
 }
 
 /**

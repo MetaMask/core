@@ -141,10 +141,7 @@ async function estimateQuoteGasLimitsBatch(
   // If the batch returned a combined 7702 gas limit but the account cannot
   // sign EIP-7702 authorizations (e.g. hardware wallet), re-estimate each
   // transaction individually so callers never see is7702=true.
-  const supports7702 = accountSupports7702(
-    messenger,
-    firstTransaction.from,
-  );
+  const supports7702 = accountSupports7702(messenger, firstTransaction.from);
 
   if (is7702 && !supports7702) {
     const individualResults = await Promise.all(

@@ -101,11 +101,8 @@ const BATCH_TRANSACTION_MOCK = {
 } as BatchTransaction;
 
 describe('Quotes Utils', () => {
-  const {
-    messenger,
-    getControllerStateMock,
-    getKeyringControllerStateMock,
-  } = getMessengerMock();
+  const { messenger, getControllerStateMock, getKeyringControllerStateMock } =
+    getMessengerMock();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);

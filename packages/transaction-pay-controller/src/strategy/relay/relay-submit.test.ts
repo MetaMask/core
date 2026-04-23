@@ -853,7 +853,7 @@ describe('Relay Submit Utils', () => {
       it('adds transaction batch with original transaction prepended', async () => {
         await submitRelayQuotes(request);
 
-         expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
             from: FROM_MOCK,
