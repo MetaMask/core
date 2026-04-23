@@ -5869,7 +5869,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^6.0.0, @metamask/auto-changelog@npm:^6.1.0":
+"@metamask/auto-changelog@npm:^6.1.0":
   version: 6.1.0
   resolution: "@metamask/auto-changelog@npm:6.1.0"
   dependencies:
@@ -7358,7 +7358,7 @@ __metadata:
     "@docusaurus/types": "npm:^3.10.0"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
     "@mdx-js/react": "npm:^3.1.1"
-    "@metamask/auto-changelog": "npm:^6.0.0"
+    "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
