@@ -491,9 +491,10 @@ type PermissionSpecificationBuilderOptions<
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
   methodHooks?: MethodHooks;
   /**
-   * A messenger scoped to this permission specification, typically constructed
-   * via {@link createRestrictedMethodMessenger} from the spec's declared
-   * `actionNames`.
+   * A messenger scoped to this permission specification. The messenger is
+   * expected to have exactly the actions declared by the spec's `actionNames`
+   * delegated to it; {@link createRestrictedMethodMessenger} is the canonical
+   * way to construct it.
    */
   messenger?: SpecMessenger;
 };
@@ -527,11 +528,12 @@ export type PermissionSpecificationBuilderExportConstraint = {
   >;
   methodHookNames?: Record<string, true>;
   /**
-   * The messenger action types this specification requires. Hosts pass these
-   * to {@link createRestrictedMethodMessenger} to build a minimally-scoped
-   * child messenger to inject into the builder.
+   * The messenger action types this specification requires. Host applications
+   * pass these to {@link createRestrictedMethodMessenger} to build a
+   * minimally-scoped child messenger to inject into the builder. If present,
+   * this must be a non-empty tuple — omit the field to opt out.
    */
-  actionNames?: readonly string[];
+  actionNames?: readonly [string, ...string[]] | undefined;
 };
 
 type ValidRestrictedMethodSpecification<

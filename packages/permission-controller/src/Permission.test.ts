@@ -101,7 +101,32 @@ describe('permission specification messenger option', () => {
     handler: () => number;
   };
 
-  it('closes a scoped messenger into methodImplementation', () => {
+  const targetName = 'wallet_getAnswer';
+
+  type HostRootMessenger = Messenger<'Root', HostAction>;
+
+  type SpecMessenger = ReturnType<
+    typeof createRestrictedMethodMessenger<
+      typeof targetName,
+      HostRootMessenger,
+      readonly ['Host:computeAnswer']
+    >
+  >;
+
+  const buildSpecificationBuilder = (): PermissionSpecificationBuilder<
+    PermissionType.RestrictedMethod,
+    { messenger: SpecMessenger },
+    RestrictedMethodSpecificationConstraint
+  > => {
+    return ({ messenger }) => ({
+      permissionType: PermissionType.RestrictedMethod,
+      targetName,
+      allowedCaveats: null,
+      methodImplementation: (): number => messenger.call('Host:computeAnswer'),
+    });
+  };
+
+  const getRootMessenger = (): HostRootMessenger => {
     const rootMessenger = new Messenger<'Root', HostAction>({
       namespace: 'Root',
     });
@@ -112,41 +137,24 @@ describe('permission specification messenger option', () => {
       typeof rootMessenger
     >({ namespace: 'Host', parent: rootMessenger });
     hostMessenger.registerActionHandler('Host:computeAnswer', () => 42);
+    return rootMessenger;
+  };
 
-    const actionNames = ['Host:computeAnswer'] as const;
-    const targetName = 'wallet_getAnswer';
-
-    const specificationBuilder: PermissionSpecificationBuilder<
-      PermissionType.RestrictedMethod,
-      {
-        messenger?: ReturnType<
-          typeof createRestrictedMethodMessenger<
-            typeof rootMessenger,
-            typeof actionNames
-          >
-        >;
-      },
-      RestrictedMethodSpecificationConstraint
-    > = ({ messenger }) => ({
-      permissionType: PermissionType.RestrictedMethod,
-      targetName,
-      allowedCaveats: null,
-      methodImplementation: (): number => {
-        if (!messenger) {
-          throw new Error('messenger is required');
-        }
-        return messenger.call('Host:computeAnswer');
-      },
-    });
+  it('invokes the spec-declared action via the scoped messenger', () => {
+    const rootMessenger = getRootMessenger();
+    const specificationBuilder = buildSpecificationBuilder();
 
     const messenger = createRestrictedMethodMessenger({
       rootMessenger,
       namespace: targetName,
-      actionNames,
+      actionNames: ['Host:computeAnswer'] as const,
     });
 
     const specification = specificationBuilder({ messenger });
 
+    expect(specification.targetName).toBe(targetName);
+    expect(specification.allowedCaveats).toBeNull();
+    expect(specification.permissionType).toBe(PermissionType.RestrictedMethod);
     expect(
       specification.methodImplementation({
         method: targetName,

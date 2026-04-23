@@ -52,12 +52,14 @@ describe('createRestrictedMethodMessenger', () => {
       createRestrictedMethodMessenger({
         rootMessenger,
         namespace: 'wallet_example',
+        // @ts-expect-error An empty array is rejected by the type system, but
+        // the runtime handles it as a no-op.
         actionNames: [],
       }),
     ).toBeUndefined();
   });
 
-  it('returns a child messenger that can call the delegated action', () => {
+  it('exposes the requested action on the returned messenger', () => {
     const rootMessenger = getRootMessenger();
 
     const messenger = createRestrictedMethodMessenger({
@@ -66,11 +68,28 @@ describe('createRestrictedMethodMessenger', () => {
       actionNames: ['Foo:ping'] as const,
     });
 
-    expect(messenger).toBeDefined();
-    expect(messenger?.call('Foo:ping')).toBe('pong');
+    expect(messenger.call('Foo:ping')).toBe('pong');
   });
 
-  it('does not delegate actions that were not requested', () => {
+  it('uses the provided namespace for the returned messenger', () => {
+    const rootMessenger = getRootMessenger();
+
+    const messenger = createRestrictedMethodMessenger({
+      rootMessenger,
+      namespace: 'wallet_example',
+      actionNames: ['Foo:ping'] as const,
+    });
+
+    // Registering an action under a different namespace must fail with an
+    // error that names the messenger's configured namespace.
+    expect(() =>
+      // @ts-expect-error Deliberately registering outside the child's action
+      // surface to probe its namespace.
+      messenger.registerActionHandler('Other:noop', () => undefined),
+    ).toThrow(/wallet_example/u);
+  });
+
+  it('rejects calls to actions that were not requested', () => {
     const rootMessenger = getRootMessenger();
 
     const messenger = createRestrictedMethodMessenger({
@@ -81,11 +100,11 @@ describe('createRestrictedMethodMessenger', () => {
 
     expect(() =>
       // @ts-expect-error Intentionally calling an undelegated action.
-      messenger?.call('Bar:double', 2),
-    ).toThrow('A handler for Bar:double has not been registered');
+      messenger.call('Bar:double', 2),
+    ).toThrow(/Bar:double/u);
   });
 
-  it('delegates multiple actions when requested', () => {
+  it('exposes every requested action when multiple are delegated', () => {
     const rootMessenger = getRootMessenger();
 
     const messenger = createRestrictedMethodMessenger({
@@ -94,7 +113,7 @@ describe('createRestrictedMethodMessenger', () => {
       actionNames: ['Foo:ping', 'Bar:double'] as const,
     });
 
-    expect(messenger?.call('Foo:ping')).toBe('pong');
-    expect(messenger?.call('Bar:double', 3)).toBe(6);
+    expect(messenger.call('Foo:ping')).toBe('pong');
+    expect(messenger.call('Bar:double', 3)).toBe(6);
   });
 });

@@ -6,12 +6,23 @@ import type {
 import { Messenger } from '@metamask/messenger';
 
 /**
+ * The subset of `RootMessenger`'s actions selected by `DelegatedActions`.
+ */
+type SelectedActions<
+  RootMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
+  DelegatedActions extends readonly MessengerActions<RootMessenger>['type'][],
+> = Extract<
+  MessengerActions<RootMessenger>,
+  { type: DelegatedActions[number] }
+>;
+
+/**
  * Create a child messenger scoped to a restricted-method permission
- * specification, with the spec's declared actions delegated from the root
- * messenger. Analogous to `selectHooks` for `methodHooks`, but for messenger
- * actions.
+ * specification, delegating only the spec's declared actions from the root
+ * messenger. This produces a minimally-scoped messenger whose action surface
+ * matches exactly what the spec has declared it needs.
  *
- * Returns `undefined` when the spec declares no actions — there is nothing to
+ * Returns `undefined` when `actionNames` is omitted — there is nothing to
  * scope, and the builder can be invoked without a messenger.
  *
  * @param args - The arguments.
@@ -19,28 +30,57 @@ import { Messenger } from '@metamask/messenger';
  * @param args.namespace - The namespace for the scoped child messenger,
  * typically the spec's `targetName`.
  * @param args.actionNames - The action types the specification requires,
- * typically the spec's declared `actionNames`.
+ * typically the spec's declared `actionNames`. Must be a non-empty tuple of
+ * action types that exist on the root messenger.
  * @returns A scoped child messenger with the requested actions delegated, or
  * `undefined` if no actions were requested.
  */
 export function createRestrictedMethodMessenger<
+  Namespace extends string,
   RootMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
-  DelegatedActions extends readonly MessengerActions<RootMessenger>['type'][],
+  DelegatedActions extends readonly [
+    MessengerActions<RootMessenger>['type'],
+    ...MessengerActions<RootMessenger>['type'][],
+  ],
+>(args: {
+  rootMessenger: RootMessenger;
+  namespace: Namespace;
+  actionNames: DelegatedActions;
+}): Messenger<
+  Namespace,
+  SelectedActions<RootMessenger, DelegatedActions>,
+  never,
+  RootMessenger
+>;
+
+export function createRestrictedMethodMessenger<
+  Namespace extends string,
+  RootMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
+>(args: {
+  rootMessenger: RootMessenger;
+  namespace: Namespace;
+  actionNames?: undefined;
+}): undefined;
+
+export function createRestrictedMethodMessenger<
+  Namespace extends string,
+  RootMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
+  DelegatedActions extends readonly [
+    MessengerActions<RootMessenger>['type'],
+    ...MessengerActions<RootMessenger>['type'][],
+  ],
 >({
   rootMessenger,
   namespace,
   actionNames,
 }: {
   rootMessenger: RootMessenger;
-  namespace: string;
+  namespace: Namespace;
   actionNames?: DelegatedActions;
 }):
   | Messenger<
-      string,
-      Extract<
-        MessengerActions<RootMessenger>,
-        { type: DelegatedActions[number] }
-      >,
+      Namespace,
+      SelectedActions<RootMessenger, DelegatedActions>,
       never,
       RootMessenger
     >
@@ -50,11 +90,8 @@ export function createRestrictedMethodMessenger<
   }
 
   const restrictedMethodMessenger = new Messenger<
-    string,
-    Extract<
-      MessengerActions<RootMessenger>,
-      { type: DelegatedActions[number] }
-    >,
+    Namespace,
+    SelectedActions<RootMessenger, DelegatedActions>,
     never,
     RootMessenger
   >({
