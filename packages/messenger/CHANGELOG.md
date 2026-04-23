@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Throw different error for missing delegated actions ([#8557](https://github.com/MetaMask/core/pull/8557))
+
 ### Deprecated
 
 - Deprecate `generate-action-types` CLI tool and `messenger-generate-action-types` binary ([#8378](https://github.com/MetaMask/core/pull/8378))
