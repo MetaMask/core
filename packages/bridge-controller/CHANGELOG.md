@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 934.0.0 ([#8571](https://github.com/MetaMask/core/pull/8571))
+- chore!: Update `CurrencyRateController` to expose all methods through messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
+- Revert "Release 934.0.0" ([#8570](https://github.com/MetaMask/core/pull/8570))
+
 ## [70.2.0]
 
 ### Added
