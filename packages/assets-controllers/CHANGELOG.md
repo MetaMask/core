@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `CurrencyRateController:updateExchangeRate`
   - Corresponding action types (e.g. `CurrencyRateControllerSetCurrentCurrencyAction`) are available as well.
 
+### Changed
+
+- **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `CurrencyRateController` messenger.
+
 ## [104.2.0]
 
 ### Added
