@@ -547,7 +547,6 @@ async function addTransactionBatchWithHook(
     }
 
     const publishHook = collectHook.getHook();
-    const signingPromises: Promise<string>[] = [];
 
     let index = 0;
 
@@ -563,7 +562,6 @@ async function addTransactionBatchWithHook(
         );
 
       hookTransactions.push(hookTransaction);
-      signingPromises.push(signingComplete);
       index += 1;
 
       const signingFailure = new Promise<never>((_resolve, reject) => {
