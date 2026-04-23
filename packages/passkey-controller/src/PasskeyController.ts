@@ -166,26 +166,8 @@ export class PasskeyController extends BaseController<
     this.#userDisplayName = userDisplayName ?? rpName;
   }
 
-  /**
-   * Releases all in-flight ceremony state and tears down the messenger.
-   */
-  destroy(): void {
-    this.#ceremonyManager.clear();
-    super.destroy();
-  }
-
-  #setPasskeyRecord(record: PasskeyRecord): void {
-    this.update((state) => {
-      state.passkeyRecord = record;
-    });
-  }
-
-  #getPasskeyRecord(): PasskeyRecord | null {
-    return this.state.passkeyRecord;
-  }
-
   #requireEnrolled(): PasskeyRecord {
-    const record = this.#getPasskeyRecord();
+    const record = this.state.passkeyRecord;
     if (!record) {
       throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
     }
@@ -327,45 +309,45 @@ export class PasskeyController extends BaseController<
       throw new Error('No active passkey registration ceremony');
     }
 
-    // verify registration response
-    const { verified, registrationInfo } = await verifyRegistrationResponse({
-      response: registrationResponse,
-      expectedChallenge: registrationCeremony.challenge,
-      expectedOrigin: this.#expectedOrigin,
-      expectedRPID: this.#rpID,
-      requireUserVerification: false,
-    }).catch((error) => {
+    try {
+      // verify registration response
+      const { verified, registrationInfo } = await verifyRegistrationResponse({
+        response: registrationResponse,
+        expectedChallenge: registrationCeremony.challenge,
+        expectedOrigin: this.#expectedOrigin,
+        expectedRPID: this.#rpID,
+        requireUserVerification: false,
+      });
+      if (!verified || !registrationInfo) {
+        throw new Error('Passkey registration verification failed');
+      }
+
+      // derive key
+      const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
+        registrationResponse,
+        registrationCeremony,
+      );
+
+      // encrypt vault key
+      const { ciphertext, iv } = encryptWithKey(vaultKey, encKey);
+
+      // persist passkey record
+      this.update((state) => {
+        state.passkeyRecord = {
+          credential: {
+            id: registrationInfo.credentialId,
+            publicKey: bytesToBase64URL(registrationInfo.publicKey),
+            counter: registrationInfo.counter,
+            transports: registrationInfo.transports,
+          },
+          encryptedVaultKey: { ciphertext, iv },
+          keyDerivation,
+        };
+      });
+    } finally {
+      
       this.#ceremonyManager.deleteRegistrationCeremony(challenge);
-      throw error;
-    });
-    if (!verified || !registrationInfo) {
-      this.#ceremonyManager.deleteRegistrationCeremony(challenge);
-      throw new Error('Passkey registration verification failed');
     }
-
-    // derive key
-    const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
-      registrationResponse,
-      registrationCeremony,
-    );
-
-    // encrypt vault key
-    const { ciphertext, iv } = encryptWithKey(vaultKey, encKey);
-
-    // persist passkey record
-    this.#setPasskeyRecord({
-      credential: {
-        id: registrationInfo.credentialId,
-        publicKey: bytesToBase64URL(registrationInfo.publicKey),
-        counter: registrationInfo.counter,
-        transports: registrationInfo.transports,
-      },
-      encryptedVaultKey: { ciphertext, iv },
-      keyDerivation,
-    });
-
-    // delete ceremony
-    this.#ceremonyManager.deleteRegistrationCeremony(challenge);
   }
 
   /**
@@ -477,29 +459,36 @@ export class PasskeyController extends BaseController<
     // encrypt new vault key
     const { ciphertext, iv } = encryptWithKey(newVaultKey, encKey);
 
-    // persist passkey record
-    this.#setPasskeyRecord({
-      ...passkeyRecord,
-      encryptedVaultKey: { ciphertext, iv },
-    });
-  }
-
-  /** Resets state and clears in-flight registration/authentication ceremonies. */
-  clearState(): void {
+    // persist passkey record (mutate current state only for vault key material)
     this.update((state) => {
-      Object.assign(state, getDefaultPasskeyControllerState());
+      if (!state.passkeyRecord) {
+        throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
+      }
+      state.passkeyRecord.encryptedVaultKey = { ciphertext, iv };
     });
-    this.#ceremonyManager.clear();
   }
 
   /**
    * Unenrolls the passkey, removing the protected vault key material.
    */
   removePasskey(): void {
-    this.update((state) => {
-      Object.assign(state, getDefaultPasskeyControllerState());
-    });
+    this.update(() => getDefaultPasskeyControllerState());
     this.#ceremonyManager.clear();
+  }
+
+  /**
+   * Resets state and clears in-flight registration/authentication ceremonies.
+   */
+  clearState(): void {
+    this.removePasskey();
+  }
+
+  /**
+   * Releases all in-flight ceremony state and tears down the messenger.
+   */
+  destroy(): void {
+    this.#ceremonyManager.clear();
+    super.destroy();
   }
 
   /**
@@ -552,27 +541,20 @@ export class PasskeyController extends BaseController<
       }
 
       // persist passkey record with updated counter without clobbering concurrent updates
-      const latestRecord = this.#requireEnrolled();
-      const mergedCounter = Math.max(
-        result.authenticationInfo.newCounter,
-        latestRecord.credential.counter,
-      );
-      const updatedRecord: PasskeyRecord = {
-        ...latestRecord,
-        credential: {
-          ...latestRecord.credential,
-          counter: mergedCounter,
-        },
-      };
-      this.#setPasskeyRecord(updatedRecord);
-
-      // delete ceremony
-      this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
-    } catch (error) {
+      this.update((state) => {
+        if (!state.passkeyRecord) {
+          throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
+        }
+        const latest = state.passkeyRecord;
+        latest.credential.counter = Math.max(
+          result.authenticationInfo.newCounter,
+          latest.credential.counter,
+        );
+      });
+    } finally {
       if (challenge) {
         this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
       }
-      throw error;
     }
   }
 }
