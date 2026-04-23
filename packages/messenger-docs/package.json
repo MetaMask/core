@@ -1,7 +1,7 @@
 {
   "name": "@metamask/messenger-docs",
   "version": "0.0.0",
-  "description": "Generate and serve Messenger API documentation for MetaMask controller packages",
+  "description": "Produces documentation for the platform API, the set of actions and events available in the clients through the message bus",
   "keywords": [
     "Ethereum",
     "MetaMask"

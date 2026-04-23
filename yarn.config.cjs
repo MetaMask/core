@@ -928,15 +928,21 @@ async function expectReadme(workspace, workspaceBasename) {
     );
   }
 
-  if (!readme.includes(`yarn add @metamask/${workspaceBasename}`)) {
+  if (
+    !readme.includes(`yarn add @metamask/${workspaceBasename}`) &&
+    !readme.includes(`yarn add --dev @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
-      `The README.md does not contain an example of how to install the package using Yarn (\`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
+      `The README.md does not contain an example of how to install the package using Yarn (e.g., \`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 
-  if (!readme.includes(`npm install @metamask/${workspaceBasename}`)) {
+  if (
+    !readme.includes(`npm install @metamask/${workspaceBasename}`) &&
+    !readme.includes(`npm install --save-dev @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
-      `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
+      `The README.md does not contain an example of how to install the package using npm (e.g., \`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 }

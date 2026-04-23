@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   const argv = await yargs(process.argv.slice(2))
     .command(
       '$0 [project-path]',
-      'Generate Messenger API documentation for MetaMask controller packages',
+      'Produces documentation for the platform API, the set of actions and events available in clients through the message bus.',
       (yargsInstance) => {
         yargsInstance.positional('project-path', {
           type: 'string',
@@ -111,23 +111,23 @@ async function main(): Promise<void> {
     )
     .option('build', {
       type: 'boolean',
-      description: 'Generate docs and build static site',
+      description: 'Generate documentation and build a production-ready site',
       default: false,
     })
     .option('serve', {
       type: 'boolean',
-      description: 'Generate docs, build, and serve static site',
+      description: 'Generate documentation and serve a production-ready site',
       default: false,
     })
     .option('dev', {
       type: 'boolean',
-      description: 'Generate docs and start dev server with hot reload',
+      description: 'Generate documentation and serve a development-only site',
       default: false,
     })
     .option('scan-dir', {
       type: 'string',
       array: true,
-      description: 'Source directory to scan (repeatable)',
+      description: 'Source directory to scan (may be specified multiple times)',
       default: [] as string[],
     })
     .option('output', {

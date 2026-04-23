@@ -1,66 +1,30 @@
 # `@metamask/messenger-docs`
 
-Generate and serve Messenger API documentation for MetaMask controller packages.
+Produces documentation for the platform API, the set of actions and events available in clients through the message bus.
 
-Scans TypeScript source files and declaration files for messenger action/event types, then generates a searchable Docusaurus site with per-namespace documentation.
+When run within a project (such as `metamask-extension` or `metamask-mobile`), this tool looks for messenger action and event types declared within TypeScript source and declaration files within MetaMask NPM packages. It extracts all of the JSDoc from these actions and events, then outputs them into a searchable Docusaurus site.
 
 ## Installation
 
-`yarn add @metamask/messenger-docs`
-
-or
-
-`npm install @metamask/messenger-docs`
+1. Add this package as a dependency (`yarn add --dev @metamask/messenger-docs` or `npm install --save-dev @metamask/messenger-docs`).
+2. Add a script to your project's `package.json`:
+   ```json
+   {
+     "scripts": {
+       "docs:messenger": "messenger-docs"
+     }
+   }
+   ```
+3. (Optional) Configure the tool by adding a `messenger-docs` section to `package.json`. For instance, you can override the directory that should be scanned (default: `["src/"]`):
+   ```json
+   {
+     "messenger-docs": {
+       "scanDirs": ["app", "src"]
+     }
+   }
+   ```
 
 ## Usage
-
-### Core monorepo
-
-The package includes workspace scripts for development:
-
-```bash
-# Generate docs from all packages
-yarn workspace @metamask/messenger-docs docs:generate
-
-# Generate + start dev server with hot reload
-yarn workspace @metamask/messenger-docs docs:dev
-
-# Generate + build static site
-yarn workspace @metamask/messenger-docs docs:build
-
-# Generate + build + serve
-yarn workspace @metamask/messenger-docs docs:serve
-```
-
-### Client projects (Extension, Mobile)
-
-Add `@metamask/messenger-docs` as a dev dependency, then add a script to your `package.json`:
-
-```json
-{
-  "scripts": {
-    "docs:messenger": "messenger-docs --serve"
-  }
-}
-```
-
-By default, the tool scans `src/` for `.ts` files and `node_modules/@metamask/` for `.d.cts` declaration files. If your project has source files in other directories, configure `scanDirs` in `package.json`:
-
-```json
-{
-  "messenger-docs": {
-    "scanDirs": ["app", "src"]
-  }
-}
-```
-
-Or pass `--scan-dir` flags:
-
-```bash
-messenger-docs --scan-dir app --scan-dir shared --serve
-```
-
-### CLI options
 
 ```
 messenger-docs [project-path] [options]
