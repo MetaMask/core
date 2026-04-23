@@ -10,7 +10,7 @@ import { base64URLToBytes } from './utils/encoding';
 import type {
   PasskeyAuthenticationResponse,
   PasskeyRegistrationResponse,
-} from './webauthn';
+} from './webauthn/types';
 
 /**
  * Derives an AES-256 wrapping key from a WebAuthn registration ceremony

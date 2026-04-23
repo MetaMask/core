@@ -16,18 +16,16 @@ import {
 import type { PasskeyRecord } from './types';
 import { decryptWithKey, encryptWithKey } from './utils/crypto';
 import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
-import {
-  COSEALG,
-  decodeClientDataJSON,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
-} from './webauthn';
+import { COSEALG } from './webauthn/constants';
+import { decodeClientDataJSON } from './webauthn/decode-client-data-json';
 import type {
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
-} from './webauthn';
+} from './webauthn/types';
+import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
+import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
 
 const controllerName = 'PasskeyController';
 

@@ -33,4 +33,4 @@ export type {
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
   PublicKeyCredentialHint,
-} from './webauthn';
+} from './webauthn/types';

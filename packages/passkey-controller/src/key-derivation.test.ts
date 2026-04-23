@@ -6,7 +6,7 @@ import type { PasskeyRecord, PasskeyRegistrationCeremony } from './types';
 import type {
   PasskeyAuthenticationResponse,
   PasskeyRegistrationResponse,
-} from './webauthn';
+} from './webauthn/types';
 
 function b64url(str: string): string {
   return btoa(str)

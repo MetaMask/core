@@ -14,7 +14,7 @@ import type { PasskeyRecord, PrfClientExtensionResults } from './types';
 import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
-} from './webauthn';
+} from './webauthn/types';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
@@ -32,10 +32,14 @@ function prfResults(first: string, enabled?: boolean): ExtOutputsWithPrf {
 const mockVerifyRegistrationResponse = jest.fn();
 const mockVerifyAuthenticationResponse = jest.fn();
 
-jest.mock('./webauthn', () => ({
-  ...jest.requireActual('./webauthn'),
+jest.mock('./webauthn/verify-registration-response', () => ({
+  ...jest.requireActual('./webauthn/verify-registration-response'),
   verifyRegistrationResponse: (...args: unknown[]): unknown =>
     mockVerifyRegistrationResponse(...args),
+}));
+
+jest.mock('./webauthn/verify-authentication-response', () => ({
+  ...jest.requireActual('./webauthn/verify-authentication-response'),
   verifyAuthenticationResponse: (...args: unknown[]): unknown =>
     mockVerifyAuthenticationResponse(...args),
 }));
