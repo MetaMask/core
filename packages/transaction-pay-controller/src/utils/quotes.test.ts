@@ -677,7 +677,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('sets batchTransactionsOptions to undefined when there are no batch transactions', async () => {
+    it('sets batchTransactionsOptions to empty object when there are no batch transactions', async () => {
       getBatchTransactionsMock.mockResolvedValue([]);
       await run();
 
@@ -687,7 +687,7 @@ describe('Quotes Utils', () => {
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
           batchTransactions: [],
-          batchTransactionsOptions: undefined,
+          batchTransactionsOptions: {},
         }),
       );
     });

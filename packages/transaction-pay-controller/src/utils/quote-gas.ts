@@ -58,8 +58,8 @@ export async function estimateQuoteGasLimits({
     const result = await estimateQuoteGasLimitsBatch(
       transactions,
       messenger,
-      fallbackGas,
       fallbackOnSimulationFailure,
+      fallbackGas,
     );
 
     return {
@@ -83,8 +83,8 @@ export async function estimateQuoteGasLimits({
 async function estimateQuoteGasLimitsBatch(
   transactions: QuoteGasTransaction[],
   messenger: TransactionPayControllerMessenger,
-  fallbackGas?: { estimate: number; max: number },
   fallbackOnSimulationFailure: boolean,
+  fallbackGas?: { estimate: number; max: number },
 ): Promise<{
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];

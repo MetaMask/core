@@ -174,7 +174,7 @@ function syncTransaction({
   totals,
   transactionId,
 }: {
-  batchTransactions: BatchTransaction[] | undefined;
+  batchTransactions: BatchTransaction[];
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
@@ -193,7 +193,7 @@ function syncTransaction({
     },
     (tx: TransactionMeta) => {
       tx.batchTransactions = batchTransactions;
-      tx.batchTransactionsOptions = batchTransactions?.length ? {} : undefined;
+      tx.batchTransactionsOptions = {};
 
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
