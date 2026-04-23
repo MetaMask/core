@@ -37,17 +37,17 @@ async function runDocusaurus(command: string, cwd: string): Promise<void> {
 }
 
 /**
- * Copy template files into the output directory using fs.cp with filtering.
+ * Copy site files into the output directory using fs.cp with filtering.
  *
  * @param outDir - The output directory to set up.
  */
 async function setupSite(outDir: string): Promise<void> {
-  const templateDir = path.resolve(__dirname, '..', 'template');
+  const siteDir = path.resolve(__dirname, '..', 'site');
   const skip = new Set(['node_modules', 'docs']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
 
-  await copyDir(templateDir, outDir, skip);
+  await copyDir(siteDir, outDir, skip);
 
   // Write a minimal package.json so Docusaurus doesn't warn about a missing one
   const pkgJsonPath = path.join(outDir, 'package.json');
