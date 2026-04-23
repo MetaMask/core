@@ -79,9 +79,13 @@ describe('decodePermission', () => {
         ),
       });
 
-      expect(rules).toHaveLength(2);
-      expect(rules.map((rule) => rule.permissionType).sort()).toStrictEqual(
-        ['native-token-periodic', 'native-token-stream'].sort(),
+      expect(rules).toHaveLength(3);
+      expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        [
+          'native-token-periodic',
+          'native-token-stream',
+          'native-token-allowance',
+        ].sort(),
       );
     });
 
@@ -207,17 +211,19 @@ describe('decodePermission', () => {
 
     describe('native-token-periodic', () => {
       const expectedPermissionType = 'native-token-periodic';
-      it('matches with required caveats', () => {
+      it('matches with required caveats alongside native-token-allowance', () => {
         const enforcers = [
           NativeTokenPeriodTransferEnforcer,
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+          [expectedPermissionType, 'native-token-allowance'].sort(),
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -227,11 +233,13 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+          [expectedPermissionType, 'native-token-allowance'].sort(),
+        );
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -266,11 +274,13 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+          [expectedPermissionType, 'native-token-allowance'].sort(),
+        );
       });
 
       it('throws if a contract is not found', () => {
@@ -387,17 +397,19 @@ describe('decodePermission', () => {
 
     describe('erc20-token-periodic', () => {
       const expectedPermissionType = 'erc20-token-periodic';
-      it('matches with required caveats', () => {
+      it('matches with required caveats alongside erc20-token-allowance', () => {
         const enforcers = [
           ERC20PeriodTransferEnforcer,
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+          [expectedPermissionType, 'erc20-token-allowance'].sort(),
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -407,11 +419,13 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+          [expectedPermissionType, 'erc20-token-allowance'].sort(),
+        );
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -446,11 +460,13 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+          [expectedPermissionType, 'erc20-token-allowance'].sort(),
+        );
       });
 
       it('throws if a contract is not found', () => {
