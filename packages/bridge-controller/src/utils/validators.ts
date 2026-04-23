@@ -189,6 +189,7 @@ export const PlatformConfigSchema = type({
    * Array of chain objects ordered by preference/ranking
    */
   chainRanking: ChainRankingSchema,
+  maxPendingHistoryItemAgeMs: optional(number()),
 });
 
 export const validateFeatureFlagsResponse = (

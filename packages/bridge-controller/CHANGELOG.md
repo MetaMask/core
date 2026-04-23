@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [71.0.0]
+
 ### Added
 
 - Add `AccountHardwareType` type and `getAccountHardwareType` function to the package exports ([#8503](https://github.com/MetaMask/core/pull/8503))
   - `AccountHardwareType` is a union of `'Ledger' | 'Trezor' | 'QR Hardware' | 'Lattice' | null`
   - `getAccountHardwareType` maps a keyring type string to the corresponding `AccountHardwareType` value
+- Read 'maxPendingHistoryItemAgeMs' feature flag from LaunchDarkly, which indicates when a history item can be treated as a failure ([#8479](https://github.com/MetaMask/core/pull/8479))
+- Add the `invalid_transaction_hash` polling reason to indicate that a history item was removed from state do to having an invalid hash ([#8479](https://github.com/MetaMask/core/pull/8479))
 
 ### Changed
 
@@ -19,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `account_hardware_type` carries the specific hardware wallet brand (e.g. `'Ledger'`) or `null` for software wallets
   - `is_hardware_wallet` is now derived from `account_hardware_type !== null`, keeping both fields in sync
   - `EventPropertiesFromControllerState[PageViewed]` now includes `account_hardware_type`, `is_hardware_wallet`, `custom_slippage`, `slippage_limit`, and `swap_type` (previously only `RequestParams` fields were included)
-- Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.1.0` ([#8509](https://github.com/MetaMask/core/pull/8509))
+- Bump `@metamask/assets-controller` from `^6.0.0` to `^6.1.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
+- Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.3.0` ([#8509](https://github.com/MetaMask/core/pull/8509), [#8544](https://github.com/MetaMask/core/pull/8544), [#8559](https://github.com/MetaMask/core/pull/8559))
 - Bump `@metamask/transaction-controller` from `^64.2.0` to `^64.3.0` ([#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 
@@ -1371,7 +1376,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@71.0.0...HEAD
+[71.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.1.1...@metamask/bridge-controller@71.0.0
 [70.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.1.0...@metamask/bridge-controller@70.1.1
 [70.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.0.1...@metamask/bridge-controller@70.1.0
 [70.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.0.0...@metamask/bridge-controller@70.0.1

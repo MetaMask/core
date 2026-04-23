@@ -25,6 +25,7 @@ import type {
   RequestParams,
   TradeData,
   RequestMetadata,
+  PollingStatus,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -34,7 +35,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { BridgeHistoryItem } from '../types';
+import type {
+  BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
+} from '../types';
+import { getAccountByAddress } from './accounts';
 import { calcActualGasUsed } from './gas';
 import {
   getActualBridgeReceivedAmount,
@@ -275,7 +280,12 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     ].includes(transactionMeta.status)
       ? StatusTypes.FAILED
       : StatusTypes.COMPLETE,
-    error_message: transactionMeta.error?.message ?? '',
+    error_message: [
+      `Transaction ${transactionMeta.status}`,
+      transactionMeta.error?.message,
+    ]
+      .filter(Boolean)
+      .join('. '),
     chain_id_source: formatChainIdToCaip(transactionMeta.chainId),
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
@@ -316,5 +326,32 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     usd_actual_return: 0,
     usd_actual_gas: 0,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
+  };
+};
+
+export const getPollingStatusUpdatedProperties = (
+  messenger: BridgeStatusControllerMessenger,
+  pollingStatus: PollingStatus,
+  historyItem: BridgeHistoryItem,
+) => {
+  const selectedAccount = getAccountByAddress(messenger, historyItem.account);
+  const requestParams = getRequestParamFromHistory(historyItem);
+  const requestMetadata = getRequestMetadataFromHistory(
+    historyItem,
+    selectedAccount,
+  );
+  const { security_warnings: _, ...metadataWithoutWarnings } = requestMetadata;
+
+  return {
+    ...getTradeDataFromHistory(historyItem),
+    ...getPriceImpactFromQuote(historyItem.quote),
+    ...metadataWithoutWarnings,
+    chain_id_source: requestParams.chain_id_source,
+    chain_id_destination: requestParams.chain_id_destination,
+    token_symbol_source: requestParams.token_symbol_source,
+    token_symbol_destination: requestParams.token_symbol_destination,
+    action_type: MetricsActionType.SWAPBRIDGE_V1,
+    polling_status: pollingStatus,
+    retry_attempts: historyItem.attempts?.counter ?? 0,
   };
 };

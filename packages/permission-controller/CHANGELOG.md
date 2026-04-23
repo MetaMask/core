@@ -9,13 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose `createPermissionMiddleware` through the messenger ([#8502](https://github.com/MetaMask/core/pull/8502))
+- Add `createPermissionMiddlewareV2`, a `JsonRpcEngineV2` variant of the standalone permission middleware factory ([#8532](https://github.com/MetaMask/core/pull/8532))
 
 ### Changed
 
+- **BREAKING:** Decouple the permission middleware from `PermissionController` and expose it as a standalone function ([#8532](https://github.com/MetaMask/core/pull/8532))
+  - The standalone `createPermissionMiddleware` replaces the former `PermissionController.createPermissionMiddleware`; it is imported from `@metamask/permission-controller` and called with a messenger and subject metadata, and targets the legacy `JsonRpcEngine`.
+  - New integrations should prefer `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2`.
+  - `PermissionController.getRestrictedMethod` no longer serves a purpose, and is removed. Restricted methods should be invoked via the `:executeRestrictedMethod` action instead.
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Deprecated
+
+- Deprecate `createPermissionMiddleware` in favor of `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2` ([#8532](https://github.com/MetaMask/core/pull/8532))
 
 ## [12.3.0]
 
@@ -186,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our

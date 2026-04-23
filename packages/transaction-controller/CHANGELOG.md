@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Gas estimation for EIP-7702 transactions now supports any upgrade-with-data transaction, not only self-targeted ones ([#8467](https://github.com/MetaMask/core/pull/8467))
+
 ## [64.3.0]
 
 ### Added
