@@ -9,6 +9,6 @@ module.exports = merge(baseConfig, {
   displayName,
   testEnvironment: '<rootDir>/jest.environment.js',
   coverageThreshold: {
-    global: { branches: 90, functions: 100, lines: 98, statements: 98 },
+    global: { branches: 100, functions: 100, lines: 100, statements: 100 },
   },
 });

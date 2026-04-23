@@ -345,7 +345,6 @@ export class PasskeyController extends BaseController<
         };
       });
     } finally {
-      
       this.#ceremonyManager.deleteRegistrationCeremony(challenge);
     }
   }
@@ -543,7 +542,9 @@ export class PasskeyController extends BaseController<
       // persist passkey record with updated counter without clobbering concurrent updates
       this.update((state) => {
         if (!state.passkeyRecord) {
-          throw new PasskeyAuthenticationRejectedError('Passkey is not enrolled');
+          throw new PasskeyAuthenticationRejectedError(
+            'Passkey is not enrolled',
+          );
         }
         const latest = state.passkeyRecord;
         latest.credential.counter = Math.max(

@@ -6,6 +6,7 @@ import { base64URLToBytes } from '../utils/encoding';
 import { bytesToBase64URL } from '../utils/encoding';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
 import { decodeClientDataJSON } from './decode-client-data-json';
+import * as parseAuthenticatorDataModule from './parse-authenticator-data';
 import type { PasskeyRegistrationResponse } from './types';
 import { verifyRegistrationResponse } from './verify-registration-response';
 
@@ -811,6 +812,80 @@ describe('verifyRegistrationResponse edge cases', () => {
     });
 
     expect(verification).toStrictEqual({ verified: false });
+  });
+
+  const mockParsedAuthBase = {
+    rpIdHash: sha256(new TextEncoder().encode(EXPECTED_RP_ID)),
+    flags: {
+      up: true,
+      uv: false,
+      be: false,
+      bs: false,
+      at: true,
+      ed: false,
+      flagsByte: 0x41,
+    },
+    counter: 0,
+  } as const;
+
+  it('throws when parsed authenticator data has no credential ID', async () => {
+    const spy = jest
+      .spyOn(parseAuthenticatorDataModule, 'parseAuthenticatorData')
+      .mockReturnValueOnce({
+        ...mockParsedAuthBase,
+      });
+
+    await expect(
+      verifyRegistrationResponse({
+        response: attestationNone,
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+      }),
+    ).rejects.toThrow('No credential ID was provided by authenticator');
+
+    spy.mockRestore();
+  });
+
+  it('throws when parsed authenticator data has no credential public key', async () => {
+    const spy = jest
+      .spyOn(parseAuthenticatorDataModule, 'parseAuthenticatorData')
+      .mockReturnValueOnce({
+        ...mockParsedAuthBase,
+        credentialID: new Uint8Array([1]),
+      });
+
+    await expect(
+      verifyRegistrationResponse({
+        response: attestationNone,
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+      }),
+    ).rejects.toThrow('No public key was provided by authenticator');
+
+    spy.mockRestore();
+  });
+
+  it('throws when parsed authenticator data has no AAGUID', async () => {
+    const spy = jest
+      .spyOn(parseAuthenticatorDataModule, 'parseAuthenticatorData')
+      .mockReturnValueOnce({
+        ...mockParsedAuthBase,
+        credentialID: new Uint8Array([1]),
+        credentialPublicKey: new Uint8Array([0xa1]),
+      });
+
+    await expect(
+      verifyRegistrationResponse({
+        response: attestationNone,
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+      }),
+    ).rejects.toThrow('No AAGUID was present during registration');
+
+    spy.mockRestore();
   });
 });
 

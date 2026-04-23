@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 
 import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
+import { PasskeyAuthenticationRejectedError } from './errors';
 import {
   getDefaultPasskeyControllerState,
   passkeyControllerSelectors,
@@ -557,6 +558,50 @@ describe('PasskeyController', () => {
       ).rejects.toThrow('Passkey authentication verification failed');
     });
 
+    it('throws when passkey record disappears while persisting counter after auth', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey: 'secret',
+      });
+
+      const updateSpy = jest.spyOn(controller, 'update' as never);
+      (updateSpy as unknown as jest.Mock).mockImplementation(
+        (updater: (state: PasskeyControllerState) => void) => {
+          updater({
+            ...getDefaultPasskeyControllerState(),
+            passkeyRecord: null,
+          } as PasskeyControllerState);
+        },
+      );
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.retrieveVaultKeyWithPasskey(
+          minimalAuthenticationResponse(
+            undefined,
+            {
+              clientExtensionResults: prfResults(prfFirst),
+            },
+            authOpts.challenge,
+          ),
+        ),
+      ).rejects.toThrow(PasskeyAuthenticationRejectedError);
+
+      updateSpy.mockRestore();
+    });
+
     it('clears the authentication ceremony after successful retrieval (prf)', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
@@ -877,6 +922,52 @@ describe('PasskeyController', () => {
       ).rejects.toThrow(
         'Passkey authentication does not match the current vault key',
       );
+    });
+
+    it('throws when passkey record disappears while persisting renewed ciphertext', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const controller = createController();
+      const prfFirst = bytesToBase64URL(new Uint8Array(32).fill(42));
+
+      const regOpts = controller.generateRegistrationOptions();
+      await controller.protectVaultKeyWithPasskey({
+        registrationResponse: minimalRegistrationResponse(
+          {
+            clientExtensionResults: prfResults(prfFirst),
+          },
+          regOpts.challenge,
+        ),
+        vaultKey: 'wrapped',
+      });
+
+      const updateSpy = jest.spyOn(controller, 'update' as never);
+      (updateSpy as unknown as jest.Mock).mockImplementation(
+        (updater: (state: PasskeyControllerState) => void) => {
+          updater({
+            ...getDefaultPasskeyControllerState(),
+            passkeyRecord: null,
+          } as PasskeyControllerState);
+        },
+      );
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.renewVaultKeyProtection({
+          authenticationResponse: minimalAuthenticationResponse(
+            undefined,
+            {
+              clientExtensionResults: prfResults(prfFirst),
+            },
+            authOpts.challenge,
+          ),
+          oldVaultKey: 'wrapped',
+          newVaultKey: 'next',
+        }),
+      ).rejects.toThrow(PasskeyAuthenticationRejectedError);
+
+      updateSpy.mockRestore();
     });
 
     it('completes renewal without an active authentication ceremony (prf)', async () => {

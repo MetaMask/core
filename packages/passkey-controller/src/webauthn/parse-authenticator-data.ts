@@ -25,7 +25,7 @@ export function parseAuthenticatorData(
   const rpIdHash = authData.slice(pointer, pointer + 32);
   pointer += 32;
 
-  const flagsByte = authData[pointer] ?? 0;
+  const flagsByte = authData[pointer];
   const flags: AuthenticatorDataFlags = {
     up: Boolean(flagsByte & (1 << 0)),
     uv: Boolean(flagsByte & (1 << 2)),

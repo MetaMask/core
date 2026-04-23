@@ -175,7 +175,7 @@ async function verifyRSA(
 
   const verifyAlgorithm =
     keyAlgorithmName === 'RSA-PSS'
-      ? { name: 'RSA-PSS', saltLength: saltLength ?? 0 }
+      ? { name: 'RSA-PSS', saltLength: saltLength as number }
       : 'RSASSA-PKCS1-v1_5';
 
   const signatureBytes = Uint8Array.from(signature);

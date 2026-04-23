@@ -16,7 +16,7 @@ function areEqual(first: Uint8Array, second: Uint8Array): boolean {
   let diff = 0;
   for (let i = 0; i < first.length; i++) {
     // eslint-disable-next-line no-bitwise
-    diff |= (first[i] ?? 0) ^ (second[i] ?? 0);
+    diff |= first[i] ^ second[i];
   }
   return diff === 0;
 }

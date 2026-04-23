@@ -76,6 +76,29 @@ describe('CeremonyManager', () => {
       });
     });
 
+    it('still saves when at capacity and all existing ceremonies have NaN createdAt', () => {
+      const manager = new CeremonyManager();
+      const cap = MAX_CONCURRENT_PASSKEY_CEREMONIES;
+      for (let i = 0; i < cap; i += 1) {
+        jest.setSystemTime(1000 + i);
+        manager.saveRegistrationCeremony(`k${i}`, {
+          ...baseReg,
+          challenge: `k${i}`,
+          createdAt: Number.NaN,
+        });
+      }
+      jest.setSystemTime(5000);
+      manager.saveRegistrationCeremony('newest', {
+        ...baseReg,
+        challenge: 'newest',
+        createdAt: 5000,
+      });
+      expect(manager.getRegistrationCeremony('newest')).toMatchObject({
+        challenge: 'newest',
+        createdAt: 5000,
+      });
+    });
+
     it('delete removes a single entry', () => {
       const manager = new CeremonyManager();
       jest.setSystemTime(0);
