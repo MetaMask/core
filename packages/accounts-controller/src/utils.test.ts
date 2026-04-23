@@ -55,6 +55,10 @@ describe('utils', () => {
       expect(isNormalKeyringType(snapKeyringType)).toBe(false);
     });
 
+    it('returns false for snap keyring type (v2)', () => {
+      expect(isNormalKeyringType(KeyringType.Snap)).toBe(false);
+    });
+
     it('returns false for money keyring type', () => {
       expect(isNormalKeyringType(moneyKeyringType)).toBe(false);
     });
