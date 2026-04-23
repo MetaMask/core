@@ -31,7 +31,6 @@ async function runDocusaurus(command: string, cwd: string): Promise<void> {
   await execa(process.execPath, [bin, command], {
     cwd,
     stdio: 'inherit',
-    // eslint-disable-next-line n/no-process-env
     env: { ...process.env, NODE_PATH: nodeModules },
   });
 }
@@ -111,23 +110,27 @@ async function main(): Promise<void> {
     )
     .option('build', {
       type: 'boolean',
-      description: 'Generate documentation and build a production-ready site',
+      description:
+        'Generate platform API docs and build a production-ready site',
       default: false,
     })
     .option('serve', {
       type: 'boolean',
-      description: 'Generate documentation and serve a production-ready site',
+      description:
+        'Generate platform API docs and serve a production-ready site',
       default: false,
     })
     .option('dev', {
       type: 'boolean',
-      description: 'Generate documentation and serve a development-only site',
+      description:
+        'Generate platform API docs and serve a development-only site',
       default: false,
     })
     .option('scan-dir', {
       type: 'string',
       array: true,
-      description: 'Source directory to scan (may be specified multiple times)',
+      description:
+        'Additional directories within the project to scan for messenger actions and events (note: may be specified multiple times)',
       default: [] as string[],
     })
     .option('output', {

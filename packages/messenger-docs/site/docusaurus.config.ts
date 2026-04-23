@@ -1,5 +1,5 @@
 import type * as Preset from '@docusaurus/preset-classic';
-import type { Config } from '@docusaurus/types';
+import type { Config, Plugin as DocusaurusPlugin } from '@docusaurus/types';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { themes } from 'prism-react-renderer';
@@ -11,7 +11,7 @@ const codeTheme = themes.dracula;
 // installed alongside this package.  Only create aliases for packages that
 // actually exist at the NODE_PATH location (they may be hoisted when the host
 // already has a compatible version).
-const extraNodeModules = process.env.NODE_PATH; // eslint-disable-line no-process-env
+const extraNodeModules = process.env.NODE_PATH;
 const reactAlias: Record<string, string> = {};
 if (extraNodeModules) {
   for (const pkg of ['react', 'react-dom', '@mdx-js/react']) {
@@ -22,11 +22,26 @@ if (extraNodeModules) {
   }
 }
 
+function resolveDepsPlugin(): DocusaurusPlugin {
+  return {
+    name: 'resolve-deps',
+    configureWebpack(): { resolve?: { alias: Record<string, string> } } {
+      if (Object.keys(reactAlias).length === 0) {
+        return {};
+      }
+      return {
+        resolve: { alias: reactAlias },
+      };
+    },
+  };
+}
+
 const config: Config = {
-  title: 'Messenger API',
-  tagline: 'Action and event reference for MetaMask controller messengers',
-  url: process.env.DOCS_URL || 'https://metamask.github.io', // eslint-disable-line no-process-env
-  baseUrl: process.env.DOCS_BASE_URL || '/', // eslint-disable-line no-process-env
+  title: 'Platform API',
+  tagline:
+    'Actions and events available for use in clients via the message bus',
+  url: process.env.DOCS_URL ?? 'https://metamask.github.io',
+  baseUrl: process.env.DOCS_BASE_URL ?? '/',
   favicon: 'img/favicons/favicon-96x96.png',
 
   onBrokenLinks: 'warn',
@@ -42,21 +57,7 @@ const config: Config = {
     locales: ['en'],
   },
 
-  plugins: [
-    function resolvePlugin() {
-      return {
-        name: 'resolve-deps',
-        configureWebpack() {
-          if (Object.keys(reactAlias).length === 0) {
-            return {};
-          }
-          return {
-            resolve: { alias: reactAlias },
-          };
-        },
-      };
-    },
-  ],
+  plugins: [resolveDepsPlugin],
 
   themes: [
     [

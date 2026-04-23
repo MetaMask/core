@@ -76,10 +76,10 @@ const config = createConfig([
       '**/dist/**',
       '**/docs/**',
       '**/coverage/**',
+      '.messenger-docs/**',
       'merged-packages/**',
       '.yarn/**',
       'scripts/create-package/package-template/**',
-      '.messenger-docs/**',
       'packages/messenger-docs/template/**',
     ],
   },
@@ -116,7 +116,7 @@ const config = createConfig([
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
-      'packages/messenger-docs/src/**/*.ts',
+      'packages/messenger-docs/**/*.ts',
     ],
     extends: [nodejs],
   },
@@ -307,6 +307,14 @@ const config = createConfig([
     files: ['packages/messenger-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
+    },
+  },
+  {
+    files: ['packages/messenger-docs/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'n/no-process-env': 'off',
+      'n/no-sync': 'off',
     },
   },
   {
