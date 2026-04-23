@@ -479,7 +479,7 @@ async function refreshPaymentTokenBalance({
  *
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
- * @param accountSupports7702 - Whether the account supports EIP-7702.
+ * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
@@ -488,7 +488,7 @@ async function refreshPaymentTokenBalance({
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
-  accountSupports7702: boolean,
+  isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
@@ -515,7 +515,7 @@ async function getQuotes(
   }
 
   const request = {
-    accountSupports7702,
+    accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
     messenger,
     requests,

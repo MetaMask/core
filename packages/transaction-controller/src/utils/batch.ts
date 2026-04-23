@@ -572,6 +572,10 @@ async function addTransactionBatchWithHook(
         collectHook.waitForSignedCount(index),
         signingFailure,
       ]);
+
+      signingFailure.catch(() => {
+        // Swallow – error is handled by the batch orchestrator.
+      });
     }
 
     const { signedTransactions } = await collectHook.ready();

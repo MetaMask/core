@@ -357,13 +357,11 @@ describe('Batch Utils', () => {
         addTransactionMock.mockImplementationOnce((_params, options) => {
           const signature =
             SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
-          Promise.resolve().then(() => {
-            options
-              .publishHook?.(returnValue.transactionMeta, signature)
-              .catch(() => {
-                // Swallow - handled by batch orchestrator.
-              });
-          });
+          void options
+            .publishHook?.(returnValue.transactionMeta, signature)
+            .catch(() => {
+              // Intentionally empty
+            });
           return Promise.resolve(returnValue);
         });
         callIndex += 1;
@@ -1537,28 +1535,28 @@ describe('Batch Utils', () => {
           id: TRANSACTION_ID_2_MOCK,
         };
 
-        let callIndex = 0;
-        for (const [meta, sig] of [
-          [txMeta1, TRANSACTION_SIGNATURE_MOCK],
-          [txMeta2, TRANSACTION_SIGNATURE_2_MOCK],
-        ] as const) {
-          const idx = callIndex;
+        const metas = [txMeta1, txMeta2] as const;
+        const signatures = [
+          TRANSACTION_SIGNATURE_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ] as const;
+
+        for (let idx = 0; idx < metas.length; idx += 1) {
+          const capturedIdx = idx;
           addTransactionMock.mockImplementationOnce((_params, options) => {
-            Promise.resolve().then(() => {
-              publishHookPromises[idx] = options.publishHook?.(
-                meta as TransactionMeta,
-                sig,
-              );
-              publishHookPromises[idx]?.catch(() => {
-                // Intentionally empty
-              });
+            const hookPromise = options.publishHook?.(
+              metas[capturedIdx] as TransactionMeta,
+              signatures[capturedIdx],
+            );
+            publishHookPromises[capturedIdx] = hookPromise;
+            hookPromise?.catch(() => {
+              // Intentionally empty
             });
             return Promise.resolve({
-              transactionMeta: meta as TransactionMeta,
+              transactionMeta: metas[capturedIdx] as TransactionMeta,
               result: Promise.resolve(''),
             });
           });
-          callIndex += 1;
         }
 
         publishBatchHook.mockResolvedValue({
@@ -1943,28 +1941,28 @@ describe('Batch Utils', () => {
           id: TRANSACTION_ID_2_MOCK,
         };
 
-        let callIndex = 0;
-        for (const [meta, sig] of [
-          [txMeta1, TRANSACTION_SIGNATURE_MOCK],
-          [txMeta2, TRANSACTION_SIGNATURE_2_MOCK],
-        ] as const) {
-          const idx = callIndex;
+        const metas = [txMeta1, txMeta2] as const;
+        const signatures = [
+          TRANSACTION_SIGNATURE_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ] as const;
+
+        for (let idx = 0; idx < metas.length; idx += 1) {
+          const capturedIdx = idx;
           addTransactionMock.mockImplementationOnce((_params, options) => {
-            Promise.resolve().then(() => {
-              publishHookPromises[idx] = options.publishHook?.(
-                meta as TransactionMeta,
-                sig,
-              );
-              publishHookPromises[idx]?.catch(() => {
-                // Intentionally empty
-              });
+            const hookPromise = options.publishHook?.(
+              metas[capturedIdx] as TransactionMeta,
+              signatures[capturedIdx],
+            );
+            publishHookPromises[capturedIdx] = hookPromise;
+            hookPromise?.catch(() => {
+              // Intentionally empty
             });
             return Promise.resolve({
-              transactionMeta: meta as TransactionMeta,
+              transactionMeta: metas[capturedIdx] as TransactionMeta,
               result: Promise.resolve(''),
             });
           });
-          callIndex += 1;
         }
 
         publishBatchHook.mockImplementationOnce(() => {
