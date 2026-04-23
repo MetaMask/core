@@ -1141,7 +1141,7 @@ describe('AccountsController', () => {
             keyring: { type: KeyringType.Snap },
             snap: {
               id: mockSnapV2SnapId,
-              name: mockSnapV2SnapId,
+              name: '',
               enabled: true,
             },
             importTime: expect.any(Number),
@@ -3539,7 +3539,7 @@ describe('AccountsController', () => {
           keyring: { type: KeyringType.Snap },
           snap: {
             id: mockSnapV2SnapId,
-            name: mockSnapV2SnapId,
+            name: '',
             enabled: true,
           },
         },
