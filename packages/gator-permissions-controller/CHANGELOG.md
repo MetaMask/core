@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Permission decoding now recognizes the `RedeemerEnforcer` as an optional caveat on all execution permission types and extracts a `redeemer` rule containing the allowlisted addresses.
   - `DecodedPermission` type now includes an optional `rules` property for rules recovered from caveats.
   - Export new `EXECUTION_PERMISSION_REDEEMER_RULE_TYPE` constant and `RedeemerRule` type.
+- New decoding rules for `native-token-allowance` and `erc20-token-allowance` ([#8553](https://github.com/MetaMask/core/pull/8553))
 
 ### Changed
 
