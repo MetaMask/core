@@ -726,8 +726,9 @@ function getBaseUrl(
     case RampsEnvironment.Production:
       return `https://on-ramp${cache}.api.cx.metamask.io`;
     case RampsEnvironment.Staging:
-    case RampsEnvironment.Development:
       return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp.dev-api.cx.metamask.io`;
     case RampsEnvironment.Local:
       return 'http://localhost:3000';
     default:
