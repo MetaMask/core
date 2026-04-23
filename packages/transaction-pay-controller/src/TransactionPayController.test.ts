@@ -182,6 +182,26 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
+    it('triggers source amounts and quotes update when accountOverride changes', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('updates refundTo in state', () => {
       const controller = createController();
       const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
@@ -210,6 +230,102 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
       ).toBeUndefined();
+    });
+
+    it('updates accountOverride in state', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].accountOverride,
+      ).toBe(accountOverride);
+    });
+
+    it('clears paymentToken when accountOverride changes', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          address: TOKEN_ADDRESS_MOCK,
+          balanceFiat: '1',
+          balanceHuman: '1',
+          balanceRaw: '1',
+          balanceUsd: '1',
+          chainId: CHAIN_ID_MOCK,
+          decimals: 6,
+          symbol: 'USDC',
+        };
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentToken,
+      ).toBeDefined();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentToken,
+      ).toBeUndefined();
+    });
+
+    it('does not clear paymentToken when accountOverride is unchanged', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          address: TOKEN_ADDRESS_MOCK,
+          balanceFiat: '1',
+          balanceHuman: '1',
+          balanceRaw: '1',
+          balanceUsd: '1',
+          chainId: CHAIN_ID_MOCK,
+          decimals: 6,
+          symbol: 'USDC',
+        };
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentToken,
+      ).toBeDefined();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentToken,
+      ).toBeDefined();
     });
 
     it('updates multiple config properties at once', () => {

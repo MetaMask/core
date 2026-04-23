@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for transaction config parameter accountOverride ([#8454](https://github.com/MetaMask/core/pull/8454))
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^6.0.0` to `^6.1.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
