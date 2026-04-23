@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controller` from `^6.0.0` to `^6.1.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
 - Bump `@metamask/assets-controllers` from `^104.2.0` to `^104.3.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
+- Bump `@metamask/bridge-controller` from `^70.1.1` to `^71.0.0` ([#8567](https://github.com/MetaMask/core/pull/8567))
+- Bump `@metamask/bridge-status-controller` from `^70.0.5` to `^71.0.0` ([#8567](https://github.com/MetaMask/core/pull/8567))
 
 ## [19.2.2]
 
