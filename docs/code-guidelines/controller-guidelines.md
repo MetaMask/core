@@ -42,11 +42,13 @@ The constant should be used to define actions and events. It may be exported fro
 
 ```typescript
 export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+   // 🚫 Name is repeated.
   'TransactionsController',
   TransactionsControllerState
 >;
 
 export type TransactionsControllerTransactionApprovedEvent = {
+   // 🚫 Name is repeated.
   type: 'TransactionsController:transactionApprovedEvent';
   payload: [transaction: Transaction]
 };
@@ -56,6 +58,7 @@ export type TransactionsControllerEvents =
   | TransactionsControllerTransactionApprovedEvent
 
 export type TransactionsControllerMessenger = Messenger<
+   // 🚫 Name is repeated.
   'TransactionsController',
   never,
   TransactionsControllerEvents
@@ -73,6 +76,7 @@ export class TransactionsController extends BaseController</* ... */ {
 🚫 **The messenger namespace is defined as a constant, but it is called `controllerName` (legacy name)**
 
 ```typescript
+// 🚫 Uses legacy name.
 const controllerName = 'TransactionsController';
 
 export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
@@ -142,6 +146,7 @@ export class TransactionsController extends BaseController</* ... */ {
 /* packages/transactions-controller/src/index.ts */
 
 export {
+  // 🚫 The controller name should not be exported from the package.
   CONTROLLER_NAME,
   TransactionsController
 } from './transactions-controller';
