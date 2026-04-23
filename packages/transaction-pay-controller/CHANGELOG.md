@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [19.3.0]
-
 ### Added
 
 - Add support for transaction config parameter accountOverride ([#8454](https://github.com/MetaMask/core/pull/8454))
@@ -17,8 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controller` from `^6.0.0` to `^6.1.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
 - Bump `@metamask/assets-controllers` from `^104.2.0` to `^104.3.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
-- Bump `@metamask/bridge-controller` from `^70.1.1` to `^71.0.0` ([#8569](https://github.com/MetaMask/core/pull/8569))
-- Bump `@metamask/bridge-status-controller` from `^70.0.5` to `^71.0.0` ([#8569](https://github.com/MetaMask/core/pull/8569))
 
 ## [19.2.2]
 
@@ -702,8 +698,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...HEAD
-[19.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.2...@metamask/transaction-pay-controller@19.3.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.2...HEAD
 [19.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.1...@metamask/transaction-pay-controller@19.2.2
 [19.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.0...@metamask/transaction-pay-controller@19.2.1
 [19.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.3...@metamask/transaction-pay-controller@19.2.0
