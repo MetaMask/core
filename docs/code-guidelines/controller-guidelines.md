@@ -41,32 +41,35 @@ The constant should be used to define actions and events. It may be exported fro
 🚫 **The messenger namespace is not defined as a constant, but is repeated**
 
 ```typescript
-export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
-   // 🚫 Name is repeated.
-  'TransactionsController',
-  TransactionsControllerState
->;
+export type TransactionsControllerStateChangedEvent =
+  ControllerStateChangedEvent<
+    // 🚫 Name is repeated.
+    'TransactionsController',
+    TransactionsControllerState
+  >;
 
 export type TransactionsControllerTransactionApprovedEvent = {
-   // 🚫 Name is repeated.
+  // 🚫 Name is repeated.
   type: 'TransactionsController:transactionApprovedEvent';
-  payload: [transaction: Transaction]
+  payload: [transaction: Transaction];
 };
 
 export type TransactionsControllerEvents =
   | TransactionsControllerStateChangedEvent
-  | TransactionsControllerTransactionApprovedEvent
+  | TransactionsControllerTransactionApprovedEvent;
 
 export type TransactionsControllerMessenger = Messenger<
-   // 🚫 Name is repeated.
+  // 🚫 Name is repeated.
   'TransactionsController',
   never,
   TransactionsControllerEvents
 >;
 
-export class TransactionsController extends BaseController</* ... */ {
+// 🚫 Name is repeated.
+export class TransactionsController extends BaseController<'TransactionsController' /*,  ... */> {
   constructor(/* ... */) {
-    super({ name: 'TransactionsController', /* ... */ })
+    // 🚫 Name is repeated.
+    super({ name: 'TransactionsController' /* ... */ });
 
     // ...
   }
@@ -99,7 +102,7 @@ export type TransactionsControllerMessenger = Messenger<
   TransactionsControllerEvents
 >;
 
-export class TransactionsController extends BaseController</* ... */ {
+export class TransactionsController extends BaseController<typeof controllerName /*, ... */ {
   constructor(/* ... */) {
     super({ name: controllerName, /* ... */ })
 
@@ -135,7 +138,7 @@ export type TransactionsControllerMessenger = Messenger<
   TransactionsControllerEvents
 >;
 
-export class TransactionsController extends BaseController</* ... */ {
+export class TransactionsController extends BaseController<typeof CONTROLLER_NAME /*, ... */ {
   constructor(/* ... */) {
     super({ name: CONTROLLER_NAME, /* ... */ })
 
@@ -179,7 +182,7 @@ export type TransactionsControllerMessenger = Messenger<
   TransactionsControllerEvents
 >;
 
-export class TransactionsController extends BaseController</* ... */ {
+export class TransactionsController extends BaseController<typeof CONTROLLER_NAME /*, ... */ {
   constructor(/* ... */) {
     super({ name: CONTROLLER_NAME, /* ... */ })
 
