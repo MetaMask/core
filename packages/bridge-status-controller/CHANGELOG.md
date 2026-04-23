@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [71.0.0]
+
 ### Added
 
 - Remove stale bridge transactions from `txHistory` to prevent excessive polling. Once a history item exceeds the configured maximum age, the status is fetched once, then the src tx hash's receipt is retrieved. If there is no receipt, the history item's hash is presumed to be invalid and the entry is deleted from state. ([#8479](https://github.com/MetaMask/core/pull/8479))
@@ -1133,7 +1135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.0.0...HEAD
+[71.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...@metamask/bridge-status-controller@71.0.0
 [70.0.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.4...@metamask/bridge-status-controller@70.0.5
 [70.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.3...@metamask/bridge-status-controller@70.0.4
 [70.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.2...@metamask/bridge-status-controller@70.0.3
