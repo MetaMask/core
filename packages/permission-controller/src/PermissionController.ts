@@ -16,11 +16,6 @@ import {
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
-import {
-  AsyncJsonRpcEngineNextCallback,
-  createAsyncMiddleware,
-  JsonRpcMiddleware,
-} from '@metamask/json-rpc-engine';
 import type {
   Messenger,
   ActionConstraint,
@@ -28,12 +23,7 @@ import type {
 } from '@metamask/messenger';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
-import type {
-  Json,
-  JsonRpcRequest,
-  Mutable,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, produce as immerProduce } from 'immer';
 import type { Draft } from 'immer';
@@ -185,11 +175,13 @@ const controllerName = 'PermissionController';
 
 const MESSENGER_EXPOSED_METHODS = [
   'clearState',
+  'executeRestrictedMethod',
   'getEndowments',
   'getSubjectNames',
   'getPermissions',
   'hasPermission',
   'hasPermissions',
+  'hasUnrestrictedMethod',
   'grantPermissions',
   'grantPermissionsIncremental',
   'requestPermissions',
@@ -199,7 +191,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'revokePermissions',
   'updateCaveat',
   'getCaveat',
-  'createPermissionMiddleware',
 ] as const;
 
 /**
@@ -675,6 +666,19 @@ export class PermissionController<
   }
 
   /**
+   * Checks whether the given method was declared as unrestricted at
+   * construction time. Methods unknown to the controller return `false` and
+   * would be treated as restricted by callers such as the permission
+   * middleware.
+   *
+   * @param method - The name of the method to check.
+   * @returns Whether the method is unrestricted.
+   */
+  hasUnrestrictedMethod(method: string): boolean {
+    return this.#unrestrictedMethods.has(method);
+  }
+
+  /**
    * Constructs the PermissionController.
    *
    * @param options - Permission controller options.
@@ -881,22 +885,19 @@ export class PermissionController<
    * @template Type - The type of the permission specification to get.
    * @param permissionType - The type of the permission specification to get.
    * @param targetName - The name of the permission whose specification to get.
-   * @param requestingOrigin - The origin of the requesting subject, if any.
-   * Will be added to any thrown errors.
+   * @param requestingOrigin - The origin of the requesting subject. Will be
+   * added to any thrown errors.
    * @returns The specification object corresponding to the given type and
    * target name.
    */
   #getTypedPermissionSpecification<Type extends PermissionType>(
     permissionType: Type,
     targetName: string,
-    requestingOrigin?: string,
+    requestingOrigin: string,
   ): ControllerPermissionSpecification & { permissionType: Type } {
     const failureError =
       permissionType === PermissionType.RestrictedMethod
-        ? methodNotFound(
-            targetName,
-            requestingOrigin ? { origin: requestingOrigin } : undefined,
-          )
+        ? methodNotFound(targetName, { origin: requestingOrigin })
         : new EndowmentPermissionDoesNotExistError(
             targetName,
             requestingOrigin,
@@ -915,85 +916,19 @@ export class PermissionController<
   }
 
   /**
-   * Creates a permission middleware function. Like any {@link JsonRpcEngine}
-   * middleware, each middleware will only receive requests from a particular
-   * subject / origin.
-   *
-   * The middlewares returned will pass through requests for
-   * unrestricted methods, and attempt to execute restricted methods. If a method
-   * is neither restricted nor unrestricted, a "method not found" error will be
-   * returned.
-   * If a method is restricted, the middleware will first attempt to retrieve the
-   * subject's permission for that method. If the permission is found, the method
-   * will be executed. Otherwise, an "unauthorized" error will be returned.
-   *
-   * The middleware **must** be added in the correct place in the middleware
-   * stack in order for it to work. See the README for an example.
-   *
-   * @param subject The permission subject.
-   * @returns A `json-rpc-engine` middleware.
-   */
-  public createPermissionMiddleware(
-    subject: PermissionSubjectMetadata,
-  ): JsonRpcMiddleware<RestrictedMethodParameters, Json> {
-    const { origin } = subject;
-    if (typeof origin !== 'string' || !origin) {
-      throw new Error('The subject "origin" must be a non-empty string.');
-    }
-
-    const permissionsMiddleware = async (
-      req: JsonRpcRequest<RestrictedMethodParameters>,
-      res: PendingJsonRpcResponse,
-      next: AsyncJsonRpcEngineNextCallback,
-    ): Promise<void> => {
-      const { method, params } = req;
-
-      // Skip registered unrestricted methods.
-      if (this.#unrestrictedMethods.has(method)) {
-        return next();
-      }
-
-      // This will throw if no restricted method implementation is found.
-      const methodImplementation = this.getRestrictedMethod(method, origin);
-
-      // This will throw if the permission does not exist.
-      const result = await this.#executeRestrictedMethod(
-        methodImplementation,
-        subject,
-        method,
-        params,
-      );
-
-      if (result === undefined) {
-        res.error = internalError(
-          `Request for method "${req.method}" returned undefined result.`,
-          { request: req },
-        );
-        return undefined;
-      }
-
-      res.result = result;
-      return undefined;
-    };
-
-    return createAsyncMiddleware(permissionsMiddleware);
-  }
-
-  /**
    * Gets the implementation of the specified restricted method.
    *
    * A JSON-RPC error is thrown if the method does not exist.
    *
-   * @see {@link PermissionController.executeRestrictedMethod} and
-   * {@link PermissionController.createPermissionMiddleware} for internal usage.
+   * @see {@link PermissionController.executeRestrictedMethod} for internal usage.
    * @param method - The name of the restricted method.
    * @param origin - The origin associated with the request for the restricted
-   * method, if any.
+   * method.
    * @returns The restricted method implementation.
    */
-  getRestrictedMethod(
+  #getRestrictedMethod(
     method: string,
-    origin?: string,
+    origin: string,
   ): RestrictedMethod<RestrictedMethodParameters, Json> {
     return this.#getTypedPermissionSpecification(
       PermissionType.RestrictedMethod,
@@ -1082,7 +1017,7 @@ export class PermissionController<
   /**
    * Revokes all permissions from the specified origin.
    *
-   * Throws an error of the origin has no permissions.
+   * Throws an error if the origin has no permissions.
    *
    * @param origin - The origin whose permissions to revoke.
    */
@@ -2830,7 +2765,7 @@ export class PermissionController<
     params?: RestrictedMethodParameters,
   ): Promise<Json> {
     // Throws if the method does not exist
-    const methodImplementation = this.getRestrictedMethod(targetName, origin);
+    const methodImplementation = this.#getRestrictedMethod(targetName, origin);
 
     const result = await this.#executeRestrictedMethod(
       methodImplementation,
@@ -2839,9 +2774,11 @@ export class PermissionController<
       params,
     );
 
+    // This is impossible if the restricted method implementation is typed correctly,
+    // but we maintain it for backwards compatibility.
     if (result === undefined) {
       throw new Error(
-        `Internal request for method "${targetName}" as origin "${origin}" returned no result.`,
+        `Request for method "${targetName}" as origin "${origin}" returned no result.`,
       );
     }
 
@@ -2849,17 +2786,15 @@ export class PermissionController<
   }
 
   /**
-   * An internal method used in the controller's `json-rpc-engine` middleware
-   * and {@link PermissionController.executeRestrictedMethod}. Calls the
-   * specified restricted method implementation after decorating it with the
-   * caveats of its permission. Throws if the subject does not have the
+   * An internal method used in {@link PermissionController.executeRestrictedMethod}.
+   * Calls the specified restricted method implementation after decorating it
+   * with the caveats of its permission. Throws if the subject does not have the
    * requisite permission.
    *
    * ATTN: Parameter validation is the responsibility of the caller, or
    * the restricted method implementation in the case of `params`.
    *
-   * @see {@link PermissionController.executeRestrictedMethod} and
-   * {@link PermissionController.createPermissionMiddleware} for usage.
+   * @see {@link PermissionController.executeRestrictedMethod} for usage.
    * @param methodImplementation - The implementation of the method to call.
    * @param subject - Metadata about the subject that made the request.
    * @param method - The method name

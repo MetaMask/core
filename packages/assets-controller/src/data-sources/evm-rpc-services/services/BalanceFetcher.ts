@@ -31,6 +31,8 @@ export type BalanceFetcherConfig = {
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 30s) */
   pollingInterval?: number;
+  /** Determines whether a CAIP-19 asset ID represents a native asset. */
+  isNativeAsset: (assetId: CaipAssetType) => boolean;
 };
 
 /**
@@ -66,22 +68,27 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
   readonly #messenger: BalanceFetcherMessenger;
 
-  readonly #config: Required<Omit<BalanceFetcherConfig, 'pollingInterval'>>;
+  readonly #config: Required<
+    Omit<BalanceFetcherConfig, 'pollingInterval' | 'isNativeAsset'>
+  >;
+
+  readonly #isNativeAsset: (assetId: CaipAssetType) => boolean;
 
   #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
 
   constructor(
     multicallClient: MulticallClient,
     messenger: BalanceFetcherMessenger,
-    config?: BalanceFetcherConfig,
+    config: BalanceFetcherConfig,
   ) {
     super();
     this.#multicallClient = multicallClient;
     this.#messenger = messenger;
     this.#config = {
-      defaultBatchSize: config?.defaultBatchSize ?? 300,
-      defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
+      defaultBatchSize: config.defaultBatchSize ?? 300,
+      defaultTimeoutMs: config.defaultTimeoutMs ?? 30000,
     };
+    this.#isNativeAsset = config.isNativeAsset;
 
     // Set the polling interval
     this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);
@@ -139,7 +146,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
       const {
         chain: { reference: chainReference },
-        assetNamespace,
         assetReference,
       } = parseCaipAssetType(assetId);
 
@@ -149,7 +155,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           continue;
         }
 
-        const isNative = assetNamespace === 'slip44';
+        const isNative = this.#isNativeAsset(assetId);
         const tokenAddress = isNative
           ? ZERO_ADDRESS
           : (assetReference.toLowerCase() as Address);

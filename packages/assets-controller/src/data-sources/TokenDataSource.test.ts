@@ -464,6 +464,7 @@ describe('TokenDataSource', () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
       assetsResponse: [
         createMockAssetResponse(MOCK_NATIVE_ASSET, {
           name: 'Ethereum',
