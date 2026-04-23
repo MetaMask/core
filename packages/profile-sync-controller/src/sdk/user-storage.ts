@@ -343,6 +343,8 @@ export class UserStorage {
     const entropySourceId = options?.entropySourceId;
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader =
+        await this.#getProfileScopeHeader(entropySourceId);
       const storageKey = await this.getStorageKey(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
@@ -351,6 +353,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
       });
 
@@ -480,6 +483,8 @@ export class UserStorage {
     try {
       const entropySourceId = options?.entropySourceId;
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader =
+        await this.#getProfileScopeHeader(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -488,6 +493,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
       });
 
@@ -574,5 +580,15 @@ export class UserStorage {
   ): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken(entropySourceId);
     return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  async #getProfileScopeHeader(
+    entropySourceId?: string,
+  ): Promise<Record<string, string>> {
+    const profile = await this.config.auth.getUserProfile(entropySourceId);
+    if (profile.profileId !== profile.canonicalProfileId) {
+      return { 'x-profile-id': profile.profileId };
+    }
+    return {};
   }
 }
