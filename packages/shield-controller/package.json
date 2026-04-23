@@ -63,7 +63,6 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",

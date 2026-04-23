@@ -121,7 +121,6 @@
     "siwe": "^2.3.2"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/keyring-api": "^23.0.1",
