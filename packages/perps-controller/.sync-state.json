@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "c2248a8a9e83e02f1fcb1b95ec33c23f5cde2a5d",
-  "lastSyncedMobileBranch": "sync-perps-core",
-  "lastSyncedCoreCommit": "e30c0b11e0808242382f62283b1643cc6723cf4a",
-  "lastSyncedCoreBranch": "latest-perps-sync",
-  "lastSyncedDate": "2026-04-17T16:42:46Z",
-  "sourceChecksum": "8cd74a6ee57a4ead596f0eea26176aa9d386da905b6306928b347aafbf28a0c0"
+  "lastSyncedMobileCommit": "394fe407d23bebe43a87bcccb2ce7f0fc1e5741c",
+  "lastSyncedMobileBranch": "perps-inv",
+  "lastSyncedCoreCommit": "35d85382031859ebe5a7c835625c4e303a48df10",
+  "lastSyncedCoreBranch": "feat/perps/controller-apr-23rd",
+  "lastSyncedDate": "2026-04-23T09:15:16Z",
+  "sourceChecksum": "36e6a6bed41012b512b0ae7f723ba79ef39c066f50a81ff3bdaf2ee5f5c2737d"
 }
