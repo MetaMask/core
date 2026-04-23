@@ -46,7 +46,7 @@ export type CurrencyRateState = {
 
 const name = 'CurrencyRateController';
 
-export const MESSENGER_EXPOSED_METHODS = [
+const MESSENGER_EXPOSED_METHODS = [
   'setCurrentCurrency',
   'updateExchangeRate',
 ] as const;
