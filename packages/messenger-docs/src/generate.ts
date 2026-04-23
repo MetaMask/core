@@ -138,11 +138,9 @@ export async function generate(
         allItems.push(...items);
       } catch (error) {
         console.warn(
-          `Warning: failed to parse ${path.relative(
-            projectPath,
-            file,
-          )}: ${String(error)}`,
+          `Warning: failed to parse ${path.relative(projectPath, file)}`,
         );
+        console.warn(error);
       }
     }
   }
@@ -166,11 +164,9 @@ export async function generate(
           allItems.push(...items);
         } catch (error) {
           console.warn(
-            `Warning: failed to parse ${path.relative(
-              projectPath,
-              file,
-            )}: ${String(error)}`,
+            `Warning: failed to parse ${path.relative(projectPath, file)}`,
           );
+          console.warn(error);
         }
       }
     }
@@ -195,11 +191,9 @@ export async function generate(
           allItems.push(...items);
         } catch (error) {
           console.warn(
-            `Warning: failed to parse ${path.relative(
-              projectPath,
-              file,
-            )}: ${String(error)}`,
+            `Warning: failed to parse ${path.relative(projectPath, file)}`,
           );
+          console.warn(error);
         }
       }
     }
