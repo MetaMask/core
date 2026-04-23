@@ -4272,6 +4272,22 @@ describe('KeyringController', () => {
         });
       });
 
+      it('throws CannotRemovePrimaryHdKeyring when attempting to remove the primary HD keyring', async () => {
+        await withController(async ({ controller }) => {
+          const primaryId = controller.state.keyrings[0].metadata.id;
+
+          await expect(
+            controller.withController(async (restrictedController) => {
+              await restrictedController.removeKeyring(primaryId);
+            }),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.CannotRemovePrimaryKeyring,
+          );
+
+          expect(controller.state.keyrings).toHaveLength(1);
+        });
+      });
+
       it('destroys a keyring that was created then removed within the same callback', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);

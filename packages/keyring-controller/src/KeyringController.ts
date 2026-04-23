@@ -2150,6 +2150,11 @@ export class KeyringController<
             );
           }
 
+          this.#assertNotRemovingPrimaryKeyring(
+            restrictedEntries[index],
+            restrictedEntries,
+          );
+
           const [removed] = restrictedEntries.splice(index, 1) as [
             KeyringEntry,
           ];
@@ -3096,6 +3101,27 @@ export class KeyringController<
     if (!this.#controllerOperationMutex.isLocked()) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.ControllerLockRequired,
+      );
+    }
+  }
+
+  /**
+   * Assert that the given keyring entry is not the primary HD keyring.
+   *
+   * @param entry - The keyring entry to check.
+   * @param keyrings - The current list of keyring entries.
+   * @throws If the entry is the primary keyring.
+   */
+  #assertNotRemovingPrimaryKeyring(
+    entry: KeyringEntry,
+    keyrings: KeyringEntry[],
+  ): void {
+    if (
+      keyrings[0] === entry &&
+      entry.keyring.type === (KeyringTypes.hd as string)
+    ) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.CannotRemovePrimaryKeyring,
       );
     }
   }
