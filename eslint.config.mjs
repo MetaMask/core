@@ -89,7 +89,6 @@ const config = createConfig([
     },
   },
   {
-    files: ['!**/*-method-action-types{.ts,.tmp.ts}'],
     rules: {
       // Handled by Oxfmt.
       'prettier/prettier': 'off',

@@ -213,10 +213,16 @@ async function withController<ReturnValue>(
     registerRpcDataSourceActions(rootMessenger, { networkState });
   }
 
+  const defaultNativeAssetMap: Record<ChainId, Caip19AssetId> = {
+    [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+  };
+
   const onActiveChainsUpdated = options.onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
+    getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
+      defaultNativeAssetMap[chainId],
     ...options,
   });
 
@@ -265,6 +271,7 @@ describe('createRpcDataSource', () => {
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
+      getNativeAssetForChain: jest.fn(),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -1718,6 +1725,7 @@ describe('RpcDataSource', () => {
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
+        getNativeAssetForChain: jest.fn(),
       });
       controller.destroy();
       expect(controller).toBeDefined();
@@ -1750,6 +1758,55 @@ describe('RpcDataSource', () => {
         const response = await controller.fetch(request);
         expect(response.assetsBalance?.[account.id]).toBeUndefined();
       });
+    });
+  });
+
+  describe('isOnboarded', () => {
+    it('returns empty response from fetch when isOnboarded returns false', async () => {
+      await withController(
+        { options: { isOnboarded: () => false } },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+          expect(response).toStrictEqual({});
+        },
+      );
+    });
+
+    it('skips subscribe when isOnboarded returns false', async () => {
+      const balanceStartSpy = jest.spyOn(
+        BalanceFetcher.prototype,
+        'startPolling',
+      );
+      const detectionStartSpy = jest.spyOn(
+        TokenDetector.prototype,
+        'startPolling',
+      );
+
+      await withController(
+        { options: { isOnboarded: () => false } },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate: jest.fn(),
+          });
+
+          expect(balanceStartSpy).not.toHaveBeenCalled();
+          expect(detectionStartSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fetches normally when isOnboarded returns true', async () => {
+      await withController(
+        { options: { isOnboarded: () => true } },
+        async ({ controller }) => {
+          const response = await controller.fetch(createDataRequest());
+          expect(response).toBeDefined();
+          expect(response.assetsBalance).toBeDefined();
+        },
+      );
     });
   });
 });

@@ -1,4 +1,5 @@
 import { toChecksumAddress } from '@ethereumjs/util';
+import { getNativeTokenAddress } from '@metamask/assets-controllers';
 import { numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
@@ -70,7 +71,7 @@ function getAmountFromBalance(balance: AssetBalance): string {
  * @param params.assetsPrice - Prices by asset ID.
  * @param params.selectedCurrency - Current currency code.
  * @param params.accounts - List of accounts (id + address) to map state for.
- * @param params.nativeAssetIdentifiers - Optional CAIP-2 chain ID to native asset ID.
+ * @param params.nativeAssetIdentifiers - Map of CAIP-2 chain ID to native asset ID. Used for EVM native lookups.
  * @param params.networkConfigurationsByChainId - Optional chain ID to network config (for native symbol).
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
@@ -80,7 +81,7 @@ export function formatStateForTransactionPay(params: {
   assetsPrice: Record<string, AssetPrice>;
   selectedCurrency: string;
   accounts: AccountForLegacyFormat[];
-  nativeAssetIdentifiers?: Record<string, string>;
+  nativeAssetIdentifiers: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
 }): TransactionPayLegacyFormat {
   const {
@@ -89,7 +90,7 @@ export function formatStateForTransactionPay(params: {
     assetsPrice,
     selectedCurrency,
     accounts,
-    nativeAssetIdentifiers = {},
+    nativeAssetIdentifiers,
     networkConfigurationsByChainId = {},
   } = params;
 
@@ -115,9 +116,10 @@ export function formatStateForTransactionPay(params: {
         const amount = getAmountFromBalance(balance);
         const balanceHex = amountToHex(amount);
 
-        if (parsed.assetNamespace === 'slip44') {
-          const nativeAddress =
-            '0x0000000000000000000000000000000000000000' as const;
+        if (assetsInfo[assetId]?.type === 'native') {
+          const nativeAddress = toChecksumAddress(
+            getNativeTokenAddress(chainIdHex),
+          );
           const checksumAddress = toChecksumAddress(account.address);
           tokenBalances[accountAddressLower] ??= {};
           tokenBalances[accountAddressLower][chainIdHex] ??= {};
@@ -149,8 +151,8 @@ export function formatStateForTransactionPay(params: {
       }
       const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
       const address =
-        parsed.assetNamespace === 'slip44'
-          ? '0x0000000000000000000000000000000000000000'
+        metadata.type === 'native'
+          ? getNativeTokenAddress(chainIdHex)
           : toChecksumAddress(String(parsed.assetReference));
       const token: LegacyToken = {
         address,
@@ -178,6 +180,7 @@ export function formatStateForTransactionPay(params: {
   }
 
   const exchangeRates = formatExchangeRatesForBridge({
+    assetsInfo,
     assetsPrice,
     selectedCurrency,
     nativeAssetIdentifiers,

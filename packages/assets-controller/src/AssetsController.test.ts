@@ -55,7 +55,26 @@ async function flushPromises(): Promise<void> {
 }
 
 function createMockQueryApiClient(): ApiPlatformClient {
-  return { fetch: jest.fn() } as unknown as ApiPlatformClient;
+  const cache = new Map<string, unknown>();
+  return {
+    fetch: jest.fn(),
+    getCachedData: jest.fn((key: string[]) => cache.get(JSON.stringify(key))),
+    setCachedData: jest.fn((key: string[], data: unknown) =>
+      cache.set(JSON.stringify(key), data),
+    ),
+    queryClient: {
+      fetchQuery: jest.fn(
+        async (opts: {
+          queryKey: string[];
+          queryFn: () => Promise<unknown>;
+        }) => {
+          const data = await opts.queryFn();
+          cache.set(JSON.stringify(opts.queryKey), data);
+          return data;
+        },
+      ),
+    },
+  } as unknown as ApiPlatformClient;
 }
 
 type AllActions = MessengerActions<AssetsControllerMessenger>;
@@ -141,6 +160,15 @@ async function withController<ReturnValue>(
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
+
+  // Mock AccountsController
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('AccountsController:getSelectedAccount', () =>
+    createMockInternalAccount(),
+  );
 
   // Mock AccountTreeController
   messenger.registerActionHandler(
@@ -1089,6 +1117,7 @@ describe('AssetsController', () => {
             lastUpdated: 1_700_000_000_000,
           },
         },
+        assetsInfo: {},
         selectedCurrency: 'eur',
       };
 
@@ -1099,11 +1128,12 @@ describe('AssetsController', () => {
 
         expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledTimes(1);
         expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledWith({
+          assetsInfo: initialState.assetsInfo,
           assetsPrice: initialState.assetsPrice,
           selectedCurrency: 'eur',
-          nativeAssetIdentifiers: {
+          nativeAssetIdentifiers: expect.objectContaining({
             'eip155:1': 'eip155:1/slip44:60',
-          },
+          }),
           networkConfigurationsByChainId: {},
         });
       });

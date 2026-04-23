@@ -44,8 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh PACKAGE_NAME",
     "changelog:validate": "../../scripts/validate-changelog.sh PACKAGE_NAME",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -53,7 +53,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

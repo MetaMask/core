@@ -105,6 +105,8 @@ export type TraderStats = {
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
+  /** Median holding time in minutes. */
+  medianHoldMinutes?: number | null;
 };
 
 export type PerChainBreakdown = {
@@ -142,6 +144,8 @@ export type Position = {
   costBasis: number;
   trades: Trade[];
   lastTradeAt: number;
+  /** Daylight-hosted token image URL. */
+  tokenImageUrl?: string | null;
   /** Current USD value of the remaining position (open positions only). */
   currentValueUSD?: number | null;
   /** Unrealized + realized PnL in USD. */
@@ -183,7 +187,7 @@ export type FollowersResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `GET /v1/users/:addressOrUid/following`.
+ * Response from `GET /v1/users/me/following`.
  */
 export type FollowingResponse = {
   following: ProfileSummary[];
@@ -195,14 +199,14 @@ export type FollowingResponse = {
 // ---------------------------------------------------------------------------
 
 /**
- * Response from `PUT /v1/users/:addressOrUid/follows`.
+ * Response from `PUT /v1/users/me/follows`.
  */
 export type FollowResponse = {
   followed: ProfileSummary[];
 };
 
 /**
- * Response from `DELETE /v1/users/:addressOrUid/follows`.
+ * Response from `DELETE /v1/users/me/follows`.
  */
 export type UnfollowResponse = {
   unfollowed: ProfileSummary[];
@@ -237,21 +241,12 @@ export type FetchFollowersOptions = {
   addressOrId: string;
 };
 
-export type FetchFollowingOptions = {
-  /** Wallet address or Clicker profile ID. */
-  addressOrUid: string;
-};
-
 export type FollowOptions = {
-  /** Wallet address or Clicker profile ID of the user. */
-  addressOrUid: string;
   /** Array of wallet addresses or profile IDs to follow. */
   targets: string[];
 };
 
 export type UnfollowOptions = {
-  /** Wallet address or Clicker profile ID of the user. */
-  addressOrUid: string;
   /** Array of wallet addresses or profile IDs to unfollow. */
   targets: string[];
 };
@@ -270,6 +265,8 @@ export type UnfollowOptions = {
 export type SocialControllerState = {
   /** Cached ranked trader list from the last `updateLeaderboard` call. */
   leaderboardEntries: LeaderboardEntry[];
-  /** Addresses the current user follows — drives Follow/Following button state. */
+  /** Wallet addresses the current user follows. */
   followingAddresses: string[];
+  /** Clicker profile IDs the current user follows — used by mobile UI. */
+  followingProfileIds: string[];
 };

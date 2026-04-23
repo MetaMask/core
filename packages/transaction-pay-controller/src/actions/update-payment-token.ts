@@ -42,9 +42,12 @@ export function updatePaymentToken(
     throw new Error('Transaction not found');
   }
 
+  const state = messenger.call('TransactionPayController:getState');
+  const accountOverride = state.transactionData[transactionId]?.accountOverride;
+
   const paymentToken = getPaymentToken({
     chainId,
-    from: transaction?.txParams.from as Hex,
+    from: accountOverride ?? (transaction.txParams.from as Hex),
     messenger,
     tokenAddress,
   });

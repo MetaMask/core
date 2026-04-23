@@ -5,6 +5,7 @@
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
+  "metamask/authenticated-user-storage": "team-auth-engineers",
   "metamask/profile-sync-controller": "team-accounts-framework",
   "metamask/ramps-controller": "team-money-movement",
   "metamask/assets-controller": "team-assets",
@@ -34,6 +35,7 @@
   "metamask/app-metadata-controller": "team-mobile-platform",
   "metamask/delegation-controller": "team-delegation",
   "metamask/chain-agnostic-permission": "team-wallet-integrations",
+  "metamask/chomp-api-service": "team-earn",
   "metamask/eip1193-permission-middleware": "team-wallet-integrations",
   "metamask/multichain-api-middleware": "team-wallet-integrations",
   "metamask/selected-network-controller": "team-wallet-integrations",
@@ -77,5 +79,6 @@
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
   "metamask/config-registry-controller": "team-networks",
   "metamask/money-account-controller": "team-accounts-framework",
+  "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/messenger-docs": "team-core-platform"
 }

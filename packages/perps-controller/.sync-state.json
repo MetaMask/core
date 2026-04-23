@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "1f90a9b7a957356c02dcd201ea650c9a779a0bda",
-  "lastSyncedMobileBranch": "feat/tat-2863-sync-controller-code-extension",
-  "lastSyncedCoreCommit": "c275531d934cb592fe27c545a73b08c11f50dfa3",
-  "lastSyncedCoreBranch": "feat/perps/another-sync",
-  "lastSyncedDate": "2026-04-08T11:07:13Z",
-  "sourceChecksum": "5eea712091624d82e569300f9679e6595f2e77aa9e1ced15db14d3d8cce15746"
+  "lastSyncedMobileCommit": "d4c68052ccec878922a9909ee95306252a959ff8",
+  "lastSyncedMobileBranch": "fix/core-sync-bugbot",
+  "lastSyncedCoreCommit": "5ea3b550b9e52744443da89da4a929ba2a7b0df7",
+  "lastSyncedCoreBranch": "feat/perps/controller-apr-23rd",
+  "lastSyncedDate": "2026-04-23T10:22:26Z",
+  "sourceChecksum": "9afe08e6639a1705e1ac7b51f47d7617e1195504ec05928783e8bf0fcda44f9d"
 }

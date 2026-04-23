@@ -471,23 +471,9 @@ async function normalizeQuote(
     request.targetTokenAddress,
   );
 
-  const additionalTargetAmountUsd =
-    quote.request.tradeType === 'EXACT_INPUT'
-      ? subsidizedFeeUsd
-      : new BigNumber(0);
-
-  if (additionalTargetAmountUsd.gt(0)) {
-    log(
-      'Including subsidized fee in target amount',
-      additionalTargetAmountUsd.toString(10),
-    );
-  }
-
-  const baseTargetAmountUsd = isTargetStablecoin
+  const targetAmountUsd = isTargetStablecoin
     ? new BigNumber(currencyOut.amountFormatted)
     : new BigNumber(currencyOut.amountUsd);
-
-  const targetAmountUsd = baseTargetAmountUsd.plus(additionalTargetAmountUsd);
 
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 

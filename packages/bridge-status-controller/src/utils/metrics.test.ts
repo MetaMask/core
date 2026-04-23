@@ -875,6 +875,7 @@ describe('metrics utils', () => {
         usd_amount_source: 2000,
         swap_type: 'crosschain',
         is_hardware_wallet: false,
+        account_hardware_type: null,
         stx_enabled: false,
       });
     });
@@ -900,6 +901,32 @@ describe('metrics utils', () => {
         hardwareWalletAccount,
       );
       expect(result.is_hardware_wallet).toBe(true);
+      expect(result.account_hardware_type).toBe('Ledger');
+    });
+
+    it('should keep Lattice accounts as Lattice', () => {
+      const latticeAccount = {
+        id: 'test-account',
+        type: 'eip155:eoa' as const,
+        address: '0xaccount1',
+        options: {},
+        metadata: {
+          name: 'Test Account',
+          importTime: 1234567890,
+          keyring: {
+            type: 'Lattice Hardware',
+          },
+        },
+        scopes: [],
+        methods: [],
+      };
+
+      const result = getRequestMetadataFromHistory(
+        mockHistoryItem,
+        latticeAccount,
+      );
+      expect(result.is_hardware_wallet).toBe(true);
+      expect(result.account_hardware_type).toBe('Lattice');
     });
 
     it('should handle missing pricing data', () => {
@@ -985,7 +1012,7 @@ describe('metrics utils', () => {
           gasFee: { effective: { usd: '2.54739' } },
         } as never,
         false,
-        false,
+        null,
         MetaMetricsSwapsEventSource.MainView,
         abTests,
         activeAbTests,
@@ -1022,7 +1049,7 @@ describe('metrics utils', () => {
     it('should return correct properties for a successful swap transaction', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
-        error_message: '',
+        error_message: 'Transaction submitted',
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
@@ -1035,6 +1062,7 @@ describe('metrics utils', () => {
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
         custom_slippage: false,
         is_hardware_wallet: false,
+        account_hardware_type: null,
         swap_type: MetricsSwapType.SINGLE,
         security_warnings: [],
         price_impact: 0,
@@ -1058,14 +1086,14 @@ describe('metrics utils', () => {
         ...mockTransactionMeta,
         status: TransactionStatus.failed,
         error: {
-          message: 'Transaction failed',
+          message: 'Error message',
           name: 'Error',
         } as TransactionError,
       };
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
-      expect(result.error_message).toBe('Transaction failed');
+      expect(result.error_message).toBe('Transaction failed. Error message');
       expect(result.source_transaction).toBe('FAILED');
     });
 

@@ -145,6 +145,64 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
 }
 `;
 
+exports[`BridgeStatusController constructor when history has no tx hash, has txMeta and is older than 2 days: provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash3",
+    ],
+  },
+]
+`;
+
+exports[`BridgeStatusController constructor when history has no tx hash, no txMeta and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns no receipt and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns receipt and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider throws error and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has solana srcChainId, no tx hash, no txMeta and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has tx hash, no provider and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has tx hash, provider returns no receipt and is older than 2 days: provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
+`;
+
+exports[`BridgeStatusController constructor when history has tx hash, provider returns receipt and is older than 2 days: provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
+`;
+
+exports[`BridgeStatusController constructor when history has tx hash, provider returns receipt, status is complete and is older than 2 days: provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor when history has tx hash, provider throws error and is older than 2 days: provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
+`;
+
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [
@@ -161,6 +219,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransa
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 105213.34261666666,
       "allowance_reset_transaction": undefined,
@@ -327,6 +386,9 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
 [
   [
+    "TransactionController:getState",
+  ],
+  [
     "AuthenticationController:getBearerToken",
   ],
   [
@@ -340,6 +402,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 105213.34261666666,
       "allowance_reset_transaction": undefined,
@@ -546,6 +609,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:8453",
@@ -865,6 +929,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:59144",
@@ -1161,7 +1226,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
   "status": {
     "srcChain": {
       "chainId": 42161,
-      "txHash": "0xevmTxHash",
+      "txHash": undefined,
     },
     "status": "PENDING",
   },
@@ -1233,6 +1298,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -1481,6 +1547,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -1803,6 +1870,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2125,6 +2193,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2473,6 +2542,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2770,6 +2840,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2868,6 +2939,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2949,6 +3021,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2988,6 +3061,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -3072,6 +3146,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -3259,6 +3334,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": "Ledger",
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -3452,6 +3528,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
@@ -3692,7 +3769,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
   "status": {
     "srcChain": {
       "chainId": 42161,
-      "txHash": "0xevmTxHash",
+      "txHash": undefined,
     },
     "status": "PENDING",
   },
@@ -3837,7 +3914,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
   "status": {
     "srcChain": {
       "chainId": 42161,
-      "txHash": "0xevmTxHash",
+      "txHash": undefined,
     },
     "status": "PENDING",
   },
@@ -3907,6 +3984,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
@@ -4327,6 +4405,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
@@ -4765,6 +4844,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -4807,6 +4887,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -4846,6 +4927,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5043,6 +5125,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5067,6 +5150,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5106,6 +5190,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": "QR Hardware",
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5148,6 +5233,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": "QR Hardware",
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5187,6 +5273,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": "QR Hardware",
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5236,6 +5323,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     {
+      "account_hardware_type": "QR Hardware",
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "allowance_reset_transaction": undefined,
@@ -5434,6 +5522,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5458,6 +5547,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -5497,6 +5587,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
@@ -5543,6 +5634,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
@@ -5582,6 +5674,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "tron:728126428",
@@ -5803,6 +5896,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
@@ -6003,30 +6097,57 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `[]`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should not start polling for bridge tx if tx is not in txHistory 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `[]`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should not track completed event for other transaction types 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for bridge tx if status response is invalid 1`] = `
 [
-  "BridgeController:trackUnifiedSwapBridgeEvent",
-  "Unified SwapBridge Status Failed Validation",
-  {
-    "action_type": "swapbridge-v1",
-    "chain_id_destination": "eip155:10",
-    "chain_id_source": "eip155:42161",
-    "failures": [
-      "across|unknown",
-    ],
-    "location": "Main View",
-    "refresh_count": 0,
-    "token_address_destination": "eip155:10/slip44:60",
-    "token_address_source": "eip155:42161/slip44:60",
-  },
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Status Failed Validation",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "failures": [
+        "across|status",
+      ],
+      "location": "Main View",
+      "refresh_count": 0,
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+    },
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Status Failed Validation",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "failures": [
+        "across|unknown",
+      ],
+      "location": "Main View",
+      "refresh_count": 0,
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+    },
+  ],
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 2`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for bridge tx if status response is invalid 2`] = `
 [
   [
     "Failed to fetch bridge tx status",
@@ -6039,7 +6160,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 2`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for completed bridge tx with featureId 2`] = `
 {
   "bridge": "across",
   "destChain": {
@@ -6080,7 +6201,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 2`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for failed bridge tx with featureId 2`] = `
 {
   "bridge": "debridge",
   "destChain": {
@@ -6107,7 +6228,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should track completed event for swap transaction 1`] = `
 [
   [
     "AccountsController:getAccountByAddress",
@@ -6120,6 +6241,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "allowance_reset_transaction": undefined,
@@ -6156,11 +6278,12 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should find history by actionId when txMeta.id not in history (pre-submission failure) 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should find history by actionId when txMeta.id not in history (pre-submission failure) 1`] = `
 [
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
   {
+    "account_hardware_type": null,
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
     "allowance_reset_transaction": undefined,
@@ -6169,7 +6292,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "chain_id_source": "eip155:42161",
     "custom_slippage": true,
     "destination_transaction": "FAILED",
-    "error_message": "",
+    "error_message": "Transaction failed. tx-error",
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
@@ -6197,17 +6320,18 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for approved status 1`] = `[]`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should not track failed event for approved status 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for other transaction types 1`] = `[]`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should not track failed event for other transaction types 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for signed status 1`] = `[]`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should not track failed event for signed status 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for bridge transaction 1`] = `
 [
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
   {
+    "account_hardware_type": null,
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
     "allowance_reset_transaction": undefined,
@@ -6216,7 +6340,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "chain_id_source": "eip155:42161",
     "custom_slippage": true,
     "destination_transaction": "FAILED",
-    "error_message": "",
+    "error_message": "Transaction failed. tx-error",
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
@@ -6244,55 +6368,70 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if approval is dropped 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for bridge transaction if approval is dropped 1`] = `
 [
-  "BridgeController:trackUnifiedSwapBridgeEvent",
-  "Unified SwapBridge Failed",
-  {
-    "action_type": "swapbridge-v1",
-    "actual_time_minutes": 0,
-    "chain_id_destination": "eip155:42161",
-    "chain_id_source": "eip155:42161",
-    "custom_slippage": false,
-    "error_message": "",
-    "gas_included": false,
-    "gas_included_7702": false,
-    "is_hardware_wallet": false,
-    "location": "Main View",
-    "price_impact": 0,
-    "provider": "",
-    "quote_vs_execution_ratio": 0,
-    "quoted_time_minutes": 0,
-    "quoted_vs_used_gas_ratio": 0,
-    "security_warnings": [],
-    "source_transaction": "FAILED",
-    "stx_enabled": false,
-    "swap_type": "crosschain",
-    "token_address_destination": "eip155:42161/slip44:60",
-    "token_address_source": "eip155:42161/slip44:60",
-    "token_symbol_destination": "",
-    "token_symbol_source": "",
-    "usd_actual_gas": 0,
-    "usd_actual_return": 0,
-    "usd_amount_source": 0,
-    "usd_quoted_gas": 0,
-    "usd_quoted_return": 0,
-  },
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": "COMPLETE",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": true,
+      "destination_transaction": "FAILED",
+      "error_message": "Transaction dropped. tx-error",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if not in txHistory 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for bridge transaction if not in txHistory 1`] = `
 [
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
-      "error_message": "",
+      "error_message": "Transaction failed. tx-error",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6320,7 +6459,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for swap transaction 1`] = `
 [
   [
     "AccountsController:getAccountByAddress",
@@ -6333,6 +6472,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "allowance_reset_transaction": undefined,
@@ -6341,7 +6481,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "FAILED",
-      "error_message": "",
+      "error_message": "Transaction failed. tx-error",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6370,38 +6510,43 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction if approval fails 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for swap transaction if approval fails 1`] = `
 [
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
   {
+    "account_hardware_type": null,
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
-    "chain_id_destination": "eip155:42161",
+    "allowance_reset_transaction": undefined,
+    "approval_transaction": "COMPLETE",
+    "chain_id_destination": "eip155:10",
     "chain_id_source": "eip155:42161",
-    "custom_slippage": false,
-    "error_message": "",
+    "custom_slippage": true,
+    "destination_transaction": "FAILED",
+    "error_message": "Transaction failed. approval-tx-error",
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
     "location": "Main View",
     "price_impact": 0,
-    "provider": "",
+    "provider": "lifi_across",
     "quote_vs_execution_ratio": 0,
-    "quoted_time_minutes": 0,
+    "quoted_time_minutes": 0.25,
     "quoted_vs_used_gas_ratio": 0,
     "security_warnings": [],
-    "source_transaction": "FAILED",
+    "slippage_limit": 0,
+    "source_transaction": "COMPLETE",
     "stx_enabled": false,
-    "swap_type": "single_chain",
-    "token_address_destination": "eip155:42161/slip44:60",
+    "swap_type": "crosschain",
+    "token_address_destination": "eip155:10/slip44:60",
     "token_address_source": "eip155:42161/slip44:60",
-    "token_symbol_destination": "",
-    "token_symbol_source": "",
+    "token_symbol_destination": "ETH",
+    "token_symbol_source": "ETH",
     "usd_actual_gas": 0,
     "usd_actual_return": 0,
     "usd_amount_source": 0,
-    "usd_quoted_gas": 0,
+    "usd_quoted_gas": 2.5778,
     "usd_quoted_return": 0,
   },
 ]

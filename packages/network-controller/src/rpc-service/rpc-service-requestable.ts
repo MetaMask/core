@@ -18,6 +18,11 @@ import type {
  * The interface for a service class responsible for making a request to a
  * target, whether that is a single RPC endpoint or an RPC endpoint in an RPC
  * service chain.
+ *
+ * @deprecated Don't use this interface (it will be removed in an upcoming major
+ * version). If you need to take an "RPC-service-like" argument, it's best to
+ * declare which properties you're interested in rather than accepting the
+ * entire RPC service interface.
  */
 export type RpcServiceRequestable = {
   /**

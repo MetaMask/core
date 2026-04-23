@@ -20,6 +20,7 @@ import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
 import { getAcrossDestination } from './across-actions';
 import { normalizeAcrossRequest } from './perps';
+import { isAcrossQuoteRequest } from './requests';
 import { getAcrossOrderedTransactions } from './transactions';
 import type {
   AcrossAction,
@@ -50,12 +51,7 @@ export async function getAcrossQuotes(
   log('Fetching quotes', requests);
 
   try {
-    const normalizedRequests = requests.filter(
-      (singleRequest) =>
-        singleRequest.isMaxAmount === true ||
-        (singleRequest.targetAmountMinimum !== undefined &&
-          singleRequest.targetAmountMinimum !== '0'),
-    );
+    const normalizedRequests = requests.filter(isAcrossQuoteRequest);
 
     if (normalizedRequests.length === 0) {
       return [];

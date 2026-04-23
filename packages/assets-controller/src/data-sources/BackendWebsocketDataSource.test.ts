@@ -10,7 +10,7 @@ import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest } from '../types';
+import type { Caip19AssetId, ChainId, DataRequest } from '../types';
 import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
@@ -173,11 +173,15 @@ function setupController(
     },
   };
 
+  const isNativeAssetFn = (assetId: Caip19AssetId): boolean =>
+    assetId.includes('/slip44:');
+
   const controller = new BackendWebsocketDataSource({
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     queryApiClient: queryApiClient as unknown as ApiPlatformClient,
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+    isNativeAsset: isNativeAssetFn,
     state: { activeChains: initialActiveChains },
   });
 
@@ -354,7 +358,11 @@ describe('BackendWebsocketDataSource', () => {
     triggerConnectionStateChange(WebSocketState.CONNECTED);
     await new Promise(process.nextTick);
 
-    expect(wsSubscribeMock).toHaveBeenCalled();
+    // Stale pending subscriptions are cleared on reconnect rather than
+    // being re-processed. The chain reclaim via updateActiveChains
+    // triggers onActiveChainsUpdated, causing AssetsController to create
+    // fresh subscriptions with current data.
+    expect(wsSubscribeMock).not.toHaveBeenCalled();
 
     controller.destroy();
   });
@@ -497,11 +505,12 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  it('handles WebSocket disconnect by moving subscriptions to pending', async () => {
+  it('handles WebSocket disconnect by releasing chains and reclaiming on reconnect', async () => {
     const {
       controller,
       wsSubscribeMock,
       getConnectionInfoMock,
+      activeChainsUpdateHandler,
       triggerConnectionStateChange,
     } = setupController({
       initialActiveChains: [CHAIN_MAINNET],
@@ -539,10 +548,19 @@ describe('BackendWebsocketDataSource', () => {
       requestTimeout: 30000,
     });
 
+    activeChainsUpdateHandler.mockClear();
     triggerConnectionStateChange(WebSocketState.CONNECTED);
     await new Promise(process.nextTick);
 
-    expect(wsSubscribeMock).toHaveBeenCalledTimes(2);
+    // Stale pending subscriptions are NOT re-processed on reconnect.
+    // Instead, chain reclaim fires onActiveChainsUpdated so
+    // AssetsController creates fresh subscriptions with current data.
+    expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'BackendWebsocketDataSource',
+      [CHAIN_MAINNET],
+      expect.any(Array),
+    );
 
     controller.destroy();
   });

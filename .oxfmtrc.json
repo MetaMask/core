@@ -13,10 +13,5 @@
   },
   "tabWidth": 2,
   "trailingComma": "all",
-  "ignorePatterns": [
-    "**/*-method-action-types.ts",
-    ".yarnrc.yml",
-    "merged-packages/**",
-    "CHANGELOG.md"
-  ]
+  "ignorePatterns": [".yarnrc.yml", "merged-packages/**"]
 }

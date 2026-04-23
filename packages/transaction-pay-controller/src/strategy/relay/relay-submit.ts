@@ -102,8 +102,7 @@ async function executeSingleQuote(
   );
 
   if (quote.request.isHyperliquidSource) {
-    const from = transaction.txParams.from as Hex;
-    await submitHyperliquidWithdraw(quote, from, messenger);
+    await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else {
     await submitTransactions(quote, transaction, messenger);
   }
@@ -400,14 +399,24 @@ async function submitViaRelayExecute(
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
+    networkClientId,
     nestedTransactions: allParams.map((params) => ({
       data: (params.data ?? '0x') as Hex,
       to: params.to as Hex,
       value: (params.value ?? '0x0') as Hex,
     })),
+    txParams: {
+      ...transaction.txParams,
+      from,
+    },
   } as TransactionMeta;
 
   const delegation = await messenger.call(
@@ -551,7 +560,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
-        type: getRelayDepositType(transaction.type),
+        type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
     );
   } else {
@@ -576,7 +585,7 @@ async function submitViaTransactionController(
         type: getTransactionType(
           isPostQuote,
           index,
-          transaction.type,
+          getEffectiveTransactionType(transaction),
           normalizedParams.length,
         ),
       };
@@ -663,4 +672,25 @@ function getRelayDepositType(
     (originalType && RELAY_DEPOSIT_TYPES[originalType]) ??
     TransactionType.relayDeposit
   );
+}
+
+/**
+ * Get the effective transaction type, resolving through nested transactions
+ * when the top-level type is `batch`.
+ *
+ * @param transaction - The transaction metadata.
+ * @returns The resolved type from nested transactions, or the top-level type.
+ */
+function getEffectiveTransactionType(
+  transaction: TransactionMeta,
+): TransactionMeta['type'] {
+  if (transaction.type !== TransactionType.batch) {
+    return transaction.type;
+  }
+
+  const nestedType = transaction.nestedTransactions?.find(
+    (tx) => tx.type && RELAY_DEPOSIT_TYPES[tx.type] !== undefined,
+  )?.type;
+
+  return nestedType ?? transaction.type;
 }

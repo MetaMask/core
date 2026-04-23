@@ -49,6 +49,8 @@ enum CaipAssetNamespace {
   Token = 'token',
 }
 
+const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
 // ============================================================================
 // OPTIONS
 // ============================================================================
@@ -82,16 +84,18 @@ export type TokenDataSourceAllowedActions =
  *
  * @param assetId - CAIP-19 asset ID used to derive token type.
  * @param assetData - V3 API response data.
+ * @param nativeAssetIds - Set of known native asset IDs (lowercased) for membership checks.
  * @returns FungibleAssetMetadata for state storage.
  */
 function transformV3AssetResponseToMetadata(
-  assetId: string,
+  assetId: Caip19AssetId,
   assetData: V3AssetResponse,
+  nativeAssetIds: ReadonlySet<string>,
 ): AssetMetadata {
-  const parsed = parseCaipAssetType(assetId as CaipAssetType);
+  const parsed = parseCaipAssetType(assetId);
   let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
 
-  if (parsed.assetNamespace === 'slip44') {
+  if (nativeAssetIds.has(assetId.toLowerCase())) {
     tokenType = 'native';
   } else if (parsed.assetNamespace === 'spl') {
     tokenType = 'spl';
@@ -305,11 +309,20 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
+      // Custom assets are user-imported — exempt from spam filtering.
+      const customAssetIds = new Set<string>(
+        Object.values(customAssets ?? {}).flat(),
+      );
+
       // Always include native asset IDs from NetworkEnablementController
-      for (const nativeAssetId of this.#getNativeAssetIds()) {
+      const nativeAssetIdsList = this.#getNativeAssetIds();
+      const nativeAssetIds = new Set(
+        nativeAssetIdsList.map((id) => id.toLowerCase()),
+      );
+      for (const nativeAssetId of nativeAssetIdsList) {
         assetIdsNeedingMetadata.add(nativeAssetId);
       }
 
@@ -382,7 +395,7 @@ export class TokenDataSource {
         });
 
         // Split assets by chain type: EVM uses occurrence-count filtering;
-        // non-EVM non-native uses Blockaid; native (slip44) is always allowed.
+        // non-EVM non-native uses Blockaid; native assets are always allowed.
         const occurrencesByAssetId = new Map(
           metadataResponse.map((a) => [a.assetId, a.occurrences]),
         );
@@ -391,35 +404,42 @@ export class TokenDataSource {
         const nonEvmTokenIds: string[] = [];
 
         for (const assetData of metadataResponse) {
-          const { assetNamespace, chain } = parseCaipAssetType(
-            assetData.assetId as CaipAssetType,
-          );
-          if (assetNamespace === CaipAssetNamespace.Slip44) {
+          const assetId = assetData.assetId as Caip19AssetId;
+          const { assetNamespace, chain } = parseCaipAssetType(assetId);
+          if (nativeAssetIds.has(assetId.toLowerCase())) {
             // Native assets are always kept — no filtering.
           } else if (
             assetNamespace === CaipAssetNamespace.Erc20 &&
             chain.namespace === KnownCaipNamespace.Eip155
           ) {
-            evmErc20Ids.push(assetData.assetId);
+            evmErc20Ids.push(assetId);
           } else if (assetNamespace === CaipAssetNamespace.Token) {
-            nonEvmTokenIds.push(assetData.assetId);
+            nonEvmTokenIds.push(assetId);
           }
         }
 
         // EVM: require minimum occurrence count to suppress low-signal tokens.
         // Tokens with no occurrence data (undefined) are treated the same as
         // zero occurrences and filtered out.
+        // Custom assets (user-imported) bypass the occurrence filter.
         const allowedEvmIds = new Set(
           evmErc20Ids.filter(
             (id) =>
-              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES,
+              customAssetIds.has(id) ||
+              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
+              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
           ),
         );
 
         // Non-EVM: Blockaid bulk scan.
-        const allowedNonEvmIds = new Set(
-          await this.#filterBlockaidSpamTokens(nonEvmTokenIds),
+        // Custom assets (user-imported) bypass Blockaid filtering.
+        const nonEvmToScan = nonEvmTokenIds.filter(
+          (id) => !customAssetIds.has(id),
         );
+        const allowedNonEvmIds = new Set([
+          ...nonEvmTokenIds.filter((id) => customAssetIds.has(id)),
+          ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
+        ]);
 
         // Start with every asset the API returned; only remove those that
         // fail their respective filter (EVM occurrences / non-EVM Blockaid).
@@ -449,8 +469,9 @@ export class TokenDataSource {
 
           const caipAssetId = assetData.assetId as Caip19AssetId;
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
-            assetData.assetId,
+            caipAssetId,
             assetData,
+            nativeAssetIds,
           );
         }
 
