@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0]
 
-### Uncategorized
-
-- Revert "Release 934.0.0" ([#8570](https://github.com/MetaMask/core/pull/8570))
-
 ### Added
 
 - Add `coalescePerpsRestRequest` utility for deduplicating concurrent REST requests with account-scoped cache keys ([#8560](https://github.com/MetaMask/core/pull/8560))
