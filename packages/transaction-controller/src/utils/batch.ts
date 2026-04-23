@@ -73,6 +73,7 @@ type UpdateStateCallback = (
 ) => void;
 
 type AddTransactionBatchRequest = {
+  abortTransactionSigning: TransactionController['abortTransactionSigning'];
   addTransaction: TransactionController['addTransaction'];
   estimateGas: TransactionController['estimateGas'];
   getGasFeeEstimates: (
@@ -532,6 +533,8 @@ async function addTransactionBatchWithHook(
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
 
+  const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] = [];
+
   try {
     if (requireApproval) {
       txBatchMeta = await prepareApprovalData({
@@ -544,23 +547,33 @@ async function addTransactionBatchWithHook(
     }
 
     const publishHook = collectHook.getHook();
-    const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
-      [];
+    const signingPromises: Promise<string>[] = [];
 
     let index = 0;
 
     for (const nestedTransaction of nestedTransactions) {
-      const hookTransaction = await processTransactionWithHook(
-        batchId,
-        nestedTransaction,
-        publishHook,
-        request,
-        txBatchMeta,
-        index,
-      );
+      const { hookTransaction, signingComplete } =
+        await processTransactionWithHook(
+          batchId,
+          nestedTransaction,
+          publishHook,
+          request,
+          txBatchMeta,
+          index,
+        );
 
       hookTransactions.push(hookTransaction);
+      signingPromises.push(signingComplete);
       index += 1;
+
+      const signingFailure = new Promise<never>((_resolve, reject) => {
+        signingComplete.catch(reject);
+      });
+
+      await Promise.race([
+        collectHook.waitForSignedCount(index),
+        signingFailure,
+      ]);
     }
 
     const { signedTransactions } = await collectHook.ready();
@@ -607,6 +620,14 @@ async function addTransactionBatchWithHook(
   } catch (error) {
     log('Publish batch hook failed', error);
 
+    for (const hookTransaction of hookTransactions) {
+      try {
+        request.abortTransactionSigning(String(hookTransaction.id));
+      } catch {
+        // Transaction may not be signing or may already be complete.
+      }
+    }
+
     collectHook.error(error);
     resultCallbacks?.error(error as Error);
 
@@ -635,9 +656,12 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta: TransactionBatchMeta | undefined,
   index: number,
-): Promise<
-  Omit<PublishBatchHookTransaction, 'signedTx'> & { type?: TransactionType }
-> {
+): Promise<{
+  hookTransaction: Omit<PublishBatchHookTransaction, 'signedTx'> & {
+    type?: TransactionType;
+  };
+  signingComplete: Promise<string>;
+}> {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
 
@@ -683,11 +707,15 @@ async function processTransactionWithHook(
       transactionMeta = signResult.transactionMeta;
     }
 
-    publishHook(transactionMeta, signedTransaction)
-      .then(onPublish)
-      .catch(() => {
-        // Intentionally empty
+    const publishResult = publishHook(transactionMeta, signedTransaction)
+      .then((hookResult) => {
+        onPublish?.(hookResult);
+        return '';
       });
+
+    publishResult.catch(() => {
+      // Swallow – error is handled by the batch orchestrator.
+    });
 
     log('Processed existing transaction with hook', {
       id,
@@ -695,8 +723,8 @@ async function processTransactionWithHook(
     });
 
     return {
-      id,
-      params,
+      hookTransaction: { id, params },
+      signingComplete: publishResult,
     };
   }
 
@@ -712,7 +740,7 @@ async function processTransactionWithHook(
     });
   }
 
-  const { transactionMeta } = await addTransaction(
+  const { transactionMeta, result: signingComplete } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
       assetsFiatValues,
@@ -750,9 +778,8 @@ async function processTransactionWithHook(
   });
 
   return {
-    id,
-    params: newParams,
-    type,
+    hookTransaction: { id, params: newParams, type },
+    signingComplete,
   };
 }
 

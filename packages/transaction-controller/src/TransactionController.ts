@@ -1131,6 +1131,7 @@ export class TransactionController extends BaseController<
     );
 
     return await addTransactionBatch({
+      abortTransactionSigning: this.abortTransactionSigning.bind(this),
       addTransaction: this.addTransaction.bind(this),
       estimateGas: this.estimateGas.bind(this),
       getGasFeeEstimates: this.#getGasFeeEstimates,

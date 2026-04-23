@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Gas estimation for EIP-7702 transactions now supports any upgrade-with-data transaction, not only self-targeted ones ([#8467](https://github.com/MetaMask/core/pull/8467))
+- Fix batch transaction signing so each transaction is signed sequentially, preventing remaining hardware wallet prompts from appearing after a rejection ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ## [64.3.0]
 
