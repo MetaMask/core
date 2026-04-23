@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(card): add cardDelegation transaction type ([#8508](https://github.com/MetaMask/core/pull/8508))
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+
 ## [64.3.0]
 
 ### Added
