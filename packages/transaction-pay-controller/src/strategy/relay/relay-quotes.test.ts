@@ -186,11 +186,23 @@ describe('Relay Quotes Utils', () => {
     findNetworkClientIdByChainIdMock,
     getDelegationTransactionMock,
     getGasFeeTokensMock,
+    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: ['0x1234567890123456789012345678901234567891'],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '2.0',
@@ -1870,6 +1882,7 @@ describe('Relay Quotes Utils', () => {
       } as never);
 
       const result = await getRelayQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,

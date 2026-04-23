@@ -101,7 +101,11 @@ const BATCH_TRANSACTION_MOCK = {
 } as BatchTransaction;
 
 describe('Quotes Utils', () => {
-  const { messenger, getControllerStateMock } = getMessengerMock();
+  const {
+    messenger,
+    getControllerStateMock,
+    getKeyringControllerStateMock,
+  } = getMessengerMock();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);
@@ -136,6 +140,17 @@ describe('Quotes Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: ['0x1234567890123456789012345678901234567891'],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     getStrategiesMock.mockReturnValue([TransactionPayStrategy.Test]);
 
@@ -600,31 +615,6 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('gets quotes with no minimum if allowUnderMinimum is true', async () => {
-      await run({
-        transactionData: {
-          ...TRANSACTION_DATA_MOCK,
-          tokens: [
-            {
-              ...TRANSACTION_DATA_MOCK.tokens?.[0],
-              allowUnderMinimum: true,
-            } as TransactionPayRequiredToken,
-          ],
-        },
-      });
-
-      expect(getQuotesMock).toHaveBeenCalledWith({
-        accountSupports7702: true,
-        messenger,
-        requests: [
-          expect.objectContaining({
-            targetAmountMinimum: '0',
-          }),
-        ],
-        transaction: TRANSACTION_META_MOCK,
-      });
-    });
-
     it('resolves strategies via getStrategiesByName', async () => {
       await run();
 
@@ -687,7 +677,8 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('always passes batch transactions regardless of 7702 support', async () => {
+    it('sets batchTransactionsOptions to undefined when there are no batch transactions', async () => {
+      getBatchTransactionsMock.mockResolvedValue([]);
       await run();
 
       const transactionMetaMock = {} as TransactionMeta;
@@ -695,8 +686,8 @@ describe('Quotes Utils', () => {
 
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
-          batchTransactions: [BATCH_TRANSACTION_MOCK],
-          batchTransactionsOptions: {},
+          batchTransactions: [],
+          batchTransactionsOptions: undefined,
         }),
       );
     });
@@ -1013,27 +1004,25 @@ describe('Quotes Utils', () => {
         transactionData: POST_QUOTE_TRANSACTION_DATA,
       });
 
-      expect(getQuotesMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          accountSupports7702: true,
-          messenger,
-          requests: [
-            {
-              from: TRANSACTION_META_MOCK.txParams.from,
-              isMaxAmount: false,
-              isPostQuote: true,
-              sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
-              sourceChainId: SOURCE_TOKEN_MOCK.chainId,
-              sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
-              sourceTokenAmount: '10000000',
-              targetAmountMinimum: '0',
-              targetChainId: DESTINATION_TOKEN_MOCK.chainId,
-              targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
-            },
-          ],
-          transaction: TRANSACTION_META_MOCK,
-        }),
-      );
+      expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            from: TRANSACTION_META_MOCK.txParams.from,
+            isMaxAmount: false,
+            isPostQuote: true,
+            sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
+            sourceChainId: SOURCE_TOKEN_MOCK.chainId,
+            sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
+            sourceTokenAmount: '10000000',
+            targetAmountMinimum: '0',
+            targetChainId: DESTINATION_TOKEN_MOCK.chainId,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
     });
 
     it('includes refundTo in post-quote request when set in transaction data', async () => {

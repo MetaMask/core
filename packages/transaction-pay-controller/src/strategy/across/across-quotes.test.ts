@@ -168,11 +168,23 @@ describe('Across Quotes', () => {
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
+    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: ['0x1234567890123456789012345678901234567891'],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -1292,6 +1304,17 @@ describe('Across Quotes', () => {
     });
 
     it('re-estimates individually when batch returns 7702 but account does not support it', async () => {
+      getKeyringControllerStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: ['0x1234567890123456789012345678901234567891'],
+            metadata: { id: 'ledger', name: 'Ledger' },
+          },
+        ],
+      });
+
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 51000,
         gasLimits: [51000],
@@ -1622,7 +1645,7 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].targetAmount.usd).toBe('0.0003');
+      expect(result[0].targetAmount.raw).toBe('150');
       expect(result[0].dust.usd).toBe('0');
       expect(result[0].fees.provider.usd).toBe('0');
       expect(result[0].fees.provider.fiat).toBe('0');
@@ -1668,7 +1691,9 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].targetAmount.usd).toBe('0.000246');
+      expect(result[0].targetAmount.raw).toBe(
+        QUOTE_REQUEST_MOCK.targetAmountMinimum,
+      );
     });
 
     it('handles missing target amount minimum for max amount requests', async () => {
@@ -1693,7 +1718,7 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].targetAmount.usd).toBe('0');
+      expect(result[0].targetAmount.raw).toBe('0');
     });
 
     it('uses from address as recipient when no transfer data', async () => {

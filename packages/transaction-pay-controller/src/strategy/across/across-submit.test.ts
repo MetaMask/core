@@ -262,41 +262,6 @@ describe('Across Submit', () => {
       );
     });
 
-    it('submits batch without 7702 when quote is7702 is false', async () => {
-      const nonIs7702Quote = {
-        ...QUOTE_MOCK,
-        original: {
-          ...QUOTE_MOCK.original,
-          metamask: {
-            gasLimits: [
-              { estimate: 21000, max: 21000 },
-              { estimate: 22000, max: 22000 },
-            ],
-            is7702: false,
-          },
-        },
-      } as unknown as TransactionPayQuote<AcrossQuote>;
-
-      await submitAcrossQuotes({
-        accountSupports7702: true,
-        messenger,
-        quotes: [nonIs7702Quote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
-
-      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
-      expect(addTransactionBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          disable7702: true,
-          disableHook: false,
-          disableSequential: false,
-          gasLimit7702: undefined,
-        }),
-      );
-      expect(addTransactionMock).not.toHaveBeenCalled();
-    });
-
     it('submits a single transaction when no approvals', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,

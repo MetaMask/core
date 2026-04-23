@@ -84,7 +84,7 @@ async function estimateQuoteGasLimitsBatch(
   transactions: QuoteGasTransaction[],
   messenger: TransactionPayControllerMessenger,
   fallbackGas?: { estimate: number; max: number },
-  fallbackOnSimulationFailure?: boolean,
+  fallbackOnSimulationFailure: boolean,
 ): Promise<{
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
@@ -151,7 +151,7 @@ async function estimateQuoteGasLimitsBatch(
       transactions.map((transaction) =>
         estimateQuoteGasLimitSingle({
           fallbackGas,
-          fallbackOnSimulationFailure: fallbackOnSimulationFailure ?? false,
+          fallbackOnSimulationFailure,
           messenger,
           transaction,
         }),
