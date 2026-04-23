@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.3.0]
 
-### Uncategorized
-
-- Revert "Release 934.0.0" ([#8570](https://github.com/MetaMask/core/pull/8570))
-
 ### Added
 
 - Add support for transaction config parameter accountOverride ([#8454](https://github.com/MetaMask/core/pull/8454))

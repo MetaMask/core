@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [70.2.0]
 
-### Uncategorized
-
-- chore!: Update `CurrencyRateController` to expose all methods through messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
-- Revert "Release 934.0.0" ([#8570](https://github.com/MetaMask/core/pull/8570))
-
 ### Added
 
 - Add `AccountHardwareType` type and `getAccountHardwareType` function to the package exports ([#8503](https://github.com/MetaMask/core/pull/8503))
