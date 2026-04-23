@@ -357,7 +357,7 @@ describe('Batch Utils', () => {
         addTransactionMock.mockImplementationOnce((_params, options) => {
           const signature =
             SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
-          void options
+          options
             .publishHook?.(returnValue.transactionMeta, signature)
             .catch(() => {
               // Intentionally empty
