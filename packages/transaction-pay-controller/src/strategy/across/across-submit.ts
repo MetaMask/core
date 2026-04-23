@@ -48,7 +48,6 @@ export async function submitAcrossQuotes(
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
-
   let transactionHash: Hex | undefined;
 
   for (const quote of quotes) {
@@ -118,8 +117,7 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
   const { swapTx } = quote.original.quote;
-  const { gasLimits: quoteGasLimits, is7702 } =
-    quote.original.metamask;
+  const { gasLimits: quoteGasLimits, is7702 } = quote.original.metamask;
   const { from } = quote.request;
   const chainId = toHex(swapTx.chainId);
   const orderedTransactions = getAcrossOrderedTransactions({

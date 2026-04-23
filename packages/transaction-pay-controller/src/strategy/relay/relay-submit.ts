@@ -105,11 +105,7 @@ async function executeSingleQuote(
     const from = transaction.txParams.from as Hex;
     await submitHyperliquidWithdraw(quote, from, messenger);
   } else {
-    await submitTransactions(
-      quote,
-      transaction,
-      messenger,
-    );
+    await submitTransactions(quote, transaction, messenger);
   }
 
   const targetHash = await waitForRelayCompletion(
@@ -535,18 +531,16 @@ async function submitViaTransactionController(
     quote.original.details.currencyIn.currency.chainId ===
     quote.original.details.currencyOut.currency.chainId;
 
-  const { metamask } = quote.original;
-  const { gasLimits, is7702 } = metamask;
-
   const authorizationList: AuthorizationList | undefined =
-    is7702 &&
-    isSameChain &&
-    quote.original.request.authorizationList?.length
+    isSameChain && quote.original.request.authorizationList?.length
       ? quote.original.request.authorizationList.map((a) => ({
           address: a.address,
           chainId: toHex(a.chainId),
         }))
       : undefined;
+
+  const { metamask } = quote.original;
+  const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
     const transactionParams = {
@@ -567,7 +561,9 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 = is7702 ? toHex(metamask.gasLimits[0]) : undefined;
+    const gasLimit7702 = metamask.is7702
+      ? toHex(metamask.gasLimits[0])
+      : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];

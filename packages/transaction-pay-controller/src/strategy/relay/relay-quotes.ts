@@ -810,7 +810,7 @@ async function calculateSourceNetworkCost(
 async function calculateSourceNetworkGasLimit(
   params: RelayTransactionStep['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
-  fromOverride: Hex | undefined,
+  fromOverride?: Hex,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
