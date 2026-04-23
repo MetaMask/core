@@ -1,5 +1,5 @@
-import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
 import nock from 'nock';
+import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
 
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { SHARED_SALT } from '../shared/encryption/constants';
