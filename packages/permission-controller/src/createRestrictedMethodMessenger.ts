@@ -65,7 +65,7 @@ export function createRestrictedMethodMessenger<
 export function createRestrictedMethodMessenger<
   Namespace extends string,
   RootMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
-  DelegatedActions extends readonly [
+  DelegatedActions extends [
     MessengerActions<RootMessenger>['type'],
     ...MessengerActions<RootMessenger>['type'][],
   ],
@@ -100,7 +100,7 @@ export function createRestrictedMethodMessenger<
   });
 
   rootMessenger.delegate({
-    actions: [...actionNames],
+    actions: actionNames,
     messenger: restrictedMethodMessenger,
   });
 

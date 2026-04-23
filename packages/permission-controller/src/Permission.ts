@@ -515,27 +515,6 @@ export type PermissionSpecificationBuilder<
   },
 > = (options: Options) => Specification;
 
-/**
- * A restricted method permission export object, containing the
- * {@link PermissionSpecificationBuilder} function and "hook name" objects.
- */
-export type PermissionSpecificationBuilderExportConstraint = {
-  targetName: string;
-  specificationBuilder: PermissionSpecificationBuilder<
-    PermissionType,
-    PermissionSpecificationBuilderOptions<Record<string, unknown>>,
-    PermissionSpecificationConstraint
-  >;
-  methodHookNames?: Record<string, true>;
-  /**
-   * The messenger action types this specification requires. Host applications
-   * pass these to {@link createRestrictedMethodMessenger} to build a
-   * minimally-scoped child messenger to inject into the builder. If present,
-   * this must be a non-empty tuple — omit the field to opt out.
-   */
-  actionNames?: readonly [string, ...string[]] | undefined;
-};
-
 type ValidRestrictedMethodSpecification<
   Specification extends RestrictedMethodSpecificationConstraint,
 > =

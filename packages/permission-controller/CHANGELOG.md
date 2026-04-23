@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** `factoryHooks`, `validatorHooks`, and related fields from permission specification builders ([#8551](https://github.com/MetaMask/core/pull/8551))
+- **BREAKING:** Remove `factoryHooks`, `validatorHooks`, and related fields from permission specification builders ([#8551](https://github.com/MetaMask/core/pull/8551))
 
 ## [12.3.0]
 
