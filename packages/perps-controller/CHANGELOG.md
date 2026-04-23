@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `coalescePerpsRestRequest` utility for deduplicating concurrent REST requests with account-scoped cache keys ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Add `accountUtils` helpers for resolving the active perps account id and pinning it to forwarded provider params ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Changed
+
+- Account-scope the REST cache and guard cache writes so mount load stays cacheable without cross-account bleed ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Make `forceRefresh` provider-agnostic and align rate-limit handling with the extension ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Regenerate `PerpsController` method action types; shrink rate-limit diff and drop verbose history logs ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Fixed
+
+- HyperLiquid Unified-mode live balance: subscribe to `spotState` WS and compute tradeable/total balance from on-chain math ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Complete spot-balance parity with the extension consumer ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve integer trailing zeros when `szDecimals=0` in `perpsFormatters` ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve candle pagination cancellation and skip coalesce for explicit-`endTime` candle paging to avoid stale pages ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Defer account resolution on the non-paginated cache path to prevent race conditions ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Force-refresh on activity mount and evict expired coalesce entries so stale promises cannot resolve to cache ([#8560](https://github.com/MetaMask/core/pull/8560))
+
 ## [3.2.0]
 
 ### Added
