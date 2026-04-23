@@ -92,7 +92,11 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
 export function isNormalKeyringType(
   keyringType: KeyringTypes | string,
 ): boolean {
-  return !isSnapKeyringType(keyringType) && !isSnapKeyringV2Type(keyringType) && !isMoneyKeyringType(keyringType);
+  return (
+    !isSnapKeyringType(keyringType) &&
+    !isSnapKeyringV2Type(keyringType) &&
+    !isMoneyKeyringType(keyringType)
+  );
 }
 
 /**
