@@ -170,8 +170,7 @@ describe('User Storage', () => {
       .persist()
       .get('')
       .reply(function () {
-        capturedProfileHeader =
-          this.req.getHeader('x-profile-id')?.toString();
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200, JSON.stringify([])];
       });
 
@@ -199,8 +198,7 @@ describe('User Storage', () => {
       .persist()
       .get('')
       .reply(function () {
-        capturedProfileHeader =
-          this.req.getHeader('x-profile-id')?.toString();
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200, JSON.stringify([])];
       });
 
@@ -228,8 +226,7 @@ describe('User Storage', () => {
       .persist()
       .get('')
       .reply(function () {
-        capturedProfileHeader =
-          this.req.getHeader('x-profile-id')?.toString();
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200, JSON.stringify([])];
       });
 
@@ -443,8 +440,7 @@ describe('User Storage', () => {
       .persist()
       .put('')
       .reply(function () {
-        capturedReuploadHeader =
-          this.req.getHeader('x-profile-id')?.toString();
+        capturedReuploadHeader = this.req.getHeader('x-profile-id')?.toString();
         return [200];
       });
 
