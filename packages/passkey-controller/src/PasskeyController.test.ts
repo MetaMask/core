@@ -1,10 +1,10 @@
 import { Messenger } from '@metamask/messenger';
 
+import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
 import {
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
 } from './constants';
-import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
 import { PasskeyControllerError } from './errors';
 import {
   getDefaultPasskeyControllerState,
@@ -16,11 +16,11 @@ import type {
   PasskeyControllerState,
 } from './PasskeyController';
 import type { PasskeyRecord, PrfClientExtensionResults } from './types';
+import * as passkeyCrypto from './utils/crypto';
 import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
 } from './webauthn/types';
-import * as passkeyCrypto from './utils/crypto';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
@@ -603,9 +603,7 @@ describe('PasskeyController', () => {
         vaultKey: 'k',
       });
 
-      mockVerifyAuthenticationResponse.mockRejectedValue(
-        'auth-string-error',
-      );
+      mockVerifyAuthenticationResponse.mockRejectedValue('auth-string-error');
 
       const authOpts = controller.generateAuthenticationOptions();
 

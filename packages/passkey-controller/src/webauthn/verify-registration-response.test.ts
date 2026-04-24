@@ -49,8 +49,7 @@ const attestationFIDOU2F: PasskeyRegistrationResponse = {
 };
 
 const attestationPacked: PasskeyRegistrationResponse = {
-  id:
-    'AYThY1csINY4JrbHyGmqTl1nL_F1zjAF3hSAIngz8kAcjugmAMNVvxZRwqpEH-bNHHAIv291OX5ko9eDf_5mu3UB2BvsScr2K-ppM4owOpGsqwg5tZglqqmxIm1Q',
+  id: 'AYThY1csINY4JrbHyGmqTl1nL_F1zjAF3hSAIngz8kAcjugmAMNVvxZRwqpEH-bNHHAIv291OX5ko9eDf_5mu3UB2BvsScr2K-ppM4owOpGsqwg5tZglqqmxIm1Q',
   rawId:
     'AYThY1csINY4JrbHyGmqTl1nL_F1zjAF3hSAIngz8kAcjugmAMNVvxZRwqpEH-bNHHAIv291OX5ko9eDf_5mu3UB2BvsScr2K-ppM4owOpGsqwg5tZglqqmxIm1Q',
   response: {
@@ -72,8 +71,7 @@ const attestationPacked: PasskeyRegistrationResponse = {
 };
 
 const attestationPackedX5C: PasskeyRegistrationResponse = {
-  id:
-    '4rrvMciHCkdLQ2HghazIp1sMc8TmV8W8RgoX-x8tqV_1AmlqWACqUK8mBGLandr-htduQKPzgb2yWxOFV56Tlg',
+  id: '4rrvMciHCkdLQ2HghazIp1sMc8TmV8W8RgoX-x8tqV_1AmlqWACqUK8mBGLandr-htduQKPzgb2yWxOFV56Tlg',
   rawId:
     '4rrvMciHCkdLQ2HghazIp1sMc8TmV8W8RgoX-x8tqV_1AmlqWACqUK8mBGLandr-htduQKPzgb2yWxOFV56Tlg',
   response: {

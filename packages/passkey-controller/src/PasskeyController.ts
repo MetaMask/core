@@ -14,11 +14,11 @@ import {
   PasskeyControllerErrorMessage,
 } from './constants';
 import { PasskeyControllerError } from './errors';
-import { createModuleLogger, projectLogger } from './logger';
 import {
   deriveKeyFromAuthenticationResponse,
   deriveKeyFromRegistrationResponse,
 } from './key-derivation';
+import { createModuleLogger, projectLogger } from './logger';
 import type { PasskeyRecord } from './types';
 import { decryptWithKey, encryptWithKey } from './utils/crypto';
 import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
@@ -334,16 +334,12 @@ export class PasskeyController extends BaseController<
         expectedRPID: this.#rpID,
         requireUserVerification: false,
       }).catch((error) => {
-        log(
-          'Error verifying passkey registration response',
-          error,
-        );
+        log('Error verifying passkey registration response', error);
         throw new PasskeyControllerError(
           PasskeyControllerErrorMessage.RegistrationVerificationFailed,
           {
             code: PasskeyControllerErrorCode.RegistrationVerificationFailed,
-            cause:
-              error instanceof Error ? error : new Error(String(error)),
+            cause: error instanceof Error ? error : new Error(String(error)),
           },
         );
       });
@@ -448,10 +444,7 @@ export class PasskeyController extends BaseController<
       await this.retrieveVaultKeyWithPasskey(authenticationResponse);
       return true;
     } catch (error: unknown) {
-      if (
-        error instanceof PasskeyControllerError &&
-        error.code !== undefined
-      ) {
+      if (error instanceof PasskeyControllerError && error.code !== undefined) {
         return false;
       }
       throw error;
@@ -512,7 +505,9 @@ export class PasskeyController extends BaseController<
     // check if vault key matches
     const { oldVaultKey, newVaultKey } = params;
     if (decryptedVaultKey !== oldVaultKey) {
-      log('Passkey renewal rejected: decrypted vault key does not match oldVaultKey');
+      log(
+        'Passkey renewal rejected: decrypted vault key does not match oldVaultKey',
+      );
       throw new PasskeyControllerError(
         PasskeyControllerErrorMessage.VaultKeyMismatch,
         { code: PasskeyControllerErrorCode.VaultKeyMismatch },
@@ -611,11 +606,10 @@ export class PasskeyController extends BaseController<
           PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
           {
             code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
-            cause:
-              error instanceof Error ? error : new Error(String(error)),
+            cause: error instanceof Error ? error : new Error(String(error)),
           },
         );
-      })
+      });
       if (!result.verified) {
         log('Passkey authentication verification returned unverified');
         throw new PasskeyControllerError(
