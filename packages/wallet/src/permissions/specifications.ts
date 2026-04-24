@@ -3,6 +3,7 @@ import {
   caip25CaveatBuilder,
   caip25EndowmentBuilder,
 } from '@metamask/chain-agnostic-permission';
+import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   KeyringControllerWithKeyringAction,
   KeyringTypes,
@@ -13,8 +14,8 @@ import {
   caveatSpecifications as snapsCaveatsSpecifications,
   endowmentCaveatSpecifications as snapsEndowmentCaveatSpecifications,
 } from '@metamask/snaps-rpc-methods';
-import { createDeferredPromise } from '@metamask/utils';
-import { RootMessenger } from 'src/initialization';
+import { CaipChainId, Hex, createDeferredPromise } from '@metamask/utils';
+import { DefaultActions, DefaultEvents, RootMessenger } from '../initialization';
 
 export const EndowmentPermissions = Object.freeze({
   'endowment:network-access': 'endowment:network-access',
@@ -48,7 +49,7 @@ export const ExcludedSnapEndowments = Object.freeze({
  * @param messenger - The messenger.
  * @returns the permission specifications to construct the PermissionController.
  */
-export const getPermissionSpecifications = (messenger: RootMessenger) => {
+export const getPermissionSpecifications = (messenger: RootMessenger<DefaultActions, DefaultEvents>) => {
   return {
     [caip25EndowmentBuilder.targetName]:
       caip25EndowmentBuilder.specificationBuilder({}),
@@ -281,7 +282,7 @@ export const getPermissionSpecifications = (messenger: RootMessenger) => {
  * @param messenger - The messenger.
  * @returns the caveat specifications to construct the PermissionController.
  */
-export const getCaveatSpecifications = (messenger: RootMessenger) => {
+export const getCaveatSpecifications = (messenger: RootMessenger<DefaultActions, DefaultEvents>) => {
   return {
     [Caip25CaveatType]: caip25CaveatBuilder({
       listAccounts: () => {
@@ -291,14 +292,14 @@ export const getCaveatSpecifications = (messenger: RootMessenger) => {
           address: account.address as `0x${string}`,
         }));
       },
-      findNetworkClientIdByChainId: (chainId: string) =>
+      findNetworkClientIdByChainId: (chainId: Hex) =>
         messenger.call(
           'NetworkController:findNetworkClientIdByChainId',
           chainId,
         ),
-      isNonEvmScopeSupported: (scope: string) =>
+      isNonEvmScopeSupported: (scope: CaipChainId) =>
         messenger.call('MultichainRoutingService:isSupportedScope', scope),
-      getNonEvmAccountAddresses: (scope: string) =>
+      getNonEvmAccountAddresses: (scope: CaipChainId) =>
         messenger.call('MultichainRoutingService:getSupportedAccounts', scope),
     }),
     ...snapsCaveatsSpecifications,
@@ -427,7 +428,7 @@ export const unrestrictedMethods = Object.freeze([
  * @returns The mnemonic.
  */
 export async function getMnemonic(
-  messenger: RootMessenger<KeyringControllerWithKeyringAction, never>,
+  messenger: RootMessenger<KeyringControllerWithKeyringAction>,
   source?: string | undefined,
 ): Promise<Uint8Array> {
   if (!source) {
@@ -486,7 +487,7 @@ export async function getMnemonic(
  * @returns The mnemonic seed.
  */
 export async function getMnemonicSeed(
-  messenger: RootMessenger<KeyringControllerWithKeyringAction, never>,
+  messenger: RootMessenger<KeyringControllerWithKeyringAction>,
   source?: string | undefined,
 ): Promise<Uint8Array> {
   if (!source) {

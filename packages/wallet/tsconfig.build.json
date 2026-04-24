@@ -13,6 +13,9 @@
       "path": "../approval-controller/tsconfig.build.json"
     },
     {
+      "path": "../chain-agnostic-permission/tsconfig.build.json"
+    },
+    {
       "path": "../connectivity-controller/tsconfig.build.json"
     },
     {
@@ -44,6 +47,9 @@
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../storage-service/tsconfig.build.json"
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"

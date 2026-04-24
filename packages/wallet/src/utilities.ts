@@ -8,10 +8,12 @@ import type {
 import {
   CaipAccountId,
   CaipChainId,
+  Json,
   parseCaipAccountId,
 } from '@metamask/utils';
 
 import { Wallet } from './Wallet';
+import { ApprovalRequest } from '@metamask/approval-controller';
 
 /**
  * Import a secret recovery phrase using the wallet object.
@@ -115,10 +117,10 @@ export async function signSolanaTransaction(
   );
 
   // TODO: Figure out a better way to do this.
-  const approval = await new Promise((resolve) => {
+  const approval = await new Promise<ApprovalRequest<Record<string, Json> | null>>((resolve) => {
     wallet.messenger.subscribe(
       'ApprovalController:stateChange',
-      (approvals) => {
+      (approvals: ApprovalRequest<Record<string, Json> | null>[]) => {
         if (approvals.length > 0) {
           resolve(approvals[0]);
         }
@@ -133,5 +135,7 @@ export async function signSolanaTransaction(
     true,
   );
 
-  return promise;
+  const result = await promise;
+
+  return result as { signedTransaction: string };
 }

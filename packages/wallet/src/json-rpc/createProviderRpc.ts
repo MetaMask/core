@@ -137,10 +137,8 @@ export function createRpcHooks(
     ),
     getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),
     trackError: (error) => {
-      // `captureException` imported from `@sentry/browser` does not seem to
-      // work in E2E tests. This is a workaround which works in both E2E
-      // tests and production.
-      return global.sentry?.captureException?.(error);
+      // TODO
+      return null;
     },
     /**
            trackEvent: this.metaMetricsController.trackEvent.bind(
@@ -168,20 +166,6 @@ export function createRpcHooks(
       'WebSocketService:sendMessage',
       origin,
     ),
-    getCurrencyRate: (currency) => {
-      const state = this._getMetaMaskState();
-      const fiatCurrency = getRatesControllerFiatCurrency(state);
-      const rate = getRatesControllerRates(state)[currency];
-
-      if (!rate) {
-        return undefined;
-      }
-
-      return {
-        ...rate,
-        currency: fiatCurrency,
-      };
-    },
     getEntropySources: () => {
       const state = messenger.call('KeyringController:getState');
 
