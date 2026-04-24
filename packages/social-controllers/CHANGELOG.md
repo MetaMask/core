@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `positionId` field to `Position` type and `PositionStruct` validation schema ([#8576](https://github.com/MetaMask/core/pull/8576))
+
 ## [2.0.0]
 
 ### Changed
