@@ -81,6 +81,8 @@ import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalance
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
+import { AssetsDataSourceError } from './errors';
+import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import {
   createParallelBalanceMiddleware,
@@ -354,6 +356,13 @@ export type AssetsControllerOptions = {
    * Use this to report first init fetch duration to Sentry (e.g. via addBreadcrumb or setMeasurement).
    */
   trace?: TraceCallback;
+  /**
+   * Optional Sentry (or compatible) reporter for **issue** events. When data source middlewares
+   * fail, the controller constructs an `AssetsDataSourceError` and passes it here so you can call
+   * `Sentry.captureException`. Span-only trace callbacks do not create Issues;
+   * wire this if you need Sentry alerts on middleware failures.
+   */
+  captureException?: (error: Error) => void;
   /** Optional configuration for AccountsApiDataSource. */
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
   /** Optional configuration for PriceDataSource. */
@@ -533,6 +542,9 @@ export class AssetsController extends BaseController<
   /** Optional trace callback for first init/fetch measurement (duration). */
   readonly #trace?: TraceCallback;
 
+  /** Optional reporter for Issue-style errors (e.g. Sentry.captureException). */
+  readonly #captureException?: (error: Error) => void;
+
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
 
@@ -697,6 +709,8 @@ export class AssetsController extends BaseController<
 
   readonly #detectionMiddleware: DetectionMiddleware;
 
+  readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
+
   readonly #tokenDataSource: TokenDataSource;
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
@@ -717,6 +731,7 @@ export class AssetsController extends BaseController<
     queryApiClient,
     rpcDataSourceConfig,
     trace,
+    captureException,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
@@ -736,6 +751,7 @@ export class AssetsController extends BaseController<
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
+    this.#captureException = captureException;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     this.#onActiveChainsUpdated = (
@@ -791,8 +807,23 @@ export class AssetsController extends BaseController<
       queryApiClient,
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
+      simulateMiddlewareFailure:
+        priceDataSourceConfig?.simulateMiddlewareFailure ?? true,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
+    this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
+      {
+        getSelectedAccountId: (): AccountId | undefined => {
+          try {
+            return this.#getSelectedAccounts()[0]?.id;
+          } catch {
+            return undefined;
+          }
+        },
+        removeCustomAsset: (accountId, assetId): void =>
+          this.removeCustomAsset(accountId, assetId),
+      },
+    );
 
     if (!this.#isEnabled) {
       log('AssetsController is disabled, skipping initialization');
@@ -1212,13 +1243,32 @@ export class AssetsController extends BaseController<
       });
     }
 
-    // Emit error traces for failed middlewares
+    // Failed middlewares: Issues (optional) + perf/Dashboard spans
     if (middlewareErrors.length > 0) {
-      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
-        failed_sources: middlewareErrors.join(','),
-        error_count: middlewareErrors.length,
-        chain_count: request.chainIds.length,
+      const failedSources = middlewareErrors.join(',');
+      const assetsError = new AssetsDataSourceError({
+        failedSources,
+        errorCount: middlewareErrors.length,
+        chainCount: request.chainIds.length,
       });
+      try {
+        this.#captureException?.(assetsError);
+      } catch {
+        // Never let telemetry throw.
+      }
+      this.#emitTrace(
+        TRACE_DATA_SOURCE_ERROR,
+        {
+          failed_sources: failedSources,
+          error_count: middlewareErrors.length,
+          chain_count: request.chainIds.length,
+        },
+        {
+          controller: 'AssetsController',
+          severity: 'error',
+          error_type: assetsError.name,
+        },
+      );
     }
 
     return { response: result.response, durationByDataSource };
@@ -1278,6 +1328,7 @@ export class AssetsController extends BaseController<
               this.#accountsApiDataSource,
               this.#stakedBalanceDataSource,
             ]),
+            this.#customAssetGraduationMiddleware,
             this.#detectionMiddleware,
             createParallelMiddleware([
               this.#tokenDataSource,
@@ -2678,7 +2729,19 @@ export class AssetsController extends BaseController<
           ),
         };
 
-    const enrichmentSources: AssetsDataSource[] = [this.#detectionMiddleware];
+    // Graduate custom assets only when AccountsAPI / Websocket reports them.
+    // RPC already fetches custom assets on purpose, and Snap handles non-EVM
+    // chains the rule does not apply to, so skip the middleware for those.
+    const shouldGraduateCustomAssets =
+      sourceId === 'AccountsApiDataSource' ||
+      sourceId === 'BackendWebsocketDataSource';
+
+    const enrichmentSources: AssetsDataSource[] = [
+      ...(shouldGraduateCustomAssets
+        ? [this.#customAssetGraduationMiddleware]
+        : []),
+      this.#detectionMiddleware,
+    ];
     if (this.#isBasicFunctionality()) {
       enrichmentSources.push(
         createParallelMiddleware([
