@@ -133,6 +133,7 @@ export type TraderProfileResponse = {
 // ---------------------------------------------------------------------------
 
 export type Position = {
+  positionId: string;
   tokenSymbol: string;
   tokenName: string;
   tokenAddress: string;
