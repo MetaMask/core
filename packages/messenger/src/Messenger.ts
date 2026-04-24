@@ -745,7 +745,7 @@ export class Messenger<
     },
   ): void {
     const { selector, condition } = options ?? {};
-    // Casting to unknown to handle both the code path where a selector is defined where it is omitted.
+    // Casting to unknown to handle both the code path where a selector is defined and where it is omitted.
     const internalHandler = (...args: unknown[]): void => {
       if (
         condition &&
