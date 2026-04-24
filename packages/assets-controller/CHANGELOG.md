@@ -7,9 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+
+### Added
+
+- Add newly supported chains to multicall contract support in `MulticallClient` ([#8346](https://github.com/MetaMask/core/pull/8346))
+  - Tempo Mainnet (`4217`/`0x1079`)
+  - Tempo Testnet Moderato (`42431`/`0xa5bf`)
+  - Ink Mainnet (`57073`/`0xdef1`)
+  - Stable mainnet (`988`/`0x3dc`)
+
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.3.0` ([#8509](https://github.com/MetaMask/core/pull/8509), [#8544](https://github.com/MetaMask/core/pull/8544), [#8559](https://github.com/MetaMask/core/pull/8559))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^10.1.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-snap-client` from `^8.2.0` to `^9.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/transaction-controller` from `^64.2.0` to `^64.3.0` ([#8482](https://github.com/MetaMask/core/pull/8482))
+
+### Fixed
+
+- Native asset detection now correctly identifies native assets across all CAIP-19 representations, not just `slip44:` namespace checks ([#8483](https://github.com/MetaMask/core/pull/8483))
+  - Previously, native assets represented as ERC-20 tokens were not recognized as native, causing incorrect token type classification.
+- Exempt mUSD token from EVM ERC-20 minimum-occurrence spam filter so it is no longer incorrectly hidden ([#8541](https://github.com/MetaMask/core/pull/8541))
 
 ## [6.0.0]
 
@@ -333,7 +353,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.0.0...@metamask/assets-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...@metamask/assets-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.0...@metamask/assets-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@4.0.0...@metamask/assets-controller@5.0.0

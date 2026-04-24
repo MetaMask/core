@@ -1,14 +1,18 @@
 import {
   StatusTypes,
   isCrossChain,
+  isNonEvmChainId,
   isTronChainId,
 } from '@metamask/bridge-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type {
   BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
 } from '../types';
+import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
 
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
@@ -34,6 +38,57 @@ export const rekeyHistoryItemInState = (
   };
   delete state.txHistory[actionId];
   return true;
+};
+
+/**
+ * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
+ *
+ * @param txHistory - The transaction history
+ * @param txMeta - The transaction meta
+ * @returns The history entry that matches the txMeta
+ */
+export const getMatchingHistoryEntryForTxMeta = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txMeta: TransactionMeta,
+): [string, BridgeHistoryItem] | undefined => {
+  const historyEntries = Object.entries(txHistory);
+
+  return historyEntries.find(([key, value]) => {
+    const {
+      txMetaId,
+      actionId,
+      batchId,
+      status: {
+        srcChain: { txHash },
+      },
+    } = value;
+    return (
+      key === txMeta.id ||
+      key === txMeta.actionId ||
+      txMetaId === txMeta.id ||
+      (actionId ? actionId === txMeta.actionId : false) ||
+      (batchId ? batchId === txMeta.batchId : false) ||
+      (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
+    );
+  });
+};
+
+/**
+ * Returns the history entry whose approvalTxId matches the approval transaction
+ *
+ * @param txHistory - The transaction history
+ * @param txMeta - The transaction meta
+ * @returns The history entry that matches the txMeta
+ */
+export const getMatchingHistoryEntryForApprovalTxMeta = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txMeta: TransactionMeta,
+): [string, BridgeHistoryItem] | undefined => {
+  const historyEntries = Object.entries(txHistory);
+
+  return historyEntries.find(([_, value]) =>
+    value.approvalTxId ? value.approvalTxId === txMeta.id : false,
+  );
 };
 
 /**
@@ -119,7 +174,12 @@ export const getInitialHistoryItem = (
       status: StatusTypes.PENDING,
       srcChain: {
         chainId: quoteResponse.quote.srcChainId,
-        txHash: bridgeTxMeta?.hash,
+        // We don't set the initial tx hash for STX transactions because they return a hash on submission
+        // but it is not finalized until confirmation on chain
+        txHash:
+          isNonEvmChainId(quoteResponse.quote.srcChainId) || !isStxEnabled
+            ? bridgeTxMeta?.hash
+            : undefined,
       },
     },
     hasApprovalTx: Boolean(quoteResponse.approval),
@@ -145,4 +205,13 @@ export const shouldPollHistoryItem = (
   const isTronTx = isTronChainId(historyItem.quote.srcChainId);
 
   return [isBridgeTx, isIntent, isTronTx].some(Boolean);
+};
+
+export const isHistoryItemTooOld = (
+  messenger: BridgeStatusControllerMessenger,
+  historyItem: BridgeHistoryItem,
+): boolean => {
+  const maxPendingHistoryItemAgeMs = getMaxPendingHistoryItemAgeMs(messenger);
+
+  return Date.now() - historyItem.startTime > maxPendingHistoryItemAgeMs;
 };

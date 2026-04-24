@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `withController` action to run atomic operations on multiple keyrings (within a single transaction) ([#8416](https://github.com/MetaMask/core/pull/8416))
+  - This action uses a `RestrictedController` object that exposes `addNewKeyring` and `removeKeyring` methods to add and remove keyring during the transaction (atomic) call.
 - Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
 - Persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
   - If a keyring's serialized state differs after deserialization (e.g. a migration ran, or metadata was missing), the vault is now re-persisted so the change is not lost on the next unlock.
@@ -27,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/eth-hd-keyring` from `^13.1.1` to `^14.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/eth-simple-keyring` from `^11.1.2` to `^12.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^10.1.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 
 ## [25.2.0]
 

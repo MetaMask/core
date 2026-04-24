@@ -102,8 +102,7 @@ async function executeSingleQuote(
   );
 
   if (quote.request.isHyperliquidSource) {
-    const from = transaction.txParams.from as Hex;
-    await submitHyperliquidWithdraw(quote, from, messenger);
+    await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else {
     await submitTransactions(quote, transaction, messenger);
   }
@@ -400,14 +399,24 @@ async function submitViaRelayExecute(
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
+    networkClientId,
     nestedTransactions: allParams.map((params) => ({
       data: (params.data ?? '0x') as Hex,
       to: params.to as Hex,
       value: (params.value ?? '0x0') as Hex,
     })),
+    txParams: {
+      ...transaction.txParams,
+      from,
+    },
   } as TransactionMeta;
 
   const delegation = await messenger.call(

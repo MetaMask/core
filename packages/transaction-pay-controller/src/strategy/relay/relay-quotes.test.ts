@@ -1779,6 +1779,36 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
+    it('uses amountFormatted for subsidized fee when fee token is a stablecoin', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000',
+        amountFormatted: '0.50',
+        amountUsd: '0.49',
+        currency: {
+          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Hex,
+          chainId: 1,
+          decimals: 6,
+        },
+        minimumAmount: '500000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '0',
+        fiat: '0',
+      });
+    });
+
     it('includes dust in quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
@@ -2402,7 +2432,7 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
-    it('adds subsidized fee to target amount fiat values when trade type is EXACT_INPUT', async () => {
+    it('does not add subsidized fee to target amount', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
       quoteMock.fees.subsidized = {
         amount: '500000000000000',
@@ -2423,66 +2453,6 @@ describe('Relay Quotes Utils', () => {
       const result = await getRelayQuotes({
         messenger,
         requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result[0].targetAmount).toStrictEqual({
-        usd: '1.73',
-        fiat: '3.46',
-      });
-    });
-
-    it('uses amountFormatted for subsidized fee when fee token is a stablecoin', async () => {
-      const quoteMock = cloneDeep(QUOTE_MOCK);
-      quoteMock.fees.subsidized = {
-        amount: '500000',
-        amountFormatted: '0.50',
-        amountUsd: '0.49',
-        currency: {
-          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Hex,
-          chainId: 1,
-          decimals: 6,
-        },
-        minimumAmount: '500000',
-      };
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => quoteMock,
-      } as never);
-
-      const result = await getRelayQuotes({
-        messenger,
-        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result[0].targetAmount).toStrictEqual({
-        usd: '1.73',
-        fiat: '3.46',
-      });
-    });
-
-    it('does not add subsidized fee to target amount when trade type is not EXACT_INPUT', async () => {
-      const quoteMock = cloneDeep(QUOTE_MOCK);
-      quoteMock.fees.subsidized = {
-        amount: '500000000000000',
-        amountFormatted: '0.0005',
-        amountUsd: '0.50',
-        currency: {
-          address: '0xdef' as Hex,
-          chainId: 1,
-          decimals: 18,
-        },
-        minimumAmount: '500000000000000',
-      };
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => quoteMock,
-      } as never);
-
-      const result = await getRelayQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
       });
 

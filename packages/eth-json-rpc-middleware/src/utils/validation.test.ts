@@ -8,6 +8,7 @@ import {
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
+  validateTypedMessageKeys,
 } from './validation';
 
 jest.mock('@metamask/superstruct', () => ({
@@ -123,6 +124,41 @@ describe('Validation Utils', () => {
         test1 > test2 - test message
         test3 - test message 2"
       `);
+    });
+  });
+
+  describe('validateTypedMessageKeys', () => {
+    it('does not throw for data with only schema-defined keys', () => {
+      const data = JSON.stringify({
+        types: {
+          EIP712Domain: [{ name: 'name', type: 'string' }],
+        },
+      });
+
+      expect(() => validateTypedMessageKeys(data)).not.toThrow();
+    });
+
+    it('throws for data with extraneous keys', () => {
+      const data = JSON.stringify({
+        types: {
+          EIP712Domain: [{ name: 'name', type: 'string' }],
+        },
+        primaryType: 'EIP712Domain',
+        domain: {},
+        message: {},
+        extraKey: 'unexpected',
+      });
+
+      expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+    });
+
+    it('throws when data contains only extraneous keys', () => {
+      const data = JSON.stringify({
+        foo: 'bar',
+        baz: 123,
+      });
+
+      expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
     });
   });
 });

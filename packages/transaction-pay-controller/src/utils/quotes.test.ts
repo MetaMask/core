@@ -931,6 +931,51 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('uses accountOverride as from for post-quote flow', async () => {
+      const accountOverride =
+        '0xrecipient0000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          accountOverride,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              from: accountOverride,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('uses accountOverride as from for non-post-quote flow', async () => {
+      const accountOverride =
+        '0xdelegator0000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          accountOverride,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              from: accountOverride,
+            }),
+          ],
+        }),
+      );
+    });
+
     it('passes isHyperliquidSource through to post-quote request', async () => {
       await run({
         transactionData: {

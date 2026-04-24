@@ -1,109 +1,112 @@
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  JsonRpcEngine,
-  JsonRpcMiddleware,
   AsyncJsonRpcEngineNextCallback,
+  JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware as JsonRpcMiddlewareV2 } from '@metamask/json-rpc-engine/v2';
+import type { Messenger } from '@metamask/messenger';
 import type {
   Json,
-  PendingJsonRpcResponse,
   JsonRpcRequest,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import type { RestrictedMethodParameters } from './Permission';
 import type {
-  GenericPermissionController,
-  PermissionSubjectMetadata,
-  RestrictedMethod,
-  RestrictedMethodParameters,
-} from '.';
-import { internalError } from './errors';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
+  PermissionControllerExecuteRestrictedMethodAction,
+  PermissionControllerHasUnrestrictedMethodAction,
+} from './PermissionController-method-action-types';
 
-type ExecuteRestrictedMethod = (
-  methodImplementation: RestrictedMethod<RestrictedMethodParameters, Json>,
-  subject: PermissionSubjectMetadata,
-  method: string,
-  params?: RestrictedMethodParameters,
-) => ReturnType<RestrictedMethod<RestrictedMethodParameters, Json>>;
+/**
+ * The set of messenger actions required by the permission middleware.
+ */
+export type PermissionMiddlewareActions =
+  | PermissionControllerExecuteRestrictedMethodAction
+  | PermissionControllerHasUnrestrictedMethodAction;
 
-type PermissionMiddlewareFactoryOptions = {
-  executeRestrictedMethod: ExecuteRestrictedMethod;
-  getRestrictedMethod: GenericPermissionController['getRestrictedMethod'];
-  isUnrestrictedMethod: (method: string) => boolean;
+export type CreatePermissionMiddlewareOptions = {
+  messenger: Messenger<string, PermissionMiddlewareActions>;
+  origin: string;
 };
 
 /**
- * Creates a permission middleware function factory. Intended for internal use
- * in the {@link PermissionController}. Like any {@link JsonRpcEngine}
- * middleware, each middleware will only receive requests from a particular
- * subject / origin. However, each middleware also requires access to some
- * `PermissionController` internals, which is why this "factory factory" exists.
+ * Creates a JSON-RPC middleware that enforces permissions for a single subject.
  *
- * The middlewares returned by the factory will pass through requests for
- * unrestricted methods, and attempt to execute restricted methods. If a method
- * is neither restricted nor unrestricted, a "method not found" error will be
- * returned.
- * If a method is restricted, the middleware will first attempt to retrieve the
- * subject's permission for that method. If the permission is found, the method
- * will be executed. Otherwise, an "unauthorized" error will be returned.
+ * The middleware passes through unrestricted methods, and otherwise dispatches
+ * restricted methods to the `PermissionController` via messenger actions. If
+ * the subject lacks the required permission, or if the method does not exist,
+ * the corresponding error is propagated to the JSON-RPC response.
  *
+ * @deprecated Use {@link createPermissionMiddlewareV2} with `JsonRpcEngineV2`.
  * @param options - Options bag.
- * @param options.executeRestrictedMethod - `PermissionController.executeRestrictedMethod`.
- * @param options.getRestrictedMethod - {@link PermissionController.getRestrictedMethod}.
- * @param options.isUnrestrictedMethod - A function that checks whether a
- * particular method is unrestricted.
- * @returns A permission middleware factory function.
+ * @param options.messenger - A messenger with the
+ * `PermissionController:executeRestrictedMethod` and
+ * `PermissionController:hasUnrestrictedMethod` actions.
+ * @param options.origin - The origin of the subject for which to create the middleware.
+ * @returns A `json-rpc-engine` middleware.
  */
-export function getPermissionMiddlewareFactory({
-  executeRestrictedMethod,
-  getRestrictedMethod,
-  isUnrestrictedMethod,
-}: PermissionMiddlewareFactoryOptions) {
-  return function createPermissionMiddleware(
-    subject: PermissionSubjectMetadata,
-  ): JsonRpcMiddleware<RestrictedMethodParameters, Json> {
-    const { origin } = subject;
-    if (typeof origin !== 'string' || !origin) {
-      throw new Error('The subject "origin" must be a non-empty string.');
+export function createPermissionMiddleware({
+  messenger,
+  origin,
+}: CreatePermissionMiddlewareOptions): JsonRpcMiddleware<
+  RestrictedMethodParameters,
+  Json
+> {
+  const permissionsMiddleware = async (
+    request: JsonRpcRequest<RestrictedMethodParameters>,
+    response: PendingJsonRpcResponse,
+    next: AsyncJsonRpcEngineNextCallback,
+  ): Promise<void> => {
+    const { method, params } = request;
+
+    if (messenger.call('PermissionController:hasUnrestrictedMethod', method)) {
+      return next();
     }
 
-    const permissionsMiddleware = async (
-      req: JsonRpcRequest<RestrictedMethodParameters>,
-      res: PendingJsonRpcResponse,
-      next: AsyncJsonRpcEngineNextCallback,
-    ): Promise<void> => {
-      const { method, params } = req;
+    response.result = await messenger.call(
+      'PermissionController:executeRestrictedMethod',
+      origin,
+      method,
+      params,
+    );
+    return undefined;
+  };
 
-      // Skip registered unrestricted methods.
-      if (isUnrestrictedMethod(method)) {
-        return next();
-      }
+  return createAsyncMiddleware(permissionsMiddleware);
+}
 
-      // This will throw if no restricted method implementation is found.
-      const methodImplementation = getRestrictedMethod(method, origin);
+/**
+ * Creates a `JsonRpcEngineV2` middleware that enforces permissions for a
+ * single subject.
+ *
+ * The middleware passes through unrestricted methods, and otherwise dispatches
+ * restricted methods to the `PermissionController` via messenger actions. If
+ * the subject lacks the required permission, or if the method does not exist,
+ * the corresponding error is thrown.
+ *
+ * @param options - Options bag.
+ * @param options.messenger - A messenger with the
+ * `PermissionController:executeRestrictedMethod` and
+ * `PermissionController:hasUnrestrictedMethod` actions.
+ * @param options.origin - The origin of the subject for which to create the middleware.
+ * @returns A `JsonRpcEngineV2` middleware.
+ */
+export function createPermissionMiddlewareV2({
+  messenger,
+  origin,
+}: CreatePermissionMiddlewareOptions): JsonRpcMiddlewareV2 {
+  return async ({ request, next }) => {
+    const { method, params } = request;
 
-      // This will throw if the permission does not exist.
-      const result = await executeRestrictedMethod(
-        methodImplementation,
-        subject,
-        method,
-        params,
-      );
+    if (messenger.call('PermissionController:hasUnrestrictedMethod', method)) {
+      return next();
+    }
 
-      if (result === undefined) {
-        res.error = internalError(
-          `Request for method "${req.method}" returned undefined result.`,
-          { request: req },
-        );
-        return undefined;
-      }
-
-      res.result = result;
-      return undefined;
-    };
-
-    return createAsyncMiddleware(permissionsMiddleware);
+    return messenger.call(
+      'PermissionController:executeRestrictedMethod',
+      origin,
+      method,
+      params,
+    );
   };
 }

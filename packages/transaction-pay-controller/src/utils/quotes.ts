@@ -68,6 +68,7 @@ export async function updateQuotes(
   log('Updating quotes', { transactionId });
 
   const {
+    accountOverride,
     isMaxAmount,
     isPostQuote,
     isHyperliquidSource,
@@ -77,7 +78,7 @@ export async function updateQuotes(
     tokens,
   } = transactionData;
 
-  const from = transaction.txParams.from as Hex;
+  const from = accountOverride ?? (transaction.txParams.from as Hex);
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;

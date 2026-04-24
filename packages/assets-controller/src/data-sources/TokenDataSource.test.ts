@@ -464,6 +464,7 @@ describe('TokenDataSource', () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
       assetsResponse: [
         createMockAssetResponse(MOCK_NATIVE_ASSET, {
           name: 'Ethereum',
@@ -777,6 +778,39 @@ describe('TokenDataSource', () => {
     expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
       spamAsset,
     );
+  });
+
+  it.each([
+    { occurrences: 1, label: 'low occurrences' },
+    { occurrences: undefined, label: 'no occurrences' },
+  ])('middleware keeps MUSD token despite $label', async ({ occurrences }) => {
+    const musdAsset =
+      'eip155:1/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(musdAsset, {
+          name: 'mUSD',
+          symbol: 'MUSD',
+          occurrences,
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [musdAsset],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[musdAsset]).toBeDefined();
   });
 
   it('middleware filters out erc20 assets with missing occurrences', async () => {
