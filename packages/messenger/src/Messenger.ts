@@ -674,33 +674,122 @@ export class Messenger<
     subscribers.set(handler, metadata);
   }
 
+  /**
+   * Subscribe to an event, invoking the handler exactly once.
+   *
+   * Registers the given function as an event handler for the given event type
+   * and automatically unsubscribes after the first invocation.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event handler must
+   * match the type of the payload for this event type.
+   * @template EventType - A type union of Event type strings.
+   */
+  subscribeOnce<EventType extends Event['type']>(
+    eventType: EventType,
+    handler: ExtractEventHandler<Event, EventType>,
+  ): void;
+
+  /**
+   * Subscribe to an event, with a selector, invoking the handler exactly once.
+   *
+   * Registers the given handler function as an event handler for the given
+   * event type. When an event is published, its payload is first passed to the
+   * selector. The event handler is only called if the selector's return value
+   * differs from its last known return value. Additionally if the optional condition
+   * function is provided, it is checked whether it returns `true`. 
+   * The handler is invoked at most once, after which the subscription is removed.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event
+   * handler must match the return type of the selector.
+   * @param selector - The selector function used to select relevant data from
+   * the event payload. The type of the parameters for this selector must match
+   * the type of the payload for this event type.
+   * @param condition - An optional predicate evaluated against the selector's return
+   * value. The handler is only invoked when this returns `true`.
+   * @template EventType - A type union of Event type strings.
+   * @template SelectorReturnValue - The selector return value.
+   */
+  subscribeOnce<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    handler: SelectorEventHandler<SelectorReturnValue>,
+    selector: SelectorFunction<Event, EventType, SelectorReturnValue>,
+    condition?: (value: SelectorReturnValue) => boolean,
+  ): void;
+
   subscribeOnce<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
     handler:
       | ExtractEventHandler<Event, EventType>
       | SelectorEventHandler<SelectorReturnValue>,
     selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
-    condition?: any,
+    condition?: (value: SelectorReturnValue) => boolean,
   ): void {
-    const internalHandler = (value) => {
+    // Casting to selector specific types though this handles non-selector code paths as well.
+    const internalHandler: SelectorEventHandler<SelectorReturnValue> = (
+      value,
+      previousValue,
+    ) => {
       if (condition && !condition(value)) {
         return;
       }
-
-      handler(value);
+      (handler as SelectorEventHandler<SelectorReturnValue>)(
+        value,
+        previousValue,
+      );
       this.unsubscribe(eventType, internalHandler);
     };
 
-    this.subscribe(eventType, internalHandler, selector);
+    this.subscribe(
+      eventType,
+      internalHandler,
+      selector as SelectorFunction<Event, EventType, SelectorReturnValue>,
+    );
   }
+
+  /**
+   * Return a promise that resolves the next time the given event is published.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @template EventType - A type union of Event type strings.
+   * @returns A promise that resolves with the event payload's first argument.
+   */
+  waitUntil<EventType extends Event['type']>(
+    eventType: EventType,
+  ): Promise<ExtractEventPayload<Event, EventType>[0]>;
+
+  /**
+   * Return a promise that resolves the next time the selector's return value
+   * changes and, if provided, the condition function returns `true`.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param selector - The selector function used to select relevant data from
+   * the event payload.
+   * @param condition - An optional function which is executed with the selector's return
+   * value. The promise only resolves when this returns `true`.
+   * @template EventType - A type union of Event type strings.
+   * @template SelectorReturnValue - The selector return value.
+   * @returns A promise that resolves with the selector's return value.
+   */
+  waitUntil<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    selector: SelectorFunction<Event, EventType, SelectorReturnValue>,
+    condition?: (value: SelectorReturnValue) => boolean,
+  ): Promise<SelectorReturnValue>;
 
   waitUntil<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
     selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
-    condition?: any,
-  ): Promise<void> {
+    condition?: (value: SelectorReturnValue) => boolean,
+  ): Promise<SelectorReturnValue | ExtractEventPayload<Event, EventType>[0]> {
     return new Promise((resolve) => {
-      this.subscribeOnce(eventType, resolve, selector, condition);
+      this.subscribeOnce(
+        eventType,
+        resolve as SelectorEventHandler<SelectorReturnValue>,
+        selector as SelectorFunction<Event, EventType, SelectorReturnValue>,
+        condition,
+      );
     });
   }
 

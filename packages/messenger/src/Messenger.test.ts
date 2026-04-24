@@ -1052,8 +1052,8 @@ describe('Messenger', () => {
       messenger.publish('Fixture:message', 'foo');
       messenger.publish('Fixture:message', 'bar');
 
-      expect(handler).toHaveBeenCalledWith('foo');
-      expect(handler).not.toHaveBeenCalledWith('bar');
+      expect(handler).toHaveBeenCalledWith('foo', undefined);
+      expect(handler).not.toHaveBeenCalledWith('bar', 'foo');
       expect(handler.mock.calls).toHaveLength(1);
     });
 
@@ -1072,8 +1072,8 @@ describe('Messenger', () => {
       messenger.publish('Fixture:message', { value: 'foo' });
       messenger.publish('Fixture:message', { value: 'bar' });
 
-      expect(handler).toHaveBeenCalledWith('foo');
-      expect(handler).not.toHaveBeenCalledWith('bar');
+      expect(handler).toHaveBeenCalledWith('foo', undefined);
+      expect(handler).not.toHaveBeenCalledWith('bar', 'foo');
       expect(handler.mock.calls).toHaveLength(1);
     });
 
@@ -1098,7 +1098,7 @@ describe('Messenger', () => {
       messenger.publish('Fixture:message', { value: 'bar' });
 
       expect(handler).not.toHaveBeenCalledWith('foo');
-      expect(handler).toHaveBeenCalledWith('bar');
+      expect(handler).toHaveBeenCalledWith('bar', 'foo');
       expect(handler.mock.calls).toHaveLength(1);
     });
   });
