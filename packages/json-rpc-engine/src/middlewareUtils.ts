@@ -1,3 +1,5 @@
+import type { ActionConstraint } from '@metamask/messenger';
+import { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
 
 /**
@@ -60,4 +62,42 @@ export function assertExpectedHooks(
       `Received unexpected hooks:\n\n${extraneousHookNames.join('\n')}\n`,
     );
   }
+}
+
+/**
+ * Creates a per-handler messenger namespaced to `namespace`, and delegates the
+ * specified `actionNames` from `rootMessenger` to it. This lets each handler
+ * call only the actions it declared, per POLA.
+ *
+ * @param options - The options.
+ * @param options.namespace - The namespace for the handler messenger.
+ * @param options.actionNames - Actions to delegate from the root messenger.
+ * @param options.rootMessenger - The root messenger to delegate from.
+ * @returns The per-handler messenger.
+ */
+export function createHandlerMessenger<Actions extends ActionConstraint>({
+  namespace,
+  actionNames,
+  rootMessenger,
+}: {
+  namespace: string;
+  actionNames: readonly Actions['type'][] | undefined;
+  rootMessenger: Messenger<string, Actions>;
+}): Messenger<string, Actions> {
+  const handlerMessenger = new Messenger<
+    string,
+    Actions,
+    never,
+    typeof rootMessenger
+  >({
+    namespace,
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: (actionNames ?? []) as Actions['type'][],
+    messenger: handlerMessenger,
+  });
+
+  return handlerMessenger;
 }

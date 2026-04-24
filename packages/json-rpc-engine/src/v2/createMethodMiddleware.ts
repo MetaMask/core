@@ -1,6 +1,10 @@
 import { ActionConstraint, Messenger } from '@metamask/messenger';
 
-import { assertExpectedHooks, selectHooks } from '../hookUtils';
+import {
+  assertExpectedHooks,
+  createHandlerMessenger,
+  selectHooks,
+} from '../middlewareUtils';
 import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
 import { ContextConstraint } from './MiddlewareContext';
 import {
@@ -106,21 +110,14 @@ export function createMethodMiddleware<
     Record<string, ResolvedHandler>
   >((accumulator, [handlerName, handler]) => {
     const handlerHooks = selectHooks(allHooks, handler.hookNames) ?? {};
-    const handlerMessenger = new Messenger<
-      string,
-      HandlerActions<Handlers[keyof Handlers]>,
-      never,
-      typeof rootMessenger
+    const handlerMessenger = createHandlerMessenger<
+      HandlerActions<Handlers[keyof Handlers]>
     >({
       namespace: handlerName,
-      parent: rootMessenger,
-    });
-
-    rootMessenger.delegate({
-      actions: (handler.actionNames ?? []) as HandlerActions<
-        Handlers[keyof Handlers]
-      >['type'][],
-      messenger: handlerMessenger,
+      actionNames: handler.actionNames as
+        | readonly HandlerActions<Handlers[keyof Handlers]>['type'][]
+        | undefined,
+      rootMessenger,
     });
 
     accumulator[handlerName] = {
