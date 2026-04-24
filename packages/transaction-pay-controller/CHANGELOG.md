@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fall back from Across to later pay strategies when Across quotes would require a first-time EIP-7702 authorization list ([#8577](https://github.com/MetaMask/core/pull/8577))
+- Fall back to later pay strategies when an earlier quote requires origin native gas that the account cannot pay ([#8581](https://github.com/MetaMask/core/pull/8581))
 
 ## [19.3.0]
 

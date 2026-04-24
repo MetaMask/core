@@ -17,6 +17,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
+import { checkQuoteUsability } from './quote-usability';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -517,6 +518,8 @@ async function getQuotes(
 
   for (const { name, strategy } of strategies) {
     try {
+      log('Trying quote strategy', { strategy: name, transactionId });
+
       const support = await checkStrategySupport(strategy, request);
 
       if (!support) {
@@ -550,6 +553,17 @@ async function getQuotes(
         continue;
       }
 
+      const quoteUsability = checkQuoteUsability({ messenger, quotes });
+
+      if (!quoteUsability.usable) {
+        log('Strategy quote unusable', {
+          reason: quoteUsability.reason,
+          strategy: name,
+          transactionId,
+        });
+        continue;
+      }
+
       log('Updated', { transactionId, quotes });
 
       const batchTransactions = strategy.getBatchTransactions
@@ -560,6 +574,7 @@ async function getQuotes(
         : [];
 
       log('Batch transactions', { transactionId, batchTransactions });
+      log('Using quote strategy', { strategy: name, transactionId });
 
       return {
         batchTransactions,

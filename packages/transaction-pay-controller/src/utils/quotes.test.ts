@@ -22,7 +22,12 @@ import {
   getStrategiesByName,
   getStrategyByName,
 } from './strategy';
-import { getLiveTokenBalance, getTokenFiatRate } from './token';
+import {
+  getNativeToken,
+  getLiveTokenBalance,
+  getTokenBalance,
+  getTokenFiatRate,
+} from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 
@@ -33,6 +38,13 @@ jest.mock('./token', () => ({
   ...jest.createMockFromModule<typeof import('./token')>('./token'),
   computeTokenAmounts:
     jest.requireActual<typeof import('./token')>('./token').computeTokenAmounts,
+  getNativeToken:
+    jest.requireActual<typeof import('./token')>('./token').getNativeToken,
+  normalizeTokenAddress:
+    jest.requireActual<typeof import('./token')>('./token')
+      .normalizeTokenAddress,
+  TokenAddressTarget:
+    jest.requireActual<typeof import('./token')>('./token').TokenAddressTarget,
 }));
 
 jest.useFakeTimers();
@@ -70,7 +82,57 @@ const QUOTE_MOCK = {
     usd: '1.23',
     fiat: '2.34',
   },
+  estimatedDuration: 1,
+  fees: {
+    metaMask: {
+      fiat: '0',
+      usd: '0',
+    },
+    provider: {
+      fiat: '0',
+      usd: '0',
+    },
+    sourceNetwork: {
+      estimate: {
+        fiat: '0',
+        human: '0',
+        raw: '0',
+        usd: '0',
+      },
+      max: {
+        fiat: '0',
+        human: '0',
+        raw: '0',
+        usd: '0',
+      },
+    },
+    targetNetwork: {
+      fiat: '0',
+      usd: '0',
+    },
+  },
+  original: {},
+  request: {
+    from: TRANSACTION_META_MOCK.txParams.from,
+    sourceBalanceRaw: '5000000',
+    sourceChainId: '0x123' as Hex,
+    sourceTokenAddress: '0x123' as Hex,
+    sourceTokenAmount: '1000000',
+    targetAmountMinimum: '1000000',
+    targetChainId: '0x456' as Hex,
+    targetTokenAddress: '0x456' as Hex,
+  },
+  sourceAmount: {
+    fiat: '0',
+    human: '1',
+    raw: '1000000',
+    usd: '0',
+  },
   strategy: TransactionPayStrategy.Test,
+  targetAmount: {
+    fiat: '0',
+    usd: '0',
+  },
 } as TransactionPayQuote<Json>;
 
 const TOTALS_MOCK = {
@@ -111,6 +173,7 @@ describe('Quotes Utils', () => {
   const updateTransactionMock = jest.mocked(updateTransaction);
   const calculateTotalsMock = jest.mocked(calculateTotals);
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
+  const getTokenBalanceMock = jest.mocked(getTokenBalance);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getStrategiesMock = jest.fn();
   const getQuotesMock = jest.fn();
@@ -179,6 +242,7 @@ describe('Quotes Utils', () => {
     calculateTotalsMock.mockReturnValue(TOTALS_MOCK);
 
     getLiveTokenBalanceMock.mockResolvedValue('5000000');
+    getTokenBalanceMock.mockReturnValue('1000000000000000000');
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '1.0',
       fiatRate: '0.85',
@@ -436,6 +500,146 @@ describe('Quotes Utils', () => {
       });
       expect(unsupportedStrategy.getBatchTransactions).not.toHaveBeenCalled();
       expect(supportedStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('falls back to next strategy when quote requires origin gas the account cannot pay', async () => {
+      const acrossQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          sourceNetwork: {
+            ...QUOTE_MOCK.fees.sourceNetwork,
+            max: {
+              fiat: '0.01',
+              human: '0.01',
+              raw: '10000000000000000',
+              usd: '0.01',
+            },
+          },
+        },
+        strategy: TransactionPayStrategy.Across,
+      } as TransactionPayQuote<Json>;
+      const relayQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          isSourceGasFeeToken: true,
+        },
+        strategy: TransactionPayStrategy.Relay,
+      } as TransactionPayQuote<Json>;
+
+      const acrossStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        checkQuoteSupport: jest.fn().mockResolvedValue(true),
+        getQuotes: jest.fn().mockResolvedValue([acrossQuote]),
+        getBatchTransactions: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      const relayStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([relayQuote]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Across,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Across) {
+          return acrossStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return relayStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Record<string, unknown>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      expect(acrossStrategy.getQuotes).toHaveBeenCalled();
+      expect(acrossStrategy.getBatchTransactions).not.toHaveBeenCalled();
+      expect(relayStrategy.getQuotes).toHaveBeenCalled();
+      expect(transactionDataMock.quotes).toStrictEqual([relayQuote]);
+      expect(getTokenBalanceMock).toHaveBeenCalledWith(
+        messenger,
+        TRANSACTION_META_MOCK.txParams.from,
+        acrossQuote.request.sourceChainId,
+        getNativeToken(acrossQuote.request.sourceChainId),
+      );
+    });
+
+    it('uses first strategy when quote requires origin gas the account can pay', async () => {
+      const acrossQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          sourceNetwork: {
+            ...QUOTE_MOCK.fees.sourceNetwork,
+            max: {
+              fiat: '0.01',
+              human: '0.01',
+              raw: '10000000000000000',
+              usd: '0.01',
+            },
+          },
+        },
+        strategy: TransactionPayStrategy.Across,
+      } as TransactionPayQuote<Json>;
+
+      const acrossStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        checkQuoteSupport: jest.fn().mockResolvedValue(true),
+        getQuotes: jest.fn().mockResolvedValue([acrossQuote]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      const relayStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        execute: jest.fn(),
+      };
+
+      getTokenBalanceMock.mockReturnValue('10000000000000000');
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Across,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Across) {
+          return acrossStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return relayStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      const transactionDataMock: Record<string, unknown> = {};
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Record<string, unknown>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      expect(acrossStrategy.getQuotes).toHaveBeenCalled();
+      expect(relayStrategy.getQuotes).not.toHaveBeenCalled();
+      expect(transactionDataMock.quotes).toStrictEqual([acrossQuote]);
     });
 
     it('continues to next strategy if supports throws', async () => {
