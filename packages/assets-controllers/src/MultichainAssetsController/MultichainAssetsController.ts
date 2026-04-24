@@ -826,7 +826,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * Fail-closed Blockaid filter for newly detected `token:` assets (native/other namespaces unchanged).
+   * Fail-open Blockaid filter for newly detected `token:` assets (native/other namespaces unchanged).
    *
    * @param assets - CAIP assets to filter.
    * @returns Filtered list, original order preserved.
@@ -850,6 +850,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
       for (const outcome of batchOutcomes) {
         if (outcome.status === 'rejected') {
+          // Fail-open: if API fails, allow all tokens in this batch through
+          for (const entry of outcome.entries) {
+            keptTokenAssets.add(entry.asset);
+          }
           continue;
         }
         for (const entry of outcome.entries) {
