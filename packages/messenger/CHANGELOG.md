@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow overriding action handler in subclass ([#8617](https://github.com/MetaMask/core/pull/8617))
   - The `Messenger` class now has a protected `getAction` method which returns the action handler for a given action name.
+- Add `subscribeOnce` and `waitUntil` utility methods to `Messenger` ([#8575](https://github.com/MetaMask/core/pull/8575))
 
 ### Deprecated
 
