@@ -36,7 +36,8 @@ export type VerifiedRegistrationResponse =
  * W3C WebAuthn Level 3 §7.1.
  *
  * Performs the following checks in order:
- * 1. Credential ID presence and base64url consistency (`id === rawId`).
+ * 1. Credential ID presence and base64url consistency (`id === rawId`), and
+ *    that `id` matches the credential id inside parsed authenticator data.
  * 2. Credential type is `"public-key"`.
  * 3. `clientDataJSON` -- type is `"webauthn.create"`, challenge and origin
  *    match the expected values.
@@ -181,6 +182,14 @@ export async function verifyRegistrationResponse(opts: {
   if (!credentialID) {
     throw new Error('No credential ID was provided by authenticator');
   }
+
+  const attestedCredentialId = bytesToBase64URL(credentialID);
+  if (id !== attestedCredentialId) {
+    throw new Error(
+      'Credential id does not match the credential id in authenticator data',
+    );
+  }
+
   if (!credentialPublicKey) {
     throw new Error('No public key was provided by authenticator');
   }
@@ -238,7 +247,7 @@ export async function verifyRegistrationResponse(opts: {
   return {
     verified: true,
     registrationInfo: {
-      credentialId: bytesToBase64URL(credentialID),
+      credentialId: attestedCredentialId,
       publicKey: credentialPublicKey,
       counter,
       transports:

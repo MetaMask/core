@@ -237,7 +237,7 @@ describe('PasskeyController', () => {
         { alg: -7, type: 'public-key' },
         { alg: -257, type: 'public-key' },
       ]);
-      expect(options.attestation).toBe('direct');
+      expect(options.attestation).toBe('none');
       expect(options.timeout).toBe(WEBAUTHN_TIMEOUT_MS);
       expect(
         (options.extensions as Record<string, unknown>)?.prf,

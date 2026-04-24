@@ -242,7 +242,7 @@ export class PasskeyController extends BaseController<
         residentKey: 'preferred',
       },
       hints: ['client-device', 'hybrid'],
-      attestation: 'direct',
+      attestation: 'none',
       ...(Object.keys(extensions).length > 0 ? { extensions } : {}),
     };
 
@@ -361,6 +361,7 @@ export class PasskeyController extends BaseController<
       const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
         registrationResponse,
         registrationCeremony,
+        registrationInfo.credentialId,
       );
 
       // encrypt vault key

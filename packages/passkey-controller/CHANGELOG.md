@@ -16,4 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Thrown failures from `verifyRegistrationResponse` / `verifyAuthenticationResponse` are wrapped in `PasskeyControllerError` with `registration_verification_failed` / `authentication_verification_failed` and the underlying error as `cause` (aligned with the `verified: false` path).
 - Debug logging (via `@metamask/utils`) for registration/authentication verification failures, missing ceremony state, vault decrypt failures, and vault key mismatch during renewal.
 
+### Fixed
+
+- Registration verification requires the credential `id`/`rawId` to match the credential id in authenticator data; vault wrapping key derivation uses that verified credential id so enrollment keys align with the stored credential.
+- Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
+
 [Unreleased]: https://github.com/MetaMask/core/

@@ -49,8 +49,10 @@ const attestationFIDOU2F: PasskeyRegistrationResponse = {
 };
 
 const attestationPacked: PasskeyRegistrationResponse = {
-  id: 'bbb',
-  rawId: 'bbb',
+  id:
+    'AYThY1csINY4JrbHyGmqTl1nL_F1zjAF3hSAIngz8kAcjugmAMNVvxZRwqpEH-bNHHAIv291OX5ko9eDf_5mu3UB2BvsScr2K-ppM4owOpGsqwg5tZglqqmxIm1Q',
+  rawId:
+    'AYThY1csINY4JrbHyGmqTl1nL_F1zjAF3hSAIngz8kAcjugmAMNVvxZRwqpEH-bNHHAIv291OX5ko9eDf_5mu3UB2BvsScr2K-ppM4owOpGsqwg5tZglqqmxIm1Q',
   response: {
     attestationObject:
       'o2NmbXRmcGFja2VkZ2F0dFN0bXSiY2FsZyZjc2lnWEcwRQIhANvrPZMUFrl_rvlgR' +
@@ -70,8 +72,10 @@ const attestationPacked: PasskeyRegistrationResponse = {
 };
 
 const attestationPackedX5C: PasskeyRegistrationResponse = {
-  id: 'aaa',
-  rawId: 'aaa',
+  id:
+    '4rrvMciHCkdLQ2HghazIp1sMc8TmV8W8RgoX-x8tqV_1AmlqWACqUK8mBGLandr-htduQKPzgb2yWxOFV56Tlg',
+  rawId:
+    '4rrvMciHCkdLQ2HghazIp1sMc8TmV8W8RgoX-x8tqV_1AmlqWACqUK8mBGLandr-htduQKPzgb2yWxOFV56Tlg',
   response: {
     attestationObject:
       'o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEcwRQIhAIMt_hGMtdgpIVIwMOeKK' +
@@ -498,6 +502,36 @@ describe('verifyRegistrationResponse edge cases', () => {
     ).rejects.toThrow('User presence was required');
   });
 
+  it('rejects credential id not matching authenticator data', async () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    const credentialID = new Uint8Array(16).fill(0x30);
+    const aaguid = new Uint8Array(16).fill(0);
+    const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
+
+    const authData = buildAuthenticatorData({
+      rpIdHash,
+      flags: 0x41,
+      counter: 0,
+      aaguid,
+      credentialID,
+      credentialPublicKey: cosePublicKeyCBOR,
+    });
+
+    const wrongWrapperId = bytesToBase64URL(new Uint8Array(16).fill(0x42));
+    const response = buildRegistrationResponse(authData, wrongWrapperId);
+
+    await expect(
+      verifyRegistrationResponse({
+        response,
+        expectedChallenge: TEST_CHALLENGE,
+        expectedOrigin: TEST_ORIGIN,
+        expectedRPID: TEST_RP_ID,
+      }),
+    ).rejects.toThrow(
+      'Credential id does not match the credential id in authenticator data',
+    );
+  });
+
   it('rejects unsupported public key algorithm', async () => {
     const unsupportedMap = new Map<number, number | Uint8Array>();
     unsupportedMap.set(COSEKEYS.Kty, COSEKTY.EC2);
@@ -855,9 +889,14 @@ describe('verifyRegistrationResponse edge cases', () => {
         credentialID: new Uint8Array([1]),
       });
 
+    const credentialIdB64 = bytesToBase64URL(new Uint8Array([1]));
     await expect(
       verifyRegistrationResponse({
-        response: attestationNone,
+        response: {
+          ...attestationNone,
+          id: credentialIdB64,
+          rawId: credentialIdB64,
+        },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
         expectedRPID: EXPECTED_RP_ID,
@@ -876,9 +915,14 @@ describe('verifyRegistrationResponse edge cases', () => {
         credentialPublicKey: new Uint8Array([0xa1]),
       });
 
+    const credentialIdB64 = bytesToBase64URL(new Uint8Array([1]));
     await expect(
       verifyRegistrationResponse({
-        response: attestationNone,
+        response: {
+          ...attestationNone,
+          id: credentialIdB64,
+          rawId: credentialIdB64,
+        },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
         expectedRPID: EXPECTED_RP_ID,

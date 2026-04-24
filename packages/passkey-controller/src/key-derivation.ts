@@ -29,17 +29,20 @@ import type {
  *   `navigator.credentials.create()`.
  * @param registrationCeremony - In-flight registration ceremony state from
  *   when `generateRegistrationOptions()` was called.
+ * @param verifiedCredentialId - Base64url credential id from verified
+ *   authenticator data (same value as persisted `credential.id` after
+ *   `verifyRegistrationResponse`), not the client wrapper field alone.
  * @returns The derived 32-byte AES wrapping key and the
  *   {@link PasskeyKeyDerivation} parameters needed to reproduce it.
  */
 export function deriveKeyFromRegistrationResponse(
   registrationResponse: PasskeyRegistrationResponse,
   registrationCeremony: PasskeyRegistrationCeremony,
+  verifiedCredentialId: string,
 ): {
   encKey: Uint8Array;
   keyDerivation: PasskeyKeyDerivation;
 } {
-  const credentialId = registrationResponse.id;
   const prfFirst = (
     registrationResponse.clientExtensionResults as PrfClientExtensionResults
   )?.prf?.results?.first;
@@ -52,7 +55,10 @@ export function deriveKeyFromRegistrationResponse(
     keyDerivation.method === 'prf'
       ? base64URLToBytes(prfFirst as string)
       : base64URLToBytes(registrationCeremony.userHandle);
-  const encKey = deriveEncryptionKey(ikm, base64URLToBytes(credentialId));
+  const encKey = deriveEncryptionKey(
+    ikm,
+    base64URLToBytes(verifiedCredentialId),
+  );
 
   return { encKey, keyDerivation };
 }

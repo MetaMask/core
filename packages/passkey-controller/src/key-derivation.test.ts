@@ -90,6 +90,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
     const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
+      CREDENTIAL_ID,
     );
 
     expect(keyDerivation).toStrictEqual({ method: 'prf', prfSalt: PRF_SALT });
@@ -105,6 +106,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
     const { keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
+      CREDENTIAL_ID,
     );
 
     expect(keyDerivation).toStrictEqual({ method: 'prf', prfSalt: PRF_SALT });
@@ -118,6 +120,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
     const { keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
+      CREDENTIAL_ID,
     );
 
     expect(keyDerivation).toStrictEqual({ method: 'userHandle' });
@@ -129,6 +132,7 @@ describe('deriveKeyFromRegistrationResponse', () => {
     const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
+      CREDENTIAL_ID,
     );
 
     expect(keyDerivation).toStrictEqual({ method: 'userHandle' });
@@ -144,23 +148,25 @@ describe('deriveKeyFromRegistrationResponse', () => {
     const { keyDerivation } = deriveKeyFromRegistrationResponse(
       response,
       makeRegistrationCeremony(),
+      CREDENTIAL_ID,
     );
 
     expect(keyDerivation).toStrictEqual({ method: 'userHandle' });
   });
 
-  it('produces different keys for different credential IDs', () => {
-    const response1 = makeRegistrationResponse({});
-    const response2 = makeRegistrationResponse({});
-    response2.id = b64url('different-cred-id');
+  it('produces different keys for different verified credential IDs', () => {
+    const response = makeRegistrationResponse({});
+    const ceremony = makeRegistrationCeremony();
 
     const { encKey: key1 } = deriveKeyFromRegistrationResponse(
-      response1,
-      makeRegistrationCeremony(),
+      response,
+      ceremony,
+      CREDENTIAL_ID,
     );
     const { encKey: key2 } = deriveKeyFromRegistrationResponse(
-      response2,
-      makeRegistrationCeremony(),
+      response,
+      ceremony,
+      b64url('different-cred-id'),
     );
 
     expect(key1).not.toStrictEqual(key2);
@@ -177,10 +183,12 @@ describe('deriveKeyFromRegistrationResponse', () => {
     const { encKey: prfKey } = deriveKeyFromRegistrationResponse(
       responseWithPrf,
       registrationCeremony,
+      CREDENTIAL_ID,
     );
     const { encKey: uhKey } = deriveKeyFromRegistrationResponse(
       responseWithoutPrf,
       registrationCeremony,
+      CREDENTIAL_ID,
     );
 
     expect(prfKey).not.toStrictEqual(uhKey);
@@ -248,6 +256,7 @@ describe('deriveKeyFromAuthenticationResponse', () => {
     const { encKey: regKey } = deriveKeyFromRegistrationResponse(
       regResponse,
       registrationCeremony,
+      CREDENTIAL_ID,
     );
 
     const authResponse = makeAuthenticationResponse({}, USER_HANDLE);
