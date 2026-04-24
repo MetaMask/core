@@ -16,7 +16,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
-import { normalizeAssetId } from '../utils';
+import { fetchWithTimeout, normalizeAssetId } from '../utils';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -314,8 +314,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const apiResponse = await this.#fetchWithTimeout(() =>
-        this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds),
+      const apiResponse = await fetchWithTimeout(
+        () => this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds),
+        this.#fetchTimeoutMs,
       );
 
       // Handle unprocessed networks - these will be passed to next middleware
@@ -421,31 +422,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     }
 
     return { assetsBalance };
-  }
-
-  /**
-   * Race a fetch call against the configured timeout. The returned promise
-   * rejects with `new Error('Fetch timed out after <n>ms')` if the timeout
-   * wins, so the caller's existing catch path marks every requested chain as
-   * errored (handing them off to the next middleware).
-   *
-   * @param task - The async task to run (the raw API call).
-   * @returns The task's resolved value when it wins the race.
-   */
-  async #fetchWithTimeout<Value>(task: () => Promise<Value>): Promise<Value> {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<never>((_resolve, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error(`Fetch timed out after ${this.#fetchTimeoutMs}ms`));
-      }, this.#fetchTimeoutMs);
-    });
-    try {
-      return await Promise.race([task(), timeoutPromise]);
-    } finally {
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-      }
-    }
   }
 
   // ============================================================================
