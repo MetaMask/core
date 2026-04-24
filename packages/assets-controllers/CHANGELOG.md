@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
   - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.
   - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `CurrencyRateController` messenger.
+- `MultichainAssetsController`: Change Blockaid spam token filter to fail-open behavior ([#8580](https://github.com/MetaMask/core/pull/8580))
+  - When Blockaid bulk token scan API calls fail or are rejected, tokens are now allowed through rather than being blocked
+  - This prevents legitimate tokens from being blocked due to API outages or network issues
+  - Tokens are still filtered when the API succeeds and marks them as malicious
 
 ## [104.3.0]
 
