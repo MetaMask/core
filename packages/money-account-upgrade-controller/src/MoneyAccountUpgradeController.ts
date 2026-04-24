@@ -81,9 +81,7 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerMessenger
 > {
-  #chainId?: Hex;
-
-  #delegatorImplAddress?: Hex;
+  #config?: { chainId: Hex; delegatorImplAddress: Hex };
 
   readonly #steps: Step[] = [associateAddressStep, eip7702AuthorizationStep];
 
@@ -142,8 +140,10 @@ export class MoneyAccountUpgradeController extends BaseController<
       );
     }
 
-    this.#chainId = chainId;
-    this.#delegatorImplAddress = initConfig.delegatorImplAddress;
+    this.#config = {
+      chainId,
+      delegatorImplAddress: initConfig.delegatorImplAddress,
+    };
   }
 
   /**
@@ -155,10 +155,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
-    if (
-      this.#chainId === undefined ||
-      this.#delegatorImplAddress === undefined
-    ) {
+    if (!this.#config) {
       throw new Error(
         'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
       );
@@ -168,8 +165,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       await step.run({
         messenger: this.messenger,
         address,
-        chainId: this.#chainId,
-        delegatorImplAddress: this.#delegatorImplAddress,
+        ...this.#config,
       });
     }
   }

@@ -245,5 +245,26 @@ describe('eip7702AuthorizationStep', () => {
       );
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ['a non-hex string', 'not-a-hex-string'],
+      ['a truncated hex string', `${MOCK_R}${MOCK_S_NO_PREFIX}`],
+      [
+        'an over-long hex string',
+        `${MOCK_R}${MOCK_S_NO_PREFIX}${MOCK_V_HEX}00`,
+      ],
+      ['null', null],
+    ])(
+      'throws when signEip7702Authorization returns %s',
+      async (_label, value) => {
+        const { messenger, mocks } = setup();
+        mocks.signEip7702Authorization.mockResolvedValue(value);
+
+        await expect(run(messenger)).rejects.toThrow(
+          /Expected a 0x-prefixed 65-byte signature from signEip7702Authorization/u,
+        );
+        expect(mocks.createUpgrade).not.toHaveBeenCalled();
+      },
+    );
   });
 });

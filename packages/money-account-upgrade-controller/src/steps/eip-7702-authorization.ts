@@ -1,7 +1,7 @@
 import { add0x, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { Step } from './step';
+import type { Step, StepContext } from './step';
 
 /**
  * Submits the EIP-7702 delegation-slot authorization to CHOMP so the Money
@@ -35,7 +35,7 @@ export const eip7702AuthorizationStep: Step = {
     const chainIdDecimal = parseInt(chainId, 16);
     const nonce = await fetchNonce(messenger, chainId, address);
 
-    const signature = (await messenger.call(
+    const signature = await messenger.call(
       'KeyringController:signEip7702Authorization',
       {
         chainId: chainIdDecimal,
@@ -43,15 +43,9 @@ export const eip7702AuthorizationStep: Step = {
         nonce,
         from: address,
       },
-    )) as Hex;
+    );
 
-    // eslint-disable-next-line id-length
-    const r = signature.slice(0, 66) as Hex;
-    // eslint-disable-next-line id-length
-    const s = add0x(signature.slice(66, 130));
-    // eslint-disable-next-line id-length
-    const v = parseInt(signature.slice(130, 132), 16);
-    const yParity = v - 27;
+    const { r, s, v, yParity } = splitEip7702Signature(signature);
 
     await messenger.call('ChompApiService:createUpgrade', {
       r,
@@ -68,6 +62,37 @@ export const eip7702AuthorizationStep: Step = {
 };
 
 /**
+ * Splits a 65-byte ECDSA signature produced by
+ * `KeyringController:signEip7702Authorization` into its `r`, `s`, `v`
+ * components and derives `yParity` (`0` for `v = 27`, `1` for `v = 28`).
+ *
+ * @param signature - A 0x-prefixed 132-character hex string.
+ * @returns The signature components.
+ */
+function splitEip7702Signature(signature: string): {
+  r: Hex;
+  s: Hex;
+  v: number;
+  yParity: 0 | 1;
+} {
+  if (!isStrictHexString(signature) || signature.length !== 132) {
+    throw new Error(
+      `Expected a 0x-prefixed 65-byte signature from signEip7702Authorization, got ${JSON.stringify(signature)}`,
+    );
+  }
+
+  // eslint-disable-next-line id-length
+  const v = parseInt(signature.slice(130, 132), 16);
+
+  return {
+    r: signature.slice(0, 66) as Hex,
+    s: add0x(signature.slice(66, 130)),
+    v,
+    yParity: v - 27 === 0 ? 0 : 1,
+  };
+}
+
+/**
  * Fetches the current on-chain transaction count for the given address on the
  * given chain by resolving the chain's network client and issuing an
  * `eth_getTransactionCount` RPC request.
@@ -78,7 +103,7 @@ export const eip7702AuthorizationStep: Step = {
  * @returns The current nonce as a decimal number.
  */
 async function fetchNonce(
-  messenger: Parameters<Step['run']>[0]['messenger'],
+  messenger: StepContext['messenger'],
   chainId: Hex,
   address: Hex,
 ): Promise<number> {
