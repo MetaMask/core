@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `MultichainBalancesController`: when `MultichainAssetsController:accountAssetListUpdated` fires while the vault is locked, balance fetches are skipped and were never retried after unlock, leaving multichain token lists empty despite assets in state; subscribe to `KeyringController:stateChange` and refetch balances for snap-backed accounts that still have no cached balances after unlock.
+
 ### Added
 
 - Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
