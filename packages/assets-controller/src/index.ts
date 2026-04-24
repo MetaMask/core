@@ -152,8 +152,12 @@ export type {
 export {
   CustomAssetGraduationMiddleware,
   DetectionMiddleware,
+  RpcFallbackMiddleware,
 } from './middlewares';
-export type { CustomAssetGraduationMiddlewareOptions } from './middlewares';
+export type {
+  CustomAssetGraduationMiddlewareOptions,
+  RpcFallbackMiddlewareOptions,
+} from './middlewares';
 
 // Utilities
 export {

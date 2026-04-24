@@ -84,6 +84,7 @@ import { projectLogger, createModuleLogger } from './logger';
 import { AssetsDataSourceError } from './errors';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
+import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
@@ -711,6 +712,8 @@ export class AssetsController extends BaseController<
 
   readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
 
+  readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
+
   readonly #tokenDataSource: TokenDataSource;
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
@@ -824,6 +827,9 @@ export class AssetsController extends BaseController<
           this.removeCustomAsset(accountId, assetId),
       },
     );
+    this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
+      rpcDataSource: this.#rpcDataSource,
+    });
 
     if (!this.#isEnabled) {
       log('AssetsController is disabled, skipping initialization');
@@ -1328,6 +1334,7 @@ export class AssetsController extends BaseController<
               this.#accountsApiDataSource,
               this.#stakedBalanceDataSource,
             ]),
+            this.#rpcFallbackMiddleware,
             this.#customAssetGraduationMiddleware,
             this.#detectionMiddleware,
             createParallelMiddleware([

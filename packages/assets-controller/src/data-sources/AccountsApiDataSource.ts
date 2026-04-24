@@ -29,6 +29,7 @@ import { AbstractDataSource } from './AbstractDataSource';
 
 const CONTROLLER_NAME = 'AccountsApiDataSource';
 const DEFAULT_POLL_INTERVAL = 30_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -64,6 +65,12 @@ export type AccountsApiDataSourceConfig = {
    * Using a getter avoids stale values when the user toggles the preference at runtime.
    */
   tokenDetectionEnabled?: () => boolean;
+  /**
+   * Timeout in ms for a single balances fetch call (default: 15000).
+   * When it fires, every requested chain is marked as errored so the
+   * middleware hands them off to the next data source (e.g. RPC fallback).
+   */
+  fetchTimeoutMs?: number;
 };
 
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
@@ -180,6 +187,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #pollInterval: number;
 
+  readonly #fetchTimeoutMs: number;
+
   /** Getter avoids stale value when user toggles token detection at runtime. */
   readonly #tokenDetectionEnabled: () => boolean;
 
@@ -200,6 +209,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#apiClient = options.queryApiClient;
@@ -304,8 +314,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const apiResponse =
-        await this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds);
+      const apiResponse = await this.#fetchWithTimeout(() =>
+        this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds),
+      );
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (apiResponse.unprocessedNetworks.length > 0) {
@@ -410,6 +421,31 @@ export class AccountsApiDataSource extends AbstractDataSource<
     }
 
     return { assetsBalance };
+  }
+
+  /**
+   * Race a fetch call against the configured timeout. The returned promise
+   * rejects with `new Error('Fetch timed out after <n>ms')` if the timeout
+   * wins, so the caller's existing catch path marks every requested chain as
+   * errored (handing them off to the next middleware).
+   *
+   * @param task - The async task to run (the raw API call).
+   * @returns The task's resolved value when it wins the race.
+   */
+  async #fetchWithTimeout<Value>(task: () => Promise<Value>): Promise<Value> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Fetch timed out after ${this.#fetchTimeoutMs}ms`));
+      }, this.#fetchTimeoutMs);
+    });
+    try {
+      return await Promise.race([task(), timeoutPromise]);
+    } finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   // ============================================================================
