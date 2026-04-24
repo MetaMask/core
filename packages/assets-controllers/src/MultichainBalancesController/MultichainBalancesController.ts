@@ -197,7 +197,9 @@ export class MultichainBalancesController extends BaseController<
 
     // When the keyring transitions from locked → unlocked, fetch balances for
     // any non-EVM account that had its balance fetch skipped while locked.
-    let previouslyUnlocked = false;
+    let previouslyUnlocked = this.messenger.call(
+      'KeyringController:getState',
+    ).isUnlocked;
     this.messenger.subscribe(
       'KeyringController:stateChange',
       ({ isUnlocked }) => {
