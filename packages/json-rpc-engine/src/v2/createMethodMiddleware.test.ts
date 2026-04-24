@@ -6,13 +6,14 @@ import {
   MethodHandler,
 } from './createMethodMiddleware';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import { JsonRpcRequest } from './utils';
 
 type TestAction = {
   type: 'Example:TestAction';
   handler: () => Promise<string>;
 };
 
-function setup(): { engine: JsonRpcEngineV2 } {
+function setup(): { engine: JsonRpcEngineV2<JsonRpcRequest> } {
   const getValueA = {
     hookNames: { testHook: true },
     implementation: ({ hooks }): Promise<string> => hooks.testHook(),

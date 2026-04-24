@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `createOriginMiddleware` utility to `v2` ([#8522](https://github.com/MetaMask/core/pull/8522))
 - Add `createMethodMiddleware` utility to `v2` ([#8506](https://github.com/MetaMask/core/pull/8506))
   - This utility allows JSON-RPC method implementations to use both the hooks pattern and the messenger.
+- Add `createMethodMiddlewareFactory` consolidating the bespoke `makeMethodMiddlewareMaker` implementations from `metamask-extension` and `metamask-mobile`.
+  - Deprecated in favor of the v2 `createMethodMiddleware`.
 
 ## [10.2.4]
 

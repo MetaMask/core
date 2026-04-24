@@ -15,7 +15,6 @@ describe('@metamask/json-rpc-engine/v2', () => {
         "getUniqueId",
         "isNotification",
         "isRequest",
-        "selectHooks",
       ]
     `);
   });

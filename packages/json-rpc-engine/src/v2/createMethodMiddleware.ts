@@ -1,5 +1,6 @@
 import { ActionConstraint, Messenger } from '@metamask/messenger';
 
+import { assertExpectedHooks, selectHooks } from '../hookUtils';
 import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
 import { ContextConstraint } from './MiddlewareContext';
 import {
@@ -94,6 +95,13 @@ export function createMethodMiddleware<
   const { messenger: rootMessenger } = options;
   const allHooks = options.hooks as Record<string, unknown>;
 
+  const expectedHookNames = new Set(
+    Object.values(options.handlers).flatMap((handler) =>
+      handler.hookNames ? Object.getOwnPropertyNames(handler.hookNames) : [],
+    ),
+  );
+  assertExpectedHooks(allHooks, expectedHookNames);
+
   const handlers = Object.entries(options.handlers).reduce<
     Record<string, ResolvedHandler>
   >((accumulator, [handlerName, handler]) => {
@@ -133,36 +141,4 @@ export function createMethodMiddleware<
 
     return implementation({ request, context, next, hooks, messenger });
   };
-}
-
-/**
- * Returns the subset of the specified `hooks` that are included in the
- * `hookNames` object. This is a Principle of Least Authority (POLA) measure
- * to ensure that each RPC method implementation only has access to the
- * API "hooks" it needs to do its job.
- *
- * @param hooks - The hooks to select from.
- * @param hookNames - The names of the hooks to select.
- * @returns The selected hooks.
- * @template Hooks - The hooks to select from.
- * @template HookName - The names of the hooks to select.
- */
-export function selectHooks<
-  Hooks extends Record<string, unknown>,
-  HookName extends keyof Hooks,
->(
-  hooks: Hooks,
-  hookNames?: Record<HookName, true>,
-): Pick<Hooks, HookName> | undefined {
-  if (hookNames) {
-    return Object.keys(hookNames).reduce<Partial<Pick<Hooks, HookName>>>(
-      (hookSubset, _hookName) => {
-        const hookName = _hookName as HookName;
-        hookSubset[hookName] = hooks[hookName];
-        return hookSubset;
-      },
-      {},
-    ) as Pick<Hooks, HookName>;
-  }
-  return undefined;
 }
