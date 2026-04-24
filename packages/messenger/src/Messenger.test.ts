@@ -1036,6 +1036,131 @@ describe('Messenger', () => {
     });
   });
 
+  describe('subscribeOnce', () => {
+    it('unsubscribes automatically after receiving the first event', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(handler).toHaveBeenCalledWith('foo');
+      expect(handler).not.toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports selectors', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, ({ value }) => value);
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(handler).toHaveBeenCalledWith('foo');
+      expect(handler).not.toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports conditions', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce(
+        'Fixture:message',
+        handler,
+        ({ value }) => value,
+        (value) => value === 'bar',
+      );
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(handler).not.toHaveBeenCalledWith('foo');
+      expect(handler).toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+  });
+
+  describe('waitUntil', () => {
+    it('resolves the promise when the event fires', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message');
+      messenger.publish('Fixture:message', 'foo');
+
+      expect(await promise).toBe('foo');
+    });
+
+    it('supports selectors', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil(
+        'Fixture:message',
+        ({ value }) => value,
+      );
+      messenger.publish('Fixture:message', { value: 'foo' });
+
+      expect(await promise).toBe('foo');
+    });
+
+    it('supports conditions', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil(
+        'Fixture:message',
+        ({ value }) => value,
+        (value) => value === 'bar',
+      );
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(await promise).toBe('bar');
+    });
+  });
+
   describe('clearEventSubscriptions', () => {
     it('does not call subscriber after clearing event subscriptions', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };

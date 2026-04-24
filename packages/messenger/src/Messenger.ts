@@ -674,6 +674,36 @@ export class Messenger<
     subscribers.set(handler, metadata);
   }
 
+  subscribeOnce<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    handler:
+      | ExtractEventHandler<Event, EventType>
+      | SelectorEventHandler<SelectorReturnValue>,
+    selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
+    condition?: any,
+  ): void {
+    const internalHandler = (value) => {
+      if (condition && !condition(value)) {
+        return;
+      }
+
+      handler(value);
+      this.unsubscribe(eventType, internalHandler);
+    };
+
+    this.subscribe(eventType, internalHandler, selector);
+  }
+
+  waitUntil<EventType extends Event['type'], SelectorReturnValue>(
+    eventType: EventType,
+    selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
+    condition?: any,
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      this.subscribeOnce(eventType, resolve, selector, condition);
+    });
+  }
+
   /**
    * Unsubscribe from an event.
    *
