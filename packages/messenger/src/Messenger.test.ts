@@ -1052,8 +1052,8 @@ describe('Messenger', () => {
       messenger.publish('Fixture:message', 'foo');
       messenger.publish('Fixture:message', 'bar');
 
-      expect(handler).toHaveBeenCalledWith('foo', undefined);
-      expect(handler).not.toHaveBeenCalledWith('bar', 'foo');
+      expect(handler).toHaveBeenCalledWith('foo');
+      expect(handler).not.toHaveBeenCalledWith('bar');
       expect(handler.mock.calls).toHaveLength(1);
     });
 
@@ -1068,7 +1068,9 @@ describe('Messenger', () => {
       });
 
       const handler = jest.fn();
-      messenger.subscribeOnce('Fixture:message', handler, ({ value }) => value);
+      messenger.subscribeOnce('Fixture:message', handler, {
+        selector: ({ value }) => value,
+      });
       messenger.publish('Fixture:message', { value: 'foo' });
       messenger.publish('Fixture:message', { value: 'bar' });
 
@@ -1077,7 +1079,29 @@ describe('Messenger', () => {
       expect(handler.mock.calls).toHaveLength(1);
     });
 
-    it('supports conditions', () => {
+    it('supports conditions without a selector', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(handler).not.toHaveBeenCalledWith('foo');
+      expect(handler).toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports conditions with a selector', () => {
       type MessageEvent = {
         type: 'Fixture:message';
         payload: [{ value: string }];
@@ -1088,12 +1112,10 @@ describe('Messenger', () => {
       });
 
       const handler = jest.fn();
-      messenger.subscribeOnce(
-        'Fixture:message',
-        handler,
-        ({ value }) => value,
-        (value) => value === 'bar',
-      );
+      messenger.subscribeOnce('Fixture:message', handler, {
+        selector: ({ value }) => value,
+        condition: (value) => value === 'bar',
+      });
       messenger.publish('Fixture:message', { value: 'foo' });
       messenger.publish('Fixture:message', { value: 'bar' });
 
@@ -1130,16 +1152,34 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const promise = messenger.waitUntil(
-        'Fixture:message',
-        ({ value }) => value,
-      );
+      const promise = messenger.waitUntil('Fixture:message', {
+        selector: ({ value }) => value,
+      });
       messenger.publish('Fixture:message', { value: 'foo' });
 
       expect(await promise).toBe('foo');
     });
 
-    it('supports conditions', async () => {
+    it('supports conditions without a selector', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(await promise).toBe('bar');
+    });
+
+    it('supports conditions with a selector', async () => {
       type MessageEvent = {
         type: 'Fixture:message';
         payload: [{ value: string }];
@@ -1149,11 +1189,10 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const promise = messenger.waitUntil(
-        'Fixture:message',
-        ({ value }) => value,
-        (value) => value === 'bar',
-      );
+      const promise = messenger.waitUntil('Fixture:message', {
+        selector: ({ value }) => value,
+        condition: (value) => value === 'bar',
+      });
       messenger.publish('Fixture:message', { value: 'foo' });
       messenger.publish('Fixture:message', { value: 'bar' });
 
