@@ -80,15 +80,15 @@ import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
-import { projectLogger, createModuleLogger } from './logger';
 import { AssetsDataSourceError } from './errors';
+import { projectLogger, createModuleLogger } from './logger';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
-import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
+import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
 import type {
   AccountId,
   AssetPreferences,

@@ -59,8 +59,7 @@ export class CustomAssetGraduationMiddleware {
         return result;
       }
 
-      const returnedBalances =
-        result.response.assetsBalance?.[accountId] ?? {};
+      const returnedBalances = result.response.assetsBalance?.[accountId] ?? {};
       const returnedAssetIds = Object.keys(returnedBalances) as Caip19AssetId[];
       if (returnedAssetIds.length === 0) {
         return result;

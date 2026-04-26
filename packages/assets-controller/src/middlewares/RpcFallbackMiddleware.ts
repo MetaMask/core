@@ -58,9 +58,7 @@ export class RpcFallbackMiddleware {
         chainIds: ctx.request.chainIds.filter((id) => erroredChains.has(id)),
       };
 
-      const noopNext = async (
-        inner: typeof ctx,
-      ): Promise<typeof ctx> => inner;
+      const noopNext = async (inner: typeof ctx): Promise<typeof ctx> => inner;
       const rpcResult = await this.#rpcDataSource.assetsMiddleware(
         {
           ...ctx,

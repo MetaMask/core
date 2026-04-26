@@ -11,10 +11,8 @@ import type {
 import { RpcFallbackMiddleware } from './RpcFallbackMiddleware';
 
 const MOCK_ACCOUNT_ID = 'mock-account-id';
-const MOCK_ASSET_MAINNET =
-  'eip155:1/slip44:60' as Caip19AssetId;
-const MOCK_ASSET_POLYGON =
-  'eip155:137/slip44:966' as Caip19AssetId;
+const MOCK_ASSET_MAINNET = 'eip155:1/slip44:60' as Caip19AssetId;
+const MOCK_ASSET_POLYGON = 'eip155:137/slip44:966' as Caip19AssetId;
 const MOCK_ASSET_BSC = 'eip155:56/slip44:714' as Caip19AssetId;
 
 function createMockAccount(): InternalAccount {
@@ -55,9 +53,7 @@ function createContext(
   };
 }
 
-function createMockRpcSource(
-  response: DataResponse = {},
-): {
+function createMockRpcSource(response: DataResponse = {}): {
   source: AssetsDataSource;
   middleware: jest.Mock;
 } {
@@ -173,9 +169,7 @@ describe('RpcFallbackMiddleware', () => {
     await mw.assetsMiddleware(ctx, next);
 
     const finalCtx = next.mock.calls[0][0];
-    expect(finalCtx.response.errors?.['eip155:137']).toBe(
-      'Fetch failed: oops',
-    );
+    expect(finalCtx.response.errors?.['eip155:137']).toBe('Fetch failed: oops');
   });
 
   it('does not run for non-balance data types', async () => {

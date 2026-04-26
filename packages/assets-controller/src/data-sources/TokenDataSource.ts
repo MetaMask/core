@@ -398,8 +398,7 @@ export class TokenDataSource {
           batchSize: TOKENS_API_BATCH_SIZE,
           eachBatch: async (workingResult, batch) => {
             const batchResponse = await fetchWithTimeout(
-              () =>
-                this.#apiClient.tokens.fetchV3Assets(batch, fetchOptions),
+              () => this.#apiClient.tokens.fetchV3Assets(batch, fetchOptions),
               this.#fetchTimeoutMs,
             );
             return [...(workingResult as V3AssetResponse[]), ...batchResponse];

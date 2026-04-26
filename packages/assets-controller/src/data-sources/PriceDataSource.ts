@@ -160,7 +160,8 @@ export class PriceDataSource {
     this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
-    this.#simulateMiddlewareFailure = options.simulateMiddlewareFailure === true;
+    this.#simulateMiddlewareFailure =
+      options.simulateMiddlewareFailure === true;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
