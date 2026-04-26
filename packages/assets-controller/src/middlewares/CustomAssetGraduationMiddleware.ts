@@ -1,4 +1,4 @@
-import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
@@ -89,11 +89,8 @@ export class CustomAssetGraduationMiddleware {
  * @returns `true` when the asset's chain namespace is `eip155`.
  */
 function isEvmAssetId(assetId: Caip19AssetId): boolean {
-  const [chainId] = assetId.split('/');
-  try {
-    const { namespace } = parseCaipChainId(chainId);
-    return namespace === KnownCaipNamespace.Eip155;
-  } catch {
-    return false;
-  }
+  // CAIP-19 format: <namespace>:<chainRef>/<assetNamespace>:<assetRef>
+  // The chain namespace is always the segment before the first colon.
+  const namespace = assetId.split(':')[0];
+  return namespace === KnownCaipNamespace.Eip155;
 }
