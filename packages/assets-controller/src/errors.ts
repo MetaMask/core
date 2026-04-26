@@ -15,6 +15,9 @@ export class AssetsDataSourceError extends Error {
 
   /**
    * @param details - Which sources failed and request size hints.
+   * @param details.failedSources - Comma-separated data source names that failed.
+   * @param details.errorCount - Number of failed middlewares in the request.
+   * @param details.chainCount - Chains included in the request (for context).
    */
   constructor(details: {
     failedSources: string;
