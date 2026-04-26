@@ -2220,6 +2220,15 @@ export class TransactionController extends BaseController<
 
     if (containerTypes) {
       updatedTransaction.containerTypes = containerTypes;
+
+      const isNewlyWrapped =
+        containerTypes.length && !transactionMeta.containerTypes?.length;
+
+      if (isNewlyWrapped && !transactionMeta.txParamsOriginal) {
+        updatedTransaction.txParamsOriginal = cloneDeep(
+          transactionMeta.txParams,
+        );
+      }
     }
 
     await updateTransactionLayer1GasFee({

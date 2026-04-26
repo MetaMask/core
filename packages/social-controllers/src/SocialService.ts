@@ -58,6 +58,7 @@ const ProfileSummaryStruct = structType({
 });
 
 const PositionStruct = structType({
+  positionId: string(),
   tokenSymbol: string(),
   tokenName: string(),
   tokenAddress: string(),

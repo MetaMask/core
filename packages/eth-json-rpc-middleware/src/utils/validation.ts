@@ -1,3 +1,4 @@
+import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
@@ -185,5 +186,25 @@ export function validateTypedDataForPrototypePollution(data: string): void {
   // Check message recursively for dangerous properties
   if (message !== undefined) {
     checkObjectForPrototypePollution(message);
+  }
+}
+
+/**
+ * Validates that EIP-712 typed message data contains only keys defined in
+ * the TYPED_MESSAGE_SCHEMA from `@metamask/eth-sig-util`. Rejects messages
+ * with extraneous top-level keys.
+ *
+ * @param data - The stringified typed data to validate.
+ * @throws rpcErrors.invalidInput() if extraneous keys are detected.
+ */
+export function validateTypedMessageKeys(data: string): void {
+  const parsedData = parseTypedMessage(data);
+  const allowedKeys = new Set(Object.keys(TYPED_MESSAGE_SCHEMA.properties));
+  const hasExtraneousKey = Object.keys(parsedData).some(
+    (key) => !allowedKeys.has(key),
+  );
+
+  if (hasExtraneousKey) {
+    throw rpcErrors.invalidInput();
   }
 }

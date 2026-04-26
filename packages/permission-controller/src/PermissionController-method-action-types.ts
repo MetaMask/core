@@ -6,35 +6,25 @@
 import type { PermissionController } from './PermissionController';
 
 /**
+ * Checks whether the given method was declared as unrestricted at
+ * construction time. Methods unknown to the controller return `false` and
+ * would be treated as restricted by callers such as the permission
+ * middleware.
+ *
+ * @param method - The name of the method to check.
+ * @returns Whether the method is unrestricted.
+ */
+export type PermissionControllerHasUnrestrictedMethodAction = {
+  type: `PermissionController:hasUnrestrictedMethod`;
+  handler: PermissionController['hasUnrestrictedMethod'];
+};
+
+/**
  * Clears the state of the controller.
  */
 export type PermissionControllerClearStateAction = {
   type: `PermissionController:clearState`;
   handler: PermissionController['clearState'];
-};
-
-/**
- * Creates a permission middleware function. Like any {@link JsonRpcEngine}
- * middleware, each middleware will only receive requests from a particular
- * subject / origin.
- *
- * The middlewares returned will pass through requests for
- * unrestricted methods, and attempt to execute restricted methods. If a method
- * is neither restricted nor unrestricted, a "method not found" error will be
- * returned.
- * If a method is restricted, the middleware will first attempt to retrieve the
- * subject's permission for that method. If the permission is found, the method
- * will be executed. Otherwise, an "unauthorized" error will be returned.
- *
- * The middleware **must** be added in the correct place in the middleware
- * stack in order for it to work. See the README for an example.
- *
- * @param subject The permission subject.
- * @returns A `json-rpc-engine` middleware.
- */
-export type PermissionControllerCreatePermissionMiddlewareAction = {
-  type: `PermissionController:createPermissionMiddleware`;
-  handler: PermissionController['createPermissionMiddleware'];
 };
 
 /**
@@ -86,7 +76,7 @@ export type PermissionControllerHasPermissionsAction = {
 /**
  * Revokes all permissions from the specified origin.
  *
- * Throws an error of the origin has no permissions.
+ * Throws an error if the origin has no permissions.
  *
  * @param origin - The origin whose permissions to revoke.
  */
@@ -294,11 +284,41 @@ export type PermissionControllerGetEndowmentsAction = {
 };
 
 /**
+ * Executes a restricted method as the subject with the given origin.
+ * The specified params, if any, will be passed to the method implementation.
+ *
+ * ATTN: Great caution should be exercised in the use of this method.
+ * Methods that cause side effects or affect application state should
+ * be avoided.
+ *
+ * This method will first attempt to retrieve the requested restricted method
+ * implementation, throwing if it does not exist. The method will then be
+ * invoked as though the subject with the specified origin had invoked it with
+ * the specified parameters. This means that any existing caveats will be
+ * applied to the restricted method, and this method will throw if the
+ * restricted method or its caveat decorators throw.
+ *
+ * In addition, this method will throw if the subject does not have a
+ * permission for the specified restricted method.
+ *
+ * @param origin - The origin of the subject to execute the method on behalf
+ * of.
+ * @param targetName - The name of the method to execute. This must be a valid
+ * permission target name.
+ * @param params - The parameters to pass to the method implementation.
+ * @returns The result of the executed method.
+ */
+export type PermissionControllerExecuteRestrictedMethodAction = {
+  type: `PermissionController:executeRestrictedMethod`;
+  handler: PermissionController['executeRestrictedMethod'];
+};
+
+/**
  * Union of all PermissionController action types.
  */
 export type PermissionControllerMethodActions =
+  | PermissionControllerHasUnrestrictedMethodAction
   | PermissionControllerClearStateAction
-  | PermissionControllerCreatePermissionMiddlewareAction
   | PermissionControllerGetSubjectNamesAction
   | PermissionControllerGetPermissionsAction
   | PermissionControllerHasPermissionAction
@@ -312,4 +332,5 @@ export type PermissionControllerMethodActions =
   | PermissionControllerGrantPermissionsIncrementalAction
   | PermissionControllerRequestPermissionsAction
   | PermissionControllerRequestPermissionsIncrementalAction
-  | PermissionControllerGetEndowmentsAction;
+  | PermissionControllerGetEndowmentsAction
+  | PermissionControllerExecuteRestrictedMethodAction;

@@ -38,6 +38,7 @@ const mockTrade = {
 };
 
 const mockPosition = {
+  positionId: 'position-1',
   tokenSymbol: 'ETH',
   tokenName: 'Ethereum',
   tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',

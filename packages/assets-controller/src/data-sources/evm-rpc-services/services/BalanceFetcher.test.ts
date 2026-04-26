@@ -125,7 +125,10 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
   const [options, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { config, assetsBalanceState } = options;
+  const {
+    config = { isNativeAsset: (): boolean => false },
+    assetsBalanceState,
+  } = options;
 
   const mockMulticallClient = createMockMulticallClient();
   const mockMessenger = createMockMessenger(assetsBalanceState);
@@ -171,6 +174,7 @@ describe('BalanceFetcher', () => {
             defaultBatchSize: 100,
             defaultTimeoutMs: 60000,
             pollingInterval: 45000,
+            isNativeAsset: () => false,
           },
         },
         async ({ controller }) => {
@@ -191,7 +195,7 @@ describe('BalanceFetcher', () => {
 
     it('gets polling interval via getIntervalLength', async () => {
       await withController(
-        { config: { pollingInterval: 45000 } },
+        { config: { pollingInterval: 45000, isNativeAsset: () => false } },
         async ({ controller }) => {
           expect(controller.getIntervalLength()).toBe(45000);
         },
@@ -206,7 +210,12 @@ describe('BalanceFetcher', () => {
       });
 
       await withController(
-        { assetsBalanceState: mockState },
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+          },
+        },
         async ({ controller, mockMulticallClient }) => {
           const mockCallback = jest.fn();
           controller.setOnBalanceUpdate(mockCallback);
@@ -631,7 +640,7 @@ describe('BalanceFetcher', () => {
   describe('batching behavior', () => {
     it('uses custom batch size from options', async () => {
       await withController(
-        { config: { defaultBatchSize: 1 } },
+        { config: { defaultBatchSize: 1, isNativeAsset: () => false } },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -656,7 +665,7 @@ describe('BalanceFetcher', () => {
 
     it('accumulates results across multiple batches', async () => {
       await withController(
-        { config: { defaultBatchSize: 1 } },
+        { config: { defaultBatchSize: 1, isNativeAsset: () => false } },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf
             .mockResolvedValueOnce([

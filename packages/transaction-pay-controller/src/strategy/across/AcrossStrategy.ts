@@ -10,6 +10,7 @@ import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { getAcrossQuotes } from './across-quotes';
 import { submitAcrossQuotes } from './across-submit';
 import { isSupportedAcrossPerpsDepositRequest } from './perps';
+import { isAcrossQuoteRequest } from './requests';
 import type { AcrossQuote } from './types';
 
 export class AcrossStrategy implements PayStrategy<AcrossQuote> {
@@ -20,8 +21,14 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
+    const actionableRequests = request.requests.filter(isAcrossQuoteRequest);
+
+    if (actionableRequests.length === 0) {
+      return false;
+    }
+
     if (request.transaction?.type === TransactionType.perpsDeposit) {
-      return request.requests.every((singleRequest) =>
+      return actionableRequests.every((singleRequest) =>
         isSupportedAcrossPerpsDepositRequest(
           singleRequest,
           request.transaction?.type,
@@ -30,7 +37,7 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
     }
 
     // Across doesn't support same-chain swaps (e.g. mUSD conversions).
-    return request.requests.every(
+    return actionableRequests.every(
       (singleRequest) =>
         singleRequest.sourceChainId !== singleRequest.targetChainId,
     );

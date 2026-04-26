@@ -8,3 +8,7 @@ export type {
   LegacyToken,
   TransactionPayLegacyFormat,
 } from './formatStateForTransactionPay';
+export {
+  buildNativeAssetsFromConstant,
+  buildNativeAssetsFromApi,
+} from './native-assets';

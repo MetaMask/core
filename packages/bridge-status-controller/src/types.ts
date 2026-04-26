@@ -22,6 +22,7 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
@@ -29,8 +30,7 @@ import type {
   TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
-  TransactionControllerTransactionConfirmedEvent,
-  TransactionControllerTransactionFailedEvent,
+  TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -116,7 +116,7 @@ export type BridgeHistoryItem = {
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
-  startTime?: number; // timestamp in ms
+  startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
   completionTime?: number; // timestamp in ms
@@ -225,7 +225,7 @@ export type StartPollingForBridgeTxStatusArgs = {
    */
   originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
-  startTime?: BridgeHistoryItem['startTime'];
+  startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
@@ -292,6 +292,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction
   | SnapControllerHandleRequestAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
@@ -308,9 +309,7 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents =
-  | TransactionControllerTransactionFailedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

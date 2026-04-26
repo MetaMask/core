@@ -10,7 +10,7 @@ import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest } from '../types';
+import type { Caip19AssetId, ChainId, DataRequest } from '../types';
 import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
@@ -173,11 +173,15 @@ function setupController(
     },
   };
 
+  const isNativeAssetFn = (assetId: Caip19AssetId): boolean =>
+    assetId.includes('/slip44:');
+
   const controller = new BackendWebsocketDataSource({
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     queryApiClient: queryApiClient as unknown as ApiPlatformClient,
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+    isNativeAsset: isNativeAssetFn,
     state: { activeChains: initialActiveChains },
   });
 

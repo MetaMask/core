@@ -30,6 +30,14 @@ import type { BridgeStatusControllerMessenger } from '../types';
 import { getAccountByAddress } from './accounts';
 import { getNetworkClientIdByChainId } from './network';
 
+const isApprovalTx = (type: TransactionType) =>
+  type === TransactionType.bridgeApproval ||
+  type === TransactionType.swapApproval;
+const isTradeTx = (type: TransactionType) =>
+  type === TransactionType.bridge || type === TransactionType.swap;
+export const isCrossChainTx = (type: TransactionType) =>
+  isTradeTx(type) || isApprovalTx(type);
+
 export const getGasFeeEstimates = async (
   messenger: BridgeStatusControllerMessenger,
   args: Parameters<TransactionController['estimateGasFee']>[0],
@@ -145,7 +153,7 @@ export const getTransactionMetaByHash = (
   txHash?: string,
 ) => {
   return getTransactions(messenger).find(
-    (tx: TransactionMeta) => tx.hash === txHash,
+    (tx: TransactionMeta) => tx.hash?.toLowerCase() === txHash?.toLowerCase(),
   );
 };
 
@@ -501,19 +509,11 @@ export const findAndUpdateTransactionsInBatch = ({
       if (is7702Transaction) {
         // For 7702 transactions, we need to match based on transaction type
         // since the data field might be different (batch execute call)
-        if (
-          (txType === TransactionType.swap ||
-            txType === TransactionType.bridge) &&
-          tx.type === TransactionType.batch
-        ) {
+        if (isTradeTx(txType) && tx.type === TransactionType.batch) {
           return true;
         }
         // Also check if it's an approval transaction for 7702
-        if (
-          (txType === TransactionType.swapApproval ||
-            txType === TransactionType.bridgeApproval) &&
-          tx.txParams.data === txData
-        ) {
+        if (isApprovalTx(txType) && tx.txParams.data === txData) {
           return true;
         }
       }
