@@ -11,10 +11,11 @@ import { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddlewa
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const OTHER_ACCOUNT_ID = 'other-account-id';
 
+// Checksummed addresses — customAssets state stores normalized IDs.
 const EVM_CUSTOM_ASSET =
-  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 const EVM_OTHER_ASSET =
-  'eip155:137/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7' as Caip19AssetId;
+  'eip155:137/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
 const SOLANA_CUSTOM_ASSET =
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
 const BTC_CUSTOM_ASSET =
@@ -311,6 +312,37 @@ describe('CustomAssetGraduationMiddleware', () => {
 
     expect(removeCustomAsset).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('graduates a custom asset when the response uses a non-checksummed (lowercase) address', async () => {
+    // Regression: BackendWebsocketDataSource does not normalize asset IDs,
+    // so balances may arrive with lowercase addresses while customAssets
+    // state stores the checksummed form. Graduation must be robust to that.
+    const checksummedCustomAsset =
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+    const lowercaseFromWebsocket =
+      'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [checksummedCustomAsset],
+    });
+    context.response = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [lowercaseFromWebsocket]: { amount: '1000' },
+        },
+      },
+    };
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).toHaveBeenCalledTimes(1);
+    // Removal must use the canonical (checksummed) form stored in state.
+    expect(removeCustomAsset).toHaveBeenCalledWith(
+      MOCK_ACCOUNT_ID,
+      checksummedCustomAsset,
+    );
   });
 
   it('does not graduate when the matching balance is added by downstream middleware (e.g. RPC fallback)', async () => {

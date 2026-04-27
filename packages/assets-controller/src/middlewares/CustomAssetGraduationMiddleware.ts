@@ -3,6 +3,7 @@ import { KnownCaipNamespace } from '@metamask/utils';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type { AccountId, Caip19AssetId, Middleware } from '../types';
+import { normalizeAssetId } from '../utils';
 
 const CONTROLLER_NAME = 'CustomAssetGraduationMiddleware';
 
@@ -68,16 +69,25 @@ export class CustomAssetGraduationMiddleware {
         return next(ctx);
       }
 
+      // customAssets state is stored with checksummed/normalized asset IDs.
+      // AccountsApiDataSource normalizes its response IDs, but
+      // BackendWebsocketDataSource does not — so we normalize the response
+      // side here to make the comparison robust to lower-case addresses
+      // delivered over the websocket.
       const customSet = new Set(customForAccount);
-      for (const assetId of returnedAssetIds) {
-        if (!customSet.has(assetId)) {
+      for (const rawAssetId of returnedAssetIds) {
+        if (!isEvmAssetId(rawAssetId)) {
           continue;
         }
-        if (!isEvmAssetId(assetId)) {
+        const normalizedAssetId = safeNormalize(rawAssetId);
+        if (!customSet.has(normalizedAssetId)) {
           continue;
         }
-        log('Graduating custom asset', { accountId, assetId });
-        this.#removeCustomAsset(accountId, assetId);
+        log('Graduating custom asset', {
+          accountId,
+          assetId: normalizedAssetId,
+        });
+        this.#removeCustomAsset(accountId, normalizedAssetId);
       }
 
       return next(ctx);
@@ -96,4 +106,21 @@ function isEvmAssetId(assetId: Caip19AssetId): boolean {
   // The chain namespace is always the segment before the first colon.
   const namespace = assetId.split(':')[0];
   return namespace === KnownCaipNamespace.Eip155;
+}
+
+/**
+ * Normalize a CAIP-19 asset ID, returning the original on failure. Some
+ * malformed IDs (e.g. an asset reference that fails address checksumming)
+ * make `normalizeAssetId` throw — in that case we fall back to the raw ID
+ * so the graduation pass can still proceed for other assets.
+ *
+ * @param assetId - The CAIP-19 asset ID to normalize.
+ * @returns The normalized ID, or the original on failure.
+ */
+function safeNormalize(assetId: Caip19AssetId): Caip19AssetId {
+  try {
+    return normalizeAssetId(assetId);
+  } catch {
+    return assetId;
+  }
 }
