@@ -5,6 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
@@ -505,7 +506,12 @@ export class PasskeyController extends BaseController<
 
     // check if vault key matches
     const { oldVaultKey, newVaultKey } = params;
-    if (decryptedVaultKey !== oldVaultKey) {
+    if (
+      !areUint8ArraysEqual(
+        stringToBytes(decryptedVaultKey),
+        stringToBytes(oldVaultKey),
+      )
+    ) {
       log(
         'Passkey renewal rejected: decrypted vault key does not match oldVaultKey',
       );

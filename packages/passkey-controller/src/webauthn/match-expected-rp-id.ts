@@ -1,25 +1,7 @@
+import { areUint8ArraysEqual } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
 import { bytesToHex } from '../utils/encoding';
-
-/**
- * Compare two Uint8Arrays for equality in constant time.
- *
- * @param first - First array.
- * @param second - Second array.
- * @returns Whether the two arrays are equal.
- */
-function areEqual(first: Uint8Array, second: Uint8Array): boolean {
-  if (first.length !== second.length) {
-    return false;
-  }
-  let diff = 0;
-  for (let i = 0; i < first.length; i++) {
-    // eslint-disable-next-line no-bitwise
-    diff |= first[i] ^ second[i];
-  }
-  return diff === 0;
-}
 
 /**
  * Verify that an authenticator data rpIdHash matches one of the expected
@@ -36,7 +18,7 @@ export function matchExpectedRPID(
 ): string {
   for (const rpID of expectedRPIDs) {
     const expectedHash = sha256(new TextEncoder().encode(rpID));
-    if (areEqual(rpIdHash, expectedHash)) {
+    if (areUint8ArraysEqual(rpIdHash, expectedHash)) {
       return rpID;
     }
   }
