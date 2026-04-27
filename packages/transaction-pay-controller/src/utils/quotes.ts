@@ -17,7 +17,12 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
-import { getStrategiesByName, getStrategyByName } from './strategy';
+import {
+  checkStrategyQuoteSupport,
+  checkStrategySupport,
+  getStrategiesByName,
+  getStrategyByName,
+} from './strategy';
 import {
   computeTokenAmounts,
   getLiveTokenBalance,
@@ -512,7 +517,9 @@ async function getQuotes(
 
   for (const { name, strategy } of strategies) {
     try {
-      if (strategy.supports && !strategy.supports(request)) {
+      const support = await checkStrategySupport(strategy, request);
+
+      if (!support) {
         log('Strategy does not support request', {
           strategy: name,
           transactionId,
@@ -526,6 +533,20 @@ async function getQuotes(
 
       if (!quotes.length) {
         log('Strategy returned no quotes', { strategy: name, transactionId });
+        continue;
+      }
+
+      const quoteSupport = await checkStrategyQuoteSupport(strategy, {
+        messenger,
+        quotes,
+        transaction,
+      });
+
+      if (!quoteSupport) {
+        log('Strategy does not support quotes', {
+          strategy: name,
+          transactionId,
+        });
         continue;
       }
 

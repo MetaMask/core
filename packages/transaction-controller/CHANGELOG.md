@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Snapshot `txParamsOriginal` in `updateEditableParams` when `containerTypes` are first applied ([#8546](https://github.com/MetaMask/core/pull/8546))
+- Add `requiresAuthorizationList` to `TransactionController:estimateGasBatch` results when EIP-7702 batch gas estimation requires a first-time account upgrade ([#8577](https://github.com/MetaMask/core/pull/8577))
 
 ### Fixed
 
