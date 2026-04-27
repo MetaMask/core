@@ -17,6 +17,7 @@ import type {
   Middleware,
   FungibleAssetMetadata,
 } from '../types';
+import { fetchWithTimeout } from '../utils';
 import {
   isStakingContractAssetId,
   reduceInBatchesSerially,
@@ -27,6 +28,7 @@ import {
 // ============================================================================
 
 const CONTROLLER_NAME = 'TokenDataSource';
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -60,6 +62,11 @@ export type TokenDataSourceOptions = {
   queryApiClient: ApiPlatformClient;
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   getNativeAssetIds: () => string[];
+  /**
+   * Timeout in ms for a single Tokens API call (default: 15000). When it
+   * fires, the batch rejects so metadata enrichment proceeds without it.
+   */
+  fetchTimeoutMs?: number;
 };
 
 /**
@@ -156,6 +163,8 @@ export class TokenDataSource {
   /** Shared controller messenger — used for `PhishingController:bulkScanTokens`. */
   readonly #messenger: AssetsControllerMessenger;
 
+  readonly #fetchTimeoutMs: number;
+
   constructor(
     messenger: AssetsControllerMessenger,
     options: TokenDataSourceOptions,
@@ -163,6 +172,7 @@ export class TokenDataSource {
     this.#messenger = messenger;
     this.#apiClient = options.queryApiClient;
     this.#getNativeAssetIds = options.getNativeAssetIds;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
   /**
@@ -175,8 +185,10 @@ export class TokenDataSource {
     try {
       // Use v2/supportedNetworks which returns CAIP chain IDs
       // ApiPlatformClient handles caching
-      const response =
-        await this.#apiClient.tokens.fetchTokenV2SupportedNetworks();
+      const response = await fetchWithTimeout(
+        () => this.#apiClient.tokens.fetchTokenV2SupportedNetworks(),
+        this.#fetchTimeoutMs,
+      );
 
       // Combine full and partial support networks
       const allNetworks = [...response.fullSupport, ...response.partialSupport];
@@ -385,9 +397,9 @@ export class TokenDataSource {
           values: supportedAssetIds,
           batchSize: TOKENS_API_BATCH_SIZE,
           eachBatch: async (workingResult, batch) => {
-            const batchResponse = await this.#apiClient.tokens.fetchV3Assets(
-              batch,
-              fetchOptions,
+            const batchResponse = await fetchWithTimeout(
+              () => this.#apiClient.tokens.fetchV3Assets(batch, fetchOptions),
+              this.#fetchTimeoutMs,
             );
             return [...(workingResult as V3AssetResponse[]), ...batchResponse];
           },

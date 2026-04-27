@@ -248,6 +248,131 @@ describe('BalanceFetcher', () => {
       );
     });
 
+    it('polls custom assets even when they have no entry in assetsBalance yet', async () => {
+      // Regression: custom assets must be polled by RPC because RPC is the
+      // sole balance fetcher for them. Previously #getAssetsToFetch only
+      // looked at state.assetsBalance, so a freshly added custom asset
+      // (no balance row yet, e.g. zero balance or first fetch failed)
+      // would never be polled.
+      const mockState: AssetsBalanceState = {
+        assetsBalance: {
+          [TEST_ACCOUNT_ID]: {
+            [NATIVE_ETH_ASSET_ID]: { amount: '0' },
+          },
+        },
+        customAssets: {
+          [TEST_ACCOUNT_ID]: [TOKEN_1_ASSET_ID],
+        },
+      };
+
+      await withController(
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+          },
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const mockCallback = jest.fn();
+          controller.setOnBalanceUpdate(mockCallback);
+
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              ZERO_ADDRESS,
+              TEST_ACCOUNT,
+              true,
+              '1000000000000000000',
+            ),
+            createMockBalanceResponse(
+              TEST_TOKEN_1.toLowerCase() as Address,
+              TEST_ACCOUNT,
+              true,
+              '500',
+            ),
+          ]);
+
+          const input: BalancePollingInput = {
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          };
+
+          await controller._executePoll(input);
+
+          // The multicall batch should include both the native asset and
+          // the custom ERC-20 token, even though the custom token has no
+          // entry in assetsBalance.
+          const [, batchedRequests] =
+            mockMulticallClient.batchBalanceOf.mock.calls[0];
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          )
+            .map((req) => req.tokenAddress.toLowerCase())
+            .sort();
+          expect(requestedTokens).toStrictEqual(
+            [ZERO_ADDRESS.toLowerCase(), TEST_TOKEN_1.toLowerCase()].sort(),
+          );
+        },
+      );
+    });
+
+    it('in customAssetsOnly mode skips state.assetsBalance and only fetches state.customAssets', async () => {
+      // The supplemental subscription path: another data source covers the
+      // chain for regular balances, but RPC must still poll the user's
+      // customAssets. We must NOT also poll the regular tracked balances.
+      const mockState: AssetsBalanceState = {
+        assetsBalance: {
+          [TEST_ACCOUNT_ID]: {
+            [NATIVE_ETH_ASSET_ID]: { amount: '0' },
+            [TOKEN_2_ASSET_ID]: { amount: '0' },
+          },
+        },
+        customAssets: {
+          [TEST_ACCOUNT_ID]: [TOKEN_1_ASSET_ID],
+        },
+      };
+
+      await withController(
+        {
+          assetsBalanceState: mockState,
+          config: {
+            isNativeAsset: (id: CaipAssetType) => id === NATIVE_ETH_ASSET_ID,
+          },
+        },
+        async ({ controller, mockMulticallClient }) => {
+          controller.setOnBalanceUpdate(jest.fn());
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1.toLowerCase() as Address,
+              TEST_ACCOUNT,
+              true,
+              '500',
+            ),
+          ]);
+
+          const input: BalancePollingInput = {
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+            customAssetsOnly: true,
+          };
+
+          await controller._executePoll(input);
+
+          const [, batchedRequests] =
+            mockMulticallClient.batchBalanceOf.mock.calls[0];
+          const requestedTokens = (
+            batchedRequests as { tokenAddress: string }[]
+          )
+            .map((req) => req.tokenAddress.toLowerCase())
+            .sort();
+          // ONLY the custom token — not the native and not TOKEN_2 from
+          // assetsBalance.
+          expect(requestedTokens).toStrictEqual([TEST_TOKEN_1.toLowerCase()]);
+        },
+      );
+    });
+
     it('does not call callback when balances are empty', async () => {
       await withController(async ({ controller, mockMulticallClient }) => {
         const mockCallback = jest.fn();

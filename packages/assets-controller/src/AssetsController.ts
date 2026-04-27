@@ -80,12 +80,15 @@ import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import { AssetsDataSourceError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
+import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
+import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
 import type {
   AccountId,
   AssetPreferences,
@@ -359,6 +362,13 @@ export type AssetsControllerOptions = {
    * Use this to report first init fetch duration to Sentry (e.g. via addBreadcrumb or setMeasurement).
    */
   trace?: TraceCallback;
+  /**
+   * Optional Sentry (or compatible) reporter for **issue** events. When data source middlewares
+   * fail, the controller constructs an `AssetsDataSourceError` and passes it here so you can call
+   * `Sentry.captureException`. Span-only trace callbacks do not create Issues;
+   * wire this if you need Sentry alerts on middleware failures.
+   */
+  captureException?: (error: Error) => void;
   /** Optional configuration for AccountsApiDataSource. */
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
   /** Optional configuration for PriceDataSource. */
@@ -538,6 +548,9 @@ export class AssetsController extends BaseController<
   /** Optional trace callback for first init/fetch measurement (duration). */
   readonly #trace?: TraceCallback;
 
+  /** Optional reporter for Issue-style errors (e.g. Sentry.captureException). */
+  readonly #captureException?: (error: Error) => void;
+
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
 
@@ -702,6 +715,10 @@ export class AssetsController extends BaseController<
 
   readonly #detectionMiddleware: DetectionMiddleware;
 
+  readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
+
+  readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
+
   readonly #tokenDataSource: TokenDataSource;
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
@@ -724,6 +741,7 @@ export class AssetsController extends BaseController<
     queryApiClient,
     rpcDataSourceConfig,
     trace,
+    captureException,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
@@ -743,6 +761,7 @@ export class AssetsController extends BaseController<
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
+    this.#captureException = captureException;
     this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -805,6 +824,22 @@ export class AssetsController extends BaseController<
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
+    this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
+      {
+        getSelectedAccountId: (): AccountId | undefined => {
+          try {
+            return this.#getSelectedAccounts()[0]?.id;
+          } catch {
+            return undefined;
+          }
+        },
+        removeCustomAsset: (accountId, assetId): void =>
+          this.removeCustomAsset(accountId, assetId),
+      },
+    );
+    this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
+      rpcDataSource: this.#rpcDataSource,
+    });
 
     if (!this.#isEnabled) {
       log('AssetsController is disabled, skipping initialization');
@@ -1252,13 +1287,32 @@ export class AssetsController extends BaseController<
       });
     }
 
-    // Emit error traces for failed middlewares
+    // Failed middlewares: Issues (optional) + perf/Dashboard spans
     if (middlewareErrors.length > 0) {
-      this.#emitTrace(TRACE_DATA_SOURCE_ERROR, {
-        failed_sources: middlewareErrors.join(','),
-        error_count: middlewareErrors.length,
-        chain_count: request.chainIds.length,
+      const failedSources = middlewareErrors.join(',');
+      const assetsError = new AssetsDataSourceError({
+        failedSources,
+        errorCount: middlewareErrors.length,
+        chainCount: request.chainIds.length,
       });
+      try {
+        this.#captureException?.(assetsError);
+      } catch {
+        // Never let telemetry throw.
+      }
+      this.#emitTrace(
+        TRACE_DATA_SOURCE_ERROR,
+        {
+          failed_sources: failedSources,
+          error_count: middlewareErrors.length,
+          chain_count: request.chainIds.length,
+        },
+        {
+          controller: 'AssetsController',
+          severity: 'error',
+          error_type: assetsError.name,
+        },
+      );
     }
 
     return { response: result.response, durationByDataSource };
@@ -1318,6 +1372,11 @@ export class AssetsController extends BaseController<
               this.#accountsApiDataSource,
               this.#stakedBalanceDataSource,
             ]),
+            // Graduation must run BEFORE the RPC fallback so it only sees
+            // AccountsApi/Websocket balances. RPC intentionally carries
+            // custom assets and must never trigger graduation.
+            this.#customAssetGraduationMiddleware,
+            this.#rpcFallbackMiddleware,
             this.#detectionMiddleware,
             createParallelMiddleware([
               this.#tokenDataSource,
@@ -1586,6 +1645,10 @@ export class AssetsController extends BaseController<
         updateMode: 'merge',
       });
     }
+
+    // Re-evaluate subscriptions so the supplemental RPC poll picks up the
+    // new customAsset on chains another data source already owns.
+    this.#subscribeAssets();
   }
 
   /**
@@ -1611,6 +1674,10 @@ export class AssetsController extends BaseController<
         }
       }
     });
+
+    // Re-evaluate subscriptions so the supplemental RPC poll for that chain
+    // is torn down when no more customAssets remain there.
+    this.#subscribeAssets();
   }
 
   /**
@@ -2303,12 +2370,20 @@ export class AssetsController extends BaseController<
     ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
-      if (subscriptionKey.startsWith('ds:')) {
-        const sourceId = subscriptionKey.slice(3);
-        const source = allSources.find((ds) => ds.getName() === sourceId);
-        if (source) {
-          this.#unsubscribeDataSource(source);
-        }
+      if (!subscriptionKey.startsWith('ds:')) {
+        continue;
+      }
+      // Subscription keys take the form `ds:<SourceName>` for the regular
+      // subscription or `ds:<SourceName>:<suffix>` for supplemental
+      // subscriptions (e.g. `ds:RpcDataSource:custom`). Split on `:` and
+      // pick the source-name segment so both shapes resolve correctly.
+      const [, sourceId] = subscriptionKey.split(':');
+      const source = allSources.find((ds) => ds.getName() === sourceId);
+      if (source) {
+        // Unsubscribe by the actual key — `#unsubscribeDataSource` only
+        // knows the regular `ds:<SourceName>` shape and would miss
+        // supplemental subscriptions, leaking their polling timers.
+        this.#unsubscribeBySubscriptionKey(source, subscriptionKey);
       }
     }
     this.#activeSubscriptions.clear();
@@ -2375,6 +2450,8 @@ export class AssetsController extends BaseController<
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
 
+    let rpcAssignedChains: Set<ChainId> = new Set();
+
     for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
@@ -2391,6 +2468,10 @@ export class AssetsController extends BaseController<
         continue;
       }
 
+      if (source === this.#rpcDataSource) {
+        rpcAssignedChains = new Set(assignedChains);
+      }
+
       const seenIds = new Set<string>();
       const accountsForSource = assignedChains
         .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
@@ -2401,6 +2482,104 @@ export class AssetsController extends BaseController<
       if (accountsForSource.length > 0) {
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
+    }
+
+    // Supplemental RPC subscription for customAssets on chains another data
+    // source claimed during regular handoff. RPC is the sole balance fetcher
+    // for customAssets, so we must always poll them — even when (e.g.)
+    // AccountsApi is already covering the chain for normal balances. The
+    // supplemental subscription runs in `customAssetsOnly` mode so it does
+    // NOT double-poll the regular tracked balances.
+    this.#subscribeRpcCustomAssetsSupplement(
+      accounts,
+      chainToAccounts,
+      rpcAssignedChains,
+    );
+  }
+
+  /**
+   * Subscribe RPC to chains where the user has customAssets but another
+   * balance data source already owns the chain in regular handoff. Uses a
+   * separate subscription key (`customAssetsOnly` mode) so the regular RPC
+   * subscription, if any, is unaffected.
+   *
+   * @param accounts - Accounts to consider for customAssets.
+   * @param chainToAccounts - Map of chain → accounts (built by caller).
+   * @param rpcAssignedChains - Chains RPC was assigned in the regular handoff.
+   */
+  #subscribeRpcCustomAssetsSupplement(
+    accounts: InternalAccount[],
+    chainToAccounts: Map<ChainId, InternalAccount[]>,
+    rpcAssignedChains: Set<ChainId>,
+  ): void {
+    const rpc = this.#rpcDataSource;
+    const rpcAvailableChains = new Set(rpc.getActiveChainsSync());
+
+    // Collect chains that have customAssets for at least one of the given
+    // accounts and are NOT already covered by the regular RPC subscription.
+    const supplementalChainSet = new Set<ChainId>();
+    const accountsWithCustomAssets = new Set<string>();
+    for (const account of accounts) {
+      const customForAccount = this.state.customAssets[account.id] ?? [];
+      if (customForAccount.length === 0) {
+        continue;
+      }
+      accountsWithCustomAssets.add(account.id);
+      for (const assetId of customForAccount) {
+        let chainId: ChainId;
+        try {
+          chainId = extractChainId(assetId);
+        } catch {
+          continue;
+        }
+        if (rpcAssignedChains.has(chainId)) {
+          continue;
+        }
+        if (!rpcAvailableChains.has(chainId)) {
+          continue;
+        }
+        if (!chainToAccounts.has(chainId)) {
+          continue;
+        }
+        supplementalChainSet.add(chainId);
+      }
+    }
+
+    const supplementalKey = `ds:${rpc.getName()}:custom`;
+    if (supplementalChainSet.size === 0) {
+      this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
+      return;
+    }
+
+    const supplementalChains = [...supplementalChainSet];
+    const supplementalAccounts = accounts.filter((account) =>
+      accountsWithCustomAssets.has(account.id),
+    );
+    if (supplementalAccounts.length === 0) {
+      this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
+      return;
+    }
+
+    this.#subscribeDataSource(rpc, supplementalAccounts, supplementalChains, {
+      subscriptionKey: supplementalKey,
+      customAssetsOnly: true,
+    });
+  }
+
+  /**
+   * Unsubscribe a data source by an explicit subscription key.
+   *
+   * @param source - The data source instance.
+   * @param subscriptionKey - The subscription key to unsubscribe.
+   */
+  #unsubscribeBySubscriptionKey(
+    source: AbstractDataSource<string, DataSourceState>,
+    subscriptionKey: string,
+  ): void {
+    const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
+    if (existingSubscription) {
+      source.unsubscribe(subscriptionKey).catch(() => undefined);
+      existingSubscription.unsubscribe();
     }
   }
 
@@ -2469,14 +2648,18 @@ export class AssetsController extends BaseController<
    * @param source - The balance data source instance.
    * @param accounts - Array of accounts to subscribe for.
    * @param chains - Array of chain IDs to subscribe for.
+   * @param options - Optional subscription overrides.
+   * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
+   * @param options.customAssetsOnly - When true, only poll customAssets for these chains.
    */
   #subscribeDataSource(
     source: AbstractDataSource<string, DataSourceState>,
     accounts: InternalAccount[],
     chains: ChainId[],
+    options: { subscriptionKey?: string; customAssetsOnly?: boolean } = {},
   ): void {
     const sourceId = source.getName();
-    const subscriptionKey = `ds:${sourceId}`;
+    const subscriptionKey = options.subscriptionKey ?? `ds:${sourceId}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
 
@@ -2486,6 +2669,7 @@ export class AssetsController extends BaseController<
       isUpdate,
       accountCount: accounts.length,
       chainCount: chains.length,
+      customAssetsOnly: options.customAssetsOnly === true,
     });
 
     const subscribeReq: SubscriptionRequest = {
@@ -2493,6 +2677,9 @@ export class AssetsController extends BaseController<
         assetTypes: ['fungible'],
         dataTypes: ['balance'],
         updateInterval: this.#defaultUpdateInterval,
+        ...(options.customAssetsOnly === true
+          ? { customAssetsOnly: true }
+          : {}),
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
@@ -2749,7 +2936,19 @@ export class AssetsController extends BaseController<
           ),
         };
 
-    const enrichmentSources: AssetsDataSource[] = [this.#detectionMiddleware];
+    // Graduate custom assets only when AccountsAPI / Websocket reports them.
+    // RPC already fetches custom assets on purpose, and Snap handles non-EVM
+    // chains the rule does not apply to, so skip the middleware for those.
+    const shouldGraduateCustomAssets =
+      sourceId === 'AccountsApiDataSource' ||
+      sourceId === 'BackendWebsocketDataSource';
+
+    const enrichmentSources: AssetsDataSource[] = [
+      ...(shouldGraduateCustomAssets
+        ? [this.#customAssetGraduationMiddleware]
+        : []),
+      this.#detectionMiddleware,
+    ];
     if (this.#isBasicFunctionality()) {
       enrichmentSources.push(
         createParallelMiddleware([

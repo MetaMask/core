@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `CustomAssetGraduationMiddleware` that removes an EVM asset from `customAssets[selectedAccount]` when `AccountsApiDataSource` or `BackendWebsocketDataSource` reports a balance for it ([#8582](https://github.com/MetaMask/core/pull/8582))
+  - Non-EVM custom assets (Solana, BTC, Tron) are not affected.
+  - `RpcDataSource` continues to be the sole balance fetcher for assets still in `customAssets`.
+- Add `RpcFallbackMiddleware` to the fast pipeline so chains that error in `response.errors` (network error, `unprocessedNetworks`, timeout) fall back to `RpcDataSource` ([#8582](https://github.com/MetaMask/core/pull/8582))
+  - Successful RPC results are merged into the response and recovered chains are cleared from `response.errors`.
+- Add a configurable `fetchTimeoutMs` option (default `15000`) to `AccountsApiDataSource`, `PriceDataSource`, and `TokenDataSource` ([#8582](https://github.com/MetaMask/core/pull/8582))
+  - On timeout, AccountsAPI marks every requested chain as errored so `RpcFallbackMiddleware` picks them up; price and token enrichment degrade gracefully.
+- Add `fetchWithTimeout` utility that races an async task against a timeout ([#8582](https://github.com/MetaMask/core/pull/8582))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
