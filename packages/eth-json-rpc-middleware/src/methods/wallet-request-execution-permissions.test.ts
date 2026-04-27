@@ -143,34 +143,6 @@ describe('wallet_requestExecutionPermissions', () => {
     );
   });
 
-  it('accepts redeemer rule with valid checksum addresses', async () => {
-    params[0].rules = [
-      {
-        type: 'redeemer',
-        data: { addresses: [FROM_ADDRESS_MOCK, TO_ADDRESS_MOCK] },
-      },
-    ];
-
-    await callMethod();
-
-    expect(processRequestExecutionPermissionsMock).toHaveBeenCalledWith(
-      params,
-      request,
-      context,
-    );
-  });
-
-  it('rejects redeemer rule with invalid address entry', async () => {
-    params[0].rules = [
-      {
-        type: 'redeemer',
-        data: { addresses: ['0x123'] },
-      },
-    ];
-
-    await expect(callMethod()).rejects.toThrow('Invalid params');
-  });
-
   it('throws if no hook', async () => {
     await expect(
       createWalletRequestExecutionPermissionsHandler({})({

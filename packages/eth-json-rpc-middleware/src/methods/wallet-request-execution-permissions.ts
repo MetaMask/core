@@ -24,19 +24,10 @@ const PermissionStruct = object({
   data: record(string(), unknown()),
 });
 
-const RedeemerRuleStruct = object({
-  type: literal('redeemer'),
-  data: object({
-    addresses: array(HexChecksumAddressStruct),
-  }),
-});
-
-const GenericRuleStruct = object({
+const RuleStruct = object({
   type: string(),
   data: record(string(), unknown()),
 });
-
-const RuleStruct = union([RedeemerRuleStruct, GenericRuleStruct]);
 
 const PermissionRequestStruct = object({
   chainId: StrictHexStruct,
