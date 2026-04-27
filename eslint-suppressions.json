@@ -108,12 +108,12 @@
   },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/accounts-controller/src/AccountsController.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/accounts-controller/src/index.ts": {

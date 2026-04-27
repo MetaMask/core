@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^11.0.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
+### Removed
+
+- **BREAKING:** `InternalAccount.metadata.snap.{enabled,name}` properties have been removed ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - You now need to use `metadata.snap.id` and the `SnapController:<actions>` to get those information.
+- No longer depend on `SnapController` events ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [37.2.0]
 
 ### Added
