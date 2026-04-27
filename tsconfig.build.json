@@ -182,6 +182,9 @@
       "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/passkey-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/permission-controller/tsconfig.build.json"
     },
     {

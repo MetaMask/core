@@ -102,6 +102,7 @@
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
+/packages/passkey-controller             @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
 /packages/claims-controller              @MetaMask/web3auth
@@ -168,6 +169,8 @@
 /packages/geolocation-controller/CHANGELOG.md      @MetaMask/core-platform
 /packages/keyring-controller/package.json         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md         @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/passkey-controller/package.json         @MetaMask/web3auth @MetaMask/core-platform
+/packages/passkey-controller/CHANGELOG.md         @MetaMask/web3auth @MetaMask/core-platform
 /packages/logging-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/package.json            @MetaMask/confirmations @MetaMask/core-platform
