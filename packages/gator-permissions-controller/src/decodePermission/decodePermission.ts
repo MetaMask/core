@@ -64,7 +64,7 @@ export const findRuleWithMatchingCaveatAddresses = ({
  * @param args.justification - Human-readable justification for the permission.
  * @param args.specifiedOrigin - The origin reported in the request metadata.
  * @param args.rules - Rules recovered from caveats (e.g. redeemer allowlist).
- * 
+ *
  * @returns The reconstructed {@link DecodedPermission}.
  */
 export const reconstructDecodedPermission = ({

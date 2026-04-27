@@ -18,9 +18,7 @@ export function decodeRedeemerEnforcerTerms(terms: Hex): Hex[] {
   const byteLength = getByteLength(terms);
 
   if (byteLength === 0) {
-    throw new Error(
-      'Invalid redeemer enforcer terms: length must be positive',
-    );
+    throw new Error('Invalid redeemer enforcer terms: length must be positive');
   }
 
   if (byteLength % 20 !== 0) {

@@ -5,8 +5,7 @@ import { decodeRedeemerEnforcerTerms } from './redeemer';
 
 describe('decodeRedeemerEnforcerTerms', () => {
   it('decodes a single packed address', () => {
-    const raw =
-      '1111111111111111111111111111111111111111' as const;
+    const raw = '1111111111111111111111111111111111111111' as const;
     const terms = `0x${raw}` as Hex;
     expect(decodeRedeemerEnforcerTerms(terms)).toStrictEqual([
       getChecksumAddress(`0x${raw}` as Hex),
@@ -30,9 +29,7 @@ describe('decodeRedeemerEnforcerTerms', () => {
   });
 
   it('rejects length not divisible by 20 bytes', () => {
-    expect(() =>
-      decodeRedeemerEnforcerTerms('0x11' as Hex),
-    ).toThrow(
+    expect(() => decodeRedeemerEnforcerTerms('0x11' as Hex)).toThrow(
       'Invalid redeemer enforcer terms: length must be a multiple of 20 bytes',
     );
   });

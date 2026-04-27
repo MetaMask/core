@@ -1,5 +1,5 @@
-import type { Caveat } from '@metamask/delegation-core';
 import type { Rule } from '@metamask/7715-permission-types';
+import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 

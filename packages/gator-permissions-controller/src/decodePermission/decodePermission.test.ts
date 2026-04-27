@@ -631,9 +631,7 @@ describe('decodePermission', () => {
         {
           type: 'redeemer' as const,
           data: {
-            addresses: [
-              '0x1111111111111111111111111111111111111111' as Hex,
-            ],
+            addresses: ['0x1111111111111111111111111111111111111111' as Hex],
           },
         },
       ];

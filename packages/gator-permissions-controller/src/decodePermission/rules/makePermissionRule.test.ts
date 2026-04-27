@@ -232,8 +232,8 @@ describe('makePermissionRule', () => {
 
   it('includes redeemer rule when RedeemerEnforcer caveat is present', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
-    const packedAddr =
-      '0000000000000000000000001111111111111111111111111111111111111111' as const;
+    // Raw packed 20-byte address (40 hex chars), not ABI-padded 32-byte words.
+    const packedAddr = '1111111111111111111111111111111111111111' as const;
 
     const rule = makePermissionRule({
       permissionType: 'native-token-stream',
@@ -263,7 +263,7 @@ describe('makePermissionRule', () => {
     if (!result.isValid) {
       throw new Error('Expected valid result');
     }
-    expect(result.rules).toEqual([
+    expect(result.rules).toStrictEqual([
       {
         type: 'redeemer',
         data: {
