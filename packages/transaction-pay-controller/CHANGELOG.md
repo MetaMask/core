@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Gas Station support for Across source transactions when native balance is insufficient ([#8588](https://github.com/MetaMask/core/pull/8588))
+
 ## [20.2.0]
 
 ### Changed
