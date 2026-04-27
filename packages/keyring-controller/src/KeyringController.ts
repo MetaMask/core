@@ -77,7 +77,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'createNewVaultAndRestore',
   'removeAccount',
   'isUnlocked',
-  'accountSupports7702',
 ] as const;
 
 /**
