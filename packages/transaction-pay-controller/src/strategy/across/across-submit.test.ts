@@ -516,6 +516,55 @@ describe('Across Submit', () => {
       );
     });
 
+    it('uses the original transaction type for non-predict post-quote batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [undefined as never, { estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.swap,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+              type: TransactionType.swap,
+            }),
+          ]),
+        }),
+      );
+    });
+
     it('preserves transaction type when not perps or predict', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,

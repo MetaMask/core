@@ -371,6 +371,84 @@ describe('Across Quotes', () => {
       expect(getRequestBody().actions).toStrictEqual([]);
     });
 
+    it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x0',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 21000,
+          max: 21000,
+        },
+      ]);
+    });
+
+    it('adds original transaction gas to EIP-7702 gas limits for post-quote predict withdraws', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [51000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 72000,
+          max: 72000,
+        },
+      ]);
+      expect(result[0].original.metamask.is7702).toBe(true);
+    });
+
     it('re-quotes max amount quotes after reserving source token for gas fee token', async () => {
       const adjustedSourceAmount = '999999999999999900';
 
