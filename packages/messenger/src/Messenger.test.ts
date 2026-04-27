@@ -1139,7 +1139,23 @@ describe('Messenger', () => {
       const promise = messenger.waitUntil('Fixture:message');
       messenger.publish('Fixture:message', 'foo');
 
-      expect(await promise).toBe('foo');
+      expect(await promise).toStrictEqual(['foo']);
+    });
+
+    it('resolves the promise with multiple parameters', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string, string, string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message');
+      messenger.publish('Fixture:message', 'foo', 'bar', 'baz');
+
+      expect(await promise).toStrictEqual(['foo', 'bar', 'baz']);
     });
 
     it('supports selectors', async () => {
@@ -1157,7 +1173,7 @@ describe('Messenger', () => {
       });
       messenger.publish('Fixture:message', { value: 'foo' });
 
-      expect(await promise).toBe('foo');
+      expect(await promise).toStrictEqual(['foo', undefined]);
     });
 
     it('supports conditions without a selector', async () => {
@@ -1176,7 +1192,7 @@ describe('Messenger', () => {
       messenger.publish('Fixture:message', 'foo');
       messenger.publish('Fixture:message', 'bar');
 
-      expect(await promise).toBe('bar');
+      expect(await promise).toStrictEqual(['bar']);
     });
 
     it('supports conditions with a selector', async () => {
@@ -1196,7 +1212,7 @@ describe('Messenger', () => {
       messenger.publish('Fixture:message', { value: 'foo' });
       messenger.publish('Fixture:message', { value: 'bar' });
 
-      expect(await promise).toBe('bar');
+      expect(await promise).toStrictEqual(['bar', 'foo']);
     });
   });
 

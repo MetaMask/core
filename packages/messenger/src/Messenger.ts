@@ -784,7 +784,7 @@ export class Messenger<
       selector: SelectorFunction<Event, EventType, SelectorReturnValue>;
       condition?: (value: SelectorReturnValue) => boolean;
     },
-  ): Promise<SelectorReturnValue>;
+  ): Promise<[SelectorReturnValue, SelectorReturnValue | undefined]>;
 
   /**
    * Return a promise that resolves the next time the given event is published.
@@ -797,7 +797,7 @@ export class Messenger<
    * @param options.condition - A predicate evaluated against the event payload.
    * The promise only resolves when this returns `true`.
    * @template EventType - A type union of Event type strings.
-   * @returns A promise that resolves with the event payload's first argument.
+   * @returns A promise that resolves with the event payload.
    */
   waitUntil<EventType extends Event['type']>(
     eventType: EventType,
@@ -806,7 +806,7 @@ export class Messenger<
         ...payload: ExtractEventPayload<Event, EventType>
       ) => boolean;
     },
-  ): Promise<ExtractEventPayload<Event, EventType>[0]>;
+  ): Promise<ExtractEventPayload<Event, EventType>>;
 
   waitUntil<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
@@ -820,7 +820,7 @@ export class Messenger<
     return new Promise((resolve) => {
       this.subscribeOnce(
         eventType,
-        resolve as SelectorEventHandler<SelectorReturnValue>,
+        (...args) => resolve(args),
         options as {
           selector: SelectorFunction<Event, EventType, SelectorReturnValue>;
           condition?: (value: SelectorReturnValue) => boolean;
