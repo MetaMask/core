@@ -2648,6 +2648,9 @@ export class AssetsController extends BaseController<
    * @param source - The balance data source instance.
    * @param accounts - Array of accounts to subscribe for.
    * @param chains - Array of chain IDs to subscribe for.
+   * @param options - Optional subscription overrides.
+   * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
+   * @param options.customAssetsOnly - When true, only poll customAssets for these chains.
    */
   #subscribeDataSource(
     source: AbstractDataSource<string, DataSourceState>,

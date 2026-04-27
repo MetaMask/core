@@ -135,6 +135,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    *
    * @param chainId - Hex chain ID (e.g. "0x1").
    * @param accountId - Account UUID.
+   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
    * @returns Array of asset fetch entries from state for the requested chain.
    */
   #getAssetsToFetch(
@@ -207,6 +208,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
+   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
    * @returns Balance fetch result.
    */
   async #fetchBalances(

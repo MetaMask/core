@@ -307,7 +307,7 @@ describe('BalanceFetcher', () => {
           const requestedTokens = (
             batchedRequests as { tokenAddress: string }[]
           )
-            .map((r) => r.tokenAddress.toLowerCase())
+            .map((req) => req.tokenAddress.toLowerCase())
             .sort();
           expect(requestedTokens).toStrictEqual(
             [ZERO_ADDRESS.toLowerCase(), TEST_TOKEN_1.toLowerCase()].sort(),
@@ -364,7 +364,7 @@ describe('BalanceFetcher', () => {
           const requestedTokens = (
             batchedRequests as { tokenAddress: string }[]
           )
-            .map((r) => r.tokenAddress.toLowerCase())
+            .map((req) => req.tokenAddress.toLowerCase())
             .sort();
           // ONLY the custom token — not the native and not TOKEN_2 from
           // assetsBalance.
