@@ -1139,6 +1139,7 @@ describe('BridgeStatusController constructor', () => {
                     token_address_destination: 'eip155:10/slip44:60',
                     // eslint-disable-next-line jest/no-conditional-expect
                     token_address_source: expect.any(String),
+                    token_security_type_destination: null,
                     token_symbol_destination: 'ETH',
                     token_symbol_source: 'ETH',
                     usd_actual_gas: 0,

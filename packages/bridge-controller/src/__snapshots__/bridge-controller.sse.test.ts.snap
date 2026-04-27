@@ -24,6 +24,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
     },
   ],
   [
@@ -39,6 +40,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
     },
   ],
   [
@@ -54,6 +56,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
     },
   ],
 ]
@@ -77,6 +80,7 @@ exports[`BridgeController SSE should replace all stale quotes after a refresh an
     "swap_type": "crosschain",
     "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
     "token_address_source": "eip155:1/slip44:60",
+    "token_security_type_destination": null,
     "token_symbol_destination": "USDC",
     "token_symbol_source": "ETH",
     "usd_amount_source": 100,
@@ -104,6 +108,7 @@ exports[`BridgeController SSE should reset and refetch quotes after quote reques
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -131,6 +136,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -155,6 +161,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -191,6 +198,7 @@ exports[`BridgeController SSE should rethrow error from server 1`] = `
   "quotesInitialLoadTime": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenSecurityTypeDestination": null,
   "tokenWarnings": [],
 }
 `;
@@ -250,6 +258,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -274,6 +283,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -310,6 +320,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 1
   "quotesInitialLoadTime": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenSecurityTypeDestination": null,
   "tokenWarnings": [],
 }
 `;
@@ -369,6 +380,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
