@@ -41,12 +41,6 @@ export type PriceDataSourceConfig = {
   /** Polling interval in ms (default: 60000) */
   pollInterval?: number;
   /**
-   * When true, the price middleware throws immediately so you can verify downstream handling
-   * (e.g. `AssetsDataSourceError` / Sentry). When omitted from `AssetsController` options, the
-   * controller defaults this to true; pass false to disable.
-   */
-  simulateMiddlewareFailure?: boolean;
-  /**
    * Timeout in ms for a single Price API call (default: 15000). When it fires,
    * the batch rejects so the caller can proceed without prices.
    */
@@ -141,8 +135,6 @@ export class PriceDataSource {
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
-  readonly #simulateMiddlewareFailure: boolean;
-
   readonly #fetchTimeoutMs: number;
 
   /** Active subscriptions by ID */
@@ -160,8 +152,6 @@ export class PriceDataSource {
     this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
-    this.#simulateMiddlewareFailure =
-      options.simulateMiddlewareFailure === true;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
@@ -186,10 +176,6 @@ export class PriceDataSource {
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
-      if (this.#simulateMiddlewareFailure) {
-        throw new Error('[SIMULATED] PriceDataSource middleware failure');
-      }
-
       // Extract response from context
       const { response, request } = ctx;
 

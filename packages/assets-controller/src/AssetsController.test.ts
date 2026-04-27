@@ -233,7 +233,6 @@ async function withController<ReturnValue>(
     },
     ...restControllerOptions,
     priceDataSourceConfig: {
-      simulateMiddlewareFailure: false,
       ...incomingPriceDataSourceConfig,
     },
   });
@@ -330,7 +329,6 @@ describe('AssetsController', () => {
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op for tests */
         },
-        priceDataSourceConfig: { simulateMiddlewareFailure: false },
       });
 
       // Controller should still have default state (from super() call)
@@ -389,7 +387,6 @@ describe('AssetsController', () => {
             subscribeToBasicFunctionalityChange: (): void => {
               /* no-op */
             },
-            priceDataSourceConfig: { simulateMiddlewareFailure: false },
             accountsApiDataSourceConfig: {
               pollInterval: 15_000,
               tokenDetectionEnabled: (): boolean => false,
@@ -430,7 +427,6 @@ describe('AssetsController', () => {
             },
             priceDataSourceConfig: {
               pollInterval: 120_000,
-              simulateMiddlewareFailure: false,
             },
           }),
       ).not.toThrow();
@@ -1975,7 +1971,6 @@ describe('AssetsController', () => {
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
         },
-        priceDataSourceConfig: { simulateMiddlewareFailure: false },
       });
 
       const getAssetsSpy = jest.spyOn(controller, 'getAssets');

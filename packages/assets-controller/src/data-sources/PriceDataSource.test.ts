@@ -126,7 +126,6 @@ function setupController(
     queryApiClient:
       apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
     getSelectedCurrency,
-    simulateMiddlewareFailure: false,
   };
 
   if (pollInterval) {

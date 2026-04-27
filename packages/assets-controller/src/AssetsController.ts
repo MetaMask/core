@@ -822,8 +822,6 @@ export class AssetsController extends BaseController<
       queryApiClient,
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
-      simulateMiddlewareFailure:
-        priceDataSourceConfig?.simulateMiddlewareFailure ?? true,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
     this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
