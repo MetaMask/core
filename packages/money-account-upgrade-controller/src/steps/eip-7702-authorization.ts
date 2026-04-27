@@ -1,19 +1,35 @@
+import type { Provider } from '@metamask/network-controller';
 import { add0x, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { Step, StepContext } from './step';
 
+const EIP_7702_DELEGATION_PREFIX = '0xef0100';
+// '0x' (2) + 'ef0100' (6) + 20-byte address (40) = 48 characters.
+const EIP_7702_DELEGATED_CODE_LENGTH = 48;
+
+// 65-byte signature: 32-byte r + 32-byte s + 1-byte v.
+// '0x' (2) + 32 bytes (64) + 32 bytes (64) + 1 byte (2) = 132 characters.
+const SIGNATURE_HEX_LENGTH = 132;
+// '0x' + 32-byte r = 66 characters.
+const R_END_INDEX = 66;
+// r (66 chars) + 32-byte s (64 chars) = 130 characters.
+const S_END_INDEX = 130;
+const V_END_INDEX = SIGNATURE_HEX_LENGTH;
+// v = 27 means yParity = 0; v = 28 means yParity = 1.
+const V_BASE = 27;
+
 /**
  * Submits the EIP-7702 delegation-slot authorization to CHOMP so the Money
- * Account can be upgraded to a smart account pointed at
- * `EIP7702StatelessDeleGatorImpl`.
+ * Account can be upgraded to a smart account pointed at the configured
+ * delegator impl.
  *
  * The step:
  *
- * 1. Asks CHOMP whether an upgrade record already exists for the address —
- *    any record (including `status: 'pending'`) means the authorization is
- *    already submitted and CHOMP will apply it before running any intent, so
- *    the step reports `'already-done'`.
+ * 1. Reads the account's on-chain code. If it is already delegated to the
+ *    configured `delegatorImplAddress`, reports `'already-done'`. If it is
+ *    delegated to a different address, throws rather than silently
+ *    overwriting an existing delegation.
  * 2. Fetches the account's current on-chain transaction count — CHOMP
  *    validates the nonce matches when it applies the authorization.
  * 3. Signs the EIP-7702 authorization `{ chainId, delegatorImpl, nonce }`
@@ -24,16 +40,20 @@ import type { Step, StepContext } from './step';
 export const eip7702AuthorizationStep: Step = {
   name: 'eip-7702-authorization',
   async run({ messenger, address, chainId, delegatorImplAddress }) {
-    const existing = await messenger.call(
-      'ChompApiService:getUpgrade',
-      address,
-    );
-    if (existing !== null) {
-      return 'already-done';
+    const provider = getProvider(messenger, chainId);
+
+    const existingDelegation = await fetchDelegationAddress(provider, address);
+    if (existingDelegation !== undefined) {
+      if (existingDelegation === delegatorImplAddress.toLowerCase()) {
+        return 'already-done';
+      }
+      throw new Error(
+        `Account ${address} is already delegated to ${existingDelegation}, which is not the configured delegator impl ${delegatorImplAddress}. Refusing to overwrite an existing EIP-7702 delegation.`,
+      );
     }
 
     const chainIdDecimal = parseInt(chainId, 16);
-    const nonce = await fetchNonce(messenger, chainId, address);
+    const nonce = await fetchNonce(provider, address);
 
     const signature = await messenger.call(
       'KeyringController:signEip7702Authorization',
@@ -75,48 +95,81 @@ function splitEip7702Signature(signature: string): {
   v: number;
   yParity: 0 | 1;
 } {
-  if (!isStrictHexString(signature) || signature.length !== 132) {
+  if (
+    !isStrictHexString(signature) ||
+    signature.length !== SIGNATURE_HEX_LENGTH
+  ) {
     throw new Error(
       `Expected a 0x-prefixed 65-byte signature from signEip7702Authorization, got ${JSON.stringify(signature)}`,
     );
   }
 
   // eslint-disable-next-line id-length
-  const v = parseInt(signature.slice(130, 132), 16);
+  const v = parseInt(signature.slice(S_END_INDEX, V_END_INDEX), 16);
 
   return {
-    r: signature.slice(0, 66) as Hex,
-    s: add0x(signature.slice(66, 130)),
+    r: signature.slice(0, R_END_INDEX) as Hex,
+    s: add0x(signature.slice(R_END_INDEX, S_END_INDEX)),
     v,
-    yParity: v - 27 === 0 ? 0 : 1,
+    yParity: v - V_BASE === 0 ? 0 : 1,
   };
 }
 
 /**
- * Fetches the current on-chain transaction count for the given address on the
- * given chain by resolving the chain's network client and issuing an
- * `eth_getTransactionCount` RPC request.
+ * Reads the account's on-chain code and, if the account is currently
+ * delegated via EIP-7702, returns the implementation address the delegation
+ * points at. Returns `undefined` if the account has no code (a plain EOA).
+ * Throws if the code is present but not a valid EIP-7702 delegation, since
+ * that means the address is a regular contract and is not eligible for
+ * upgrade.
  *
- * @param messenger - The upgrade controller messenger.
- * @param chainId - The chain to query.
+ * @param provider - JSON-RPC provider for the target chain.
+ * @param address - The Money Account address.
+ * @returns The current delegation address, or `undefined` if none.
+ */
+async function fetchDelegationAddress(
+  provider: Provider,
+  address: Hex,
+): Promise<Hex | undefined> {
+  const code = await provider.request({
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  });
+
+  if (typeof code !== 'string' || !code.startsWith('0x')) {
+    throw new Error(
+      `Expected 0x-prefixed hex string from eth_getCode, got ${JSON.stringify(code)}`,
+    );
+  }
+
+  const normalized = code.toLowerCase();
+
+  if (normalized === '0x') {
+    return undefined;
+  }
+
+  if (
+    normalized.length === EIP_7702_DELEGATED_CODE_LENGTH &&
+    normalized.startsWith(EIP_7702_DELEGATION_PREFIX)
+  ) {
+    return add0x(normalized.slice(EIP_7702_DELEGATION_PREFIX.length));
+  }
+
+  throw new Error(
+    `Account ${address} has unexpected on-chain code; expected either no code or an EIP-7702 delegation.`,
+  );
+}
+
+/**
+ * Fetches the current on-chain transaction count for the given address by
+ * issuing an `eth_getTransactionCount` RPC request.
+ *
+ * @param provider - JSON-RPC provider for the target chain.
  * @param address - The Money Account address.
  * @returns The current nonce as a decimal number.
  */
-async function fetchNonce(
-  messenger: StepContext['messenger'],
-  chainId: Hex,
-  address: Hex,
-): Promise<number> {
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-  const networkClient = messenger.call(
-    'NetworkController:getNetworkClientById',
-    networkClientId,
-  );
-
-  const nonceHex = await networkClient.provider.request({
+async function fetchNonce(provider: Provider, address: Hex): Promise<number> {
+  const nonceHex = await provider.request({
     method: 'eth_getTransactionCount',
     params: [address, 'latest'],
   });
@@ -128,4 +181,25 @@ async function fetchNonce(
   }
 
   return parseInt(nonceHex, 16);
+}
+
+/**
+ * Resolves the JSON-RPC provider for the given chain via NetworkController.
+ *
+ * @param messenger - The upgrade controller messenger.
+ * @param chainId - The chain to query.
+ * @returns The provider for that chain.
+ */
+function getProvider(
+  messenger: StepContext['messenger'],
+  chainId: Hex,
+): Provider {
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    chainId,
+  );
+  return messenger.call(
+    'NetworkController:getNetworkClientById',
+    networkClientId,
+  ).provider;
 }

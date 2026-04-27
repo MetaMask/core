@@ -8,7 +8,8 @@
     { "path": "../chomp-api-service" },
     { "path": "../keyring-controller" },
     { "path": "../messenger" },
-    { "path": "../network-controller" }
+    { "path": "../network-controller" },
+    { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src"]
 }

@@ -8,7 +8,6 @@ import type {
   ChompApiServiceAssociateAddressAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetServiceDetailsAction,
-  ChompApiServiceGetUpgradeAction,
 } from '@metamask/chomp-api-service';
 import type {
   KeyringControllerSignEip7702AuthorizationAction,
@@ -50,7 +49,6 @@ type AllowedActions =
   | ChompApiServiceAssociateAddressAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetServiceDetailsAction
-  | ChompApiServiceGetUpgradeAction
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction

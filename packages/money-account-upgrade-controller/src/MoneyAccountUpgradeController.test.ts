@@ -63,11 +63,11 @@ type Mocks = {
   getServiceDetails: jest.Mock;
   signPersonalMessage: jest.Mock;
   associateAddress: jest.Mock;
-  getUpgrade: jest.Mock;
   createUpgrade: jest.Mock;
   signEip7702Authorization: jest.Mock;
   findNetworkClientIdByChainId: jest.Mock;
   getNetworkClientById: jest.Mock;
+  providerRequest: jest.Mock;
 };
 
 function setup(): {
@@ -79,6 +79,19 @@ function setup(): {
   // 65-byte signature — r (32 bytes) + s (32 bytes) + v = 0x1c (28).
   const signature = `0x${'1'.repeat(64)}${'2'.repeat(64)}1c`;
 
+  // Default provider responses: account is a plain EOA with nonce 0.
+  const providerRequest = jest
+    .fn()
+    .mockImplementation(async ({ method }: { method: string }) => {
+      if (method === 'eth_getCode') {
+        return '0x';
+      }
+      if (method === 'eth_getTransactionCount') {
+        return '0x0';
+      }
+      throw new Error(`Unexpected RPC method: ${method}`);
+    });
+
   const mocks: Mocks = {
     getServiceDetails: jest
       .fn()
@@ -89,7 +102,6 @@ function setup(): {
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'CREATED',
     }),
-    getUpgrade: jest.fn().mockResolvedValue(null),
     createUpgrade: jest.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       status: 'pending',
@@ -100,10 +112,9 @@ function setup(): {
       .fn()
       .mockReturnValue('network-client-id'),
     getNetworkClientById: jest.fn().mockReturnValue({
-      provider: {
-        request: jest.fn().mockResolvedValue('0x0'),
-      },
+      provider: { request: providerRequest },
     }),
+    providerRequest,
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -121,10 +132,6 @@ function setup(): {
   rootMessenger.registerActionHandler(
     'ChompApiService:associateAddress',
     mocks.associateAddress,
-  );
-  rootMessenger.registerActionHandler(
-    'ChompApiService:getUpgrade',
-    mocks.getUpgrade,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:createUpgrade',
@@ -153,7 +160,6 @@ function setup(): {
       'ChompApiService:getServiceDetails',
       'KeyringController:signPersonalMessage',
       'ChompApiService:associateAddress',
-      'ChompApiService:getUpgrade',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
       'NetworkController:findNetworkClientIdByChainId',
