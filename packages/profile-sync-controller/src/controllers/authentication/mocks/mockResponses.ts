@@ -20,7 +20,7 @@ export const MOCK_NONCE_RESPONSE = SDK_MOCK_NONCE_RESPONSE;
 export const MOCK_NONCE = MOCK_NONCE_RESPONSE.nonce;
 export const MOCK_JWT = SDK_MOCK_JWT;
 
-export const getMockAuthNonceResponse = () => {
+export const getMockAuthNonceResponse = (): MockResponse => {
   return {
     url: MOCK_NONCE_URL,
     requestMethod: 'GET',
@@ -28,7 +28,7 @@ export const getMockAuthNonceResponse = () => {
       _?: unknown,
       path?: string,
       getE2ESrpIdentifierForPublicKey?: (publicKey: string) => string,
-    ) => {
+    ): typeof MOCK_NONCE_RESPONSE => {
       // The goal here is to have this identifier bubble all the way up to being the access token
       // That way, we can use it to segregate data in the test environment
       const identifier = path?.split('?identifier=')[1];
@@ -45,13 +45,15 @@ export const getMockAuthNonceResponse = () => {
 
 export const MOCK_LOGIN_RESPONSE = SDK_MOCK_SRP_LOGIN_RESPONSE;
 
-export const getMockAuthLoginResponse = () => {
+export const getMockAuthLoginResponse = (): MockResponse => {
   return {
     url: MOCK_SRP_LOGIN_URL,
     requestMethod: 'POST',
     // In case this mock is used in an E2E test, we populate token, profile_id and identifier_id with the e2eIdentifier
     // to make it easier to segregate data in the test environment.
-    response: (requestJsonBody?: { raw_message: string }) => {
+    response: (requestJsonBody?: {
+      raw_message: string;
+    }): typeof MOCK_LOGIN_RESPONSE => {
       const splittedRawMessage = requestJsonBody?.raw_message.split(':');
       const e2eIdentifier = splittedRawMessage?.[splittedRawMessage.length - 2];
 
@@ -114,7 +116,7 @@ export const getE2EIdentifierFromJwt = (token: string): string => {
 
 export const MOCK_PAIR_PROFILES_RESPONSE = SDK_MOCK_PAIR_PROFILES_RESPONSE;
 
-export const getMockAuthPairResponse = () => {
+export const getMockAuthPairResponse = (): MockResponse => {
   return {
     url: MOCK_PAIR_PROFILES_URL,
     requestMethod: 'POST',
@@ -122,11 +124,11 @@ export const getMockAuthPairResponse = () => {
   } satisfies MockResponse;
 };
 
-export const getMockAuthAccessTokenResponse = () => {
+export const getMockAuthAccessTokenResponse = (): MockResponse => {
   return {
     url: MOCK_OIDC_TOKEN_URL,
     requestMethod: 'POST',
-    response: (requestJsonBody?: string) => {
+    response: (requestJsonBody?: string): typeof MOCK_OATH_TOKEN_RESPONSE => {
       // We wrap the e2eIdentifier in a JWT so client-side JWT validation passes.
       // The mock server extracts the identifier back via getE2EIdentifierFromJwt.
       const e2eIdentifier = new URLSearchParams(requestJsonBody).get(
