@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `estimateGasBatch` now skips the EIP-7702 path when the account's keyring does not support it, falling back to per-transaction gas estimation ([#8388](https://github.com/MetaMask/core/pull/8388))
+- `doesAccountSupportEIP7702` now returns `false` instead of `true` when the account is not found in any keyring ([#8388](https://github.com/MetaMask/core/pull/8388))
+
 ## [64.4.0]
 
 ### Changed
