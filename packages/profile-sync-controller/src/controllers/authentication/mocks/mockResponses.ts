@@ -3,9 +3,11 @@ import {
   MOCK_JWT as SDK_MOCK_JWT,
   MOCK_SRP_LOGIN_RESPONSE as SDK_MOCK_SRP_LOGIN_RESPONSE,
   MOCK_OIDC_TOKEN_RESPONSE as SDK_MOCK_OIDC_TOKEN_RESPONSE,
+  MOCK_PAIR_PROFILES_RESPONSE as SDK_MOCK_PAIR_PROFILES_RESPONSE,
   MOCK_NONCE_URL,
   MOCK_SRP_LOGIN_URL,
   MOCK_OIDC_TOKEN_URL,
+  MOCK_PAIR_PROFILES_URL,
 } from '../../../sdk/mocks/auth';
 
 type MockResponse = {
@@ -108,6 +110,16 @@ export const getE2EIdentifierFromJwt = (token: string): string => {
     // not a JWT — fall through
   }
   return token;
+};
+
+export const MOCK_PAIR_PROFILES_RESPONSE = SDK_MOCK_PAIR_PROFILES_RESPONSE;
+
+export const getMockAuthPairResponse = () => {
+  return {
+    url: MOCK_PAIR_PROFILES_URL,
+    requestMethod: 'POST',
+    response: MOCK_PAIR_PROFILES_RESPONSE,
+  } satisfies MockResponse;
 };
 
 export const getMockAuthAccessTokenResponse = () => {
