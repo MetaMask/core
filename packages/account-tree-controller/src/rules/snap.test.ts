@@ -48,7 +48,7 @@ const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   metadata: {
     name: 'Snap Account 1',
     keyring: { type: KeyringTypes.snap },
-    snap: { name: 'Test Snap', id: MOCK_SNAP_1.id, enabled: true },
+    snap: { id: MOCK_SNAP_1.id },
     importTime: 0,
     lastSelected: 0,
   },
