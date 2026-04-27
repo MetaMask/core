@@ -2370,12 +2370,20 @@ export class AssetsController extends BaseController<
     ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
-      if (subscriptionKey.startsWith('ds:')) {
-        const sourceId = subscriptionKey.slice(3);
-        const source = allSources.find((ds) => ds.getName() === sourceId);
-        if (source) {
-          this.#unsubscribeDataSource(source);
-        }
+      if (!subscriptionKey.startsWith('ds:')) {
+        continue;
+      }
+      // Subscription keys take the form `ds:<SourceName>` for the regular
+      // subscription or `ds:<SourceName>:<suffix>` for supplemental
+      // subscriptions (e.g. `ds:RpcDataSource:custom`). Split on `:` and
+      // pick the source-name segment so both shapes resolve correctly.
+      const [, sourceId] = subscriptionKey.split(':');
+      const source = allSources.find((ds) => ds.getName() === sourceId);
+      if (source) {
+        // Unsubscribe by the actual key — `#unsubscribeDataSource` only
+        // knows the regular `ds:<SourceName>` shape and would miss
+        // supplemental subscriptions, leaking their polling timers.
+        this.#unsubscribeBySubscriptionKey(source, subscriptionKey);
       }
     }
     this.#activeSubscriptions.clear();
