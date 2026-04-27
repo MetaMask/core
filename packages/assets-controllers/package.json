@@ -104,7 +104,7 @@
     "@metamask/account-api": "^1.0.3",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-internal-api": "^10.1.1",
+    "@metamask/keyring-internal-api": "^11.0.0",
     "@metamask/keyring-snap-client": "^9.0.1",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
