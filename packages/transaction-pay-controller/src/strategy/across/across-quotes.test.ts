@@ -1303,6 +1303,39 @@ describe('Across Quotes', () => {
       );
     });
 
+    it('omits requiresAuthorizationList when batch estimation does not include it', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask.is7702).toBe(true);
+      expect(
+        result[0].original.metamask.requiresAuthorizationList,
+      ).toBeUndefined();
+    });
+
     it('re-estimates individually when batch returns 7702 but account does not support it', async () => {
       getKeyringControllerStateMock.mockReturnValue({
         isUnlocked: true,
