@@ -172,6 +172,31 @@ describe('RpcFallbackMiddleware', () => {
     expect(finalCtx.response.errors?.['eip155:137']).toBe('Fetch failed: oops');
   });
 
+  it('does not clear an error for a chain RPC failed on, even when upstream returned partial balance for it', async () => {
+    // Regression: previously the error-clearing logic looked at the merged
+    // response, so a chain that already had partial balance data from
+    // upstream (e.g. AccountsApi returned an asset for chain X but also
+    // reported chain X in unprocessedNetworks) and then failed under RPC
+    // would still have its error cleared. The check must look at what RPC
+    // actually returned.
+    const { source } = createMockRpcSource({}); // RPC fails — empty response
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:137']), {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_POLYGON]: { amount: '7' } },
+      },
+      errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    const finalCtx = next.mock.calls[0][0];
+    expect(finalCtx.response.errors?.['eip155:137']).toBe(
+      'Unprocessed by Accounts API',
+    );
+  });
+
   it('does not run for non-balance data types', async () => {
     const { source, middleware: rpcMw } = createMockRpcSource();
     const mw = new RpcFallbackMiddleware({ rpcDataSource: source });

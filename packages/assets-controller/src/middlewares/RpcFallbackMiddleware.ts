@@ -73,16 +73,23 @@ export class RpcFallbackMiddleware {
         rpcResult.response,
       ]);
 
-      // Clear errors for chains RPC successfully retrieved a balance for.
-      if (merged.errors && merged.assetsBalance) {
-        const chainsWithBalance = new Set<string>();
-        for (const accountBalances of Object.values(merged.assetsBalance)) {
+      // Clear errors only for chains RPC actually recovered a balance for.
+      // We must inspect rpcResult.response — NOT merged — because merged
+      // also contains balances from the upstream sources (AccountsApi /
+      // Websocket / Staked). If those sources returned partial data for
+      // a chain that they also flagged as errored (e.g. via
+      // unprocessedNetworks), and RPC then failed for that same chain,
+      // looking at merged would incorrectly mark the error as recovered.
+      const rpcAssetsBalance = rpcResult.response.assetsBalance;
+      if (merged.errors && rpcAssetsBalance) {
+        const chainsRecoveredByRpc = new Set<string>();
+        for (const accountBalances of Object.values(rpcAssetsBalance)) {
           for (const assetId of Object.keys(accountBalances)) {
-            chainsWithBalance.add(assetId.split('/')[0]);
+            chainsRecoveredByRpc.add(assetId.split('/')[0]);
           }
         }
         for (const chainId of erroredChains) {
-          if (chainsWithBalance.has(chainId)) {
+          if (chainsRecoveredByRpc.has(chainId)) {
             delete merged.errors[chainId];
           }
         }
