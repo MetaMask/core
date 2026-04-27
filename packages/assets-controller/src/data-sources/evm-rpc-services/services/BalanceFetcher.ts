@@ -132,38 +132,52 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
   #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
     const state = this.#messenger.call('AssetsController:getState');
 
-    const accountBalances = state?.assetsBalance?.[accountId];
-    if (!accountBalances) {
-      return [];
-    }
-
     // Convert hex chainId to decimal for CAIP-2 matching
     // This is safe because we are filtring with an accountId that is for evm balances only
     const chainIdDecimal = parseInt(chainId, 16).toString();
 
     const assetsToFetch = new Map<string, AssetFetchEntry>();
 
-    for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
-      const {
-        chain: { reference: chainReference },
-        assetReference,
-      } = parseCaipAssetType(assetId);
+    const collect = (assetId: CaipAssetType): void => {
+      let parsed;
+      try {
+        parsed = parseCaipAssetType(assetId);
+      } catch {
+        return;
+      }
+      if (parsed.chain.reference !== chainIdDecimal) {
+        return;
+      }
+      const assetIdLowerCase = assetId.toLowerCase();
+      if (assetsToFetch.has(assetIdLowerCase)) {
+        return;
+      }
+      const isNative = this.#isNativeAsset(assetId);
+      const tokenAddress = isNative
+        ? ZERO_ADDRESS
+        : (parsed.assetReference.toLowerCase() as Address);
+      assetsToFetch.set(assetIdLowerCase, {
+        assetId,
+        address: tokenAddress,
+      });
+    };
 
-      if (chainReference === chainIdDecimal) {
-        const assetIdLowerCase = assetId.toLowerCase();
-        if (assetsToFetch.has(assetIdLowerCase)) {
-          continue;
-        }
+    // 1. Assets already tracked with a balance entry.
+    const accountBalances = state?.assetsBalance?.[accountId];
+    if (accountBalances) {
+      for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
+        collect(assetId);
+      }
+    }
 
-        const isNative = this.#isNativeAsset(assetId);
-        const tokenAddress = isNative
-          ? ZERO_ADDRESS
-          : (assetReference.toLowerCase() as Address);
-
-        assetsToFetch.set(assetIdLowerCase, {
-          assetId,
-          address: tokenAddress,
-        });
+    // 2. User-added custom assets — RPC is the sole balance fetcher for
+    //    these, so they must be polled even if they have no balance entry
+    //    yet (e.g. zero balance, first fetch failed, or state was hydrated
+    //    from disk before any successful fetch).
+    const customAssets = state?.customAssets?.[accountId];
+    if (customAssets) {
+      for (const assetId of customAssets as CaipAssetType[]) {
+        collect(assetId);
       }
     }
 

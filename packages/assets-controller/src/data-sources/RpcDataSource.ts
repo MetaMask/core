@@ -265,6 +265,7 @@ export class RpcDataSource extends AbstractDataSource<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
+        customAssets?: Record<string, string[]>;
       } => {
         const state = this.#messenger.call('AssetsController:getState');
         return {
@@ -272,6 +273,7 @@ export class RpcDataSource extends AbstractDataSource<
             string,
             Record<string, { amount: string }>
           >,
+          customAssets: (state.customAssets ?? {}) as Record<string, string[]>,
         };
       },
     };
