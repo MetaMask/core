@@ -78,12 +78,27 @@ export const formatProviderLabel = ({
 }: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
   `${bridgeId}_${bridges[0]}`;
 
-export const getRequestParams = ({
-  srcChainId,
-  destChainId,
-  srcTokenAddress,
-  destTokenAddress,
-}: Partial<GenericQuoteRequest>): Omit<
+/**
+ * @param quoteRequest - The current quote request used to derive chain and token identity fields.
+ * @param quoteRequest.srcChainId - Source chain id of the quote request.
+ * @param quoteRequest.destChainId - Destination chain id of the quote request.
+ * @param quoteRequest.srcTokenAddress - Source token address of the quote request.
+ * @param quoteRequest.destTokenAddress - Destination token address of the quote request.
+ * @param tokenSecurityTypeDestination - The security classification of the destination token,
+ * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
+ * security data is available for the selected destination token.
+ * @returns The analytics request params derived from the quote request, minus token symbols
+ * which the caller provides separately.
+ */
+export const getRequestParams = (
+  {
+    srcChainId,
+    destChainId,
+    srcTokenAddress,
+    destTokenAddress,
+  }: Partial<GenericQuoteRequest>,
+  tokenSecurityTypeDestination: string | null,
+): Omit<
   RequestParams,
   'token_symbol_source' | 'token_symbol_destination'
 > => {
@@ -104,6 +119,7 @@ export const getRequestParams = ({
           destChainId ?? srcChainIdCaip,
         ) ?? null)
       : null,
+    token_security_type_destination: tokenSecurityTypeDestination,
   };
 };
 
