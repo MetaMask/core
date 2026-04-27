@@ -1541,7 +1541,7 @@ describe('MultichainAssetsController', () => {
       ]);
     });
 
-    it('does not add tokens when bulkScanTokens returns empty (API error handled internally)', async () => {
+    it('adds tokens when bulkScanTokens returns empty (fail open - no result means not rejected)', async () => {
       const mockAccountId = 'account1';
       const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
 
@@ -1564,7 +1564,10 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
-      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
+      // With fail-open blacklist approach, no result means not rejected
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        token,
+      ]);
     });
 
     it('does not scan native (slip44) assets', async () => {
@@ -1594,7 +1597,7 @@ describe('MultichainAssetsController', () => {
       expect(mockBulkScanTokens).not.toHaveBeenCalled();
     });
 
-    it('does not add tokens with no result in the scan response (fail closed)', async () => {
+    it('adds tokens with no result in the scan response (fail open)', async () => {
       const mockAccountId = 'account1';
       const knownToken =
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:KnownAddr';
@@ -1626,8 +1629,10 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
+      // With fail-open blacklist approach, tokens without results are not rejected
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
         knownToken,
+        unknownToken,
       ]);
     });
 
