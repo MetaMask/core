@@ -759,6 +759,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateEditableParams',
   'updateIncomingTransactions',
   'updateTransaction',
+  'wipeTransactions',
 ] as const;
 
 /**
