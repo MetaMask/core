@@ -1645,6 +1645,10 @@ export class AssetsController extends BaseController<
         updateMode: 'merge',
       });
     }
+
+    // Re-evaluate subscriptions so the supplemental RPC poll picks up the
+    // new customAsset on chains another data source already owns.
+    this.#subscribeAssets();
   }
 
   /**
@@ -1670,6 +1674,10 @@ export class AssetsController extends BaseController<
         }
       }
     });
+
+    // Re-evaluate subscriptions so the supplemental RPC poll for that chain
+    // is torn down when no more customAssets remain there.
+    this.#subscribeAssets();
   }
 
   /**
@@ -2434,6 +2442,8 @@ export class AssetsController extends BaseController<
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
 
+    let rpcAssignedChains: Set<ChainId> = new Set();
+
     for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
@@ -2450,6 +2460,10 @@ export class AssetsController extends BaseController<
         continue;
       }
 
+      if (source === this.#rpcDataSource) {
+        rpcAssignedChains = new Set(assignedChains);
+      }
+
       const seenIds = new Set<string>();
       const accountsForSource = assignedChains
         .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
@@ -2460,6 +2474,104 @@ export class AssetsController extends BaseController<
       if (accountsForSource.length > 0) {
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
+    }
+
+    // Supplemental RPC subscription for customAssets on chains another data
+    // source claimed during regular handoff. RPC is the sole balance fetcher
+    // for customAssets, so we must always poll them — even when (e.g.)
+    // AccountsApi is already covering the chain for normal balances. The
+    // supplemental subscription runs in `customAssetsOnly` mode so it does
+    // NOT double-poll the regular tracked balances.
+    this.#subscribeRpcCustomAssetsSupplement(
+      accounts,
+      chainToAccounts,
+      rpcAssignedChains,
+    );
+  }
+
+  /**
+   * Subscribe RPC to chains where the user has customAssets but another
+   * balance data source already owns the chain in regular handoff. Uses a
+   * separate subscription key (`customAssetsOnly` mode) so the regular RPC
+   * subscription, if any, is unaffected.
+   *
+   * @param accounts - Accounts to consider for customAssets.
+   * @param chainToAccounts - Map of chain → accounts (built by caller).
+   * @param rpcAssignedChains - Chains RPC was assigned in the regular handoff.
+   */
+  #subscribeRpcCustomAssetsSupplement(
+    accounts: InternalAccount[],
+    chainToAccounts: Map<ChainId, InternalAccount[]>,
+    rpcAssignedChains: Set<ChainId>,
+  ): void {
+    const rpc = this.#rpcDataSource;
+    const rpcAvailableChains = new Set(rpc.getActiveChainsSync());
+
+    // Collect chains that have customAssets for at least one of the given
+    // accounts and are NOT already covered by the regular RPC subscription.
+    const supplementalChainSet = new Set<ChainId>();
+    const accountsWithCustomAssets = new Set<string>();
+    for (const account of accounts) {
+      const customForAccount = this.state.customAssets[account.id] ?? [];
+      if (customForAccount.length === 0) {
+        continue;
+      }
+      accountsWithCustomAssets.add(account.id);
+      for (const assetId of customForAccount) {
+        let chainId: ChainId;
+        try {
+          chainId = extractChainId(assetId);
+        } catch {
+          continue;
+        }
+        if (rpcAssignedChains.has(chainId)) {
+          continue;
+        }
+        if (!rpcAvailableChains.has(chainId)) {
+          continue;
+        }
+        if (!chainToAccounts.has(chainId)) {
+          continue;
+        }
+        supplementalChainSet.add(chainId);
+      }
+    }
+
+    const supplementalKey = `ds:${rpc.getName()}:custom`;
+    if (supplementalChainSet.size === 0) {
+      this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
+      return;
+    }
+
+    const supplementalChains = [...supplementalChainSet];
+    const supplementalAccounts = accounts.filter((account) =>
+      accountsWithCustomAssets.has(account.id),
+    );
+    if (supplementalAccounts.length === 0) {
+      this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
+      return;
+    }
+
+    this.#subscribeDataSource(rpc, supplementalAccounts, supplementalChains, {
+      subscriptionKey: supplementalKey,
+      customAssetsOnly: true,
+    });
+  }
+
+  /**
+   * Unsubscribe a data source by an explicit subscription key.
+   *
+   * @param source - The data source instance.
+   * @param subscriptionKey - The subscription key to unsubscribe.
+   */
+  #unsubscribeBySubscriptionKey(
+    source: AbstractDataSource<string, DataSourceState>,
+    subscriptionKey: string,
+  ): void {
+    const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
+    if (existingSubscription) {
+      source.unsubscribe(subscriptionKey).catch(() => undefined);
+      existingSubscription.unsubscribe();
     }
   }
 
@@ -2533,9 +2645,10 @@ export class AssetsController extends BaseController<
     source: AbstractDataSource<string, DataSourceState>,
     accounts: InternalAccount[],
     chains: ChainId[],
+    options: { subscriptionKey?: string; customAssetsOnly?: boolean } = {},
   ): void {
     const sourceId = source.getName();
-    const subscriptionKey = `ds:${sourceId}`;
+    const subscriptionKey = options.subscriptionKey ?? `ds:${sourceId}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
 
@@ -2545,6 +2658,7 @@ export class AssetsController extends BaseController<
       isUpdate,
       accountCount: accounts.length,
       chainCount: chains.length,
+      customAssetsOnly: options.customAssetsOnly === true,
     });
 
     const subscribeReq: SubscriptionRequest = {
@@ -2552,6 +2666,9 @@ export class AssetsController extends BaseController<
         assetTypes: ['fungible'],
         dataTypes: ['balance'],
         updateInterval: this.#defaultUpdateInterval,
+        ...(options.customAssetsOnly === true
+          ? { customAssetsOnly: true }
+          : {}),
       }),
       subscriptionId: subscriptionKey,
       isUpdate,

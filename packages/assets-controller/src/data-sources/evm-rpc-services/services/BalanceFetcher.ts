@@ -45,6 +45,13 @@ export type BalancePollingInput = {
   accountId: AccountId;
   /** Account address */
   accountAddress: Address;
+  /**
+   * When true, only fetch balances for entries in `state.customAssets`,
+   * skipping `state.assetsBalance`. Used by the supplemental RPC
+   * subscription on chains that another data source is already covering
+   * for regular balance refreshes.
+   */
+  customAssetsOnly?: boolean;
 };
 
 /**
@@ -114,6 +121,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       input.chainId,
       input.accountId,
       input.accountAddress,
+      input.customAssetsOnly === true,
     );
 
     if (this.#onBalanceUpdate && result.balances.length > 0) {
@@ -129,7 +137,11 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param accountId - Account UUID.
    * @returns Array of asset fetch entries from state for the requested chain.
    */
-  #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
+  #getAssetsToFetch(
+    chainId: ChainId,
+    accountId: AccountId,
+    customAssetsOnly: boolean,
+  ): AssetFetchEntry[] {
     const state = this.#messenger.call('AssetsController:getState');
 
     // Convert hex chainId to decimal for CAIP-2 matching
@@ -162,11 +174,15 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       });
     };
 
-    // 1. Assets already tracked with a balance entry.
-    const accountBalances = state?.assetsBalance?.[accountId];
-    if (accountBalances) {
-      for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
-        collect(assetId);
+    // 1. Assets already tracked with a balance entry — only when not in
+    //    "customAssetsOnly" mode (otherwise another data source is already
+    //    refreshing them and we'd double-poll).
+    if (!customAssetsOnly) {
+      const accountBalances = state?.assetsBalance?.[accountId];
+      if (accountBalances) {
+        for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
+          collect(assetId);
+        }
       }
     }
 
@@ -197,8 +213,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
+    customAssetsOnly: boolean,
   ): Promise<BalanceFetchResult> {
-    const assets = this.#getAssetsToFetch(chainId, accountId);
+    const assets = this.#getAssetsToFetch(chainId, accountId, customAssetsOnly);
 
     return this.fetchBalancesForAssets(
       chainId,

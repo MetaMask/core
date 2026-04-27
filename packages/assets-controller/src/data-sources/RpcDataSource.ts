@@ -930,6 +930,7 @@ export class RpcDataSource extends AbstractDataSource<
           const existingMetadata = this.#getExistingAssetsMetadata();
 
           for (const assetId of request.customAssets) {
+            console.log('assetId ............', assetId);
             try {
               const parsed = parseCaipAssetType(assetId);
               const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
@@ -1310,12 +1311,20 @@ export class RpcDataSource extends AbstractDataSource<
           chainId: hexChainId,
           accountId,
           accountAddress: address as Address,
+          ...(request.customAssetsOnly === true
+            ? { customAssetsOnly: true }
+            : {}),
         };
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled and external services allowed
-        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
+        // Token detection is only relevant for "regular" subscriptions —
+        // a customAssetsOnly subscription should never run detection.
+        if (
+          request.customAssetsOnly !== true &&
+          this.#tokenDetectionEnabled() &&
+          this.#useExternalService()
+        ) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,
