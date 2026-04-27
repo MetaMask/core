@@ -20,6 +20,7 @@ import {
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import type {
   Country,
   TokensResponse,
@@ -61,8 +62,8 @@ import type {
 } from './TransakService';
 
 describe('RampsController', () => {
-  const circuitBreakerOpenUserMessage =
-    "We're having trouble connecting right now. Please try again in a few minutes.";
+  const circuitBreakerOpenErrorMessage =
+    'Execution prevented because the circuit breaker is open';
 
   describe('normalizeProviderCode', () => {
     it('strips /providers/ prefix', () => {
@@ -1078,11 +1079,9 @@ describe('RampsController', () => {
       });
     });
 
-    it('maps circuit breaker errors to a user-facing message', async () => {
+    it('tags circuit breaker errors with a localized error key', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        const error = new Error(
-          'Execution prevented because the circuit breaker is open',
-        );
+        const error = new Error(circuitBreakerOpenErrorMessage);
         const fetcher = async (): Promise<string> => {
           throw error;
         };
@@ -1093,21 +1092,30 @@ describe('RampsController', () => {
             'error-key-circuit-breaker',
             fetcher,
           ),
-        ).rejects.toThrow(circuitBreakerOpenUserMessage);
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
 
         const requestState =
           controller.state.requests['error-key-circuit-breaker'];
         expect(requestState?.status).toBe(RequestStatus.ERROR);
-        expect(requestState?.error).toBe(circuitBreakerOpenUserMessage);
-        expect(error.message).toBe(circuitBreakerOpenUserMessage);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+        expect(error.message).toBe(circuitBreakerOpenErrorMessage);
+        expect((error as Error & { errorKey?: string }).errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
       });
     });
 
-    it('wraps string circuit breaker errors with a user-facing message', async () => {
+    it('wraps string circuit breaker errors with a localized error key', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const fetcher = async (): Promise<string> => {
           // eslint-disable-next-line @typescript-eslint/only-throw-error
-          throw 'Execution prevented because the circuit breaker is open';
+          throw circuitBreakerOpenErrorMessage;
         };
 
         await expect(
@@ -1116,12 +1124,46 @@ describe('RampsController', () => {
             'error-key-circuit-breaker-string',
             fetcher,
           ),
-        ).rejects.toThrow(circuitBreakerOpenUserMessage);
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
 
         const requestState =
           controller.state.requests['error-key-circuit-breaker-string'];
         expect(requestState?.status).toBe(RequestStatus.ERROR);
-        expect(requestState?.error).toBe(circuitBreakerOpenUserMessage);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
+    it('wraps object circuit breaker errors with a localized error key', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const fetcher = async (): Promise<string> => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw { message: circuitBreakerOpenErrorMessage };
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-circuit-breaker-object',
+            fetcher,
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        const requestState =
+          controller.state.requests['error-key-circuit-breaker-object'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
       });
     });
 
@@ -1165,6 +1207,33 @@ describe('RampsController', () => {
 
         expect(isResultCurrent).toHaveBeenCalledTimes(1);
         expect(controller.state.providers.error).toBe('network failed');
+      });
+    });
+
+    it('stores resource error keys for localized request failures', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const fetcher = async (): Promise<string> => {
+          throw new Error(circuitBreakerOpenErrorMessage);
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-circuit-breaker-key',
+            fetcher,
+            { resourceType: 'providers' },
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        expect(controller.state.providers.error).toBe(
+          circuitBreakerOpenErrorMessage,
+        );
+        expect(controller.state.providers.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
       });
     });
 
@@ -7363,11 +7432,9 @@ describe('RampsController', () => {
         });
       });
 
-      it('maps circuit breaker errors to a user-facing message', async () => {
+      it('tags circuit breaker errors with a localized error key', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const error = new Error(
-            'Execution prevented because the circuit breaker is open',
-          );
+          const error = new Error(circuitBreakerOpenErrorMessage);
           rootMessenger.registerActionHandler(
             'TransakService:getBuyQuote',
             async () => {
@@ -7383,11 +7450,20 @@ describe('RampsController', () => {
               'credit_debit_card',
               '100',
             ),
-          ).rejects.toThrow(circuitBreakerOpenUserMessage);
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
           expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
-            circuitBreakerOpenUserMessage,
+            circuitBreakerOpenErrorMessage,
           );
-          expect(error.message).toBe(circuitBreakerOpenUserMessage);
+          expect(
+            controller.state.nativeProviders.transak.buyQuote.errorKey,
+          ).toBe(RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN);
+          expect(error.message).toBe(circuitBreakerOpenErrorMessage);
+          expect((error as Error & { errorKey?: string }).errorKey).toBe(
+            RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          );
         });
       });
 

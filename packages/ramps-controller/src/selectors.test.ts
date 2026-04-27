@@ -4,6 +4,7 @@ import {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import { createRequestSelector } from './selectors';
 
 type TestRootState = {
@@ -36,7 +37,6 @@ function createMockRampsState(
     providers: createDefaultResourceState([], null),
     tokens: createDefaultResourceState(null, null),
     paymentMethods: createDefaultResourceState([], null),
-    quotes: createDefaultResourceState(null),
     requests: {},
     ...overrides,
   };
@@ -125,6 +125,38 @@ describe('createRequestSelector', () => {
         {
           "data": null,
           "error": "Network error",
+          "isFetching": false,
+        }
+      `);
+    });
+
+    it('includes errorKey when request state is classified for localization', () => {
+      const selector = createRequestSelector<TestRootState, string[]>(
+        getState,
+        'getCryptoCurrencies',
+        ['US'],
+      );
+
+      const errorRequest = createErrorState(
+        'Execution prevented because the circuit breaker is open',
+        Date.now(),
+        RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      );
+      const state: TestRootState = {
+        ramps: createMockRampsState({
+          requests: {
+            'getCryptoCurrencies:["US"]': errorRequest,
+          },
+        }),
+      };
+
+      const result = selector(state);
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "data": null,
+          "error": "Execution prevented because the circuit breaker is open",
+          "errorKey": "CIRCUIT_BREAKER_OPEN",
           "isFetching": false,
         }
       `);

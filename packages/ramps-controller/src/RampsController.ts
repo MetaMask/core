@@ -9,6 +9,7 @@ import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
+import type { RampsErrorCode } from './rampsErrorCodes';
 import type {
   BuyWidget,
   Country,
@@ -96,6 +97,7 @@ import type {
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
 } from './TransakService-method-action-types';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 
 // === GENERAL ===
 
@@ -159,15 +161,21 @@ const DEFAULT_QUOTES_TTL = 15000;
 const CIRCUIT_BREAKER_OPEN_ERROR =
   'Execution prevented because the circuit breaker is open';
 
-const CIRCUIT_BREAKER_OPEN_USER_MESSAGE =
-  "We're having trouble connecting right now. Please try again in a few minutes.";
-
 type ErrorWithMessage = {
   message: string;
 };
 
+type ErrorWithRampsErrorKey = Error & {
+  errorKey?: RampsErrorCode;
+};
+
 type ErrorWithHttpStatus = Error & {
   httpStatus: number;
+};
+
+type RampsErrorInfo = {
+  errorKey: RampsErrorCode | null;
+  message: string;
 };
 
 function hasStringMessage(error: unknown): error is ErrorWithMessage {
@@ -185,7 +193,7 @@ function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
   );
 }
 
-function getRampsErrorMessage(error: unknown): string {
+function getRampsErrorInfo(error: unknown): RampsErrorInfo {
   let rawMessage: string | undefined;
 
   if (hasStringMessage(error)) {
@@ -195,26 +203,40 @@ function getRampsErrorMessage(error: unknown): string {
   }
 
   if (rawMessage?.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
-    return CIRCUIT_BREAKER_OPEN_USER_MESSAGE;
+    return {
+      errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      message: rawMessage,
+    };
   }
 
-  return rawMessage ?? 'Unknown error';
+  return {
+    errorKey: null,
+    message: rawMessage ?? 'Unknown error',
+  };
 }
 
-function normalizeRampsErrorForRethrow(error: unknown): unknown {
-  if (hasStringMessage(error)) {
-    if (error.message.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
-      error.message = CIRCUIT_BREAKER_OPEN_USER_MESSAGE;
-    }
-
+function normalizeRampsErrorForRethrow(
+  error: unknown,
+  errorInfo: RampsErrorInfo,
+): unknown {
+  if (!errorInfo.errorKey) {
     return error;
   }
 
-  if (typeof error === 'string' && error.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
-    return new Error(CIRCUIT_BREAKER_OPEN_USER_MESSAGE);
+  if (error instanceof Error) {
+    (error as ErrorWithRampsErrorKey).errorKey = errorInfo.errorKey;
+    return error;
   }
 
-  return error;
+  if (typeof error === 'string') {
+    return Object.assign(new Error(errorInfo.message), {
+      errorKey: errorInfo.errorKey,
+    });
+  }
+
+  return Object.assign(new Error(errorInfo.message), {
+    errorKey: errorInfo.errorKey,
+  });
 }
 
 // === STATE ===
@@ -260,6 +282,10 @@ export type ResourceState<TData, TSelected = null> = {
    * Error message if the fetch failed, or null.
    */
   error: string | null;
+  /**
+   * Stable error key for client-side localization, if available.
+   */
+  errorKey?: RampsErrorCode | null;
 };
 
 /**
@@ -963,17 +989,21 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage = getRampsErrorMessage(error);
-        const normalizedError = normalizeRampsErrorForRethrow(error);
+        const errorInfo = getRampsErrorInfo(error);
+        const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
         this.#updateRequestState(
           cacheKey,
-          createErrorState(errorMessage, lastFetchedAt),
+          createErrorState(
+            errorInfo.message,
+            lastFetchedAt,
+            errorInfo.errorKey,
+          ),
         );
         if (resourceType) {
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
-            this.#setResourceError(resourceType, errorMessage);
+            this.#setResourceError(resourceType, errorInfo);
           }
         }
         throw normalizedError;
@@ -1096,8 +1126,8 @@ export class RampsController extends BaseController<
    */
   #updateResourceField(
     resourceType: ResourceType,
-    field: 'isLoading' | 'error',
-    value: boolean | string | null,
+    field: 'isLoading' | 'error' | 'errorKey',
+    value: boolean | string | RampsErrorCode | null,
   ): void {
     this.update((state) => {
       const resource = state[resourceType];
@@ -1121,10 +1151,26 @@ export class RampsController extends BaseController<
    * Sets the error state for a resource type.
    *
    * @param resourceType - The type of resource.
-   * @param error - The error message, or null to clear.
+   * @param errorInfo - The error info, or null to clear.
    */
-  #setResourceError(resourceType: ResourceType, error: string | null): void {
-    this.#updateResourceField(resourceType, 'error', error);
+  #setResourceError(
+    resourceType: ResourceType,
+    errorInfo: RampsErrorInfo | null,
+  ): void {
+    this.update((state) => {
+      const resource = state[resourceType];
+      if (!resource) {
+        return;
+      }
+
+      resource.error = errorInfo?.message ?? null;
+
+      if (errorInfo?.errorKey) {
+        resource.errorKey = errorInfo.errorKey;
+      } else {
+        delete resource.errorKey;
+      }
+    });
   }
 
   /**
@@ -2235,6 +2281,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
+      delete state.nativeProviders.transak.userDetails.errorKey;
     });
     try {
       const details = await this.messenger.call(
@@ -2247,11 +2294,13 @@ export class RampsController extends BaseController<
       return details;
     } catch (error) {
       this.#syncTransakAuthOnError(error);
-      const errorMessage = getRampsErrorMessage(error);
-      const normalizedError = normalizeRampsErrorForRethrow(error);
+      const errorInfo = getRampsErrorInfo(error);
+      const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
-        state.nativeProviders.transak.userDetails.error = errorMessage;
+        state.nativeProviders.transak.userDetails.error = errorInfo.message;
+        state.nativeProviders.transak.userDetails.errorKey =
+          errorInfo.errorKey;
       });
       throw normalizedError;
     }
@@ -2278,6 +2327,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
+      delete state.nativeProviders.transak.buyQuote.errorKey;
     });
     try {
       const quote = await this.messenger.call(
@@ -2294,11 +2344,12 @@ export class RampsController extends BaseController<
       });
       return quote;
     } catch (error) {
-      const errorMessage = getRampsErrorMessage(error);
-      const normalizedError = normalizeRampsErrorForRethrow(error);
+      const errorInfo = getRampsErrorInfo(error);
+      const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
-        state.nativeProviders.transak.buyQuote.error = errorMessage;
+        state.nativeProviders.transak.buyQuote.error = errorInfo.message;
+        state.nativeProviders.transak.buyQuote.errorKey = errorInfo.errorKey;
       });
       throw normalizedError;
     }
@@ -2317,6 +2368,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
+      delete state.nativeProviders.transak.kycRequirement.errorKey;
     });
     try {
       const requirement = await this.messenger.call(
@@ -2330,11 +2382,13 @@ export class RampsController extends BaseController<
       return requirement;
     } catch (error) {
       this.#syncTransakAuthOnError(error);
-      const errorMessage = getRampsErrorMessage(error);
-      const normalizedError = normalizeRampsErrorForRethrow(error);
+      const errorInfo = getRampsErrorInfo(error);
+      const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
-        state.nativeProviders.transak.kycRequirement.error = errorMessage;
+        state.nativeProviders.transak.kycRequirement.error = errorInfo.message;
+        state.nativeProviders.transak.kycRequirement.errorKey =
+          errorInfo.errorKey;
       });
       throw normalizedError;
     }
