@@ -152,26 +152,25 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     const assetsToFetch = new Map<string, AssetFetchEntry>();
 
     const collect = (assetId: CaipAssetType): void => {
-      let parsed;
-      try {
-        parsed = parseCaipAssetType(assetId);
-      } catch {
-        return;
-      }
+      const parsed = parseCaipAssetType(assetId);
+    
       if (parsed.chain.reference !== chainIdDecimal) {
         return;
       }
-      const assetIdLowerCase = assetId.toLowerCase();
-      if (assetsToFetch.has(assetIdLowerCase)) {
+    
+      const normalizedAssetId = assetId.toLowerCase();
+    
+      if (assetsToFetch.has(normalizedAssetId)) {
         return;
       }
+    
       const isNative = this.#isNativeAsset(assetId);
-      const tokenAddress = isNative
-        ? ZERO_ADDRESS
-        : (parsed.assetReference.toLowerCase() as Address);
-      assetsToFetch.set(assetIdLowerCase, {
+    
+      assetsToFetch.set(normalizedAssetId, {
         assetId,
-        address: tokenAddress,
+        address: isNative
+          ? ZERO_ADDRESS
+          : (parsed.assetReference.toLowerCase() as Address),
       });
     };
 
