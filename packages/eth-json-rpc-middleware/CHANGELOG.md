@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `RetryOnEmptyMiddleware` now correctly propagates execution-revert errors from EIP-1474 / Infura-style providers
+  - `isExecutionRevertedError` previously required `code: -32000` and an exact `"execution reverted"` message, which never matches the response shape returned by Infura, Alchemy, QuickNode, and other production providers (`code: 3`, `message: "execution reverted: <reason>"`)
+  - The check now also accepts `code: 3` (per EIP-1474) and a message that starts with `"execution reverted"`, preserving backward compatibility with geth-style responses
+  - Without this fix, every reverted `eth_call` with a numeric block tag was being retried 10 times (~10s of latency) and the original revert payload was discarded behind a generic `"retries exhausted"` error
+
 ## [23.1.2]
 
 ### Changed
