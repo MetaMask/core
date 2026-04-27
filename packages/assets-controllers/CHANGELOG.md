@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When Blockaid bulk token scan API calls fail or return no results, tokens are allowed through
   - This prevents legitimate tokens from being blocked due to API outages, network issues, or missing token data
   - Malicious tokens that slip through are caught by the periodic rescan (runs daily by default)
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
 
 ## [104.3.0]
 
