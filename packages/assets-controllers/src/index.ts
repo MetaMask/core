@@ -43,6 +43,10 @@ export {
 } from './AssetsContractController';
 export * from './CurrencyRateController';
 export type {
+  CurrencyRateControllerSetCurrentCurrencyAction,
+  CurrencyRateControllerUpdateExchangeRateAction,
+} from './CurrencyRateController-method-action-types';
+export type {
   NftControllerState,
   NftControllerMessenger,
   NftControllerActions,

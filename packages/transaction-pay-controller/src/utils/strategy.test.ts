@@ -4,7 +4,13 @@ import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
-import { getStrategiesByName, getStrategyByName } from './strategy';
+import type { PayStrategyGetQuotesRequest } from '../types';
+import {
+  checkStrategyQuoteSupport,
+  checkStrategySupport,
+  getStrategiesByName,
+  getStrategyByName,
+} from './strategy';
 
 describe('Strategy Utils', () => {
   describe('getStrategyByName', () => {
@@ -77,6 +83,67 @@ describe('Strategy Utils', () => {
         TransactionPayStrategy.Relay,
       ]);
       expect(onUnknownStrategy).toHaveBeenCalledWith('UnknownStrategy');
+    });
+  });
+
+  describe('checkStrategySupport', () => {
+    const request = {} as PayStrategyGetQuotesRequest;
+
+    it('uses supports when available', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+        supports: jest.fn().mockReturnValue(true),
+      };
+
+      expect(await checkStrategySupport(strategy, request)).toBe(true);
+      expect(strategy.supports).toHaveBeenCalledWith(request);
+    });
+
+    it('supports async supports checks', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+        supports: jest.fn().mockResolvedValue(false),
+      };
+
+      expect(await checkStrategySupport(strategy, request)).toBe(false);
+      expect(strategy.supports).toHaveBeenCalledWith(request);
+    });
+
+    it('defaults to supported when no support check is provided', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategySupport(strategy, request)).toBe(true);
+    });
+  });
+
+  describe('checkStrategyQuoteSupport', () => {
+    const request = {
+      quotes: [],
+    } as never;
+
+    it('uses checkQuoteSupport when available', async () => {
+      const strategy = {
+        checkQuoteSupport: jest.fn().mockReturnValue(false),
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(false);
+      expect(strategy.checkQuoteSupport).toHaveBeenCalledWith(request);
+    });
+
+    it('defaults to supported when no post-quote support check is provided', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(true);
     });
   });
 });

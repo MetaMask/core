@@ -421,7 +421,11 @@ export class Messenger<
       ActionType
     >;
     if (!handler) {
-      throw new Error(`A handler for ${actionType} has not been registered`);
+      throw new Error(
+        this.#isInCurrentNamespace(actionType)
+          ? `A handler for ${actionType} has not been registered`
+          : `A handler for ${actionType} has not been delegated to ${this.#namespace}`,
+      );
     }
     return handler(...params);
   }

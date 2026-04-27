@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Drop the dead `spotState` parameter from `adaptAccountStateFromSDK`. Spot balances are layered on by `addSpotBalanceToAccountState`, which enforces the USDC-only policy via `SPOT_COLLATERAL_COINS`; removing the dormant branch keeps one source of truth and prevents a future caller from silently getting ALL-coins behavior ([#8560](https://github.com/MetaMask/core/pull/8560))
+- **BREAKING:** Drop the dead `spotState` parameter from `adaptAccountStateFromSDK`. Spot balances are layered on by `addSpotBalanceToAccountState`, which enforces the USDC-only policy via `SPOT_COLLATERAL_COINS`; removing the dormant branch keeps one source of truth and prevents a future caller from silently getting ALL-coins behavior ([#8560](https://github.com/MetaMask/core/pull/8560))
 
 ### Fixed
 

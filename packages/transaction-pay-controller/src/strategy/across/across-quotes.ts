@@ -200,11 +200,8 @@ async function normalizeQuote(
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
   const dust = getFiatValueFromUsd(dustUsd, usdToFiatRate);
 
-  const { gasLimits, is7702, sourceNetwork } = await calculateSourceNetworkCost(
-    quote,
-    messenger,
-    request,
-  );
+  const { gasLimits, is7702, requiresAuthorizationList, sourceNetwork } =
+    await calculateSourceNetworkCost(quote, messenger, request);
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
 
@@ -244,6 +241,7 @@ async function normalizeQuote(
   const metamask = {
     gasLimits,
     is7702,
+    ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
   };
 
   return {
@@ -390,6 +388,7 @@ async function calculateSourceNetworkCost(
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
   is7702: boolean;
+  requiresAuthorizationList?: true;
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
@@ -409,7 +408,7 @@ async function calculateSourceNetworkCost(
       value: transaction.value ?? '0x0',
     })),
   });
-  const { batchGasLimit, is7702 } = gasEstimates;
+  const { batchGasLimit, is7702, requiresAuthorizationList } = gasEstimates;
 
   if (is7702) {
     if (!batchGasLimit) {
@@ -438,6 +437,7 @@ async function calculateSourceNetworkCost(
         max,
       },
       is7702: true,
+      ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
       gasLimits: [
         {
           estimate: batchGasLimit.estimate,

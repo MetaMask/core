@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fall back from Across to later pay strategies when Across quotes would require a first-time EIP-7702 authorization list ([#8577](https://github.com/MetaMask/core/pull/8577))
+
 ## [19.3.0]
 
 ### Added
@@ -17,8 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controller` from `^6.0.0` to `^6.1.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
 - Bump `@metamask/assets-controllers` from `^104.2.0` to `^104.3.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
-- Bump `@metamask/bridge-controller` from `^70.1.1` to `^71.0.0` ([#8569](https://github.com/MetaMask/core/pull/8569))
-- Bump `@metamask/bridge-status-controller` from `^70.0.5` to `^71.0.0` ([#8569](https://github.com/MetaMask/core/pull/8569))
+- Bump `@metamask/bridge-controller` from `^70.1.1` to `^70.2.0` ([#8571](https://github.com/MetaMask/core/pull/8571))
+- Bump `@metamask/bridge-status-controller` from `^70.0.5` to `^71.0.0` ([#8571](https://github.com/MetaMask/core/pull/8571))
 
 ## [19.2.2]
 

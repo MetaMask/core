@@ -1188,6 +1188,7 @@ describe('Across Quotes', () => {
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 51000,
         gasLimits: [51000],
+        requiresAuthorizationList: true,
       });
 
       successfulFetchMock.mockResolvedValue({
@@ -1232,6 +1233,7 @@ describe('Across Quotes', () => {
         },
       ]);
       expect(result[0].original.metamask.is7702).toBe(true);
+      expect(result[0].original.metamask.requiresAuthorizationList).toBe(true);
       expect(calculateGasCostMock).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
@@ -1251,6 +1253,43 @@ describe('Across Quotes', () => {
           maxPriorityFeePerGas: '0x1',
         }),
       );
+    });
+
+    it('omits the authorization-list flag when a combined batch does not require one', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask).toStrictEqual({
+        gasLimits: [
+          {
+            estimate: 51000,
+            max: 51000,
+          },
+        ],
+        is7702: true,
+      });
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {
