@@ -1,4 +1,8 @@
-import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
+import {
+  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
+  ChainId,
+} from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 
 export enum Source {
   Custom = 'custom',
@@ -20,6 +24,52 @@ export const SUPPORTED_NETWORKS_ACCOUNTS_API_V4 = [
   '0x8f', // 143
   '0x3e7', // 999 HyperEVM
 ];
+
+/** Lowercase ERC-20 address for MetaMask USD (mUSD), same contract on listed chains. */
+export const MUSD_ERC20_ADDRESS_LOWER =
+  '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
+/**
+ * EVM chains where mUSD is always merged into the token-detection candidate list.
+ * Metadata matches `GET /v3/assets` on `tokens.api.cx.metamask.io` (assetIds CAIP-19).
+ */
+export const MUSD_TOKEN_DETECTION_CHAIN_IDS: readonly Hex[] = [
+  ChainId.mainnet,
+  ChainId['linea-mainnet'],
+  '0x8f', // Monad mainnet (eip155:143)
+] as const;
+
+/** Raw `aggregators` keys from the Tokens API (same shape as token list cache). */
+export type MusdTokenDetectionMetadata = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  aggregators: string[];
+};
+
+export const MUSD_TOKEN_METADATA_BY_CHAIN: Record<
+  (typeof MUSD_TOKEN_DETECTION_CHAIN_IDS)[number],
+  MusdTokenDetectionMetadata
+> = {
+  [ChainId.mainnet]: {
+    name: 'MetaMask USD',
+    symbol: 'MUSD',
+    decimals: 6,
+    aggregators: ['metamask', 'liFi', 'socket', 'rubic', 'rango'],
+  },
+  [ChainId['linea-mainnet']]: {
+    name: 'MetaMask USD',
+    symbol: 'MUSD',
+    decimals: 6,
+    aggregators: ['metamask', 'liFi', 'socket', 'rubic', 'squid', 'rango'],
+  },
+  '0x8f': {
+    name: 'MetaMask USD',
+    symbol: 'mUSD',
+    decimals: 6,
+    aggregators: ['dynamic'],
+  },
+};
 
 /**
  * Determines if native token fetching should be included for the given chain.
