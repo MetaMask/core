@@ -930,7 +930,6 @@ export class RpcDataSource extends AbstractDataSource<
           const existingMetadata = this.#getExistingAssetsMetadata();
 
           for (const assetId of request.customAssets) {
-            console.log('assetId ............', assetId);
             try {
               const parsed = parseCaipAssetType(assetId);
               const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
