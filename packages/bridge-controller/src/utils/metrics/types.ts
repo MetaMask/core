@@ -89,7 +89,9 @@ export type QuoteWarning =
   | 'insufficient_gas_balance'
   | 'insufficient_gas_for_selected_quote'
   | 'insufficient_balance'
+  | 'market_closed'
   | 'price_impact'
+  | 'quote_expired'
   | 'tx_alert';
 
 /**
