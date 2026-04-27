@@ -7,11 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The following actions are now available:
+    - `CurrencyRateController:setCurrentCurrency`
+    - `CurrencyRateController:updateExchangeRate`
+  - Corresponding action types (e.g. `CurrencyRateControllerSetCurrentCurrencyAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `CurrencyRateController` messenger.
+- `MultichainAssetsController`: Restore fail-open behavior for Blockaid spam token filter ([#8580](https://github.com/MetaMask/core/pull/8580))
+  - Uses blacklist approach: only rejects tokens explicitly marked as malicious by Blockaid
+  - When Blockaid bulk token scan API calls fail or return no results, tokens are allowed through
+  - This prevents legitimate tokens from being blocked due to API outages, network issues, or missing token data
+  - Malicious tokens that slip through are caught by the periodic rescan (runs daily by default)
+
+## [104.3.0]
+
+### Added
+
+- Export `SPOT_PRICES_SUPPORT_INFO` from the token prices service ([#8483](https://github.com/MetaMask/core/pull/8483))
+
+## [104.2.0]
+
+### Added
+
+- Add Tempo Mainnet (`4217`/`0x1079`) multicall contract support ([#8346](https://github.com/MetaMask/core/pull/8346))
+- Add Forma (`0xf043a` / `eip155:984122`) to `SPOT_PRICES_SUPPORT_INFO`, mapping its native TIA asset to `slip44:984122` so the price-api can resolve it to CoinGecko's `celestia` coin ([#8524](https://github.com/MetaMask/core/pull/8524))
+
 ## [104.1.0]
 
 ### Added
 
 - `MultichainAssetsController`: periodic Blockaid re-scan of stored SPL-style `token:` assets (default once per day) so tokens that become malicious after a prior scan are dropped; use constructor option `blockaidTokenRescanInterval` (ms), or `0` to disable. ([#8400](https://github.com/MetaMask/core/pull/8400))
+- Added Injective Mainnet native token to Price API supported chains ([#8487](https://github.com/MetaMask/core/pull/8487))
 
 ### Changed
 
@@ -21,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Used the `removed` property coming from `MultichainAssetsController:accountAssetListUpdated` event body to manage stale balances ([#8461](https://github.com/MetaMask/core/pull/8461))
 - `MultichainAssetsController`: fungible `token:` assets from automatic detection are no longer added when Blockaid bulk scan fails, returns empty, or omits that address (previously fail open); an explicit non-malicious per-token result from `PhishingController:bulkScanTokens` is now required before add. ([#8400](https://github.com/MetaMask/core/pull/8400))
 - Fix `AccountTrackerController` wiping existing balances on other chains when syncing accounts for a chain that has no state entry yet ([#8505](https://github.com/MetaMask/core/pull/8505))
 
@@ -2932,7 +2966,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...HEAD
+[104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
+[104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
 [104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0
 [104.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...@metamask/assets-controllers@104.0.0
 [103.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...@metamask/assets-controllers@103.1.1

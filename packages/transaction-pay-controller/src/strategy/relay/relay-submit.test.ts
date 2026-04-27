@@ -1191,6 +1191,27 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
+      it('uses quote.request.from (accountOverride) for signing when accountOverride is set', async () => {
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
+
+        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
+
+        request.quotes[0].request.isHyperliquidSource = true;
+        request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
+        request.quotes[0].original.steps[0].kind = 'transaction';
+
+        await submitRelayQuotes(request);
+
+        expect(hlWithdrawMock).toHaveBeenCalledTimes(1);
+        expect(hlWithdrawMock).toHaveBeenCalledWith(
+          request.quotes[0],
+          ACCOUNT_OVERRIDE_MOCK,
+          messenger,
+        );
+      });
+
       it('still polls relay status after HyperLiquid withdraw', async () => {
         request.quotes[0].request.isHyperliquidSource = true;
 
@@ -1290,6 +1311,32 @@ describe('Relay Submit Utils', () => {
         expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
           CHAIN_ID_MOCK,
         );
+      });
+
+      it('passes txParams with from overridden by quote request from', async () => {
+        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
+
+        request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
+        request.transaction = {
+          ...request.transaction,
+          txParams: {
+            from: FROM_MOCK,
+            data: '0xorigdata' as Hex,
+            value: '0x100' as Hex,
+          },
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            txParams: {
+              from: ACCOUNT_OVERRIDE_MOCK,
+              data: '0xorigdata',
+              value: '0x100',
+            },
+          }),
+        });
       });
 
       it('submits to /execute with delegation data', async () => {

@@ -2,7 +2,7 @@
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
-  GetCurrencyRateState,
+  CurrencyRateControllerGetStateAction,
   MultichainAssetsRatesControllerGetStateAction,
   TokenRatesControllerGetStateAction,
 } from '@metamask/assets-controllers';
@@ -436,7 +436,7 @@ export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
-  | GetCurrencyRateState
+  | CurrencyRateControllerGetStateAction
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
   | SnapControllerHandleRequestAction

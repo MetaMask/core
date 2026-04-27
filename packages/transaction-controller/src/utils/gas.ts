@@ -35,6 +35,12 @@ export type UpdateGasRequest = {
   txMeta: TransactionMeta;
 };
 
+export type EstimateGasBatchResult = {
+  gasLimits: number[];
+  requiresAuthorizationList?: true;
+  totalGasLimit: number;
+};
+
 export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
@@ -98,11 +104,11 @@ export async function estimateGas({
 }): Promise<{
   blockGasLimit: string;
   estimatedGas: string;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   simulationFails: TransactionMeta['simulationFails'];
 }> {
   const request = { ...txParams };
-  const { authorizationList, data, from, value, to } = request;
+  const { authorizationList, data, value } = request;
   const chainId = getChainId({ messenger, networkClientId });
 
   if (ignoreDelegationSignatures && !isSimulationEnabled) {
@@ -140,15 +146,14 @@ export async function estimateGas({
   let estimatedGas = fallback;
   let simulationFails: TransactionMeta['simulationFails'];
 
-  const isUpgradeWithDataToSelf =
+  const isUpgradeWithData =
     txParams.type === TransactionEnvelopeType.setCode &&
     Boolean(authorizationList?.length) &&
     Boolean(data) &&
-    data !== '0x' &&
-    from?.toLowerCase() === to?.toLowerCase();
+    data !== '0x';
 
   try {
-    if (isSimulationEnabled && isUpgradeWithDataToSelf) {
+    if (isSimulationEnabled && isUpgradeWithData) {
       estimatedGas = await estimateGasUpgradeWithDataToSelf(
         request,
         messenger,
@@ -182,7 +187,7 @@ export async function estimateGas({
   return {
     blockGasLimit,
     estimatedGas,
-    isUpgradeWithDataToSelf,
+    isUpgradeWithData,
     simulationFails,
   };
 }
@@ -203,7 +208,7 @@ export async function estimateGasBatch({
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
   transactions: BatchTransactionParams[];
-}): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+}): Promise<EstimateGasBatchResult> {
   const chainId = getChainId({ messenger, networkClientId });
 
   const is7702Result = await isAtomicBatchSupported({
@@ -246,7 +251,11 @@ export async function estimateGasBatch({
 
     log('Estimated EIP-7702 gas limit', totalGasLimit);
 
-    return { totalGasLimit, gasLimits: [totalGasLimit] };
+    return {
+      gasLimits: [totalGasLimit],
+      ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+      totalGasLimit,
+    };
   }
 
   const allTransactionsHaveGas = transactions.every(
@@ -426,18 +435,14 @@ async function getGas(
     return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
-  const {
-    blockGasLimit,
-    estimatedGas,
-    isUpgradeWithDataToSelf,
-    simulationFails,
-  } = await estimateGas({
-    isSimulationEnabled,
-    getSimulationConfig,
-    messenger,
-    networkClientId,
-    txParams: txMeta.txParams,
-  });
+  const { blockGasLimit, estimatedGas, isUpgradeWithData, simulationFails } =
+    await estimateGas({
+      isSimulationEnabled,
+      getSimulationConfig,
+      messenger,
+      networkClientId,
+      txParams: txMeta.txParams,
+    });
 
   log('Original estimated gas', estimatedGas);
 
@@ -456,7 +461,7 @@ async function getGas(
   const bufferMultiplier = getGasEstimateBuffer({
     chainId,
     isCustomRPC: isCustomNetwork,
-    isUpgradeWithDataToSelf,
+    isUpgradeWithData,
     messenger,
   });
 
@@ -570,6 +575,7 @@ async function estimateGasUpgradeWithDataToSelf(
     params: [
       {
         ...txParams,
+        to: txParams.from,
         data: '0x',
       },
     ],

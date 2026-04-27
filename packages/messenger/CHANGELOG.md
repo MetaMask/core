@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `generate-action-types` CLI tool and `messenger-generate-action-types` binary ([#8378](https://github.com/MetaMask/core/pull/8378))
   - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from this package instead.
 
+### Fixed
+
+- Throw different error for missing delegated actions ([#8557](https://github.com/MetaMask/core/pull/8557))
+
 ## [1.1.1]
 
 ### Fixed

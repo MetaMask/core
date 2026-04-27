@@ -357,6 +357,7 @@ linkStyle default opacity:0.5
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
+  json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> messenger;
