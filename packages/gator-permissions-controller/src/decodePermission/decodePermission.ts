@@ -105,7 +105,7 @@ export const reconstructDecodedPermission = ({
     },
     expiry,
     origin: specifiedOrigin,
-    ...(rules !== undefined ? { rules } : {}),
+    ...(rules === undefined ? {} : { rules }),
   };
 
   return permission;

@@ -17,10 +17,6 @@ export function decodeRedeemerEnforcerTerms(terms: Hex): Hex[] {
 
   const byteLength = getByteLength(terms);
 
-  if (byteLength === 0) {
-    throw new Error('Invalid redeemer enforcer terms: length must be positive');
-  }
-
   if (byteLength % 20 !== 0) {
     throw new Error(
       'Invalid redeemer enforcer terms: length must be a multiple of 20 bytes',
@@ -32,7 +28,7 @@ export function decodeRedeemerEnforcerTerms(terms: Hex): Hex[] {
 
   for (let i = 0; i < body.length; i += 40) {
     const slice = body.slice(i, i + 40);
-    addresses.push(getChecksumAddress(`0x${slice}` as Hex));
+    addresses.push(getChecksumAddress(`0x${slice}`));
   }
 
   return addresses;
