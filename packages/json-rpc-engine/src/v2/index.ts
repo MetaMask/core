@@ -18,7 +18,12 @@ export type {
 export { JsonRpcServer } from './JsonRpcServer';
 export { MiddlewareContext } from './MiddlewareContext';
 export type { EmptyContext, ContextConstraint } from './MiddlewareContext';
-export { isNotification, isRequest, JsonRpcEngineError } from './utils';
+export {
+  isNotification,
+  isRequest,
+  JsonRpcEngineError,
+  selectHooks,
+} from './utils';
 export type {
   Json,
   JsonRpcCall,

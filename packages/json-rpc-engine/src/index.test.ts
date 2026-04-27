@@ -6,7 +6,7 @@ describe('@metamask/json-rpc-engine', () => {
       [
         "asV2Middleware",
         "createAsyncMiddleware",
-        "createMethodMiddlewareFactory",
+        "createMethodMiddleware",
         "createScaffoldMiddleware",
         "getUniqueId",
         "createIdRemapMiddleware",

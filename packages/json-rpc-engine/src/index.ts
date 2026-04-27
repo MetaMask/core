@@ -5,12 +5,11 @@ export type {
 } from './createAsyncMiddleware';
 export { createAsyncMiddleware } from './createAsyncMiddleware';
 export type {
-  CreateMethodMiddlewareFactoryOptions,
-  HandlerMiddlewareFunction,
-  HookNames,
+  CreateMethodMiddlewareOptions,
   MethodHandler,
+  MethodHandlerImplementation,
 } from './createMethodMiddleware';
-export { createMethodMiddlewareFactory } from './createMethodMiddleware';
+export { createMethodMiddleware } from './createMethodMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export { getUniqueId } from './getUniqueId';
 export { createIdRemapMiddleware } from './idRemapMiddleware';

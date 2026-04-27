@@ -1,20 +1,17 @@
 import { ActionConstraint, Messenger } from '@metamask/messenger';
 
+import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
+import { ContextConstraint } from './MiddlewareContext';
 import {
   assertExpectedHooks,
   createHandlerMessenger,
   selectHooks,
-} from '../middlewareUtils';
-import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
-import { ContextConstraint } from './MiddlewareContext';
-import {
   Json,
   JsonRpcParams,
   JsonRpcRequest,
   UnionToIntersection,
 } from './utils';
 
-// The helpers below seem excessive, but they are required for inference of hooks/actions.
 type HandlerActions<Handler> = Handler extends {
   implementation: (options: infer Options) => unknown;
 }
@@ -31,6 +28,9 @@ type HandlerHooks<Handler> = Handler extends {
     : never
   : never;
 
+/**
+ * A `JsonRpcEngineV2` method middleware handler.
+ */
 export type MethodHandler<
   Hooks extends Record<string, unknown> = never,
   MessengerActions extends ActionConstraint = never,
@@ -67,6 +67,9 @@ type AnyMethodHandler = {
   actionNames?: readonly string[];
 };
 
+/**
+ * Options for {@link createMethodMiddleware}.
+ */
 export type CreateMethodMiddlewareOptions<
   Handlers extends Record<string, AnyMethodHandler>,
 > = {

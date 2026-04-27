@@ -17,14 +17,42 @@ import {
   assertExpectedHooks,
   createHandlerMessenger,
   selectHooks,
-} from './middlewareUtils';
+  UnionToIntersection,
+} from './v2/utils';
+
+type HandlerActions<Handler> = Handler extends {
+  implementation: (...args: infer Args) => unknown;
+}
+  ? Args extends [
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      infer HandlerMessenger,
+    ]
+    ? HandlerMessenger extends Messenger<string, infer Actions>
+      ? Actions
+      : never
+    : never
+  : never;
+
+type HandlerHooks<Handler> = Handler extends {
+  implementation: (...args: infer Args) => unknown;
+}
+  ? Args extends [unknown, unknown, unknown, unknown, infer ArgHooks, unknown]
+    ? ArgHooks extends Record<string, unknown>
+      ? ArgHooks
+      : never
+    : never
+  : never;
 
 /**
- * A middleware function for handling a permitted method.
+ * A {@link MethodHandler} implementation.
  *
- * @deprecated Use the v2 handler type from `./v2` instead.
+ * @deprecated Use the v2 `createMethodMiddleware` instead.
  */
-export type HandlerMiddlewareFunction<
+export type MethodHandlerImplementation<
   Hooks extends Record<string, unknown> = never,
   MessengerActions extends ActionConstraint = never,
   Params extends JsonRpcParams = JsonRpcParams,
@@ -36,24 +64,12 @@ export type HandlerMiddlewareFunction<
   end: JsonRpcEngineEndCallback,
   hooks: Hooks,
   messenger: Messenger<string, MessengerActions>,
-) => void | Promise<void>;
+) => Promise<void> | void;
 
 /**
- * We use a mapped object type in order to create a type that requires the
- * presence of the names of all hooks for the given handler.
- * This can then be used to select only the necessary hooks whenever a method
- * is called for purposes of POLA.
+ * A handler for {@link createMethodMiddleware}.
  *
- * @deprecated Use the v2 handler type from `./v2` instead.
- */
-export type HookNames<HookMap> = {
-  [Property in keyof HookMap]: true;
-};
-
-/**
- * A handler for a permitted method.
- *
- * @deprecated Use the v2 `MethodHandler` from `./v2` instead.
+ * @deprecated Use the v2 `createMethodMiddleware` instead.
  */
 export type MethodHandler<
   Hooks extends Record<string, unknown> = never,
@@ -61,7 +77,7 @@ export type MethodHandler<
   Params extends JsonRpcParams = JsonRpcParams,
   Result extends Json = Json,
 > = {
-  implementation: HandlerMiddlewareFunction<
+  implementation: MethodHandlerImplementation<
     Hooks,
     MessengerActions,
     Params,
@@ -70,154 +86,122 @@ export type MethodHandler<
   methodNames: string[];
 } & ([Hooks] extends [never]
   ? { hookNames?: undefined }
-  : { hookNames: HookNames<Hooks> }) &
+  : { hookNames: { [Key in keyof Hooks]: true } }) &
   ([MessengerActions] extends [never]
     ? { actionNames?: undefined }
     : { actionNames: readonly MessengerActions['type'][] });
 
+type AnyMethodHandler = {
+  implementation(
+    this: void,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse,
+    next: JsonRpcEngineNextCallback,
+    end: JsonRpcEngineEndCallback,
+    hooks: unknown,
+    messenger: unknown,
+  ): Promise<void> | void;
+  hookNames?: Record<string, true>;
+  actionNames?: readonly string[];
+};
+
 /**
- * Options for {@link createMethodMiddlewareFactory}.
+ * Options for {@link createMethodMiddleware}.
+ *
+ * @deprecated Use the v2 `createMethodMiddleware` instead.
  */
-export type CreateMethodMiddlewareFactoryOptions<
-  MessengerActions extends ActionConstraint = never,
+export type CreateMethodMiddlewareOptions<
+  Handlers extends Record<string, AnyMethodHandler>,
 > = {
+  handlers: Handlers;
+  messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
+  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
   /**
    * Called when a handler throws, before the error is forwarded to `end`.
    * Intended for logging; must not throw.
    */
   onError?: (error: unknown, request: JsonRpcRequest) => void;
-} & ([MessengerActions] extends [never]
-  ? {
-      /**
-       * The root messenger. A per-handler messenger, namespaced to each handler
-       * and delegated the actions the handler declared, is passed to the
-       * handler's `implementation` at call time. Optional when no handler
-       * declares any actions.
-       */
-      messenger?: Messenger<string, never> | undefined;
-    }
-  : {
-      /**
-       * The root messenger. A per-handler messenger, namespaced to each handler
-       * and delegated the actions the handler declared, is passed to the
-       * handler's `implementation` at call time.
-       */
-      messenger: Messenger<string, MessengerActions>;
-    });
+};
+
+type ResolvedHandler = {
+  implementation: AnyMethodHandler['implementation'];
+  hooks: Record<string, unknown>;
+  messenger: Messenger<string, ActionConstraint>;
+};
 
 /**
- * Creates a factory that produces a JSON-RPC method middleware from a set of
- * handlers. The returned factory validates that the hooks it receives match
- * exactly the union of hook names declared by the handlers (no missing, no
- * extraneous), then returns a middleware that dispatches requests by method
- * name.
+ * Create a JSON-RPC middleware that handles the passed JSON-RPC method handlers using the messenger and hooks.
  *
- * Consolidates the bespoke `makeMethodMiddlewareMaker` implementations from
- * `metamask-extension` and `metamask-mobile`.
- *
- * @deprecated Use `createMethodMiddleware` from `./v2` instead.
- * @param handlers - The method handlers the middleware should dispatch to.
- * @param options - Options including the root messenger.
- * @returns A function that takes the required hooks and returns a
- * `JsonRpcMiddleware`.
+ * @deprecated Use the v2 `createMethodMiddleware` instead.
+ * @param options The options.
+ * @param options.handlers - The JSON-RPC method handler implementations.
+ * @param options.messenger - The messenger to be used by the handlers.
+ * @param options.hooks - The hooks to be used by the handlers.
+ * @returns A JsonRpcEngineV2 middleware.
  */
-export function createMethodMiddlewareFactory<
-  Hooks extends Record<string, unknown> = never,
-  MessengerActions extends ActionConstraint = never,
+export function createMethodMiddleware<
+  Handlers extends Record<string, AnyMethodHandler>,
 >(
-  handlers: MethodHandler<Hooks, MessengerActions>[],
-  options?: CreateMethodMiddlewareFactoryOptions<MessengerActions>,
-): [Hooks] extends [never]
-  ? () => JsonRpcMiddleware<JsonRpcParams, Json>
-  : (hooks: Hooks) => JsonRpcMiddleware<JsonRpcParams, Json> {
-  const { onError } = options ?? {};
-  const rootMessenger =
-    options?.messenger ??
-    new Messenger<string, MessengerActions>({
-      namespace: 'json-rpc-engine',
-    });
-
-  type ResolvedHandler = {
-    implementation: HandlerMiddlewareFunction<
-      Hooks,
-      MessengerActions,
-      JsonRpcParams,
-      Json
-    >;
-    hooks: Hooks;
-    messenger: Messenger<string, MessengerActions>;
-  };
-
-  const baseHandlers = handlers.map((handler) => ({
-    handler,
-    messenger: createHandlerMessenger<MessengerActions>({
-      namespace: handler.methodNames.join(':'),
-      actionNames: handler.actionNames,
-      rootMessenger,
-    }),
-  }));
+  options: CreateMethodMiddlewareOptions<Handlers>,
+): JsonRpcMiddleware<JsonRpcParams, Json> {
+  const { messenger: rootMessenger, onError } = options;
+  const allHooks = options.hooks as Record<string, unknown>;
 
   const expectedHookNames = new Set(
-    handlers.flatMap((handler) =>
+    Object.values(options.handlers).flatMap((handler) =>
       handler.hookNames ? Object.getOwnPropertyNames(handler.hookNames) : [],
     ),
   );
+  assertExpectedHooks(allHooks, expectedHookNames);
 
-  return ((hooks?: Hooks) => {
-    assertExpectedHooks(
-      (hooks ?? {}) as Record<string, unknown>,
-      expectedHookNames,
-    );
+  const handlers = Object.entries(options.handlers).reduce<
+    Record<string, ResolvedHandler>
+  >((accumulator, [handlerName, handler]) => {
+    const handlerHooks = selectHooks(allHooks, handler.hookNames) ?? {};
+    const handlerMessenger = createHandlerMessenger<
+      HandlerActions<Handlers[keyof Handlers]>
+    >({
+      namespace: handlerName,
+      actionNames: handler.actionNames as
+        | readonly HandlerActions<Handlers[keyof Handlers]>['type'][]
+        | undefined,
+      rootMessenger,
+    });
 
-    const resolvedHandlers = baseHandlers.reduce<
-      Record<string, ResolvedHandler>
-    >((map, { handler, messenger }) => {
-      const handlerHooks = (selectHooks(hooks, handler.hookNames) ??
-        {}) as Hooks;
-      for (const methodName of handler.methodNames) {
-        map[methodName] = {
-          implementation: handler.implementation,
-          hooks: handlerHooks,
-          messenger,
-        };
-      }
-      return map;
-    }, {});
-
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const middleware: JsonRpcMiddleware<JsonRpcParams, Json> = async (
-      req,
-      res,
-      next,
-      end,
-    ) => {
-      const resolved = resolvedHandlers[req.method];
-      if (resolved) {
-        const { implementation, hooks: handlerHooks, messenger } = resolved;
-        try {
-          return await implementation(
-            req,
-            res,
-            next,
-            end,
-            handlerHooks,
-            messenger,
-          );
-        } catch (error) {
-          onError?.(error, req);
-          return end(
-            error instanceof Error
-              ? error
-              : rpcErrors.internal({ data: error as Json }),
-          );
-        }
-      }
-
-      return next();
+    accumulator[handlerName] = {
+      implementation: handler.implementation,
+      hooks: handlerHooks,
+      messenger: handlerMessenger,
     };
+    return accumulator;
+  }, {});
 
-    return middleware;
-  }) as [Hooks] extends [never]
-    ? () => JsonRpcMiddleware<JsonRpcParams, Json>
-    : (hooks: Hooks) => JsonRpcMiddleware<JsonRpcParams, Json>;
+  // This should technically use createAsyncMiddleware, but we get around this by catching
+  // all handler errors.
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  return async (req, res, next, end) => {
+    const resolved = handlers[req.method];
+    if (resolved) {
+      const { implementation, hooks: handlerHooks, messenger } = resolved;
+      try {
+        return await implementation(
+          req,
+          res,
+          next,
+          end,
+          handlerHooks,
+          messenger,
+        );
+      } catch (error) {
+        onError?.(error, req);
+        return end(
+          error instanceof Error
+            ? error
+            : rpcErrors.internal({ data: error as Json }),
+        );
+      }
+    }
+
+    return next();
+  };
 }
