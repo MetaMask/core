@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export `decodeAuthorizationSignature` utility that decodes a 65-byte EIP-7702 authorization signature into RLP-canonical `r`, `s`, and `yParity` ([#8656](https://github.com/MetaMask/core/pull/8656))
   - All `eth_sendRawTransaction` failures are prefixed `RPC submit:` for failure-surface attribution in error metrics
+- Extract a human-readable revert reason for transactions that fail on-chain
+  - When a transaction's receipt has a failure status (`0x0`), the controller now replays the call via `eth_estimateGas` and decodes the returned revert data
+  - Supports `Error(string)`, `Panic(uint256)` (with named codes), custom error selectors, and empty reverts; falls back to the provider error message when no revert data is surfaced
+  - Adds `revertReason?: string` field to `TransactionMeta` for consumers that prefer not to parse error strings
+  - Appends the decoded reason to the existing `Transaction failed on-chain` error message
+- Capture revert reason from gas estimation when a transaction is predicted to fail
+  - When `eth_estimateGas` reverts during transaction creation, the controller now decodes the same revert data and stores it on `TransactionMeta.gasRevertReason`
+  - Allows confirmation UI to surface why a transaction is predicted to fail, before the user submits it
+  - Set independently from `revertReason` (which is only populated by on-chain failure detection)
 
 ### Changed
 

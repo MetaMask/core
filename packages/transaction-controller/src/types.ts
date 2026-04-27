@@ -246,6 +246,15 @@ export type TransactionMeta = {
   gasLimitNoBuffer?: string;
 
   /**
+   * Decoded human-readable revert reason produced by `eth_estimateGas`
+   * during transaction creation. Set when gas estimation reverts (i.e. the
+   * transaction is predicted to fail), allowing UI to surface the reason
+   * before the user confirms. Distinct from `revertReason`, which is set
+   * only after on-chain failure.
+   */
+  gasRevertReason?: string;
+
+  /**
    * The estimated gas used by the transaction, after any refunds. Generated from transaction simulation.
    */
   gasUsed?: Hex;
@@ -415,6 +424,14 @@ export type TransactionMeta = {
    * The number of times that the transaction submit has been retried.
    */
   retryCount?: number;
+
+  /**
+   * Decoded human-readable revert reason for transactions that failed
+   * on-chain. Extracted by replaying the failed call via `eth_call` and
+   * decoding the returned revert data. Undefined when the transaction did
+   * not fail on-chain or when extraction was not possible.
+   */
+  revertReason?: string;
 
   /**
    * The transaction's 's' value as a hex string.

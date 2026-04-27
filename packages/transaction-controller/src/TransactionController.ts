@@ -2765,6 +2765,7 @@ export class TransactionController extends BaseController<
         transactionMeta.txParams.gas = draftTransaction.txParams.gas;
         transactionMeta.simulationFails = draftTransaction.simulationFails;
         transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+        transactionMeta.gasRevertReason = draftTransaction.gasRevertReason;
       },
     );
 
@@ -4538,6 +4539,7 @@ export class TransactionController extends BaseController<
     actionId?: string,
   ): void {
     let newTransactionMeta: TransactionMeta;
+    const { revertReason } = error as { revertReason?: string };
 
     try {
       newTransactionMeta = this.#updateTransactionInternal(
@@ -4553,6 +4555,12 @@ export class TransactionController extends BaseController<
               status: TransactionStatus.failed;
             }
           ).error = normalizeTxError(error);
+
+          if (revertReason === undefined) {
+            return;
+          }
+
+          draftTransactionMeta.revertReason = revertReason;
         },
       );
     } catch (caughtError: unknown) {
@@ -4562,6 +4570,7 @@ export class TransactionController extends BaseController<
         ...transactionMeta,
         status: TransactionStatus.failed,
         error: normalizeTxError(error),
+        ...(revertReason === undefined ? {} : { revertReason }),
       };
     }
 

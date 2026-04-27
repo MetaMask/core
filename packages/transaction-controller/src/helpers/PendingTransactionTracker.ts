@@ -13,6 +13,10 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 import {
+  extractRevertReason,
+  OnChainFailureError,
+} from '../utils/extract-revert-reason';
+import {
   getAcceleratedPollingParams,
   getTimeoutAttempts,
 } from '../utils/feature-flags';
@@ -429,9 +433,38 @@ export class PendingTransactionTracker {
       const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
       if (isFailure) {
-        this.#log('Transaction receipt has failed status');
+        this.#log('Transaction receipt has failed status', {
+          id: txMeta.id,
+          hash: txMeta.hash,
+          chainId: txMeta.chainId,
+          blockNumber: receipt.blockNumber,
+        });
 
-        this.#failTransaction(txMeta, new Error('Transaction failed on-chain'));
+        const txMetaWithReceipt: TransactionMeta = {
+          ...txMeta,
+          txReceipt: receipt,
+        };
+
+        const revertReason = await extractRevertReason({
+          messenger: this.#messenger,
+          transactionMeta: txMetaWithReceipt,
+        }).catch(
+          /* istanbul ignore next */
+          (extractionError) => {
+            this.#log(
+              'Failed to extract revert reason',
+              txMeta.id,
+              extractionError,
+            );
+            return undefined;
+          },
+        );
+
+        this.#log('Revert reason extraction complete', txMeta.id, {
+          revertReason,
+        });
+
+        this.#failTransaction(txMeta, new OnChainFailureError(revertReason));
 
         return;
       }
