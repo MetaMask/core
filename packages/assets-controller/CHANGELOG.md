@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On timeout, AccountsAPI marks every requested chain as errored so `RpcFallbackMiddleware` picks them up; price and token enrichment degrade gracefully.
 - Add `fetchWithTimeout` utility that races an async task against a timeout ([#8582](https://github.com/MetaMask/core/pull/8582))
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
+
 ## [6.1.0]
 
 ### Added
