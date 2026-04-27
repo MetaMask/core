@@ -86,18 +86,22 @@ export const eip7702AuthorizationStep: Step = {
  * `KeyringController:signEip7702Authorization` into its `r`, `s`, `v`
  * components and derives `yParity` (`0` for `v = 27`, `1` for `v = 28`).
  *
- * @param signature - A 0x-prefixed 132-character hex string.
+ * @param signature - A 0x-prefixed 132-character hex string. Accepted in any
+ * case; normalized to lowercase before validation.
  * @returns The signature components.
  */
-function splitEip7702Signature(signature: string): {
+function splitEip7702Signature(signature: unknown): {
   r: Hex;
   s: Hex;
   v: number;
   yParity: 0 | 1;
 } {
+  const normalized =
+    typeof signature === 'string' ? signature.toLowerCase() : signature;
+
   if (
-    !isStrictHexString(signature) ||
-    signature.length !== SIGNATURE_HEX_LENGTH
+    !isStrictHexString(normalized) ||
+    normalized.length !== SIGNATURE_HEX_LENGTH
   ) {
     throw new Error(
       `Expected a 0x-prefixed 65-byte signature from signEip7702Authorization, got ${JSON.stringify(signature)}`,
@@ -105,13 +109,18 @@ function splitEip7702Signature(signature: string): {
   }
 
   // eslint-disable-next-line id-length
-  const v = parseInt(signature.slice(S_END_INDEX, V_END_INDEX), 16);
+  const v = parseInt(normalized.slice(S_END_INDEX, V_END_INDEX), 16);
+  if (v !== 27 && v !== 28) {
+    throw new Error(
+      `Expected v to be 27 or 28 in signEip7702Authorization signature, got ${v}`,
+    );
+  }
 
   return {
-    r: signature.slice(0, R_END_INDEX) as Hex,
-    s: add0x(signature.slice(R_END_INDEX, S_END_INDEX)),
+    r: normalized.slice(0, R_END_INDEX) as Hex,
+    s: add0x(normalized.slice(R_END_INDEX, S_END_INDEX)),
     v,
-    yParity: v - V_BASE === 0 ? 0 : 1,
+    yParity: v === V_BASE ? 0 : 1,
   };
 }
 

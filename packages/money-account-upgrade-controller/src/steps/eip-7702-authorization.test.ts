@@ -45,7 +45,10 @@ type Mocks = {
   signEip7702Authorization: jest.Mock;
   findNetworkClientIdByChainId: jest.Mock;
   getNetworkClientById: jest.Mock;
-  providerRequest: jest.Mock<ReturnType<ProviderRequest>, [Parameters<ProviderRequest>[0]]>;
+  providerRequest: jest.Mock<
+    ReturnType<ProviderRequest>,
+    [Parameters<ProviderRequest>[0]]
+  >;
 };
 
 /**
@@ -341,5 +344,42 @@ describe('eip7702AuthorizationStep', () => {
         expect(mocks.createUpgrade).not.toHaveBeenCalled();
       },
     );
+
+    it.each([
+      ['0', '00'],
+      ['1', '01'],
+      ['26', '1a'],
+      ['29', '1d'],
+    ])('throws when v is %s rather than 27 or 28', async (vDecimal, vHex) => {
+      const { messenger, mocks } = setup();
+      mocks.signEip7702Authorization.mockResolvedValue(
+        `${MOCK_R}${MOCK_S_NO_PREFIX}${vHex}`,
+      );
+
+      await expect(run(messenger)).rejects.toThrow(
+        `Expected v to be 27 or 28 in signEip7702Authorization signature, got ${vDecimal}`,
+      );
+      expect(mocks.createUpgrade).not.toHaveBeenCalled();
+    });
+
+    it('accepts an uppercase signature and normalizes it to lowercase', async () => {
+      const { messenger, mocks } = setup();
+      const upperR = MOCK_R.toUpperCase().replace('0X', '0x');
+      const upperS = MOCK_S_NO_PREFIX.toUpperCase();
+      mocks.signEip7702Authorization.mockResolvedValue(
+        `${upperR}${upperS}${MOCK_V_HEX.toUpperCase()}`,
+      );
+
+      await run(messenger);
+
+      expect(mocks.createUpgrade).toHaveBeenCalledWith(
+        expect.objectContaining({
+          r: MOCK_R,
+          s: MOCK_S,
+          v: 28,
+          yParity: 1,
+        }),
+      );
+    });
   });
 });
