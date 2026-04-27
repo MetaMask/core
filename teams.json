@@ -56,6 +56,7 @@
   "metamask/rate-limit-controller": "team-core-platform",
   "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-core-platform",
+  "metamask/passkey-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
   "metamask/subscription-controller": "team-shield",
