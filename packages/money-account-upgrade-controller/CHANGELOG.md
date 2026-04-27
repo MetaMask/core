@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add EIP-7702 authorization step to the upgrade sequence.
+- Add EIP-7702 authorization step to the upgrade sequence. ([#8565](https://github.com/MetaMask/core/pull/8565))
 
 ## [1.0.0]
 
