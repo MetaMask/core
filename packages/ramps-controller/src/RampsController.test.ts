@@ -61,6 +61,9 @@ import type {
 } from './TransakService';
 
 describe('RampsController', () => {
+  const circuitBreakerOpenUserMessage =
+    "We're having trouble connecting right now. Please try again in a few minutes.";
+
   describe('normalizeProviderCode', () => {
     it('strips /providers/ prefix', () => {
       expect(normalizeProviderCode('/providers/transak')).toBe('transak');
@@ -1072,6 +1075,53 @@ describe('RampsController', () => {
         const requestState = controller.state.requests['error-key'];
         expect(requestState?.status).toBe(RequestStatus.ERROR);
         expect(requestState?.error).toBe('Test error');
+      });
+    });
+
+    it('maps circuit breaker errors to a user-facing message', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const error = new Error(
+          'Execution prevented because the circuit breaker is open',
+        );
+        const fetcher = async (): Promise<string> => {
+          throw error;
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-circuit-breaker',
+            fetcher,
+          ),
+        ).rejects.toThrow(circuitBreakerOpenUserMessage);
+
+        const requestState =
+          controller.state.requests['error-key-circuit-breaker'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenUserMessage);
+        expect(error.message).toBe(circuitBreakerOpenUserMessage);
+      });
+    });
+
+    it('wraps string circuit breaker errors with a user-facing message', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const fetcher = async (): Promise<string> => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw 'Execution prevented because the circuit breaker is open';
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-circuit-breaker-string',
+            fetcher,
+          ),
+        ).rejects.toThrow(circuitBreakerOpenUserMessage);
+
+        const requestState =
+          controller.state.requests['error-key-circuit-breaker-string'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenUserMessage);
       });
     });
 
@@ -7310,6 +7360,34 @@ describe('RampsController', () => {
           expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
             'Quote failed',
           );
+        });
+      });
+
+      it('maps circuit breaker errors to a user-facing message', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const error = new Error(
+            'Execution prevented because the circuit breaker is open',
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            async () => {
+              throw error;
+            },
+          );
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakGetBuyQuote',
+              'USD',
+              'BTC',
+              'bitcoin',
+              'credit_debit_card',
+              '100',
+            ),
+          ).rejects.toThrow(circuitBreakerOpenUserMessage);
+          expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
+            circuitBreakerOpenUserMessage,
+          );
+          expect(error.message).toBe(circuitBreakerOpenUserMessage);
         });
       });
 

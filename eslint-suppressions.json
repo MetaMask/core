@@ -2030,11 +2030,6 @@
       "count": 1
     }
   },
-  "packages/ramps-controller/src/RampsController.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/ramps-controller/src/TransakService.test.ts": {
     "no-restricted-syntax": {
       "count": 4

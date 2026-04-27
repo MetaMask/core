@@ -156,6 +156,67 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
  */
 const DEFAULT_QUOTES_TTL = 15000;
 
+const CIRCUIT_BREAKER_OPEN_ERROR =
+  'Execution prevented because the circuit breaker is open';
+
+const CIRCUIT_BREAKER_OPEN_USER_MESSAGE =
+  "We're having trouble connecting right now. Please try again in a few minutes.";
+
+type ErrorWithMessage = {
+  message: string;
+};
+
+type ErrorWithHttpStatus = Error & {
+  httpStatus: number;
+};
+
+function hasStringMessage(error: unknown): error is ErrorWithMessage {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+}
+
+function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
+  return (
+    error instanceof Error &&
+    typeof (error as { httpStatus?: unknown }).httpStatus === 'number'
+  );
+}
+
+function getRampsErrorMessage(error: unknown): string {
+  let rawMessage: string | undefined;
+
+  if (hasStringMessage(error)) {
+    rawMessage = error.message;
+  } else if (typeof error === 'string') {
+    rawMessage = error;
+  }
+
+  if (rawMessage?.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
+    return CIRCUIT_BREAKER_OPEN_USER_MESSAGE;
+  }
+
+  return rawMessage ?? 'Unknown error';
+}
+
+function normalizeRampsErrorForRethrow(error: unknown): unknown {
+  if (hasStringMessage(error)) {
+    if (error.message.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
+      error.message = CIRCUIT_BREAKER_OPEN_USER_MESSAGE;
+    }
+
+    return error;
+  }
+
+  if (typeof error === 'string' && error.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
+    return new Error(CIRCUIT_BREAKER_OPEN_USER_MESSAGE);
+  }
+
+  return error;
+}
+
 // === STATE ===
 
 /**
@@ -902,7 +963,8 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage = (error as Error)?.message ?? 'Unknown error';
+        const errorMessage = getRampsErrorMessage(error);
+        const normalizedError = normalizeRampsErrorForRethrow(error);
         this.#updateRequestState(
           cacheKey,
           createErrorState(errorMessage, lastFetchedAt),
@@ -914,7 +976,7 @@ export class RampsController extends BaseController<
             this.#setResourceError(resourceType, errorMessage);
           }
         }
-        throw error;
+        throw normalizedError;
       } finally {
         if (
           this.#pendingRequests.get(cacheKey)?.abortController ===
@@ -2052,11 +2114,7 @@ export class RampsController extends BaseController<
    * @param error - The caught error to inspect.
    */
   #syncTransakAuthOnError(error: unknown): void {
-    if (
-      error instanceof Error &&
-      'httpStatus' in error &&
-      (error as Error & { httpStatus: number }).httpStatus === 401
-    ) {
+    if (hasHttpStatus(error) && error.httpStatus === 401) {
       this.transakSetAuthenticated(false);
     }
   }
@@ -2189,12 +2247,13 @@ export class RampsController extends BaseController<
       return details;
     } catch (error) {
       this.#syncTransakAuthOnError(error);
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const errorMessage = getRampsErrorMessage(error);
+      const normalizedError = normalizeRampsErrorForRethrow(error);
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
         state.nativeProviders.transak.userDetails.error = errorMessage;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2235,12 +2294,13 @@ export class RampsController extends BaseController<
       });
       return quote;
     } catch (error) {
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const errorMessage = getRampsErrorMessage(error);
+      const normalizedError = normalizeRampsErrorForRethrow(error);
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
         state.nativeProviders.transak.buyQuote.error = errorMessage;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2270,12 +2330,13 @@ export class RampsController extends BaseController<
       return requirement;
     } catch (error) {
       this.#syncTransakAuthOnError(error);
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const errorMessage = getRampsErrorMessage(error);
+      const normalizedError = normalizeRampsErrorForRethrow(error);
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
         state.nativeProviders.transak.kycRequirement.error = errorMessage;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 

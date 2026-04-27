@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Normalize circuit-breaker errors in `RampsController` to a user-facing retry message so consumers do not surface the internal Cockatiel error text to users.
+
 ## [13.2.0]
 
 ### Changed
