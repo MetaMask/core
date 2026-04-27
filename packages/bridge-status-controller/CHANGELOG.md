@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `tokenSecurityTypeDestination?: string \| null` to `BridgeHistoryItem`, `StartPollingForBridgeTxStatusArgs[Serialized]`, and the `submitTx` / `submitIntent` arguments; when provided, it's persisted on the history item and emitted as `token_security_type_destination` on post-submit analytics events ([#8595](https://github.com/MetaMask/core/pull/8595))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.0.0` ([#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
