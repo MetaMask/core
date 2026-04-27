@@ -24,6 +24,8 @@ export type PasskeyCredentialInfo = {
   counter: number;
   /** Authenticator transports hint for `allowCredentials`. */
   transports?: AuthenticatorTransportFuture[];
+  /** Authenticator AAGUID captured from attested credential data at registration. */
+  aaguid: string;
 };
 
 /**

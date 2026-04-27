@@ -199,6 +199,7 @@ describe('PasskeyController', () => {
           publicKey: TEST_PUBLIC_KEY,
           counter: 0,
           transports: ['internal'],
+          aaguid: '00000000-0000-0000-0000-000000000000',
         },
         encryptedVaultKey: {
           ciphertext: 'YQ==',
@@ -463,6 +464,9 @@ describe('PasskeyController', () => {
       expect(record?.credential.id).toBe(TEST_CREDENTIAL_ID);
       expect(record?.credential.publicKey).toBe(TEST_PUBLIC_KEY);
       expect(record?.credential.transports).toStrictEqual(['internal']);
+      expect(record?.credential.aaguid).toBe(
+        '00000000-0000-0000-0000-000000000000',
+      );
       expect(record?.keyDerivation.method).toBe('userHandle');
     });
 
@@ -1366,6 +1370,7 @@ describe('PasskeyController', () => {
             publicKey: TEST_PUBLIC_KEY,
             counter: 0,
             transports: ['internal'],
+            aaguid: '00000000-0000-0000-0000-000000000000',
           },
           encryptedVaultKey: { ciphertext: 'YQ==', iv: 'YWFhYWFhYWFhYQ==' },
           keyDerivation: { method: 'userHandle' },

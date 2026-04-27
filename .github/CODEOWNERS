@@ -102,7 +102,7 @@
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
-/packages/passkey-controller              @MetaMask/web3auth
+/packages/passkey-controller             @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
 /packages/claims-controller              @MetaMask/web3auth

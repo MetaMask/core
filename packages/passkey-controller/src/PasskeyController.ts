@@ -371,6 +371,7 @@ export class PasskeyController extends BaseController<
             publicKey: bytesToBase64URL(registrationInfo.publicKey),
             counter: registrationInfo.counter,
             transports: registrationInfo.transports,
+            aaguid: registrationInfo.aaguid,
           },
           encryptedVaultKey: { ciphertext, iv },
           keyDerivation,
