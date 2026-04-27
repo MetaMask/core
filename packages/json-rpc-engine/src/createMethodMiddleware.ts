@@ -22,7 +22,7 @@ import {
 /**
  * A middleware function for handling a permitted method.
  *
- * @deprecated Use the v2 handler type from `./v2/createMethodMiddleware` instead.
+ * @deprecated Use the v2 handler type from `./v2` instead.
  */
 export type HandlerMiddlewareFunction<
   Hooks extends Record<string, unknown> = never,
@@ -44,7 +44,7 @@ export type HandlerMiddlewareFunction<
  * This can then be used to select only the necessary hooks whenever a method
  * is called for purposes of POLA.
  *
- * @deprecated Use the v2 handler type from `./v2/createMethodMiddleware` instead.
+ * @deprecated Use the v2 handler type from `./v2` instead.
  */
 export type HookNames<HookMap> = {
   [Property in keyof HookMap]: true;
@@ -53,7 +53,7 @@ export type HookNames<HookMap> = {
 /**
  * A handler for a permitted method.
  *
- * @deprecated Use the v2 `MethodHandler` from `./v2/createMethodMiddleware` instead.
+ * @deprecated Use the v2 `MethodHandler` from `./v2` instead.
  */
 export type MethodHandler<
   Hooks extends Record<string, unknown> = never,
@@ -94,7 +94,7 @@ export type CreateMethodMiddlewareFactoryOptions<
        * handler's `implementation` at call time. Optional when no handler
        * declares any actions.
        */
-      messenger?: undefined;
+      messenger?: Messenger<string, never> | undefined;
     }
   : {
       /**
@@ -115,7 +115,7 @@ export type CreateMethodMiddlewareFactoryOptions<
  * Consolidates the bespoke `makeMethodMiddlewareMaker` implementations from
  * `metamask-extension` and `metamask-mobile`.
  *
- * @deprecated Use `createMethodMiddleware` from `./v2/createMethodMiddleware` instead.
+ * @deprecated Use `createMethodMiddleware` from `./v2` instead.
  * @param handlers - The method handlers the middleware should dispatch to.
  * @param options - Options including the root messenger.
  * @returns A function that takes the required hooks and returns a
@@ -137,25 +137,25 @@ export function createMethodMiddlewareFactory<
       namespace: 'json-rpc-engine',
     });
 
-  type HandlerEntry = {
-    handler: MethodHandler<Hooks, MessengerActions>;
+  type ResolvedHandler = {
+    implementation: HandlerMiddlewareFunction<
+      Hooks,
+      MessengerActions,
+      JsonRpcParams,
+      Json
+    >;
+    hooks: Hooks;
     messenger: Messenger<string, MessengerActions>;
   };
 
-  const handlerMap = handlers.reduce<Record<string, HandlerEntry>>(
-    (map, handler) => {
-      const handlerMessenger = createHandlerMessenger<MessengerActions>({
-        namespace: handler.methodNames.join(':'),
-        actionNames: handler.actionNames,
-        rootMessenger,
-      });
-      for (const methodName of handler.methodNames) {
-        map[methodName] = { handler, messenger: handlerMessenger };
-      }
-      return map;
-    },
-    {},
-  );
+  const baseHandlers = handlers.map((handler) => ({
+    handler,
+    messenger: createHandlerMessenger<MessengerActions>({
+      namespace: handler.methodNames.join(':'),
+      actionNames: handler.actionNames,
+      rootMessenger,
+    }),
+  }));
 
   const expectedHookNames = new Set(
     handlers.flatMap((handler) =>
@@ -169,6 +169,21 @@ export function createMethodMiddlewareFactory<
       expectedHookNames,
     );
 
+    const resolvedHandlers = baseHandlers.reduce<
+      Record<string, ResolvedHandler>
+    >((map, { handler, messenger }) => {
+      const handlerHooks = (selectHooks(hooks, handler.hookNames) ??
+        {}) as Hooks;
+      for (const methodName of handler.methodNames) {
+        map[methodName] = {
+          implementation: handler.implementation,
+          hooks: handlerHooks,
+          messenger,
+        };
+      }
+      return map;
+    }, {});
+
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const middleware: JsonRpcMiddleware<JsonRpcParams, Json> = async (
       req,
@@ -176,19 +191,16 @@ export function createMethodMiddlewareFactory<
       next,
       end,
     ) => {
-      const entry = handlerMap[req.method];
-      if (entry) {
-        const {
-          handler: { implementation, hookNames },
-          messenger,
-        } = entry;
+      const resolved = resolvedHandlers[req.method];
+      if (resolved) {
+        const { implementation, hooks: handlerHooks, messenger } = resolved;
         try {
           return await implementation(
             req,
             res,
             next,
             end,
-            selectHooks(hooks, hookNames) as Hooks,
+            handlerHooks,
             messenger,
           );
         } catch (error) {
