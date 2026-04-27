@@ -1,10 +1,10 @@
 import type { RampsControllerState } from './RampsController';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import {
   createLoadingState,
   createSuccessState,
   createErrorState,
 } from './RequestCache';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import { createRequestSelector } from './selectors';
 
 type TestRootState = {

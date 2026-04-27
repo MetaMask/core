@@ -1237,6 +1237,38 @@ describe('RampsController', () => {
       });
     });
 
+    it('clears resource error keys after a successful retry', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-circuit-breaker-key',
+            async () => {
+              throw new Error(circuitBreakerOpenErrorMessage);
+            },
+            { resourceType: 'providers' },
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        });
+
+        expect(controller.state.providers.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+
+        const result = await rootMessenger.call(
+          'RampsController:executeRequest',
+          'providers-circuit-breaker-key-success',
+          async () => 'ok',
+          { resourceType: 'providers' },
+        );
+
+        expect(result).toBe('ok');
+        expect(controller.state.providers.error).toBeNull();
+        expect(controller.state.providers.errorKey).toBeNull();
+      });
+    });
+
     it('sets loading state while request is in progress', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let resolvePromise: (value: string) => void;
@@ -2228,6 +2260,24 @@ describe('RampsController', () => {
           options: {
             state: {
               countries: createResourceState(createMockCountries()),
+              providers: {
+                ...createResourceState(
+                  [mockSelectedProvider],
+                  mockSelectedProvider,
+                ),
+                error: circuitBreakerOpenErrorMessage,
+                errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+              },
+              tokens: {
+                ...createResourceState({ topTokens: [], allTokens: [] }, null),
+                error: circuitBreakerOpenErrorMessage,
+                errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+              },
+              paymentMethods: {
+                ...createResourceState([mockPaymentMethod], mockPaymentMethod),
+                error: circuitBreakerOpenErrorMessage,
+                errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+              },
             },
           },
         },
@@ -2282,8 +2332,11 @@ describe('RampsController', () => {
           // Region change resets dependent resources
           expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.providers.data).toStrictEqual([]);
+          expect(controller.state.providers.errorKey).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.errorKey).toBeNull();
+          expect(controller.state.tokens.errorKey).toBeNull();
         },
       );
     });

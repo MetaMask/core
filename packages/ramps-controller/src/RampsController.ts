@@ -10,6 +10,7 @@ import type { Draft } from 'immer';
 
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type { RampsErrorCode } from './rampsErrorCodes';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import type {
   BuyWidget,
   Country,
@@ -97,7 +98,6 @@ import type {
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
 } from './TransakService-method-action-types';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 
 // === GENERAL ===
 
@@ -493,16 +493,36 @@ type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
 
 const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
 
+function getResourceState<TResourceType extends ResourceType>(
+  state: Draft<RampsControllerState>,
+  resourceType: TResourceType,
+): Draft<RampsControllerState[TResourceType]> {
+  switch (resourceType) {
+    case 'countries':
+      return state.countries as Draft<RampsControllerState[TResourceType]>;
+    case 'providers':
+      return state.providers as Draft<RampsControllerState[TResourceType]>;
+    case 'tokens':
+      return state.tokens as Draft<RampsControllerState[TResourceType]>;
+    case 'paymentMethods':
+      return state.paymentMethods as Draft<RampsControllerState[TResourceType]>;
+    /* istanbul ignore next -- ResourceType is a closed internal union. */
+    default:
+      throw new Error(`Unsupported resource type: ${resourceType as string}`);
+  }
+}
+
 function resetResource(
   state: Draft<RampsControllerState>,
   resourceType: DependentResourceKey,
   defaultResource: RampsControllerState[DependentResourceKey],
 ): void {
-  const resource = state[resourceType];
+  const resource = getResourceState(state, resourceType);
   resource.data = defaultResource.data;
   resource.selected = defaultResource.selected;
   resource.isLoading = defaultResource.isLoading;
   resource.error = defaultResource.error;
+  resource.errorKey = defaultResource.errorKey ?? null;
 }
 
 /**
@@ -1130,10 +1150,8 @@ export class RampsController extends BaseController<
     value: boolean | string | RampsErrorCode | null,
   ): void {
     this.update((state) => {
-      const resource = state[resourceType];
-      if (resource) {
-        (resource as Record<string, unknown>)[field] = value;
-      }
+      const resource = getResourceState(state, resourceType);
+      (resource as Record<string, unknown>)[field] = value;
     });
   }
 
@@ -1158,18 +1176,9 @@ export class RampsController extends BaseController<
     errorInfo: RampsErrorInfo | null,
   ): void {
     this.update((state) => {
-      const resource = state[resourceType];
-      if (!resource) {
-        return;
-      }
-
+      const resource = getResourceState(state, resourceType);
       resource.error = errorInfo?.message ?? null;
-
-      if (errorInfo?.errorKey) {
-        resource.errorKey = errorInfo.errorKey;
-      } else {
-        delete resource.errorKey;
-      }
+      resource.errorKey = errorInfo?.errorKey ?? null;
     });
   }
 
@@ -2299,8 +2308,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
         state.nativeProviders.transak.userDetails.error = errorInfo.message;
-        state.nativeProviders.transak.userDetails.errorKey =
-          errorInfo.errorKey;
+        state.nativeProviders.transak.userDetails.errorKey = errorInfo.errorKey;
       });
       throw normalizedError;
     }

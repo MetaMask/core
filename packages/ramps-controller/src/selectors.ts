@@ -1,7 +1,7 @@
 import type { RampsControllerState } from './RampsController';
+import type { RampsErrorCode } from './rampsErrorCodes';
 import type { RequestState } from './RequestCache';
 import { RequestStatus, createCacheKey } from './RequestCache';
-import type { RampsErrorCode } from './rampsErrorCodes';
 
 /**
  * Result shape returned by request selectors.
