@@ -8,6 +8,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { getAcrossDestination } from './across-actions';
 import { getAcrossQuotes } from './across-quotes';
 import { submitAcrossQuotes } from './across-submit';
@@ -61,6 +62,10 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
     }
 
     return actionableRequests.every((singleRequest) => {
+      if (singleRequest.isPostQuote) {
+        return isPredictWithdrawTransaction(request.transaction);
+      }
+
       try {
         getAcrossDestination(request.transaction, singleRequest);
         return true;

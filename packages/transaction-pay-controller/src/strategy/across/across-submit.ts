@@ -23,6 +23,7 @@ import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
+  isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import { getAcrossOrderedTransactions } from './transactions';
@@ -33,7 +34,7 @@ const ACROSS_STATUS_POLL_INTERVAL = 1000;
 
 type PreparedAcrossTransaction = {
   params: TransactionParams;
-  type: TransactionType;
+  type: TransactionMeta['type'];
 };
 
 /**
@@ -79,10 +80,10 @@ async function executeSingleQuote(
     },
   );
 
-  const acrossDepositType = getAcrossDepositType(transaction.type);
+  const acrossDepositType = getAcrossDepositType(transaction);
   const transactionHash = await submitTransactions(
     quote,
-    transaction.id,
+    transaction,
     acrossDepositType,
     messenger,
   );
@@ -105,14 +106,14 @@ async function executeSingleQuote(
  * Submit transactions for an Across quote.
  *
  * @param quote - Across quote.
- * @param parentTransactionId - ID of the parent transaction.
+ * @param parentTransaction - Parent transaction.
  * @param acrossDepositType - Transaction type used for the swap/deposit step.
  * @param messenger - Controller messenger.
  * @returns Hash of the last submitted transaction, if available.
  */
 async function submitTransactions(
   quote: TransactionPayQuote<AcrossQuote>,
-  parentTransactionId: string,
+  parentTransaction: TransactionMeta,
   acrossDepositType: TransactionType,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
@@ -124,6 +125,10 @@ async function submitTransactions(
     quote: quote.original.quote,
     swapType: acrossDepositType,
   });
+  const shouldPrependOriginalTransaction =
+    quote.request.isPostQuote && parentTransaction.txParams.to !== undefined;
+  const gasLimitOffset = shouldPrependOriginalTransaction ? 1 : 0;
+  const transactionCount = orderedTransactions.length + gasLimitOffset;
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
@@ -131,25 +136,26 @@ async function submitTransactions(
   );
 
   const batchGasLimit =
-    is7702 && orderedTransactions.length > 1
-      ? quoteGasLimits[0]?.max
-      : undefined;
+    is7702 && transactionCount > 1 ? quoteGasLimits[0]?.max : undefined;
 
-  if (is7702 && orderedTransactions.length > 1 && batchGasLimit === undefined) {
+  if (is7702 && transactionCount > 1 && batchGasLimit === undefined) {
     throw new Error('Missing quote gas limit for Across 7702 batch');
   }
 
   const gasLimit7702 =
     batchGasLimit === undefined ? undefined : toHex(batchGasLimit);
 
-  const transactions: PreparedAcrossTransaction[] = orderedTransactions.map(
-    (transaction, index) => {
-      const gasLimit = gasLimit7702 ? undefined : quoteGasLimits[index]?.max;
+  const acrossTransactions: PreparedAcrossTransaction[] =
+    orderedTransactions.map((transaction, index) => {
+      const gasLimit = gasLimit7702
+        ? undefined
+        : quoteGasLimits[index + gasLimitOffset]?.max;
 
       if (gasLimit === undefined && !gasLimit7702) {
+        const quoteGasIndex = index + gasLimitOffset;
         const errorMessage =
           transaction.kind === 'approval'
-            ? `Missing quote gas limit for Across approval transaction at index ${index}`
+            ? `Missing quote gas limit for Across approval transaction at index ${quoteGasIndex}`
             : 'Missing quote gas limit for Across swap transaction';
 
         throw new Error(errorMessage);
@@ -167,8 +173,11 @@ async function submitTransactions(
         }),
         type: transaction.type ?? acrossDepositType,
       };
-    },
-  );
+    });
+  const originalTransaction = shouldPrependOriginalTransaction
+    ? [buildOriginalTransaction(parentTransaction, quoteGasLimits[0]?.max)]
+    : [];
+  const transactions = [...originalTransaction, ...acrossTransactions];
 
   const transactionIds: string[] = [];
 
@@ -181,7 +190,7 @@ async function submitTransactions(
 
       updateTransaction(
         {
-          transactionId: parentTransactionId,
+          transactionId: parentTransaction.id,
           messenger,
           note: 'Add required transaction ID from Across submission',
         },
@@ -335,10 +344,38 @@ async function waitForAcrossCompletion(
   }
 }
 
-function getAcrossDepositType(
-  transactionType?: TransactionType,
-): TransactionType {
-  switch (transactionType) {
+function buildOriginalTransaction(
+  transaction: TransactionMeta,
+  gasLimit?: number,
+): PreparedAcrossTransaction {
+  return {
+    params: {
+      data: transaction.txParams.data,
+      from: transaction.txParams.from,
+      gas: gasLimit === undefined ? undefined : toHex(gasLimit),
+      to: transaction.txParams.to,
+      value: transaction.txParams.value,
+    } as TransactionParams,
+    type: getOriginalTransactionType(transaction),
+  };
+}
+
+function getOriginalTransactionType(
+  transaction: TransactionMeta,
+): TransactionMeta['type'] {
+  if (isPredictWithdrawTransaction(transaction)) {
+    return TransactionType.predictWithdraw;
+  }
+
+  return transaction.type;
+}
+
+function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
+  if (isPredictWithdrawTransaction(transaction)) {
+    return TransactionType.predictAcrossWithdraw;
+  }
+
+  switch (transaction.type) {
     case TransactionType.perpsDeposit:
       return TransactionType.perpsAcrossDeposit;
     case TransactionType.predictDeposit:
@@ -346,7 +383,7 @@ function getAcrossDepositType(
     case undefined:
       return TransactionType.perpsAcrossDeposit;
     default:
-      return transactionType;
+      return transaction.type as TransactionType;
   }
 }
 

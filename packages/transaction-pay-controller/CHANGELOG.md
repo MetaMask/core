@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Across support for post-quote Predict withdraw flows ([#8593](https://github.com/MetaMask/core/pull/8593))
+
 ## [22.0.0]
 
 ### Changed

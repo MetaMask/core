@@ -123,8 +123,8 @@ export type TransactionConfig = {
   isPostQuote?: boolean;
 
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request. Use this for post-quote flows where the user's funds originate
    * from a smart contract account (e.g. Predict Safe proxy) so that refunds
    * go back to that account rather than the EOA.
@@ -224,8 +224,8 @@ export type TransactionData = {
   isHyperliquidSource?: boolean;
 
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
@@ -400,8 +400,8 @@ export type QuoteRequest = {
   isHyperliquidSource?: boolean;
 
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;

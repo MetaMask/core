@@ -401,6 +401,121 @@ describe('Across Submit', () => {
       );
     });
 
+    it('prepends the original transaction and uses predict withdraw type for post-quote predict withdraws', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 50000, max: 50000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            value: '0x1' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: toHex(50000),
+                to: '0x000000000000000000000000000000000000dEaD',
+                value: '0x1',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: toHex(22000),
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('passes gas fee token for post-quote predict withdraw batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          isSourceGasFeeToken: true,
+        },
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 50000, max: 50000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictWithdraw,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+        }),
+      );
+    });
+
     it('preserves transaction type when not perps or predict', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,
