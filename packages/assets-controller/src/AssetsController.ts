@@ -561,7 +561,7 @@ export class AssetsController extends BaseController<
     if (!this.#trace) {
       return;
     }
-    this.#trace({ name, data, tags }, () => undefined).catch(() => {
+    this.#trace({ name, data, tags }, () => undefined)?.catch(() => {
       // Telemetry failure must not break.
     });
   }
