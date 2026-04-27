@@ -20,6 +20,7 @@ export type RequestParams = {
   token_symbol_destination: string | null;
   token_address_source: CaipAssetType;
   token_address_destination: CaipAssetType | null;
+  token_security_type_destination: string | null;
 };
 
 export type AccountHardwareType =
@@ -122,6 +123,7 @@ type RequiredEventContextFromClientBase = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_address_source: RequestParams['token_address_source'];
     token_address_destination: RequestParams['token_address_destination'];
+    token_security_type_destination: RequestParams['token_security_type_destination'];
     chain_id_source: RequestParams['chain_id_source'];
     chain_id_destination: RequestParams['chain_id_destination'];
   } & Pick<RequestMetadata, 'security_warnings'>;
