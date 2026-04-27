@@ -199,7 +199,7 @@ export async function verifyAuthenticationResponse(opts: {
     counter <= credential.counter
   ) {
     throw new Error(
-      `Response counter value ${counter} was lower than expected ${credential.counter}`,
+      `Response counter value ${counter} must be greater than stored counter ${credential.counter}`,
     );
   }
 

@@ -253,7 +253,7 @@ describe('verifyAuthenticationResponse', () => {
     ).rejects.toThrow('User not present during authentication');
   });
 
-  it('throws error if previous counter value is not less than in response', async () => {
+  it('throws error when response counter equals stored counter and monotonicity applies', async () => {
     await expect(
       verifyAuthenticationResponse({
         response: assertionResponse,
@@ -266,7 +266,27 @@ describe('verifyAuthenticationResponse', () => {
         },
         requireUserVerification: false,
       }),
-    ).rejects.toThrow('Response counter value 144 was lower than expected 144');
+    ).rejects.toThrow(
+      'Response counter value 144 must be greater than stored counter 144',
+    );
+  });
+
+  it('throws error when response counter is lower than stored counter', async () => {
+    await expect(
+      verifyAuthenticationResponse({
+        response: assertionResponse,
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPID: EXPECTED_RP_ID,
+        credential: {
+          ...credential,
+          counter: 200,
+        },
+        requireUserVerification: false,
+      }),
+    ).rejects.toThrow(
+      'Response counter value 144 must be greater than stored counter 200',
+    );
   });
 
   it('does not compare counters if both are 0', async () => {
