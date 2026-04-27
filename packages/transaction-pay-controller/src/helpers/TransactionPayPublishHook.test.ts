@@ -154,7 +154,7 @@ describe('TransactionPayPublishHook', () => {
     expect(updateTransactionMock).not.toHaveBeenCalled();
   });
 
-  it('defaults to accountSupports7702 true when keyring not found', async () => {
+  it('defaults to accountSupports7702 false when keyring not found', async () => {
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [],
@@ -164,7 +164,7 @@ describe('TransactionPayPublishHook', () => {
 
     expect(executeMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        accountSupports7702: true,
+        accountSupports7702: false,
       }),
     );
   });

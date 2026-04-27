@@ -1336,7 +1336,7 @@ describe('Across Quotes', () => {
       ).toBeUndefined();
     });
 
-    it('re-estimates individually when batch returns 7702 but account does not support it', async () => {
+    it('returns per-transaction gas limits when account does not support 7702', async () => {
       getKeyringControllerStateMock.mockReturnValue({
         isUnlocked: true,
         keyrings: [
@@ -1349,13 +1349,8 @@ describe('Across Quotes', () => {
       });
 
       estimateGasBatchMock.mockResolvedValue({
-        totalGasLimit: 51000,
-        gasLimits: [51000],
-      });
-
-      estimateGasMock.mockResolvedValue({
-        gas: '0x5208',
-        simulationFails: undefined,
+        totalGasLimit: 42000,
+        gasLimits: [21000, 21000],
       });
 
       successfulFetchMock.mockResolvedValue({
@@ -1381,7 +1376,6 @@ describe('Across Quotes', () => {
 
       expect(result[0].original.metamask.is7702).toBe(false);
       expect(result[0].original.metamask.gasLimits).toHaveLength(2);
-      expect(estimateGasMock).toHaveBeenCalledTimes(2);
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {

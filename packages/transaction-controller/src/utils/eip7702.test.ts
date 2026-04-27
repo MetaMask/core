@@ -343,7 +343,7 @@ describe('EIP-7702 Utils', () => {
       );
     });
 
-    it('returns true when account is not found in any keyring', () => {
+    it('returns false when account is not found in any keyring', () => {
       getKeyringStateMock.mockReturnValue({
         isUnlocked: true,
         keyrings: [
@@ -356,7 +356,7 @@ describe('EIP-7702 Utils', () => {
       });
 
       expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
-        true,
+        false,
       );
     });
 

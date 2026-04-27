@@ -143,7 +143,7 @@ describe('Quotes Utils', () => {
       keyrings: [
         {
           type: 'HD Key Tree',
-          accounts: ['0x1234567890123456789012345678901234567891'],
+          accounts: ['0xabc'],
           metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
         },
       ],

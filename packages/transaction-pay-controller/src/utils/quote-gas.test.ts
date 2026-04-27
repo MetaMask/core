@@ -256,54 +256,6 @@ describe('quote gas estimation', () => {
     });
   });
 
-  it('re-estimates individually when account does not support 7702', async () => {
-    getKeyringControllerStateMock.mockReturnValue({
-      isUnlocked: true,
-      keyrings: [
-        {
-          type: 'Ledger Hardware',
-          accounts: ['0x1234567890123456789012345678901234567891'],
-          metadata: { id: 'ledger-keyring', name: 'Ledger Hardware' },
-        },
-      ],
-    });
-
-    getGasBufferMock.mockReturnValue(1.5);
-
-    estimateGasBatchMock.mockResolvedValue({
-      totalGasLimit: 50000,
-      gasLimits: [50000],
-    });
-
-    estimateGasLimitMock.mockResolvedValueOnce({
-      estimate: 21000,
-      max: 21000,
-      usedFallback: false,
-    });
-
-    const result = await estimateQuoteGasLimits({
-      messenger,
-      transactions: TRANSACTIONS_MOCK,
-    });
-
-    expect(estimateGasLimitMock).toHaveBeenCalledTimes(1);
-    expect(estimateGasLimitMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fallbackOnSimulationFailure: false,
-      }),
-    );
-    expect(result).toStrictEqual({
-      gasLimits: [
-        { estimate: 21000, max: 21000 },
-        { estimate: 30000, max: 30000 },
-      ],
-      is7702: false,
-      totalGasEstimate: 51000,
-      totalGasLimit: 51000,
-      usedBatch: true,
-    });
-  });
-
   it('throws when batch estimation fails', async () => {
     estimateGasBatchMock.mockRejectedValue(
       new Error('Batch estimation failed'),

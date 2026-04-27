@@ -6,7 +6,6 @@ import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
-import { accountSupports7702 } from './7702';
 import { getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 
@@ -55,15 +54,8 @@ export async function estimateQuoteGasLimits({
   const useBatch = transactions.length > 1;
 
   if (useBatch) {
-    const result = await estimateQuoteGasLimitsBatch(
-      transactions,
-      messenger,
-      fallbackOnSimulationFailure,
-      fallbackGas,
-    );
-
     return {
-      ...result,
+      ...(await estimateQuoteGasLimitsBatch(transactions, messenger)),
       usedBatch: true,
     };
   }
@@ -83,8 +75,6 @@ export async function estimateQuoteGasLimits({
 async function estimateQuoteGasLimitsBatch(
   transactions: QuoteGasTransaction[],
   messenger: TransactionPayControllerMessenger,
-  fallbackOnSimulationFailure: boolean,
-  fallbackGas?: { estimate: number; max: number },
 ): Promise<{
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
@@ -137,38 +127,6 @@ async function estimateQuoteGasLimitsBatch(
     0,
   );
   const is7702 = bufferedGasLimits.length === 1;
-
-  // If the batch returned a combined 7702 gas limit but the account cannot
-  // sign EIP-7702 authorizations (e.g. hardware wallet), re-estimate each
-  // transaction individually so callers never see is7702=true.
-  const supports7702 = accountSupports7702(messenger, firstTransaction.from);
-
-  if (is7702 && !supports7702) {
-    const individualResults = await Promise.all(
-      transactions.map((transaction) =>
-        estimateQuoteGasLimitSingle({
-          fallbackGas,
-          fallbackOnSimulationFailure,
-          messenger,
-          transaction,
-        }),
-      ),
-    );
-
-    return {
-      gasLimits: individualResults.map((res) => res.gasLimits[0]),
-      is7702: false,
-      totalGasEstimate: individualResults.reduce(
-        (acc, res) => acc + res.totalGasEstimate,
-        0,
-      ),
-      totalGasLimit: individualResults.reduce(
-        (acc, res) => acc + res.totalGasLimit,
-        0,
-      ),
-    };
-  }
-
   const batchGasLimit = is7702 ? bufferedGasLimits[0] : undefined;
 
   return {

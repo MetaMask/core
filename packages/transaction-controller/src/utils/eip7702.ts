@@ -48,7 +48,7 @@ const KEYRING_TYPES_SUPPORTING_7702 = ['HD Key Tree', 'Simple Key Pair'];
  *
  * Looks up the account's keyring via `KeyringController:getState` and returns
  * `true` only when the keyring type is in the supported list.
- * Falls back to `true` when the keyring cannot be resolved.
+ * Returns `false` when the keyring cannot be resolved.
  *
  * @param messenger - Controller messenger.
  * @param account - The account address to check.
@@ -59,11 +59,12 @@ export function doesAccountSupportEIP7702(
   account: string,
 ): boolean {
   const { keyrings } = messenger.call('KeyringController:getState');
-  const keyring = keyrings.find((k: { type: string; accounts: string[] }) =>
-    k.accounts.some((a: string) => a.toLowerCase() === account.toLowerCase()),
-  );
 
-  return keyring ? KEYRING_TYPES_SUPPORTING_7702.includes(keyring.type) : true;
+  return keyrings.some(
+    (k: { type: string; accounts: string[] }) =>
+      KEYRING_TYPES_SUPPORTING_7702.includes(k.type) &&
+      k.accounts.some((a: string) => a.toLowerCase() === account.toLowerCase()),
+  );
 }
 
 /**
