@@ -265,6 +265,7 @@ export class RpcDataSource extends AbstractDataSource<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
+        customAssets?: Record<string, string[]>;
       } => {
         const state = this.#messenger.call('AssetsController:getState');
         return {
@@ -272,6 +273,7 @@ export class RpcDataSource extends AbstractDataSource<
             string,
             Record<string, { amount: string }>
           >,
+          customAssets: (state.customAssets ?? {}) as Record<string, string[]>,
         };
       },
     };
@@ -1308,12 +1310,20 @@ export class RpcDataSource extends AbstractDataSource<
           chainId: hexChainId,
           accountId,
           accountAddress: address as Address,
+          ...(request.customAssetsOnly === true
+            ? { customAssetsOnly: true }
+            : {}),
         };
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled and external services allowed
-        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
+        // Token detection is only relevant for "regular" subscriptions —
+        // a customAssetsOnly subscription should never run detection.
+        if (
+          request.customAssetsOnly !== true &&
+          this.#tokenDetectionEnabled() &&
+          this.#useExternalService()
+        ) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,

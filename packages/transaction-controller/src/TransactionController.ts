@@ -149,6 +149,7 @@ import {
   getTransactionHistoryLimit,
 } from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
+import type { EstimateGasBatchResult } from './utils/gas';
 import {
   addGasBuffer,
   estimateGas,
@@ -758,6 +759,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateEditableParams',
   'updateIncomingTransactions',
   'updateTransaction',
+  'wipeTransactions',
 ] as const;
 
 /**
@@ -1717,7 +1719,7 @@ export class TransactionController extends BaseController<
     chainId: Hex;
     from: Hex;
     transactions: BatchTransactionParams[];
-  }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+  }): Promise<EstimateGasBatchResult> {
     return estimateGasBatch({
       from,
       getSimulationConfig: this.#getSimulationConfig,

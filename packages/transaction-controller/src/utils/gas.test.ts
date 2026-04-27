@@ -1144,6 +1144,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        requiresAuthorizationList: true,
       });
 
       expect(generateEIP7702BatchTransactionMock).toHaveBeenCalledWith(

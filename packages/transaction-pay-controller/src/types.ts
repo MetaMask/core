@@ -475,6 +475,18 @@ export type PayStrategyGetBatchRequest<OriginalQuote> = {
   quotes: TransactionPayQuote<OriginalQuote>[];
 };
 
+/** Request to check whether retrieved quotes can be executed by a strategy. */
+export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
+  /** Controller messenger. */
+  messenger: TransactionPayControllerMessenger;
+
+  /** Quotes returned by the strategy. */
+  quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Metadata of the original target transaction. */
+  transaction: TransactionMeta;
+};
+
 /** Request to get refresh interval for a specific strategy. */
 export type PayStrategyGetRefreshIntervalRequest = {
   /** Chain ID of the source or payment token. */
@@ -490,12 +502,26 @@ export type PayStrategy<OriginalQuote> = {
    * Check if the strategy supports the given request.
    * Defaults to true if not implemented.
    */
-  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+  supports?: (
+    request: PayStrategyGetQuotesRequest,
+  ) => boolean | Promise<boolean>;
 
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
   ) => Promise<TransactionPayQuote<OriginalQuote>[]>;
+
+  /**
+   * Check if the returned quotes are supported after provider quote
+   * construction and gas planning.
+   *
+   * Use this for limitations that are only knowable once quote metadata is
+   * available, such as whether execution will require an EIP-7702
+   * authorization list.
+   */
+  checkQuoteSupport?: (
+    request: PayStrategyCheckQuoteSupportRequest<OriginalQuote>,
+  ) => boolean | Promise<boolean>;
 
   /** Retrieve batch transactions for quotes, if supported by the strategy. */
   getBatchTransactions?: (

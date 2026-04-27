@@ -42,6 +42,7 @@ export async function estimateQuoteGasLimits({
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
   is7702: boolean;
+  requiresAuthorizationList?: true;
   totalGasEstimate: number;
   totalGasLimit: number;
   usedBatch: boolean;
@@ -78,6 +79,7 @@ async function estimateQuoteGasLimitsBatch(
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
   is7702: boolean;
+  requiresAuthorizationList?: true;
   totalGasEstimate: number;
   totalGasLimit: number;
 }> {
@@ -88,7 +90,7 @@ async function estimateQuoteGasLimitsBatch(
     parseGasLimit(transaction.gas),
   );
 
-  const { gasLimits } = await messenger.call(
+  const { gasLimits, requiresAuthorizationList } = await messenger.call(
     'TransactionController:estimateGasBatch',
     {
       chainId: firstTransaction.chainId,
@@ -131,6 +133,7 @@ async function estimateQuoteGasLimitsBatch(
     ...(batchGasLimit ? { batchGasLimit } : {}),
     gasLimits: bufferedGasLimits,
     is7702,
+    ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
     totalGasEstimate: totalGasLimit,
     totalGasLimit,
   };

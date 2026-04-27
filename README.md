@@ -78,6 +78,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
+- [`@metamask/passkey-controller`](packages/passkey-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/perps-controller`](packages/perps-controller)
@@ -168,6 +169,7 @@ linkStyle default opacity:0.5
   network_controller(["@metamask/network-controller"]);
   network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
+  passkey_controller(["@metamask/passkey-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
   perps_controller(["@metamask/perps-controller"]);
@@ -423,6 +425,8 @@ linkStyle default opacity:0.5
   notification_services_controller --> keyring_controller;
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
+  passkey_controller --> base_controller;
+  passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
