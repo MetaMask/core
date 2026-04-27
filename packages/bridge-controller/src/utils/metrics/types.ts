@@ -122,6 +122,7 @@ type RequiredEventContextFromClientBase = {
     token_address_destination: RequestParams['token_address_destination'];
     chain_id_source: RequestParams['chain_id_source'];
     chain_id_destination: RequestParams['chain_id_destination'];
+    token_security_type_destination?: string;
   } & Pick<RequestMetadata, 'security_warnings'>;
   [UnifiedSwapBridgeEventName.QuotesRequested]: Pick<
     RequestMetadata,
@@ -168,6 +169,7 @@ type RequiredEventContextFromClientBase = {
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
+      token_security_type_destination?: string;
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
@@ -191,6 +193,7 @@ type RequiredEventContextFromClientBase = {
         TradeData & {
           actual_time_minutes: number;
           error_message?: string;
+          token_security_type_destination?: string;
         });
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
