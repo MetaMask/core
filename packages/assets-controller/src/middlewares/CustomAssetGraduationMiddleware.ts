@@ -46,23 +46,26 @@ export class CustomAssetGraduationMiddleware {
 
   get assetsMiddleware(): Middleware {
     return forDataTypes(['balance'], async (ctx, next) => {
-      const result = await next(ctx);
-
+      // Inspect the response BEFORE calling next() so we only consider
+      // balances populated by upstream middleware (AccountsApi / Websocket /
+      // Staked). This middleware is positioned in the pipeline before the
+      // RPC fallback — RPC intentionally carries custom assets and must
+      // never trigger graduation.
       const accountId = this.#getSelectedAccountId();
       if (!accountId) {
-        return result;
+        return next(ctx);
       }
 
-      const state = result.getAssetsState();
+      const state = ctx.getAssetsState();
       const customForAccount = state.customAssets?.[accountId] ?? [];
       if (customForAccount.length === 0) {
-        return result;
+        return next(ctx);
       }
 
-      const returnedBalances = result.response.assetsBalance?.[accountId] ?? {};
+      const returnedBalances = ctx.response.assetsBalance?.[accountId] ?? {};
       const returnedAssetIds = Object.keys(returnedBalances) as Caip19AssetId[];
       if (returnedAssetIds.length === 0) {
-        return result;
+        return next(ctx);
       }
 
       const customSet = new Set(customForAccount);
@@ -77,7 +80,7 @@ export class CustomAssetGraduationMiddleware {
         this.#removeCustomAsset(accountId, assetId);
       }
 
-      return result;
+      return next(ctx);
     });
   }
 }

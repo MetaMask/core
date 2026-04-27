@@ -313,6 +313,33 @@ describe('CustomAssetGraduationMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
+  it('does not graduate when the matching balance is added by downstream middleware (e.g. RPC fallback)', async () => {
+    // Regression test: the graduation middleware must inspect the response
+    // BEFORE calling next() so that balances merged in by later middleware
+    // (notably the RPC fallback, which intentionally fetches custom assets)
+    // do not trigger graduation. See PR description for the resilience work.
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
+    });
+    // No balance from upstream sources — AccountsApi did not return it.
+    context.response = { assetsBalance: { [MOCK_ACCOUNT_ID]: {} } };
+    // The downstream middleware (RPC fallback) populates the asset balance.
+    const next = jest.fn().mockImplementation(async (ctx) => {
+      ctx.response = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [EVM_CUSTOM_ASSET]: { amount: '1000' },
+          },
+        },
+      };
+      return ctx;
+    });
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).not.toHaveBeenCalled();
+  });
+
   it('runs when dataTypes includes balance among others', async () => {
     const { middleware, removeCustomAsset } = setup({
       [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
