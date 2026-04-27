@@ -753,8 +753,8 @@ export class Messenger<
       ) {
         return;
       }
-      (handler as (...args: unknown[]) => void)(...args);
       this.unsubscribe(eventType, internalHandler);
+      (handler as (...args: unknown[]) => void)(...args);
     };
 
     this.subscribe(
