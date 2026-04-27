@@ -151,6 +151,8 @@ export const getRequestParamFromHistory = (
     chain_id_destination: formatChainIdToCaip(historyItem.quote.destChainId),
     token_symbol_destination: historyItem.quote.destAsset.symbol,
     token_address_destination: historyItem.quote.destAsset.assetId,
+    token_security_type_destination:
+      historyItem.tokenSecurityTypeDestination ?? null,
   };
 };
 
@@ -302,6 +304,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
         transactionMeta.destinationTokenAddress ?? '',
         transactionMeta.chainId,
       ) ?? ('' as CaipAssetType),
+    token_security_type_destination: null,
     custom_slippage: false,
     account_hardware_type: accountHardwareType,
     is_hardware_wallet: accountHardwareType !== null,
