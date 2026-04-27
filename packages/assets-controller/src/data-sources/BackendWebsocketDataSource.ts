@@ -39,6 +39,30 @@ const CHANNEL_TYPE = 'account-activity.v1';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
+/**
+ * Hardcoded allow-list of EVM chains the BackendWebsocket subscribes to.
+ *
+ * Even when the portfolio API's `fetchV2SupportedNetworks` advertises a
+ * broader `fullSupport` list, we deliberately constrain the WebSocket
+ * data source to the high-traffic chains we have validated end-to-end
+ * for streaming balance updates. Any other chain — Monad, Sei, etc. —
+ * is intentionally left for the AccountsApi REST poller to handle, with
+ * RPC as the final fallback. This produces the intended waterfall:
+ *
+ *   WebSocket (this list) → AccountsApi polling → RPC
+ *
+ * To extend WebSocket coverage to a new chain, add its CAIP-2 ID here.
+ */
+const WEBSOCKET_SUPPORTED_CHAINS: ReadonlySet<ChainId> = new Set<ChainId>([
+  'eip155:1', // Ethereum mainnet
+  'eip155:10', // Optimism
+  'eip155:56', // BNB Smart Chain
+  'eip155:137', // Polygon
+  'eip155:8453', // Base
+  'eip155:42161', // Arbitrum One
+  'eip155:59144', // Linea
+]);
+
 // ============================================================================
 // MESSENGER TYPES
 // ============================================================================
@@ -319,7 +343,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
-    return response.fullSupport.map(toChainId);
+    // Constrain to the hardcoded WebSocket allow-list so we never claim
+    // chains we haven't validated for real-time streaming. Anything in
+    // `fullSupport` but outside the allow-list (and any chain outside
+    // both) falls through to AccountsApi REST polling, then RPC.
+    return response.fullSupport
+      .map(toChainId)
+      .filter((chainId) => WEBSOCKET_SUPPORTED_CHAINS.has(chainId));
   }
 
   #subscribeToEvents(): void {
