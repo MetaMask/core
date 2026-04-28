@@ -1,4 +1,15 @@
-import { TimeoutError, isTimeoutError, withRetry, withTimeout } from './utils';
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+} from '@metamask/keyring-controller';
+
+import {
+  TimeoutError,
+  isKeyringControllerLockedError,
+  isTimeoutError,
+  withRetry,
+  withTimeout,
+} from './utils';
 
 describe('utils', () => {
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
@@ -60,4 +71,21 @@ describe('utils', () => {
     expect(isTimeoutError('string')).toBe(false);
     expect(isTimeoutError(null)).toBe(false);
   });
+
+  it('isKeyringControllerLockedError returns true for KeyringControllerLockedError instances', () => {
+    expect(
+      isKeyringControllerLockedError(
+        new KeyringControllerError(
+          KeyringControllerErrorMessage.ControllerLocked,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it.each([new Error('some error'), 'string', null])(
+    'isKeyringControllerLockedError returns false for %p',
+    (error) => {
+      expect(isKeyringControllerLockedError(error)).toBe(false);
+    },
+  );
 });
