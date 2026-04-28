@@ -19,8 +19,7 @@ describe('quote gas estimation', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const estimateGasLimitMock = jest.mocked(estimateGasLimit);
 
-  const { estimateGasBatchMock, getKeyringControllerStateMock, messenger } =
-    getMessengerMock();
+  const { estimateGasBatchMock, messenger } = getMessengerMock();
 
   const TRANSACTIONS_MOCK = [
     {
@@ -42,17 +41,6 @@ describe('quote gas estimation', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-
-    getKeyringControllerStateMock.mockReturnValue({
-      isUnlocked: true,
-      keyrings: [
-        {
-          type: 'HD Key Tree',
-          accounts: ['0x1234567890123456789012345678901234567891'],
-          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
-        },
-      ],
-    });
 
     getGasBufferMock.mockReturnValue(1);
   });

@@ -97,7 +97,6 @@ const MESSENGER_MOCK = {
   }),
 } as unknown as TransactionControllerMessenger;
 
-
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_MOCK = '0x654321';

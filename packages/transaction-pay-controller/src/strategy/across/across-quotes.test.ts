@@ -168,23 +168,11 @@ describe('Across Quotes', () => {
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
-    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
-
-    getKeyringControllerStateMock.mockReturnValue({
-      isUnlocked: true,
-      keyrings: [
-        {
-          type: 'HD Key Tree',
-          accounts: ['0x1234567890123456789012345678901234567891'],
-          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
-        },
-      ],
-    });
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -1337,17 +1325,6 @@ describe('Across Quotes', () => {
     });
 
     it('returns per-transaction gas limits when account does not support 7702', async () => {
-      getKeyringControllerStateMock.mockReturnValue({
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'Ledger Hardware',
-            accounts: ['0x1234567890123456789012345678901234567891'],
-            metadata: { id: 'ledger', name: 'Ledger' },
-          },
-        ],
-      });
-
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 42000,
         gasLimits: [21000, 21000],
