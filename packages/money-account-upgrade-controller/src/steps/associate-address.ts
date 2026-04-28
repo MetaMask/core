@@ -19,7 +19,7 @@ const ALREADY_ASSOCIATED_STATUS = 'already_associated';
 export const associateAddressStep: Step = {
   name: 'associate-address',
   async run({ messenger, address }) {
-    const timestamp = Date.now().toString();
+    const timestamp = Date.now();
     const message = `CHOMP Authentication ${timestamp}`;
 
     const signature = (await messenger.call(

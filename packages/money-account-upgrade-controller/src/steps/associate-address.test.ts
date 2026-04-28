@@ -106,7 +106,7 @@ describe('associateAddressStep', () => {
 
     expect(mocks.associateAddress).toHaveBeenCalledWith({
       signature: MOCK_SIGNATURE,
-      timestamp: MOCK_NOW.toString(),
+      timestamp: MOCK_NOW,
       address: MOCK_ADDRESS,
     });
   });
