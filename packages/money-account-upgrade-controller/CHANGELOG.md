@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0]
 
+### Changed
+
+- Bump `@metamask/chomp-api-service` from `^1.0.0` to `^2.0.0` ([#8618](https://github.com/MetaMask/core/pull/8618))
+
 ### Fixed
 
 - Send the CHOMP authentication timestamp as a number instead of a string in the associate-address step. ([#8610](https://github.com/MetaMask/core/pull/8610))
