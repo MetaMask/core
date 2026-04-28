@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `InternalAccount.metadata.snap.{enabled,name}` properties have been removed ([#8584](https://github.com/MetaMask/core/pull/8584))
   - You now need to use `metadata.snap.id` and the `SnapController:<actions>` to get those information.
-- No longer depend on `SnapController` events ([#8584](https://github.com/MetaMask/core/pull/8584))
+- No longer depend on `SnapController:stateChange` event ([#8584](https://github.com/MetaMask/core/pull/8584))
 
 ## [37.2.0]
 
