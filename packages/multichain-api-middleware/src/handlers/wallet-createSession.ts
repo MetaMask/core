@@ -45,7 +45,7 @@ import type { GrantedPermissions } from './types';
 
 const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
-type WalletCreateSessionHooks = {
+export type WalletCreateSessionHooks = {
   listAccounts: () => { address: string }[];
   findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
   requestPermissionsForOrigin: (
@@ -56,7 +56,7 @@ type WalletCreateSessionHooks = {
   isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
   getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
   sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
-  trackSessionCreatedEvent?: (
+  trackSessionCreatedEvent: (
     approvedCaip25CaveatValue: Caip25CaveatValue,
   ) => void;
 };
@@ -278,7 +278,7 @@ async function handleWalletCreateSession(
     const { sessionProperties: approvedSessionProperties = {} } =
       approvedCaip25CaveatValue;
 
-    hooks.trackSessionCreatedEvent?.(approvedCaip25CaveatValue);
+    hooks.trackSessionCreatedEvent(approvedCaip25CaveatValue);
 
     res.result = {
       sessionScopes,

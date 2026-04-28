@@ -28,7 +28,7 @@ import { pick } from 'lodash';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
-type RequestPermissionsHooks = {
+export type RequestPermissionsHooks = {
   getAccounts: () => string[];
   requestPermissionsForOrigin: (
     requestedPermissions: RequestedPermissions,

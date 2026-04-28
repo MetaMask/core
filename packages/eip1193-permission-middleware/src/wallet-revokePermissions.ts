@@ -14,7 +14,7 @@ import type {
 
 import { EndowmentTypes, RestrictedMethods } from './types';
 
-type RevokePermissionsHooks = {
+export type RevokePermissionsHooks = {
   revokePermissionsForOrigin: (permissionKeys: string[]) => void;
 };
 

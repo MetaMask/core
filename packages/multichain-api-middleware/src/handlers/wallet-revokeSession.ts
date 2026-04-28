@@ -4,6 +4,7 @@ import {
   Caip25EndowmentPermissionName,
   getCaipAccountIdsFromCaip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
+import type { Caip25CaveatValue } from '@metamask/chain-agnostic-permission';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
@@ -14,6 +15,7 @@ import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
+import type { Caveat } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
 import type {
@@ -22,7 +24,18 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { WalletRevokeSessionHooks } from './types';
+export type WalletRevokeSessionHooks = {
+  revokePermissionForOrigin: (permissionName: string) => void;
+  updateCaveat: (
+    target: string,
+    caveatType: string,
+    caveatValue: Caip25CaveatValue,
+  ) => void;
+  getCaveatForOrigin: (
+    endowmentPermissionName: string,
+    caveatType: string,
+  ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+};
 
 type WalletRevokeSessionParams = { scopes?: string[] };
 

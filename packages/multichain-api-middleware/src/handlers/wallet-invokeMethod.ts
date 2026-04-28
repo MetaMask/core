@@ -41,7 +41,7 @@ export type WalletInvokeMethodRequest =
     origin: string;
   };
 
-type WalletInvokeMethodHooks = {
+export type WalletInvokeMethodHooks = {
   getCaveatForOrigin: (
     endowmentPermissionName: string,
     caveatType: string,

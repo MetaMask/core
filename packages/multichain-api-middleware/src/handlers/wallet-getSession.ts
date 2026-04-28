@@ -23,7 +23,7 @@ import type {
 
 type WalletGetSessionResult = { sessionScopes: NormalizedScopesObject };
 
-type WalletGetSessionHooks = {
+export type WalletGetSessionHooks = {
   getCaveatForOrigin: (
     endowmentPermissionName: string,
     caveatType: string,

@@ -40,7 +40,14 @@ type HandlerActions<Handler> = Handler extends {
 type HandlerHooks<Handler> = Handler extends {
   implementation: (...args: infer Args) => unknown;
 }
-  ? Args extends [unknown, unknown, unknown, unknown, infer ArgHooks, unknown]
+  ? Args extends [
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      infer ArgHooks,
+      ...unknown[],
+    ]
     ? ArgHooks extends Record<string, unknown>
       ? ArgHooks
       : never

@@ -23,7 +23,7 @@ import type {
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
-type GetPermissionsHooks = {
+export type GetPermissionsHooks = {
   getPermissionsForOrigin: () => ReturnType<
     PermissionController<
       PermissionSpecificationConstraint,
