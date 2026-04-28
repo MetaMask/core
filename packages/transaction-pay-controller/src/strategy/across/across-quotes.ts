@@ -76,7 +76,7 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const { messenger, signal, transaction } = fullRequest;
   const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
   const {
     from,
@@ -109,7 +109,7 @@ async function getSingleQuote(
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
     recipient: destination.recipient,
-    signal: fullRequest.signal,
+    signal,
     slippage: slippageDecimal,
     tradeType,
   });
