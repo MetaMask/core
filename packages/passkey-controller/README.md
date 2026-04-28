@@ -1,6 +1,6 @@
 # `@metamask/passkey-controller`
 
-Manages passkey-based vault key protection using [WebAuthn](https://www.w3.org/TR/webauthn-3/). Orchestrates the full passkey lifecycle: generating WebAuthn ceremony options, verifying authenticator responses, and protecting/retrieving the vault encryption key via AES-256-GCM wrapping with HKDF-derived keys.
+WebAuthn passkey support for protecting a vault encryption key: ceremony options, assertion verification, and AES-256-GCM wrapping with HKDF-derived keys.
 
 ## Installation
 
@@ -12,21 +12,21 @@ or
 
 ## Overview
 
-The controller follows a two-phase ceremony pattern for both enrollment and authentication:
+Two-phase flow for enrollment and authentication:
 
-1. **Generate options** — call a synchronous method that returns options JSON and records **in-flight ceremony** state (challenge-keyed; not a user login session).
-2. **Verify response** — pass the authenticator's response back to the controller, which verifies the WebAuthn signature and performs the cryptographic operation (protect or retrieve the vault key).
+1. **Generate options** — synchronous call returns WebAuthn options JSON and stores **in-flight ceremony** state (challenge-keyed; not a login session).
+2. **Complete ceremony** — pass the authenticator response to the controller to verify the assertion and protect or unwrap the vault key.
 
-### Key derivation strategies
+### Key derivation
 
-The controller supports two key derivation methods, selected automatically during enrollment:
+Enrollment picks PRF or `userHandle` automatically from the registration result:
 
-| Strategy       | When used                                                                                          | Input key material                                |
-| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| **PRF**        | Authenticator supports the [WebAuthn PRF extension](https://w3c.github.io/webauthn/#prf-extension) | PRF evaluation output                             |
-| **userHandle** | PRF is unavailable                                                                                 | Random `userHandle` generated during registration |
+| Strategy       | When used                                                                                          | Input key material                            |
+| -------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| **PRF**        | Authenticator supports the [WebAuthn PRF extension](https://w3c.github.io/webauthn/#prf-extension) | PRF evaluation output                         |
+| **userHandle** | PRF output absent                                                                                  | Random `userHandle` from registration options |
 
-Both strategies feed the input key material through **HKDF-SHA256** with the credential ID as salt and a fixed info string to produce the 32-byte AES-256 wrapping key.
+HKDF-SHA256 uses the verified credential id as salt and info label `metamask:passkey:encryption-key:v1` for the 32-byte AES-256 wrapping key.
 
 ## Usage
 
@@ -43,46 +43,47 @@ const controller = new PasskeyController({
   rpID: 'example.com',
   rpName: 'My Wallet',
   expectedOrigin: 'chrome-extension://abcdef1234567890',
-  // Optional — both default to `rpName` when omitted.
   userName: 'My Wallet',
   userDisplayName: 'My Wallet',
 });
 ```
 
+`expectedOrigin` may be `string` or `string[]`. Optional `state` is merged with **`getDefaultPasskeyControllerState()`** when rehydrating. Call **`destroy()`** when disposing the controller so in-flight ceremonies are cleared. See [Constructor](#constructor) for the full argument list.
+
 ### Passkey enrollment (registration)
 
 ```typescript
-// 1. Generate registration options (synchronous)
 const options = controller.generateRegistrationOptions();
-
-// 2. Pass options to the browser WebAuthn API
 const response = await navigator.credentials.create({ publicKey: options });
 
-// 3. Verify and protect the vault key
 await controller.protectVaultKeyWithPasskey({
   registrationResponse: response,
   vaultKey: myVaultEncryptionKey,
 });
 ```
 
+Use **`generateRegistrationOptions({ prfAvailable: false })`** to skip the PRF extension (e.g. tests or environments without PRF).
+
 ### Passkey unlock (authentication)
 
 ```typescript
-// 1. Generate authentication options (synchronous)
 const options = controller.generateAuthenticationOptions();
-
-// 2. Pass options to the browser WebAuthn API
 const response = await navigator.credentials.get({ publicKey: options });
 
-// 3. Verify and retrieve the vault key
 const vaultKey = await controller.retrieveVaultKeyWithPasskey(response);
 ```
 
 ### Password change (vault key renewal)
 
+`renewVaultKeyProtection` does not verify the WebAuthn assertion. Call **`verifyPasskeyAuthentication`** or **`retrieveVaultKeyWithPasskey`** on the **same** `response` first so the signature, challenge, origin, and counter are checked and the authentication ceremony is consumed.
+
 ```typescript
 const options = controller.generateAuthenticationOptions();
 const response = await navigator.credentials.get({ publicKey: options });
+
+if (!(await controller.verifyPasskeyAuthentication(response))) {
+  throw new Error('Passkey verification failed');
+}
 
 await controller.renewVaultKeyProtection({
   authenticationResponse: response,
@@ -91,65 +92,58 @@ await controller.renewVaultKeyProtection({
 });
 ```
 
-### Checking enrollment and removing a passkey
+### Enrollment status and lifecycle
 
 ```typescript
 controller.isPasskeyEnrolled(); // boolean
 
-controller.removePasskey(); // user-facing unenroll; clears persisted passkey and in-flight ceremonies
+controller.removePasskey(); // unenroll: clears passkey + in-flight ceremonies
+controller.clearState(); // same as `removePasskey()` (wallet reset naming)
 
-controller.clearState(); // same persisted reset + clears in-flight ceremony state; use for app lifecycle (e.g. wallet reset)
+controller.destroy(); // ceremonies + BaseController teardown
 ```
 
 ### Selectors
 
-For Redux selectors and other code paths without access to the controller
-instance, use the exported selector(s):
-
 ```typescript
 import { passkeyControllerSelectors } from '@metamask/passkey-controller';
 
-passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
+passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // `state`: `PasskeyControllerState` slice
 ```
 
 ### Errors
 
-`PasskeyControllerError` is thrown for controller failures. Expected operational
-cases use a stable `code` from `PasskeyControllerErrorCode` (for example:
-`not_enrolled`, `no_registration_ceremony`, `authentication_verification_failed`,
-`missing_key_material`, `vault_key_decryption_failed`). Human-readable strings
-live on `PasskeyControllerErrorMessage`. Use `instanceof PasskeyControllerError`
-and a defined `error.code` to tell these apart from malformed WebAuthn payloads
-and other `Error` values. Thrown errors from the internal WebAuthn verify helpers
-are also surfaced as `PasskeyControllerError` with the same `registration_verification_failed`
-or `authentication_verification_failed` code and the original error as `cause`.
-`verifyPasskeyAuthentication` returns `false` only for
-those controller errors (with `code`) and rethrows everything else.
+Handle failures with **`instanceof PasskeyControllerError`** and **`error.code`** from **`PasskeyControllerErrorCode`** (not raw `message` strings). Codes include `not_enrolled`, `no_registration_ceremony`, `registration_verification_failed`, `no_authentication_ceremony`, `authentication_verification_failed`, `missing_key_material`, `vault_key_decryption_failed`, and `vault_key_mismatch`. Human-readable text is on **`PasskeyControllerErrorMessage`**. Verification failures from internal WebAuthn helpers are wrapped with `registration_verification_failed` or `authentication_verification_failed` and **`cause`**.
+
+**`verifyPasskeyAuthentication`** delegates to **`retrieveVaultKeyWithPasskey`**. It returns **`false`** when that throws a `PasskeyControllerError` with a defined **`code`**; any other throw is propagated.
 
 ## API
 
+### Constructor
+
+| Argument          | Type                              | Required | Description                                            |
+| ----------------- | --------------------------------- | -------- | ------------------------------------------------------ |
+| `messenger`       | `PasskeyControllerMessenger`      | Yes      | Messenger for this controller.                         |
+| `rpID`            | `string`                          | Yes      | WebAuthn relying party ID.                             |
+| `rpName`          | `string`                          | Yes      | Human-readable RP name in the OS UI.                   |
+| `expectedOrigin`  | `string \| string[]`              | Yes      | Allowed `clientDataJSON.origin` value(s).              |
+| `userName`        | `string`                          | No       | Registration `user.name`; defaults to `rpName`.        |
+| `userDisplayName` | `string`                          | No       | Registration `user.displayName`; defaults to `rpName`. |
+| `state`           | `Partial<PasskeyControllerState>` | No       | Merged with `getDefaultPasskeyControllerState()`.      |
+
 ### State
 
-| Property        | Type                    | Description                                                                                   |
-| --------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
-| `passkeyRecord` | `PasskeyRecord \| null` | Enrolled passkey credential data and encrypted vault key. `null` when no passkey is enrolled. |
+| Property        | Type                    | Description                                                     |
+| --------------- | ----------------------- | --------------------------------------------------------------- |
+| `passkeyRecord` | `PasskeyRecord \| null` | Credential metadata and encrypted vault key, or `null` if none. |
 
-### Messenger actions
+### Messenger
 
-| Action                       | Handler                              |
-| ---------------------------- | ------------------------------------ |
-| `PasskeyController:getState` | Returns the current controller state |
-
-For derived enrollment status outside of components that hold a controller
-reference, use `passkeyControllerSelectors.selectIsPasskeyEnrolled` (see
-[Selectors](#selectors)).
-
-### Messenger events
-
-| Event                            | Payload                                                      |
-| -------------------------------- | ------------------------------------------------------------ |
-| `PasskeyController:stateChanged` | Emitted when state changes (standard `BaseController` event) |
+| Kind   | Name                             | Notes                                   |
+| ------ | -------------------------------- | --------------------------------------- |
+| Action | `PasskeyController:getState`     | Current controller state.               |
+| Event  | `PasskeyController:stateChanged` | Standard `BaseController` state change. |
 
 ## Contributing
 
-This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
+This package is part of a monorepo. See the [monorepo README](https://github.com/MetaMask/core#readme).
