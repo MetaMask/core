@@ -42,7 +42,7 @@ import {
   ApprovalResultType,
   ApprovalFeatureType,
 } from './types';
-import { getHostnameFromUrl } from './utils';
+import { getHostnameFromUrl, getPhishingDetectionScanUrlParam } from './utils';
 
 const controllerName = 'PhishingController';
 
@@ -2754,7 +2754,7 @@ describe('PhishingController', () => {
 
     const testUrl: string = 'https://example.com';
     const mockResponse: PhishingDetectionScanResult = {
-      hostname: 'example.com',
+      scanLookupKey: 'example.com',
       recommendedAction: RecommendedAction.None,
     };
 
@@ -2802,7 +2802,7 @@ describe('PhishingController', () => {
           testUrl,
         );
         expect(response).toMatchObject({
-          hostname: '',
+          scanLookupKey: '',
           recommendedAction: RecommendedAction.None,
           fetchError: `${statusCode} ${statusText}`,
         });
@@ -2813,7 +2813,7 @@ describe('PhishingController', () => {
     it('should return a PhishingDetectionScanResult with a fetchError on timeout', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
-        .query({ url: testUrl })
+        .query({ url: 'example.com' })
         .delayConnection(10000)
         .reply(200, {});
 
@@ -2821,14 +2821,14 @@ describe('PhishingController', () => {
       jest.advanceTimersByTime(8000);
       const response = await promise;
       expect(response).toMatchObject({
-        hostname: '',
+        scanLookupKey: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       });
       expect(scope.isDone()).toBe(false);
     });
 
-    it('should only send hostname when URL contains query parameters', async () => {
+    it('should send only hostname when the host is not path-based', async () => {
       const urlWithQuery =
         'https://example.com/path?param1=value1&param2=value2';
       const expectedHostname = 'example.com';
@@ -2846,7 +2846,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should only send hostname when URL contains hash fragments', async () => {
+    it('should strip hash fragments and send hostname only when not path-based', async () => {
       const urlWithHash = 'https://example.com/page#section1';
       const expectedHostname = 'example.com';
 
@@ -2863,14 +2863,14 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should only send hostname for complex URLs with multiple parameters', async () => {
+    it('should send hostname only for typical hosts regardless of URL path', async () => {
       const complexUrl =
         'https://sub.example.com:8080/path/to/page?q=search&utm_source=test#top';
       const expectedHostname = 'sub.example.com';
 
       const subdomainResponse = {
         ...mockResponse,
-        hostname: 'sub.example.com',
+        scanLookupKey: 'sub.example.com',
       };
 
       const scope = nock(PHISHING_DETECTION_BASE_URL)
@@ -2912,7 +2912,7 @@ describe('PhishingController', () => {
           invalidUrl,
         );
         expect(response).toMatchObject({
-          hostname: '',
+          scanLookupKey: '',
           recommendedAction: RecommendedAction.None,
           fetchError: 'url is not a valid web URL',
         });
@@ -2935,6 +2935,56 @@ describe('PhishingController', () => {
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
+
+    it('should fetch and cache separately for different paths on the same path-based host', async () => {
+      const urlA = 'https://ipfs.io/ipfs/QmAAA';
+      const urlB = 'https://ipfs.io/ipfs/QmBBB';
+
+      const scopeA = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'ipfs.io/ipfs/QmAAA' })
+        .reply(200, {
+          recommendedAction: RecommendedAction.Warn,
+        });
+
+      const scopeB = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'ipfs.io/ipfs/QmBBB' })
+        .reply(200, {
+          recommendedAction: RecommendedAction.Block,
+        });
+
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const resultA1 = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlA,
+      );
+      const resultB = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlB,
+      );
+      const resultA2 = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlA,
+      );
+
+      expect(resultA1).toMatchObject({
+        scanLookupKey: 'ipfs.io/ipfs/QmAAA',
+        recommendedAction: RecommendedAction.Warn,
+      });
+      expect(resultB).toMatchObject({
+        scanLookupKey: 'ipfs.io/ipfs/QmBBB',
+        recommendedAction: RecommendedAction.Block,
+      });
+      expect(resultA2).toStrictEqual(resultA1);
+
+      expect(scopeA.isDone()).toBe(true);
+      expect(scopeB.isDone()).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      fetchSpy.mockRestore();
+    });
   });
 
   describe('bulkScanUrls', () => {
@@ -2948,15 +2998,15 @@ describe('PhishingController', () => {
     const mockResponse: BulkPhishingDetectionScanResponse = {
       results: {
         'https://example1.com': {
-          hostname: 'example1.com',
+          scanLookupKey: 'example1.com',
           recommendedAction: RecommendedAction.None,
         },
         'https://example2.com': {
-          hostname: 'example2.com',
+          scanLookupKey: 'example2.com',
           recommendedAction: RecommendedAction.Block,
         },
         'https://example3.com': {
-          hostname: 'example3.com',
+          scanLookupKey: 'example3.com',
           recommendedAction: RecommendedAction.None,
         },
       },
@@ -2978,9 +3028,19 @@ describe('PhishingController', () => {
     it('should return the scan results for multiple URLs', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls,
+          urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
-        .reply(200, mockResponse);
+        .reply(200, {
+          results: testUrls.reduce<Record<string, PhishingDetectionScanResult>>(
+            (acc, url) => {
+              const scanKey = getPhishingDetectionScanUrlParam(url)[0];
+              acc[scanKey] = mockResponse.results[url];
+              return acc;
+            },
+            {},
+          ),
+          errors: {},
+        });
 
       const response = await rootMessenger.call(
         'PhishingController:bulkScanUrls',
@@ -3043,7 +3103,7 @@ describe('PhishingController', () => {
       async (statusCode, statusText) => {
         const scope = nock(PHISHING_DETECTION_BASE_URL)
           .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-            urls: testUrls,
+            urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
           })
           .reply(statusCode);
 
@@ -3064,7 +3124,7 @@ describe('PhishingController', () => {
     it('should handle timeouts correctly', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls,
+          urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
         .delayConnection(20000)
         .reply(200, {});
@@ -3096,12 +3156,13 @@ describe('PhishingController', () => {
       const batch2 = manyUrls.slice(batchSize, 2 * batchSize);
       const batch3 = manyUrls.slice(2 * batchSize);
 
-      // Mock responses for each batch
+      // Mock responses for each batch (PDS keys results by hostname+path scan key)
       const mockBatch1Response: BulkPhishingDetectionScanResponse = {
         results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
-            acc[url] = {
-              hostname: url.replace('https://', ''),
+            const [scanKey] = getPhishingDetectionScanUrlParam(url);
+            acc[scanKey] = {
+              scanLookupKey: scanKey,
               recommendedAction: RecommendedAction.None,
             };
             return acc;
@@ -3114,8 +3175,9 @@ describe('PhishingController', () => {
       const mockBatch2Response: BulkPhishingDetectionScanResponse = {
         results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
-            acc[url] = {
-              hostname: url.replace('https://', ''),
+            const [scanKey] = getPhishingDetectionScanUrlParam(url);
+            acc[scanKey] = {
+              scanLookupKey: scanKey,
               recommendedAction: RecommendedAction.None,
             };
             return acc;
@@ -3128,8 +3190,9 @@ describe('PhishingController', () => {
       const mockBatch3Response: BulkPhishingDetectionScanResponse = {
         results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
-            acc[url] = {
-              hostname: url.replace('https://', ''),
+            const [scanKey] = getPhishingDetectionScanUrlParam(url);
+            acc[scanKey] = {
+              scanLookupKey: scanKey,
               recommendedAction: RecommendedAction.None,
             };
             return acc;
@@ -3142,19 +3205,19 @@ describe('PhishingController', () => {
       // Setup nock to handle all three batch requests
       const scope1 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch1,
+          urls: batch1.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
         .reply(200, mockBatch1Response);
 
       const scope2 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch2,
+          urls: batch2.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
         .reply(200, mockBatch2Response);
 
       const scope3 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch3,
+          urls: batch3.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
         .reply(200, mockBatch3Response);
 
@@ -3168,12 +3231,17 @@ describe('PhishingController', () => {
       expect(scope2.isDone()).toBe(true);
       expect(scope3.isDone()).toBe(true);
 
-      // Check all results were merged correctly
-      const combinedResults = {
-        ...mockBatch1Response.results,
-        ...mockBatch2Response.results,
-        ...mockBatch3Response.results,
-      };
+      // Check all results were merged correctly (client sees results keyed by input URLs)
+      const combinedResults = manyUrls.reduce<
+        Record<string, PhishingDetectionScanResult>
+      >((acc, url) => {
+        const [scanKey] = getPhishingDetectionScanUrlParam(url);
+        acc[url] = {
+          scanLookupKey: scanKey,
+          recommendedAction: RecommendedAction.None,
+        };
+        return acc;
+      }, {});
 
       expect(Object.keys(response.results)).toHaveLength(totalUrls);
       expect(response.results).toStrictEqual(combinedResults);
@@ -3183,7 +3251,7 @@ describe('PhishingController', () => {
       const mixedResponse: BulkPhishingDetectionScanResponse = {
         results: {
           'https://example1.com': {
-            hostname: 'example1.com',
+            scanLookupKey: 'example1.com',
             recommendedAction: RecommendedAction.None,
           },
         },
@@ -3195,9 +3263,20 @@ describe('PhishingController', () => {
 
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls,
+          urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
-        .reply(200, mixedResponse);
+        .reply(200, {
+          results: {
+            'example1.com': {
+              scanLookupKey: 'example1.com',
+              recommendedAction: RecommendedAction.None,
+            },
+          },
+          errors: {
+            'example2.com': ['Failed to process URL'],
+            'example3.com': ['Domain not found'],
+          },
+        });
 
       const response = await rootMessenger.call(
         'PhishingController:bulkScanUrls',
@@ -3222,13 +3301,13 @@ describe('PhishingController', () => {
       // Setup nock to handle both batch requests with different error responses
       const scope1 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch1,
+          urls: batch1.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
         .reply(404, { error: 'Not Found' });
 
       const scope2 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch2,
+          urls: batch2.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
         })
         .reply(500, { error: 'Internal Server Error' });
 
@@ -3254,7 +3333,7 @@ describe('PhishingController', () => {
 
       // Set up the cache with a pre-existing result
       const cachedResult: PhishingDetectionScanResult = {
-        hostname: 'cached-example.com',
+        scanLookupKey: 'cached-example.com',
         recommendedAction: RecommendedAction.None,
       };
 
@@ -3273,13 +3352,14 @@ describe('PhishingController', () => {
 
       // Now set up the mock for the bulk API call with only the uncached URL
       const expectedPostBody = {
-        urls: [uncachedUrl],
+        urls: [getPhishingDetectionScanUrlParam(uncachedUrl)[0]],
       };
 
+      const uncachedScanKey = getPhishingDetectionScanUrlParam(uncachedUrl)[0];
       const bulkApiResponse: BulkPhishingDetectionScanResponse = {
         results: {
-          [uncachedUrl]: {
-            hostname: 'uncached-example.com',
+          [uncachedScanKey]: {
+            scanLookupKey: uncachedScanKey,
             recommendedAction: RecommendedAction.Warn,
           },
         },
@@ -3302,7 +3382,7 @@ describe('PhishingController', () => {
       // Verify the combined results include both the cached and newly fetched results
       expect(response.results).toStrictEqual({
         [cachedUrl]: cachedResult,
-        [uncachedUrl]: bulkApiResponse.results[uncachedUrl],
+        [uncachedUrl]: bulkApiResponse.results[uncachedScanKey],
       });
 
       // Verify the newly fetched result is now in the cache
@@ -3311,7 +3391,7 @@ describe('PhishingController', () => {
         uncachedUrl,
       );
       expect(newlyCachedResult).toStrictEqual(
-        bulkApiResponse.results[uncachedUrl],
+        bulkApiResponse.results[uncachedScanKey],
       );
 
       // Should not make a new API call for the second scanUrl call
@@ -3323,21 +3403,21 @@ describe('PhishingController', () => {
       const invalidUrl = 'not-a-url';
       const mixedUrls = [validUrl, invalidUrl];
 
-      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
-        results: {
-          [validUrl]: {
-            hostname: 'valid-example.com',
-            recommendedAction: RecommendedAction.None,
-          },
-        },
-        errors: {},
+      const validScanResult: PhishingDetectionScanResult = {
+        scanLookupKey: 'valid-example.com',
+        recommendedAction: RecommendedAction.None,
       };
 
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: [validUrl],
+          urls: [getPhishingDetectionScanUrlParam(validUrl)[0]],
         })
-        .reply(200, bulkApiResponse);
+        .reply(200, {
+          results: {
+            [getPhishingDetectionScanUrlParam(validUrl)[0]]: validScanResult,
+          },
+          errors: {},
+        });
 
       // Call bulkScanUrls with both URLs
       const response = await rootMessenger.call(
@@ -3349,9 +3429,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
 
       // Verify the results include the valid URL result and an error for the invalid URL
-      expect(response.results[validUrl]).toStrictEqual(
-        bulkApiResponse.results[validUrl],
-      );
+      expect(response.results[validUrl]).toStrictEqual(validScanResult);
       expect(response.errors[invalidUrl]).toContain(
         'url is not a valid web URL',
       );
@@ -3361,7 +3439,7 @@ describe('PhishingController', () => {
         'PhishingController:scanUrl',
         validUrl,
       );
-      expect(cachedResult).toStrictEqual(bulkApiResponse.results[validUrl]);
+      expect(cachedResult).toStrictEqual(validScanResult);
 
       // Should not make a new API call for the cached URL
       // eslint-disable-next-line import-x/no-named-as-default-member
@@ -3373,11 +3451,11 @@ describe('PhishingController', () => {
       const cachedUrls = ['https://domain1.com', 'https://domain2.com'];
       const cachedResults = [
         {
-          hostname: 'domain1.com',
+          scanLookupKey: 'domain1.com',
           recommendedAction: RecommendedAction.None,
         },
         {
-          hostname: 'domain2.com',
+          scanLookupKey: 'domain2.com',
           recommendedAction: RecommendedAction.Block,
         },
       ];
@@ -3872,7 +3950,7 @@ describe('URL Scan Cache', () => {
       `https://${testDomain}`,
     );
     expect(result1).toStrictEqual({
-      hostname: testDomain,
+      scanLookupKey: testDomain,
       recommendedAction: RecommendedAction.None,
     });
 
@@ -3881,7 +3959,7 @@ describe('URL Scan Cache', () => {
       `https://${testDomain}`,
     );
     expect(result2).toStrictEqual({
-      hostname: testDomain,
+      scanLookupKey: testDomain,
       recommendedAction: RecommendedAction.None,
     });
 
@@ -4034,6 +4112,7 @@ describe('URL Scan Cache', () => {
     );
     expect(result2.fetchError).toBeUndefined();
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
+    expect(result2.scanLookupKey).toBe(testDomain);
 
     // All mocks should be used
     expect(isDone()).toBe(true);
@@ -4075,6 +4154,7 @@ describe('URL Scan Cache', () => {
     );
     expect(result2.fetchError).toBeUndefined();
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
+    expect(result2.scanLookupKey).toBe(testDomain);
 
     // All mocks should be used
     expect(isDone()).toBe(true);

@@ -10,6 +10,8 @@ import {
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
+  getPhishingDetectionScanUrlParam,
+  isPhishingDetectionPathBasedHostname,
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
@@ -979,6 +981,49 @@ describe('getHostnameFromWebUrl', () => {
       expect(isValid).toBe(expectedValid);
     },
   );
+});
+
+describe('getPhishingDetectionScanUrlParam', () => {
+  it.each([
+    ['https://example.com', 'example.com', 'example.com', true],
+    ['https://example.com/', 'example.com', 'example.com', true],
+    ['https://example.com/foo', 'example.com', 'example.com', true],
+    ['https://EXAMPLE.com/bar', 'example.com', 'example.com', true],
+    [
+      'https://ipfs.io/ipfs/QmX?token=secret#frag',
+      'ipfs.io/ipfs/QmX',
+      'ipfs.io',
+      true,
+    ],
+    [
+      'https://bucket.sites.google.com/view/a',
+      'bucket.sites.google.com/view/a',
+      'bucket.sites.google.com',
+      true,
+    ],
+    ['not-a-url', '', '', false],
+  ] as const)(
+    'for URL %s returns scan param %s, hostname %s, ok %s',
+    (input, expectedParam, expectedHostname, expectedOk) => {
+      const [param, hostname, ok] = getPhishingDetectionScanUrlParam(input);
+      expect(param).toBe(expectedParam);
+      expect(hostname).toBe(expectedHostname);
+      expect(ok).toBe(expectedOk);
+    },
+  );
+});
+
+describe('isPhishingDetectionPathBasedHostname', () => {
+  it.each([
+    ['ipfs.io', true],
+    ['bafy.foo.ipfs.io', true],
+    ['example.com', false],
+    ['google.com', false],
+    ['sites.google.com', true],
+    ['bucket.sites.google.com', true],
+  ] as const)('for %s returns %s', (hostname, expected) => {
+    expect(isPhishingDetectionPathBasedHostname(hostname)).toBe(expected);
+  });
 });
 
 /**

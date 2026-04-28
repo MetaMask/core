@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `PhishingDetectionScanResult` no longer includes `hostname`. Use `scanLookupKey` (the PDS and URL scan cache key: hostname, or hostname plus pathname for path-based gateway hosts) instead. For display, parse the key or derive a host with `new URL('https://' + scanLookupKey)`.
+- **BREAKING:** `PhishingController` `scanUrl` and `bulkScanUrls` send hostname plus pathname to PDS only for a fixed set of shared-hosting/gateway hosts (`PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS` / `isPhishingDetectionPathBasedHostname`), with query strings and fragments stripped; all other hosts remain hostname-only at PDS. Export of the allowlist and predicate is available from the package entrypoint.
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))

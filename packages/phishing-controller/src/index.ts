@@ -30,6 +30,11 @@ export {
 } from './types';
 export type { CacheEntry } from './CacheManager';
 
+export {
+  PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
+  isPhishingDetectionPathBasedHostname,
+} from './utils';
+
 export type {
   PhishingControllerMaybeUpdateStateAction,
   PhishingControllerTestOriginAction,
