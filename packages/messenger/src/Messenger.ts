@@ -412,7 +412,7 @@ export class Messenger<
    */
   protected getAction(
     actionType: Action['type'],
-  ): Action['handler'] | undefined {
+  ): ActionConstraint['handler'] | undefined {
     return this.#actions.get(actionType);
   }
 

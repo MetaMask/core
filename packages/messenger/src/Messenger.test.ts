@@ -1,6 +1,7 @@
 import type { Patch } from 'immer';
 
 import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
+import type { ActionConstraint } from './Messenger';
 import type { MockAnyNamespace } from './Messenger';
 
 describe('Messenger', () => {
@@ -172,14 +173,14 @@ describe('Messenger', () => {
     });
 
     it('allows overriding the action handler in child classes', () => {
-      type Action = { type: 'Fixture:ping'; handler: () => 'foo' };
+      type Action = { type: 'Fixture:ping'; handler: () => string };
 
       const handler = jest.fn().mockReturnValue('foo');
 
       class CustomMessenger extends Messenger<'Fixture', Action> {
         protected getAction(
           _actionType: Action['type'],
-        ): Action['handler'] | undefined {
+        ): ActionConstraint['handler'] | undefined {
           return handler;
         }
       }
