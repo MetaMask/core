@@ -1092,6 +1092,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       location,
       abTests,
       activeAbTests,
+      tokenSecurityTypeDestination,
     );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
@@ -1380,6 +1381,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       location,
       abTests,
       activeAbTests,
+      tokenSecurityTypeDestination,
     );
 
     try {

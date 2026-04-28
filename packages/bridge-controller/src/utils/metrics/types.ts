@@ -156,8 +156,11 @@ type RequiredEventContextFromClientBase = {
       RequestParams,
       | 'token_symbol_source'
       | 'token_symbol_destination'
+      | 'token_address_source'
+      | 'token_address_destination'
       | 'chain_id_source'
       | 'chain_id_destination'
+      | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
     };
@@ -186,7 +189,11 @@ type RequiredEventContextFromClientBase = {
         > &
         Pick<
           RequestParams,
-          'token_symbol_source' | 'token_symbol_destination'
+          | 'token_symbol_source'
+          | 'token_symbol_destination'
+          | 'token_address_source'
+          | 'token_address_destination'
+          | 'token_security_type_destination'
         > & { error_message: string }) // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
