@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `CurrencyRateController:updateExchangeRate`
   - Corresponding action types (e.g. `CurrencyRateControllerSetCurrentCurrencyAction`) are available as well.
 
+### Fixed
+
+- Fix `selectAssetsBySelectedAccountGroup` crashing when an account referenced in the account tree is missing from internal accounts ([#8604](https://github.com/MetaMask/core/pull/8604))
+
 ### Changed
 
 - **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
