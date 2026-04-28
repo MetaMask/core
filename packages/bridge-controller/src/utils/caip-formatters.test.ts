@@ -1,5 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
 import { CHAIN_IDS } from '../constants/chains';
 import { ChainId } from '../types';
@@ -41,6 +41,11 @@ describe('CAIP Formatters', () => {
       expect(formatChainIdToCaip(TrxScope.Mainnet)).toBe(TrxScope.Mainnet);
     });
 
+    it('should convert Stellar chainId to XlmScope.Pubnet', () => {
+      expect(formatChainIdToCaip(ChainId.STELLAR)).toBe(XlmScope.Pubnet);
+      expect(formatChainIdToCaip(XlmScope.Pubnet)).toBe(XlmScope.Pubnet);
+    });
+
     it('should convert number to CAIP format', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
     });
@@ -66,6 +71,10 @@ describe('CAIP Formatters', () => {
 
     it('should handle Tron mainnet', () => {
       expect(formatChainIdToDec(TrxScope.Mainnet)).toBe(ChainId.TRON);
+    });
+
+    it('should handle Stellar pubnet', () => {
+      expect(formatChainIdToDec(XlmScope.Pubnet)).toBe(ChainId.STELLAR);
     });
 
     it('should parse CAIP chainId to decimal', () => {
@@ -111,6 +120,12 @@ describe('CAIP Formatters', () => {
         `Invalid cross-chain swaps chainId: ${SolScope.Mainnet}`,
       );
     });
+
+    it('should throw error for Stellar chainId (non-EVM)', () => {
+      expect(() => formatChainIdToHex(XlmScope.Pubnet)).toThrow(
+        `Invalid cross-chain swaps chainId: ${XlmScope.Pubnet}`,
+      );
+    });
   });
 
   describe('formatAddressToCaipReference', () => {
@@ -132,6 +147,9 @@ describe('CAIP Formatters', () => {
       ).toStrictEqual(AddressZero);
       expect(
         formatAddressToCaipReference(`${BtcScope.Mainnet}/slip44:0`),
+      ).toStrictEqual(AddressZero);
+      expect(
+        formatAddressToCaipReference(`${XlmScope.Pubnet}/slip44:148`),
       ).toStrictEqual(AddressZero);
     });
 
@@ -191,6 +209,11 @@ describe('CAIP Formatters', () => {
     it('should return native asset for chainId when address is Bitcoin native asset', () => {
       const result = formatAddressToAssetId('0', BtcScope.Mainnet);
       expect(result).toBe('bip122:000000000019d6689c085ae165831e93/slip44:0');
+    });
+
+    it('should return native asset for chainId when address is Stellar native asset', () => {
+      const result = formatAddressToAssetId('148', XlmScope.Pubnet);
+      expect(result).toBe('stellar:pubnet/slip44:148');
     });
 
     it('should return native asset for chainId when address is BSC native asset', () => {
@@ -275,6 +298,22 @@ describe('CAIP Formatters', () => {
       const tokenAddress = 'TJ1234567890123456789012345678901234567890';
       expect(formatAddressToAssetId(tokenAddress, ChainId.TRON)).toBe(
         'tron:728126428/trc20:TJ1234567890123456789012345678901234567890',
+      );
+    });
+
+    it('should create Stellar classic asset type for CODE-ISSUER tokens', () => {
+      const tokenAddress =
+        'VELO-GDM4RQUQQUVSKQA7S6EM7XBZP3FCGH4Q7CL6TABQ7B2BEJ5ERARM2M5M';
+      expect(formatAddressToAssetId(tokenAddress, ChainId.STELLAR)).toBe(
+        `${XlmScope.Pubnet}/asset:${tokenAddress}`,
+      );
+    });
+
+    it('should create Stellar SEP-41 asset type for Soroban contract IDs', () => {
+      const tokenAddress =
+        'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75';
+      expect(formatAddressToAssetId(tokenAddress, ChainId.STELLAR)).toBe(
+        `${XlmScope.Pubnet}/sep41:${tokenAddress}`,
       );
     });
   });

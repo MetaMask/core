@@ -5,7 +5,7 @@ import {
   convertHexToDecimal,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import {
   isCaipChainId,
@@ -25,6 +25,7 @@ import {
   isBitcoinChainId,
   isNativeAddress,
   isSolanaChainId,
+  isStellarChainId,
   isTronChainId,
 } from './bridge';
 
@@ -49,6 +50,9 @@ export const formatChainIdToCaip = (
   if (isBitcoinChainId(chainId)) {
     return BtcScope.Mainnet;
   }
+  if (isStellarChainId(chainId)) {
+    return XlmScope.Pubnet;
+  }
   if (isTronChainId(chainId)) {
     return TrxScope.Mainnet;
   }
@@ -72,6 +76,9 @@ export const formatChainIdToDec = (
   }
   if (chainId === BtcScope.Mainnet) {
     return ChainId.BTC;
+  }
+  if (chainId === XlmScope.Pubnet) {
+    return ChainId.STELLAR;
   }
   if (chainId === TrxScope.Mainnet) {
     return ChainId.TRON;
@@ -167,6 +174,15 @@ export const formatAddressToAssetId = (
   if (chainIdCaip === TrxScope.Mainnet) {
     return CaipAssetTypeStruct.create(
       `${chainIdCaip}/trc20:${addressOrAssetId}`,
+    );
+  }
+
+  if (chainIdCaip === XlmScope.Pubnet) {
+    const stellarAssetNamespace = addressOrAssetId.includes('-')
+      ? 'asset'
+      : 'sep41';
+    return CaipAssetTypeStruct.create(
+      `${chainIdCaip}/${stellarAssetNamespace}:${addressOrAssetId}`,
     );
   }
 

@@ -1,6 +1,6 @@
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { isCaipChainId, isStrictHexString } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
@@ -230,9 +230,18 @@ export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
   return chainId.toString() === ChainId.TRON.toString();
 };
 
+export const isStellarChainId = (
+  chainId: Hex | number | CaipChainId | string,
+) => {
+  if (isCaipChainId(chainId)) {
+    return chainId === XlmScope.Pubnet.toString();
+  }
+  return chainId.toString() === ChainId.STELLAR.toString();
+};
+
 /**
  * Checks if a chain ID represents a non-EVM blockchain supported by swaps
- * Currently supports Solana, Bitcoin and Tron
+ * Currently supports Solana, Bitcoin, Stellar and Tron
  *
  * @param chainId - The chain ID to check
  * @returns True if the chain is a supported non-EVM chain, false otherwise
@@ -243,6 +252,7 @@ export const isNonEvmChainId = (
   return (
     isSolanaChainId(chainId) ||
     isBitcoinChainId(chainId) ||
+    isStellarChainId(chainId) ||
     isTronChainId(chainId)
   );
 };

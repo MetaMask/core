@@ -2,13 +2,14 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  GenericQuoteRequest,
-  QuoteResponse,
-  Quote,
-  NonEvmFees,
-  L1GasFees,
-  TxData,
+import {
+  ChainId,
+  type GenericQuoteRequest,
+  type QuoteResponse,
+  type Quote,
+  type NonEvmFees,
+  type L1GasFees,
+  type TxData,
 } from '../types';
 import {
   isValidQuoteRequest,
@@ -148,6 +149,41 @@ describe('Quote Utils', () => {
         delete requestWithoutSlippage.slippage;
         expect(isValidQuoteRequest(requestWithoutSlippage)).toBe(true);
       });
+    });
+
+    it('requires destWalletAddress when bridging to Stellar', () => {
+      expect(
+        isValidQuoteRequest({
+          ...validRequest,
+          destChainId: ChainId.STELLAR.toString(),
+        }),
+      ).toBe(false);
+
+      expect(
+        isValidQuoteRequest({
+          ...validRequest,
+          destChainId: ChainId.STELLAR.toString(),
+          destWalletAddress:
+            'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+        }),
+      ).toBe(true);
+    });
+
+    it('requires destWalletAddress when bridging from Stellar', () => {
+      expect(
+        isValidQuoteRequest({
+          ...validRequest,
+          srcChainId: ChainId.STELLAR.toString(),
+        }),
+      ).toBe(false);
+
+      expect(
+        isValidQuoteRequest({
+          ...validRequest,
+          srcChainId: ChainId.STELLAR.toString(),
+          destWalletAddress: '0x789',
+        }),
+      ).toBe(true);
     });
   });
 });

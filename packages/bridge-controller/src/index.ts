@@ -139,6 +139,7 @@ export {
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
+  isStellarChainId,
   isTronChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,

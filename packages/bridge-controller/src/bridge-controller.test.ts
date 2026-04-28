@@ -6,6 +6,8 @@ import {
   EthScope,
   SolAccountType,
   SolScope,
+  XlmAccountType,
+  XlmScope,
 } from '@metamask/keyring-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -2789,6 +2791,130 @@ describe('BridgeController', function () {
         );
       },
     );
+  });
+
+  it('should append Stellar fees for Stellar quotes', async () => {
+    await withController(async ({ controller: bridgeController }) => {
+      const stellarQuoteResponse = mockBridgeQuotesSolErc20.map((quote) => {
+        const stellarNativeAsset = getNativeAssetForChainId(ChainId.STELLAR);
+        return {
+          ...quote,
+          quote: {
+            ...quote.quote,
+            srcChainId: ChainId.STELLAR,
+            destChainId: ChainId.STELLAR,
+            srcAsset: stellarNativeAsset,
+            destAsset: {
+              ...stellarNativeAsset,
+              address:
+                'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75',
+              assetId:
+                'stellar:pubnet/sep41:CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75',
+              symbol: 'USDC',
+              name: 'USDC',
+            },
+            feeData: {
+              ...quote.quote.feeData,
+              metabridge: {
+                ...quote.quote.feeData.metabridge,
+                asset: stellarNativeAsset,
+              },
+            },
+            steps: quote.quote.steps.map((step) => ({
+              ...step,
+              srcChainId: ChainId.STELLAR,
+              destChainId: ChainId.STELLAR,
+              srcAsset: stellarNativeAsset,
+              destAsset: stellarNativeAsset,
+            })),
+          },
+        };
+      }) as unknown as QuoteResponse[];
+
+      messengerCallMock.mockImplementation(
+        (
+          ...args: Parameters<BridgeControllerMessenger['call']>
+        ): ReturnType<BridgeControllerMessenger['call']> => {
+          const [actionType, params] = args;
+
+          if (actionType === 'AuthenticationController:getBearerToken') {
+            return 'AUTH_TOKEN';
+          }
+
+          if (actionType === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                bridgeConfig,
+              },
+            } as never;
+          }
+
+          if (actionType === 'AccountsController:getAccountByAddress') {
+            return {
+              type: XlmAccountType.Account,
+              id: 'xlm-account-1',
+              scopes: [XlmScope.Pubnet],
+              methods: [],
+              address:
+                'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+              metadata: {
+                name: 'Stellar Account 1',
+                importTime: 1717334400,
+                keyring: {
+                  type: 'Snap Keyring',
+                },
+                snap: {
+                  id: 'npm:@metamask/stellar-snap',
+                  name: 'Stellar Snap',
+                },
+              },
+            } as never;
+          }
+
+          if (actionType === 'SnapController:handleRequest') {
+            expect(
+              (params as { request?: { params?: { scope?: string } } }).request
+                ?.params?.scope,
+            ).toBe(XlmScope.Pubnet);
+            return Promise.resolve([
+              {
+                type: 'base',
+                asset: {
+                  unit: 'XLM',
+                  type: 'stellar:pubnet/slip44:148',
+                  amount: '0.00001',
+                  fungible: true,
+                },
+              },
+            ]) as never;
+          }
+
+          return {} as never;
+        },
+      );
+
+      jest.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
+        quotes: stellarQuoteResponse,
+        validationFailures: [],
+      });
+
+      const quotes = await bridgeController.fetchQuotes({
+        srcChainId: ChainId.STELLAR,
+        destChainId: ChainId.STELLAR,
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        destTokenAddress:
+          'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75',
+        srcTokenAmount: '300000000',
+        walletAddress:
+          'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+        gasIncluded: false,
+        gasIncluded7702: false,
+      });
+
+      expect(quotes).toHaveLength(2);
+      expect(quotes[0].nonEvmFeesInNative).toBe('0.00001');
+      expect(quotes[1].nonEvmFeesInNative).toBe('0.00001');
+    });
   });
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
