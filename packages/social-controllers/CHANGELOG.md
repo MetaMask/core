@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SocialService.fetchPositionById` method exposing `GET /v1/traders/position/:positionId`, returning a single `Position` by ID ([#8602](https://github.com/MetaMask/core/pull/8602))
+
 ## [2.1.0]
 
 ### Added

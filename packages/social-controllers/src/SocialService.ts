@@ -434,7 +434,9 @@ export class SocialService extends BaseDataService<
    * @param options.positionId - Unique position ID (UUID).
    * @returns The position.
    */
-  async fetchPositionById(options: FetchPositionByIdOptions): Promise<Position> {
+  async fetchPositionById(
+    options: FetchPositionByIdOptions,
+  ): Promise<Position> {
     const { positionId } = options;
 
     const positionResponse = await this.fetchQuery({
