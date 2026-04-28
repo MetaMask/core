@@ -160,5 +160,122 @@ describe('Validation Utils', () => {
 
       expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
     });
+
+    describe('metadata', () => {
+      const baseTypedData = {
+        types: {
+          EIP712Domain: [{ name: 'name', type: 'string' }],
+        },
+        primaryType: 'EIP712Domain',
+        domain: {},
+        message: {},
+      };
+
+      it('does not throw when metadata has exactly justification and origin as strings', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {
+            justification: 'Permission to spend tokens',
+            origin: 'https://example.com',
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).not.toThrow();
+      });
+
+      it('does not throw when metadata is the only top-level key', () => {
+        const data = JSON.stringify({
+          metadata: {
+            justification: 'Permission to spend tokens',
+            origin: 'https://example.com',
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).not.toThrow();
+      });
+
+      it.each([
+        ['null', null],
+        ['a string', 'not-an-object'],
+        ['a number', 42],
+        ['a boolean', true],
+        ['an array', ['justification', 'origin']],
+      ])('throws when metadata is %s', (_label, value) => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: value,
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+
+      it('throws when metadata is missing justification', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {
+            origin: 'https://example.com',
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+
+      it('throws when metadata is missing origin', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {
+            justification: 'Permission to spend tokens',
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+
+      it('throws when metadata.justification is not a string', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {
+            justification: 123,
+            origin: 'https://example.com',
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+
+      it('throws when metadata.origin is not a string', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {
+            justification: 'Permission to spend tokens',
+            origin: 123,
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+
+      it('throws when metadata has an extraneous third key', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {
+            justification: 'Permission to spend tokens',
+            origin: 'https://example.com',
+            extra: 'unexpected',
+          },
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+
+      it('throws when metadata is an empty object', () => {
+        const data = JSON.stringify({
+          ...baseTypedData,
+          metadata: {},
+        });
+
+        expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
+      });
+    });
   });
 });
