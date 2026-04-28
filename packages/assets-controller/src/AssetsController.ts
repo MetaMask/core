@@ -2011,10 +2011,6 @@ export class AssetsController extends BaseController<
    * If omitted, all default tracked chains are seeded.
    */
   #ensureDefaultTrackedAssetsSeeded(chainsToSeed?: ChainId[]): void {
-    console.log(
-      '🚀 ~ AssetsController ~ #ensureDefaultTrackedAssetsSeeded ~ chainsToSeed:',
-      chainsToSeed,
-    );
     const accounts = this.#getSelectedAccounts();
     if (accounts.length === 0) {
       return;
@@ -2035,24 +2031,12 @@ export class AssetsController extends BaseController<
     // enabled at startup) but only appears on Monad once the user
     // turns the Monad network on.
     const candidateChains = chainsToSeed ?? [...this.#enabledChains];
-    console.log(
-      '🚀 ~ AssetsController ~ #ensureDefaultTrackedAssetsSeeded ~ candidateChains:',
-      candidateChains,
-    );
     const targetChains = candidateChains.filter((chainId) =>
       CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(chainId),
-    );
-    console.log(
-      '🚀 ~ AssetsController ~ #ensureDefaultTrackedAssetsSeeded ~ targetChains:',
-      targetChains,
     );
     if (targetChains.length === 0) {
       return;
     }
-    console.log(
-      '🚀 ~ AssetsController ~ #ensureDefaultTrackedAssetsSeeded ~ targetChains:',
-      targetChains,
-    );
     this.update((state) => {
       const balances = state.assetsBalance as Record<
         string,
@@ -2063,10 +2047,6 @@ export class AssetsController extends BaseController<
       for (const chainId of targetChains) {
         const defaultAssetIds =
           DEFAULT_TRACKED_ASSETS_BY_CHAIN.get(chainId) ?? [];
-        console.log(
-          '🚀 ~ AssetsController ~ #ensureDefaultTrackedAssetsSeeded ~ defaultAssetIds:',
-          defaultAssetIds,
-        );
         for (const assetId of defaultAssetIds) {
           // Re-seed metadata if state was hydrated from a prior version
           // that didn't include defaults.
