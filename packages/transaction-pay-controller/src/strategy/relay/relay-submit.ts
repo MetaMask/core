@@ -356,7 +356,7 @@ async function submitTransactions(
 
   if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride
-      ? await buildDelegatedOriginalParams(quote, transaction, messenger)
+      ? await buildDelegatedOriginalParams(transaction, messenger)
       : ({
           data: transaction.txParams.data as Hex | undefined,
           from: transaction.txParams.from,
@@ -394,18 +394,14 @@ async function submitTransactions(
  * account, so it can be passed through to `getDelegationTransaction`
  * unchanged.
  *
- * @param quote - Relay quote (used for the override `from`).
  * @param transaction - Original transaction meta to be redeemed.
  * @param messenger - Controller messenger.
  * @returns Transaction params for the delegation tx.
  */
 async function buildDelegatedOriginalParams(
-  quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<TransactionParams> {
-  const { from } = quote.request;
-
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
     { transaction },
@@ -415,7 +411,7 @@ async function buildDelegatedOriginalParams(
 
   return {
     data: delegation.data,
-    from,
+    from: transaction.txParams.from as Hex,
     to: delegation.to,
     value: delegation.value,
   };
