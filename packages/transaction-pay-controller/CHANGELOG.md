@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename `confirmations_pay.payStrategies.relay.executeEnabled` remote feature flag to `gaslessEnabled` ([#8607](https://github.com/MetaMask/core/pull/8607))
-  - Clients setting the flag must update the key; the old key is no longer read and will be treated as `false`.
+- Rename `executeEnabled` feature flag to `gaslessEnabled` ([#8607](https://github.com/MetaMask/core/pull/8607))
 - Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
 - Bump `@metamask/assets-controller` from `^6.1.0` to `^6.2.0` ([#8590](https://github.com/MetaMask/core/pull/8590))
 
