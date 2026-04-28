@@ -9,9 +9,19 @@ import {
   getSessionScopes,
   parseScopeString,
 } from '@metamask/chain-agnostic-permission';
+import type {
+  JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+  MethodHandler,
+} from '@metamask/json-rpc-engine';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import {
+  isPlainObject,
+  KnownCaipNamespace,
+  numberToHex,
+} from '@metamask/utils';
 import type {
   CaipAccountId,
   CaipChainId,
@@ -20,14 +30,31 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { KnownCaipNamespace, numberToHex } from '@metamask/utils';
 
-export type WalletInvokeMethodRequest = JsonRpcRequest & {
-  origin: string;
-  params: {
-    scope: ExternalScopeString;
-    request: Pick<JsonRpcRequest, 'method' | 'params'>;
+export type WalletInvokeMethodParams = {
+  scope: ExternalScopeString;
+  request: Pick<JsonRpcRequest, 'method' | 'params'>;
+};
+
+export type WalletInvokeMethodRequest =
+  JsonRpcRequest<WalletInvokeMethodParams> & {
+    origin: string;
   };
+
+type WalletInvokeMethodHooks = {
+  getCaveatForOrigin: (
+    endowmentPermissionName: string,
+    caveatType: string,
+  ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+  findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
+  getSelectedNetworkClientId: () => NetworkClientId;
+  getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+  sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
+  handleNonEvmRequestForOrigin: (params: {
+    connectedAddresses: CaipAccountId[];
+    scope: CaipChainId;
+    request: JsonRpcRequest;
+  }) => Promise<Json>;
 };
 
 /**
@@ -48,29 +75,16 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  * @param hooks.handleNonEvmRequestForOrigin - A function that sends a request to the MultichainRouter for processing.
  * @returns Nothing.
  */
-async function walletInvokeMethodHandler(
+async function handleWalletInvokeMethod(
   request: WalletInvokeMethodRequest,
-  response: PendingJsonRpcResponse,
-  next: () => void,
-  end: (error?: Error) => void,
-  hooks: {
-    getCaveatForOrigin: (
-      endowmentPermissionName: string,
-      caveatType: string,
-    ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
-    getSelectedNetworkClientId: () => NetworkClientId;
-    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-    sortAccountIdsByLastSelected: (
-      accounts: CaipAccountId[],
-    ) => CaipAccountId[];
-    handleNonEvmRequestForOrigin: (params: {
-      connectedAddresses: CaipAccountId[];
-      scope: CaipChainId;
-      request: JsonRpcRequest;
-    }) => Promise<Json>;
-  },
+  response: PendingJsonRpcResponse<Json>,
+  next: JsonRpcEngineNextCallback,
+  end: JsonRpcEngineEndCallback,
+  hooks: WalletInvokeMethodHooks,
 ) {
+  if (!isPlainObject(request.params)) {
+    return end(rpcErrors.invalidParams({ data: { request } }));
+  }
   const { scope, request: wrappedRequest } = request.params;
 
   assertIsInternalScopeString(scope);
@@ -151,9 +165,17 @@ async function walletInvokeMethodHandler(
   }
   return end();
 }
+
+type WalletInvokeMethodMethodHandler = MethodHandler<
+  WalletInvokeMethodHooks,
+  never,
+  WalletInvokeMethodParams,
+  Json,
+  { origin: string }
+>;
+
 export const walletInvokeMethod = {
-  methodNames: ['wallet_invokeMethod'],
-  implementation: walletInvokeMethodHandler,
+  implementation: handleWalletInvokeMethod,
   hookNames: {
     getCaveatForOrigin: true,
     findNetworkClientIdByChainId: true,
@@ -162,4 +184,8 @@ export const walletInvokeMethod = {
     sortAccountIdsByLastSelected: true,
     handleNonEvmRequestForOrigin: true,
   },
+} satisfies WalletInvokeMethodMethodHandler;
+
+export const walletInvokeMethodHandler = {
+  wallet_invokeMethod: walletInvokeMethod,
 };

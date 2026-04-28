@@ -118,6 +118,22 @@ describe('wallet_invokeMethod', () => {
       });
   });
 
+  it('returns invalid params when params is not a plain object', async () => {
+    const { handler, end, getCaveatForOrigin, next } = createMockedHandler();
+    const request = {
+      ...createMockedRequest(),
+      params: [
+        'not-a-plain-object',
+      ] as unknown as WalletInvokeMethodRequest['params'],
+    };
+    await handler(request);
+    expect(end).toHaveBeenCalledWith(
+      rpcErrors.invalidParams({ data: { request } }),
+    );
+    expect(getCaveatForOrigin).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
     const request = createMockedRequest();
     const { handler, getCaveatForOrigin } = createMockedHandler();

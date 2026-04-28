@@ -5,8 +5,9 @@ import {
   getCaipAccountIdsFromCaip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
 import type {
-  JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+  MethodHandler,
 } from '@metamask/json-rpc-engine';
 import {
   CaveatMutatorOperation,
@@ -15,9 +16,15 @@ import {
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
-import type { JsonRpcSuccess, JsonRpcRequest } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 
 import type { WalletRevokeSessionHooks } from './types';
+
+type WalletRevokeSessionParams = { scopes?: string[] };
 
 /**
  * Check whether the given error is a permission error.
@@ -110,12 +117,9 @@ function partialRevokePermissions(
  * @param hooks.getCaveatForOrigin - The hook to fetch an existing caveat for the origin of the request.
  * @returns Nothing.
  */
-async function walletRevokeSessionHandler(
-  request: JsonRpcRequest & {
-    origin: string;
-    params: { scopes?: string[] };
-  },
-  response: JsonRpcSuccess,
+async function handleWalletRevokeSession(
+  request: JsonRpcRequest<WalletRevokeSessionParams> & { origin: string },
+  response: PendingJsonRpcResponse<Json>,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   hooks: WalletRevokeSessionHooks,
@@ -136,12 +140,24 @@ async function walletRevokeSessionHandler(
   response.result = true;
   return end();
 }
+
+type WalletRevokeSessionMethodHandler = MethodHandler<
+  WalletRevokeSessionHooks,
+  never,
+  WalletRevokeSessionParams,
+  Json,
+  { origin: string }
+>;
+
 export const walletRevokeSession = {
-  methodNames: ['wallet_revokeSession'],
-  implementation: walletRevokeSessionHandler,
+  implementation: handleWalletRevokeSession,
   hookNames: {
     revokePermissionForOrigin: true,
     updateCaveat: true,
     getCaveatForOrigin: true,
   },
+} satisfies WalletRevokeSessionMethodHandler;
+
+export const walletRevokeSessionHandler = {
+  wallet_revokeSession: walletRevokeSession,
 };
