@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Change `AssociateAddressParams.timestamp` type from `string` to `number`. ([#8610](https://github.com/MetaMask/core/pull/8610))
+
 ## [1.0.0]
 
 ### Added
