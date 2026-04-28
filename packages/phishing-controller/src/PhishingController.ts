@@ -1077,7 +1077,7 @@ export class PhishingController extends BaseController<
         Object.entries(batchResponse.errors).forEach(([key, message]) => {
           const prev = combinedResponse.errors[key];
           combinedResponse.errors[key] =
-            prev !== undefined ? `${prev}; ${message}` : message;
+            prev === undefined ? message : `${prev}; ${message}`;
         });
       });
     }
