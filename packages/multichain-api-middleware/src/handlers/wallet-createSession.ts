@@ -94,7 +94,7 @@ type Result = {
  * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run. Can be undefined.
  * @returns A promise with wallet_createSession handler
  */
-async function handlewalletCreateSession(
+async function handleWalletCreateSession(
   req: JsonRpcRequest<Params> & { origin: string },
   res: PendingJsonRpcResponse<Result>,
   _next: JsonRpcEngineNextCallback,
@@ -299,7 +299,7 @@ type WalletCreateSessionMethodHandler = MethodHandler<
 >;
 
 export const walletCreateSession = {
-  implementation: handlewalletCreateSession,
+  implementation: handleWalletCreateSession,
   hookNames: {
     findNetworkClientIdByChainId: true,
     listAccounts: true,

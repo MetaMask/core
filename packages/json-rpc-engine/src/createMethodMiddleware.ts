@@ -1,5 +1,5 @@
 import type { ActionConstraint } from '@metamask/messenger';
-import { Messenger } from '@metamask/messenger';
+import type { Messenger } from '@metamask/messenger';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type {
   Json,
@@ -48,15 +48,6 @@ type HandlerHooks<Handler> = Handler extends {
   : never;
 
 /**
- * Optional fields merged into {@link JsonRpcRequest} for a method handler.
- * Keys are optionalized so a {@link JsonRpcMiddleware} `req` value stays
- * assignable at the engine boundary while handlers can narrow at runtime.
- */
-type PartialRequestExtras<Extras extends Record<string, unknown>> = {
-  [K in keyof Extras]: Extras[K];
-};
-
-/**
  * A {@link MethodHandler} implementation.
  *
  * @deprecated Use the v2 `createMethodMiddleware` instead.
@@ -68,7 +59,7 @@ export type MethodHandlerImplementation<
   Result extends Json = Json,
   RequestExtras extends Record<string, unknown> = Record<string, unknown>,
 > = (
-  req: JsonRpcRequest<Params> & PartialRequestExtras<RequestExtras>,
+  req: JsonRpcRequest<Params> & RequestExtras,
   res: PendingJsonRpcResponse<Result>,
   next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
