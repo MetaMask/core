@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.1.3]
 
-### Uncategorized
-
-- Allow Advanced Permissions metadata in signtypeddata payload
-
 ### Fixed
 
 - Allow Advanced Permissions `metadata` in signTypedData V4 requests ([#8603](https://github.com/MetaMask/core/pull/8603))
