@@ -11,6 +11,7 @@ import {
   getHostnameFromUrl,
   getHostnameFromWebUrl,
   getPhishingDetectionScanUrlParam,
+  getPhishingDetectionBulkScanUrlParam,
   isPhishingDetectionPathBasedHostname,
   matchPartsAgainstList,
   processConfigs,
@@ -1006,6 +1007,28 @@ describe('getPhishingDetectionScanUrlParam', () => {
     'for URL %s returns scan param %s, hostname %s, ok %s',
     (input, expectedParam, expectedHostname, expectedOk) => {
       const [param, hostname, ok] = getPhishingDetectionScanUrlParam(input);
+      expect(param).toBe(expectedParam);
+      expect(hostname).toBe(expectedHostname);
+      expect(ok).toBe(expectedOk);
+    },
+  );
+});
+
+describe('getPhishingDetectionBulkScanUrlParam', () => {
+  it.each([
+    ['https://example.com/path', 'example.com', 'example.com', true],
+    [
+      'https://ipfs.io/ipfs/QmX?token=secret#frag',
+      'ipfs.io',
+      'ipfs.io',
+      true,
+    ],
+    ['not-a-url', '', '', false],
+  ] as const)(
+    'for URL %s returns scan param %s, hostname %s, ok %s',
+    (input, expectedParam, expectedHostname, expectedOk) => {
+      const [param, hostname, ok] =
+        getPhishingDetectionBulkScanUrlParam(input);
       expect(param).toBe(expectedParam);
       expect(hostname).toBe(expectedHostname);
       expect(ok).toBe(expectedOk);

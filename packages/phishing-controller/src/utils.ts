@@ -423,6 +423,25 @@ export const getPhishingDetectionScanUrlParam = (
   return [scanUrlParam, hostname, true];
 };
 
+/**
+ * Normalized scan key for phishing bulk-scan requests to PDS: **hostname only**, including for
+ * gateway/path-based root domains. Path segments are not sent on bulk scans; use
+ * {@link getPhishingDetectionScanUrlParam} for single URL scans when pathname matters for those hosts.
+ *
+ * @param url - A web URL string (`http:` / `https:` — same rules as {@link getHostnameFromWebUrl}).
+ * @returns A tuple of `[scanUrlParam, hostname, ok]` where `scanUrlParam` is the hostname and `ok`
+ * is false when the URL is not a valid web URL.
+ */
+export const getPhishingDetectionBulkScanUrlParam = (
+  url: string,
+): [scanUrlParam: string, hostname: string, ok: boolean] => {
+  const [hostname, ok] = getHostnameFromWebUrl(url);
+  if (!ok) {
+    return ['', '', false];
+  }
+  return [hostname, hostname, true];
+};
+
 export const getPathnameFromUrl = (url: string): string => {
   try {
     const { pathname } = new URL(url);

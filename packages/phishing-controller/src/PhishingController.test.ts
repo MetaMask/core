@@ -42,7 +42,10 @@ import {
   ApprovalResultType,
   ApprovalFeatureType,
 } from './types';
-import { getHostnameFromUrl, getPhishingDetectionScanUrlParam } from './utils';
+import {
+  getHostnameFromUrl,
+  getPhishingDetectionBulkScanUrlParam,
+} from './utils';
 
 const controllerName = 'PhishingController';
 
@@ -3028,12 +3031,12 @@ describe('PhishingController', () => {
     it('should return the scan results for multiple URLs', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: testUrls.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(200, {
           results: testUrls.reduce<Record<string, PhishingDetectionScanResult>>(
             (acc, url) => {
-              const scanKey = getPhishingDetectionScanUrlParam(url)[0];
+              const scanKey = getPhishingDetectionBulkScanUrlParam(url)[0];
               acc[scanKey] = mockResponse.results[url];
               return acc;
             },
@@ -3070,7 +3073,7 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({
         results: {},
         errors: {
-          too_many_urls: ['Maximum of 250 URLs allowed per request'],
+          too_many_urls: 'Maximum of 250 URLs allowed per request',
         },
       });
     });
@@ -3084,7 +3087,7 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({
         results: {},
         errors: {
-          [longUrl]: ['URL length must not exceed 2048 characters'],
+          [longUrl]: 'URL length must not exceed 2048 characters',
         },
       });
     });
@@ -3103,7 +3106,7 @@ describe('PhishingController', () => {
       async (statusCode, statusText) => {
         const scope = nock(PHISHING_DETECTION_BASE_URL)
           .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-            urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+            urls: testUrls.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
           })
           .reply(statusCode);
 
@@ -3114,7 +3117,7 @@ describe('PhishingController', () => {
         expect(response).toStrictEqual({
           results: {},
           errors: {
-            api_error: [`${statusCode} ${statusText}`],
+            api_error: `${statusCode} ${statusText}`,
           },
         });
         expect(scope.isDone()).toBe(true);
@@ -3124,7 +3127,7 @@ describe('PhishingController', () => {
     it('should handle timeouts correctly', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: testUrls.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .delayConnection(20000)
         .reply(200, {});
@@ -3138,7 +3141,7 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({
         results: {},
         errors: {
-          network_error: ['timeout of 15000ms exceeded'],
+          network_error: 'timeout of 15000ms exceeded',
         },
       });
       expect(scope.isDone()).toBe(false);
@@ -3156,11 +3159,11 @@ describe('PhishingController', () => {
       const batch2 = manyUrls.slice(batchSize, 2 * batchSize);
       const batch3 = manyUrls.slice(2 * batchSize);
 
-      // Mock responses for each batch (PDS keys results by hostname+path scan key)
+      // Mock responses for each batch (PDS keys results by hostname-only scan param on bulk)
       const mockBatch1Response: BulkPhishingDetectionScanResponse = {
         results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
-            const [scanKey] = getPhishingDetectionScanUrlParam(url);
+            const [scanKey] = getPhishingDetectionBulkScanUrlParam(url);
             acc[scanKey] = {
               scanLookupKey: scanKey,
               recommendedAction: RecommendedAction.None,
@@ -3175,7 +3178,7 @@ describe('PhishingController', () => {
       const mockBatch2Response: BulkPhishingDetectionScanResponse = {
         results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
-            const [scanKey] = getPhishingDetectionScanUrlParam(url);
+            const [scanKey] = getPhishingDetectionBulkScanUrlParam(url);
             acc[scanKey] = {
               scanLookupKey: scanKey,
               recommendedAction: RecommendedAction.None,
@@ -3190,7 +3193,7 @@ describe('PhishingController', () => {
       const mockBatch3Response: BulkPhishingDetectionScanResponse = {
         results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
           (acc, url) => {
-            const [scanKey] = getPhishingDetectionScanUrlParam(url);
+            const [scanKey] = getPhishingDetectionBulkScanUrlParam(url);
             acc[scanKey] = {
               scanLookupKey: scanKey,
               recommendedAction: RecommendedAction.None,
@@ -3205,19 +3208,19 @@ describe('PhishingController', () => {
       // Setup nock to handle all three batch requests
       const scope1 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch1.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: batch1.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(200, mockBatch1Response);
 
       const scope2 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch2.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: batch2.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(200, mockBatch2Response);
 
       const scope3 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch3.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: batch3.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(200, mockBatch3Response);
 
@@ -3235,7 +3238,7 @@ describe('PhishingController', () => {
       const combinedResults = manyUrls.reduce<
         Record<string, PhishingDetectionScanResult>
       >((acc, url) => {
-        const [scanKey] = getPhishingDetectionScanUrlParam(url);
+        const [scanKey] = getPhishingDetectionBulkScanUrlParam(url);
         acc[url] = {
           scanLookupKey: scanKey,
           recommendedAction: RecommendedAction.None,
@@ -3256,14 +3259,14 @@ describe('PhishingController', () => {
           },
         },
         errors: {
-          'https://example2.com': ['Failed to process URL'],
-          'https://example3.com': ['Domain not found'],
+          'https://example2.com': 'Failed to process URL',
+          'https://example3.com': 'Domain not found',
         },
       };
 
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: testUrls.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(200, {
           results: {
@@ -3273,8 +3276,8 @@ describe('PhishingController', () => {
             },
           },
           errors: {
-            'example2.com': ['Failed to process URL'],
-            'example3.com': ['Domain not found'],
+            'example2.com': 'Failed to process URL',
+            'example3.com': 'Domain not found',
           },
         });
 
@@ -3286,7 +3289,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should have error merging issues when multiple batches return errors with the same key', async () => {
+    it('should merge api_error strings when multiple batches return HTTP errors', async () => {
       // Create enough URLs to need two batches (over 50)
       const batchSize = 50;
       const totalUrls = 100;
@@ -3301,13 +3304,13 @@ describe('PhishingController', () => {
       // Setup nock to handle both batch requests with different error responses
       const scope1 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch1.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: batch1.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(404, { error: 'Not Found' });
 
       const scope2 = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: batch2.map((u) => getPhishingDetectionScanUrlParam(u)[0]),
+          urls: batch2.map((u) => getPhishingDetectionBulkScanUrlParam(u)[0]),
         })
         .reply(500, { error: 'Internal Server Error' });
 
@@ -3319,11 +3322,10 @@ describe('PhishingController', () => {
       expect(scope1.isDone()).toBe(true);
       expect(scope2.isDone()).toBe(true);
 
-      // With the fixed implementation, we should now preserve all errors
       expect(response.errors).toHaveProperty('api_error');
-      expect(response.errors.api_error).toHaveLength(2);
-      expect(response.errors.api_error).toContain('404 Not Found');
-      expect(response.errors.api_error).toContain('500 Internal Server Error');
+      expect(response.errors.api_error).toBe(
+        '404 Not Found; 500 Internal Server Error',
+      );
     });
 
     it('should use cached results for previously scanned URLs and only fetch uncached URLs', async () => {
@@ -3352,10 +3354,10 @@ describe('PhishingController', () => {
 
       // Now set up the mock for the bulk API call with only the uncached URL
       const expectedPostBody = {
-        urls: [getPhishingDetectionScanUrlParam(uncachedUrl)[0]],
+        urls: [getPhishingDetectionBulkScanUrlParam(uncachedUrl)[0]],
       };
 
-      const uncachedScanKey = getPhishingDetectionScanUrlParam(uncachedUrl)[0];
+      const uncachedScanKey = getPhishingDetectionBulkScanUrlParam(uncachedUrl)[0];
       const bulkApiResponse: BulkPhishingDetectionScanResponse = {
         results: {
           [uncachedScanKey]: {
@@ -3410,11 +3412,11 @@ describe('PhishingController', () => {
 
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: [getPhishingDetectionScanUrlParam(validUrl)[0]],
+          urls: [getPhishingDetectionBulkScanUrlParam(validUrl)[0]],
         })
         .reply(200, {
           results: {
-            [getPhishingDetectionScanUrlParam(validUrl)[0]]: validScanResult,
+            [getPhishingDetectionBulkScanUrlParam(validUrl)[0]]: validScanResult,
           },
           errors: {},
         });
@@ -3430,7 +3432,7 @@ describe('PhishingController', () => {
 
       // Verify the results include the valid URL result and an error for the invalid URL
       expect(response.results[validUrl]).toStrictEqual(validScanResult);
-      expect(response.errors[invalidUrl]).toContain(
+      expect(response.errors[invalidUrl]).toBe(
         'url is not a valid web URL',
       );
 

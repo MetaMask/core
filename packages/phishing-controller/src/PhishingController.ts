@@ -48,6 +48,7 @@ import {
   getHostnameFromUrl,
   roundToNearestMinute,
   getPhishingDetectionScanUrlParam,
+  getPhishingDetectionBulkScanUrlParam,
   buildCacheKey,
   splitCacheHits,
   resolveChainName,
@@ -441,11 +442,15 @@ export type PhishingControllerMessenger = Messenger<
  *
  * Response for bulk phishing detection scan requests.
  * When returned from {@link PhishingController.bulkScanUrls}, `results` and `errors` are keyed
- * by the caller's input URL strings. The PDS bulk API itself uses hostname+path scan keys.
+ * by the caller's input URL strings. The PDS bulk API keys its payload by hostname-only scan
+ * params (see {@link getPhishingDetectionBulkScanUrlParam}); the controller remaps to input URLs.
+ *
+ * `errors` matches PDS: one message string per key. When multiple batches surface the same
+ * synthetic key (e.g. `api_error`), messages are joined with `"; "`.
  */
 export type BulkPhishingDetectionScanResponse = {
   results: Record<string, PhishingDetectionScanResult>;
-  errors: Record<string, string[]>;
+  errors: Record<string, string>;
 };
 
 /**
@@ -981,8 +986,8 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Scan multiple URLs for phishing in bulk. Each URL is normalized for PDS the same way as
-   * {@link PhishingController.scanUrl} (path-aware only for `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`).
+   * Scan multiple URLs for phishing in bulk. Each URL is normalized to **hostname only** for PDS
+   * (paths are not included). For pathname-aware scans on gateway hosts, use {@link scanUrl}.
    * Results are keyed by the input URL strings. Only `http:` / `https:` web URLs are supported.
    *
    * @param urls - The URLs to scan.
@@ -1004,9 +1009,7 @@ export class PhishingController extends BaseController<
       return {
         results: {},
         errors: {
-          too_many_urls: [
-            `Maximum of ${MAX_TOTAL_URLS} URLs allowed per request`,
-          ],
+          too_many_urls: `Maximum of ${MAX_TOTAL_URLS} URLs allowed per request`,
         },
       };
     }
@@ -1023,15 +1026,14 @@ export class PhishingController extends BaseController<
 
     for (const url of urls) {
       if (url.length > MAX_URL_LENGTH) {
-        combinedResponse.errors[url] = [
-          `URL length must not exceed ${MAX_URL_LENGTH} characters`,
-        ];
+        combinedResponse.errors[url] =
+          `URL length must not exceed ${MAX_URL_LENGTH} characters`;
         continue;
       }
 
-      const [scanKey, , ok] = getPhishingDetectionScanUrlParam(url);
+      const [scanKey, , ok] = getPhishingDetectionBulkScanUrlParam(url);
       if (!ok) {
-        combinedResponse.errors[url] = ['url is not a valid web URL'];
+        combinedResponse.errors[url] = 'url is not a valid web URL';
         continue;
       }
 
@@ -1071,12 +1073,11 @@ export class PhishingController extends BaseController<
           combinedResponse.results[url] = result;
         });
 
-        // Combine errors
-        Object.entries(batchResponse.errors).forEach(([key, messages]) => {
-          combinedResponse.errors[key] = [
-            ...(combinedResponse.errors[key] || []),
-            ...messages,
-          ];
+        // Combine errors (same synthetic key may appear from multiple batches)
+        Object.entries(batchResponse.errors).forEach(([key, message]) => {
+          const prev = combinedResponse.errors[key];
+          combinedResponse.errors[key] =
+            prev !== undefined ? `${prev}; ${message}` : message;
         });
       });
     }
@@ -1393,7 +1394,7 @@ export class PhishingController extends BaseController<
     urls: string[],
   ): Promise<BulkPhishingDetectionScanResponse> => {
     const scanKeys = urls.map((originalUrl) => {
-      const [scanUrlParam] = getPhishingDetectionScanUrlParam(originalUrl);
+      const [scanUrlParam] = getPhishingDetectionBulkScanUrlParam(originalUrl);
       return scanUrlParam;
     });
 
@@ -1431,7 +1432,7 @@ export class PhishingController extends BaseController<
       return {
         results: {},
         errors: {
-          network_error: ['timeout of 15000ms exceeded'],
+          network_error: 'timeout of 15000ms exceeded',
         },
       };
     }
@@ -1445,12 +1446,15 @@ export class PhishingController extends BaseController<
       return {
         results: {},
         errors: {
-          api_error: [`${apiResponse.status} ${apiResponse.statusText}`],
+          api_error: `${apiResponse.status} ${apiResponse.statusText}`,
         },
       };
     }
 
-    const raw = apiResponse as BulkPhishingDetectionScanResponse;
+    const raw = apiResponse as {
+      results: Record<string, PhishingDetectionScanResult>;
+      errors: Record<string, string>;
+    };
     const remapped: BulkPhishingDetectionScanResponse = {
       results: {},
       errors: {},

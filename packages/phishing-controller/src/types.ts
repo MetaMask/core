@@ -78,8 +78,9 @@ export enum PhishingDetectorResultType {
  */
 export type PhishingDetectionScanResult = {
   /**
-   * Key sent to PDS and used for the URL scan cache: hostname for most sites, or hostname plus
-   * pathname (query/fragment stripped) for path-based gateway hosts. Empty when no lookup applies.
+   * Key sent to PDS and used for the URL scan cache. Bulk scans use hostname only; single URL
+   * scans may append pathname (query/fragment stripped) for path-based gateway hosts.
+   * Empty when no lookup applies.
    */
   scanLookupKey: string;
   /**

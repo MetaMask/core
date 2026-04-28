@@ -73,12 +73,12 @@ export type PhishingControllerScanUrlAction = {
 };
 
 /**
- * Scan multiple URLs for phishing in bulk. Each URL is normalized for PDS the same way as
- * {@link PhishingController.scanUrl} (path-aware only for `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`).
+ * Scan multiple URLs for phishing in bulk. Each URL is normalized to **hostname only** for PDS
+ * (paths are omitted); pathname-aware scanning uses {@link PhishingController.scanUrl}.
  * Results are keyed by the input URL strings. Only `http:` / `https:` web URLs are supported.
  *
  * @param urls - The URLs to scan.
- * @returns A mapping of URLs to their phishing detection scan results and errors.
+ * @returns A mapping of URLs to their phishing detection scan results and errors (each error value is a single string, matching PDS).
  */
 export type PhishingControllerBulkScanUrlsAction = {
   type: `PhishingController:bulkScanUrls`;

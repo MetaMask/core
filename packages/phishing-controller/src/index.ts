@@ -32,6 +32,7 @@ export type { CacheEntry } from './CacheManager';
 
 export {
   PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
+  getPhishingDetectionBulkScanUrlParam,
   isPhishingDetectionPathBasedHostname,
 } from './utils';
 
