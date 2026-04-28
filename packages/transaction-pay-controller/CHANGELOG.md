@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+
 ### Changed
 
 - Rename `executeEnabled` feature flag to `gaslessEnabled` ([#8607](https://github.com/MetaMask/core/pull/8607))
-- Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.0.0` ([#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
 - Bump `@metamask/assets-controller` from `^6.1.0` to `^6.2.0` ([#8590](https://github.com/MetaMask/core/pull/8590))
 
 ### Fixed
@@ -714,7 +716,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...@metamask/transaction-pay-controller@20.0.0
 [19.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.2...@metamask/transaction-pay-controller@19.3.0
 [19.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.1...@metamask/transaction-pay-controller@19.2.2
 [19.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.0...@metamask/transaction-pay-controller@19.2.1
