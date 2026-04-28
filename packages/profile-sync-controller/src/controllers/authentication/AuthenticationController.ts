@@ -312,29 +312,33 @@ export class AuthenticationController extends BaseController<
 
     // Pair SRP profiles (idempotent — no-op if already paired)
     if (accessTokens.length >= 2) {
-      const previousCanonical = this.#getCanonicalProfileId();
-
-      try {
-        const profileAliases = await this.#pairSrpProfiles(accessTokens);
-
-        const newCanonical = this.#getCanonicalProfileId();
-        const profileIdChanged = previousCanonical !== newCanonical;
-        const shouldEmitProfileSignInEvent =
-          profileIdChanged || profileAliases.length > 0;
-
-        if (shouldEmitProfileSignInEvent) {
-          this.messenger.publish('AuthenticationController:profileSignIn', {
-            profileId: newCanonical ?? '',
-            profileAliases,
-            profileIdChanged,
-          });
-        }
-      } catch {
-        // Pairing failure is non-fatal — retry on next performSignIn
-      }
+      await this.#performPairing(accessTokens);
     }
 
     return accessTokens;
+  }
+
+  async #performPairing(accessTokens: string[]): Promise<void> {
+    const previousCanonical = this.#getCanonicalProfileId();
+
+    try {
+      const profileAliases = await this.#pairSrpProfiles(accessTokens);
+
+      const newCanonical = this.#getCanonicalProfileId();
+      const profileIdChanged = previousCanonical !== newCanonical;
+      const shouldEmitProfileSignInEvent =
+        profileIdChanged || profileAliases.length > 0;
+
+      if (shouldEmitProfileSignInEvent) {
+        this.messenger.publish('AuthenticationController:profileSignIn', {
+          profileId: newCanonical ?? '',
+          profileAliases,
+          profileIdChanged,
+        });
+      }
+    } catch {
+      // Pairing failure is non-fatal — retry on next performSignIn
+    }
   }
 
   async #pairSrpProfiles(accessTokens: string[]): Promise<ProfileAlias[]> {
@@ -463,6 +467,9 @@ export class AuthenticationController extends BaseController<
     this.update((state) => {
       const entry = state.srpSessionData?.[entropySourceId];
       if (entry?.profile) {
+        // Setting canonicalProfileId to '' forces a re-fetch on the next
+        // #getAuthSession call. The falsy check (!auth.profile.canonicalProfileId)
+        // treats '' the same as undefined/null — all signal an invalid session.
         entry.profile.canonicalProfileId = '';
       }
     });

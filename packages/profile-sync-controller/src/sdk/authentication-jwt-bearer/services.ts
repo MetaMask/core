@@ -17,6 +17,7 @@ import type {
   UserProfileLineage,
 } from './types';
 import { AuthType } from './types';
+import { validatePairResponse } from '../utils/validate-pair-response';
 
 /**
  * Parse Retry-After header into milliseconds if possible.
@@ -293,6 +294,10 @@ export async function pairProfiles(
     }
 
     const pairResponse = await response.json();
+
+    if (!validatePairResponse(pairResponse)) {
+      throw new ValidationError('Invalid pair response shape');
+    }
 
     return {
       profile: {
