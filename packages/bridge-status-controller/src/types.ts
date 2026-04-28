@@ -163,6 +163,14 @@ export type BridgeHistoryItem = {
     counter: number;
     lastAttemptTime: number; // timestamp in ms
   };
+  /**
+   * Client-supplied security classification for the destination token at the
+   * time the swap/bridge was submitted. Persisted so post-submit analytics
+   * events (Completed, Failed, StatusValidationFailed) can include
+   * `token_security_type_destination`. `null` when no security data was
+   * available for the destination token.
+   */
+  tokenSecurityTypeDestination?: string | null;
 };
 
 /**
@@ -237,6 +245,9 @@ export type StartPollingForBridgeTxStatusArgs = {
   // New field for `active_ab_tests` metrics payload.
   activeAbTests?: BridgeHistoryItem['activeAbTests'];
   accountAddress: string;
+  // Client-supplied destination token security classification, persisted on
+  // the history item for post-submit analytics events.
+  tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
 };
 
 /**

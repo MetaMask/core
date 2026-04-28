@@ -136,6 +136,7 @@ export const getInitialHistoryItem = (
     accountAddress: selectedAddress,
     originalTransactionId,
     actionId,
+    tokenSecurityTypeDestination,
   } = args;
   // Determine the key for this history item:
   // - For pre-submission (non-batch EVM): use actionId
@@ -189,6 +190,9 @@ export const getInitialHistoryItem = (
     location,
     ...(abTests && { abTests }),
     ...(activeAbTests && { activeAbTests }),
+    ...(tokenSecurityTypeDestination !== undefined && {
+      tokenSecurityTypeDestination,
+    }),
   };
 
   return { historyKey, txHistoryItem };
