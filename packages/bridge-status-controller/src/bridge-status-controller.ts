@@ -1058,6 +1058,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
    * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
+   * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @returns The transaction meta
    */
   submitTx = async (
@@ -1068,6 +1069,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
+    tokenSecurityTypeDestination?: string | null,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     stopPollingForQuotes(
       this.messenger,
@@ -1090,6 +1092,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       location,
       abTests,
       activeAbTests,
+      tokenSecurityTypeDestination,
     );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
@@ -1251,6 +1254,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               abTests,
               activeAbTests,
               actionId,
+              tokenSecurityTypeDestination,
             });
 
             // Pass txFee when gasIncluded is true to use the quote's gas fees
@@ -1311,6 +1315,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           location,
           abTests,
           activeAbTests,
+          tokenSecurityTypeDestination,
         });
       }
 
@@ -1341,6 +1346,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.location - The entry point from which the user initiated the swap or bridge
    * @param params.abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
+   * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
@@ -1349,9 +1355,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
     activeAbTests?: { key: string; value: string }[];
+    tokenSecurityTypeDestination?: string | null;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, accountAddress, location, abTests, activeAbTests } =
-      params;
+    const {
+      quoteResponse,
+      accountAddress,
+      location,
+      abTests,
+      activeAbTests,
+      tokenSecurityTypeDestination,
+    } = params;
 
     // TODO add metrics context
     stopPollingForQuotes(this.messenger);
@@ -1368,6 +1381,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       location,
       abTests,
       activeAbTests,
+      tokenSecurityTypeDestination,
     );
 
     try {
@@ -1491,6 +1505,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           location,
           abTests,
           activeAbTests,
+          tokenSecurityTypeDestination,
         });
 
         // Start polling using the orderId key to route to intent manager
@@ -1622,6 +1637,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           token_address_source: requestParamProperties.token_address_source,
           token_address_destination:
             requestParamProperties.token_address_destination,
+          token_security_type_destination:
+            requestParamProperties.token_security_type_destination,
           refresh_count: historyItem.attempts?.counter ?? 0,
         },
       });

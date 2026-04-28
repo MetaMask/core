@@ -4,9 +4,14 @@ import type { Quote } from '@metamask/bridge-controller';
 import type {
   BridgeStatusControllerState,
   BridgeHistoryItem,
+  StartPollingForBridgeTxStatusArgsSerialized,
   StatusResponse,
 } from '../types';
-import { getHistoryKey, rekeyHistoryItemInState } from './history';
+import {
+  getHistoryKey,
+  getInitialHistoryItem,
+  rekeyHistoryItemInState,
+} from './history';
 
 describe('History Utils', () => {
   describe('rekeyHistoryItemInState', () => {
@@ -101,6 +106,49 @@ describe('History Utils', () => {
       expect(() => getHistoryKey(undefined, undefined)).toThrow(
         'Cannot add tx to history: either actionId, bridgeTxMeta.id, or syntheticTransactionId must be provided',
       );
+    });
+  });
+
+  describe('getInitialHistoryItem', () => {
+    const baseArgs = {
+      bridgeTxMeta: { id: 'tx1', hash: '0xhash' },
+      quoteResponse: {
+        quote: { srcChainId: 1, destChainId: 10 },
+        estimatedProcessingTimeInSeconds: 60,
+        sentAmount: { amount: '1', usd: '2' },
+        gasFee: { effective: { amount: '0.001', usd: '3' } },
+        toTokenAmount: { amount: '1', usd: '4' },
+      },
+      startTime: 1,
+      slippagePercentage: 0,
+      accountAddress: '0xaccount',
+      isStxEnabled: false,
+    } as unknown as StartPollingForBridgeTxStatusArgsSerialized;
+
+    it('omits tokenSecurityTypeDestination when not provided', () => {
+      const { txHistoryItem } = getInitialHistoryItem(baseArgs);
+      expect(
+        Object.prototype.hasOwnProperty.call(
+          txHistoryItem,
+          'tokenSecurityTypeDestination',
+        ),
+      ).toBe(false);
+    });
+
+    it('persists a non-null tokenSecurityTypeDestination', () => {
+      const { txHistoryItem } = getInitialHistoryItem({
+        ...baseArgs,
+        tokenSecurityTypeDestination: 'Malicious',
+      });
+      expect(txHistoryItem.tokenSecurityTypeDestination).toBe('Malicious');
+    });
+
+    it('persists a null tokenSecurityTypeDestination', () => {
+      const { txHistoryItem } = getInitialHistoryItem({
+        ...baseArgs,
+        tokenSecurityTypeDestination: null,
+      });
+      expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
     });
   });
 });
