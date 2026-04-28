@@ -3284,7 +3284,7 @@ describe('BridgeController', function () {
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
-        expect(trackMetaMetricsFn.mock.calls[0][1]).toEqual(
+        expect(trackMetaMetricsFn.mock.calls[0][1]).toStrictEqual(
           expect.objectContaining({
             token_security_type_destination: 'Malicious',
           }),
