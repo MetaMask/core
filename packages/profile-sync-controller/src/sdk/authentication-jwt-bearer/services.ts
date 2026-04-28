@@ -1,6 +1,7 @@
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
+import { validatePairResponse } from '../utils/validate-pair-response';
 import { HTTP_STATUS_CODES } from '../constants';
 import {
   NonceRetrievalError,
@@ -17,7 +18,6 @@ import type {
   UserProfileLineage,
 } from './types';
 import { AuthType } from './types';
-import { validatePairResponse } from '../utils/validate-pair-response';
 
 /**
  * Parse Retry-After header into milliseconds if possible.
