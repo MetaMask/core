@@ -6,8 +6,9 @@ import {
 } from '@metamask/chain-agnostic-permission';
 import { isPlainObject } from '@metamask/controller-utils';
 import type {
-  AsyncJsonRpcEngineNextCallback,
+  JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
+  MethodHandler,
 } from '@metamask/json-rpc-engine';
 import { invalidParams, MethodNames } from '@metamask/permission-controller';
 import type {
@@ -27,14 +28,35 @@ import { pick } from 'lodash';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
-export const requestPermissionsHandler = {
-  methodNames: [MethodNames.RequestPermissions],
+type RequestPermissionsHooks = {
+  getAccounts: () => string[];
+  requestPermissionsForOrigin: (
+    requestedPermissions: RequestedPermissions,
+  ) => Promise<[GrantedPermissions]>;
+  getCaip25PermissionFromLegacyPermissionsForOrigin: (
+    requestedPermissions?: RequestedPermissions,
+  ) => RequestedPermissions;
+};
+
+type RequestPermissionsHandler = MethodHandler<
+  RequestPermissionsHooks,
+  never,
+  [RequestedPermissions],
+  Json,
+  { origin: string }
+>;
+
+export const requestPermissions = {
   implementation: requestPermissionsImplementation,
   hookNames: {
     getAccounts: true,
     requestPermissionsForOrigin: true,
     getCaip25PermissionFromLegacyPermissionsForOrigin: true,
   },
+} satisfies RequestPermissionsHandler;
+
+export const requestPermissionsHandler = {
+  [MethodNames.RequestPermissions]: requestPermissions,
 };
 
 type AbstractPermissionController = PermissionController<
@@ -63,21 +85,13 @@ type GrantedPermissions = Awaited<
 async function requestPermissionsImplementation(
   req: JsonRpcRequest<[RequestedPermissions]> & { origin: string },
   res: PendingJsonRpcResponse,
-  _next: AsyncJsonRpcEngineNextCallback,
+  _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   {
     getAccounts,
     requestPermissionsForOrigin,
     getCaip25PermissionFromLegacyPermissionsForOrigin,
-  }: {
-    getAccounts: () => string[];
-    requestPermissionsForOrigin: (
-      requestedPermissions: RequestedPermissions,
-    ) => Promise<[GrantedPermissions]>;
-    getCaip25PermissionFromLegacyPermissionsForOrigin: (
-      requestedPermissions?: RequestedPermissions,
-    ) => RequestedPermissions;
-  },
+  }: RequestPermissionsHooks,
 ) {
   const { params } = req;
 

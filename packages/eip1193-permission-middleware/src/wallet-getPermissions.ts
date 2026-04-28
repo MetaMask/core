@@ -5,8 +5,9 @@ import {
   getPermittedEthChainIds,
 } from '@metamask/chain-agnostic-permission';
 import type {
-  AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+  MethodHandler,
 } from '@metamask/json-rpc-engine';
 import { MethodNames } from '@metamask/permission-controller';
 import type {
@@ -22,13 +23,34 @@ import type {
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
-export const getPermissionsHandler = {
-  methodNames: [MethodNames.GetPermissions],
+type GetPermissionsHooks = {
+  getPermissionsForOrigin: () => ReturnType<
+    PermissionController<
+      PermissionSpecificationConstraint,
+      CaveatSpecificationConstraint
+    >['getPermissions']
+  >;
+  getAccounts: (options?: { ignoreLock?: boolean }) => string[];
+};
+
+type GetPermissionsHandler = MethodHandler<
+  GetPermissionsHooks,
+  never,
+  Json[],
+  Json,
+  { origin: string }
+>;
+
+export const getPermissions = {
   implementation: getPermissionsImplementation,
   hookNames: {
     getPermissionsForOrigin: true,
     getAccounts: true,
   },
+} satisfies GetPermissionsHandler;
+
+export const getPermissionsHandler = {
+  [MethodNames.GetPermissions]: getPermissions,
 };
 
 /**
@@ -47,20 +69,9 @@ export const getPermissionsHandler = {
 async function getPermissionsImplementation(
   _req: JsonRpcRequest<Json[]>,
   res: PendingJsonRpcResponse,
-  _next: AsyncJsonRpcEngineNextCallback,
+  _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
-  {
-    getPermissionsForOrigin,
-    getAccounts,
-  }: {
-    getPermissionsForOrigin: () => ReturnType<
-      PermissionController<
-        PermissionSpecificationConstraint,
-        CaveatSpecificationConstraint
-      >['getPermissions']
-    >;
-    getAccounts: (options?: { ignoreLock?: boolean }) => string[];
-  },
+  { getPermissionsForOrigin, getAccounts }: GetPermissionsHooks,
 ) {
   const permissions = { ...getPermissionsForOrigin() };
   const caip25Endowment = permissions[Caip25EndowmentPermissionName];

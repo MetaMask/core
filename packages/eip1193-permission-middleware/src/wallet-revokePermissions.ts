@@ -1,7 +1,8 @@
 import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permission';
 import type {
-  AsyncJsonRpcEngineNextCallback,
+  JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
+  MethodHandler,
 } from '@metamask/json-rpc-engine';
 import { invalidParams, MethodNames } from '@metamask/permission-controller';
 import { isNonEmptyArray } from '@metamask/utils';
@@ -13,13 +14,27 @@ import type {
 
 import { EndowmentTypes, RestrictedMethods } from './types';
 
-export const revokePermissionsHandler = {
-  methodNames: [MethodNames.RevokePermissions],
+type RevokePermissionsHooks = {
+  revokePermissionsForOrigin: (permissionKeys: string[]) => void;
+};
+
+type RevokePermissionsHandler = MethodHandler<
+  RevokePermissionsHooks,
+  never,
+  Json[],
+  Json,
+  { origin: string }
+>;
+
+export const revokePermissions = {
   implementation: revokePermissionsImplementation,
   hookNames: {
     revokePermissionsForOrigin: true,
-    updateCaveat: true,
   },
+} satisfies RevokePermissionsHandler;
+
+export const revokePermissionsHandler = {
+  [MethodNames.RevokePermissions]: revokePermissions,
 };
 
 /**
@@ -36,7 +51,7 @@ export const revokePermissionsHandler = {
 function revokePermissionsImplementation(
   req: JsonRpcRequest<Json[]>,
   res: PendingJsonRpcResponse,
-  _next: AsyncJsonRpcEngineNextCallback,
+  _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   {
     revokePermissionsForOrigin,

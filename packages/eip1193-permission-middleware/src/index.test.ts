@@ -4,9 +4,7 @@ describe('@metamask/eip1193-permission-middleware', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       [
-        "getPermissionsHandler",
-        "requestPermissionsHandler",
-        "revokePermissionsHandler",
+        "methodHandlers",
       ]
     `);
   });
