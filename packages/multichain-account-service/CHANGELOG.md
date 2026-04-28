@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added function `isKeyringControllerLockedError` to filter those type of errors from sentry reporting ([#8619](https://github.com/MetaMask/core/pull/8619))
+- Filter out `KeyringController` locked errors from sentry reporting ([#8619](https://github.com/MetaMask/core/pull/8619))
 
 ### Changed
 
