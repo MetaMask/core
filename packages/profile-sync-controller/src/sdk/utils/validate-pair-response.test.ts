@@ -1,7 +1,11 @@
 import { validatePairResponse } from './validate-pair-response';
 
 function createValidRawPairResponse(): {
-  profile: { profile_id: string; identifier_id: string; metametrics_id: string };
+  profile: {
+    profile_id: string;
+    identifier_id: string;
+    metametrics_id: string;
+  };
   profile_aliases: never[];
 } {
   return {
