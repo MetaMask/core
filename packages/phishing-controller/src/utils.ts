@@ -382,11 +382,12 @@ export const PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS = [
  * @param hostname - Lowercase normalization is applied for matching registered roots and subdomains.
  * @returns Whether {@link getPhishingDetectionScanUrlParam} appends pathname for this hostname.
  */
-export function isPhishingDetectionPathBasedHostname(hostname: string): boolean {
+export function isPhishingDetectionPathBasedHostname(
+  hostname: string,
+): boolean {
   const normalizedHost = hostname.toLowerCase();
   return PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS.some(
-    (root) =>
-      normalizedHost === root || normalizedHost.endsWith(`.${root}`),
+    (root) => normalizedHost === root || normalizedHost.endsWith(`.${root}`),
   );
 }
 

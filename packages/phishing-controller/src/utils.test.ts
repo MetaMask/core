@@ -1017,18 +1017,12 @@ describe('getPhishingDetectionScanUrlParam', () => {
 describe('getPhishingDetectionBulkScanUrlParam', () => {
   it.each([
     ['https://example.com/path', 'example.com', 'example.com', true],
-    [
-      'https://ipfs.io/ipfs/QmX?token=secret#frag',
-      'ipfs.io',
-      'ipfs.io',
-      true,
-    ],
+    ['https://ipfs.io/ipfs/QmX?token=secret#frag', 'ipfs.io', 'ipfs.io', true],
     ['not-a-url', '', '', false],
   ] as const)(
     'for URL %s returns scan param %s, hostname %s, ok %s',
     (input, expectedParam, expectedHostname, expectedOk) => {
-      const [param, hostname, ok] =
-        getPhishingDetectionBulkScanUrlParam(input);
+      const [param, hostname, ok] = getPhishingDetectionBulkScanUrlParam(input);
       expect(param).toBe(expectedParam);
       expect(hostname).toBe(expectedHostname);
       expect(ok).toBe(expectedOk);
