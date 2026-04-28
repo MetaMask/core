@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `ConfigRegistryApiService` now accepts chains with no `assets.listUrl` property ([#0000](https://github.com/MetaMask/core/pull/8457))
+- `ConfigRegistryApiService` now accepts chains with no `assets.listUrl` property ([#8624](https://github.com/MetaMask/core/pull/8624))
 
 ## [0.2.0]
 
