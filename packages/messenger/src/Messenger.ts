@@ -803,17 +803,19 @@ export class Messenger<
       > => {
         // Cast to get more specific type, for this specific action
         // The types get collapsed by `this.#actions`
-        const actionHandler = this.#actions.get(actionType) as
+        const actionHandler = this.getAction(actionType) as
           | ActionHandler<
               MessengerActions<Delegatee> & Action,
               typeof actionType
             >
           | undefined;
+
         if (!actionHandler) {
           throw new Error(
             `A handler for ${actionType} has not been registered`,
           );
         }
+
         return actionHandler(...args);
       };
       let delegationTargets = this.#actionDelegationTargets.get(actionType);
