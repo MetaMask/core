@@ -83,7 +83,6 @@ export type MethodHandler<
     Params,
     Result
   >;
-  methodNames: string[];
 } & ([Hooks] extends [never]
   ? { hookNames?: undefined }
   : { hookNames: { [Key in keyof Hooks]: true } }) &
@@ -180,28 +179,21 @@ export function createMethodMiddleware<
   // all handler errors.
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   return async (req, res, next, end) => {
-    const resolved = handlers[req.method];
-    if (resolved) {
-      const { implementation, hooks: handlerHooks, messenger } = resolved;
-      try {
-        return await implementation(
-          req,
-          res,
-          next,
-          end,
-          handlerHooks,
-          messenger,
-        );
-      } catch (error) {
-        onError?.(error, req);
-        return end(
-          error instanceof Error
-            ? error
-            : rpcErrors.internal({ data: error as Json }),
-        );
-      }
+    const handler = handlers[req.method];
+    if (!handler) {
+      return next();
     }
 
-    return next();
+    const { implementation, hooks: handlerHooks, messenger } = handler;
+    try {
+      return await implementation(req, res, next, end, handlerHooks, messenger);
+    } catch (error) {
+      onError?.(error, req);
+      return end(
+        error instanceof Error
+          ? error
+          : rpcErrors.internal({ data: error as Json }),
+      );
+    }
   };
 }

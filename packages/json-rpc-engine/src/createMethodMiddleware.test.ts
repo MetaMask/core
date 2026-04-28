@@ -7,6 +7,7 @@ import {
 } from '@metamask/utils';
 
 import {
+  MethodHandler,
   MethodHandlerImplementation,
   createMethodMiddleware,
 } from './createMethodMiddleware';
@@ -49,7 +50,7 @@ const handlerImplementation: MethodHandlerImplementation<Hooks> = (
 const handler = {
   implementation: handlerImplementation,
   hookNames: { hook1: true as const, hook2: true as const },
-};
+} satisfies MethodHandler<Hooks>;
 
 const getDefaultHooks = (): Hooks => ({
   hook1: () => 42,
@@ -281,12 +282,19 @@ describe('createMethodMiddleware', () => {
     };
 
     const messengerHandler = {
-      implementation: (async (_req, res, _next, end, _hooks, messenger) => {
+      implementation: async (
+        _req,
+        res,
+        _next,
+        end,
+        _hooks,
+        messenger,
+      ): Promise<void> => {
         res.result = await messenger.call('Example:TestAction');
         return end();
-      }) as MethodHandlerImplementation<never, TestAction>,
+      },
       actionNames: ['Example:TestAction'] as const,
-    };
+    } satisfies MethodHandler<never, TestAction>;
 
     const rootMessenger = new Messenger<string, TestAction>({
       namespace: MOCK_ANY_NAMESPACE,
