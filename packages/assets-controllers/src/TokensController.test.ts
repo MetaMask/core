@@ -1787,16 +1787,18 @@ describe('TokensController', () => {
           const OTHER_ADDRESS = '0xOtherAddress';
 
           // Mock some tokens to add
-          const generateTokens = (len: number) =>
-            [...Array(len)].map((_, i) => ({
-              address: `0x${i}`,
-              symbol: String.fromCharCode(65 + i),
-              decimals: 2,
-              aggregators: [],
-              name: undefined,
-              isERC721: false,
-              image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
-            }));
+          const generateTokens = (len: number): Token[] =>
+            [...Array(len)].map(
+              (_, i): Token => ({
+                address: `0x${i}`,
+                symbol: String.fromCharCode(65 + i),
+                decimals: 2,
+                aggregators: [],
+                name: undefined,
+                isERC721: false,
+                image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
+              }),
+            );
 
           const [
             addedTokenConfiguredAccount,
@@ -2885,7 +2887,7 @@ describe('TokensController', () => {
           ).mockReturnValueOnce(buildMockERC20StandardFromToken(anotherAsset));
 
           const promiseForApprovals = new Promise<void>((resolve) => {
-            const listener = (state: ApprovalControllerState) => {
+            const listener = (state: ApprovalControllerState): void => {
               if (state.pendingApprovalCount === 2) {
                 messenger.unsubscribe(
                   'ApprovalController:stateChange',
@@ -4532,7 +4534,9 @@ async function withController<ReturnValue>(
     ...options,
   });
 
-  const triggerSelectedAccountChange = (internalAccount: InternalAccount) => {
+  const triggerSelectedAccountChange = (
+    internalAccount: InternalAccount,
+  ): void => {
     getAccountHandler.mockReturnValue(internalAccount);
     messenger.publish(
       'AccountsController:selectedEvmAccountChange',
@@ -4540,7 +4544,7 @@ async function withController<ReturnValue>(
     );
   };
 
-  const triggerAccountRemoved = (accountAddress: string) => {
+  const triggerAccountRemoved = (accountAddress: string): void => {
     messenger.publish('KeyringController:accountRemoved', accountAddress);
   };
 
@@ -4548,7 +4552,7 @@ async function withController<ReturnValue>(
     selectedNetworkClientId,
   }: {
     selectedNetworkClientId: NetworkClientId;
-  }) => {
+  }): void => {
     messenger.publish('NetworkController:networkDidChange', {
       ...getDefaultNetworkControllerState(),
       selectedNetworkClientId,
@@ -4566,7 +4570,7 @@ async function withController<ReturnValue>(
   const triggerNetworkStateChange = (
     networkState: NetworkState,
     patches: Patch[],
-  ) => {
+  ): void => {
     messenger.publish('NetworkController:stateChange', networkState, patches);
   };
 
@@ -4723,6 +4727,8 @@ function buildMockERC1155Standard({
  * @param args - The arguments to this function.
  * @param args.supportsInterface - Whether the contract will report as supporting
  * the given ERC721 ABI.
+ * @param args.supportsInterfaceThrows - When true, `supportsInterface` rejects
+ * instead of returning a boolean (simulates a contract revert).
  * @returns The mock contract.
  */
 function buildMockEthersERC721Contract({
@@ -4735,7 +4741,7 @@ function buildMockEthersERC721Contract({
   // @ts-expect-error This intentionally does not support all of the methods
   // for the contract, only the ones we care about
   return {
-    supportsInterface: async () => {
+    supportsInterface: async (): Promise<boolean> => {
       if (supportsInterfaceThrows) {
         throw new Error('supportsInterface reverted');
       }
