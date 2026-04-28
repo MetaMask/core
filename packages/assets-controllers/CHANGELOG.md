@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [105.0.0]
+
 ### Added
 
 - Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
@@ -2971,7 +2973,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...HEAD
+[105.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...@metamask/assets-controllers@105.0.0
 [104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
 [104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
 [104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0

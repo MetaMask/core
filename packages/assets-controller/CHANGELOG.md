@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.1]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
@@ -377,7 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.1...HEAD
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.0...@metamask/assets-controller@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.1.0...@metamask/assets-controller@6.2.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.0.0...@metamask/assets-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...@metamask/assets-controller@6.0.0
