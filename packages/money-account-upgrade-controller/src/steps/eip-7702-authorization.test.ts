@@ -179,7 +179,7 @@ describe('eip7702AuthorizationStep', () => {
       configureProvider(mocks, delegationCode(MOCK_THIRD_PARTY_IMPL));
 
       await expect(run(messenger)).rejects.toThrow(
-        `Account ${MOCK_ADDRESS} is already delegated to ${MOCK_THIRD_PARTY_IMPL}, which is not the configured delegator impl ${MOCK_DELEGATOR_IMPL}. Refusing to overwrite an existing EIP-7702 delegation.`,
+        `Account ${MOCK_ADDRESS} is already upgraded to another smart account: ${MOCK_THIRD_PARTY_IMPL}.`,
       );
       expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
       expect(mocks.createUpgrade).not.toHaveBeenCalled();
