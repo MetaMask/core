@@ -104,16 +104,10 @@ type AnyMethodHandler = {
   actionNames?: readonly string[];
 };
 
-/**
- * Options for {@link createMethodMiddleware}.
- *
- * @deprecated Use the v2 `createMethodMiddleware` instead.
- */
-export type CreateMethodMiddlewareOptions<
+type CreateMethodMiddlewareBaseOptions<
   Handlers extends Record<string, AnyMethodHandler>,
 > = {
   handlers: Handlers;
-  messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
   hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
   /**
    * Called when a handler throws, before the error is forwarded to `end`.
@@ -122,10 +116,26 @@ export type CreateMethodMiddlewareOptions<
   onError?: (error: unknown, request: JsonRpcRequest) => void;
 };
 
+/**
+ * Options for {@link createMethodMiddleware}.
+ *
+ * @deprecated Use the v2 `createMethodMiddleware` instead.
+ */
+export type CreateMethodMiddlewareOptions<
+  Handlers extends Record<string, AnyMethodHandler>,
+> = CreateMethodMiddlewareBaseOptions<Handlers> &
+  ([HandlerActions<Handlers[keyof Handlers]>] extends [never]
+    ? {
+        messenger?: undefined;
+      }
+    : {
+        messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
+      });
+
 type ResolvedHandler = {
   implementation: AnyMethodHandler['implementation'];
   hooks: Record<string, unknown>;
-  messenger: Messenger<string, ActionConstraint>;
+  messenger?: Messenger<string, ActionConstraint> | undefined;
 };
 
 /**

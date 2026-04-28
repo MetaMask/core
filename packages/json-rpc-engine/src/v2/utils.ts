@@ -162,7 +162,8 @@ export function assertExpectedHooks(
  * @param options - The options.
  * @param options.namespace - The namespace for the handler messenger.
  * @param options.actionNames - Actions to delegate from the root messenger.
- * @param options.rootMessenger - The root messenger to delegate from.
+ * @param options.rootMessenger - The root messenger to delegate from. Required
+ * when `actionNames` are provided.
  * @returns The per-handler messenger.
  */
 export function createHandlerMessenger<Actions extends ActionConstraint>({
@@ -172,20 +173,27 @@ export function createHandlerMessenger<Actions extends ActionConstraint>({
 }: {
   namespace: string;
   actionNames: readonly Actions['type'][] | undefined;
-  rootMessenger: Messenger<string, Actions>;
-}): Messenger<string, Actions> {
+  rootMessenger?: Messenger<string, Actions> | undefined;
+}): Messenger<string, Actions> | undefined {
+  if (!actionNames) {
+    return undefined;
+  }
+
+  if (!rootMessenger) {
+    throw new Error(
+      'A messenger is required when a handler declares actionNames.',
+    );
+  }
+
   const handlerMessenger = new Messenger<
     string,
     Actions,
     never,
     typeof rootMessenger
-  >({
-    namespace,
-    parent: rootMessenger,
-  });
+  >({ namespace, parent: rootMessenger });
 
   rootMessenger.delegate({
-    actions: (actionNames ?? []) as Actions['type'][],
+    actions: actionNames as Actions['type'][],
     messenger: handlerMessenger,
   });
 

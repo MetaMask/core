@@ -42,9 +42,25 @@ function setup(): { engine: JsonRpcEngineV2<JsonRpcRequest> } {
   return { engine };
 }
 
+function setupWithoutMessenger(): { engine: JsonRpcEngineV2<JsonRpcRequest> } {
+  const getValueA = {
+    hookNames: { testHook: true },
+    implementation: ({ hooks }): Promise<string> => hooks.testHook(),
+  } satisfies MethodHandler<{ testHook: () => Promise<string> }>;
+
+  const middleware = createMethodMiddleware({
+    handlers: { getValueA },
+    hooks: { testHook: async () => 'A' },
+  });
+
+  const engine = JsonRpcEngineV2.create({ middleware: [middleware] });
+
+  return { engine };
+}
+
 describe('createMethodMiddleware', () => {
-  it('passes in the requested hooks', async () => {
-    const { engine } = setup();
+  it('passes in the requested hooks without a messenger', async () => {
+    const { engine } = setupWithoutMessenger();
 
     const result = await engine.handle(makeRequest({ method: 'getValueA' }));
     expect(result).toBe('A');
@@ -63,5 +79,19 @@ describe('createMethodMiddleware', () => {
     await expect(
       engine.handle(makeRequest({ method: 'getValueC' })),
     ).rejects.toThrow('Nothing ended request');
+  });
+
+  it('throws if handler actionNames are configured without a messenger', () => {
+    const getValueB = {
+      actionNames: ['Example:TestAction'],
+      implementation: (): Promise<string> => Promise.resolve('B'),
+    } satisfies MethodHandler<never, TestAction>;
+
+    expect(() =>
+      createMethodMiddleware({
+        handlers: { getValueB },
+        hooks: {},
+      }),
+    ).toThrow('A messenger is required when a handler declares actionNames.');
   });
 });

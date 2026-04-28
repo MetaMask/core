@@ -67,21 +67,31 @@ type AnyMethodHandler = {
   actionNames?: readonly string[];
 };
 
+type CreateMethodMiddlewareBaseOptions<
+  Handlers extends Record<string, AnyMethodHandler>,
+> = {
+  handlers: Handlers;
+  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
+};
+
 /**
  * Options for {@link createMethodMiddleware}.
  */
 export type CreateMethodMiddlewareOptions<
   Handlers extends Record<string, AnyMethodHandler>,
-> = {
-  handlers: Handlers;
-  messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
-  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
-};
+> = CreateMethodMiddlewareBaseOptions<Handlers> &
+  ([HandlerActions<Handlers[keyof Handlers]>] extends [never]
+    ? {
+        messenger?: undefined;
+      }
+    : {
+        messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
+      });
 
 type ResolvedHandler = {
   implementation: AnyMethodHandler['implementation'];
   hooks: Record<string, unknown>;
-  messenger: Messenger<string, ActionConstraint>;
+  messenger?: Messenger<string, ActionConstraint> | undefined;
 };
 
 /**

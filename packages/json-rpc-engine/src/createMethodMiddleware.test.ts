@@ -57,44 +57,12 @@ const getDefaultHooks = (): Hooks => ({
   hook2: () => 99,
 });
 
-const getRootMessenger = (): Messenger<string, never> =>
-  new Messenger<string, never>({ namespace: MOCK_ANY_NAMESPACE });
-
 const method1 = 'method1';
 
 describe('createMethodMiddleware', () => {
-  it('throws an error if a required hook is missing', () => {
-    const hooks = { hook1: (): number => 42 };
-
-    expect(() =>
-      createMethodMiddleware({
-        handlers: { method1: handler, method2: handler },
-        messenger: getRootMessenger(),
-        // @ts-expect-error Intentionally missing a required hook.
-        hooks,
-      }),
-    ).toThrow('Missing expected hooks');
-  });
-
-  it('throws an error if an extraneous hook is provided', () => {
-    const hooks = {
-      ...getDefaultHooks(),
-      extraneousHook: (): number => 100,
-    };
-
-    expect(() =>
-      createMethodMiddleware({
-        handlers: { method1: handler, method2: handler },
-        messenger: getRootMessenger(),
-        hooks,
-      }),
-    ).toThrow('Received unexpected hooks');
-  });
-
   it('calls the handler for the matching method (uses hook1)', async () => {
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
     });
     const engine = new JsonRpcEngine();
@@ -114,7 +82,6 @@ describe('createMethodMiddleware', () => {
   it('calls the handler for the matching method (uses hook2)', async () => {
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
     });
     const engine = new JsonRpcEngine();
@@ -134,7 +101,6 @@ describe('createMethodMiddleware', () => {
   it('does not call the handler for a non-matching method', async () => {
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
     });
     const engine = new JsonRpcEngine();
@@ -157,7 +123,6 @@ describe('createMethodMiddleware', () => {
   it('handles errors returned by the implementation', async () => {
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
     });
     const engine = new JsonRpcEngine();
@@ -180,7 +145,6 @@ describe('createMethodMiddleware', () => {
   it('handles errors thrown by the implementation', async () => {
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
     });
     const engine = new JsonRpcEngine();
@@ -203,7 +167,6 @@ describe('createMethodMiddleware', () => {
   it('handles non-errors thrown by the implementation', async () => {
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
     });
     const engine = new JsonRpcEngine();
@@ -227,7 +190,6 @@ describe('createMethodMiddleware', () => {
     const onError = jest.fn();
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
-      messenger: getRootMessenger(),
       hooks: getDefaultHooks(),
       onError,
     });
@@ -259,7 +221,6 @@ describe('createMethodMiddleware', () => {
 
     const middleware = createMethodMiddleware({
       handlers: { noDeps: noDepsHandler },
-      messenger: getRootMessenger(),
       hooks: {},
     });
     const engine = new JsonRpcEngine();
@@ -273,6 +234,23 @@ describe('createMethodMiddleware', () => {
     assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBe('no-deps');
+  });
+
+  it('throws if handler actionNames are configured without a messenger', () => {
+    const actionHandler = {
+      implementation: (() => undefined) as JsonRpcMiddleware<
+        JsonRpcRequest,
+        Json
+      >,
+      actionNames: ['Example:TestAction'] as const,
+    };
+
+    expect(() =>
+      createMethodMiddleware({
+        handlers: { callAction: actionHandler },
+        hooks: {},
+      }),
+    ).toThrow('A messenger is required when a handler declares actionNames.');
   });
 
   it('passes a delegated messenger to the handler', async () => {
@@ -320,5 +298,31 @@ describe('createMethodMiddleware', () => {
     assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBe('action-result');
+  });
+
+  it('throws an error if a required hook is missing', () => {
+    const hooks = { hook1: (): number => 42 };
+
+    expect(() =>
+      createMethodMiddleware({
+        handlers: { method1: handler, method2: handler },
+        // @ts-expect-error Intentionally missing a required hook.
+        hooks,
+      }),
+    ).toThrow('Missing expected hooks');
+  });
+
+  it('throws an error if an extraneous hook is provided', () => {
+    const hooks = {
+      ...getDefaultHooks(),
+      extraneousHook: (): number => 100,
+    };
+
+    expect(() =>
+      createMethodMiddleware({
+        handlers: { method1: handler, method2: handler },
+        hooks,
+      }),
+    ).toThrow('Received unexpected hooks');
   });
 });
