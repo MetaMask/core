@@ -48,6 +48,15 @@ type HandlerHooks<Handler> = Handler extends {
   : never;
 
 /**
+ * Optional fields merged into {@link JsonRpcRequest} for a method handler.
+ * Keys are optionalized so a {@link JsonRpcMiddleware} `req` value stays
+ * assignable at the engine boundary while handlers can narrow at runtime.
+ */
+type PartialRequestExtras<Extras extends Record<string, unknown>> = {
+  [K in keyof Extras]: Extras[K];
+};
+
+/**
  * A {@link MethodHandler} implementation.
  *
  * @deprecated Use the v2 `createMethodMiddleware` instead.
@@ -57,8 +66,9 @@ export type MethodHandlerImplementation<
   MessengerActions extends ActionConstraint = never,
   Params extends JsonRpcParams = JsonRpcParams,
   Result extends Json = Json,
+  RequestExtras extends Record<string, unknown> = Record<string, unknown>,
 > = (
-  req: JsonRpcRequest<Params>,
+  req: JsonRpcRequest<Params> & PartialRequestExtras<RequestExtras>,
   res: PendingJsonRpcResponse<Result>,
   next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
@@ -76,12 +86,14 @@ export type MethodHandler<
   MessengerActions extends ActionConstraint = never,
   Params extends JsonRpcParams = JsonRpcParams,
   Result extends Json = Json,
+  RequestExtras extends Record<string, unknown> = Record<string, unknown>,
 > = {
   implementation: MethodHandlerImplementation<
     Hooks,
     MessengerActions,
     Params,
-    Result
+    Result,
+    RequestExtras
   >;
 } & ([Hooks] extends [never]
   ? { hookNames?: undefined }

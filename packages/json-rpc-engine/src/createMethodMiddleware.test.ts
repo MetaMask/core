@@ -3,6 +3,7 @@ import {
   assertIsJsonRpcFailure,
   assertIsJsonRpcSuccess,
   Json,
+  JsonRpcParams,
   JsonRpcRequest,
 } from '@metamask/utils';
 
@@ -234,6 +235,38 @@ describe('createMethodMiddleware', () => {
     assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBe('no-deps');
+  });
+
+  it('allows typing non-standard request fields via RequestExtras', async () => {
+    const originHandler = {
+      implementation: (req, res, _next, end): void => {
+        res.result = req.origin ?? 'missing';
+        return end();
+      },
+    } satisfies MethodHandler<
+      never,
+      never,
+      JsonRpcParams,
+      Json,
+      { origin: string }
+    >;
+
+    const middleware = createMethodMiddleware({
+      handlers: { reportOrigin: originHandler },
+      hooks: {},
+    });
+    const engine = new JsonRpcEngine();
+    engine.push(middleware);
+
+    const response = await engine.handle({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'reportOrigin',
+      origin: 'https://example.com',
+    } as JsonRpcRequest<JsonRpcParams> & { origin: string });
+    assertIsJsonRpcSuccess(response);
+
+    expect(response.result).toBe('https://example.com');
   });
 
   it('throws if handler actionNames are configured without a messenger', () => {
