@@ -3701,9 +3701,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-hd-keyring@npm:^14.0.1":
-  version: 14.0.1
-  resolution: "@metamask/eth-hd-keyring@npm:14.0.1"
+"@metamask/eth-hd-keyring@npm:^14.1.0":
+  version: 14.1.0
+  resolution: "@metamask/eth-hd-keyring@npm:14.1.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@ethereumjs/util": "npm:^9.1.0"
@@ -3716,7 +3716,7 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
     ethereum-cryptography: "npm:^2.2.1"
-  checksum: 10/e3666247f2bcb15c28af388a89f0e5e1fc19a9efdf7b17e41f9f1ae0c3f8dad81be2a0ebca79691dea92dc2dc5d30ccfe26fc1853b008b1b8955d95becff1114
+  checksum: 10/da036b04c49242a66afc7d95f848acbf1e6e6a210808e8b4266ba0c5a1d22e6fa0ba296ffff70fca7bd95bd9bf13a96322b2630ff033da83d22a866187b6cf51
   languageName: node
   linkType: hard
 
@@ -3812,16 +3812,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-money-keyring@npm:^2.0.2":
-  version: 2.0.2
-  resolution: "@metamask/eth-money-keyring@npm:2.0.2"
+"@metamask/eth-money-keyring@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "@metamask/eth-money-keyring@npm:2.0.3"
   dependencies:
-    "@metamask/eth-hd-keyring": "npm:^14.0.1"
+    "@metamask/eth-hd-keyring": "npm:^14.1.0"
     "@metamask/keyring-api": "npm:^23.0.1"
     "@metamask/keyring-utils": "npm:^3.2.0"
     "@metamask/superstruct": "npm:^3.1.0"
     async-mutex: "npm:^0.5.0"
-  checksum: 10/cd8f52b88836b874e9e3a67c045714dd6c2e83be21a72ada4f45e4ca6884e01e496e414db6c358ef9d2f1c99229d90bc1f1760c4de48bb3919928820c9a09123
+  checksum: 10/64aba491a60aaa0fdb823592520b3900b105c5cb104bbe3ef7ea3e79e5789b2a4b38a021d8b4972ba7777fed046d681b56a695acc58f9df85629a8886a68364a
   languageName: node
   linkType: hard
 
@@ -4235,7 +4235,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
-    "@metamask/eth-hd-keyring": "npm:^14.0.1"
+    "@metamask/eth-hd-keyring": "npm:^14.1.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/eth-simple-keyring": "npm:^12.0.1"
     "@metamask/keyring-api": "npm:^23.0.1"
@@ -4493,7 +4493,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^37.2.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/eth-money-keyring": "npm:^2.0.2"
+    "@metamask/eth-money-keyring": "npm:^2.0.3"
     "@metamask/keyring-api": "npm:^23.0.1"
     "@metamask/keyring-controller": "npm:^25.2.0"
     "@metamask/keyring-utils": "npm:^3.1.0"
@@ -4545,7 +4545,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^11.20.0"
-    "@metamask/eth-hd-keyring": "npm:^14.0.1"
+    "@metamask/eth-hd-keyring": "npm:^14.1.0"
     "@metamask/eth-snap-keyring": "npm:^22.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
     "@metamask/keyring-api": "npm:^23.0.1"
