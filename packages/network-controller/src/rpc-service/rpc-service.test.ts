@@ -1801,16 +1801,16 @@ function testsForRetriableResponses({
   });
 
   it('does not call onBreak if the user is offline when the circuit breaks', async () => {
-    nock('https://rpc.example.chain')
+    const endpointUrl = 'https://rpc.example.chain';
+    nock(endpointUrl)
       .post('/', {
         id: 1,
         jsonrpc: '2.0',
         method: 'eth_chainId',
         params: [],
       })
-      .times(3)
+      .times(15)
       .reply(httpStatus, responseBody);
-    const endpointUrl = 'https://rpc.example.chain';
     const onBreakListener = jest.fn();
     const service = new RpcService({
       fetch,
