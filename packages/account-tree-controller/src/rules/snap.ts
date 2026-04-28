@@ -107,7 +107,8 @@ export class SnapRule
 
     return (
       account.metadata.keyring.type === (KeyringTypes.snap as string) &&
-      snap.enabled
+      snap.enabled &&
+      !snap.blocked
     );
   }
 }
