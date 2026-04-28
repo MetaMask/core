@@ -15,7 +15,7 @@ import type {
   TransactionPayRequiredToken,
 } from '../types';
 import type { UpdateQuotesRequest } from './quotes';
-import { inFlightQuoteRequests, refreshQuotes, updateQuotes } from './quotes';
+import { refreshQuotes, updateQuotes } from './quotes';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -137,7 +137,6 @@ describe('Quotes Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
-    inFlightQuoteRequests.clear();
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -971,24 +970,22 @@ describe('Quotes Utils', () => {
         expect(paymentTokenWrites).not.toContain('1111111');
       });
 
-      it('clears the in-flight controller after completion', async () => {
-        await run();
-        expect(inFlightQuoteRequests.has(TRANSACTION_ID_MOCK)).toBe(false);
-      });
-
       it('drops the late strategy response from an aborted call after getQuotes returns', async () => {
         const firstQuotes = deferred<TransactionPayQuote<Json>[]>();
 
-        getQuotesMock.mockImplementationOnce(async () => {
-          inFlightQuoteRequests.get(TRANSACTION_ID_MOCK)?.abort();
-          return firstQuotes;
-        });
+        getQuotesMock.mockImplementationOnce(() => firstQuotes);
+
+        const firstPromise = run();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const secondPromise = run();
 
         firstQuotes.resolve([QUOTE_MOCK]);
 
-        const result = await run();
+        const [firstResult] = await Promise.all([firstPromise, secondPromise]);
 
-        expect(result).toBe(false);
+        expect(firstResult).toBe(false);
 
         const quoteWrites = updateTransactionDataMock.mock.calls
           .map(([, fn]) => {
@@ -998,7 +995,39 @@ describe('Quotes Utils', () => {
           })
           .filter((data) => Array.isArray(data.quotes));
 
-        expect(quoteWrites).toHaveLength(0);
+        expect(quoteWrites).toHaveLength(1);
+      });
+
+      it('re-throws non-abort errors from the quote pipeline', async () => {
+        const pipelineError = new Error('calculateTotals failed');
+
+        getQuotesMock.mockResolvedValueOnce([QUOTE_MOCK]);
+        calculateTotalsMock.mockImplementationOnce(() => {
+          throw pipelineError;
+        });
+
+        await expect(run()).rejects.toThrow(pipelineError);
+      });
+
+      it('catches abort errors thrown by strategy and returns false', async () => {
+        const strategyError = new Error('The operation was aborted');
+        const gate = deferred<TransactionPayQuote<Json>[]>();
+
+        getQuotesMock.mockImplementationOnce(() => gate);
+
+        const firstPromise = run();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        run().catch(() => undefined);
+
+        gate.reject(strategyError);
+
+        const firstResult = await firstPromise;
+
+        expect(firstResult).toBe(false);
       });
 
       it('forwards an aborting signal to the strategy getQuotes call', async () => {

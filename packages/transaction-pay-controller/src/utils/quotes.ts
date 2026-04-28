@@ -36,55 +36,7 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
 
-/**
- * Tracks the currently in-flight quote request per transaction so that a
- * subsequent call to {@link updateQuotes} for the same transaction can abort
- * the previous one. This prevents an older/slower quote response from
- * overwriting a newer one in state.
- *
- * Exported for testing only.
- */
-export const inFlightQuoteRequests = new Map<string, AbortController>();
-
-/**
- * Abort any in-flight quote request for the given transaction and install a
- * fresh AbortController. Returns the new controller so the caller can read
- * its signal.
- *
- * @param transactionId - The transaction whose previous request should be aborted.
- * @returns The newly installed AbortController.
- */
-function abortPreviousAndCreateController(
-  transactionId: string,
-): AbortController {
-  const previous = inFlightQuoteRequests.get(transactionId);
-
-  if (previous && !previous.signal.aborted) {
-    log('Aborting previous quote request', { transactionId });
-    previous.abort();
-  }
-
-  const controller = new AbortController();
-  inFlightQuoteRequests.set(transactionId, controller);
-  return controller;
-}
-
-/**
- * Clear the tracked controller for a transaction if it matches the supplied
- * one. This avoids races where a slower aborted call would otherwise erase
- * the entry installed by a newer call.
- *
- * @param transactionId - The transaction to clear.
- * @param controller - The controller that owns the slot.
- */
-function clearControllerIfCurrent(
-  transactionId: string,
-  controller: AbortController,
-): void {
-  if (inFlightQuoteRequests.get(transactionId) === controller) {
-    inFlightQuoteRequests.delete(transactionId);
-  }
-}
+const inFlightQuoteRequests = new Map<string, AbortController>();
 
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
@@ -216,6 +168,12 @@ export async function updateQuotes(
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
+  } catch (error) {
+    if (signal.aborted) {
+      log('Quote request aborted', { transactionId, reason: signal.reason });
+      return false;
+    }
+    throw error;
   } finally {
     if (!signal.aborted) {
       updateTransactionData(transactionId, (data) => {
@@ -330,6 +288,30 @@ export async function refreshQuotes(
     if (isUpdated) {
       log('Refreshed quotes', { transactionId, strategy: strategyName });
     }
+  }
+}
+
+function abortPreviousAndCreateController(
+  transactionId: string,
+): AbortController {
+  const previous = inFlightQuoteRequests.get(transactionId);
+
+  if (previous && !previous.signal.aborted) {
+    log('Aborting previous quote request', { transactionId });
+    previous.abort(new Error('Superseded by newer quote request'));
+  }
+
+  const controller = new AbortController();
+  inFlightQuoteRequests.set(transactionId, controller);
+  return controller;
+}
+
+function clearControllerIfCurrent(
+  transactionId: string,
+  controller: AbortController,
+): void {
+  if (inFlightQuoteRequests.get(transactionId) === controller) {
+    inFlightQuoteRequests.delete(transactionId);
   }
 }
 
@@ -658,6 +640,10 @@ async function getQuotes(
         quotes,
       };
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
       log('Strategy failed, trying next', {
         error,
         strategy: name,
