@@ -343,20 +343,29 @@ async function submitTransactions(
   // For post-quote flows, prepend the original transaction so it gets
   // included in the batch alongside the relay deposit(s).
   // This always results in multiple params, so it takes the batch path.
+  // When an accountOverride is set (detected by `from` divergence between the
+  // quote and the original tx), the override account does not directly hold
+  // the funds for the original call, so the prepended tx is replaced with a
+  // delegation tx that redeems the original call on its behalf.
   const { isPostQuote } = quote.request;
+  const hasAccountOverride =
+    quote.request.from.toLowerCase() !==
+    (transaction.txParams.from as Hex).toLowerCase();
 
-  const allParams =
-    isPostQuote && transaction.txParams.to
-      ? [
-          {
-            data: transaction.txParams.data as Hex | undefined,
-            from: transaction.txParams.from,
-            to: transaction.txParams.to,
-            value: transaction.txParams.value as Hex | undefined,
-          } as TransactionParams,
-          ...normalizedParams,
-        ]
-      : normalizedParams;
+  let allParams = normalizedParams;
+
+  if (isPostQuote && transaction.txParams.to) {
+    const prependedParams = hasAccountOverride
+      ? await buildDelegatedOriginalParams(quote, transaction, messenger)
+      : ({
+          data: transaction.txParams.data as Hex | undefined,
+          from: transaction.txParams.from,
+          to: transaction.txParams.to,
+          value: transaction.txParams.value as Hex | undefined,
+        } as TransactionParams);
+
+    allParams = [prependedParams, ...normalizedParams];
+  }
 
   if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
@@ -374,6 +383,56 @@ async function submitTransactions(
     normalizedParams,
     allParams,
   );
+}
+
+/**
+ * Build TransactionParams for a delegation that redeems the original
+ * post-quote transaction on behalf of the override account. Used when the
+ * override account cannot execute the original call directly.
+ *
+ * @param quote - Relay quote (used for source chain + override `from`).
+ * @param transaction - Original transaction meta to be redeemed.
+ * @param messenger - Controller messenger.
+ * @returns Transaction params for the delegation tx.
+ */
+async function buildDelegatedOriginalParams(
+  quote: TransactionPayQuote<RelayQuote>,
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+): Promise<TransactionParams> {
+  const { from, sourceChainId } = quote.request;
+
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
+  const sourceCallTransaction = {
+    ...transaction,
+    chainId: sourceChainId,
+    networkClientId,
+    nestedTransactions: [
+      {
+        data: (transaction.txParams.data ?? '0x') as Hex,
+        to: transaction.txParams.to as Hex,
+        value: (transaction.txParams.value ?? '0x0') as Hex,
+      },
+    ],
+  } as TransactionMeta;
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction: sourceCallTransaction },
+  );
+
+  log('Delegation result for prepended original tx', delegation);
+
+  return {
+    data: delegation.data,
+    from,
+    to: delegation.to,
+    value: delegation.value,
+  };
 }
 
 /**
