@@ -87,16 +87,14 @@ const MESSENGER_MOCK = {
       stateChangeEntries.push({ handler, selector });
     },
   ),
-  unsubscribe: jest.fn(
-    (_event: string, handler: (value: unknown) => void) => {
-      const index = stateChangeEntries.findIndex(
-        (entry) => entry.handler === handler,
-      );
-      if (index !== -1) {
-        stateChangeEntries.splice(index, 1);
-      }
-    },
-  ),
+  unsubscribe: jest.fn((_event: string, handler: (value: unknown) => void) => {
+    const index = stateChangeEntries.findIndex(
+      (entry) => entry.handler === handler,
+    );
+    if (index !== -1) {
+      stateChangeEntries.splice(index, 1);
+    }
+  }),
 } as unknown as TransactionControllerMessenger;
 
 function emitStateChange(state: TransactionControllerState): void {
@@ -388,11 +386,9 @@ describe('Batch Utils', () => {
             SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
           const { transactionMeta } = returnValue;
 
-          options
-            .publishHook?.(transactionMeta, signature)
-            .catch(() => {
-              // Intentionally empty
-            });
+          options.publishHook?.(transactionMeta, signature).catch(() => {
+            // Intentionally empty
+          });
 
           getTransactionMock.mockReturnValueOnce({
             ...transactionMeta,

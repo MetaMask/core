@@ -473,7 +473,10 @@ function waitForTransactionStatus(
   request: Pick<AddTransactionBatchRequest, 'getTransaction' | 'messenger'>,
 ): Promise<void> {
   const { getTransaction, messenger } = request;
-  const failureStatuses = [TransactionStatus.failed, TransactionStatus.rejected];
+  const failureStatuses = [
+    TransactionStatus.failed,
+    TransactionStatus.rejected,
+  ];
 
   return new Promise<void>((resolve, reject) => {
     const checkStatus = (
@@ -490,8 +493,7 @@ function waitForTransactionStatus(
         unsubscribe?.();
         reject(
           new Error(
-            tx?.error?.message ??
-              `Transaction ${transactionId} ${tx?.status}`,
+            tx?.error?.message ?? `Transaction ${transactionId} ${tx?.status}`,
           ),
         );
         return true;
@@ -512,10 +514,7 @@ function waitForTransactionStatus(
 
     const handler = (tx?: TransactionMeta): void => {
       const unsubscribe = (): void =>
-        messenger.unsubscribe(
-          'TransactionController:stateChange',
-          handler,
-        );
+        messenger.unsubscribe('TransactionController:stateChange', handler);
 
       checkStatus(tx, unsubscribe);
     };
