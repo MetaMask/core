@@ -1,7 +1,6 @@
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
-import { validatePairResponse } from '../utils/validate-pair-response';
 import { HTTP_STATUS_CODES } from '../constants';
 import {
   NonceRetrievalError,
@@ -10,6 +9,7 @@ import {
   ValidationError,
   RateLimitedError,
 } from '../errors';
+import { validatePairResponse } from '../utils/validate-pair-response';
 import type {
   AccessToken,
   ErrorMessage,
