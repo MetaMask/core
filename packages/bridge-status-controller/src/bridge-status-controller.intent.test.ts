@@ -730,169 +730,6 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     jest.clearAllMocks();
   });
 
-  it('transactionFailed subscription: marks main tx as FAILED and tracks (non-rejected)', async () => {
-    const mockTxHistory = {
-      bridgeTxMetaId1: {
-        txMetaId: 'bridgeTxMetaId1',
-        originalTransactionId: 'bridgeTxMetaId1',
-        quote: {
-          srcChainId: 1,
-          destChainId: 10,
-          srcAsset: {
-            address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:1/slip44:60',
-          },
-          destAsset: { assetId: 'eip155:10/slip44:60' },
-          bridges: ['across'],
-          bridgeId: 'rango',
-        },
-        account: '0xAccount1',
-        status: {
-          status: StatusTypes.PENDING,
-          srcChain: { chainId: 1, txHash: '0xsrc' },
-        },
-      },
-    };
-    const { controller, messenger } = setup({
-      mockTxHistory,
-    });
-
-    const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
-    )?.[1];
-    expect(typeof failedCb).toBe('function');
-
-    failedCb({
-      transactionMeta: {
-        id: 'bridgeTxMetaId1',
-        type: TransactionType.bridge,
-        status: TransactionStatus.failed,
-        chainId: '0x1',
-      },
-    });
-
-    controller.stopAllPolling();
-
-    expect(controller.state.txHistory.bridgeTxMetaId1.status.status).toBe(
-      StatusTypes.FAILED,
-    );
-
-    // ensure tracking was attempted
-    expect((messenger.call as jest.Mock).mock.calls).toStrictEqual(
-      expect.arrayContaining([
-        expect.arrayContaining([
-          'BridgeController:trackUnifiedSwapBridgeEvent',
-        ]),
-      ]),
-    );
-  });
-
-  it('transactionFailed subscription: maps approval tx id back to main history item', async () => {
-    const mockTxHistory = {
-      mainTx: {
-        txMetaId: 'mainTx',
-        originalTransactionId: 'mainTx',
-        approvalTxId: 'approvalTx',
-        quote: {
-          srcChainId: 1,
-          destChainId: 10,
-          srcAsset: {
-            address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:1/slip44:60',
-          },
-          destAsset: {
-            address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:60',
-          },
-          bridges: ['cowswap'],
-          bridgeId: 'cowswap',
-        },
-        account: '0xAccount1',
-        status: {
-          status: StatusTypes.PENDING,
-          srcChain: { chainId: 1, txHash: '0xsrc' },
-        },
-      },
-    };
-    const { controller, messenger } = setup({
-      mockTxHistory,
-    });
-    const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
-    )?.[1];
-
-    failedCb({
-      transactionMeta: {
-        id: 'approvalTx',
-        type: TransactionType.bridgeApproval,
-        status: TransactionStatus.failed,
-        chainId: '0x1',
-      },
-    });
-
-    controller.stopAllPolling();
-
-    expect(controller.state.txHistory.mainTx.status.status).toBe(
-      StatusTypes.FAILED,
-    );
-  });
-
-  it('transactionConfirmed subscription: tracks swap Completed; starts polling on bridge confirmed', async () => {
-    const mockTxHistory = {
-      bridgeConfirmed1: {
-        txMetaId: 'bridgeConfirmed1',
-        originalTransactionId: 'bridgeConfirmed1',
-        quote: {
-          srcChainId: 1,
-          destChainId: 10,
-          srcAsset: {
-            address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:1/slip44:60',
-          },
-          destAsset: {
-            address: '0x0000000000000000000000000000000000000000',
-            assetId: 'eip155:10/slip44:60',
-          },
-          bridges: ['cowswap'],
-          bridgeId: 'cowswap',
-        },
-        account: '0xAccount1',
-        status: {
-          status: StatusTypes.PENDING,
-          srcChain: { chainId: 1, txHash: '0xsrc' },
-        },
-      },
-    };
-    const { messenger, controller, startPollingSpy } = setup({
-      mockTxHistory,
-    });
-
-    const confirmedCb = messenger.subscribe.mock.calls.find(
-      ([evt]: [any]) => evt === 'TransactionController:transactionConfirmed',
-    )?.[1];
-    expect(typeof confirmedCb).toBe('function');
-
-    // Swap -> Completed tracking
-    confirmedCb({
-      id: 'swap1',
-      type: TransactionType.swap,
-      chainId: '0x1',
-    });
-
-    // Bridge -> startPolling
-    confirmedCb({
-      id: 'bridgeConfirmed1',
-      type: TransactionType.bridge,
-      chainId: '0x1',
-    });
-
-    controller.stopAllPolling();
-
-    expect(startPollingSpy).toHaveBeenCalledWith({
-      bridgeTxMetaId: 'bridgeConfirmed1',
-    });
-  });
-
   it('restartPollingForFailedAttempts: throws when identifier missing, and when no match found', async () => {
     const { controller } = setup();
 
@@ -1019,43 +856,6 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     jest.resetModules();
     jest.resetAllMocks();
     jest.clearAllMocks();
-  });
-
-  it('transactionFailed: returns early for intent txs (swapMetaData.isIntentTx)', () => {
-    const mockTxHistory = {
-      tx1: {
-        txMetaId: 'tx1',
-        originalTransactionId: 'tx1',
-        quote: minimalIntentQuoteResponse().quote,
-        account: '0xAccount1',
-        status: {
-          status: StatusTypes.PENDING,
-          srcChain: { chainId: 1, txHash: '0x' },
-        },
-      },
-    };
-    const { controller, messenger } = setup({
-      mockTxHistory,
-    });
-
-    const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
-    )?.[1];
-
-    failedCb({
-      transactionMeta: {
-        id: 'tx1',
-        chainId: '0x1',
-        type: TransactionType.bridge,
-        status: TransactionStatus.failed,
-        swapMetaData: { isIntentTx: true }, // <- triggers early return
-      },
-    });
-
-    expect(controller.state.txHistory.tx1.status.status).toBe(
-      StatusTypes.FAILED,
-    );
-    controller.stopAllPolling();
   });
 
   it('constructor restartPolling: skips items when shouldSkipFetchDueToFetchFailures returns true', () => {
@@ -1227,6 +1027,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
             status: StatusTypes.PENDING,
             srcChain: { chainId: 1, txHash: '0xhash' },
           },
+          startTime: Date.now() - 1000,
         },
       },
     });
@@ -1262,6 +1063,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
             "token_address_source": "eip155:1/slip44:60",
           },
         ],
+        [
+          "RemoteFeatureFlagController:getState",
+        ],
       ]
     `);
     controller.stopAllPolling();
@@ -1286,7 +1090,8 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     });
 
     const failedCb = messenger.subscribe.mock.calls.find(
-      ([evt]: [any]) => evt === 'TransactionController:transactionFailed',
+      ([evt]: [any]) =>
+        evt === 'TransactionController:transactionStatusUpdated',
     )?.[1];
 
     failedCb({

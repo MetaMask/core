@@ -53,6 +53,7 @@ export type {
   TransactionControllerClearUnapprovedTransactionsAction,
   TransactionControllerAbortTransactionSigningAction,
   TransactionControllerUpdateAtomicBatchDataAction,
+  TransactionControllerWipeTransactionsAction,
 } from './TransactionController-method-action-types';
 export {
   CANCEL_RATE,

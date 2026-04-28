@@ -42,6 +42,9 @@
       "path": "./packages/assets-controllers"
     },
     {
+      "path": "./packages/authenticated-user-storage"
+    },
+    {
       "path": "./packages/base-controller"
     },
     {
@@ -144,6 +147,9 @@
       "path": "./packages/money-account-controller"
     },
     {
+      "path": "./packages/money-account-upgrade-controller"
+    },
+    {
       "path": "./packages/multichain-account-service"
     },
     {
@@ -166,6 +172,9 @@
     },
     {
       "path": "./packages/notification-services-controller"
+    },
+    {
+      "path": "./packages/passkey-controller"
     },
     {
       "path": "./packages/permission-controller"

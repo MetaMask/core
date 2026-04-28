@@ -5,6 +5,7 @@
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
+  "metamask/authenticated-user-storage": "team-auth-engineers",
   "metamask/profile-sync-controller": "team-accounts-framework",
   "metamask/ramps-controller": "team-money-movement",
   "metamask/assets-controller": "team-assets",
@@ -55,6 +56,7 @@
   "metamask/rate-limit-controller": "team-core-platform",
   "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-core-platform",
+  "metamask/passkey-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
   "metamask/subscription-controller": "team-shield",
@@ -78,5 +80,6 @@
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
   "metamask/config-registry-controller": "team-networks",
   "metamask/money-account-controller": "team-accounts-framework",
+  "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework"
 }

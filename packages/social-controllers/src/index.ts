@@ -31,6 +31,7 @@ export type {
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFetchOpenPositionsAction,
+  SocialServiceFetchPositionByIdAction,
   SocialServiceFetchTraderProfileAction,
   SocialServiceFollowAction,
   SocialServiceUnfollowAction,
@@ -39,8 +40,8 @@ export type {
 export { TradeStruct } from './social-types';
 export type {
   FetchFollowersOptions,
-  FetchFollowingOptions,
   FetchLeaderboardOptions,
+  FetchPositionByIdOptions,
   FetchPositionsOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
