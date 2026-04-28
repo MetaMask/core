@@ -48,7 +48,7 @@ export const eip7702AuthorizationStep: Step = {
         return 'already-done';
       }
       throw new Error(
-        `Account ${address} is already delegated to ${existingDelegation}, which is not the configured delegator impl ${delegatorImplAddress}. Refusing to overwrite an existing EIP-7702 delegation.`,
+        `Account ${address} is already upgraded to another smart account: ${existingDelegation}.`,
       );
     }
 
