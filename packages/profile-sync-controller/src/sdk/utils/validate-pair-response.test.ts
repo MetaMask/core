@@ -1,13 +1,20 @@
 import { validatePairResponse } from './validate-pair-response';
 
-function createValidRawPairResponse(): {
+
+type RawPairResponse = {
   profile: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     profile_id: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_id: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     metametrics_id: string;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   profile_aliases: never[];
-} {
+};
+
+function createValidRawPairResponse(): RawPairResponse {
   return {
     profile: {
       profile_id: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
