@@ -459,17 +459,17 @@ async function addTransactionBatchWith7702(
 }
 
 /**
- * Wait for a transaction to reach a specific status.
+ * Wait for a transaction to reach one of the specified statuses.
  * Checks the current state first to avoid race conditions, then subscribes to
  * state changes for ongoing updates.
  *
  * @param transactionId - The ID of the transaction to monitor.
- * @param targetStatus - The status to wait for.
+ * @param targetStatuses - The statuses that indicate success.
  * @param request - The batch request containing messenger and getTransaction.
  */
 function waitForTransactionStatus(
   transactionId: string,
-  targetStatus: TransactionStatus,
+  targetStatuses: TransactionStatus[],
   request: Pick<AddTransactionBatchRequest, 'getTransaction' | 'messenger'>,
 ): Promise<void> {
   const { getTransaction, messenger } = request;
@@ -483,7 +483,7 @@ function waitForTransactionStatus(
       tx?: TransactionMeta,
       unsubscribe?: () => void,
     ): boolean => {
-      if (tx?.status === targetStatus) {
+      if (targetStatuses.includes(tx?.status as TransactionStatus)) {
         unsubscribe?.();
         resolve();
         return true;
@@ -502,25 +502,21 @@ function waitForTransactionStatus(
       return false;
     };
 
-    try {
-      const initialTx = getTransaction(transactionId);
+    const initialTx = getTransaction(transactionId);
 
-      if (checkStatus(initialTx)) {
-        return;
-      }
-    } catch {
-      // Transaction may not exist yet in state.
+    if (checkStatus(initialTx)) {
+      return;
     }
 
     const handler = (tx?: TransactionMeta): void => {
       const unsubscribe = (): void =>
-        messenger.unsubscribe('TransactionController:stateChanged', handler);
+        messenger.unsubscribe('TransactionController:stateChange', handler);
 
       checkStatus(tx, unsubscribe);
     };
 
     messenger.subscribe(
-      'TransactionController:stateChanged',
+      'TransactionController:stateChange', // eslint-disable-line no-restricted-syntax
       handler,
       (state: TransactionControllerState) =>
         state.transactions.find((tx) => tx.id === transactionId),
@@ -620,26 +616,27 @@ async function addTransactionBatchWithHook(
     let index = 0;
 
     for (const nestedTransaction of nestedTransactions) {
-      const { hookTransaction, alreadySigned } =
-        await processTransactionWithHook(
-          batchId,
-          nestedTransaction,
-          publishHook,
-          request,
-          txBatchMeta,
-          index,
-        );
+      const hookTransaction = await processTransactionWithHook(
+        batchId,
+        nestedTransaction,
+        publishHook,
+        request,
+        txBatchMeta,
+        index,
+      );
 
       hookTransactions.push(hookTransaction);
       index += 1;
 
-      if (!alreadySigned) {
-        await waitForTransactionStatus(
-          String(hookTransaction.id),
+      await waitForTransactionStatus(
+        String(hookTransaction.id),
+        [
           TransactionStatus.signed,
-          request,
-        );
-      }
+          TransactionStatus.submitted,
+          TransactionStatus.confirmed,
+        ],
+        request,
+      );
     }
 
     const { signedTransactions } = await collectHook.ready();
@@ -714,12 +711,9 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta: TransactionBatchMeta | undefined,
   index: number,
-): Promise<{
-  hookTransaction: Omit<PublishBatchHookTransaction, 'signedTx'> & {
-    type?: TransactionType;
-  };
-  alreadySigned: boolean;
-}> {
+): Promise<
+  Omit<PublishBatchHookTransaction, 'signedTx'> & { type?: TransactionType }
+> {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
 
@@ -779,7 +773,7 @@ async function processTransactionWithHook(
       params,
     });
 
-    return { hookTransaction: { id, params }, alreadySigned: true };
+    return { id, params };
   }
 
   const transactionMetaForGasEstimates = {
@@ -831,10 +825,7 @@ async function processTransactionWithHook(
     type,
   });
 
-  return {
-    hookTransaction: { id, params: newParams, type },
-    alreadySigned: false,
-  };
+  return { id, params: newParams, type };
 }
 
 /**
