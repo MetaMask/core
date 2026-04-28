@@ -26,6 +26,7 @@ import type {
   AssetsControllerGetStateAction,
   AssetsControllerMessenger,
 } from '../AssetsController';
+import { getDefaultTrackedAssetsForChain } from '../defaults';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -288,6 +289,15 @@ export class RpcDataSource extends AbstractDataSource<
           const { chainId } = parseCaipAssetType(assetId);
           const nativeId = this.#getNativeAssetForChain(chainId);
           return nativeId?.toLowerCase() === assetId.toLowerCase();
+        },
+        // BalanceFetcher polls by hex chain id. Convert to CAIP-2 to
+        // look up controller-managed default tracked assets (e.g. mUSD
+        // on mainnet/Linea/Monad). These are polled for every account
+        // even when the on-chain balance is zero.
+        getDefaultTrackedAssetsForChain: (hexChainId): Caip19AssetId[] => {
+          const decimal = parseInt(hexChainId, 16).toString();
+          const caipChainId = `eip155:${decimal}` as ChainId;
+          return [...getDefaultTrackedAssetsForChain(caipChainId)];
         },
       },
     );

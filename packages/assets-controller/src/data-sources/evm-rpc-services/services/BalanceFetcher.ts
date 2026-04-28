@@ -33,6 +33,13 @@ export type BalanceFetcherConfig = {
   pollingInterval?: number;
   /** Determines whether a CAIP-19 asset ID represents a native asset. */
   isNativeAsset: (assetId: CaipAssetType) => boolean;
+  /**
+   * Returns the controller-managed default tracked assets for the given
+   * hex chain id. These are tokens we always poll for an account on
+   * the chain — even when the on-chain balance is zero — so they
+   * always appear in the UI. Optional; defaults to "no extras".
+   */
+  getDefaultTrackedAssetsForChain?: (chainId: ChainId) => CaipAssetType[];
 };
 
 /**
@@ -81,6 +88,10 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
   readonly #isNativeAsset: (assetId: CaipAssetType) => boolean;
 
+  readonly #getDefaultTrackedAssetsForChain: (
+    chainId: ChainId,
+  ) => CaipAssetType[];
+
   #onBalanceUpdate: OnBalanceUpdateCallback | undefined;
 
   constructor(
@@ -96,6 +107,8 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       defaultTimeoutMs: config.defaultTimeoutMs ?? 30000,
     };
     this.#isNativeAsset = config.isNativeAsset;
+    this.#getDefaultTrackedAssetsForChain =
+      config.getDefaultTrackedAssetsForChain ?? ((): CaipAssetType[] => []);
 
     // Set the polling interval
     this.setIntervalLength(config?.pollingInterval ?? DEFAULT_BALANCE_INTERVAL);
@@ -130,13 +143,16 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
   }
 
   /**
-   * Return asset fetch entries tracked in state for the given account and
-   * chain. Both native (`slip44:`) and ERC-20 (`erc20:`) entries are included.
+   * Return asset fetch entries for the given account and chain. Combines
+   * three sources: assets tracked in state (`assetsBalance`), user-added
+   * custom assets (`customAssets`), and controller-managed default
+   * tracked assets (e.g. mUSD on certain chains). Native (`slip44:`),
+   * ERC-20 (`erc20:`), and other namespaces are all eligible.
    *
    * @param chainId - Hex chain ID (e.g. "0x1").
    * @param accountId - Account UUID.
-   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
-   * @returns Array of asset fetch entries from state for the requested chain.
+   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets` and the default tracked assets.
+   * @returns Array of asset fetch entries for the requested chain.
    */
   #getAssetsToFetch(
     chainId: ChainId,
@@ -195,6 +211,15 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       for (const assetId of customAssets as CaipAssetType[]) {
         collect(assetId);
       }
+    }
+
+    // 3. Controller-managed default tracked assets (e.g. mUSD on
+    //    Ethereum mainnet, Linea, Monad). Always polled for the chain
+    //    so the user sees the token in the UI even when the balance
+    //    is still zero. Behaves like a customAsset for fetching but
+    //    is not stored in state.
+    for (const assetId of this.#getDefaultTrackedAssetsForChain(chainId)) {
+      collect(assetId);
     }
 
     return Array.from(assetsToFetch.values());

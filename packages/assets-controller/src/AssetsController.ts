@@ -80,6 +80,7 @@ import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import { CHAINS_WITH_DEFAULT_TRACKED_ASSETS } from './defaults';
 import { AssetsDataSourceError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
@@ -2515,33 +2516,50 @@ export class AssetsController extends BaseController<
     const rpc = this.#rpcDataSource;
     const rpcAvailableChains = new Set(rpc.getActiveChainsSync());
 
-    // Collect chains that have customAssets for at least one of the given
-    // accounts and are NOT already covered by the regular RPC subscription.
+    // Collect chains that need a supplemental RPC subscription:
+    //   1. Chains where this account has user-added customAssets
+    //   2. Chains with controller-managed default tracked assets (e.g.
+    //      mUSD on mainnet/Linea/Monad) — RPC must always poll these
+    //      so the default token shows up even when WS/AccountsApi own
+    //      the chain in the regular handoff and the on-chain balance
+    //      is still zero.
     const supplementalChainSet = new Set<ChainId>();
     const accountsWithCustomAssets = new Set<string>();
-    for (const account of accounts) {
-      const customForAccount = this.state.customAssets[account.id] ?? [];
-      if (customForAccount.length === 0) {
-        continue;
+    const considerChain = (chainId: ChainId): boolean => {
+      if (rpcAssignedChains.has(chainId)) {
+        return false;
       }
-      accountsWithCustomAssets.add(account.id);
-      for (const assetId of customForAccount) {
-        let chainId: ChainId;
-        try {
-          chainId = extractChainId(assetId);
-        } catch {
-          continue;
+      if (!rpcAvailableChains.has(chainId)) {
+        return false;
+      }
+      if (!chainToAccounts.has(chainId)) {
+        return false;
+      }
+      supplementalChainSet.add(chainId);
+      return true;
+    };
+    for (const account of accounts) {
+      // (1) User-added customAssets — only when present.
+      const customForAccount = this.state.customAssets[account.id] ?? [];
+      if (customForAccount.length > 0) {
+        accountsWithCustomAssets.add(account.id);
+        for (const assetId of customForAccount) {
+          let chainId: ChainId;
+          try {
+            chainId = extractChainId(assetId);
+          } catch {
+            continue;
+          }
+          considerChain(chainId);
         }
-        if (rpcAssignedChains.has(chainId)) {
-          continue;
+      }
+
+      // (2) Default tracked assets — always poll the chain for every
+      //     account, regardless of whether the user has added anything.
+      for (const chainId of CHAINS_WITH_DEFAULT_TRACKED_ASSETS) {
+        if (considerChain(chainId)) {
+          accountsWithCustomAssets.add(account.id);
         }
-        if (!rpcAvailableChains.has(chainId)) {
-          continue;
-        }
-        if (!chainToAccounts.has(chainId)) {
-          continue;
-        }
-        supplementalChainSet.add(chainId);
       }
     }
 
