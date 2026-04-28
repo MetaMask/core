@@ -1091,6 +1091,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
       case UnifiedSwapBridgeEventName.AssetPickerOpened:
         return baseProperties;
+      // Inject `token_security_type_destination` from controller state so the
+      // field is always present on this event. `baseProperties` (which spreads
+      // `propertiesFromClient`) wins if the client supplies a value explicitly.
+      case UnifiedSwapBridgeEventName.InputSourceDestinationSwitched:
+        return {
+          token_security_type_destination:
+            this.state.tokenSecurityTypeDestination,
+          ...baseProperties,
+        };
       // These events may be published after the bridge-controller state is reset
       // So the BridgeStatusController populates all the properties
       case UnifiedSwapBridgeEventName.Submitted:

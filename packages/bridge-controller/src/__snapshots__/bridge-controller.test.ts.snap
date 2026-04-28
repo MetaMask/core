@@ -342,6 +342,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       ],
       "token_address_destination": "eip155:10/slip44:60",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
     },
