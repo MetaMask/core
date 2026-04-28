@@ -514,13 +514,13 @@ function waitForTransactionStatus(
 
     const handler = (tx?: TransactionMeta): void => {
       const unsubscribe = (): void =>
-        messenger.unsubscribe('TransactionController:stateChange', handler);
+        messenger.unsubscribe('TransactionController:stateChanged', handler);
 
       checkStatus(tx, unsubscribe);
     };
 
     messenger.subscribe(
-      'TransactionController:stateChange',
+      'TransactionController:stateChanged',
       handler,
       (state: TransactionControllerState) =>
         state.transactions.find((tx) => tx.id === transactionId),
@@ -768,6 +768,7 @@ async function processTransactionWithHook(
     publishHook(transactionMeta, signedTransaction)
       .then((hookResult) => {
         onPublish?.(hookResult);
+        return undefined;
       })
       .catch(() => {
         // Swallow – error is handled by the batch orchestrator.

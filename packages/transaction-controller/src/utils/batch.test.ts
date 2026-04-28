@@ -97,12 +97,7 @@ const MESSENGER_MOCK = {
   }),
 } as unknown as TransactionControllerMessenger;
 
-function emitStateChange(state: TransactionControllerState): void {
-  for (const entry of [...stateChangeEntries]) {
-    const value = entry.selector ? entry.selector(state) : state;
-    entry.handler(value);
-  }
-}
+
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_MOCK = '0x654321';
@@ -384,17 +379,11 @@ describe('Batch Utils', () => {
         addTransactionMock.mockImplementationOnce((_params, options) => {
           const signature =
             SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
-          const { transactionMeta } = returnValue;
-
-          options.publishHook?.(transactionMeta, signature).catch(() => {
-            // Intentionally empty
-          });
-
-          getTransactionMock.mockReturnValueOnce({
-            ...transactionMeta,
-            status: TransactionStatus.signed,
-          });
-
+          options
+            .publishHook?.(returnValue.transactionMeta, signature)
+            .catch(() => {
+              // Intentionally empty
+            });
           return Promise.resolve(returnValue);
         });
         callIndex += 1;
