@@ -194,7 +194,7 @@ describe('Messenger', () => {
       expect(messenger.call('Fixture:ping')).toBe('foo');
       expect(handler).toHaveBeenCalled();
       expect(realHandler).not.toHaveBeenCalled();
-    })
+    });
 
     it('throws when calling unregistered action', () => {
       type PingAction = { type: 'Fixture:ping'; handler: () => void };
