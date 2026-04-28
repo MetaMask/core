@@ -108,10 +108,7 @@ export function getDefaultAssetMetadata(
  * @returns A new map keyed by CAIP-19 id (canonical case from the
  * defaults registry) with the corresponding metadata.
  */
-export function buildDefaultAssetsInfo(): Record<
-  Caip19AssetId,
-  AssetMetadata
-> {
+export function buildDefaultAssetsInfo(): Record<Caip19AssetId, AssetMetadata> {
   const info: Record<Caip19AssetId, AssetMetadata> = {};
   for (const assetIds of DEFAULT_TRACKED_ASSETS_BY_CHAIN.values()) {
     for (const assetId of assetIds) {
