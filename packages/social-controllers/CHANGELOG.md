@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0]
+
 ### Added
 
 - Add `SocialService.fetchPositionById` method exposing `GET /v1/traders/position/:positionId`, returning a single `Position` by ID ([#8602](https://github.com/MetaMask/core/pull/8602))
@@ -70,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.0...HEAD
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.1.0...@metamask/social-controllers@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.0.0...@metamask/social-controllers@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@1.0.0...@metamask/social-controllers@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@0.2.0...@metamask/social-controllers@1.0.0
