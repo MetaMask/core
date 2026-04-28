@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Seed mUSD (`0xaca92e438df0b2401ff60da7e4337b687a2435da`) as a default tracked asset on Ethereum mainnet (`eip155:1`), Linea (`eip155:59144`), and Monad testnet (`eip155:143`) ([#8616](https://github.com/MetaMask/core/pull/8616))
+  - `assetsInfo` is pre-populated in default controller state so mUSD metadata is available before any on-chain fetch completes.
+  - Zero-balance entries are written into `assetsBalance` at startup, on account/network changes, and immediately when the user adds a chain that has default tracked assets.
+  - New exports: `DEFAULT_TRACKED_ASSETS_BY_CHAIN`, `CHAINS_WITH_DEFAULT_TRACKED_ASSETS`, `DEFAULT_ASSET_METADATA`, `buildDefaultAssetsInfo`, `getDefaultTrackedAssetsForChain`, `getDefaultAssetMetadata`.
+
 ## [6.2.0]
 
 ### Added
