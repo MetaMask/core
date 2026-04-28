@@ -1,4 +1,5 @@
 export * from './Caveat';
+export { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger';
 export * from './errors';
 export * from './Permission';
 export * from './PermissionController';

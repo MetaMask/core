@@ -121,12 +121,14 @@ async function setupController(
     supportedChains?: number[];
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
+    fetchTimeoutMs?: number;
   } = {},
 ): Promise<SetupResult> {
   const {
     supportedChains = [1, 137],
     balances = [],
     unprocessedNetworks = [],
+    fetchTimeoutMs,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -163,6 +165,7 @@ async function setupController(
       apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+    ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
   });
 
   // Wait for async initialization
@@ -332,6 +335,24 @@ describe('AccountsApiDataSource', () => {
     const response = await controller.fetch(createDataRequest());
 
     expect(response.errors?.[CHAIN_MAINNET]).toContain('Fetch failed');
+
+    controller.destroy();
+  });
+
+  it('fetch marks every requested chain as errored when the call exceeds the configured timeout', async () => {
+    const { controller, apiClient } = await setupController({
+      fetchTimeoutMs: 10,
+    });
+
+    apiClient.accounts.fetchV5MultiAccountBalances.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    );
+
+    const response = await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+    );
+
+    expect(response.errors?.[CHAIN_MAINNET]).toContain('timed out');
 
     controller.destroy();
   });

@@ -244,6 +244,96 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
+  it('returns false when the transaction has an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+          },
+        } as TransactionMeta,
+      }),
+    ).toBe(false);
+  });
+
+  it('does not support authorization lists during request support checks', () => {
+    const strategy = new AcrossStrategy();
+    const result = strategy.supports({
+      ...baseRequest,
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: [{ address: '0xabc' as Hex }],
+        },
+      } as TransactionMeta,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('does not support quotes that require first-time 7702 upgrades', () => {
+    const strategy = new AcrossStrategy();
+    const quote = {
+      original: {
+        metamask: {
+          gasLimits: [],
+          is7702: true,
+          requiresAuthorizationList: true,
+        },
+      },
+    } as TransactionPayQuote<AcrossQuote>;
+
+    const result = strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('supports 7702 quotes that do not require an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    const quote = {
+      original: {
+        metamask: {
+          gasLimits: [],
+          is7702: true,
+        },
+      },
+    } as TransactionPayQuote<AcrossQuote>;
+
+    expect(
+      strategy.checkQuoteSupport({
+        messenger,
+        quotes: [quote],
+        transaction: TRANSACTION_META_MOCK,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for unsupported destination actions', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            data: '0x12345678' as Hex,
+            to: '0xdef' as Hex,
+          },
+        } as TransactionMeta,
+      }),
+    ).toBe(false);
+  });
+
   it('returns true when all requests are cross-chain', () => {
     const strategy = new AcrossStrategy();
     expect(strategy.supports(baseRequest)).toBe(true);
