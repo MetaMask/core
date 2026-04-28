@@ -390,7 +390,11 @@ async function submitTransactions(
  * post-quote transaction on behalf of the override account. Used when the
  * override account cannot execute the original call directly.
  *
- * @param quote - Relay quote (used for source chain + override `from`).
+ * The original tx is already on the correct chain and from the money
+ * account, so it can be passed through to `getDelegationTransaction`
+ * unchanged.
+ *
+ * @param quote - Relay quote (used for the override `from`).
  * @param transaction - Original transaction meta to be redeemed.
  * @param messenger - Controller messenger.
  * @returns Transaction params for the delegation tx.
@@ -400,29 +404,11 @@ async function buildDelegatedOriginalParams(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<TransactionParams> {
-  const { from, sourceChainId } = quote.request;
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
-
-  const sourceCallTransaction = {
-    ...transaction,
-    chainId: sourceChainId,
-    networkClientId,
-    nestedTransactions: [
-      {
-        data: (transaction.txParams.data ?? '0x') as Hex,
-        to: transaction.txParams.to as Hex,
-        value: (transaction.txParams.value ?? '0x0') as Hex,
-      },
-    ],
-  } as TransactionMeta;
+  const { from } = quote.request;
 
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
+    { transaction },
   );
 
   log('Delegation result for prepended original tx', delegation);

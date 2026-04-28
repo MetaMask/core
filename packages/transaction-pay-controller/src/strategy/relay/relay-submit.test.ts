@@ -1004,23 +1004,18 @@ describe('Relay Submit Utils', () => {
           });
         });
 
-        it('builds the prepended tx via getDelegationTransaction with the original call as the only nested tx', async () => {
+        it('passes the original transaction through to getDelegationTransaction', async () => {
           await submitRelayQuotes(request);
 
           expect(getDelegationTransactionMock).toHaveBeenCalledTimes(1);
           expect(getDelegationTransactionMock).toHaveBeenCalledWith({
             transaction: expect.objectContaining({
-              chainId: CHAIN_ID_MOCK,
-              networkClientId: NETWORK_CLIENT_ID_MOCK,
-              nestedTransactions: [
-                {
-                  data: '0xorigdata',
-                  to: '0xrecipient',
-                  value: '0x100',
-                },
-              ],
+              id: ORIGINAL_TRANSACTION_ID_MOCK,
               txParams: expect.objectContaining({
-                from: ACCOUNT_OVERRIDE_MOCK,
+                from: FROM_MOCK,
+                to: '0xrecipient',
+                data: '0xorigdata',
+                value: '0x100',
               }),
             }),
           });
