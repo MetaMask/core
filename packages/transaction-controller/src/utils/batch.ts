@@ -765,7 +765,7 @@ async function processTransactionWithHook(
         return undefined;
       })
       .catch(() => {
-        // Swallow – error is handled by the batch orchestrator.
+        // Intentionally empty
       });
 
     log('Processed existing transaction with hook', {
@@ -773,7 +773,10 @@ async function processTransactionWithHook(
       params,
     });
 
-    return { id, params };
+    return {
+      id,
+      params,
+    };
   }
 
   const transactionMetaForGasEstimates = {
@@ -825,7 +828,11 @@ async function processTransactionWithHook(
     type,
   });
 
-  return { id, params: newParams, type };
+  return {
+    id,
+    params: newParams,
+    type,
+  };
 }
 
 /**
