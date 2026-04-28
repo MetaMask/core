@@ -4525,7 +4525,6 @@ __metadata:
     "@metamask/keyring-controller": "npm:^25.2.0"
     "@metamask/messenger": "npm:^1.1.1"
     "@metamask/network-controller": "npm:^30.0.1"
-    "@metamask/transaction-controller": "npm:^64.3.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
