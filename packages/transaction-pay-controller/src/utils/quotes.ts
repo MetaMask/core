@@ -184,6 +184,7 @@ export async function updateQuotes(
       getStrategies,
       messenger,
       transactionData.fiatPayment?.selectedPaymentMethodId,
+      signal,
     );
 
     if (signal.aborted) {
@@ -562,6 +563,7 @@ async function refreshPaymentTokenBalance({
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
+ * @param signal - Signal that aborts when the quote request is superseded.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -571,6 +573,7 @@ async function getQuotes(
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
+  signal?: AbortSignal,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -598,6 +601,7 @@ async function getQuotes(
     fiatPaymentMethod,
     messenger,
     requests,
+    signal,
     transaction,
   };
 
@@ -625,6 +629,7 @@ async function getQuotes(
       const quoteSupport = await checkStrategyQuoteSupport(strategy, {
         messenger,
         quotes,
+        signal,
         transaction,
       });
 
@@ -642,6 +647,7 @@ async function getQuotes(
         ? await strategy.getBatchTransactions({
             messenger,
             quotes,
+            signal,
           })
         : [];
 

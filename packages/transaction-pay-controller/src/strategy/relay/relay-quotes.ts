@@ -256,7 +256,7 @@ async function getSingleQuote(
 
     log('Request body', body);
 
-    const quote = await fetchRelayQuote(messenger, body);
+    const quote = await fetchRelayQuote(messenger, body, fullRequest.signal);
 
     log('Fetched relay quote', quote);
 

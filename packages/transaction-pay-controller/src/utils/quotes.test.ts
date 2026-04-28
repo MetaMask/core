@@ -445,6 +445,7 @@ describe('Quotes Utils', () => {
       expect(unsupportedStrategy.checkQuoteSupport).toHaveBeenCalledWith({
         messenger,
         quotes: [QUOTE_MOCK],
+        signal: expect.any(AbortSignal),
         transaction: TRANSACTION_META_MOCK,
       });
       expect(unsupportedStrategy.getBatchTransactions).not.toHaveBeenCalled();
@@ -609,6 +610,7 @@ describe('Quotes Utils', () => {
             targetTokenAddress: TRANSACTION_DATA_MOCK.tokens?.[0].address,
           },
         ],
+        signal: expect.any(AbortSignal),
         transaction: TRANSACTION_META_MOCK,
       });
     });
@@ -643,6 +645,7 @@ describe('Quotes Utils', () => {
             targetAmountMinimum: '0',
           }),
         ],
+        signal: expect.any(AbortSignal),
         transaction: TRANSACTION_META_MOCK,
       });
     });
@@ -998,6 +1001,43 @@ describe('Quotes Utils', () => {
         expect(quoteWrites).toHaveLength(0);
       });
 
+      it('forwards an aborting signal to the strategy getQuotes call', async () => {
+        let capturedSignal: AbortSignal | undefined;
+        getQuotesMock.mockImplementationOnce(
+          (req: { signal?: AbortSignal }) => {
+            capturedSignal = req.signal;
+            return [QUOTE_MOCK];
+          },
+        );
+
+        await run();
+
+        expect(capturedSignal).toBeInstanceOf(AbortSignal);
+        expect(capturedSignal?.aborted).toBe(false);
+      });
+
+      it('aborts the strategy signal when superseded by a newer call', async () => {
+        const firstQuotes = deferred<TransactionPayQuote<Json>[]>();
+        let firstSignal: AbortSignal | undefined;
+
+        getQuotesMock.mockImplementationOnce(
+          (req: { signal?: AbortSignal }) => {
+            firstSignal = req.signal;
+            return firstQuotes;
+          },
+        );
+
+        const firstPromise = run();
+        await Promise.resolve();
+        await Promise.resolve();
+        const secondPromise = run();
+
+        firstQuotes.resolve([QUOTE_MOCK]);
+        await Promise.all([firstPromise, secondPromise]);
+
+        expect(firstSignal?.aborted).toBe(true);
+      });
+
       it('keeps requests for different transactions independent', async () => {
         const OTHER_TRANSACTION_ID = '789-012';
 
@@ -1185,6 +1225,7 @@ describe('Quotes Utils', () => {
             targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
           },
         ],
+        signal: expect.any(AbortSignal),
         transaction: TRANSACTION_META_MOCK,
       });
     });
