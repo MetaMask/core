@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/money-account-upgrade-controller",
-  "version": "1.2.0",
-  "description": "MetaMask Money account upgrade controller",
+  "name": "@metamask/snap-account-service",
+  "version": "0.0.0",
+  "description": "Service for Account Management Snaps",
   "keywords": [
     "Ethereum",
     "MetaMask"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/money-account-upgrade-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/snap-account-service#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -42,8 +42,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/money-account-upgrade-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/money-account-upgrade-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/snap-account-service",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/snap-account-service",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -53,12 +53,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/chomp-api-service": "^2.0.0",
-    "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.1.1",
-    "@metamask/network-controller": "^30.0.1",
-    "@metamask/utils": "^11.9.0"
+    "@metamask/messenger": "^1.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
