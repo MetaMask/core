@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `assetsInfo` is pre-populated in default controller state so mUSD metadata is available before any on-chain fetch completes.
   - Zero-balance entries are written into `assetsBalance` at startup, on account/network changes, and immediately when the user adds a chain that has default tracked assets.
   - New exports: `DEFAULT_TRACKED_ASSETS_BY_CHAIN`, `CHAINS_WITH_DEFAULT_TRACKED_ASSETS`, `DEFAULT_ASSET_METADATA`, `buildDefaultAssetsInfo`, `getDefaultTrackedAssetsForChain`, `getDefaultAssetMetadata`.
+  
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
 
 ## [6.2.0]
 
