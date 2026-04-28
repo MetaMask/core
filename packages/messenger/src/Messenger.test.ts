@@ -171,6 +171,31 @@ describe('Messenger', () => {
       }).toThrow('A handler for Fixture:ping has already been registered');
     });
 
+    it('allows overriding the action handler in child classes', () => {
+      type Action = { type: 'Fixture:ping'; handler: () => 'foo' };
+
+      const handler = jest.fn().mockReturnValue('foo');
+
+      class CustomMessenger extends Messenger<'Fixture', Action> {
+        protected getAction(
+          _actionType: Action['type'],
+        ): Action['handler'] | undefined {
+          return handler;
+        }
+      }
+
+      const messenger = new CustomMessenger({
+        namespace: 'Fixture',
+      });
+
+      const realHandler = jest.fn().mockReturnValue('bar');
+      messenger.registerActionHandler('Fixture:ping', realHandler);
+
+      expect(messenger.call('Fixture:ping')).toBe('foo');
+      expect(handler).toHaveBeenCalled();
+      expect(realHandler).not.toHaveBeenCalled();
+    })
+
     it('throws when calling unregistered action', () => {
       type PingAction = { type: 'Fixture:ping'; handler: () => void };
       const messenger = new Messenger<'Fixture', PingAction, never>({

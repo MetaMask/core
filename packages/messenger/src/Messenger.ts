@@ -400,6 +400,23 @@ export class Messenger<
   }
 
   /**
+   * Get the action handler for a given action type.
+   *
+   * This is a protected method to allow subclasses to override the way action
+   * handlers are retrieved, for example to implement custom delegation logic.
+   *
+   * @param actionType - The action type. This is a unique identifier for this
+   * action.
+   * @returns The action handler for the given action type, or undefined if no
+   * handler has been registered.
+   */
+  protected getAction(
+    actionType: Action['type'],
+  ): Action['handler'] | undefined {
+    return this.#actions.get(actionType);
+  }
+
+  /**
    * Call an action.
    *
    * This function will call the action handler corresponding to the given action type, passing
@@ -416,10 +433,10 @@ export class Messenger<
     actionType: ActionType,
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
-    const handler = this.#actions.get(actionType) as ActionHandler<
-      Action,
-      ActionType
-    >;
+    const handler = this.getAction(actionType) as
+      | ActionHandler<Action, ActionType>
+      | undefined;
+
     if (!handler) {
       throw new Error(
         this.#isInCurrentNamespace(actionType)
@@ -427,6 +444,7 @@ export class Messenger<
           : `A handler for ${actionType} has not been delegated to ${this.#namespace}`,
       );
     }
+
     return handler(...params);
   }
 
