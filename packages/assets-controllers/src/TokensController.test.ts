@@ -1467,6 +1467,31 @@ describe('TokensController', () => {
           expect(result.isERC721).toBe(false);
         });
       });
+
+      it('should add isERC721 = false when supportsInterface rejects and token is not in contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({
+              supportsInterface: true,
+              supportsInterfaceThrows: true,
+            }),
+          );
+          const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
+            networkClientId: 'mainnet',
+          });
+
+          const result = await controller.updateTokenType(
+            tokenAddress,
+            'mainnet',
+          );
+          expect(result.isERC721).toBe(false);
+        });
+      });
     });
 
     describe('addToken method', () => {
@@ -1679,6 +1704,56 @@ describe('TokensController', () => {
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([dummyAddedToken]);
+      });
+    });
+
+    it('updates an already-imported token when addDetectedTokens includes the same contract address', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        const address = '0x0000000000000000000000000000000000000b01';
+
+        await controller.addToken({
+          address,
+          symbol: 'OLD',
+          decimals: 18,
+          networkClientId: 'mainnet',
+        });
+
+        await controller.addDetectedTokens(
+          [
+            {
+              address,
+              symbol: 'NEW',
+              decimals: 6,
+              aggregators: ['aave'],
+              image: 'https://example.com/icon.png',
+              isERC721: false,
+              name: 'Updated name',
+            },
+          ],
+          {
+            selectedAddress: defaultMockInternalAccount.address,
+            chainId: ChainId.mainnet,
+          },
+        );
+
+        const list =
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ];
+        expect(list).toHaveLength(1);
+        expect(list[0]).toStrictEqual(
+          expect.objectContaining({
+            symbol: 'NEW',
+            decimals: 6,
+            name: 'Updated name',
+            aggregators: ['aave'],
+            image: 'https://example.com/icon.png',
+            isERC721: false,
+          }),
+        );
       });
     });
 
@@ -2495,6 +2570,43 @@ describe('TokensController', () => {
             asset,
           },
         });
+      });
+    });
+
+    it('includes pageMeta on the approval request when provided', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = 'page-meta-req';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
+        const pageMeta = { title: 'Test Dapp' };
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          networkClientId: 'mainnet',
+          pageMeta,
+        });
+
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+        expect(addAndShowApprovalRequestSpy.mock.calls[0][0]).toStrictEqual(
+          expect.objectContaining({
+            id: requestId,
+            origin: ORIGIN_METAMASK,
+            type: ApprovalType.WatchAsset,
+            requestData: expect.objectContaining({
+              id: requestId,
+              interactingAddress: '0x1',
+              asset,
+              metadata: { pageMeta },
+            }),
+          }),
+        );
       });
     });
 
@@ -3570,6 +3682,52 @@ describe('TokensController', () => {
         },
       );
     });
+
+    it('does not mutate token state when patches omit networkConfigurationsByChainId', async () => {
+      const initialState = {
+        allTokens: {
+          '0x1': {
+            '0x134': [
+              {
+                address: '0x01',
+                symbol: 'TKN1',
+                decimals: 18,
+                aggregators: [],
+                name: 'Token 1',
+              },
+            ],
+          },
+        },
+        tokens: [],
+        ignoredTokens: [],
+        detectedTokens: [],
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      await withController(
+        { options: { state: initialState } },
+        ({ controller, triggerNetworkStateChange }) => {
+          const before = controller.state;
+
+          triggerNetworkStateChange({} as NetworkState, [
+            {
+              op: 'replace',
+              path: ['selectedNetworkClientId'],
+              value: 'sepolia',
+            } as Patch,
+          ]);
+
+          expect(controller.state.allTokens).toStrictEqual(before.allTokens);
+          expect(controller.state.allIgnoredTokens).toStrictEqual(
+            before.allIgnoredTokens,
+          );
+          expect(controller.state.allDetectedTokens).toStrictEqual(
+            before.allDetectedTokens,
+          );
+        },
+      );
+    });
   });
 
   describe('resetState', () => {
@@ -3696,6 +3854,48 @@ describe('TokensController', () => {
           expect(controller.state.allDetectedTokens).toStrictEqual({
             [ChainId.mainnet]: { [secondAddress]: [] },
           });
+        },
+      );
+    });
+
+    it('removes ignored-token lists for the removed account across chains', async () => {
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
+      const initialState: TokensControllerState = {
+        allTokens: {},
+        allIgnoredTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: ['0x01', '0x02'],
+            [secondAddress]: ['0x03'],
+          },
+          [ChainId.sepolia]: {
+            [firstAddress]: ['0x04'],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+        },
+        ({ controller, triggerAccountRemoved }) => {
+          triggerAccountRemoved(firstAddress);
+
+          expect(controller.state.allIgnoredTokens).toStrictEqual({
+            [ChainId.mainnet]: {
+              [secondAddress]: ['0x03'],
+            },
+            [ChainId.sepolia]: {},
+          });
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet]?.[firstAddress],
+          ).toBeUndefined();
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia]?.[firstAddress],
+          ).toBeUndefined();
         },
       );
     });
@@ -4527,12 +4727,19 @@ function buildMockERC1155Standard({
  */
 function buildMockEthersERC721Contract({
   supportsInterface,
+  supportsInterfaceThrows = false,
 }: {
   supportsInterface: boolean;
+  supportsInterfaceThrows?: boolean;
 }): Contract {
   // @ts-expect-error This intentionally does not support all of the methods
   // for the contract, only the ones we care about
   return {
-    supportsInterface: async () => supportsInterface,
+    supportsInterface: async () => {
+      if (supportsInterfaceThrows) {
+        throw new Error('supportsInterface reverted');
+      }
+      return supportsInterface;
+    },
   };
 }
