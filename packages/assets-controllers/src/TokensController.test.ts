@@ -3905,8 +3905,7 @@ describe('TokensController', () => {
       });
 
       it('seeds mUSD for accounts already present in persisted allTokens state, without needing AccountsController', async () => {
-        const existingAddress =
-          '0xcccccccccccccccccccccccccccccccccccccccc';
+        const existingAddress = '0xcccccccccccccccccccccccccccccccccccccccc';
         const existingToken = {
           address: '0x01',
           symbol: 'TKN',
