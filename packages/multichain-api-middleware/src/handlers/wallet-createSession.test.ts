@@ -63,7 +63,7 @@ const baseRequest = {
   },
 };
 
-const createMockedHandler = () => {
+const createMockedHandler = (trackSessionEvents: boolean = true) => {
   const next = jest.fn();
   const end = jest.fn();
   const requestPermissionsForOrigin = jest.fn().mockResolvedValue([
@@ -92,7 +92,9 @@ const createMockedHandler = () => {
     },
   ]);
   const findNetworkClientIdByChainId = jest.fn().mockReturnValue('mainnet');
-  const trackSessionCreatedEvent = jest.fn().mockImplementation(undefined);
+  const trackSessionCreatedEvent = trackSessionEvents
+    ? jest.fn().mockImplementation(undefined)
+    : null;
   const listAccounts = jest.fn().mockReturnValue([]);
   const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
   const isNonEvmScopeSupported = jest.fn().mockReturnValue(false);
@@ -722,9 +724,17 @@ describe('wallet_createSession', () => {
     );
   });
 
-  it('calls trackSessionCreatedEvent hook if defined', async () => {
+  it('ignores trackSessionCreatedEvent hook if it is null', async () => {
+    const { handler, trackSessionCreatedEvent } = createMockedHandler(false);
+    await handler(baseRequest);
+
+    expect(trackSessionCreatedEvent).toBeNull();
+  });
+  it('calls trackSessionCreatedEvent hook if not null', async () => {
     const { handler, trackSessionCreatedEvent } = createMockedHandler();
-    trackSessionCreatedEvent.mockImplementation(() => {
+    expect(trackSessionCreatedEvent).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    trackSessionCreatedEvent!.mockImplementation(() => {
       // mock implementation
     });
     await handler(baseRequest);

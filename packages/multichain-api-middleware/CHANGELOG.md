@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Consolidate method handlers into a single `methodHandlers` export ([#8583](https://github.com/MetaMask/core/pull/8583))
   - The individual handler exports have been removed. They can still be accessed as properties on the `methodHandlers` export.
   - The new handlers follow the format expected by `createMethodMiddleware` from `@metamask/json-rpc-engine@10.3.0`.
+- **BREAKING:** Make `trackSessionCreatedEvent` hook required in `wallet_createSession` handler ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - If the hook is not required, `null` can be passed instead.
 - Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/permission-controller` from `^12.2.1` to `^12.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317))

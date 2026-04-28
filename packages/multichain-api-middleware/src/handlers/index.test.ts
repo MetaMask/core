@@ -28,7 +28,7 @@ const makeMockHooks = () =>
     handleNonEvmRequestForOrigin: () => Promise.resolve(null),
     revokePermissionForOrigin: () => undefined,
     updateCaveat: () => undefined,
-    trackSessionCreatedEvent: () => undefined,
+    trackSessionCreatedEvent: null,
   }) satisfies Hooks;
 /* eslint-enable @typescript-eslint/explicit-function-return-type */
 

@@ -56,9 +56,9 @@ export type WalletCreateSessionHooks = {
   isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
   getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
   sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
-  trackSessionCreatedEvent: (
-    approvedCaip25CaveatValue: Caip25CaveatValue,
-  ) => void;
+  trackSessionCreatedEvent:
+    | ((approvedCaip25CaveatValue: Caip25CaveatValue) => void)
+    | null;
 };
 
 type Params = Caip25Authorization;
@@ -91,7 +91,7 @@ type Result = {
  * @param hooks.isNonEvmScopeSupported - The hook that returns true if a non EVM scope is supported.
  * @param hooks.getNonEvmAccountAddresses - The hook that returns a list of CaipAccountIds that are supported for a CaipChainId.
  * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
- * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run. Can be undefined.
+ * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run.
  * @returns A promise with wallet_createSession handler
  */
 async function handleWalletCreateSession(
@@ -278,7 +278,7 @@ async function handleWalletCreateSession(
     const { sessionProperties: approvedSessionProperties = {} } =
       approvedCaip25CaveatValue;
 
-    hooks.trackSessionCreatedEvent(approvedCaip25CaveatValue);
+    hooks.trackSessionCreatedEvent?.(approvedCaip25CaveatValue);
 
     res.result = {
       sessionScopes,
