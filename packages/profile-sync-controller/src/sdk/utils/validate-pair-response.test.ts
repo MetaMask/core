@@ -1,6 +1,5 @@
 import { validatePairResponse } from './validate-pair-response';
 
-
 type RawPairResponse = {
   profile: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
