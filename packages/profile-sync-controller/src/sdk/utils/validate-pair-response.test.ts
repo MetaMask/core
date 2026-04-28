@@ -1,6 +1,9 @@
 import { validatePairResponse } from './validate-pair-response';
 
-function createValidRawPairResponse() {
+function createValidRawPairResponse(): {
+  profile: { profile_id: string; identifier_id: string; metametrics_id: string };
+  profile_aliases: never[];
+} {
   return {
     profile: {
       profile_id: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
