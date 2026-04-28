@@ -73,7 +73,6 @@ type UpdateStateCallback = (
 ) => void;
 
 type AddTransactionBatchRequest = {
-  abortTransactionSigning: TransactionController['abortTransactionSigning'];
   addTransaction: TransactionController['addTransaction'];
   estimateGas: TransactionController['estimateGas'];
   getGasFeeEstimates: (
@@ -460,6 +459,77 @@ async function addTransactionBatchWith7702(
 }
 
 /**
+ * Wait for a transaction to reach a specific status.
+ * Checks the current state first to avoid race conditions, then subscribes to
+ * state changes for ongoing updates.
+ *
+ * @param transactionId - The ID of the transaction to monitor.
+ * @param targetStatus - The status to wait for.
+ * @param request - The batch request containing messenger and getTransaction.
+ */
+function waitForTransactionStatus(
+  transactionId: string,
+  targetStatus: TransactionStatus,
+  request: Pick<AddTransactionBatchRequest, 'getTransaction' | 'messenger'>,
+): Promise<void> {
+  const { getTransaction, messenger } = request;
+  const failureStatuses = [TransactionStatus.failed, TransactionStatus.rejected];
+
+  return new Promise<void>((resolve, reject) => {
+    const checkStatus = (
+      tx?: TransactionMeta,
+      unsubscribe?: () => void,
+    ): boolean => {
+      if (tx?.status === targetStatus) {
+        unsubscribe?.();
+        resolve();
+        return true;
+      }
+
+      if (failureStatuses.includes(tx?.status as TransactionStatus)) {
+        unsubscribe?.();
+        reject(
+          new Error(
+            tx?.error?.message ??
+              `Transaction ${transactionId} ${tx?.status}`,
+          ),
+        );
+        return true;
+      }
+
+      return false;
+    };
+
+    try {
+      const initialTx = getTransaction(transactionId);
+
+      if (checkStatus(initialTx)) {
+        return;
+      }
+    } catch {
+      // Transaction may not exist yet in state.
+    }
+
+    const handler = (tx?: TransactionMeta): void => {
+      const unsubscribe = (): void =>
+        messenger.unsubscribe(
+          'TransactionController:stateChange',
+          handler,
+        );
+
+      checkStatus(tx, unsubscribe);
+    };
+
+    messenger.subscribe(
+      'TransactionController:stateChange',
+      handler,
+      (state: TransactionControllerState) =>
+        state.transactions.find((tx) => tx.id === transactionId),
+    );
+  });
+}
+
+/**
  * Process a batch transaction using a publish batch hook.
  *
  * @param request - The request object including the user request and necessary callbacks.
@@ -533,8 +603,6 @@ async function addTransactionBatchWithHook(
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
 
-  const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] = [];
-
   try {
     if (requireApproval) {
       txBatchMeta = await prepareApprovalData({
@@ -547,11 +615,13 @@ async function addTransactionBatchWithHook(
     }
 
     const publishHook = collectHook.getHook();
+    const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] =
+      [];
 
     let index = 0;
 
     for (const nestedTransaction of nestedTransactions) {
-      const { hookTransaction, signingComplete } =
+      const { hookTransaction, alreadySigned } =
         await processTransactionWithHook(
           batchId,
           nestedTransaction,
@@ -564,18 +634,13 @@ async function addTransactionBatchWithHook(
       hookTransactions.push(hookTransaction);
       index += 1;
 
-      const signingFailure = new Promise<never>((_resolve, reject) => {
-        signingComplete.catch(reject);
-      });
-
-      await Promise.race([
-        collectHook.waitForSignedCount(index),
-        signingFailure,
-      ]);
-
-      signingFailure.catch(() => {
-        // Swallow – error is handled by the batch orchestrator.
-      });
+      if (!alreadySigned) {
+        await waitForTransactionStatus(
+          String(hookTransaction.id),
+          TransactionStatus.signed,
+          request,
+        );
+      }
     }
 
     const { signedTransactions } = await collectHook.ready();
@@ -622,14 +687,6 @@ async function addTransactionBatchWithHook(
   } catch (error) {
     log('Publish batch hook failed', error);
 
-    for (const hookTransaction of hookTransactions) {
-      try {
-        request.abortTransactionSigning(String(hookTransaction.id));
-      } catch {
-        // Transaction may not be signing or may already be complete.
-      }
-    }
-
     collectHook.error(error);
     resultCallbacks?.error(error as Error);
 
@@ -662,7 +719,7 @@ async function processTransactionWithHook(
   hookTransaction: Omit<PublishBatchHookTransaction, 'signedTx'> & {
     type?: TransactionType;
   };
-  signingComplete: Promise<string>;
+  alreadySigned: boolean;
 }> {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
@@ -709,26 +766,20 @@ async function processTransactionWithHook(
       transactionMeta = signResult.transactionMeta;
     }
 
-    const publishResult = publishHook(transactionMeta, signedTransaction).then(
-      (hookResult) => {
+    publishHook(transactionMeta, signedTransaction)
+      .then((hookResult) => {
         onPublish?.(hookResult);
-        return '';
-      },
-    );
-
-    publishResult.catch(() => {
-      // Swallow – error is handled by the batch orchestrator.
-    });
+      })
+      .catch(() => {
+        // Swallow – error is handled by the batch orchestrator.
+      });
 
     log('Processed existing transaction with hook', {
       id,
       params,
     });
 
-    return {
-      hookTransaction: { id, params },
-      signingComplete: publishResult,
-    };
+    return { hookTransaction: { id, params }, alreadySigned: true };
   }
 
   const transactionMetaForGasEstimates = {
@@ -743,7 +794,7 @@ async function processTransactionWithHook(
     });
   }
 
-  const { transactionMeta, result: signingComplete } = await addTransaction(
+  const { transactionMeta } = await addTransaction(
     transactionMetaForGasEstimates.txParams,
     {
       assetsFiatValues,
@@ -782,7 +833,7 @@ async function processTransactionWithHook(
 
   return {
     hookTransaction: { id, params: newParams, type },
-    signingComplete,
+    alreadySigned: false,
   };
 }
 

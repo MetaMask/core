@@ -69,9 +69,42 @@ const GAS_TOTAL_MOCK = '0x100000';
 const VALUE_MOCK = '0x1234';
 const MAX_FEE_PER_GAS_MOCK = '0x2';
 const MAX_PRIORITY_FEE_PER_GAS_MOCK = '0x1';
+type StateChangeEntry = {
+  handler: (value: unknown) => void;
+  selector?: (state: TransactionControllerState) => unknown;
+};
+
+const stateChangeEntries: StateChangeEntry[] = [];
+
 const MESSENGER_MOCK = {
   call: jest.fn(),
+  subscribe: jest.fn(
+    (
+      _event: string,
+      handler: (value: unknown) => void,
+      selector?: (state: TransactionControllerState) => unknown,
+    ) => {
+      stateChangeEntries.push({ handler, selector });
+    },
+  ),
+  unsubscribe: jest.fn(
+    (_event: string, handler: (value: unknown) => void) => {
+      const index = stateChangeEntries.findIndex(
+        (entry) => entry.handler === handler,
+      );
+      if (index !== -1) {
+        stateChangeEntries.splice(index, 1);
+      }
+    },
+  ),
 } as unknown as TransactionControllerMessenger;
+
+function emitStateChange(state: TransactionControllerState): void {
+  for (const entry of [...stateChangeEntries]) {
+    const value = entry.selector ? entry.selector(state) : state;
+    entry.handler(value);
+  }
+}
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_MOCK = '0x654321';
@@ -332,10 +365,6 @@ describe('Batch Utils', () => {
       AddBatchTransactionOptions['signTransaction']
     >;
 
-    let abortTransactionSigningMock: jest.MockedFn<
-      AddBatchTransactionOptions['abortTransactionSigning']
-    >;
-
     let request: AddBatchTransactionOptions;
 
     const estimateGasMock = jest.fn();
@@ -357,11 +386,19 @@ describe('Batch Utils', () => {
         addTransactionMock.mockImplementationOnce((_params, options) => {
           const signature =
             SIGNATURES_BY_INDEX[index] ?? SIGNATURES_BY_INDEX[0];
+          const { transactionMeta } = returnValue;
+
           options
-            .publishHook?.(returnValue.transactionMeta, signature)
+            .publishHook?.(transactionMeta, signature)
             .catch(() => {
               // Intentionally empty
             });
+
+          getTransactionMock.mockReturnValueOnce({
+            ...transactionMeta,
+            status: TransactionStatus.signed,
+          });
+
           return Promise.resolve(returnValue);
         });
         callIndex += 1;
@@ -370,11 +407,18 @@ describe('Batch Utils', () => {
 
     beforeEach(() => {
       jest.resetAllMocks();
+      stateChangeEntries.length = 0;
       mockMessengerNetworkCalls();
 
       addTransactionMock = jest.fn();
-      abortTransactionSigningMock = jest.fn();
-      getTransactionMock = jest.fn();
+      getTransactionMock = jest.fn().mockImplementation(
+        (id: string) =>
+          ({
+            id,
+            status: TransactionStatus.signed,
+            txParams: {},
+          }) as unknown as TransactionMeta,
+      );
       updateTransactionMock = jest.fn();
       publishTransactionMock = jest.fn();
       getPendingTransactionTrackerMock = jest.fn();
@@ -422,7 +466,6 @@ describe('Batch Utils', () => {
       signTransactionMock.mockResolvedValue(TRANSACTION_SIGNATURE_3_MOCK);
 
       request = {
-        abortTransactionSigning: abortTransactionSigningMock,
         addTransaction: addTransactionMock,
         estimateGas: estimateGasMock,
         getGasFeeEstimates: getGasFeeEstimatesMock,
@@ -1813,6 +1856,13 @@ describe('Batch Utils', () => {
         });
 
         getTransactionMock
+          .mockReturnValueOnce({
+            id: TRANSACTION_ID_MOCK,
+            status: TransactionStatus.signed,
+            txParams: {
+              nonce: NONCE_MOCK,
+            },
+          } as unknown as TransactionMeta)
           .mockReturnValueOnce({
             txParams: {
               nonce: NONCE_MOCK,

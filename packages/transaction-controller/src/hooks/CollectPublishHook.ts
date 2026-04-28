@@ -26,8 +26,6 @@ export class CollectPublishHook {
 
   readonly #readyPromise: DeferredPromise<CollectPublishHookResult>;
 
-  #signedCountWaiters: { count: number; resolve: () => void }[] = [];
-
   constructor(transactionCount: number) {
     this.#readyPromise = createDeferredPromise();
     this.#results = [];
@@ -46,20 +44,6 @@ export class CollectPublishHook {
    */
   ready(): Promise<CollectPublishHookResult> {
     return this.#readyPromise.promise;
-  }
-
-  /**
-   * @param count - The number of signed transactions to wait for.
-   * @returns A promise that resolves when the given number of transactions have been signed.
-   */
-  waitForSignedCount(count: number): Promise<void> {
-    if (this.#results.length >= count) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve) => {
-      this.#signedCountWaiters.push({ count, resolve });
-    });
   }
 
   /**
@@ -112,14 +96,6 @@ export class CollectPublishHook {
     });
 
     this.#results = sortBy(this.#results, (result) => result.nonce);
-
-    this.#signedCountWaiters = this.#signedCountWaiters.filter((waiter) => {
-      if (this.#results.length >= waiter.count) {
-        waiter.resolve();
-        return false;
-      }
-      return true;
-    });
 
     if (this.#results.length === this.#transactionCount) {
       log('All transactions signed');
