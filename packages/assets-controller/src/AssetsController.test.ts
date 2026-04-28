@@ -20,6 +20,7 @@ import type {
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import { buildDefaultAssetsInfo } from './defaults';
 import type {
   Caip19AssetId,
   AccountId,
@@ -247,11 +248,11 @@ async function withController<ReturnValue>(
 
 describe('AssetsController', () => {
   describe('getDefaultAssetsControllerState', () => {
-    it('returns default state with empty maps', () => {
+    it('returns default state with empty balance/price maps and pre-seeded assetsInfo', () => {
       const defaultState = getDefaultAssetsControllerState();
 
       expect(defaultState).toStrictEqual({
-        assetsInfo: {},
+        assetsInfo: buildDefaultAssetsInfo(),
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -265,7 +266,7 @@ describe('AssetsController', () => {
     it('initializes with default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          assetsInfo: {},
+          assetsInfo: buildDefaultAssetsInfo(),
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -334,7 +335,7 @@ describe('AssetsController', () => {
       // Controller should still have default state (from super() call)
       expect(controller.state).toStrictEqual({
         assetPreferences: {},
-        assetsInfo: {},
+        assetsInfo: buildDefaultAssetsInfo(),
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -356,7 +357,7 @@ describe('AssetsController', () => {
         // Controller should have default state
         expect(controller.state).toStrictEqual({
           assetPreferences: {},
-          assetsInfo: {},
+          assetsInfo: buildDefaultAssetsInfo(),
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
