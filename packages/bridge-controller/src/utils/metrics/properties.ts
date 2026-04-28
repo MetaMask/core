@@ -98,10 +98,7 @@ export const getRequestParams = (
     destTokenAddress,
   }: Partial<GenericQuoteRequest>,
   tokenSecurityTypeDestination: string | null,
-): Omit<
-  RequestParams,
-  'token_symbol_source' | 'token_symbol_destination'
-> => {
+): Omit<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> => {
   // Fallback to ETH if srcChainId is not defined. This is ok since the clients default to Ethereum as the source chain
   // This also doesn't happen at runtime since the quote request is validated before metrics are published
   const srcChainIdCaip = formatChainIdToCaip(srcChainId ?? ChainId.ETH);
