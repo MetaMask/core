@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `quickBuy` and `dappSwap` FeatureIds for external swap quote consumers ([#8598](https://github.com/MetaMask/core/pull/8598))
+- **BREAKING:** Add `market_closed` and `quote_expired` QuoteWarning ([#8598](https://github.com/MetaMask/core/pull/8598))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
