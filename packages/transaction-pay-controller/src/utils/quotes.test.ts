@@ -15,7 +15,7 @@ import type {
   TransactionPayRequiredToken,
 } from '../types';
 import type { UpdateQuotesRequest } from './quotes';
-import { refreshQuotes, updateQuotes } from './quotes';
+import { inFlightQuoteRequests, refreshQuotes, updateQuotes } from './quotes';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -137,6 +137,7 @@ describe('Quotes Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
+    inFlightQuoteRequests.clear();
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -850,6 +851,172 @@ describe('Quotes Utils', () => {
 
       // paymentToken should NOT be overwritten when fiat rate is unavailable
       expect(transactionDataMock.paymentToken).toBeUndefined();
+    });
+
+    describe('concurrent calls for the same transaction', () => {
+      type Resolver<Value> = {
+        resolve: (value: Value) => void;
+        reject: (error: Error) => void;
+      };
+
+      function deferred<Value>(): Promise<Value> & Resolver<Value> {
+        let resolveFn!: (value: Value) => void;
+        let rejectFn!: (error: Error) => void;
+        const promise = new Promise<Value>((resolve, reject) => {
+          resolveFn = resolve;
+          rejectFn = reject;
+        }) as Promise<Value> & Resolver<Value>;
+        promise.resolve = resolveFn;
+        promise.reject = rejectFn;
+        return promise;
+      }
+
+      it('aborts the previous call so its results are not written to state', async () => {
+        const firstBalance = deferred<string>();
+        const secondBalance = deferred<string>();
+
+        getLiveTokenBalanceMock.mockImplementationOnce(() => firstBalance);
+        getLiveTokenBalanceMock.mockImplementationOnce(() => secondBalance);
+
+        const firstPromise = run();
+        const secondPromise = run();
+
+        secondBalance.resolve('5000000');
+        const secondResult = await secondPromise;
+
+        firstBalance.resolve('5000000');
+        const firstResult = await firstPromise;
+
+        expect(secondResult).toBe(true);
+        expect(firstResult).toBe(false);
+
+        const quoteWrites = updateTransactionDataMock.mock.calls
+          .map(([, fn]) => {
+            const data: Record<string, unknown> = {};
+            (fn as (d: Record<string, unknown>) => void)(data);
+            return data;
+          })
+          .filter((data) => Array.isArray(data.quotes));
+
+        expect(quoteWrites).toHaveLength(1);
+        expect(quoteWrites[0].quotes).toStrictEqual([QUOTE_MOCK]);
+      });
+
+      it('does not flip isLoading off after the winning call has finished', async () => {
+        const firstBalance = deferred<string>();
+        const secondBalance = deferred<string>();
+
+        getLiveTokenBalanceMock.mockImplementationOnce(() => firstBalance);
+        getLiveTokenBalanceMock.mockImplementationOnce(() => secondBalance);
+
+        const firstPromise = run();
+        const secondPromise = run();
+
+        secondBalance.resolve('5000000');
+        await secondPromise;
+
+        const isLoadingFalseCountAfterWinner =
+          updateTransactionDataMock.mock.calls.filter(([, fn]) => {
+            const data: Record<string, unknown> = { isLoading: true };
+            (fn as (d: Record<string, unknown>) => void)(data);
+            return data.isLoading === false;
+          }).length;
+
+        firstBalance.resolve('5000000');
+        await firstPromise;
+
+        const isLoadingFalseCountAfterLoser =
+          updateTransactionDataMock.mock.calls.filter(([, fn]) => {
+            const data: Record<string, unknown> = { isLoading: true };
+            (fn as (d: Record<string, unknown>) => void)(data);
+            return data.isLoading === false;
+          }).length;
+
+        expect(isLoadingFalseCountAfterLoser).toBe(
+          isLoadingFalseCountAfterWinner,
+        );
+      });
+
+      it('does not write payment token balance from an aborted refresh', async () => {
+        const firstBalance = deferred<string>();
+        const secondBalance = deferred<string>();
+
+        getLiveTokenBalanceMock.mockImplementationOnce(() => firstBalance);
+        getLiveTokenBalanceMock.mockImplementationOnce(() => secondBalance);
+
+        const firstPromise = run();
+        const secondPromise = run();
+
+        secondBalance.resolve('9999999');
+        await secondPromise;
+
+        firstBalance.resolve('1111111');
+        await firstPromise;
+
+        const paymentTokenWrites = updateTransactionDataMock.mock.calls
+          .map(([, fn]) => {
+            const data: Record<string, { balanceRaw?: string } | undefined> = {
+              paymentToken: undefined,
+            };
+            (fn as (d: typeof data) => void)(data);
+            return data.paymentToken?.balanceRaw;
+          })
+          .filter(
+            (balanceRaw): balanceRaw is string => balanceRaw !== undefined,
+          );
+
+        expect(paymentTokenWrites).not.toContain('1111111');
+      });
+
+      it('clears the in-flight controller after completion', async () => {
+        await run();
+        expect(inFlightQuoteRequests.has(TRANSACTION_ID_MOCK)).toBe(false);
+      });
+
+      it('drops the late strategy response from an aborted call after getQuotes returns', async () => {
+        const firstQuotes = deferred<TransactionPayQuote<Json>[]>();
+
+        getQuotesMock.mockImplementationOnce(async () => {
+          inFlightQuoteRequests.get(TRANSACTION_ID_MOCK)?.abort();
+          return firstQuotes;
+        });
+
+        firstQuotes.resolve([QUOTE_MOCK]);
+
+        const result = await run();
+
+        expect(result).toBe(false);
+
+        const quoteWrites = updateTransactionDataMock.mock.calls
+          .map(([, fn]) => {
+            const data: Record<string, unknown> = {};
+            (fn as (d: Record<string, unknown>) => void)(data);
+            return data;
+          })
+          .filter((data) => Array.isArray(data.quotes));
+
+        expect(quoteWrites).toHaveLength(0);
+      });
+
+      it('keeps requests for different transactions independent', async () => {
+        const OTHER_TRANSACTION_ID = '789-012';
+
+        getTransactionMock.mockImplementation(
+          (transactionId: string) =>
+            ({
+              ...TRANSACTION_META_MOCK,
+              id: transactionId,
+            }) as TransactionMeta,
+        );
+
+        const [resultA, resultB] = await Promise.all([
+          run({ transactionId: TRANSACTION_ID_MOCK }),
+          run({ transactionId: OTHER_TRANSACTION_ID }),
+        ]);
+
+        expect(resultA).toBe(true);
+        expect(resultB).toBe(true);
+      });
     });
   });
 

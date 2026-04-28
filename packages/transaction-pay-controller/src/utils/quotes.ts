@@ -36,6 +36,56 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
 
+/**
+ * Tracks the currently in-flight quote request per transaction so that a
+ * subsequent call to {@link updateQuotes} for the same transaction can abort
+ * the previous one. This prevents an older/slower quote response from
+ * overwriting a newer one in state.
+ *
+ * Exported for testing only.
+ */
+export const inFlightQuoteRequests = new Map<string, AbortController>();
+
+/**
+ * Abort any in-flight quote request for the given transaction and install a
+ * fresh AbortController. Returns the new controller so the caller can read
+ * its signal.
+ *
+ * @param transactionId - The transaction whose previous request should be aborted.
+ * @returns The newly installed AbortController.
+ */
+function abortPreviousAndCreateController(
+  transactionId: string,
+): AbortController {
+  const previous = inFlightQuoteRequests.get(transactionId);
+
+  if (previous && !previous.signal.aborted) {
+    log('Aborting previous quote request', { transactionId });
+    previous.abort();
+  }
+
+  const controller = new AbortController();
+  inFlightQuoteRequests.set(transactionId, controller);
+  return controller;
+}
+
+/**
+ * Clear the tracked controller for a transaction if it matches the supplied
+ * one. This avoids races where a slower aborted call would otherwise erase
+ * the entry installed by a newer call.
+ *
+ * @param transactionId - The transaction to clear.
+ * @param controller - The controller that owns the slot.
+ */
+function clearControllerIfCurrent(
+  transactionId: string,
+  controller: AbortController,
+): void {
+  if (inFlightQuoteRequests.get(transactionId) === controller) {
+    inFlightQuoteRequests.delete(transactionId);
+  }
+}
+
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
@@ -47,8 +97,13 @@ export type UpdateQuotesRequest = {
 /**
  * Update the quotes for a specific transaction.
  *
+ * Calls for the same `transactionId` are serialised: a fresh call aborts any
+ * previous in-flight call so a slower stale response cannot overwrite a newer
+ * one in state.
+ *
  * @param request - Request parameters.
- * @returns Boolean indicating if the quotes were updated.
+ * @returns Boolean indicating if the quotes were updated. Returns `false` when
+ * the call was aborted by a subsequent call for the same transaction.
  */
 export async function updateQuotes(
   request: UpdateQuotesRequest,
@@ -86,6 +141,9 @@ export async function updateQuotes(
 
   const from = accountOverride ?? (transaction.txParams.from as Hex);
 
+  const controller = abortPreviousAndCreateController(transactionId);
+  const { signal } = controller;
+
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
   });
@@ -95,9 +153,15 @@ export async function updateQuotes(
       from,
       messenger,
       paymentToken: originalPaymentToken,
+      signal,
       transactionId,
       updateTransactionData,
     });
+
+    if (signal.aborted) {
+      log('Quote request aborted before building requests', { transactionId });
+      return false;
+    }
 
     const requests = buildQuoteRequests({
       from,
@@ -121,6 +185,11 @@ export async function updateQuotes(
       messenger,
       transactionData.fiatPayment?.selectedPaymentMethodId,
     );
+
+    if (signal.aborted) {
+      log('Quote request aborted before persisting results', { transactionId });
+      return false;
+    }
 
     const totals = calculateTotals({
       isMaxAmount,
@@ -147,9 +216,12 @@ export async function updateQuotes(
       data.totals = totals;
     });
   } finally {
-    updateTransactionData(transactionId, (data) => {
-      data.isLoading = false;
-    });
+    if (!signal.aborted) {
+      updateTransactionData(transactionId, (data) => {
+        data.isLoading = false;
+      });
+    }
+    clearControllerIfCurrent(transactionId, controller);
   }
 
   return true;
@@ -415,12 +487,14 @@ async function refreshPaymentTokenBalance({
   from,
   messenger,
   paymentToken,
+  signal,
   transactionId,
   updateTransactionData,
 }: {
   from: Hex;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
+  signal: AbortSignal;
   transactionId: string;
   updateTransactionData: UpdateTransactionDataCallback;
 }): Promise<TransactionPaymentToken | undefined> {
@@ -445,6 +519,11 @@ async function refreshPaymentTokenBalance({
       paymentToken.chainId,
       paymentToken.address,
     );
+
+    if (signal.aborted) {
+      log('Payment token balance refresh aborted', { transactionId });
+      return paymentToken;
+    }
 
     const {
       raw: balanceRaw,
