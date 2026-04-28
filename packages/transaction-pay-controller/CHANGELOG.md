@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fall back from Across to later pay strategies when Across quotes would require a first-time EIP-7702 authorization list ([#8577](https://github.com/MetaMask/core/pull/8577))
+- Fix post-quote relay submission when `accountOverride` is set by replacing the prepended original transaction with a delegation transaction so the override account can submit it ([#8615](https://github.com/MetaMask/core/pull/8615))
 - **BREAKING:** Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on the account keyring type via `KeyringController:getState` ([#8388](https://github.com/MetaMask/core/pull/8388))
   - The `TransactionPayControllerMessenger` now requires `KeyringController:getState` permission.
 
