@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-controller": "^25.2.0",
+    "@metamask/keyring-controller": "^25.3.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
