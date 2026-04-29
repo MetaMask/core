@@ -1259,7 +1259,7 @@ export class RampsService {
 
     const url = new URL(
       getApiPath('quotes'),
-      this.#getBaseUrl(RampsApiService.Orders),
+      getBaseUrl(this.#environment, RampsApiService.Orders),
     );
     this.#addCommonParams(url, action);
 
