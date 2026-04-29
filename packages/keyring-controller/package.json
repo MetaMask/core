@@ -61,7 +61,7 @@
     "@metamask/eth-simple-keyring": "^12.0.1",
     "@metamask/keyring-api": "^23.0.1",
     "@metamask/keyring-internal-api": "^11.0.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/utils": "^11.9.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
