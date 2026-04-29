@@ -1,24 +1,32 @@
 export * from './Caveat';
+export { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger';
 export * from './errors';
 export * from './Permission';
 export * from './PermissionController';
 export type {
   PermissionControllerClearStateAction,
-  PermissionControllerGetSubjectNamesAction,
-  PermissionControllerGetPermissionsAction,
-  PermissionControllerHasPermissionAction,
-  PermissionControllerHasPermissionsAction,
-  PermissionControllerRevokeAllPermissionsAction,
-  PermissionControllerRevokePermissionsAction,
-  PermissionControllerRevokePermissionForAllSubjectsAction,
+  PermissionControllerExecuteRestrictedMethodAction,
   PermissionControllerGetCaveatAction,
-  PermissionControllerUpdateCaveatAction,
+  PermissionControllerGetEndowmentsAction,
+  PermissionControllerGetPermissionsAction,
+  PermissionControllerGetSubjectNamesAction,
   PermissionControllerGrantPermissionsAction,
   PermissionControllerGrantPermissionsIncrementalAction,
+  PermissionControllerHasPermissionAction,
+  PermissionControllerHasPermissionsAction,
+  PermissionControllerHasUnrestrictedMethodAction,
   PermissionControllerRequestPermissionsAction,
   PermissionControllerRequestPermissionsIncrementalAction,
-  PermissionControllerGetEndowmentsAction,
+  PermissionControllerRevokeAllPermissionsAction,
+  PermissionControllerRevokePermissionForAllSubjectsAction,
+  PermissionControllerRevokePermissionsAction,
+  PermissionControllerUpdateCaveatAction,
 } from './PermissionController-method-action-types';
+export {
+  createPermissionMiddleware,
+  createPermissionMiddlewareV2,
+  type PermissionMiddlewareActions,
+} from './permission-middleware';
 export type {
   ExtractSpecifications,
   HandlerMiddlewareFunction,

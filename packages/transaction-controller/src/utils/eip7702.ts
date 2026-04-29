@@ -40,6 +40,33 @@ const ERC7579_EXEC_TYPE_TRY = '01';
 
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
+const KEYRING_TYPES_SUPPORTING_7702 = ['HD Key Tree', 'Simple Key Pair'];
+
+/**
+ * Check whether a given account's keyring supports EIP-7702 authorization
+ * signing.
+ *
+ * Looks up the account's keyring via `KeyringController:getState` and returns
+ * `true` only when the keyring type is in the supported list.
+ * Returns `false` when the keyring cannot be resolved.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - The account address to check.
+ * @returns Whether the account supports EIP-7702.
+ */
+export function doesAccountSupportEIP7702(
+  messenger: TransactionControllerMessenger,
+  account: string,
+): boolean {
+  const { keyrings } = messenger.call('KeyringController:getState');
+
+  return keyrings.some(
+    (k: { type: string; accounts: string[] }) =>
+      KEYRING_TYPES_SUPPORTING_7702.includes(k.type) &&
+      k.accounts.some((a: string) => a.toLowerCase() === account.toLowerCase()),
+  );
+}
+
 /**
  * Determine if a chain supports EIP-7702 using LaunchDarkly feature flag.
  *

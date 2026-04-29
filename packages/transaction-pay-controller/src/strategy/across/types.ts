@@ -87,6 +87,7 @@ export type AcrossQuote = {
   metamask: {
     gasLimits: AcrossGasLimits;
     is7702?: boolean;
+    requiresAuthorizationList?: true;
   };
   quote: AcrossSwapApprovalResponse;
   request: {

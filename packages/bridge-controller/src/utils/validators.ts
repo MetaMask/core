@@ -33,6 +33,8 @@ export enum FeeType {
 
 export enum FeatureId {
   PERPS = 'perps',
+  QUICK_BUY = 'quickBuy',
+  DAPP_SWAP = 'dappSwap',
 }
 
 export enum ActionTypes {
@@ -189,6 +191,7 @@ export const PlatformConfigSchema = type({
    * Array of chain objects ordered by preference/ranking
    */
   chainRanking: ChainRankingSchema,
+  maxPendingHistoryItemAgeMs: optional(number()),
 });
 
 export const validateFeatureFlagsResponse = (

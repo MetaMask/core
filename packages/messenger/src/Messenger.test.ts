@@ -1,6 +1,7 @@
 import type { Patch } from 'immer';
 
 import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
+import type { ActionConstraint } from './Messenger';
 import type { MockAnyNamespace } from './Messenger';
 
 describe('Messenger', () => {
@@ -169,6 +170,31 @@ describe('Messenger', () => {
       expect(() => {
         messenger.registerActionHandler('Fixture:ping', () => undefined);
       }).toThrow('A handler for Fixture:ping has already been registered');
+    });
+
+    it('allows overriding the action handler in child classes', () => {
+      type Action = { type: 'Fixture:ping'; handler: () => string };
+
+      const handler = jest.fn().mockReturnValue('foo');
+
+      class CustomMessenger extends Messenger<'Fixture', Action> {
+        protected getAction(
+          _actionType: Action['type'],
+        ): ActionConstraint['handler'] | undefined {
+          return handler;
+        }
+      }
+
+      const messenger = new CustomMessenger({
+        namespace: 'Fixture',
+      });
+
+      const realHandler = jest.fn().mockReturnValue('bar');
+      messenger.registerActionHandler('Fixture:ping', realHandler);
+
+      expect(messenger.call('Fixture:ping')).toBe('foo');
+      expect(handler).toHaveBeenCalled();
+      expect(realHandler).not.toHaveBeenCalled();
     });
 
     it('throws when calling unregistered action', () => {
@@ -1865,7 +1891,7 @@ describe('Messenger', () => {
       });
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        'A handler for Source:getLength has not been registered',
+        'A handler for Source:getLength has not been delegated to Destination',
       );
     });
 
@@ -1910,11 +1936,13 @@ describe('Messenger', () => {
         }),
       ).not.toThrow();
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        'A handler for Source:getLength has not been registered',
+        'A handler for Source:getLength has not been delegated to Destination',
       );
       expect(() =>
         delegatedMessenger.call('Source:getRandomString', 'test'),
-      ).toThrow('A handler for Source:getRandomString has not been registered');
+      ).toThrow(
+        'A handler for Source:getRandomString has not been delegated to Destination',
+      );
     });
 
     it('allows revoking a delegated action that is delegated elsewhere', () => {
@@ -1967,7 +1995,9 @@ describe('Messenger', () => {
 
       expect(() =>
         firstDelegatedMessenger.call('Source:getLength', 'test'),
-      ).toThrow('A handler for Source:getLength has not been registered');
+      ).toThrow(
+        'A handler for Source:getLength has not been delegated to FirstDestination',
+      );
       const thirdResult = secondDelegatedMessenger.call(
         'Source:getLength',
         'third test', // length 10

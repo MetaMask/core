@@ -9,7 +9,7 @@ import type { SourceInfo } from './parse-source';
 const { withinSandbox } = createSandbox('messenger/check-action-types');
 
 describe('checkActionTypesFiles', () => {
-  it('reports up to date when files match (no ESLint)', async () => {
+  it('reports up to date when files match', async () => {
     expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -20,7 +20,7 @@ describe('checkActionTypesFiles', () => {
         methods: [{ name: 'doStuff', jsDoc: '' }],
       };
 
-      const content = generateActionTypesContent(controller);
+      const content = await generateActionTypesContent(controller, 'prettier');
       await fs.promises.writeFile(
         path.join(directoryPath, 'TestController-method-action-types.ts'),
         content,
@@ -28,7 +28,7 @@ describe('checkActionTypesFiles', () => {
       );
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const result = await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
 
       expect(result).toBe(true);
@@ -54,7 +54,7 @@ describe('checkActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const result = await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
 
@@ -75,7 +75,7 @@ describe('checkActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const result = await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], 'prettier');
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
 
@@ -103,7 +103,7 @@ describe('checkActionTypesFiles', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const result = await checkActionTypesFiles([controller], null);
+      const result = await checkActionTypesFiles([controller], 'prettier');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error reading'),
@@ -114,41 +114,6 @@ describe('checkActionTypesFiles', () => {
       accessSpy.mockRestore();
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
-    });
-  });
-
-  it('uses ESLint when provided', async () => {
-    expect.assertions(3);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      const controller: SourceInfo = {
-        name: 'TestController',
-        filePath: path.join(directoryPath, 'TestController.ts'),
-
-        methods: [{ name: 'doStuff', jsDoc: '' }],
-      };
-
-      const content = generateActionTypesContent(controller);
-      await fs.promises.writeFile(
-        path.join(directoryPath, 'TestController-method-action-types.ts'),
-        content,
-        'utf8',
-      );
-
-      const mockEslint = {
-        instance: { lintFiles: jest.fn().mockResolvedValue([]) },
-        eslintClass: {
-          outputFixes: jest.fn().mockResolvedValue(undefined),
-        },
-      };
-
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const result = await checkActionTypesFiles([controller], mockEslint);
-      consoleSpy.mockRestore();
-
-      expect(mockEslint.instance.lintFiles).toHaveBeenCalled();
-      expect(mockEslint.eslintClass.outputFixes).toHaveBeenCalled();
-      expect(result).toBe(true);
     });
   });
 });

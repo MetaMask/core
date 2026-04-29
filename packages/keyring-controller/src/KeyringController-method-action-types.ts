@@ -59,6 +59,28 @@ export type KeyringControllerAddNewKeyringAction = {
 };
 
 /**
+ * Returns the status of the vault.
+ *
+ * @returns Boolean returning true if the vault is unlocked.
+ */
+export type KeyringControllerIsUnlockedAction = {
+  type: `KeyringController:isUnlocked`;
+  handler: KeyringController['isUnlocked'];
+};
+
+/**
+ * Gets the seed phrase of the HD keyring.
+ *
+ * @param password - Password of the keyring.
+ * @param keyringId - The id of the keyring.
+ * @returns Promise resolving to the seed phrase.
+ */
+export type KeyringControllerExportSeedPhraseAction = {
+  type: `KeyringController:exportSeedPhrase`;
+  handler: KeyringController['exportSeedPhrase'];
+};
+
+/**
  * Returns the public addresses of all accounts from every keyring.
  *
  * @returns A promise resolving to an array of addresses.
@@ -376,6 +398,24 @@ export type KeyringControllerWithKeyringV2UnsafeAction = {
 };
 
 /**
+ * Execute an operation against all keyrings as a mutually exclusive atomic
+ * operation. The operation receives a {@link RestrictedController} instance
+ * that exposes a read-only live view of all keyrings as well as
+ * `addNewKeyring` and `removeKeyring` methods to stage mutations.
+ *
+ * The method automatically persists changes at the end of the function
+ * execution, or rolls back the changes if an error is thrown.
+ *
+ * @param operation - Function to execute with the restricted controller.
+ * @returns Promise resolving to the result of the function execution.
+ * @template CallbackResult - The type of the value resolved by the callback function.
+ */
+export type KeyringControllerWithControllerAction = {
+  type: `KeyringController:withController`;
+  handler: KeyringController['withController'];
+};
+
+/**
  * Union of all KeyringController action types.
  */
 export type KeyringControllerMethodActions =
@@ -383,6 +423,8 @@ export type KeyringControllerMethodActions =
   | KeyringControllerCreateNewVaultAndRestoreAction
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerAddNewKeyringAction
+  | KeyringControllerIsUnlockedAction
+  | KeyringControllerExportSeedPhraseAction
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerDecryptMessageAction
@@ -401,4 +443,5 @@ export type KeyringControllerMethodActions =
   | KeyringControllerWithKeyringAction
   | KeyringControllerWithKeyringUnsafeAction
   | KeyringControllerWithKeyringV2Action
-  | KeyringControllerWithKeyringV2UnsafeAction;
+  | KeyringControllerWithKeyringV2UnsafeAction
+  | KeyringControllerWithControllerAction;

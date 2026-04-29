@@ -2,6 +2,7 @@ import type { BridgeStatusControllerState } from './types';
 
 export const REFRESH_INTERVAL_MS = 10 * 1000; // 10 seconds
 export const MAX_ATTEMPTS = 7; // at 7 attempts, delay is 10:40, cumulative time is 21:10
+export const DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
 
 export const BRIDGE_STATUS_CONTROLLER_NAME = 'BridgeStatusController';
 

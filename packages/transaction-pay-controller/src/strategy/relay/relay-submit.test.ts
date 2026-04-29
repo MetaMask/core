@@ -102,6 +102,7 @@ const STATUS_RESPONSE_MOCK = {
 const SOURCE_AMOUNT_RAW_MOCK = '1000000';
 
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
+  accountSupports7702: true,
   quotes: [
     {
       fees: {
@@ -859,7 +860,6 @@ describe('Relay Submit Utils', () => {
             gasFeeToken: undefined,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             origin: ORIGIN_METAMASK,
-            overwriteUpgrade: true,
             requireApproval: false,
             transactions: [
               {
@@ -968,7 +968,6 @@ describe('Relay Submit Utils', () => {
 
         expect(addTransactionBatchMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            disable7702: true,
             disableHook: false,
             disableSequential: false,
             gasLimit7702: undefined,
@@ -1066,7 +1065,6 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          disable7702: true,
           disableHook: false,
           disableSequential: false,
           gasLimit7702: undefined,
@@ -1191,6 +1189,27 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
+      it('uses quote.request.from (accountOverride) for signing when accountOverride is set', async () => {
+        const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
+          './hyperliquid-withdraw',
+        );
+
+        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
+
+        request.quotes[0].request.isHyperliquidSource = true;
+        request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
+        request.quotes[0].original.steps[0].kind = 'transaction';
+
+        await submitRelayQuotes(request);
+
+        expect(hlWithdrawMock).toHaveBeenCalledTimes(1);
+        expect(hlWithdrawMock).toHaveBeenCalledWith(
+          request.quotes[0],
+          ACCOUNT_OVERRIDE_MOCK,
+          messenger,
+        );
+      });
+
       it('still polls relay status after HyperLiquid withdraw', async () => {
         request.quotes[0].request.isHyperliquidSource = true;
 
@@ -1272,6 +1291,7 @@ describe('Relay Submit Utils', () => {
         expect(getDelegationTransactionMock).toHaveBeenCalledWith({
           transaction: expect.objectContaining({
             chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
             nestedTransactions: [
               {
                 data: '0x1234',
@@ -1279,6 +1299,40 @@ describe('Relay Submit Utils', () => {
                 value: '0x4d2',
               },
             ],
+          }),
+        });
+      });
+
+      it('resolves networkClientId for source chain instead of inheriting from original transaction', async () => {
+        await submitRelayQuotes(request);
+
+        expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+          CHAIN_ID_MOCK,
+        );
+      });
+
+      it('passes txParams with from overridden by quote request from', async () => {
+        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
+
+        request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
+        request.transaction = {
+          ...request.transaction,
+          txParams: {
+            from: FROM_MOCK,
+            data: '0xorigdata' as Hex,
+            value: '0x100' as Hex,
+          },
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            txParams: {
+              from: ACCOUNT_OVERRIDE_MOCK,
+              data: '0xorigdata',
+              value: '0x100',
+            },
           }),
         });
       });

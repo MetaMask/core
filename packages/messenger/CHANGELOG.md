@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Allow overriding action handler in subclass ([#8617](https://github.com/MetaMask/core/pull/8617))
+  - The `Messenger` class now has a protected `getAction` method which returns the action handler for a given action name.
+
 ### Deprecated
 
 - Deprecate `generate-action-types` CLI tool and `messenger-generate-action-types` binary ([#8378](https://github.com/MetaMask/core/pull/8378))
   - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from this package instead.
+
+### Fixed
+
+- Throw different error for missing delegated actions ([#8557](https://github.com/MetaMask/core/pull/8557))
 
 ## [1.1.1]
 
