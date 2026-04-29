@@ -10,6 +10,23 @@ export type AuthenticationControllerPerformSignInAction = {
   handler: AuthenticationController['performSignIn'];
 };
 
+/**
+ * Pairs all SRPs of the wallet via `POST /profile/pair`, propagates the
+ * canonical profile ID into every cached SRP session, and emits
+ * `AuthenticationController:profileSignIn` when the canonical changes or
+ * new aliases are returned. Sets `hasPairedAtLeastOnce = true` on success.
+ *
+ * No-op when the wallet has fewer than 2 SRPs (nothing to pair) or when
+ * the wallet is locked.
+ *
+ * Pairing failures are swallowed so the caller (typically the client-side
+ * `useAutoProfilePairing` hook) can simply re-invoke on the next trigger.
+ */
+export type AuthenticationControllerPerformProfilePairingAction = {
+  type: `AuthenticationController:performProfilePairing`;
+  handler: AuthenticationController['performProfilePairing'];
+};
+
 export type AuthenticationControllerPerformSignOutAction = {
   type: `AuthenticationController:performSignOut`;
   handler: AuthenticationController['performSignOut'];
@@ -85,6 +102,7 @@ export type AuthenticationControllerIsSignedInAction = {
  */
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerPerformProfilePairingAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction
