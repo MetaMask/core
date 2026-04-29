@@ -1,7 +1,9 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
@@ -13,6 +15,7 @@ import {
   DEFAULT_SLIPPAGE,
   getAssetsUnifyStateFeature,
   getFallbackGas,
+  getFiatAssetPerTransactionType,
   DEFAULT_RELAY_EXECUTE_URL,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
@@ -1166,6 +1169,80 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getStrategy(messenger)).toBeUndefined();
+    });
+  });
+
+  describe('getFiatAssetPerTransactionType', () => {
+    const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
+      address: '0x0000000000000000000000000000000000001010',
+      caipAssetId: 'eip155:137/slip44:966',
+      chainId: '0x89',
+      decimals: 18,
+    };
+
+    it('returns undefined when confirmations_pay_fiat flag is absent', () => {
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when flag exists but has no entry for the transaction type', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.perpsDeposit]: FIAT_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns the asset when entry matches the transaction type', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.predictDeposit]: FIAT_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toStrictEqual(FIAT_ASSET_MOCK);
+    });
+
+    it('returns undefined when assetPerTransactionType is not defined', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toBeUndefined();
     });
   });
 });

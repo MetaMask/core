@@ -1,9 +1,11 @@
+import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
@@ -659,6 +661,29 @@ function getCaseInsensitive<Value>(
   );
 
   return entry?.[1];
+}
+
+/**
+ * Get the fiat asset override for a specific transaction type from feature flags.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionType - Transaction type to look up.
+ * @returns The fiat asset if configured, undefined otherwise.
+ */
+export function getFiatAssetPerTransactionType(
+  messenger: TransactionPayControllerMessenger,
+  transactionType: TransactionType,
+): TransactionPayFiatAsset | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | {
+        assetPerTransactionType?: Partial<
+          Record<TransactionType, TransactionPayFiatAsset>
+        >;
+      }
+    | undefined;
+
+  return fiatFlags?.assetPerTransactionType?.[transactionType];
 }
 
 /**

@@ -349,16 +349,6 @@ describe('getFiatQuotes', () => {
     expect(getRelayQuotesMock).not.toHaveBeenCalled();
   });
 
-  it('returns empty array if fiat asset mapping is missing', async () => {
-    deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined);
-    const { request } = getRequest();
-
-    const result = await getFiatQuotes(request);
-
-    expect(result).toStrictEqual([]);
-    expect(getRelayQuotesMock).not.toHaveBeenCalled();
-  });
-
   it('returns empty array if source token fiat rate is missing', async () => {
     getTokenFiatRateMock.mockReturnValue(undefined);
     const { request } = getRequest();

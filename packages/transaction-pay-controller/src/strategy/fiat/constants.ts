@@ -3,6 +3,7 @@ import type { Hex } from '@metamask/utils';
 
 import {
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_MAINNET,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
 } from '../../constants';
@@ -30,7 +31,13 @@ const ARBITRUM_ETH_FIAT_ASSET: TransactionPayFiatAsset = {
   decimals: 18,
 };
 
-// We might use feature flags to determine these later.
+export const ETH_MAINNET_FIAT_ASSET: TransactionPayFiatAsset = {
+  address: NATIVE_TOKEN_ADDRESS,
+  caipAssetId: 'eip155:1/slip44:60',
+  chainId: CHAIN_ID_MAINNET,
+  decimals: 18,
+};
+
 export const FIAT_ASSET_ID_BY_TX_TYPE: Partial<
   Record<TransactionType, TransactionPayFiatAsset>
 > = {

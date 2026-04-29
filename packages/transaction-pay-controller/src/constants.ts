@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
+export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
 export const CHAIN_ID_HYPERCORE = '0x539' as Hex;
 

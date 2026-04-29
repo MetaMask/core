@@ -46,14 +46,9 @@ export async function getFiatQuotes(
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
   const walletAddress = transaction.txParams.from as Hex;
   const requiredTokens = getRequiredTokens(transactionData?.tokens);
-  const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
-  if (
-    !amountFiat ||
-    !fiatPaymentMethod ||
-    !requiredTokens.length ||
-    !fiatAsset
-  ) {
+  if (!amountFiat || !fiatPaymentMethod || !requiredTokens.length) {
     return [];
   }
 
