@@ -74,7 +74,7 @@ export enum PhishingDetectorResultType {
 }
 
 /**
- * JSON shape returned by PDS URL scan endpoints (`domainName` in JSON).
+ * JSON shape returned by PDS URL scan endpoints (`domainName` in JSON). NOTE: V1 endpoint only, /v2/scan uses a different model.
  */
 export type PhishingDetectionScanWireResult = {
   domainName: string;

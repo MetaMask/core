@@ -986,29 +986,26 @@ describe('getHostnameFromWebUrl', () => {
 
 describe('getPhishingDetectionScanUrlParam', () => {
   it.each([
-    ['https://example.com', 'example.com', 'example.com', true],
-    ['https://example.com/', 'example.com', 'example.com', true],
-    ['https://example.com/foo', 'example.com', 'example.com', true],
-    ['https://EXAMPLE.com/bar', 'example.com', 'example.com', true],
+    ['https://example.com', 'example.com', true],
+    ['https://example.com/', 'example.com', true],
+    ['https://example.com/foo', 'example.com', true],
+    ['https://EXAMPLE.com/bar', 'example.com', true],
     [
       'https://ipfs.io/ipfs/QmX?token=secret#frag',
       'ipfs.io/ipfs/QmX',
-      'ipfs.io',
       true,
     ],
     [
       'https://bucket.sites.google.com/view/a',
       'bucket.sites.google.com/view/a',
-      'bucket.sites.google.com',
       true,
     ],
-    ['not-a-url', '', '', false],
+    ['not-a-url', '', false],
   ] as const)(
-    'for URL %s returns scan param %s, hostname %s, ok %s',
-    (input, expectedParam, expectedHostname, expectedOk) => {
-      const [param, hostname, ok] = getPhishingDetectionScanUrlParam(input);
+    'for URL %s returns scan param %s, ok %s',
+    (input, expectedParam, expectedOk) => {
+      const [param, ok] = getPhishingDetectionScanUrlParam(input);
       expect(param).toBe(expectedParam);
-      expect(hostname).toBe(expectedHostname);
       expect(ok).toBe(expectedOk);
     },
   );
@@ -1017,7 +1014,12 @@ describe('getPhishingDetectionScanUrlParam', () => {
 describe('getPhishingDetectionBulkScanUrlParam', () => {
   it.each([
     ['https://example.com/path', 'example.com', 'example.com', true],
-    ['https://ipfs.io/ipfs/QmX?token=secret#frag', 'ipfs.io', 'ipfs.io', true],
+    [
+      'https://ipfs.io/ipfs/QmX?token=secret#frag',
+      'ipfs.io/ipfs/QmX',
+      'ipfs.io',
+      true,
+    ],
     ['not-a-url', '', '', false],
   ] as const)(
     'for URL %s returns scan param %s, hostname %s, ok %s',

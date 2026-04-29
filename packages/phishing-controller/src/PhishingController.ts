@@ -443,8 +443,8 @@ export type PhishingControllerMessenger = Messenger<
  *
  * Response for bulk phishing detection scan requests.
  * When returned from {@link PhishingController.bulkScanUrls}, `results` and `errors` are keyed
- * by the caller's input URL strings. The PDS bulk API keys its payload by hostname-only scan
- * params (see {@link getPhishingDetectionBulkScanUrlParam}); the controller remaps to input URLs.
+ * by the caller's input URL strings. The PDS bulk API keys its payload by the same normalized
+ * scan strings as {@link getPhishingDetectionBulkScanUrlParam}; the controller remaps to input URLs.
  *
  * `errors` matches PDS: one message string per key. When multiple batches surface the same
  * synthetic key (e.g. `api_error`), messages are joined with `"; "`.
@@ -924,7 +924,7 @@ export class PhishingController extends BaseController<
    * @returns The phishing detection scan result.
    */
   async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
-    const [scanUrlParam, , ok] = getPhishingDetectionScanUrlParam(url);
+    const [scanUrlParam, ok] = getPhishingDetectionScanUrlParam(url);
     if (!ok) {
       return {
         recommendedAction: RecommendedAction.None,
@@ -984,9 +984,10 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Scan multiple URLs for phishing in bulk. Each URL is normalized to **hostname only** for PDS
-   * (paths are not included). For pathname-aware scans on gateway hosts, use {@link scanUrl}.
-   * Results are keyed by the input URL strings. Only `http:` / `https:` web URLs are supported.
+   * Scan multiple URLs for phishing in bulk. Each URL is normalized with
+   * {@link getPhishingDetectionBulkScanUrlParam} (hostname only, or hostname plus path for
+   * path-based gateway hosts — same rules as {@link scanUrl}). Results are keyed by the input URL
+   * strings. Only `http:` / `https:` web URLs are supported.
    *
    * @param urls - The URLs to scan.
    * @returns A mapping of URLs to their phishing detection scan results and errors.

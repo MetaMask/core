@@ -397,50 +397,57 @@ export function isPhishingDetectionPathBasedHostname(
  * plus pathname, without protocol, query, or fragment. For all other hosts, only hostname is used.
  *
  * @param url - A web URL string (must use `http:` or `https:` — same rules as {@link getHostnameFromWebUrl}).
- * @returns A tuple of `[scanUrlParam, hostname, ok]` where `ok` is false when the URL is not a valid web URL.
+ * @returns A tuple of `[scanUrlParam, ok]` where `ok` is false when the URL is not a valid web URL.
  */
 export const getPhishingDetectionScanUrlParam = (
   url: string,
-): [scanUrlParam: string, hostname: string, ok: boolean] => {
+): [scanUrlParam: string, ok: boolean] => {
   const [hostname, ok] = getHostnameFromWebUrl(url);
   if (!ok) {
-    return ['', '', false];
+    return ['', false];
   }
 
   if (!isPhishingDetectionPathBasedHostname(hostname)) {
-    return [hostname, hostname, true];
+    return [hostname, true];
   }
 
   let pathname: string;
   try {
     pathname = new URL(url).pathname;
   } catch {
-    return ['', '', false];
+    return ['', false];
   }
 
   const pathSuffix = pathname === '/' ? '' : pathname;
   const scanUrlParam = pathSuffix ? `${hostname}${pathSuffix}` : hostname;
 
-  return [scanUrlParam, hostname, true];
+  return [scanUrlParam, true];
 };
 
 /**
- * Normalized scan key for phishing bulk-scan requests to PDS: **hostname only**, including for
- * gateway/path-based root domains. Path segments are not sent on bulk scans; use
- * {@link getPhishingDetectionScanUrlParam} for single URL scans when pathname matters for those hosts.
+ * Normalized scan key for phishing bulk-scan requests to PDS. Matches
+ * {@link getPhishingDetectionScanUrlParam}: hostname only for typical hosts; for
+ * {@link PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS} (and their subdomains), hostname plus pathname
+ * (query and fragment stripped).
  *
  * @param url - A web URL string (`http:` / `https:` — same rules as {@link getHostnameFromWebUrl}).
- * @returns A tuple of `[scanUrlParam, hostname, ok]` where `scanUrlParam` is the hostname and `ok`
+ * @returns A tuple of `[scanUrlParam, hostname, ok]` where `hostname` is the web hostname and `ok`
  * is false when the URL is not a valid web URL.
  */
 export const getPhishingDetectionBulkScanUrlParam = (
   url: string,
 ): [scanUrlParam: string, hostname: string, ok: boolean] => {
-  const [hostname, ok] = getHostnameFromWebUrl(url);
-  if (!ok) {
+  const [hostname, okHost] = getHostnameFromWebUrl(url);
+  if (!okHost) {
     return ['', '', false];
   }
-  return [hostname, hostname, true];
+
+  const [scanUrlParam, okScan] = getPhishingDetectionScanUrlParam(url);
+  if (!okScan) {
+    return ['', '', false];
+  }
+
+  return [scanUrlParam, hostname, true];
 };
 
 export const getPathnameFromUrl = (url: string): string => {

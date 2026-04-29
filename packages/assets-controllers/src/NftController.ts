@@ -35,7 +35,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { PhishingControllerBulkScanUrlsAction } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import { RecommendedActionV2 } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -2303,7 +2303,7 @@ export class NftController extends BaseController<
 
           // Collect blocked URLs from this batch
           Object.entries(bulkScanResponse.results).forEach(([url, result]) => {
-            if (result.recommendedAction === RecommendedAction.Block) {
+            if (result.recommendedAction === RecommendedActionV2.Block) {
               // Type assertion is safe here as we always initialize with a Set and return a Set
               (workingBlockedUrls as Set<string>).add(url);
             }
