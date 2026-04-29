@@ -6,29 +6,14 @@ describe('computeIdentifierId', () => {
   const MOCK_PUBLIC_KEY =
     '0x02acabf4ecab2f8f559596c51c758ee97823f97c6c6feac031cdacb77eae071b5c';
 
-  it('produces SHA256(publicKey + salt) for dev environment', () => {
-    const result = computeIdentifierId(MOCK_PUBLIC_KEY, Env.DEV);
-    const expected = createSHA256Hash(
-      MOCK_PUBLIC_KEY + IDENTIFIER_SALT[Env.DEV],
-    );
-    expect(result).toBe(expected);
-  });
-
-  it('produces SHA256(publicKey + salt) for uat environment', () => {
-    const result = computeIdentifierId(MOCK_PUBLIC_KEY, Env.UAT);
-    const expected = createSHA256Hash(
-      MOCK_PUBLIC_KEY + IDENTIFIER_SALT[Env.UAT],
-    );
-    expect(result).toBe(expected);
-  });
-
-  it('produces SHA256(publicKey + salt) for prd environment', () => {
-    const result = computeIdentifierId(MOCK_PUBLIC_KEY, Env.PRD);
-    const expected = createSHA256Hash(
-      MOCK_PUBLIC_KEY + IDENTIFIER_SALT[Env.PRD],
-    );
-    expect(result).toBe(expected);
-  });
+  it.each([Env.DEV, Env.UAT, Env.PRD])(
+    'produces SHA256(publicKey + salt) for %s environment',
+    (env) => {
+      const result = computeIdentifierId(MOCK_PUBLIC_KEY, env);
+      const expected = createSHA256Hash(MOCK_PUBLIC_KEY + IDENTIFIER_SALT[env]);
+      expect(result).toBe(expected);
+    },
+  );
 
   it('produces different hashes for different environments', () => {
     const devHash = computeIdentifierId(MOCK_PUBLIC_KEY, Env.DEV);

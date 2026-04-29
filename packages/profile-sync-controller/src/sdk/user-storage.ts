@@ -619,6 +619,10 @@ export class UserStorage {
     }
     const profile = await this.config.auth.getUserProfile(entropySourceId);
     if (profile.profileId !== profile.canonicalProfileId) {
+      // After SRP pairing the JWT `sub` is the canonical profile id, but
+      // user storage data is still keyed by the original per-SRP profileId.
+      // The `x-profile-id` header tells the backend to scope reads/writes to
+      // that alias partition until ADR 0005 migrates storage keys to canonical.
       return { 'x-profile-id': profile.profileId };
     }
     return {};

@@ -796,6 +796,11 @@ describe('services', () => {
         canonicalProfileId: 'canonical-1',
         identifierIds: [{ id: 'h1', type: 'SRP' }],
       });
+      expect(result.profileAliases[1]).toStrictEqual({
+        aliasProfileId: 'p2',
+        canonicalProfileId: 'canonical-1',
+        identifierIds: [{ id: 'h2', type: 'SRP' }],
+      });
     });
 
     it('should throw PairError on network failure', async () => {

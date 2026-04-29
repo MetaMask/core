@@ -29,6 +29,7 @@ jest.mock('./services', () => ({
 }));
 
 // Mock computeIdentifierId
+const MOCK_COMPUTED_IDENTIFIER_ID = 'computed-identifier-hash';
 const mockComputeIdentifierId = jest.fn();
 jest.mock('./utils/identifier', () => ({
   computeIdentifierId: (...args: unknown[]): unknown =>
@@ -292,7 +293,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
     jest.clearAllMocks();
     mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
     mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
-    mockComputeIdentifierId.mockReturnValue('computed-identifier-hash');
+    mockComputeIdentifierId.mockReturnValue(MOCK_COMPUTED_IDENTIFIER_ID);
   });
 
   it('resolves original profileId from aliases when paired', async () => {
@@ -309,7 +310,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
         {
           aliasProfileId: 'original-profile-id',
           canonicalProfileId: 'canonical-profile-id',
-          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+          identifierIds: [{ id: MOCK_COMPUTED_IDENTIFIER_ID, type: 'SRP' }],
         },
         {
           aliasProfileId: 'other-original-id',
@@ -346,13 +347,13 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
           canonicalProfileId: 'top-canonical',
           identifierIds: [
             { id: 'other-hash', type: 'SRP' },
-            { id: 'computed-identifier-hash', type: 'SRP' },
+            { id: MOCK_COMPUTED_IDENTIFIER_ID, type: 'SRP' },
           ],
         },
         {
           aliasProfileId: 'true-original',
           canonicalProfileId: 'top-canonical',
-          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+          identifierIds: [{ id: MOCK_COMPUTED_IDENTIFIER_ID, type: 'SRP' }],
         },
       ],
     });
@@ -379,7 +380,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
           aliasProfileId: 'former-canonical-now-alias',
           canonicalProfileId: 'top-canonical',
           identifierIds: [
-            { id: 'computed-identifier-hash', type: 'SRP' },
+            { id: MOCK_COMPUTED_IDENTIFIER_ID, type: 'SRP' },
             { id: 'absorbed-hash', type: 'SRP' },
           ],
         },
@@ -473,7 +474,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
         {
           aliasProfileId: 'my-original-id',
           canonicalProfileId: 'canonical-from-server',
-          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+          identifierIds: [{ id: MOCK_COMPUTED_IDENTIFIER_ID, type: 'SRP' }],
         },
       ],
     });
@@ -501,7 +502,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
         {
           aliasProfileId: 'original-id',
           canonicalProfileId: 'canonical-id',
-          identifierIds: [{ id: 'computed-identifier-hash', type: 'SRP' }],
+          identifierIds: [{ id: MOCK_COMPUTED_IDENTIFIER_ID, type: 'SRP' }],
         },
       ],
     });

@@ -1,17 +1,5 @@
+import type { RawPairResponse } from './validate-pair-response';
 import { validatePairResponse } from './validate-pair-response';
-
-type RawPairResponse = {
-  profile: {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    profile_id: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    identifier_id: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    metametrics_id: string;
-  };
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  profile_aliases: never[];
-};
 
 function createValidRawPairResponse(): RawPairResponse {
   return {
@@ -26,78 +14,90 @@ function createValidRawPairResponse(): RawPairResponse {
 }
 
 describe('validatePairResponse()', () => {
-  it('returns true for a valid pair response', () => {
-    expect(validatePairResponse(createValidRawPairResponse())).toBe(true);
+  it('does not throw for a valid pair response', () => {
+    expect(() =>
+      validatePairResponse(createValidRawPairResponse()),
+    ).not.toThrow();
   });
 
-  it('returns true when metametrics_id is absent (optional field)', () => {
+  it('does not throw when metametrics_id is absent (optional field)', () => {
     const response = createValidRawPairResponse();
-    delete (response.profile as Record<string, unknown>).metametrics_id;
-    expect(validatePairResponse(response)).toBe(true);
+    delete response.profile.metametrics_id;
+    expect(() => validatePairResponse(response)).not.toThrow();
   });
 
-  it('returns true when profile_aliases is absent (optional field)', () => {
-    const response = createValidRawPairResponse() as Record<string, unknown>;
+  it('does not throw when profile_aliases is absent (optional field)', () => {
+    const response = createValidRawPairResponse();
     delete response.profile_aliases;
-    expect(validatePairResponse(response)).toBe(true);
+    expect(() => validatePairResponse(response)).not.toThrow();
   });
 
-  it('returns false for null/undefined/non-object input', () => {
-    expect(validatePairResponse(null)).toBe(false);
-    expect(validatePairResponse(undefined)).toBe(false);
-    expect(validatePairResponse('string')).toBe(false);
-    expect(validatePairResponse(42)).toBe(false);
+  it.each([null, undefined, 'string', 42])(
+    'throws for non-object input: %p',
+    (input) => {
+      expect(() => validatePairResponse(input)).toThrow(
+        'input is not an object',
+      );
+    },
+  );
+
+  it('throws when profile is missing', () => {
+    expect(() => validatePairResponse({})).toThrow(
+      'profile is missing or not an object',
+    );
+    expect(() => validatePairResponse({ profile_aliases: [] })).toThrow(
+      'profile is missing or not an object',
+    );
   });
 
-  it('returns false when profile is missing', () => {
-    expect(validatePairResponse({})).toBe(false);
-    expect(validatePairResponse({ profile_aliases: [] })).toBe(false);
+  it('throws when profile is not an object', () => {
+    expect(() => validatePairResponse({ profile: null })).toThrow(
+      'profile is missing or not an object',
+    );
+    expect(() => validatePairResponse({ profile: 'string' })).toThrow(
+      'profile is missing or not an object',
+    );
   });
 
-  it('returns false when profile is not an object', () => {
-    expect(validatePairResponse({ profile: null })).toBe(false);
-    expect(validatePairResponse({ profile: 'string' })).toBe(false);
+  it('throws when profile_id is missing or empty', () => {
+    expect(() =>
+      validatePairResponse({
+        profile: { identifier_id: 'some-id' },
+      }),
+    ).toThrow('profile.profile_id is missing or empty');
+
+    expect(() =>
+      validatePairResponse({
+        profile: { profile_id: '', identifier_id: 'some-id' },
+      }),
+    ).toThrow('profile.profile_id is missing or empty');
   });
 
-  it('returns false when profile_id is missing or empty', () => {
-    const missingProfileId = {
-      ...createValidRawPairResponse(),
-      profile: { identifier_id: 'some-id' },
-    };
-    expect(validatePairResponse(missingProfileId)).toBe(false);
+  it('throws when identifier_id is missing or empty', () => {
+    expect(() =>
+      validatePairResponse({
+        profile: { profile_id: 'some-id' },
+      }),
+    ).toThrow('profile.identifier_id is missing or empty');
 
-    const emptyProfileId = {
-      ...createValidRawPairResponse(),
-      profile: { ...createValidRawPairResponse().profile, profile_id: '' },
-    };
-    expect(validatePairResponse(emptyProfileId)).toBe(false);
+    expect(() =>
+      validatePairResponse({
+        profile: { profile_id: 'some-id', identifier_id: '' },
+      }),
+    ).toThrow('profile.identifier_id is missing or empty');
   });
 
-  it('returns false when identifier_id is missing or empty', () => {
-    const missingIdentifierId = {
-      ...createValidRawPairResponse(),
-      profile: { profile_id: 'some-id' },
-    };
-    expect(validatePairResponse(missingIdentifierId)).toBe(false);
-
-    const emptyIdentifierId = {
-      ...createValidRawPairResponse(),
-      profile: { ...createValidRawPairResponse().profile, identifier_id: '' },
-    };
-    expect(validatePairResponse(emptyIdentifierId)).toBe(false);
-  });
-
-  it('returns false when profile_id or identifier_id is not a string', () => {
-    expect(
+  it('throws when profile_id or identifier_id is not a string', () => {
+    expect(() =>
       validatePairResponse({
         profile: { profile_id: 123, identifier_id: 'some-id' },
       }),
-    ).toBe(false);
+    ).toThrow('profile.profile_id is missing or empty');
 
-    expect(
+    expect(() =>
       validatePairResponse({
         profile: { profile_id: 'some-id', identifier_id: true },
       }),
-    ).toBe(false);
+    ).toThrow('profile.identifier_id is missing or empty');
   });
 });

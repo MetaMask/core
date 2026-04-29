@@ -112,7 +112,9 @@ describe('AuthenticationController', () => {
       });
 
       const result = await controller.performSignIn();
-      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
+      // Called twice: once by performSignIn to iterate SRPs, once by
+      // #performPairing to resolve the primary for the canonical lookup.
+      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(2);
       expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(2);
       expect(mockSnapSignMessage).toHaveBeenCalledTimes(1);
       mockEndpoints.mockNonceUrl.done();
@@ -235,7 +237,7 @@ describe('AuthenticationController', () => {
 
     it('does not call pairProfiles when only 1 SRP exists', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      arrangeAuthAPIs();
+      const mockEndpoints = arrangeAuthAPIs();
       const { messenger, mockSnapGetAllPublicKeys } =
         createMockAuthenticationMessenger();
 
@@ -251,6 +253,7 @@ describe('AuthenticationController', () => {
       await controller.performSignIn();
 
       expect(controller.state.isSignedIn).toBe(true);
+      expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(false);
     });
 
     it('propagates canonical profileId to all srpSessionData entries', async () => {

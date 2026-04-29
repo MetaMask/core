@@ -293,11 +293,8 @@ export async function pairProfiles(
       );
     }
 
-    const pairResponse = await response.json();
-
-    if (!validatePairResponse(pairResponse)) {
-      throw new ValidationError('Invalid pair response shape');
-    }
+    const pairResponse: unknown = await response.json();
+    validatePairResponse(pairResponse);
 
     return {
       profile: {

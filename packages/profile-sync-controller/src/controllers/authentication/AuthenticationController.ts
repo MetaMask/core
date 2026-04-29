@@ -319,19 +319,19 @@ export class AuthenticationController extends BaseController<
   }
 
   async #performPairing(accessTokens: string[]): Promise<void> {
-    const previousCanonical = this.#getCanonicalProfileId();
+    const previousCanonical = await this.#getCanonicalProfileId();
 
     try {
       const profileAliases = await this.#pairSrpProfiles(accessTokens);
 
-      const newCanonical = this.#getCanonicalProfileId();
+      const newCanonical = await this.#getCanonicalProfileId();
       const profileIdChanged = previousCanonical !== newCanonical;
       const shouldEmitProfileSignInEvent =
         profileIdChanged || profileAliases.length > 0;
 
-      if (shouldEmitProfileSignInEvent) {
+      if (shouldEmitProfileSignInEvent && newCanonical) {
         this.messenger.publish('AuthenticationController:profileSignIn', {
-          profileId: newCanonical ?? '',
+          profileId: newCanonical,
           profileAliases,
           profileIdChanged,
         });
@@ -345,10 +345,11 @@ export class AuthenticationController extends BaseController<
     if (accessTokens.length < 2) {
       return [];
     }
+    const primaryAccessToken = accessTokens[0]; // Associated with primary SRP.
     const {
       profileAliases,
       profile: { canonicalProfileId },
-    } = await this.#auth.pairSrpProfiles(accessTokens, accessTokens[0]);
+    } = await this.#auth.pairSrpProfiles(accessTokens, primaryAccessToken);
     this.#propagateCanonical(canonicalProfileId);
     return profileAliases;
   }
@@ -360,8 +361,7 @@ export class AuthenticationController extends BaseController<
     }
 
     this.update((state) => {
-      for (const key of Object.keys(state.srpSessionData ?? {})) {
-        const entry = state.srpSessionData?.[key];
+      for (const entry of Object.values(state.srpSessionData ?? {})) {
         if (entry?.profile) {
           entry.profile.canonicalProfileId = canonicalProfileId;
         }
@@ -369,15 +369,21 @@ export class AuthenticationController extends BaseController<
     });
   }
 
-  #getCanonicalProfileId(): string | null {
-    const { srpSessionData } = this.state;
-    if (!srpSessionData) {
-      return null;
-    }
-    const firstKey = Object.keys(srpSessionData)[0];
-    return firstKey
-      ? (srpSessionData[firstKey]?.profile?.canonicalProfileId ?? null)
-      : null;
+  /**
+   * Returns the canonical profile id from the primary SRP's cached session.
+   * Returns `null` when no session exists yet for the primary SRP.
+   *
+   * Always reads from the primary SRP because the canonical is shared across
+   * all paired SRPs after `#propagateCanonical`.
+   *
+   * @returns The canonical profile id, or `null` if unavailable.
+   */
+  async #getCanonicalProfileId(): Promise<string | null> {
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    return (
+      this.state.srpSessionData?.[primaryEntropySourceId]?.profile
+        ?.canonicalProfileId ?? null
+    );
   }
 
   public performSignOut(): void {
@@ -447,12 +453,11 @@ export class AuthenticationController extends BaseController<
   public async refreshCanonicalProfileId(): Promise<string> {
     this.#assertIsUnlocked('refreshCanonicalProfileId');
 
-    const primaryId = await this.#getPrimaryEntropySourceId();
-    this.#invalidateSrpSession(primaryId);
-    await this.#auth.getAccessToken(primaryId);
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    this.#invalidateSrpSession(primaryEntropySourceId);
+    await this.#auth.getAccessToken(primaryEntropySourceId);
 
-    const canonical =
-      this.state.srpSessionData?.[primaryId]?.profile?.canonicalProfileId;
+    const canonical = await this.#getCanonicalProfileId();
     if (!canonical) {
       throw new Error(
         'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
