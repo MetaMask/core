@@ -875,11 +875,6 @@ export class AccountsController extends BaseController<
               },
               snap: {
                 id: keyring.snapId,
-                // FIXME: Those extra metadata are not really used anywhere, but we need to keep them for now for backward
-                // compatibility. We should remove them and rely only on the `SnapController:getSnap` action to get those
-                // information when needed.
-                name: '',
-                enabled: true, // This one might be automatically updated via `SnapController:stateChange`.
               },
             },
           };
