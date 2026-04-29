@@ -73,9 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export `decodeAuthorizationSignature` utility that decodes a 65-byte EIP-7702 authorization signature into RLP-canonical `r`, `s`, and `yParity` ([#8656](https://github.com/MetaMask/core/pull/8656))
   - All `eth_sendRawTransaction` failures are prefixed `RPC submit:` for failure-surface attribution in error metrics
 - Add `revert?: RevertData` field to `TransactionMeta` exposing decoded revert reason and raw data from gas estimation, simulation, and receipt replay ([#8589](https://github.com/MetaMask/core/pull/8589))
+- Add optional `isInternal` flag to `addTransaction` and `addTransactionBatch`, persisted on `TransactionMeta` and `TransactionBatchMeta` ([#8633](https://github.com/MetaMask/core/pull/8633))
 
 ### Changed
 
+- **BREAKING:** Internal-only validations are now gated by `isInternal` instead of `origin === ORIGIN_METAMASK`; callers that relied on `ORIGIN_METAMASK` to skip them must pass `isInternal: true` ([#8633](https://github.com/MetaMask/core/pull/8633))
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))

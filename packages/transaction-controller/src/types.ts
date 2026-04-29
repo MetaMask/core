@@ -325,6 +325,9 @@ export type TransactionMeta = {
    */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * The original dapp proposed token approval amount before edit by user.
    */
@@ -615,6 +618,9 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /**
    * ID of the JSON-RPC request from DAPP.
@@ -1874,6 +1880,14 @@ export type TransactionBatchRequest = {
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
 
+  /**
+   * Whether the batch was added by trusted internal MetaMask code rather than
+   * an external surface. Defaults to `false`. When `true`, validations that
+   * only apply to external requests (size limit, calls-with-data to internal
+   * accounts, duplicate batch ID) are skipped.
+   */
+  isInternal?: boolean;
+
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
 
@@ -2266,6 +2280,15 @@ export type AddTransactionOptions = {
 
   /** Origin of the transaction request, such as a dApp hostname. */
   origin?: string;
+
+  /**
+   * Whether the transaction was added by trusted internal MetaMask code rather
+   * than an external surface. Defaults to `false`. When `true`, validations
+   * that only apply to external requests (permitted-address check, EIP-7702
+   * authorization rejection, calls-with-data to internal accounts, duplicate
+   * batch ID, dapp-suggested gas fee handling) are skipped.
+   */
+  isInternal?: boolean;
 
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
