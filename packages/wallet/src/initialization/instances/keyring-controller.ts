@@ -1,20 +1,76 @@
-import { SnapKeyring } from '@metamask/eth-snap-keyring';
+import { AccountsControllerUpdateAccountsAction } from '@metamask/accounts-controller';
+import { SnapKeyring, SnapKeyringMessenger } from '@metamask/eth-snap-keyring';
 import {
   KeyringController,
+  KeyringControllerGetAccountsAction,
   KeyringControllerMessenger,
+  KeyringControllerPersistAllKeyringsAction,
+  KeyringControllerUnlockEvent,
   KeyringTypes,
 } from '@metamask/keyring-controller';
-import { Messenger } from '@metamask/messenger';
+import { Messenger, MessengerActions } from '@metamask/messenger';
+import {
+  SnapControllerGetSnapAction,
+  SnapControllerHandleRequestAction,
+  SnapControllerIsMinimumPlatformVersionAction,
+} from '@metamask/snaps-controllers';
 import { assert } from '@metamask/utils';
 
 import { encryptorFactory } from '../../encryption';
 import { InitializationConfiguration } from '../types';
 
-const createSnapKeyringBuilder = (messenger: KeyringControllerMessenger) => {
+type InitActions =
+  | SnapControllerHandleRequestAction
+  | SnapControllerGetSnapAction
+  | SnapControllerIsMinimumPlatformVersionAction
+  | AccountsControllerUpdateAccountsAction;
+
+type KeyringControllerAllowedActions =
+  | MessengerActions<KeyringControllerMessenger>
+  | InitActions;
+
+type WalletKeyringControllerMessenger = Messenger<
+  'KeyringController',
+  KeyringControllerAllowedActions,
+  KeyringControllerUnlockEvent
+>;
+
+type SnapKeyringAllowedActions =
+  | MessengerActions<SnapKeyringMessenger>
+  | InitActions
+  | KeyringControllerGetAccountsAction
+  | KeyringControllerPersistAllKeyringsAction;
+
+type WalletSnapKeyringMessenger = Messenger<
+  'SnapKeyring',
+  SnapKeyringAllowedActions
+>;
+
+const createSnapKeyringBuilder = (
+  controllerMessenger: WalletKeyringControllerMessenger,
+) => {
+  const messenger: WalletSnapKeyringMessenger = new Messenger({
+    namespace: 'SnapKeyring',
+    parent: controllerMessenger,
+  });
+
+  controllerMessenger.delegate({
+    messenger,
+    events: [],
+    actions: [
+      'SnapController:handleRequest',
+      'SnapController:getSnap',
+      'AccountsController:updateAccounts',
+      'SnapController:isMinimumPlatformVersion',
+      'KeyringController:getAccounts',
+      'KeyringController:persistAllKeyrings',
+    ],
+  });
+
   const SnapKeyringBuilder = (() => {
     return new SnapKeyring({
-      messenger,
-      // TODO: Partial implementation.
+      messenger: messenger as SnapKeyringMessenger,
+      // @ts-expect-error TODO: Partial implementation.
       callbacks: {
         addAccount: (
           _address: string,
@@ -55,14 +111,15 @@ const createSnapKeyringBuilder = (messenger: KeyringControllerMessenger) => {
 
 export const keyringController: InitializationConfiguration<
   KeyringController,
-  KeyringControllerMessenger
+  WalletKeyringControllerMessenger
 > = {
   name: 'KeyringController',
   init: ({ state, messenger }) => {
     const instance = new KeyringController({
       state,
-      messenger,
+      messenger: messenger as KeyringControllerMessenger,
       encryptor: encryptorFactory(600_000),
+      // @ts-expect-error: `addAccounts` is missing in `SnapKeyring` type.
       keyringBuilders: [createSnapKeyringBuilder(messenger)],
     });
 
@@ -80,13 +137,13 @@ export const keyringController: InitializationConfiguration<
     };
   },
   messenger: (parent) => {
-    const controllerMessenger: KeyringControllerMessenger = new Messenger({
-      namespace: 'KeyringController',
-      parent,
-    });
+    const controllerMessenger: WalletKeyringControllerMessenger = new Messenger(
+      {
+        namespace: 'KeyringController',
+        parent,
+      },
+    );
 
-    // TODO: These actions are not actually required by the KeyringController
-    // They are required for SnapKeyring, which we instantiate in this initializer for now.
     parent.delegate({
       messenger: controllerMessenger,
       events: [],

@@ -37,12 +37,6 @@ import {
 } from '@metamask/snaps-rpc-methods';
 import { CaipChainId, Hex, createDeferredPromise } from '@metamask/utils';
 
-import {
-  DefaultActions,
-  DefaultEvents,
-  RootMessenger,
-} from '../initialization';
-
 export const EndowmentPermissions = Object.freeze({
   'endowment:network-access': 'endowment:network-access',
   'endowment:transaction-insight': 'endowment:transaction-insight',
@@ -165,6 +159,8 @@ export const getPermissionSpecifications = (
           await promise;
 
           messenger.unsubscribe('KeyringController:unlock', resolveUnlock);
+
+          return;
         },
 
         getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),

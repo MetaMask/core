@@ -103,6 +103,7 @@ export async function signSolanaTransaction(
       origin: 'metamask',
       connectedAddresses: [address],
       scope,
+      // @ts-expect-error The type here is wrong, a full JSON-RPC request is not required.
       request: {
         method: 'signTransaction',
         params: {

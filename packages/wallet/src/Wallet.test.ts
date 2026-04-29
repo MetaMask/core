@@ -170,30 +170,32 @@ describe('Wallet', () => {
     ).toHaveLength(1);
   });
 
-  it('signs Solana transactions', async () => {
-    wallet = await setupWallet();
+  describe('non-EVM', () => {
+    it('signs Solana transactions', async () => {
+      wallet = await setupWallet();
 
-    const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+      const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
-    const addresses = wallet.messenger
-      .call('AccountsController:listMultichainAccounts', scope)
-      .map((account) => account.address);
+      const addresses = wallet.messenger
+        .call('AccountsController:listMultichainAccounts', scope)
+        .map((account) => account.address);
 
-    const from = `${scope}:${addresses[0]}` as CaipAccountId;
-    // Transaction generated using https://metamask.github.io/test-dapp-multichain/latest/
-    const transaction =
-      'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAECq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAmMaD4MVkBIM0/goc9L80HyTpzIc4eOb1VKrleF87xAQECAAAMAgAAAOgDAAAAAAAA';
+      const from = `${scope}:${addresses[0]}` as CaipAccountId;
+      // Transaction generated using https://metamask.github.io/test-dapp-multichain/latest/
+      const transaction =
+        'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAECq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAmMaD4MVkBIM0/goc9L80HyTpzIc4eOb1VKrleF87xAQECAAAMAgAAAOgDAAAAAAAA';
 
-    const result = await signSolanaTransaction(
-      wallet,
-      scope,
-      from,
-      transaction,
-    );
+      const result = await signSolanaTransaction(
+        wallet,
+        scope,
+        from,
+        transaction,
+      );
 
-    expect(result.signedTransaction).toBe(
-      'AR1TnpEWCpuEwSY868bmtztdsLsCVVL52/QgdH6FgItQfSiX09KFcID6oZIt8EitHy0qE4rWMx++XKeUvSq7QA8BAAIDq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAoCYxoPgxWQEgzT+Chz0vzQfJOnMhzh45vVUquV4XzvEDAgAJAxAnAAAAAAAAAQIAAAwCAAAA6AMAAAAAAAACAAUCAAAAAA==',
-    );
+      expect(result.signedTransaction).toBe(
+        'AR1TnpEWCpuEwSY868bmtztdsLsCVVL52/QgdH6FgItQfSiX09KFcID6oZIt8EitHy0qE4rWMx++XKeUvSq7QA8BAAIDq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAoCYxoPgxWQEgzT+Chz0vzQfJOnMhzh45vVUquV4XzvEDAgAJAxAnAAAAAAAAAQIAAAwCAAAA6AMAAAAAAAACAAUCAAAAAA==',
+      );
+    });
   });
 
   it('exposes state', async () => {

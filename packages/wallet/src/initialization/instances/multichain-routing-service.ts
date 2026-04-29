@@ -1,28 +1,42 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
-import { Messenger } from '@metamask/messenger';
+import { SnapKeyring } from '@metamask/eth-snap-keyring';
+import {
+  KeyringControllerGetKeyringsByTypeAction,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
+import { Messenger, MessengerActions } from '@metamask/messenger';
 import {
   MultichainRoutingService,
   MultichainRoutingServiceMessenger,
 } from '@metamask/snaps-controllers';
 
-import { RootMessenger } from '../defaults';
 import { InitializationConfiguration } from '../types';
+
+type InitActions = KeyringControllerGetKeyringsByTypeAction;
+
+type AllowedActions =
+  | MessengerActions<MultichainRoutingServiceMessenger>
+  | InitActions;
+
+type WalletMultichainRoutingServiceMessenger = Messenger<
+  'MultichainRoutingService',
+  AllowedActions
+>;
 
 export const multichainRoutingService: InitializationConfiguration<
   MultichainRoutingService,
-  MultichainRoutingServiceMessenger
+  WalletMultichainRoutingServiceMessenger
 > = {
   name: 'MultichainRoutingService',
   init: ({ messenger }) => {
     const instance = new MultichainRoutingService({
-      messenger,
+      messenger: messenger as MultichainRoutingServiceMessenger,
       withSnapKeyring: async (operation) => {
         const [keyring] = messenger.call(
           'KeyringController:getKeyringsByType',
           KeyringTypes.snap,
         );
 
-        return operation({ keyring });
+        return operation({ keyring: keyring as SnapKeyring });
       },
     });
 
@@ -31,10 +45,11 @@ export const multichainRoutingService: InitializationConfiguration<
     };
   },
   messenger: (parent) => {
-    const serviceMessenger: MultichainRoutingServiceMessenger = new Messenger({
-      namespace: 'MultichainRoutingService',
-      parent,
-    });
+    const serviceMessenger: WalletMultichainRoutingServiceMessenger =
+      new Messenger({
+        namespace: 'MultichainRoutingService',
+        parent,
+      });
 
     parent.delegate({
       messenger: serviceMessenger,
@@ -43,7 +58,6 @@ export const multichainRoutingService: InitializationConfiguration<
         'SnapController:handleRequest',
         'PermissionController:getPermissions',
         'AccountsController:listMultichainAccounts',
-        // TODO: Only used for hook
         'KeyringController:getKeyringsByType',
       ],
     });

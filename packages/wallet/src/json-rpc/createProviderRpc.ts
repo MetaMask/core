@@ -28,9 +28,9 @@ const METAMASK_CAIP_MULTICHAIN_PROVIDER = 'metamask-multichain-provider';
  */
 export function setupMultiplex(connectionStream: Duplex): ObjectMultiplex {
   const mux = new ObjectMultiplex();
-  pipeline(connectionStream, mux, connectionStream, (err: Error | null) => {
-    if (err && !err.message?.match('Premature close')) {
-      console.error(err);
+  pipeline(connectionStream, mux, connectionStream, (error: Error | null) => {
+    if (error && !error.message?.match('Premature close')) {
+      console.error(error);
     }
   });
   return mux;
@@ -136,15 +136,6 @@ export function createRpcHooks(
       origin,
     ),
     getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),
-    trackError: (error) => {
-      // TODO
-      return null;
-    },
-    /**
-           trackEvent: this.metaMetricsController.trackEvent.bind(
-          this.metaMetricsController,
-        ),*
-     */
     getAllSnaps: messenger.call.bind(messenger, 'SnapController:getAllSnaps'),
     openWebSocket: messenger.call.bind(
       messenger,

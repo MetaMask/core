@@ -1,4 +1,3 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 import {
   CronjobController,
@@ -10,11 +9,11 @@ import { InitializationConfiguration } from '../types';
 
 // We don't need a state manager for now.
 class DummyStateManager {
-  set(_state: CronjobControllerState) {
+  set(_state: CronjobControllerState): void {
     // no-op
   }
 
-  getInitialState() {
+  getInitialState(): undefined {
     return undefined;
   }
 }

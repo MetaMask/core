@@ -19,7 +19,6 @@ import {
   SnapControllerInstallSnapsAction,
   SnapControllerUpdateSnapStateAction,
   SnapInterfaceControllerCreateInterfaceAction,
-  SnapInterfaceControllerDeleteInterfaceAction,
   SnapInterfaceControllerGetInterfaceAction,
   SnapInterfaceControllerSetInterfaceDisplayedAction,
 } from '@metamask/snaps-controllers';
@@ -90,7 +89,6 @@ export const permissionController: InitializationConfiguration<
         'ApprovalController:acceptRequest',
         'ApprovalController:rejectRequest',
         'SubjectMetadataController:getSubjectMetadata',
-        // Init/hook actions
         'PreferencesController:getState',
         'KeyringController:getState',
         'KeyringController:withKeyring',

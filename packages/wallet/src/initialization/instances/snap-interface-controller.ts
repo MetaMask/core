@@ -1,8 +1,5 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 import {
-  CronjobController,
-  CronjobControllerMessenger,
   SnapInterfaceControllerMessenger,
   SnapInterfaceController,
 } from '@metamask/snaps-controllers';
