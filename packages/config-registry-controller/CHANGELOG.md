@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0]
-
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.3.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634))
@@ -45,8 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.0...HEAD
-[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.2.0...@metamask/config-registry-controller@0.3.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.2.0...HEAD
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.1...@metamask/config-registry-controller@0.2.0
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.0...@metamask/config-registry-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/config-registry-controller@0.1.0
