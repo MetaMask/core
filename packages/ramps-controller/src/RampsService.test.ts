@@ -113,6 +113,32 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
+    it('uses resolveEnvironment when provided instead of static environment', async () => {
+      nock('https://on-ramp.api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'us-tx');
+      const { rootMessenger } = getService({
+        options: {
+          environment: RampsEnvironment.Staging,
+          resolveEnvironment: () => RampsEnvironment.Production,
+        },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('us-tx');
+    });
+
     it('uses baseUrlOverride when provided', async () => {
       nock('http://custom-url.test')
         .get('/geolocation')
@@ -423,8 +449,8 @@ describe('RampsService', () => {
       `);
     });
 
-    it('uses development cache URL when environment is Development', async () => {
-      nock('https://on-ramp-cache.dev-api.cx.metamask.io')
+    it('uses development regions URL without cache host when environment is Development', async () => {
+      nock('https://on-ramp.dev-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
           sdk: '2.1.6',
