@@ -134,10 +134,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3` ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [22.0.2]
 
@@ -193,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -213,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Remove `@metamask/network-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/network-controller` dependency ([#4556](https://github.com/MetaMask/core/pull/4556))
   - This was listed under `peerDependencies` already, so it was redundant as a dependency.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
@@ -277,11 +277,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core.git/pull/4094))
+- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core/pull/4094))
 
 ### Fixed
 
-- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core.git/pull/4214))
+- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core/pull/4214))
 
 ## [15.0.0]
 
@@ -368,9 +368,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
-- Bump dependency on `@metamask/polling-controller` to ^1.0.2
+- Bump dependency on `@metamask/polling-controller` to ^1.0.2 ([#2028](https://github.com/MetaMask/core/pull/2028))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [10.0.0]
@@ -381,8 +381,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0 ([#1891](https://github.com/MetaMask/core/pull/1891))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0 ([#1891](https://github.com/MetaMask/core/pull/1891))
 
 ## [9.0.0]
 
@@ -396,23 +396,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Make `executePoll` private ([#1810](https://github.com/MetaMask/core/pull/1810))
 - **BREAKING:** Rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
-- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^0.2.0
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0 ([#1810](https://github.com/MetaMask/core/pull/1810))
+- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^0.2.0 ([#1810](https://github.com/MetaMask/core/pull/1810))
 
 ## [8.0.0]
 
 ### Added
 
-- Add optional `gasFeeEstimatesByChainId` property to GasFeeController state ([#1673](https://github.com/MetaMask/core/pull/1673)
-- Add dependency on `@metamask/polling-controller` ([#1748])(https://github.com/MetaMask/core/pull/1748))
+- Add optional `gasFeeEstimatesByChainId` property to GasFeeController state ([#1673](https://github.com/MetaMask/core/pull/1673))
+- Add dependency on `@metamask/polling-controller` ([#1748](https://github.com/MetaMask/core/pull/1748))
 
 ### Changed
 
-- **BREAKING:** Messenger must allow controller actions `NetworkController:getNetworkClientById` and `NetworkController:getEIP1559Compatibility` ([#1673](https://github.com/MetaMask/core/pull/1673)
+- **BREAKING:** Messenger must allow controller actions `NetworkController:getNetworkClientById` and `NetworkController:getEIP1559Compatibility` ([#1673](https://github.com/MetaMask/core/pull/1673))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1748](https://github.com/MetaMask/core/pull/1748))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1748](https://github.com/MetaMask/core/pull/1748))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0 ([#1748](https://github.com/MetaMask/core/pull/1748))
 
 ## [7.0.1]
 
@@ -431,9 +431,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump dependency on `@metamask/base-controller` to ^3.2.1
-- Bump dependency on `@metamask/controller-utils` to ^4.3.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2 ([#1546](https://github.com/MetaMask/core/pull/1546))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2 ([#1546](https://github.com/MetaMask/core/pull/1546))
 
 ## [6.1.1]
 
@@ -461,12 +461,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 - **BREAKING:** The `getChainId` constructor parameter now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
-- Add `@metamask/utils` dependency
+- Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
 - **BREAKING:** The gas fee controller messenger now requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
   - This does not apply if `onNetworkStateChange` and `getChainId` are provided to the constructor
 - **BREAKING:** The constructor parameter `onNetworkStateChange` now expects event handlers to be passed the full network state ([#1329](https://github.com/MetaMask/core/pull/1329))
   - The type of the `onNetworkStateChange` parameter already expected the state to be provided, but it wasn't used before now
-- **BREAKING:** Update `@metamask/network-controller` dependency and peer dependency
+- **BREAKING:** Update `@metamask/network-controller` dependency and peer dependency ([#1329](https://github.com/MetaMask/core/pull/1329))
 
 ## [5.0.0]
 
@@ -488,16 +488,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [3.0.0]
 
 ### Changed
 
-- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041))
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/core/pull/1041))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## [2.0.1]
 
@@ -517,7 +517,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - Everything in `src/gas`
 

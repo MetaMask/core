@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add convenience variables for calculating the number of milliseconds in a higher unit of time
+- Add convenience variables for calculating the number of milliseconds in a higher unit of time ([#6015](https://github.com/MetaMask/core/pull/6015))
   - `SECOND` / `SECONDS`
   - `MINUTE` / `MINUTES`
   - `HOUR` / `HOURS`
@@ -277,7 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -287,10 +287,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `BlockExplorerUrl` object and type for looking up the block explorer URL of any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
-- Add `NetworkNickname` object and type for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
-- Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4286))
-- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `BlockExplorerUrl` object and type for looking up the block explorer URL of any Infura network ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `NetworkNickname` object and type for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4268))
+- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4268))
 
 ## [11.1.0]
 
@@ -406,7 +406,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
+- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo. ([#3695](https://github.com/MetaMask/core/pull/3695))
 
 ## [8.0.0]
 
@@ -430,7 +430,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Restore missing dependency `eth-query`([#3578](https://github.com/MetaMask/core/pull/3578))
+- Restore missing dependency `eth-query` ([#3578](https://github.com/MetaMask/core/pull/3578))
   - This was mistakenly recategorized as a devDependency in v6.0.0
 
 ## [6.0.0]
@@ -479,7 +479,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
+- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo. ([#1634](https://github.com/MetaMask/core/pull/1634))
 
 ## [4.3.1]
 
@@ -590,31 +590,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/core/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [2.0.0]
 
 ### Added
 
-- Add Sepolia-related constants ([#1041](https://github.com/MetaMask/controllers/pull/1041))
-- Update `getBuyURL` function to return Sepolia faucet for Sepolia network ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Add Sepolia-related constants ([#1041](https://github.com/MetaMask/core/pull/1041))
+- Update `getBuyURL` function to return Sepolia faucet for Sepolia network ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ### Changed
 
 - **BREAKING:**: Migrate from `metaswap` to `metafi` subdomain for OpenSea proxy ([#1060](https://github.com/MetaMask/core/pull/1060))
-- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/core/pull/1031))
 
 ### Removed
 
-- **BREAKING:** Remove all constants associated with Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/controllers/pull/1041))
-- **BREAKING:** Remove support for Ropsten, Rinkeby, and Kovan from `getBuyUrl` function ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- **BREAKING:** Remove all constants associated with Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/core/pull/1041))
+- **BREAKING:** Remove support for Ropsten, Rinkeby, and Kovan from `getBuyUrl` function ([#1041](https://github.com/MetaMask/core/pull/1041))
 
 ## [1.0.0]
 
 ### Added
 
-- Initial release
+- Initial release ([#831](https://github.com/MetaMask/core/pull/831))
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/constants.ts` (but see below)
     - `src/util.ts` (but see below)

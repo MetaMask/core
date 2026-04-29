@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [6.0.0]
@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export TanStack Query options for all API endpoints via `get*QueryOptions` helpers ([#7928](https://github.com/MetaMask/core/pull/7928))
   - Each fetch method (e.g. `fetchV5MultiAccountBalances`) has a corresponding `get*QueryOptions` (e.g. `getV5MultiAccountBalancesQueryOptions`) returning the same options object used internally
   - Enables reuse with `useQuery`, `useInfiniteQuery`, `useSuspenseQuery`, and other TanStack Query APIs
-- Extend `FetchOptions` to allow TanStack Query options (e.g. `select`, `initialPageParam`, `retry`, `initialData`) to be passed through to `get*QueryOptions` and merged into the returned query options
+- Extend `FetchOptions` to allow TanStack Query options (e.g. `select`, `initialPageParam`, `retry`, `initialData`) to be passed through to `get*QueryOptions` and merged into the returned query options ([#7928](https://github.com/MetaMask/core/pull/7928))
   - Export `getQueryOptionsOverrides` helper for stripping `queryKey`/`queryFn` from options when merging
   - All API clients (accounts, prices, token, tokens) merge user overrides first, then apply `staleTime`/`gcTime` defaults so cache timing is consistent and extra options (e.g. `select`) are preserved
 
@@ -248,18 +248,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Initial release of `@metamask/core-backend` package** - Core backend services for MetaMask serving as the data layer between Backend services and Frontend applications ([#6722](https://github.com/MetaMask/core/pull/6722))
-- **BackendWebSocketService** - WebSocket client providing authenticated real-time data delivery with:
+- **BackendWebSocketService** - WebSocket client providing authenticated real-time data delivery with: ([#6722](https://github.com/MetaMask/core/pull/6722))
   - Connection management and automatic reconnection with exponential backoff
   - Message routing and subscription management
   - Authentication integration with `AuthenticationController`
   - Type-safe messenger-based API for controller integration
-- **AccountActivityService** - High-level service for monitoring account activity with:
+- **AccountActivityService** - High-level service for monitoring account activity with: ([#6722](https://github.com/MetaMask/core/pull/6722))
   - Real-time account activity monitoring via WebSocket subscriptions
   - Balance update notifications for integration with `TokenBalancesController`
   - Chain status change notifications for dynamic polling coordination
   - Account subscription management with automatic cleanup
-- **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
-- **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
+- **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations ([#6722](https://github.com/MetaMask/core/pull/6722))
+- **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring ([#6722](https://github.com/MetaMask/core/pull/6722))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...HEAD
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...@metamask/core-backend@6.2.1

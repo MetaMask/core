@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+- Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
   - The following actions are now available:
     - `UserStorageController:performDeleteStorageAllFeatureEntries`
     - `UserStorageController:listEntropySources`
@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
   - `validateLoginResponse` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
   - Non-JWT access tokens are now rejected as invalid. In production this has no effect (access tokens are always JWTs from the OIDC server), but E2E test mocks that use raw identifier strings as access tokens must be updated. `getMockAuthAccessTokenResponse` now wraps identifiers in a JWT; consumers should use `getE2EIdentifierFromJwt` (newly exported) to extract the identifier from the bearer token in mock servers.
-- **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976/))
+- **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976))
   - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `AuthenticationControllerPerformSignIn` -> `AuthenticationControllerPerformSignInAction`). You will need to update imports appropriately.
   - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AuthenticationController` and `UserStorageController` messengers.
 
@@ -337,7 +337,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Peer dependencies `@metamask/keyring-controller` and `@metamask/network-controller` are no longer also direct dependencies ([#5464](https://github.com/MetaMask/core/pull/5464)))
+- Peer dependencies `@metamask/keyring-controller` and `@metamask/network-controller` are no longer also direct dependencies ([#5464](https://github.com/MetaMask/core/pull/5464))
 
 ## [10.1.0]
 
@@ -437,7 +437,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
-- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
 
 ## [4.1.1]
 
@@ -464,7 +464,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^20.0.0` to `^21.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
 - Bump `@metamask/base-controller` from `7.1.0` to `^7.1.1` ([#5135](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
-- Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066)), ([#5136](https://github.com/MetaMask/core/pull/5136))
+- Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066), [#5136](https://github.com/MetaMask/core/pull/5136))
 - Bump `@metamask/keyring-controller` from `^19.0.2` to `^19.0.3` ([#5140](https://github.com/MetaMask/core/pull/5140))
 
 ## [3.3.0]
@@ -493,7 +493,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use new `@metamask/keyring-internal-api@^1.0.0`( [#4695](https://github.com/MetaMask/core/pull/4695))
+- Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
   - This package has been split out from the Keyring API.
 - Bump `@metamask/keyring-api` from `^10.1.0` to `^12.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
 
@@ -543,8 +543,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [1.0.2]
 
@@ -631,7 +631,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
   - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
   - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
 
@@ -710,7 +710,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -798,7 +798,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** Remove `entryKey` function parameter from `createEntryPath`, and replace with `path` parameter of type `UserStoragePath`.
   - **BREAKING:** Remove `entryKey` property from type `UserStorageOptions`, and replace with `path` property of type `UserStoragePath`.
 - **BREAKING:** Bump peerDependency `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Remove `@metamask/snaps-controllers` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+- Remove `@metamask/snaps-controllers` dependency ([#4556](https://github.com/MetaMask/core/pull/4556))
   - This was listed under `peerDependencies` already, so it was redundant as a dependency.
 - Widen `isProfileSyncingEnabled` property of the `UserStorageControllerState` type from `boolean` to `boolean | null` ([#4551](https://github.com/MetaMask/core/pull/4551))
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
@@ -815,7 +815,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - added `LoginResponse` validation in profile syncing SDK ([#4541](https://github.com/MetaMask/core/pull/4541))
-
 - added snap caching when calling the message signing snap ([#4532](https://github.com/MetaMask/core/pull/4532))
 
 ### Removed
@@ -837,7 +836,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - added platform field when logging in to receive correct OIDC access token ([#4480](https://github.com/MetaMask/core/pull/4480))
-
 - added metametrics validation in constructor ([#4480](https://github.com/MetaMask/core/pull/4480))
 
 ### Changed
@@ -858,7 +856,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
+- Initial release ([#4150](https://github.com/MetaMask/core/pull/4150))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...HEAD
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2

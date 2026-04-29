@@ -138,7 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of @metamask/sample-controllers.
+- Initial release of @metamask/sample-controllers ([#5363](https://github.com/MetaMask/core/pull/5363))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.4...HEAD
 [4.0.4]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.3...@metamask/sample-controllers@4.0.4
