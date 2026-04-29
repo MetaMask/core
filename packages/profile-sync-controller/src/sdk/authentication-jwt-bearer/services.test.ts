@@ -10,12 +10,14 @@ import {
   authenticate,
   authorizeOIDC,
   pairIdentifiers,
+  pairProfiles,
   getUserProfileLineage,
   NONCE_URL,
   OIDC_TOKEN_URL,
   SRP_LOGIN_URL,
   SIWE_LOGIN_URL,
   PAIR_IDENTIFIERS,
+  PAIR_PROFILES_URL,
   PROFILE_LINEAGE_URL,
 } from './services';
 import { AuthType } from './types';
@@ -124,6 +126,12 @@ describe('services', () => {
     it('should build correct PROFILE_LINEAGE_URL', () => {
       expect(PROFILE_LINEAGE_URL(Env.DEV)).toBe(
         'https://authentication.dev-api.cx.metamask.io/api/v2/profile/lineage',
+      );
+    });
+
+    it('should build correct PAIR_PROFILES_URL', () => {
+      expect(PAIR_PROFILES_URL(Env.DEV)).toBe(
+        'https://authentication.dev-api.cx.metamask.io/api/v2/profile/pair',
       );
     });
   });
@@ -349,7 +357,9 @@ describe('services', () => {
           identifierId: 'id-1',
           metaMetricsId: 'mm-1',
           profileId: 'profile-1',
+          canonicalProfileId: 'profile-1',
         },
+        profileAliases: [],
       });
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/srp/login'),
@@ -361,6 +371,88 @@ describe('services', () => {
           }),
         }),
       );
+    });
+
+    it('should send X-MetaMask-Profile-Pairing header for SRP', async () => {
+      const mockResponse = createMockResponse(mockAuthResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await authenticate('raw-message', 'signature', AuthType.SRP, Env.DEV);
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers).toStrictEqual(
+        expect.objectContaining({
+          'X-MetaMask-Profile-Pairing': 'enabled',
+        }),
+      );
+    });
+
+    it('should not send X-MetaMask-Profile-Pairing header for SiWE', async () => {
+      const mockResponse = createMockResponse(mockAuthResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await authenticate('raw-message', 'signature', AuthType.SiWE, Env.DEV);
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].headers).not.toStrictEqual(
+        expect.objectContaining({
+          'X-MetaMask-Profile-Pairing': 'enabled',
+        }),
+      );
+    });
+
+    it('should parse profile_aliases from response', async () => {
+      const responseWithAliases = {
+        ...mockAuthResponse,
+        profile_aliases: [
+          {
+            alias_profile_id: 'alias-1',
+            canonical_profile_id: 'canonical-1',
+            identifier_ids: [{ id: 'hash-1', type: 'SRP' }],
+          },
+          {
+            alias_profile_id: 'alias-2',
+            canonical_profile_id: 'canonical-1',
+            identifier_ids: [{ id: 'hash-2', type: 'SRP' }],
+          },
+        ],
+      };
+      const mockResponse = createMockResponse(responseWithAliases);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await authenticate(
+        'raw-message',
+        'signature',
+        AuthType.SRP,
+        Env.DEV,
+      );
+
+      expect(result.profileAliases).toStrictEqual([
+        {
+          aliasProfileId: 'alias-1',
+          canonicalProfileId: 'canonical-1',
+          identifierIds: [{ id: 'hash-1', type: 'SRP' }],
+        },
+        {
+          aliasProfileId: 'alias-2',
+          canonicalProfileId: 'canonical-1',
+          identifierIds: [{ id: 'hash-2', type: 'SRP' }],
+        },
+      ]);
+    });
+
+    it('should return empty profileAliases when none in response', async () => {
+      const mockResponse = createMockResponse(mockAuthResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await authenticate(
+        'raw-message',
+        'signature',
+        AuthType.SRP,
+        Env.DEV,
+      );
+
+      expect(result.profileAliases).toStrictEqual([]);
     });
 
     it('should return authentication data on success with SiWE', async () => {
@@ -694,6 +786,140 @@ describe('services', () => {
 
       expect(error).toBeInstanceOf(RateLimitedError);
       expect(error.retryAfterMs).toBe(30000);
+    });
+  });
+
+  describe('pairProfiles', () => {
+    const mockPairApiResponse = {
+      profile: {
+        identifier_id: 'id-canonical',
+        metametrics_id: 'mm-canonical',
+        profile_id: 'canonical-1',
+      },
+      profile_aliases: [
+        {
+          alias_profile_id: 'p1',
+          canonical_profile_id: 'canonical-1',
+          identifier_ids: [{ id: 'h1', type: 'SRP' }],
+        },
+      ],
+    };
+
+    it('should send correct request with JWT array', async () => {
+      const mockResponse = createMockResponse(mockPairApiResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await pairProfiles(
+        ['token-1', 'token-2', 'token-3'],
+        'auth-access-token',
+        Env.DEV,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer auth-access-token',
+          },
+          body: JSON.stringify({
+            jwts: ['token-1', 'token-2', 'token-3'],
+          }),
+        }),
+      );
+    });
+
+    it('should return parsed profile and aliases from response', async () => {
+      const pairApiResponse = {
+        profile: {
+          identifier_id: 'id-canonical',
+          metametrics_id: 'mm-canonical',
+          profile_id: 'canonical-1',
+        },
+        profile_aliases: [
+          {
+            alias_profile_id: 'p1',
+            canonical_profile_id: 'canonical-1',
+            identifier_ids: [{ id: 'h1', type: 'SRP' }],
+          },
+          {
+            alias_profile_id: 'p2',
+            canonical_profile_id: 'canonical-1',
+            identifier_ids: [{ id: 'h2', type: 'SRP' }],
+          },
+        ],
+      };
+      const mockResponse = createMockResponse(pairApiResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await pairProfiles(
+        ['token-1', 'token-2'],
+        'auth-access-token',
+        Env.DEV,
+      );
+
+      expect(result.profile.profileId).toBe('canonical-1');
+      expect(result.profile.identifierId).toBe('id-canonical');
+      expect(result.profileAliases).toHaveLength(2);
+      expect(result.profileAliases[0]).toStrictEqual({
+        aliasProfileId: 'p1',
+        canonicalProfileId: 'canonical-1',
+        identifierIds: [{ id: 'h1', type: 'SRP' }],
+      });
+      expect(result.profileAliases[1]).toStrictEqual({
+        aliasProfileId: 'p2',
+        canonicalProfileId: 'canonical-1',
+        identifierIds: [{ id: 'h2', type: 'SRP' }],
+      });
+    });
+
+    it('should throw PairError on network failure', async () => {
+      mockFetch.mockRejectedValue(new Error('Connection refused'));
+
+      await expect(
+        pairProfiles(['token-1'], 'auth-token', Env.DEV),
+      ).rejects.toThrow(PairError);
+    });
+
+    it('should throw PairError on error response', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Invalid tokens', error: 'invalid_request' },
+        { ok: false, status: 400 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        pairProfiles(['token-1'], 'auth-token', Env.DEV),
+      ).rejects.toThrow(PairError);
+    });
+
+    it('should throw RateLimitedError on 429 response', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Rate limited', error: 'too_many_requests' },
+        { ok: false, status: 429, headers: { 'Retry-After': '10' } },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const error = await pairProfiles(
+        ['token-1'],
+        'auth-token',
+        Env.DEV,
+      ).catch((caughtError) => caughtError);
+
+      expect(error).toBeInstanceOf(RateLimitedError);
+      expect(error.retryAfterMs).toBe(10000);
+    });
+
+    it('should call correct URL for environment', async () => {
+      const mockResponse = createMockResponse(mockPairApiResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await pairProfiles(['token-1'], 'auth-token', Env.PRD);
+
+      const calledUrl = mockFetch.mock.calls[0][0];
+      expect(calledUrl.toString()).toContain('api.cx.metamask.io');
+      expect(calledUrl.toString()).toContain('/profile/pair');
     });
   });
 

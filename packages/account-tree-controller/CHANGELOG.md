@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Now use `SnapController:getSnap` when applying Snap rule (instead of using `account.metadata.snap.enabled`. ([#8584](https://github.com/MetaMask/core/pull/8584))
   - As a result of this, Snap accounts that reference unavailable Snap (read, not available on the `SnapController`) will now be grouped under the Keyring rule instead (e.g being put in the "Snap Wallet" section).
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.3.0` ([#8634](https://github.com/MetaMask/core/pull/8634))
 
 ## [7.1.0]
 
