@@ -32,6 +32,7 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -48,6 +49,7 @@ import { v1 as random } from 'uuid';
 import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
+  shouldFetchSecurityData,
 } from './assetsUtil';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
@@ -156,6 +158,7 @@ export type TokensControllerActions =
 export type AllowedActions =
   | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction;
@@ -316,6 +319,75 @@ export class TokensController extends BaseController<
     );
   }
 
+  /**
+   * Initialize the controller by scanning current account's tokens for security data.
+   * Should be called by clients after all controllers are instantiated.
+   */
+  async init(): Promise<void> {
+    await this.#scanCurrentAccountTokensSecurity();
+  }
+
+  /**
+   * Scans all tokens across all chains for the current selected account for security data.
+   * Only fetches for tokens that have no security data or stale data (>12 hours).
+   * Called on app startup (via init()) and when user switches accounts.
+   */
+  async #scanCurrentAccountTokensSecurity(): Promise<void> {
+    // Respect basic functionality toggle
+    if (!this.#useExternalServices()) {
+      return;
+    }
+
+    try {
+      const selectedAddress = this.#getSelectedAddress();
+      const { allTokens } = this.state;
+
+      // Scan tokens across all chains for this account
+      for (const [chainId, tokensByAccount] of Object.entries(allTokens)) {
+        const accountTokens = tokensByAccount[selectedAddress];
+        if (!accountTokens || accountTokens.length === 0) {
+          continue; // No tokens on this chain for this account
+        }
+
+        // Filter tokens that need scanning (no security data OR stale)
+        const tokensNeedingScan = accountTokens.filter(
+          (token) =>
+            !token.security ||
+            shouldFetchSecurityData(token.security.lastFetchedAt),
+        );
+
+        if (tokensNeedingScan.length === 0) {
+          continue; // All tokens on this chain have fresh security data
+        }
+
+        // Fetch security data (batching handled internally)
+        const addresses = tokensNeedingScan.map((token) => token.address);
+        const securityDataMap = await this.#fetchSecurityDataBatch(
+          addresses,
+          chainId as Hex,
+        );
+
+        // Update state with new security data for this chain
+        this.update((state) => {
+          const tokens = state.allTokens[chainId as Hex]?.[selectedAddress];
+          if (!tokens) {
+            return;
+          }
+
+          tokens.forEach((token) => {
+            const checksumAddress = toChecksumHexAddress(token.address);
+            if (securityDataMap[checksumAddress]) {
+              token.security = securityDataMap[checksumAddress];
+            }
+          });
+        });
+      }
+    } catch (error) {
+      // Fail-open: log but don't block
+      console.warn('Failed to scan tokens for security data:', error);
+    }
+  }
+
   #handleOnAccountRemoved(accountAddress: string) {
     const isEthAddress =
       isStrictHexString(accountAddress.toLowerCase()) &&
@@ -381,11 +453,16 @@ export class TokensController extends BaseController<
 
   /**
    * Handles the selected account change in the accounts controller.
+   * Updates the selected account ID and scans tokens for security data.
    *
    * @param selectedAccount - The new selected account
    */
   #onSelectedAccountChange(selectedAccount: InternalAccount) {
     this.#selectedAccountId = selectedAccount.id;
+    // Scan tokens for the new account (fire-and-forget)
+    this.#scanCurrentAccountTokensSecurity().catch((error) => {
+      console.warn('Failed to scan tokens on account change:', error);
+    });
   }
 
   /**

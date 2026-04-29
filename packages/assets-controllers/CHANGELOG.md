@@ -26,12 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clients must pass a function that returns the current state of `PreferencesController.state.useExternalServices`
   - Example: `useExternalServices: () => preferencesController.state.useExternalServices ?? true`
   - The callback is invoked at runtime each time security data is fetched, respecting user privacy settings changes
+- **BREAKING:** `TokensController` now requires clients to call `init()` method after instantiation
+  - The `init()` method triggers an initial security scan for the current account's tokens
+  - Must be called after all controllers are instantiated to avoid initialization order dependencies
+  - Example: `await tokensController.init()`
 - **BREAKING:** `MultichainAssetsController` constructor now requires a `useExternalServices` callback parameter
   - This callback controls whether external API calls (Blockaid scans) are allowed
   - Clients must pass a function that returns the current state of `PreferencesController.state.useExternalServices`
   - Example: `useExternalServices: () => preferencesController.state.useExternalServices ?? true`
   - The callback is invoked at runtime each time security scans are performed
+- **BREAKING:** `MultichainAssetsController` now requires clients to call `init()` method after instantiation
+  - The `init()` method triggers an immediate security scan for all accounts' non-EVM assets
+  - Must be called after all controllers are instantiated to avoid initialization order dependencies
+  - Example: `await multichainAssetsController.init()`
 - `TokenSecurityInfo` type now includes `lastFetchedAt: number` field for smart caching (12-hour freshness window)
+- `TokensController` now automatically scans tokens for security data when user switches accounts
+  - Security scans are cache-aware and only fetch data for tokens with missing or stale security info (>12 hours old)
+  - Scanning is fire-and-forget and never blocks the UI
 
 - **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
   - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.

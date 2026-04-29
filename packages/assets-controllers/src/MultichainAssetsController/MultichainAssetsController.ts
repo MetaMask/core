@@ -283,6 +283,16 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
+  /**
+   * Initialize the controller by scanning all accounts' assets for security data.
+   * Should be called by clients after all controllers are instantiated.
+   * Triggers an immediate security scan for all non-EVM (SPL) tokens.
+   */
+  async init(): Promise<void> {
+    // Trigger an immediate poll to scan all accounts' assets
+    await this._executePoll(null);
+  }
+
   async _executePoll(_input: null): Promise<void> {
     await this.#withControllerLock(async () => {
       const assetsByAccount: Record<
