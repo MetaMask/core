@@ -81,6 +81,39 @@ describe('createMethodMiddleware', () => {
     ).rejects.toThrow('Nothing ended request');
   });
 
+  it('handles a handler with no hooks or actions', async () => {
+    const noDeps = {
+      implementation: (): Promise<string> => Promise.resolve('ok'),
+    } satisfies MethodHandler;
+
+    const middleware = createMethodMiddleware({
+      handlers: { noDeps },
+      hooks: {},
+    });
+    const engine = JsonRpcEngineV2.create({ middleware: [middleware] });
+
+    const result = await engine.handle(makeRequest({ method: 'noDeps' }));
+    expect(result).toBe('ok');
+  });
+
+  it('propagates errors thrown by the implementation', async () => {
+    const failing = {
+      implementation: (): Promise<string> => {
+        throw new Error('test error');
+      },
+    } satisfies MethodHandler;
+
+    const middleware = createMethodMiddleware({
+      handlers: { failing },
+      hooks: {},
+    });
+    const engine = JsonRpcEngineV2.create({ middleware: [middleware] });
+
+    await expect(
+      engine.handle(makeRequest({ method: 'failing' })),
+    ).rejects.toThrow('test error');
+  });
+
   it('throws if handler actionNames are configured without a messenger', () => {
     const getValueB = {
       actionNames: ['Example:TestAction'],
@@ -93,5 +126,39 @@ describe('createMethodMiddleware', () => {
         hooks: {},
       }),
     ).toThrow('A messenger is required when a handler declares actionNames.');
+  });
+
+  it('throws if a required hook is missing', () => {
+    const getValueA = {
+      hookNames: { testHook: true },
+      implementation: ({ hooks }): Promise<string> => hooks.testHook(),
+    } satisfies MethodHandler<{ testHook: () => Promise<string> }>;
+
+    expect(() =>
+      createMethodMiddleware({
+        handlers: { getValueA },
+        // @ts-expect-error Intentionally missing a required hook.
+        hooks: {},
+      }),
+    ).toThrow('Missing expected hooks');
+  });
+
+  it('throws if an extraneous hook is provided', () => {
+    const getValueA = {
+      hookNames: { testHook: true },
+      implementation: ({ hooks }): Promise<string> => hooks.testHook(),
+    } satisfies MethodHandler<{ testHook: () => Promise<string> }>;
+
+    const hooks = {
+      testHook: async (): Promise<string> => 'A',
+      extraneousHook: (): number => 100,
+    };
+
+    expect(() =>
+      createMethodMiddleware({
+        handlers: { getValueA },
+        hooks,
+      }),
+    ).toThrow('Received unexpected hooks');
   });
 });
