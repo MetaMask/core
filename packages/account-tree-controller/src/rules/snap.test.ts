@@ -48,13 +48,59 @@ const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   metadata: {
     name: 'Snap Account 1',
     keyring: { type: KeyringTypes.snap },
-    snap: { name: 'Test Snap', id: MOCK_SNAP_1.id, enabled: true },
+    snap: { id: MOCK_SNAP_1.id },
     importTime: 0,
     lastSelected: 0,
   },
 };
 
 describe('SnapRule', () => {
+  describe('match', () => {
+    it('returns undefined for a snap that is enabled but blocked', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
+
+      const blockedSnap = { ...MOCK_SNAP_1, enabled: true, blocked: true };
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => blockedSnap as unknown as Snap,
+      );
+
+      expect(rule.match(MOCK_SNAP_ACCOUNT_1)).toBeUndefined();
+    });
+
+    it('returns undefined for a snap that is disabled and not blocked', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
+
+      const disabledSnap = { ...MOCK_SNAP_1, enabled: false, blocked: false };
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => disabledSnap as unknown as Snap,
+      );
+
+      expect(rule.match(MOCK_SNAP_ACCOUNT_1)).toBeUndefined();
+    });
+
+    it('returns a result for a snap that is enabled and not blocked', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
+
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => MOCK_SNAP_1 as unknown as Snap,
+      );
+
+      expect(rule.match(MOCK_SNAP_ACCOUNT_1)).toBeDefined();
+    });
+  });
+
   describe('getComputedAccountGroupName', () => {
     it('returns computed name from base class', () => {
       const messenger = getRootMessenger();

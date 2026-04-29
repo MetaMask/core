@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [65.0.0]
+
 ### Added
 
 - Expose `TransactionController:wipeTransactions` method through `TransactionController` messenger ([#8592](https://github.com/MetaMask/core/pull/8592))
+
+### Changed
+
+- `estimateGasBatch` now skips the EIP-7702 path when the account's keyring does not support it, falling back to per-transaction gas estimation ([#8388](https://github.com/MetaMask/core/pull/8388))
+- `doesAccountSupportEIP7702` now returns `false` instead of `true` when the account is not found in any keyring ([#8388](https://github.com/MetaMask/core/pull/8388))
+- **BREAKING:** Add `KeyringControllerGetStateAction` to `AllowedActions` to enable keyring-based EIP-7702 account compatibility checks in `addTransactionBatch` ([#8388](https://github.com/MetaMask/core/pull/8388))
+  - `addTransactionBatch` now automatically checks whether the account's keyring supports EIP-7702 before attempting the 7702 batch path, falling back to STX/sequential when unsupported
+  - Clients must add `KeyringController:getState` to the TransactionController messenger's allowed actions
+
+### Fixed
+
+- Fix batch transaction signing so each transaction is signed sequentially, preventing remaining hardware wallet prompts from appearing after a rejection ([#8388](https://github.com/MetaMask/core/pull/8388))
 
 ## [64.4.0]
 
@@ -2353,7 +2367,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.0.0...HEAD
+[65.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.4.0...@metamask/transaction-controller@65.0.0
 [64.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.3.0...@metamask/transaction-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.2.0...@metamask/transaction-controller@64.3.0
 [64.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.1.0...@metamask/transaction-controller@64.2.0

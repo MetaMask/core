@@ -77,6 +77,17 @@ const MESSENGER_MOCK = {
       };
     }
 
+    if (action === 'KeyringController:getState') {
+      return {
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [FROM_MOCK],
+          },
+        ],
+      };
+    }
+
     return {
       remoteFeatureFlags: {},
     };
@@ -91,6 +102,17 @@ function mockMessengerCall(): void {
       return {
         configuration: { chainId: CHAIN_ID_MOCK },
         provider: {},
+      };
+    }
+
+    if (action === 'KeyringController:getState') {
+      return {
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [FROM_MOCK],
+          },
+        ],
       };
     }
 
@@ -1334,6 +1356,56 @@ describe('gas', () => {
       expect(result.gasLimits[0]).toBe(100000);
       expect(result.gasLimits[1]).toBe(500000);
       expect(result.totalGasLimit).toBe(600000);
+    });
+
+    it('skips EIP-7702 path when account does not support it', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      jest.mocked(MESSENGER_MOCK.call).mockImplementation((action: string) => {
+        if (action === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: { chainId: CHAIN_ID_MOCK },
+            provider: {},
+          };
+        }
+
+        if (action === 'KeyringController:getState') {
+          return {
+            keyrings: [
+              {
+                type: 'Ledger Hardware',
+                accounts: [FROM_MOCK],
+              },
+            ],
+          };
+        }
+
+        return {
+          remoteFeatureFlags: {},
+        };
+      });
+
+      simulateTransactionsMock.mockResolvedValue(
+        SIMULATED_TRANSACTIONS_RESPONSE_MOCK,
+      );
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      expect(generateEIP7702BatchTransactionMock).not.toHaveBeenCalled();
+      expect(result.gasLimits).toHaveLength(2);
     });
   });
 

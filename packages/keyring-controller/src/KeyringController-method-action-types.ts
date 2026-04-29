@@ -69,6 +69,18 @@ export type KeyringControllerIsUnlockedAction = {
 };
 
 /**
+ * Gets the seed phrase of the HD keyring.
+ *
+ * @param password - Password of the keyring.
+ * @param keyringId - The id of the keyring.
+ * @returns Promise resolving to the seed phrase.
+ */
+export type KeyringControllerExportSeedPhraseAction = {
+  type: `KeyringController:exportSeedPhrase`;
+  handler: KeyringController['exportSeedPhrase'];
+};
+
+/**
  * Returns the public addresses of all accounts from every keyring.
  *
  * @returns A promise resolving to an array of addresses.
@@ -412,6 +424,7 @@ export type KeyringControllerMethodActions =
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerAddNewKeyringAction
   | KeyringControllerIsUnlockedAction
+  | KeyringControllerExportSeedPhraseAction
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerDecryptMessageAction

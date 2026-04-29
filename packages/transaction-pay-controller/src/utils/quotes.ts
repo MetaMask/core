@@ -17,6 +17,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
+import { accountSupports7702 } from './7702';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -110,9 +111,12 @@ export async function updateQuotes(
       transactionId,
     });
 
+    const supports7702 = accountSupports7702(messenger, from);
+
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
       requests,
+      supports7702,
       getStrategies,
       messenger,
       transactionData.fiatPayment?.selectedPaymentMethodId,
@@ -475,6 +479,7 @@ async function refreshPaymentTokenBalance({
  *
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
+ * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
@@ -483,6 +488,7 @@ async function refreshPaymentTokenBalance({
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
+  isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
@@ -509,6 +515,7 @@ async function getQuotes(
   }
 
   const request = {
+    accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
     messenger,
     requests,

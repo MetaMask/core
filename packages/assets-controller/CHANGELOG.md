@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-internal-api` from `^10.1.1` to `^11.0.0` ([#8584](https://github.com/MetaMask/core/pull/8584))
+
+## [6.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/assets-controllers` from `^104.3.0` to `^105.0.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+
+## [6.2.0]
+
 ### Added
 
 - Add `CustomAssetGraduationMiddleware` that removes an EVM asset from `customAssets[selectedAccount]` when `AccountsApiDataSource` or `BackendWebsocketDataSource` reports a balance for it ([#8582](https://github.com/MetaMask/core/pull/8582))
@@ -230,9 +243,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.2.0`, ([#8107](https://github.com/MetaMask/core/pull/8107), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/network-enablement-controller` from `^4.1.2` to `^4.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
-- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0` ([#8104](https://github.com/MetaMask/core/pull/8104)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0`, ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/account-tree-controller` from `^4.1.1` to `^5.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/core-backend` from `^6.0.0` to `^6.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/preferences-controller` from `^22.1.0` to `^23.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
@@ -345,7 +358,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Narrow `AssetsControllerState` types from `Json` to semantic types: `assetsMetadata` → `AssetMetadata`, `assetsBalance` → `AssetBalance`, `assetsPrice` → `AssetPrice`, `assetPreferences` → `AssetPreferences`, `customAssets` → `Caip19AssetId[]` ([#7777](https://github.com/MetaMask/core/pull/7777))
-
 - Replace `viem` dependency with `@ethersproject/abi` for ABI encoding/decoding in `MulticallClient` ([#7839](https://github.com/MetaMask/core/pull/7839))
 
 ## [0.1.0]
@@ -372,7 +384,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.1...HEAD
+[6.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.0...@metamask/assets-controller@6.2.1
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.1.0...@metamask/assets-controller@6.2.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.0.0...@metamask/assets-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.1...@metamask/assets-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@5.0.0...@metamask/assets-controller@5.0.1

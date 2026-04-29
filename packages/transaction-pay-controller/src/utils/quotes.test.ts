@@ -101,7 +101,8 @@ const BATCH_TRANSACTION_MOCK = {
 } as BatchTransaction;
 
 describe('Quotes Utils', () => {
-  const { messenger, getControllerStateMock } = getMessengerMock();
+  const { messenger, getControllerStateMock, getKeyringControllerStateMock } =
+    getMessengerMock();
   const updateTransactionDataMock = jest.fn();
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getStrategiesByNameMock = jest.mocked(getStrategiesByName);
@@ -136,6 +137,17 @@ describe('Quotes Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: ['0xabc'],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     getStrategiesMock.mockReturnValue([TransactionPayStrategy.Test]);
 
@@ -580,6 +592,7 @@ describe('Quotes Utils', () => {
       await run();
 
       expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -622,6 +635,7 @@ describe('Quotes Utils', () => {
       });
 
       expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
         messenger,
         requests: [
           expect.objectContaining({
@@ -655,6 +669,21 @@ describe('Quotes Utils', () => {
       expect(transactionMetaMock).toMatchObject(
         expect.objectContaining({
           batchTransactions: [BATCH_TRANSACTION_MOCK],
+          batchTransactionsOptions: {},
+        }),
+      );
+    });
+
+    it('sets batchTransactionsOptions to empty object when there are no batch transactions', async () => {
+      getBatchTransactionsMock.mockResolvedValue([]);
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({
+          batchTransactions: [],
           batchTransactionsOptions: {},
         }),
       );
@@ -973,6 +1002,7 @@ describe('Quotes Utils', () => {
       });
 
       expect(getQuotesMock).toHaveBeenCalledWith({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
