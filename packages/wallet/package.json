@@ -70,11 +70,11 @@
     "@metamask/connectivity-controller": "^0.2.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^30.0.1",
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/scure-bip39": "^2.1.1",
-    "@metamask/transaction-controller": "^64.3.0",
+    "@metamask/transaction-controller": "^65.0.0",
     "@metamask/utils": "^11.9.0",
     "better-sqlite3": "^12.9.0"
   },
