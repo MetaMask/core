@@ -1,10 +1,10 @@
 import type { Rule } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
+import { decodeRedeemerTerms } from '@metamask/delegation-core';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { EXECUTION_PERMISSION_REDEEMER_RULE_TYPE } from '../../constants';
-import { decodeRedeemerEnforcerTerms } from '../redeemer';
 import type {
   ChecksumCaveat,
   DecodedPermission,
@@ -25,7 +25,7 @@ import {
  *
  * @param args - The arguments to this function.
  * @param args.optionalEnforcers - Enforcer addresses that may appear in addition to required.
- * @param args.redeemerEnforcer - Address of the RedeemerEnforcer (optional caveat).
+ * @param args.redeemerEnforcer - Address of the RedeemerEnforcer used to extract redeemer rules.
  * @param args.timestampEnforcer - Address of the TimestampEnforcer used to extract expiry.
  * @param args.permissionType - The permission type identifier.
  * @param args.requiredEnforcers - Map of required enforcer address to required count.
@@ -49,10 +49,7 @@ export function makePermissionRule({
     caveats: ChecksumCaveat[],
   ) => DecodedPermission['permission']['data'];
 }): PermissionRule {
-  const optionalEnforcersSet = new Set([
-    ...optionalEnforcers,
-    redeemerEnforcer,
-  ]);
+  const optionalEnforcersSet = new Set(optionalEnforcers);
   const requiredEnforcersMap = new Map(
     Object.entries(requiredEnforcers),
   ) as Map<Hex, number>;
@@ -115,7 +112,7 @@ export function makePermissionRule({
             {
               type: EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
               data: {
-                addresses: decodeRedeemerEnforcerTerms(redeemerTerms),
+                addresses: decodeRedeemerTerms(redeemerTerms).redeemers,
               },
             },
           ];

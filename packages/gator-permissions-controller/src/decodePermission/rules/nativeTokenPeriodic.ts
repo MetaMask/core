@@ -27,7 +27,7 @@ export function makeNativeTokenPeriodicRule(
   } = enforcers;
   return makePermissionRule({
     permissionType: 'native-token-periodic',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
     redeemerEnforcer,
     timestampEnforcer,
     requiredEnforcers: {

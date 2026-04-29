@@ -32,7 +32,7 @@ export function makeErc20TokenStreamRule(
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-stream',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
     redeemerEnforcer,
     timestampEnforcer,
     requiredEnforcers: {

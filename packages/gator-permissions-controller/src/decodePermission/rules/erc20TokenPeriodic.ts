@@ -32,7 +32,7 @@ export function makeErc20TokenPeriodicRule(
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-periodic',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
     redeemerEnforcer,
     timestampEnforcer,
     requiredEnforcers: {
