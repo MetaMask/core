@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import {
+  InMemoryStorageAdapter,
   StorageService,
   StorageServiceMessenger,
 } from '@metamask/storage-service';
@@ -14,6 +15,8 @@ export const storageService: InitializationConfiguration<
   init: ({ messenger }) => {
     const instance = new StorageService({
       messenger,
+      // TODO: Make this configurable
+      storage: new InMemoryStorageAdapter(),
     });
 
     return {

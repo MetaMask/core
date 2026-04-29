@@ -13,6 +13,7 @@ class DummyStateManager {
   set(_state: CronjobControllerState) {
     // no-op
   }
+
   getInitialState() {
     return undefined;
   }

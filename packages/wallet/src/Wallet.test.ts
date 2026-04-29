@@ -191,7 +191,7 @@ describe('Wallet', () => {
       transaction,
     );
 
-    expect(result.signedTransaction).toStrictEqual(
+    expect(result.signedTransaction).toBe(
       'AR1TnpEWCpuEwSY868bmtztdsLsCVVL52/QgdH6FgItQfSiX09KFcID6oZIt8EitHy0qE4rWMx++XKeUvSq7QA8BAAIDq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAoCYxoPgxWQEgzT+Chz0vzQfJOnMhzh45vVUquV4XzvEDAgAJAxAnAAAAAAAAAQIAAAwCAAAA6AMAAAAAAAACAAUCAAAAAA==',
     );
   });

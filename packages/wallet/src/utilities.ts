@@ -1,4 +1,4 @@
-// TODO: Determine if these should be available directly on Wallet.
+import { ApprovalRequest } from '@metamask/approval-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import type {
   AddTransactionOptions,
@@ -13,8 +13,8 @@ import {
 } from '@metamask/utils';
 
 import { Wallet } from './Wallet';
-import { ApprovalRequest } from '@metamask/approval-controller';
 
+// TODO: Determine if these should be available directly on Wallet.
 /**
  * Import a secret recovery phrase using the wallet object.
  *
@@ -117,7 +117,9 @@ export async function signSolanaTransaction(
   );
 
   // TODO: Figure out a better way to do this.
-  const approval = await new Promise<ApprovalRequest<Record<string, Json> | null>>((resolve) => {
+  const approval = await new Promise<
+    ApprovalRequest<Record<string, Json> | null>
+  >((resolve) => {
     wallet.messenger.subscribe(
       'ApprovalController:stateChange',
       (approvals: ApprovalRequest<Record<string, Json> | null>[]) => {

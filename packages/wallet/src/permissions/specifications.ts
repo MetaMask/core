@@ -1,3 +1,5 @@
+import { AccountsControllerListAccountsAction } from '@metamask/accounts-controller';
+import { ApprovalControllerAddAndShowApprovalRequestAction } from '@metamask/approval-controller';
 import {
   Caip25CaveatType,
   caip25CaveatBuilder,
@@ -5,9 +7,28 @@ import {
 } from '@metamask/chain-agnostic-permission';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
+  KeyringControllerAddNewKeyringAction,
+  KeyringControllerGetKeyringsByTypeAction,
+  KeyringControllerGetStateAction,
+  KeyringControllerUnlockEvent,
   KeyringControllerWithKeyringAction,
   KeyringTypes,
 } from '@metamask/keyring-controller';
+import { Messenger } from '@metamask/messenger';
+import { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
+import {
+  MultichainRoutingServiceGetSupportedAccountsAction,
+  MultichainRoutingServiceIsSupportedScopeAction,
+  SnapControllerClearSnapStateAction,
+  SnapControllerGetSnapAction,
+  SnapControllerGetSnapStateAction,
+  SnapControllerHandleRequestAction,
+  SnapControllerUpdateSnapStateAction,
+  SnapInterfaceControllerCreateInterfaceAction,
+  SnapInterfaceControllerGetInterfaceAction,
+  SnapInterfaceControllerSetInterfaceDisplayedAction,
+} from '@metamask/snaps-controllers';
 import {
   buildSnapEndowmentSpecifications,
   buildSnapRestrictedMethodSpecifications,
@@ -15,7 +36,12 @@ import {
   endowmentCaveatSpecifications as snapsEndowmentCaveatSpecifications,
 } from '@metamask/snaps-rpc-methods';
 import { CaipChainId, Hex, createDeferredPromise } from '@metamask/utils';
-import { DefaultActions, DefaultEvents, RootMessenger } from '../initialization';
+
+import {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../initialization';
 
 export const EndowmentPermissions = Object.freeze({
   'endowment:network-access': 'endowment:network-access',
@@ -42,14 +68,44 @@ export const ExcludedSnapEndowments = Object.freeze({
     'eth_accounts is disabled. For more information please see https://github.com/MetaMask/snaps/issues/990.',
 });
 
+type PermissionSpecificationsActions =
+  | AccountsControllerListAccountsAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | PreferencesControllerGetStateAction
+  | SnapControllerClearSnapStateAction
+  | SnapControllerGetSnapAction
+  | SnapControllerHandleRequestAction
+  | SnapControllerGetSnapStateAction
+  | SnapControllerUpdateSnapStateAction
+  | SnapInterfaceControllerCreateInterfaceAction
+  | SnapInterfaceControllerGetInterfaceAction
+  | SnapInterfaceControllerSetInterfaceDisplayedAction
+  | ApprovalControllerAddAndShowApprovalRequestAction
+  | KeyringControllerGetStateAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerWithKeyringAction
+  | KeyringControllerAddNewKeyringAction
+  | MultichainRoutingServiceIsSupportedScopeAction
+  | MultichainRoutingServiceGetSupportedAccountsAction;
+
+type PermissionSpecificationsEvents = KeyringControllerUnlockEvent;
+
+type PermissionSpecificationsMessenger = Messenger<
+  string,
+  PermissionSpecificationsActions,
+  PermissionSpecificationsEvents
+>;
+
 /**
  * Gets the specifications for all permissions that will be recognized by the
  * PermissionController.
  *
  * @param messenger - The messenger.
- * @returns the permission specifications to construct the PermissionController.
+ * @returns The permission specifications to construct the PermissionController.
  */
-export const getPermissionSpecifications = (messenger: RootMessenger<DefaultActions, DefaultEvents>) => {
+export const getPermissionSpecifications = (
+  messenger: PermissionSpecificationsMessenger,
+) => {
   return {
     [caip25EndowmentBuilder.targetName]:
       caip25EndowmentBuilder.specificationBuilder({}),
@@ -127,103 +183,10 @@ export const getPermissionSpecifications = (messenger: RootMessenger<DefaultActi
           'ApprovalController:addAndShowApprovalRequest',
         ),
 
-        /**
-         * Show a native (system) notification.
-         *
-         * @param origin - The origin requesting the notification.
-         * @param args - The notification arguments.
-         * @param args.message - The notification message.
-         * @returns A promise that resolves when the notification is shown.
-         */
-        showNativeNotification: (origin: string, args: { message: string }) =>
-          messenger.call(
-            'RateLimitController:call',
-            origin,
-            'showNativeNotification',
-            // @ts-expect-error: `RateLimitController` methods aren't properly
-            // typed yet.
-            origin,
-            args.message,
-          ),
-
-        /**
-         * Show an in-app notification.
-         *
-         * @param origin - The origin requesting the notification.
-         * @param args - The notification arguments.
-         * @param args.message - The notification message.
-         * @param args.title - The notification title.
-         * @param args.footerLink - The notification footer link.
-         * @param args.content - The notification content identifier.
-         * @returns A promise that resolves when the notification is shown.
-         */
-        showInAppNotification: (
-          origin: string,
-          args: {
-            message: string;
-            title?: string;
-            footerLink?: string;
-            content?: string;
-          },
-        ) => {
-          const { content, message, title, footerLink } = args;
-          const notificationArgs = {
-            interfaceId: content,
-            message,
-            title,
-            footerLink,
-          };
-
-          return messenger.call(
-            'RateLimitController:call',
-            origin,
-            'showInAppNotification',
-            // @ts-expect-error: `RateLimitController` methods aren't properly
-            // typed yet.
-            origin,
-            notificationArgs,
-          );
-        },
-
         updateSnapState: messenger.call.bind(
           messenger,
           'SnapController:updateSnapState',
         ),
-
-        /**
-         * If phishing detection is enabled, check for an updated phishing
-         * list.
-         */
-        maybeUpdatePhishingList: () => {
-          const { usePhishDetect } = messenger.call(
-            'PreferencesController:getState',
-          );
-
-          if (!usePhishDetect) {
-            return;
-          }
-
-          messenger.call('PhishingController:maybeUpdateState');
-        },
-
-        /**
-         * Check whether a URL is on the phishing list.
-         *
-         * @param url - The URL to check.
-         * @returns A boolean indicating whether the URL is on the phishing
-         * list. If phishing detection is disabled, false is returned.
-         */
-        isOnPhishingList: (url: string) => {
-          const { usePhishDetect } = messenger.call(
-            'PreferencesController:getState',
-          );
-
-          if (!usePhishDetect) {
-            return false;
-          }
-
-          return messenger.call('PhishingController:testOrigin', url).result;
-        },
 
         createInterface: messenger.call.bind(
           messenger,
@@ -280,9 +243,11 @@ export const getPermissionSpecifications = (messenger: RootMessenger<DefaultActi
  * PermissionController.
  *
  * @param messenger - The messenger.
- * @returns the caveat specifications to construct the PermissionController.
+ * @returns The caveat specifications to construct the PermissionController.
  */
-export const getCaveatSpecifications = (messenger: RootMessenger<DefaultActions, DefaultEvents>) => {
+export const getCaveatSpecifications = (
+  messenger: PermissionSpecificationsMessenger,
+) => {
   return {
     [Caip25CaveatType]: caip25CaveatBuilder({
       listAccounts: () => {
@@ -428,7 +393,7 @@ export const unrestrictedMethods = Object.freeze([
  * @returns The mnemonic.
  */
 export async function getMnemonic(
-  messenger: RootMessenger<KeyringControllerWithKeyringAction>,
+  messenger: Messenger<string, KeyringControllerWithKeyringAction>,
   source?: string | undefined,
 ): Promise<Uint8Array> {
   if (!source) {
@@ -487,7 +452,7 @@ export async function getMnemonic(
  * @returns The mnemonic seed.
  */
 export async function getMnemonicSeed(
-  messenger: RootMessenger<KeyringControllerWithKeyringAction>,
+  messenger: Messenger<string, KeyringControllerWithKeyringAction>,
   source?: string | undefined,
 ): Promise<Uint8Array> {
   if (!source) {
