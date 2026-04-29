@@ -8,13 +8,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionPayQuote } from '../../types';
-import { submitFiatQuotes } from './fiat-submit';
-import type { FiatQuote } from './types';
-import type { TransactionPayFiatAsset } from './constants';
-import { submitFiatQuotes } from './fiat-submit';
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
 import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyExecuteRequest,
@@ -24,6 +17,10 @@ import type {
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
+import type { TransactionPayFiatAsset } from './constants';
+import { submitFiatQuotes } from './fiat-submit';
+import type { FiatQuote } from './types';
+import { deriveFiatAssetForFiatPayment } from './utils';
 
 jest.mock('./utils');
 jest.mock('../relay/relay-quotes');

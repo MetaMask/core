@@ -8,9 +8,6 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
-import type { TransactionPayFiatAsset } from './constants';
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -20,6 +17,9 @@ import type {
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
+import type { TransactionPayFiatAsset } from './constants';
+import type { FiatQuote } from './types';
+import { deriveFiatAssetForFiatPayment } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 
