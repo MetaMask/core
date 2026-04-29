@@ -255,7 +255,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           case TransactionStatus.submitted:
             // For batch EVM (STX/gasIncluded7702), the hash is not available at submitTx time.
             // Call reportSubmitted when the transaction reaches 'submitted' status (hash is now available).
-            if (txMeta.hash && txMeta.type && isCrossChainTx(txMeta.type) && !isApprovalTxMeta) {
+            if (
+              txMeta.hash &&
+              txMeta.type &&
+              isCrossChainTx(txMeta.type) &&
+              !isApprovalTxMeta
+            ) {
               const requestId = historyItem?.quote?.requestId;
               if (requestId) {
                 this.#quoteStatusUpdateManager.reportSubmitted(

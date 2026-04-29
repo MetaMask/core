@@ -8,7 +8,7 @@ import {
   QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS,
   QuoteStatusUpdateErrorType,
   QuoteStatusUpdateType,
-  SendWithRetryResult,
+  QuoteStatusUpdateSendWithRetryResult,
 } from './constants';
 import type {
   BridgeStatusControllerMessenger,
@@ -191,7 +191,7 @@ export class QuoteStatusUpdateManager {
   /**
    * Sends the next pending status for one deferred entry: runs
    * {@link #sendWithRetry} for `pendingStatuses[0]`, then applies the
-   * {@link SendWithRetryResult} (shift queue on success, persist and keep for
+   * {@link QuoteStatusUpdateSendWithRetryResult} (shift queue on success, persist and keep for
    * deferred interval on retryable, or no-op when already handled inside
    * {@link #sendWithRetry}). Skips if the row is gone, already in flight,
    * has no pending statuses, or exceeded the max retry lifetime.
@@ -233,11 +233,11 @@ export class QuoteStatusUpdateManager {
     this.#sendWithRetry(key, entry, currentStatus)
       .then((result) => {
         // Finalization / eviction already ran inside #sendWithRetry; state is current.
-        if (result === SendWithRetryResult.Handled) {
+        if (result === QuoteStatusUpdateSendWithRetryResult.Handled) {
           return undefined;
         }
 
-        if (result === SendWithRetryResult.Success) {
+        if (result === QuoteStatusUpdateSendWithRetryResult.Success) {
           // API accepted this status; move on to the next pending value if any.
           entry.pendingStatuses.shift();
 
@@ -285,7 +285,11 @@ export class QuoteStatusUpdateManager {
   ): Promise<void> {
     const finalizationStatus = entry.pendingStatuses[0];
 
-    for (let attempt = 0; attempt <= QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES; attempt++) {
+    for (
+      let attempt = 0;
+      attempt <= QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES;
+      attempt++
+    ) {
       if (attempt > 0) {
         await sleep(QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS);
       }
@@ -324,10 +328,10 @@ export class QuoteStatusUpdateManager {
    * {@link QuoteStatusUpdateErrorType.InvalidStatusTransaction}), the
    * retry loop is aborted and finalization is attempted immediately.
    *
-   * Returns one of three {@link SendWithRetryResult} outcomes:
-   * - {@link SendWithRetryResult.Success} — 2xx accepted
-   * - {@link SendWithRetryResult.Retryable} — immediate retries exhausted, entry stays in deferred queue
-   * - {@link SendWithRetryResult.Handled} — finalization or eviction was performed internally
+   * Returns one of three {@link QuoteStatusUpdateSendWithRetryResult} outcomes:
+   * - {@link QuoteStatusUpdateSendWithRetryResult.Success} — 2xx accepted
+   * - {@link QuoteStatusUpdateSendWithRetryResult.Retryable} — immediate retries exhausted, entry stays in deferred queue
+   * - {@link QuoteStatusUpdateSendWithRetryResult.Handled} — finalization or eviction was performed internally
    *
    * Throws only on network-level / unexpected failures (no response body).
    *
@@ -340,13 +344,17 @@ export class QuoteStatusUpdateManager {
     key: string,
     entry: DeferredStatusUpdateEntry,
     status: string,
-  ): Promise<SendWithRetryResult> {
+  ): Promise<QuoteStatusUpdateSendWithRetryResult> {
     const retryableTypes: Set<string> = new Set([
       QuoteStatusUpdateErrorType.ConcurrentUpdate,
       QuoteStatusUpdateErrorType.TransactionNotIndexed,
     ]);
 
-    for (let attempt = 0; attempt <= QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES; attempt++) {
+    for (
+      let attempt = 0;
+      attempt <= QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES;
+      attempt++
+    ) {
       if (attempt > 0) {
         await sleep(QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS);
       }
@@ -358,16 +366,16 @@ export class QuoteStatusUpdateManager {
       );
 
       if (response === undefined) {
-        return SendWithRetryResult.Success;
+        return QuoteStatusUpdateSendWithRetryResult.Success;
       }
 
       if (!retryableTypes.has(response.type)) {
         await this.#handleNonRetryableError(key, entry, response);
-        return SendWithRetryResult.Handled;
+        return QuoteStatusUpdateSendWithRetryResult.Handled;
       }
     }
 
-    return SendWithRetryResult.Retryable;
+    return QuoteStatusUpdateSendWithRetryResult.Retryable;
   }
 
   /**
@@ -499,7 +507,7 @@ export class QuoteStatusUpdateManager {
     // This method uses `globalThis.fetch` and reads the raw
     // `Response` (including JSON on non-2xx). Wrappers like `handleFetch` that
     // throw on non-2xx would prevent typed error handling in callers.
-    const res = (await globalThis.fetch(
+    const res = await globalThis.fetch(
       `${this.#apiBaseUrl}/quote/updateStatus`,
       {
         method: 'POST',
@@ -516,7 +524,7 @@ export class QuoteStatusUpdateManager {
           srcTxHash,
         }),
       },
-    ));
+    );
 
     if (res.ok) {
       return undefined;
@@ -524,5 +532,4 @@ export class QuoteStatusUpdateManager {
 
     return (await res.json()) as QuoteStatusUpdateResponse;
   };
-
 }

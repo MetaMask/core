@@ -23,7 +23,7 @@ export enum QuoteStatusUpdateType {
   FinalizedFailure = 'FINALIZED_FAILURE',
 }
 
-export enum SendWithRetryResult {
+export enum QuoteStatusUpdateSendWithRetryResult {
   Success = 'success',
   Retryable = 'retryable',
   Handled = 'handled',
