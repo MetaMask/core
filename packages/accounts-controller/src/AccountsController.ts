@@ -28,11 +28,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type {
-  SnapControllerState,
-  SnapControllerStateChangeEvent,
-} from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
 import { isCaipChainId } from '@metamask/utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
@@ -213,7 +208,6 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
  */
 export type AllowedEvents =
   | KeyringControllerStateChangeEvent
-  | SnapControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
@@ -1107,47 +1101,6 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Handles the change in SnapControllerState by updating the metadata of accounts that have a snap enabled.
-   *
-   * @param snapState - The new SnapControllerState.
-   */
-  #handleOnSnapStateChange(snapState: SnapControllerState): void {
-    // Only check if Snaps changed in status.
-    const { snaps } = snapState;
-
-    const accounts: { id: string; enabled: boolean }[] = [];
-    for (const account of this.listMultichainAccounts()) {
-      if (account.metadata.snap) {
-        const snap = snaps[account.metadata.snap.id as SnapId];
-
-        if (snap) {
-          const enabled = snap.enabled && !snap.blocked;
-          const metadata = account.metadata.snap;
-
-          if (metadata.enabled !== enabled) {
-            accounts.push({ id: account.id, enabled });
-          }
-        } else {
-          // If Snap could not be found on the state, we consider it disabled.
-          accounts.push({ id: account.id, enabled: false });
-        }
-      }
-    }
-
-    if (accounts.length > 0) {
-      this.update((state) => {
-        for (const { id, enabled } of accounts) {
-          const account = state.internalAccounts.accounts[id];
-
-          if (account.metadata.snap) {
-            account.metadata.snap.enabled = enabled;
-          }
-        }
-      });
-    }
-  }
-
-  /**
    * Returns the last selected account from the given array of accounts.
    *
    * @param accounts - An array of InternalAccount objects.
@@ -1270,10 +1223,6 @@ export class AccountsController extends BaseController<
    * Subscribes to message events.
    */
   #subscribeToMessageEvents(): void {
-    this.messenger.subscribe('SnapController:stateChange', (snapStateState) =>
-      this.#handleOnSnapStateChange(snapStateState),
-    );
-
     this.messenger.subscribe('KeyringController:stateChange', (keyringState) =>
       this.#handleOnKeyringStateChange(keyringState),
     );

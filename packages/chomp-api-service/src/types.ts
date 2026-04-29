@@ -21,7 +21,7 @@ export type SignedDelegation = {
 
 export type AssociateAddressParams = {
   signature: Hex;
-  timestamp: string;
+  timestamp: number;
   address: Hex;
 };
 

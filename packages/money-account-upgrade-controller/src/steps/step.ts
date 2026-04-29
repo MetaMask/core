@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from './MoneyAccountUpgradeController';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
 
 /**
  * Context supplied to each step when it is run.
@@ -8,6 +8,8 @@ import type { MoneyAccountUpgradeControllerMessenger } from './MoneyAccountUpgra
 export type StepContext = {
   messenger: MoneyAccountUpgradeControllerMessenger;
   address: Hex;
+  chainId: Hex;
+  delegatorImplAddress: Hex;
 };
 
 /**

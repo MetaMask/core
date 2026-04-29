@@ -85,6 +85,24 @@ describe('relay-api', () => {
 
       expect(quote.details).toStrictEqual(QUOTE_RESPONSE_MOCK.details);
     });
+
+    it('forwards the abort signal to the underlying fetch', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_RESPONSE_MOCK,
+      } as Response);
+
+      const controller = new AbortController();
+      await fetchRelayQuote(
+        MESSENGER_MOCK,
+        QUOTE_REQUEST_MOCK,
+        controller.signal,
+      );
+
+      expect(successfulFetchMock).toHaveBeenCalledWith(
+        QUOTE_URL_MOCK,
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
   });
 
   describe('submitRelayExecute', () => {

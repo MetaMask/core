@@ -814,24 +814,21 @@ describe('AccountTreeController', () => {
         keyrings: [],
       });
 
-      messenger.registerActionHandler(
-        'SnapController:getSnap',
-        () => undefined,
-      ); // Snap won't be found.
+      messenger.registerActionHandler('SnapController:getSnap', () => null); // Snap won't be found.
 
       controller.init();
 
       // Since no entropy sources will be found, it will be categorized as a
       // "Keyring" wallet
       const wallet1Id = toAccountWalletId(
-        AccountWalletType.Snap,
-        MOCK_SNAP_1.id,
+        AccountWalletType.Keyring,
+        KeyringTypes.snap,
       );
 
       // FIXME: Do we really want this behavior?
       expect(
         controller.state.accountTree.wallets[wallet1Id]?.metadata.name,
-      ).toBe('mock-snap-id-1');
+      ).toBe('Snap Wallet');
     });
 
     it('fallback to HD keyring category if entropy sources cannot be found', () => {

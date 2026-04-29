@@ -8,13 +8,17 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
-import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignEip7702AuthorizationAction,
+} from '../../../keyring-controller/src';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionStatus } from '../types';
 import type { AuthorizationList } from '../types';
 import type { TransactionMeta } from '../types';
 import {
   DELEGATION_PREFIX,
+  doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
@@ -95,6 +99,10 @@ describe('EIP-7702 Utils', () => {
     getEIP7702ContractAddresses,
   );
 
+  let getKeyringStateMock: jest.MockedFn<
+    KeyringControllerGetStateAction['handler']
+  >;
+
   let signAuthorizationMock: jest.MockedFn<
     KeyringControllerSignEip7702AuthorizationAction['handler']
   >;
@@ -104,19 +112,29 @@ describe('EIP-7702 Utils', () => {
 
     rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
+    getKeyringStateMock = jest.fn().mockReturnValue({
+      isUnlocked: true,
+      keyrings: [],
+    });
+
     signAuthorizationMock = jest
       .fn()
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
     const keyringControllerMessenger = new Messenger<
       'KeyringController',
-      KeyringControllerSignEip7702AuthorizationAction,
+      | KeyringControllerGetStateAction
+      | KeyringControllerSignEip7702AuthorizationAction,
       never,
       typeof rootMessenger
     >({
       namespace: 'KeyringController',
       parent: rootMessenger,
     });
+    keyringControllerMessenger.registerActionHandler(
+      'KeyringController:getState',
+      getKeyringStateMock,
+    );
     keyringControllerMessenger.registerActionHandler(
       'KeyringController:signEip7702Authorization',
       signAuthorizationMock,
@@ -128,7 +146,10 @@ describe('EIP-7702 Utils', () => {
     });
     rootMessenger.delegate({
       messenger: controllerMessenger,
-      actions: ['KeyringController:signEip7702Authorization'],
+      actions: [
+        'KeyringController:getState',
+        'KeyringController:signEip7702Authorization',
+      ],
     });
   });
 
@@ -265,6 +286,93 @@ describe('EIP-7702 Utils', () => {
       ]);
 
       expect(doesChainSupportEIP7702(CHAIN_ID_MOCK, controllerMessenger)).toBe(
+        true,
+      );
+    });
+  });
+
+  describe('doesAccountSupportEIP7702', () => {
+    it('returns true for HD Key Tree keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'hd', name: 'HD Key Tree' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
+    it('returns true for Simple Key Pair keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Simple Key Pair',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'simple', name: 'Simple Key Pair' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
+    it('returns false for unsupported keyring type', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'ledger', name: 'Ledger Hardware' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        false,
+      );
+    });
+
+    it('returns false when account is not found in any keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: [ADDRESS_2_MOCK],
+            metadata: { id: 'ledger', name: 'Ledger Hardware' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        false,
+      );
+    });
+
+    it('matches account addresses case-insensitively', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [ADDRESS_MOCK.toUpperCase()],
+            metadata: { id: 'hd', name: 'HD Key Tree' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
         true,
       );
     });

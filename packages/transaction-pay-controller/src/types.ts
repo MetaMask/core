@@ -12,7 +12,11 @@ import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
-import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignTypedMessageAction,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
@@ -47,6 +51,7 @@ export type AllowedActions =
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
+  | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -135,6 +140,15 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerActions | AllowedActions,
   TransactionPayControllerEvents | AllowedEvents
 >;
+
+/**
+ * Keyring types that support EIP-7702 authorization signing.
+ * Hardware wallets, snap keyrings, and money keyrings do not support 7702.
+ */
+export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
+  'HD Key Tree',
+  'Simple Key Pair',
+];
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
@@ -438,6 +452,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Selected fiat payment method ID, if applicable. */
   fiatPaymentMethod?: string;
 
@@ -447,12 +464,22 @@ export type PayStrategyGetQuotesRequest = {
   /** Quote requests for required tokens. */
   requests: QuoteRequest[];
 
+  /**
+   * Signal that aborts when a newer quote request supersedes this one.
+   * Strategies that perform their own network IO should forward this to
+   * their fetch calls so cancelled requests release network resources.
+   */
+  signal?: AbortSignal;
+
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
 };
 
 /** Request to submit quotes for a transaction. */
 export type PayStrategyExecuteRequest<OriginalRequest> = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Callback to determine if the transaction is a smart transaction. */
   isSmartTransaction: (chainId: Hex) => boolean;
 
@@ -473,6 +500,9 @@ export type PayStrategyGetBatchRequest<OriginalQuote> = {
 
   /** Quotes for required tokens. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
 };
 
 /** Request to check whether retrieved quotes can be executed by a strategy. */
@@ -482,6 +512,9 @@ export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
 
   /** Quotes returned by the strategy. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
