@@ -845,6 +845,25 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Get an account from a Snap keyring v1.
+   *
+   * @param address - The address of the account to retrieve.
+   * @returns The Snap account if available.
+   */
+  #getAccountFromSnapKeyringV1(address: string): InternalAccount | undefined {
+    const snapKeyring = this.#getSnapKeyring();
+
+    // We need the Snap keyring to retrieve the account from its address.
+    if (!snapKeyring) {
+      return undefined;
+    }
+
+    // This might be undefined if the Snap deleted the account before
+    // reaching that point.
+    return snapKeyring.getAccountByAddress(address);
+  }
+
+  /**
    * Get an account from a Snap keyring v2.
    *
    * @param address - The address of the account to retrieve.
@@ -1174,16 +1193,7 @@ export class AccountsController extends BaseController<
       let account: InternalAccount | undefined;
 
       if (isSnapKeyringV1) {
-        const snapKeyring = this.#getSnapKeyring();
-
-        // We need the Snap keyring to retrieve the account from its address.
-        if (!snapKeyring) {
-          return undefined;
-        }
-
-        // This might be undefined if the Snap deleted the account before
-        // reaching that point.
-        account = snapKeyring.getAccountByAddress(address);
+        account = this.#getAccountFromSnapKeyringV1(address);
       } else {
         account = this.#getAccountFromSnapKeyringV2(address);
       }
