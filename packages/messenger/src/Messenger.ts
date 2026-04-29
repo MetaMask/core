@@ -828,6 +828,10 @@ export class Messenger<
    *   { condition: (tx) => tx.hash === 'foo' },
    * );
    * ```
+   * @example
+   * ```typescript
+   * await messenger.waitUntil('KeyringController:unlock');
+   * ```
    */
   waitUntil<EventType extends Event['type']>(
     eventType: EventType,
