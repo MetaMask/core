@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 
+### Removed
+
+- Stop synthesising a native gas-fee required token in `parseRequiredTokens`; only token-transfer assets are returned now ([#8615](https://github.com/MetaMask/core/pull/8615))
+  - The implicit native-token entry was a remnant of the legacy bridge strategy and is not used by the gas station.
+
+### Fixed
+
+- Fix post-quote relay submission when `accountOverride` is set by replacing the prepended original transaction with a delegation transaction so the override account can submit it ([#8615](https://github.com/MetaMask/core/pull/8615))
+
 ## [20.0.1]
 
 ### Changed
