@@ -159,9 +159,7 @@ function getRequest({
       if (action === 'RampsController:getState') {
         return {
           providers: {
-            selected: selectedProviderId
-              ? { id: selectedProviderId }
-              : null,
+            selected: selectedProviderId ? { id: selectedProviderId } : null,
           },
         };
       }
@@ -175,10 +173,9 @@ function getRequest({
       }
 
       if (action === 'TransactionPayController:updateFiatPayment') {
-        const { callback } =
-          requestArg as unknown as {
-            callback: (fiatPayment: TransactionFiatPayment) => void;
-          };
+        const { callback } = requestArg as unknown as {
+          callback: (fiatPayment: TransactionFiatPayment) => void;
+        };
         const fiatPayment: TransactionFiatPayment = {};
         callback(fiatPayment);
         return undefined;
@@ -532,10 +529,9 @@ describe('getFiatQuotes', () => {
         }
 
         if (action === 'TransactionPayController:updateFiatPayment') {
-          const { callback } =
-            requestArg as unknown as {
-              callback: (fp: TransactionFiatPayment) => void;
-            };
+          const { callback } = requestArg as unknown as {
+            callback: (fp: TransactionFiatPayment) => void;
+          };
           callback(fiatPaymentState);
           return undefined;
         }
