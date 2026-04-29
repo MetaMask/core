@@ -710,8 +710,7 @@ export type RampsServiceMessenger = Messenger<
 
 /**
  * Gets the base URL for API requests based on the environment and service type.
- * The Regions service uses a separate cache hostname in production and staging.
- * Development exposes regions on the same `on-ramp.dev-api` host (no `-cache` segment).
+ * The Regions service uses a cache URL, while other services use the standard URL.
  *
  * @param environment - The environment to use.
  * @param service - The API service type (determines if cache URL is used).
@@ -721,11 +720,7 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
-  const cache =
-    service === RampsApiService.Regions &&
-    environment !== RampsEnvironment.Development
-      ? '-cache'
-      : '';
+  const cache = service === RampsApiService.Regions ? '-cache' : '';
 
   switch (environment) {
     case RampsEnvironment.Production:
@@ -820,16 +815,9 @@ export class RampsService {
   readonly #policy: ServicePolicy;
 
   /**
-   * The environment used for API requests when {@link resolveEnvironment} is
-   * not provided.
+   * The environment used for API requests.
    */
   readonly #environment: RampsEnvironment;
-
-  /**
-   * When set, called on each request to resolve the effective environment (e.g.
-   * mobile feature-flag overrides). Takes precedence over {@link #environment}.
-   */
-  readonly #resolveEnvironment?: () => RampsEnvironment;
 
   /**
    * The context for API requests (e.g., 'mobile-ios', 'mobile-android').
@@ -855,13 +843,10 @@ export class RampsService {
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    * @param args.baseUrlOverride - Optional base URL override for local development.
-   * @param args.resolveEnvironment - Optional resolver for the effective
-   * environment on each request (e.g. feature-flag overrides).
    */
   constructor({
     messenger,
     environment = RampsEnvironment.Staging,
-    resolveEnvironment,
     context,
     fetch: fetchFunction,
     policyOptions = {},
@@ -869,7 +854,6 @@ export class RampsService {
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
-    resolveEnvironment?: () => RampsEnvironment;
     context: string;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
@@ -880,7 +864,6 @@ export class RampsService {
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
     this.#environment = environment;
-    this.#resolveEnvironment = resolveEnvironment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
 
@@ -888,13 +871,6 @@ export class RampsService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * @returns The environment used for outbound requests (resolver or default).
-   */
-  #getEffectiveEnvironment(): RampsEnvironment {
-    return this.#resolveEnvironment?.() ?? this.#environment;
   }
 
   /**
@@ -907,7 +883,7 @@ export class RampsService {
     if (this.#baseUrlOverride) {
       return this.#baseUrlOverride;
     }
-    return getBaseUrl(this.#getEffectiveEnvironment(), service);
+    return getBaseUrl(this.#environment, service);
   }
 
   /**
