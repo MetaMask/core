@@ -32,7 +32,6 @@ import type {
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerUpdateTransactionAction,
-  TransactionControllerTransactionSubmittedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
