@@ -242,34 +242,30 @@ async function submitTransactions(
     ? getTransaction(transactionIds.slice(-1)[0], messenger)?.hash
     : undefined;
 
-  return await waitForAcrossCompletion(
-    quote.original,
-    hash as Hex | undefined,
-    messenger,
-  );
+  return await waitForAcrossCompletion(hash as Hex | undefined, messenger);
 }
 
 type AcrossStatusResponse = {
+  depositId?: number | string;
+  depositTxnRef?: Hex;
   status?: string;
   destinationTxHash?: Hex;
+  fillTxnRef?: Hex;
   fillTxHash?: Hex;
   txHash?: Hex;
 };
 
 async function waitForAcrossCompletion(
-  quote: AcrossQuote,
   transactionHash: Hex | undefined,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
-  if (!transactionHash || !quote.quote.id) {
+  if (!transactionHash) {
     return transactionHash;
   }
 
   const config = getPayStrategiesConfig(messenger);
   const params = new URLSearchParams({
-    depositId: quote.quote.id,
-    originChainId: String(quote.quote.swapTx.chainId),
-    txHash: transactionHash,
+    depositTxnRef: transactionHash,
   });
   const url = `${config.across.apiBase}/deposit/status?${params.toString()}`;
 
@@ -314,6 +310,7 @@ async function waitForAcrossCompletion(
     ) {
       return (
         status.destinationTxHash ??
+        status.fillTxnRef ??
         status.fillTxHash ??
         status.txHash ??
         transactionHash

@@ -43,6 +43,10 @@ export {
 } from './AssetsContractController';
 export * from './CurrencyRateController';
 export type {
+  CurrencyRateControllerSetCurrentCurrencyAction,
+  CurrencyRateControllerUpdateExchangeRateAction,
+} from './CurrencyRateController-method-action-types';
+export type {
   NftControllerState,
   NftControllerMessenger,
   NftControllerActions,
@@ -166,6 +170,7 @@ export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
+  SPOT_PRICES_SUPPORT_INFO,
 } from './token-prices-service';
 export {
   searchTokens,

@@ -39,4 +39,5 @@ export enum KeyringControllerErrorMessage {
   LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
   EncryptionKeyNotSet = 'KeyringController - Encryption key not set',
   KeyringV2NotSupported = 'KeyringController - The selected keyring does not support the KeyringV2 API.',
+  CannotRemovePrimaryKeyring = 'KeyringController - Cannot remove the primary keyring',
 }

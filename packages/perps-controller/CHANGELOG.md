@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
+
+## [4.0.0]
+
+### Added
+
+- Add `coalescePerpsRestRequest` utility for deduplicating concurrent REST requests with account-scoped cache keys ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Add `accountUtils` helpers for resolving the active perps account id and pinning it to forwarded provider params ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Changed
+
+- Account-scope the REST cache and guard cache writes so mount load stays cacheable without cross-account bleed ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Make `forceRefresh` provider-agnostic and align rate-limit handling with the extension ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Regenerate `PerpsController` method action types; shrink rate-limit diff and drop verbose history logs ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Removed
+
+- **BREAKING:** Drop the dead `spotState` parameter from `adaptAccountStateFromSDK`. Spot balances are layered on by `addSpotBalanceToAccountState`, which enforces the USDC-only policy via `SPOT_COLLATERAL_COINS`; removing the dormant branch keeps one source of truth and prevents a future caller from silently getting ALL-coins behavior ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Fixed
+
+- HyperLiquid Unified-mode live balance: subscribe to `spotState` WS and compute tradeable/total balance from on-chain math ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Complete spot-balance parity with the extension consumer ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve integer trailing zeros when `szDecimals=0` in `perpsFormatters` ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve candle pagination cancellation and skip coalesce for explicit-`endTime` candle paging to avoid stale pages ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Defer account resolution on the non-paginated cache path to prevent race conditions ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Force-refresh on activity mount and evict expired coalesce entries so stale promises cannot resolve to cache ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Normalize `event.user` to lowercase when caching the spot-state WS address so `#ensureSpotState` hits the cache instead of triggering a redundant REST `spotClearinghouseState` refetch when HyperLiquid returns a checksummed address ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+## [3.2.0]
+
+### Added
+
+- Add `isAbortError` utility export from `utils` for distinguishing expected cancellation errors from real failures ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Changed
+
+- `TradingService.flipPosition()` no longer passes stale position `entryPrice` as `currentPrice` on reverse-position orders; providers now validate and price flips against live market data ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Removed
+
+- Remove unused `ESTIMATED_FEE_RATE` export from `constants/hyperLiquidConfig` (dead code after reverse-position fee precheck was removed) ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Fixed
+
+- Suppress noisy Sentry reports from expected historical-candle fetch cancellations (`AbortError`) during navigation, while preserving real error reporting in `HyperLiquidClientService` and `MarketDataService` ([#8515](https://github.com/MetaMask/core/pull/8515))
+
 ## [3.1.1]
 
 ### Fixed
@@ -97,7 +146,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Refactor pending withdraw/deposit tracking to FIFO queue design ([#8333](https://github.com/MetaMask/core/pull/8333))
-
 - Centralize Arbitrum network check in deposit hooks to prevent missing network errors ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Provider credentials, builder fee injection, and env var centralization ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Reduce max order amount by 0.5% buffer to avoid insufficient margin rejections ([#8333](https://github.com/MetaMask/core/pull/8333))
@@ -201,7 +249,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.2.0...@metamask/perps-controller@4.0.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.1...@metamask/perps-controller@3.2.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.0...@metamask/perps-controller@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.0.0...@metamask/perps-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@2.0.0...@metamask/perps-controller@3.0.0

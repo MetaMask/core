@@ -30,6 +30,177 @@ The name of the controller should reflect its responsibility. If, when creating 
 
 Each public method and each state property of a controller should have a purpose, and the name of the method or state property should be readable and should reflect the purpose clearly. If something does not need to be public, it should be made private; if it is unnecessary, it should be removed.
 
+## Define, but do not export, a name for the controller
+
+Every controller has a name, which is used to namespace not only the controller's messenger actions and events, but also the controller's state data when composed with other controllers.
+
+The name should be defined in a constant called `CONTROLLER_NAME` so that it can be easily changed if the need arises. The name should be used to initialize the messenger, and it should also be passed to the `BaseController` constructor.
+
+The constant should be used to define actions and events. It may be exported from the file in which it is defined, but should not listed as an export of the package.
+
+🚫 **The messenger namespace is not defined as a constant, but is repeated**
+
+```typescript
+export type TransactionsControllerStateChangedEvent =
+  ControllerStateChangedEvent<
+    // 🚫 Name is repeated.
+    'TransactionsController',
+    TransactionsControllerState
+  >;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  // 🚫 Name is repeated.
+  type: 'TransactionsController:transactionApprovedEvent';
+  payload: [transaction: Transaction];
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent;
+
+export type TransactionsControllerMessenger = Messenger<
+  // 🚫 Name is repeated.
+  'TransactionsController',
+  never,
+  TransactionsControllerEvents
+>;
+
+// 🚫 Name is repeated.
+export class TransactionsController extends BaseController<'TransactionsController' /*,  ... */> {
+  constructor(/* ... */) {
+    // 🚫 Name is repeated.
+    super({ name: 'TransactionsController' /* ... */ });
+
+    // ...
+  }
+}
+```
+
+🚫 **The messenger namespace is defined as a constant, but it is called `controllerName` (legacy name)**
+
+```typescript
+// 🚫 Uses legacy name.
+const controllerName = 'TransactionsController';
+
+export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof controllerName,
+  TransactionsControllerState
+>;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  type: `${typeof controllerName}:transactionApprovedEvent`;
+  payload: [transaction: Transaction]
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent
+
+export type TransactionsControllerMessenger = Messenger<
+  typeof controllerName,
+  never,
+  TransactionsControllerEvents
+>;
+
+export class TransactionsController extends BaseController<typeof controllerName /*, ... */ {
+  constructor(/* ... */) {
+    super({ name: controllerName, /* ... */ })
+
+    // ...
+  }
+}
+```
+
+🚫 **The messenger namespace is defined as a constant, but it is exported from the package**
+
+```typescript
+/* packages/transactions-controller/src/transactions-controller.ts */
+
+export const CONTROLLER_NAME = 'TransactionsController';
+
+export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof CONTROLLER_NAME,
+  TransactionsControllerState
+>;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  type: `${typeof CONTROLLER_NAME}:transactionApprovedEvent`;
+  payload: [transaction: Transaction]
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent
+
+export type TransactionsControllerMessenger = Messenger<
+  typeof CONTROLLER_NAME,
+  never,
+  TransactionsControllerEvents
+>;
+
+export class TransactionsController extends BaseController<typeof CONTROLLER_NAME /*, ... */ {
+  constructor(/* ... */) {
+    super({ name: CONTROLLER_NAME, /* ... */ })
+
+    // ...
+  }
+}
+
+/* packages/transactions-controller/src/index.ts */
+
+export {
+  // 🚫 The controller name should not be exported from the package.
+  CONTROLLER_NAME,
+  TransactionsController,
+  // ...
+} from './transactions-controller';
+```
+
+✅ **The messenger namespace is defined as a constant, and it is kept internal instead of being exported**
+
+```typescript
+/* packages/transactions-controller/src/transactions-controller.ts */
+
+// ✅ Using correct name.
+const CONTROLLER_NAME = 'TransactionsController';
+
+export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof CONTROLLER_NAME,
+  TransactionsControllerState
+>;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  type: `${typeof CONTROLLER_NAME}:transactionApprovedEvent`;
+  payload: [transaction: Transaction]
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent
+
+export type TransactionsControllerMessenger = Messenger<
+  typeof CONTROLLER_NAME,
+  never,
+  TransactionsControllerEvents
+>;
+
+export class TransactionsController extends BaseController<typeof CONTROLLER_NAME /*, ... */ {
+  constructor(/* ... */) {
+    super({ name: CONTROLLER_NAME, /* ... */ })
+
+    // ...
+  }
+}
+
+/* packages/transactions-controller/src/index.ts */
+
+export {
+  // ✅ Name is not exported.
+  TransactionsController,
+  // ...
+} from './transactions-controller';
+```
+
 ## Accept an optional, partial representation of state
 
 Although `BaseController` requires a full representation of controller state, in practice, controllers should accept a partial version and then supply missing properties with defaults. In fact, the `state` argument should be optional:

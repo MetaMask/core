@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^6.2.0` to `^6.2.1` ([#8622](https://github.com/MetaMask/core/pull/8622))
+- Bump `@metamask/assets-controllers` from `^104.3.0` to `^105.0.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+- Bump `@metamask/bridge-controller` from `^70.2.0` to `^71.0.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+- Bump `@metamask/bridge-status-controller` from `^71.0.0` to `^71.1.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+
+## [20.0.0]
+
+### Changed
+
+- Rename `executeEnabled` feature flag to `gaslessEnabled` ([#8607](https://github.com/MetaMask/core/pull/8607))
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.0.0` ([#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/assets-controller` from `^6.1.0` to `^6.2.0` ([#8590](https://github.com/MetaMask/core/pull/8590))
+
+### Fixed
+
+- Fall back from Across to later pay strategies when Across quotes would require a first-time EIP-7702 authorization list ([#8577](https://github.com/MetaMask/core/pull/8577))
+- **BREAKING:** Fix mUSD conversion for hardware wallets on EIP-7702 chains by gating relay and Across 7702 paths on the account keyring type via `KeyringController:getState` ([#8388](https://github.com/MetaMask/core/pull/8388))
+  - The `TransactionPayControllerMessenger` now requires `KeyringController:getState` permission.
+
+## [19.3.0]
+
+### Added
+
+- Add support for transaction config parameter accountOverride ([#8454](https://github.com/MetaMask/core/pull/8454))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^6.0.0` to `^6.1.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
+- Bump `@metamask/assets-controllers` from `^104.2.0` to `^104.3.0` ([#8559](https://github.com/MetaMask/core/pull/8559))
+- Bump `@metamask/bridge-controller` from `^70.1.1` to `^70.2.0` ([#8571](https://github.com/MetaMask/core/pull/8571))
+- Bump `@metamask/bridge-status-controller` from `^70.0.5` to `^71.0.0` ([#8571](https://github.com/MetaMask/core/pull/8571))
+
+## [19.2.2]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^104.0.0` to `^104.2.0` ([#8509](https://github.com/MetaMask/core/pull/8509), [#8544](https://github.com/MetaMask/core/pull/8544))
+
+### Fixed
+
+- Ignore synthetic gas legs when determining Across support for perps direct deposits ([#8527](https://github.com/MetaMask/core/pull/8527))
+- Route Across status polling through the configured Across API base and support `depositTxnRef`/`fillTxnRef` for Across status responses ([#8512](https://github.com/MetaMask/core/pull/8512))
+
+## [19.2.1]
+
+### Fixed
+
+- Resolve correct `networkClientId` for source chain in Relay execute flow ([#8492](https://github.com/MetaMask/core/pull/8492))
+- Stop double-counting subsidized fees in Relay quote target amounts ([#8488](https://github.com/MetaMask/core/pull/8488))
+
 ## [19.2.0]
 
 ### Changed
@@ -671,7 +725,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.0...@metamask/transaction-pay-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...@metamask/transaction-pay-controller@20.0.0
+[19.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.2...@metamask/transaction-pay-controller@19.3.0
+[19.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.1...@metamask/transaction-pay-controller@19.2.2
+[19.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.0...@metamask/transaction-pay-controller@19.2.1
 [19.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.3...@metamask/transaction-pay-controller@19.2.0
 [19.1.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.2...@metamask/transaction-pay-controller@19.1.3
 [19.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.1.1...@metamask/transaction-pay-controller@19.1.2

@@ -403,6 +403,72 @@ describe('AccountTrackerController', () => {
     );
   });
 
+  it('should not wipe existing balances when syncing accounts and the selected chain has no state entry', async () => {
+    const networkClientId = 'networkClientId1';
+
+    mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+      tokenBalances: {
+        '0x0000000000000000000000000000000000000000': {},
+      },
+      stakedBalances: {},
+    });
+
+    await withController(
+      {
+        options: {
+          state: {
+            accountsByChainId: {
+              '0xe705': {
+                [CHECKSUM_ADDRESS_1]: {
+                  balance: '0xabc',
+                  stakedBalance: '0x5',
+                },
+              },
+            },
+          },
+        },
+        isMultiAccountBalancesEnabled: true,
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+        networkClientById: {
+          [networkClientId]: buildCustomNetworkClientConfiguration({
+            chainId: '0x999',
+          }),
+        },
+      },
+      async ({ controller, refresh }) => {
+        // Verify initial state has the balance we expect to preserve
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // Refresh for a new chain. The selected network (mainnet / 0x1) is
+        // NOT in accountsByChainId, so #syncAccounts sees an empty "existing"
+        // set. Without the fix this would overwrite every address on every
+        // chain with { balance: '0x0' }, wiping both balance and stakedBalance.
+        await refresh(['networkClientId1'], true);
+
+        // Existing balances must be preserved
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // New chain should have been initialised with a zero balance
+        expect(
+          controller.state.accountsByChainId['0x999'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0x0',
+        });
+      },
+    );
+  });
+
   it('sets isActive to true when keyring is unlocked', async () => {
     await withController(
       {

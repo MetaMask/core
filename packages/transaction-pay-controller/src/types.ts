@@ -12,7 +12,11 @@ import type { BridgeControllerActions } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
 import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
 import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
-import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignTypedMessageAction,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
@@ -47,6 +51,7 @@ export type AllowedActions =
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
+  | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -100,6 +105,13 @@ export type TransactionConfig = {
    * go back to that account rather than the EOA.
    */
   refundTo?: Hex;
+
+  /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
 };
 
 /** Callback to update transaction config. */
@@ -128,6 +140,15 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerActions | AllowedActions,
   TransactionPayControllerEvents | AllowedEvents
 >;
+
+/**
+ * Keyring types that support EIP-7702 authorization signing.
+ * Hardware wallets, snap keyrings, and money keyrings do not support 7702.
+ */
+export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
+  'HD Key Tree',
+  'Simple Key Pair',
+];
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
@@ -182,6 +203,13 @@ export type TransactionData = {
    * request.
    */
   refundTo?: Hex;
+
+  /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
 
   /**
    * Token selected for the transaction.
@@ -424,6 +452,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Selected fiat payment method ID, if applicable. */
   fiatPaymentMethod?: string;
 
@@ -439,6 +470,9 @@ export type PayStrategyGetQuotesRequest = {
 
 /** Request to submit quotes for a transaction. */
 export type PayStrategyExecuteRequest<OriginalRequest> = {
+  /** Whether the account supports EIP-7702 authorization signing. */
+  accountSupports7702: boolean;
+
   /** Callback to determine if the transaction is a smart transaction. */
   isSmartTransaction: (chainId: Hex) => boolean;
 
@@ -461,6 +495,18 @@ export type PayStrategyGetBatchRequest<OriginalQuote> = {
   quotes: TransactionPayQuote<OriginalQuote>[];
 };
 
+/** Request to check whether retrieved quotes can be executed by a strategy. */
+export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
+  /** Controller messenger. */
+  messenger: TransactionPayControllerMessenger;
+
+  /** Quotes returned by the strategy. */
+  quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Metadata of the original target transaction. */
+  transaction: TransactionMeta;
+};
+
 /** Request to get refresh interval for a specific strategy. */
 export type PayStrategyGetRefreshIntervalRequest = {
   /** Chain ID of the source or payment token. */
@@ -476,12 +522,26 @@ export type PayStrategy<OriginalQuote> = {
    * Check if the strategy supports the given request.
    * Defaults to true if not implemented.
    */
-  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+  supports?: (
+    request: PayStrategyGetQuotesRequest,
+  ) => boolean | Promise<boolean>;
 
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
   ) => Promise<TransactionPayQuote<OriginalQuote>[]>;
+
+  /**
+   * Check if the returned quotes are supported after provider quote
+   * construction and gas planning.
+   *
+   * Use this for limitations that are only knowable once quote metadata is
+   * available, such as whether execution will require an EIP-7702
+   * authorization list.
+   */
+  checkQuoteSupport?: (
+    request: PayStrategyCheckQuoteSupportRequest<OriginalQuote>,
+  ) => boolean | Promise<boolean>;
 
   /** Retrieve batch transactions for quotes, if supported by the strategy. */
   getBatchTransactions?: (
