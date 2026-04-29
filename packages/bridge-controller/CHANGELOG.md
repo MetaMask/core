@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar network support for bridge quotes and non-EVM fee calculation ([#8625](https://github.com/MetaMask/core/pull/8625))
+
 ## [71.0.0]
 
 ### Added
@@ -14,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `quickBuy` and `dappSwap` FeatureIds for external swap quote consumers ([#8598](https://github.com/MetaMask/core/pull/8598))
 - **BREAKING:** Add `market_closed` and `quote_expired` QuoteWarning ([#8598](https://github.com/MetaMask/core/pull/8598))
 - Add `tokenSecurityTypeDestination: string | null` to `BridgeControllerState` (default `null`), set via `updateBridgeQuoteRequestParams` and reset by `resetState` ([#8595](https://github.com/MetaMask/core/pull/8595))
-- Add Stellar network support for bridge quotes and non-EVM fee calculation ([#8625](https://github.com/MetaMask/core/pull/8625))
 
 ### Changed
 
