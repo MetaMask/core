@@ -57,7 +57,7 @@
     "@metamask/chomp-api-service": "^2.0.0",
     "@metamask/keyring-controller": "^25.3.0",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/network-controller": "^30.1.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

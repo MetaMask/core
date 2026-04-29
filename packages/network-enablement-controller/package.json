@@ -58,7 +58,7 @@
     "@metamask/keyring-api": "^23.0.1",
     "@metamask/messenger": "^1.2.0",
     "@metamask/multichain-network-controller": "^3.0.6",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/network-controller": "^30.1.0",
     "@metamask/slip44": "^4.3.0",
     "@metamask/transaction-controller": "^65.0.0",
     "@metamask/utils": "^11.9.0",
