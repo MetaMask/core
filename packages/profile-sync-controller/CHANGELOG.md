@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#8626](https://github.com/MetaMask/core/pull/8626))
 
 ### Changed
 
