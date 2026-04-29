@@ -36,6 +36,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   dust: { usd: '0', fiat: '0' },
   estimatedDuration: 0,
   fees: {
+    metaMask: { usd: '0', fiat: '0' },
     provider: { usd: '0', fiat: '0' },
     sourceNetwork: {
       estimate: { usd: '0', fiat: '0', human: '0', raw: '0' },
@@ -93,7 +94,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
     targetTokenAddress: '0xdef' as Hex,
   },
   sourceAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
-  targetAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
+  targetAmount: { usd: '0', fiat: '0' },
   strategy: TransactionPayStrategy.Across,
 };
 
@@ -190,6 +191,7 @@ describe('Across Submit', () => {
 
     it('submits a batch when approvals exist', async () => {
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [QUOTE_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -229,6 +231,7 @@ describe('Across Submit', () => {
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [batchGasQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -272,6 +275,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -301,6 +305,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [missingBatchGasQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -324,6 +329,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: {
@@ -354,6 +360,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: {
@@ -384,6 +391,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: {
@@ -426,6 +434,7 @@ describe('Across Submit', () => {
       ]);
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -455,6 +464,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -509,6 +519,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -564,6 +575,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -626,6 +638,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -735,6 +748,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [noApprovalQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -758,6 +772,7 @@ describe('Across Submit', () => {
           } as Response);
 
         const resultPromise = submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
@@ -784,6 +799,7 @@ describe('Across Submit', () => {
       } as Response);
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
@@ -822,6 +838,7 @@ describe('Across Submit', () => {
       } as Response);
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
@@ -840,6 +857,7 @@ describe('Across Submit', () => {
       } as Response);
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
@@ -870,6 +888,7 @@ describe('Across Submit', () => {
         } as Response);
 
         const resultPromise = submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
@@ -904,6 +923,7 @@ describe('Across Submit', () => {
         } as Response);
 
         const resultPromise = submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
@@ -936,6 +956,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -965,6 +986,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [missingSwapGasQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -988,6 +1010,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [missingApprovalGasQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -1014,6 +1037,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -1047,6 +1071,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [decimalGasQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -1081,6 +1106,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [quoteWithApproval],
         transaction: TRANSACTION_META_MOCK,
@@ -1112,6 +1138,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [quoteWithoutValue],
         transaction: TRANSACTION_META_MOCK,
@@ -1180,6 +1207,7 @@ describe('Across Submit', () => {
       });
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [quote1, quote2],
         transaction: TRANSACTION_META_MOCK,
@@ -1206,6 +1234,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [noApprovalQuote],
           transaction: TRANSACTION_META_MOCK,

@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `RampsService` routes `RampsEnvironment.Development` to the dev-api hosts (`https://on-ramp.dev-api.cx.metamask.io` and `https://on-ramp-cache.dev-api.cx.metamask.io` for regions cache) instead of UAT; staging and production URLs are unchanged ([#8574](https://github.com/MetaMask/core/pull/8574))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- `RampsService` routes `RampsEnvironment.Development` to dev-api base URLs; regions requests in development omit the `-cache` hostname segment used in staging and production ([#8574](https://github.com/MetaMask/core/pull/8574))
 
 ## [13.2.0]
 

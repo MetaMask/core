@@ -140,6 +140,10 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
 
+          if (!internalAccount) {
+            continue;
+          }
+
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')

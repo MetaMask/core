@@ -33,6 +33,8 @@ export enum FeeType {
 
 export enum FeatureId {
   PERPS = 'perps',
+  QUICK_BUY = 'quickBuy',
+  DAPP_SWAP = 'dappSwap',
 }
 
 export enum ActionTypes {

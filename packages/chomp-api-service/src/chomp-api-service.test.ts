@@ -17,7 +17,7 @@ describe('ChompApiService', () => {
   describe('associateAddress', () => {
     const associateParams = {
       signature: '0x123' as const,
-      timestamp: '2026-01-01T00:00:00Z',
+      timestamp: 1735689600,
       address: '0xabc' as const,
     };
 
@@ -47,18 +47,16 @@ describe('ChompApiService', () => {
 
     it('returns the response on 409 without throwing', async () => {
       nock(BASE_URL).post('/v1/auth/address').reply(409, {
-        profileId: 'p1',
         address: '0xabc',
-        status: 'already_associated',
+        status: 'active',
       });
       const { service } = createService();
 
       const result = await service.associateAddress(associateParams);
 
       expect(result).toStrictEqual({
-        profileId: 'p1',
         address: '0xabc',
-        status: 'already_associated',
+        status: 'active',
       });
     });
 
@@ -81,7 +79,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.associateAddress(associateParams)).rejects.toThrow(
-        'At path: profileId -- Expected a string',
+        'At path: address',
       );
     });
   });
@@ -99,6 +97,9 @@ describe('ChompApiService', () => {
 
     const upgradeResponse = {
       signerAddress: '0xdef',
+      address: '0xabc',
+      chainId: '0xa4b1',
+      nonce: '0x0',
       status: 'pending',
       createdAt: '2026-01-01T00:00:00Z',
     };
@@ -142,57 +143,68 @@ describe('ChompApiService', () => {
     });
   });
 
-  describe('getUpgrade', () => {
-    const upgradeRecord = {
+  describe('getUpgrades', () => {
+    const upgradeEntry = {
       signerAddress: '0xdef',
+      chainId: '0xa4b1',
+      nonce: '0x0',
+      authorization: {
+        r: '0x1',
+        s: '0x2',
+        v: 27,
+        yParity: 0,
+        address: '0xabc',
+        chainId: '0xa4b1',
+        nonce: '0x0',
+      },
       status: 'pending',
       createdAt: '2026-01-01T00:00:00Z',
     };
 
-    it('sends a GET with auth headers and returns the upgrade record', async () => {
+    it('sends a GET with auth headers and returns the upgrade entries', async () => {
       nock(BASE_URL)
         .get('/v1/account-upgrade/0xabc')
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
-        .reply(200, upgradeRecord);
+        .reply(200, [upgradeEntry]);
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
-        'ChompApiService:getUpgrade',
+        'ChompApiService:getUpgrades',
         '0xabc',
       );
 
-      expect(result).toStrictEqual(upgradeRecord);
+      expect(result).toStrictEqual([upgradeEntry]);
     });
 
-    it('returns null on 404', async () => {
-      nock(BASE_URL).get('/v1/account-upgrade/0xabc').reply(404);
+    it('returns an empty array when no upgrades exist', async () => {
+      nock(BASE_URL).get('/v1/account-upgrade/0xabc').reply(200, []);
       const { service } = createService();
 
-      const result = await service.getUpgrade('0xabc');
+      const result = await service.getUpgrades('0xabc');
 
-      expect(result).toBeNull();
+      expect(result).toStrictEqual([]);
     });
 
-    it('throws on non-OK/non-404 status', async () => {
+    it('throws on non-OK status', async () => {
       nock(BASE_URL)
         .get('/v1/account-upgrade/0xabc')
         .times(DEFAULT_MAX_RETRIES + 1)
         .reply(500);
       const { service } = createService();
 
-      await expect(service.getUpgrade('0xabc')).rejects.toThrow(
-        "Get upgrade request failed with status '500'",
+      await expect(service.getUpgrades('0xabc')).rejects.toThrow(
+        "Get upgrades request failed with status '500'",
       );
     });
 
     it('throws on malformed response', async () => {
       nock(BASE_URL)
         .get('/v1/account-upgrade/0xabc')
-        .reply(200, JSON.stringify({ bad: 'data' }));
+        .reply(200, JSON.stringify([{ bad: 'data' }]));
       const { service } = createService();
 
-      await expect(service.getUpgrade('0xabc')).rejects.toThrow(
-        'At path: signerAddress -- Expected a string',
+      await expect(service.getUpgrades('0xabc')).rejects.toThrow(
+        'At path: 0.signerAddress -- Expected a string',
       );
     });
   });
@@ -344,7 +356,7 @@ describe('ChompApiService', () => {
           allowance: '0xff',
           tokenAddress: '0x123',
           tokenSymbol: 'USDC',
-          type: 'deposit',
+          type: 'cash-deposit',
         },
       },
     ];
