@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/multichain-transactions-controller` from `^7.0.3` to `^7.0.4` ([#8325](https://github.com/MetaMask/core/pull/8325))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 
+### Fixed
+
+- `wallet_invokeMethod` fails early with an `invalidParams` error when the `params` object is not an object ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - Previously it would fail with a less specific error.
+
 ## [2.0.0]
 
 ### Added

@@ -14,54 +14,40 @@ import {
 } from './createMethodMiddleware';
 import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine';
 
-type Hooks = {
+type AllHooks = {
   hook1: () => number;
   hook2: () => number;
 };
 
-const handlerImplementation: MethodHandlerImplementation<Hooks> = (
-  req,
-  res,
-  _next,
-  end,
-  hooks,
-): void => {
-  if (Array.isArray(req.params)) {
-    switch (req.params[0]) {
-      case 1:
-        res.result = hooks.hook1();
-        break;
-      case 2:
-        res.result = hooks.hook2();
-        break;
-      case 3:
-        return end(new Error('test error'));
-      case 4:
-        throw new Error('test error');
-      case 5:
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        throw 'foo';
-      default:
-        throw new Error(`unexpected param "${JSON.stringify(req.params[0])}"`);
-    }
-  }
-  return end();
-};
-
-const handler = {
-  implementation: handlerImplementation,
-  hookNames: { hook1: true as const, hook2: true as const },
-} satisfies MethodHandler<Hooks>;
-
-const getDefaultHooks = (): Hooks => ({
+const getDefaultHooks = (): AllHooks => ({
   hook1: () => 42,
   hook2: () => 99,
 });
 
+const makeHandler = <Hooks extends Record<string, unknown>>(
+  implementation: MethodHandlerImplementation<Hooks>,
+  hookNames: { [Name in keyof Hooks]: true },
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+) => ({ implementation, hookNames });
+
 const method1 = 'method1';
+
+const baseRequest = {
+  jsonrpc: '2.0' as const,
+  id: 1,
+  method: method1,
+};
 
 describe('createMethodMiddleware', () => {
   it('calls the handler for the matching method (uses hook1)', async () => {
+    const handler = makeHandler<AllHooks>(
+      (_req, res, _next, end, hooks) => {
+        res.result = hooks.hook1();
+        return end();
+      },
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -69,18 +55,21 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
-      method: method1,
-      params: [1],
-    });
+    const response = await engine.handle(baseRequest);
     assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBe(42);
   });
 
   it('calls the handler for the matching method (uses hook2)', async () => {
+    const handler = makeHandler<AllHooks>(
+      (_req, res, _next, end, hooks) => {
+        res.result = hooks.hook2();
+        return end();
+      },
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -88,18 +77,21 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
-      method: method1,
-      params: [2],
-    });
+    const response = await engine.handle(baseRequest);
     assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBe(99);
   });
 
   it('does not call the handler for a non-matching method', async () => {
+    const handler = makeHandler<AllHooks>(
+      (_req, res, _next, end) => {
+        res.result = 'unreachable';
+        return end();
+      },
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -108,8 +100,7 @@ describe('createMethodMiddleware', () => {
     engine.push(middleware);
 
     const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
+      ...baseRequest,
       method: 'nonMatchingMethod',
     });
     assertIsJsonRpcFailure(response);
@@ -122,6 +113,11 @@ describe('createMethodMiddleware', () => {
   });
 
   it('handles errors returned by the implementation', async () => {
+    const handler = makeHandler<AllHooks>(
+      (_req, _res, _next, end) => end(new Error('test error')),
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -129,12 +125,7 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
-      method: method1,
-      params: [3],
-    });
+    const response = await engine.handle(baseRequest);
     assertIsJsonRpcFailure(response);
 
     expect(response.error.message).toBe('test error');
@@ -144,6 +135,13 @@ describe('createMethodMiddleware', () => {
   });
 
   it('handles errors thrown by the implementation', async () => {
+    const handler = makeHandler<AllHooks>(
+      () => {
+        throw new Error('test error');
+      },
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -151,12 +149,7 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
-      method: method1,
-      params: [4],
-    });
+    const response = await engine.handle(baseRequest);
     assertIsJsonRpcFailure(response);
 
     expect(response.error.message).toBe('test error');
@@ -166,6 +159,14 @@ describe('createMethodMiddleware', () => {
   });
 
   it('handles non-errors thrown by the implementation', async () => {
+    const handler = makeHandler<AllHooks>(
+      () => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw 'foo';
+      },
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -173,12 +174,7 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
-      method: method1,
-      params: [5],
-    });
+    const response = await engine.handle(baseRequest);
     assertIsJsonRpcFailure(response);
 
     expect(response.error).toMatchObject({
@@ -189,6 +185,13 @@ describe('createMethodMiddleware', () => {
 
   it('invokes onError when a handler throws', async () => {
     const onError = jest.fn();
+    const handler = makeHandler<AllHooks>(
+      () => {
+        throw new Error('test error');
+      },
+      { hook1: true, hook2: true },
+    );
+
     const middleware = createMethodMiddleware({
       handlers: { method1: handler, method2: handler },
       hooks: getDefaultHooks(),
@@ -197,19 +200,13 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const request = {
-      jsonrpc: '2.0' as const,
-      id: 1,
-      method: method1,
-      params: [4],
-    };
-    await engine.handle(request);
+    await engine.handle(baseRequest);
 
     expect(onError).toHaveBeenCalledTimes(1);
     const [error, receivedRequest] = onError.mock.calls[0];
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe('test error');
-    expect(receivedRequest).toMatchObject(request);
+    expect(receivedRequest).toMatchObject(baseRequest);
   });
 
   it('works when no hooks are configured', async () => {
@@ -227,11 +224,7 @@ describe('createMethodMiddleware', () => {
     const engine = new JsonRpcEngine();
     engine.push(middleware);
 
-    const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'noDeps',
-    });
+    const response = await engine.handle({ ...baseRequest, method: 'noDeps' });
     assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBe('no-deps');
@@ -259,8 +252,7 @@ describe('createMethodMiddleware', () => {
     engine.push(middleware);
 
     const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
+      ...baseRequest,
       method: 'reportOrigin',
       origin: 'https://example.com',
     } as JsonRpcRequest<JsonRpcParams> & { origin: string });
@@ -324,8 +316,7 @@ describe('createMethodMiddleware', () => {
     engine.push(middleware);
 
     const response = await engine.handle({
-      jsonrpc: '2.0',
-      id: 1,
+      ...baseRequest,
       method: 'callAction',
     });
     assertIsJsonRpcSuccess(response);
@@ -334,6 +325,10 @@ describe('createMethodMiddleware', () => {
   });
 
   it('throws an error if a required hook is missing', () => {
+    const handler = makeHandler<AllHooks>((_req, _res, _next, end) => end(), {
+      hook1: true,
+      hook2: true,
+    });
     const hooks = { hook1: (): number => 42 };
 
     expect(() =>
@@ -346,6 +341,10 @@ describe('createMethodMiddleware', () => {
   });
 
   it('throws an error if an extraneous hook is provided', () => {
+    const handler = makeHandler<AllHooks>((_req, _res, _next, end) => end(), {
+      hook1: true,
+      hook2: true,
+    });
     const hooks = {
       ...getDefaultHooks(),
       extraneousHook: (): number => 100,

@@ -132,12 +132,9 @@ export function assertExpectedHooks(
   hooks: Record<string, unknown>,
   expectedHookNames: Set<string>,
 ): void {
-  const missingHookNames: string[] = [];
-  expectedHookNames.forEach((hookName) => {
-    if (!hasProperty(hooks, hookName)) {
-      missingHookNames.push(hookName);
-    }
-  });
+  const missingHookNames = Array.from(expectedHookNames).filter(
+    (hookName) => !hasProperty(hooks, hookName),
+  );
   if (missingHookNames.length > 0) {
     throw new Error(
       `Missing expected hooks:\n\n${missingHookNames.join('\n')}\n`,
