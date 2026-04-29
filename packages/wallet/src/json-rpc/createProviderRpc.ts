@@ -1,9 +1,15 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import { asLegacyMiddleware } from '@metamask/json-rpc-engine/v2';
+import {
+  asLegacyMiddleware,
+  createOriginMiddleware,
+} from '@metamask/json-rpc-engine/v2';
 import { createEngineStream } from '@metamask/json-rpc-middleware-stream';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import ObjectMultiplex from '@metamask/object-multiplex';
-import { SubjectType } from '@metamask/permission-controller';
+import {
+  SubjectType,
+  createPermissionMiddleware,
+} from '@metamask/permission-controller';
 import {
   createWalletSnapPermissionMiddleware,
   createSnapsMethodMiddleware,
@@ -50,12 +56,8 @@ export function createRpcHooks(
       if (messenger.call('KeyringController:getState').isUnlocked) {
         return Promise.resolve();
       }
-      const { promise, resolve: resolveUnlock } = createDeferredPromise();
-      messenger.subscribe('KeyringController:unlock', resolveUnlock);
 
-      await promise;
-
-      messenger.unsubscribe('KeyringController:unlock', resolveUnlock);
+      return messenger.waitUntil('KeyringController:unlock');
     },
     getSnaps: messenger.call.bind(
       messenger,
@@ -231,23 +233,14 @@ export function createProviderRpc({
   // TODO: Use V2, currently not compatible with createEngineStream.
   const engine = new JsonRpcEngine();
 
-  // TODO: Rebase and use createOriginMiddleware.
-  engine.push((request, _, next) => {
-    // @ts-expect-error Type does not allow this.
-    request.origin = origin;
-    return next();
-  });
+  engine.push(asLegacyMiddleware(createOriginMiddleware(origin)));
 
   // TODO: A bunch of middlewares are missing.
   // TODO: Configure additional client-specific middlewares
 
   engine.push(asLegacyMiddleware(createWalletSnapPermissionMiddleware()));
 
-  engine.push(
-    messenger.call('PermissionController:createPermissionMiddleware', {
-      origin,
-    }),
-  );
+  engine.push(createPermissionMiddleware({ messenger, origin }));
 
   const hooks = createRpcHooks(origin, messenger);
 

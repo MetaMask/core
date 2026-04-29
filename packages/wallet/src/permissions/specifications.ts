@@ -153,14 +153,8 @@ export const getPermissionSpecifications = (
           if (messenger.call('KeyringController:getState').isUnlocked) {
             return Promise.resolve();
           }
-          const { promise, resolve: resolveUnlock } = createDeferredPromise();
-          messenger.subscribe('KeyringController:unlock', resolveUnlock);
 
-          await promise;
-
-          messenger.unsubscribe('KeyringController:unlock', resolveUnlock);
-
-          return;
+          return messenger.waitUntil('KeyringController:unlock');
         },
 
         getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),
