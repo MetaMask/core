@@ -1,22 +1,22 @@
 import type { BridgeClientId } from '@metamask/bridge-controller';
 import { getClientHeaders } from '@metamask/bridge-controller';
-import {
-  HttpError,
-  createServicePolicy,
-  ConstantBackoff,
-} from '@metamask/controller-utils';
 
 import {
+  QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES,
+  QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS,
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
   QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS,
+  QuoteStatusUpdateErrorType,
   QuoteStatusUpdateType,
+  SendWithRetryResult,
 } from './constants';
 import type {
   BridgeStatusControllerMessenger,
   DeferredStatusUpdateEntry,
-  FetchFunction,
+  QuoteStatusUpdateResponse,
 } from './types';
 import { getJwt } from './utils/authentication';
+import { sleep } from './utils/helpers';
 
 /**
  * Handles reporting quote status updates (SUBMITTED / FINALISED) to the
@@ -35,14 +35,25 @@ import { getJwt } from './utils/authentication';
 export class QuoteStatusUpdateManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
-  readonly #fetchFn: FetchFunction;
-
   readonly #clientId: BridgeClientId;
 
   readonly #apiBaseUrl: string;
 
+  /**
+   * In-memory deferred quote status updates keyed by `${quoteId}:${srcTxHash}`.
+   * Each value holds a FIFO `pendingStatuses` list and metadata; the map is
+   * cloned into controller state via {@link #persistToState} whenever it changes.
+   */
   readonly #deferredRetryQueue: Map<string, DeferredStatusUpdateEntry>;
 
+  /**
+   * Writes the full deferred-queue snapshot to {@link BridgeStatusController}
+   * state as `deferredStatusUpdates` (replacing the prior record). Injected by
+   * the controller constructor; invoked from {@link #persistToState} after
+   * cloning the map so Immer does not freeze live entries.
+   *
+   * @param updates - Plain record mirroring {@link #deferredRetryQueue} keys and entries.
+   */
   readonly #persistDeferredUpdates: (
     updates: Record<string, DeferredStatusUpdateEntry>,
   ) => void;
@@ -57,14 +68,12 @@ export class QuoteStatusUpdateManager {
 
   constructor({
     messenger,
-    fetchFn,
     clientId,
     apiBaseUrl,
     initialDeferredUpdates,
     persistDeferredUpdates,
   }: {
     messenger: BridgeStatusControllerMessenger;
-    fetchFn: FetchFunction;
     clientId: BridgeClientId;
     apiBaseUrl: string;
     initialDeferredUpdates?: Record<string, DeferredStatusUpdateEntry>;
@@ -73,7 +82,6 @@ export class QuoteStatusUpdateManager {
     ) => void;
   }) {
     this.#messenger = messenger;
-    this.#fetchFn = fetchFn;
     this.#clientId = clientId;
     this.#apiBaseUrl = apiBaseUrl;
     this.#persistDeferredUpdates = persistDeferredUpdates;
@@ -148,7 +156,7 @@ export class QuoteStatusUpdateManager {
 
   /**
    * Stops the deferred retry timer and clears the in-memory queue.
-   * Does not persist — the caller is responsible for resetting state.
+   * Does not persist, the caller is responsible for resetting state.
    */
   destroy(): void {
     this.#stopRetryTimer();
@@ -180,17 +188,31 @@ export class QuoteStatusUpdateManager {
     return undefined;
   }
 
+  /**
+   * Sends the next pending status for one deferred entry: runs
+   * {@link #sendWithRetry} for `pendingStatuses[0]`, then applies the
+   * {@link SendWithRetryResult} (shift queue on success, persist and keep for
+   * deferred interval on retryable, or no-op when already handled inside
+   * {@link #sendWithRetry}). Skips if the row is gone, already in flight,
+   * has no pending statuses, or exceeded the max retry lifetime.
+   *
+   * @param key - Deferred map key (`${quoteId}:${srcTxHash}`).
+   */
   #processSingleEntry(key: string): void {
+    // Row may have been removed by another path or never existed for this key.
     const entry = this.#deferredRetryQueue.get(key);
+    // Do not start a second in-flight send for the same key (#sendWithRetry is async).
     if (!entry || this.#inFlight.has(key)) {
       return;
     }
 
+    // Defensive cleanup: an empty FIFO should not stay in the map.
     if (entry.pendingStatuses.length === 0) {
       this.#removeEntry(key);
       return;
     }
 
+    // Stop retrying stale bridge submissions after the configured window.
     if (
       Date.now() - entry.createdAt >
       QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS
@@ -202,57 +224,190 @@ export class QuoteStatusUpdateManager {
       return;
     }
 
+    // Mutex: mark before awaiting so concurrent callers bail at the guard above.
     this.#inFlight.add(key);
 
-    this.#sendWithRetry(
-      entry.quoteId,
-      entry.srcTxHash,
-      entry.pendingStatuses[0],
-    )
-      .then(() => {
-        entry.pendingStatuses.shift();
+    // FIFO: always POST the head of the queue (SUBMITTED before finalization, etc.).
+    const currentStatus = entry.pendingStatuses[0];
 
-        if (entry.pendingStatuses.length > 0) {
-          this.#persistToState();
-          this.#inFlight.delete(key);
-          this.#processSingleEntry(key);
-        } else {
-          this.#inFlight.delete(key);
-          this.#removeEntry(key);
+    this.#sendWithRetry(key, entry, currentStatus)
+      .then((result) => {
+        // Finalization / eviction already ran inside #sendWithRetry; state is current.
+        if (result === SendWithRetryResult.Handled) {
+          return undefined;
         }
+
+        if (result === SendWithRetryResult.Success) {
+          // API accepted this status; move on to the next pending value if any.
+          entry.pendingStatuses.shift();
+
+          if (entry.pendingStatuses.length > 0) {
+            // Persist the shortened queue, release the lock, then continue same key.
+            this.#persistToState();
+            this.#inFlight.delete(key);
+            this.#processSingleEntry(key);
+          } else {
+            // Queue drained for this quote+hash; drop the row and stop timers if idle.
+            this.#inFlight.delete(key);
+            this.#removeEntry(key);
+          }
+          return undefined;
+        }
+
+        // Retryable — immediate retries exhausted, keep in deferred queue
+        // Release mutex so the 30m poller (or constructor stagger) can retry later.
+        this.#inFlight.delete(key);
+        // Touch lastAttempt for observability / future ordering; persist survives restart.
+        entry.lastAttemptAt = Date.now();
+        this.#persistToState();
         return undefined;
       })
-      .catch((error: unknown) => {
+      .catch(() => {
+        // Network / unexpected failures — keep entry for deferred retry
+        // Same as retryable path: clear in-flight, bump timestamp, persist for resume.
         this.#inFlight.delete(key);
-
-        if (error instanceof HttpError && error.httpStatus === 400) {
-          if (entry.txMetaId) {
-            entry.pendingStatuses.shift();
-          } else {
-            this.#removeEntry(key);
-            console.error(
-              `QuoteStatusUpdateManager: HTTP 400 for quote ${entry.quoteId} with no txMetaId — evicting`,
-            );
-            return;
-          }
-        }
-
         entry.lastAttemptAt = Date.now();
         this.#persistToState();
       });
   }
 
-  async #sendWithRetry(
-    quoteId: string,
-    srcTxHash: string,
-    status: string,
+  /**
+   * Attempts to send the corrected finalization status with up to
+   * {@link QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES} retries.
+   * On failure, the entry is evicted.
+   *
+   * @param key - The deferred queue key
+   * @param entry - The deferred status update entry
+   */
+  async #attemptFinalizationWithRetries(
+    key: string,
+    entry: DeferredStatusUpdateEntry,
   ): Promise<void> {
-    const policy = createServicePolicy({
-      maxRetries: 6,
-      backoff: new ConstantBackoff(5_000),
-    });
-    await policy.execute(() =>
-      this.#updateQuoteStatus(quoteId, srcTxHash, status),
+    const finalizationStatus = entry.pendingStatuses[0];
+
+    for (let attempt = 0; attempt <= QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await sleep(QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS);
+      }
+
+      try {
+        const response = await this.#updateQuoteStatus(
+          entry.quoteId,
+          entry.srcTxHash,
+          finalizationStatus,
+        );
+
+        // Request succeeded, remove entry from queue.
+        if (response === undefined) {
+          this.#removeEntry(key);
+          return;
+        }
+      } catch {
+        // Network error, continue retrying
+      }
+    }
+
+    this.#removeEntry(key);
+    console.error(
+      `QuoteStatusUpdateManager: finalization retries exhausted for quote ${entry.quoteId} — evicting`,
+    );
+  }
+
+  /**
+   * Sends a status update, immediately retrying up to
+   * {@link QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES} times when the
+   * response is {@link QuoteStatusUpdateErrorType.ConcurrentUpdate} or
+   * {@link QuoteStatusUpdateErrorType.TransactionNotIndexed}.
+   *
+   * If a non-retryable actionable error is received mid-retry (e.g.
+   * {@link QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch} or
+   * {@link QuoteStatusUpdateErrorType.InvalidStatusTransaction}), the
+   * retry loop is aborted and finalization is attempted immediately.
+   *
+   * Returns one of three {@link SendWithRetryResult} outcomes:
+   * - {@link SendWithRetryResult.Success} — 2xx accepted
+   * - {@link SendWithRetryResult.Retryable} — immediate retries exhausted, entry stays in deferred queue
+   * - {@link SendWithRetryResult.Handled} — finalization or eviction was performed internally
+   *
+   * Throws only on network-level / unexpected failures (no response body).
+   *
+   * @param key - The deferred queue key
+   * @param entry - The deferred status update entry
+   * @param status - The status string to send
+   * @returns The outcome of the send attempt
+   */
+  async #sendWithRetry(
+    key: string,
+    entry: DeferredStatusUpdateEntry,
+    status: string,
+  ): Promise<SendWithRetryResult> {
+    const retryableTypes: Set<string> = new Set([
+      QuoteStatusUpdateErrorType.ConcurrentUpdate,
+      QuoteStatusUpdateErrorType.TransactionNotIndexed,
+    ]);
+
+    for (let attempt = 0; attempt <= QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await sleep(QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS);
+      }
+
+      const response = await this.#updateQuoteStatus(
+        entry.quoteId,
+        entry.srcTxHash,
+        status,
+      );
+
+      if (response === undefined) {
+        return SendWithRetryResult.Success;
+      }
+
+      if (!retryableTypes.has(response.type)) {
+        await this.#handleNonRetryableError(key, entry, response);
+        return SendWithRetryResult.Handled;
+      }
+    }
+
+    return SendWithRetryResult.Retryable;
+  }
+
+  /**
+   * Handles a non-retryable error response by either attempting finalization
+   * with the corrected status or evicting the entry.
+   *
+   * @param key - The deferred queue key
+   * @param entry - The deferred status update entry
+   * @param response - The non-retryable error response
+   */
+  async #handleNonRetryableError(
+    key: string,
+    entry: DeferredStatusUpdateEntry,
+    response: QuoteStatusUpdateResponse,
+  ): Promise<void> {
+    const { type } = response;
+
+    if (type === QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch) {
+      const finalizationStatus = response.onChainQuoteStatus;
+      entry.pendingStatuses = [finalizationStatus];
+      this.#persistToState();
+      this.#inFlight.delete(key);
+      await this.#attemptFinalizationWithRetries(key, entry);
+      return;
+    }
+
+    if (type === QuoteStatusUpdateErrorType.InvalidStatusTransaction) {
+      const finalizationStatus = response.newStatus;
+      entry.pendingStatuses = [finalizationStatus];
+      this.#persistToState();
+      this.#inFlight.delete(key);
+      await this.#attemptFinalizationWithRetries(key, entry);
+      return;
+    }
+
+    // Any other error type — do not retry, evict
+    this.#inFlight.delete(key);
+    this.#removeEntry(key);
+    console.error(
+      `QuoteStatusUpdateManager: non-retryable error "${type}" for quote ${entry.quoteId} — evicting`,
     );
   }
 
@@ -325,25 +480,49 @@ export class QuoteStatusUpdateManager {
     this.#persistDeferredUpdates(cloned);
   }
 
+  /**
+   * Calls the Bridge API updateStatus endpoint.
+   *
+   * Returns `undefined` on 2xx, or the parsed error response body on non-2xx
+   * so callers can branch on the typed error.
+   *
+   * @param quoteId - The quote id
+   * @param srcTxHash - The source transaction hash
+   * @param newStatus - The new status to report
+   * @returns The parsed error response, or undefined on success
+   */
   readonly #updateQuoteStatus = async (
     quoteId: string,
     srcTxHash: string,
     newStatus: string,
-  ): Promise<void> => {
-    await this.#fetchFn(`${this.#apiBaseUrl}/quote/updateStatus`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getClientHeaders({
-          clientId: this.#clientId,
-          jwt: await getJwt(this.#messenger),
+  ): Promise<QuoteStatusUpdateResponse | undefined> => {
+    // This method uses `globalThis.fetch` and reads the raw
+    // `Response` (including JSON on non-2xx). Wrappers like `handleFetch` that
+    // throw on non-2xx would prevent typed error handling in callers.
+    const res = (await globalThis.fetch(
+      `${this.#apiBaseUrl}/quote/updateStatus`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getClientHeaders({
+            clientId: this.#clientId,
+            jwt: await getJwt(this.#messenger),
+          }),
+        },
+        body: JSON.stringify({
+          quoteId,
+          newStatus,
+          srcTxHash,
         }),
       },
-      body: JSON.stringify({
-        quoteId,
-        newStatus,
-        srcTxHash,
-      }),
-    });
+    ));
+
+    if (res.ok) {
+      return undefined;
+    }
+
+    return (await res.json()) as QuoteStatusUpdateResponse;
   };
+
 }

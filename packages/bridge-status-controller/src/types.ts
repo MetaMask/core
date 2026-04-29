@@ -31,13 +31,18 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionStatusUpdatedEvent,
+  TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
+import {
+  BRIDGE_STATUS_CONTROLLER_NAME,
+  QuoteStatusUpdateErrorType,
+  QuoteStatusUpdateStatus,
+} from './constants';
 import type { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
@@ -330,7 +335,9 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
+type AllowedEvents =
+  | TransactionControllerTransactionStatusUpdatedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
@@ -340,3 +347,28 @@ export type BridgeStatusControllerMessenger = Messenger<
   BridgeStatusControllerActions | AllowedActions,
   BridgeStatusControllerEvents | AllowedEvents
 >;
+
+export type QuoteStatusUpdateResponse =
+  | {
+      statusCode: number;
+      message: string;
+      type: QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch;
+      newQuoteStatus: QuoteStatusUpdateStatus;
+      onChainQuoteStatus: QuoteStatusUpdateStatus;
+    }
+  | {
+      statusCode: number;
+      message: string;
+      type: QuoteStatusUpdateErrorType.InvalidStatusTransaction;
+      currentStatus: QuoteStatusUpdateStatus;
+      newStatus: QuoteStatusUpdateStatus;
+    }
+  | {
+      statusCode: number;
+      message: string;
+      type: Exclude<
+        QuoteStatusUpdateErrorType,
+        | QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch
+        | QuoteStatusUpdateErrorType.InvalidStatusTransaction
+      >;
+    };
