@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
