@@ -13,6 +13,7 @@
 /packages/account-tree-controller            @MetaMask/accounts-engineers
 /packages/profile-sync-controller            @MetaMask/accounts-engineers
 /packages/money-account-controller           @MetaMask/accounts-engineers
+/packages/snap-account-service               @MetaMask/accounts-engineers
 
 ## Auth Team
 /packages/authenticated-user-storage         @MetaMask/auth-engineers
@@ -243,3 +244,5 @@
 /packages/chomp-api-service/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/package.json @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/snap-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/snap-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform

@@ -93,6 +93,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   assetExchangeRates: {},
   minimumBalanceForRentExemptionInLamports: '0',
   tokenWarnings: [],
+  tokenSecurityTypeDestination: null,
   quoteStreamComplete: null,
 };
 

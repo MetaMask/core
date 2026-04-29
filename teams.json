@@ -80,5 +80,6 @@
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
   "metamask/config-registry-controller": "team-networks",
   "metamask/money-account-controller": "team-accounts-framework",
-  "metamask/money-account-upgrade-controller": "team-earn"
+  "metamask/money-account-upgrade-controller": "team-earn",
+  "metamask/snap-account-service": "team-accounts-framework"
 }

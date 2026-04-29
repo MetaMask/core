@@ -1061,6 +1061,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
             "refresh_count": 3,
             "token_address_destination": "eip155:10/slip44:60",
             "token_address_source": "eip155:1/slip44:60",
+            "token_security_type_destination": null,
           },
         ],
         [

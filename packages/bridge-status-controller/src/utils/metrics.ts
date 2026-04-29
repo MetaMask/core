@@ -151,6 +151,8 @@ export const getRequestParamFromHistory = (
     chain_id_destination: formatChainIdToCaip(historyItem.quote.destChainId),
     token_symbol_destination: historyItem.quote.destAsset.symbol,
     token_address_destination: historyItem.quote.destAsset.assetId,
+    token_security_type_destination:
+      historyItem.tokenSecurityTypeDestination ?? null,
   };
 };
 
@@ -185,6 +187,7 @@ export const getPriceImpactFromQuote = (
  * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
  * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
  * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target)
+ * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -194,6 +197,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
   abTests?: Record<string, string>,
   activeAbTests?: { key: string; value: string }[],
+  tokenSecurityTypeDestination?: string | null,
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -201,8 +205,11 @@ export const getPreConfirmationPropertiesFromQuote = (
     ...getTradeDataFromQuote(quoteResponse),
     chain_id_source: formatChainIdToCaip(quote.srcChainId),
     token_symbol_source: quote.srcAsset.symbol,
+    token_address_source: quote.srcAsset.assetId,
     chain_id_destination: formatChainIdToCaip(quote.destChainId),
     token_symbol_destination: quote.destAsset.symbol,
+    token_address_destination: quote.destAsset.assetId,
+    token_security_type_destination: tokenSecurityTypeDestination ?? null,
     account_hardware_type: accountHardwareType,
     is_hardware_wallet: accountHardwareType !== null,
     swap_type: getSwapType(
@@ -302,6 +309,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
         transactionMeta.destinationTokenAddress ?? '',
         transactionMeta.chainId,
       ) ?? ('' as CaipAssetType),
+    token_security_type_destination: null,
     custom_slippage: false,
     account_hardware_type: accountHardwareType,
     is_hardware_wallet: accountHardwareType !== null,
