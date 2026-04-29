@@ -200,7 +200,7 @@ function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
 }
 
 function getRampsErrorInfo(error: unknown): RampsErrorInfo {
-  if (error instanceof BrokenCircuitError) {
+  if (error instanceof BrokenCircuitError && hasStringMessage(error)) {
     return {
       errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
       message: error.message,
