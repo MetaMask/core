@@ -4,6 +4,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
@@ -178,6 +179,11 @@ type RampsErrorInfo = {
   message: string;
 };
 
+type NormalizedRampsError = {
+  errorInfo: RampsErrorInfo;
+  normalizedError: unknown;
+};
+
 function hasStringMessage(error: unknown): error is ErrorWithMessage {
   return (
     typeof error === 'object' &&
@@ -194,6 +200,13 @@ function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
 }
 
 function getRampsErrorInfo(error: unknown): RampsErrorInfo {
+  if (error instanceof BrokenCircuitError) {
+    return {
+      errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      message: error.message,
+    };
+  }
+
   let rawMessage: string | undefined;
 
   if (hasStringMessage(error)) {
@@ -212,6 +225,15 @@ function getRampsErrorInfo(error: unknown): RampsErrorInfo {
   return {
     errorKey: null,
     message: rawMessage ?? 'Unknown error',
+  };
+}
+
+function getNormalizedRampsError(error: unknown): NormalizedRampsError {
+  const errorInfo = getRampsErrorInfo(error);
+
+  return {
+    errorInfo,
+    normalizedError: normalizeRampsErrorForRethrow(error, errorInfo),
   };
 }
 
@@ -1009,8 +1031,7 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorInfo = getRampsErrorInfo(error);
-        const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
+        const { errorInfo, normalizedError } = getNormalizedRampsError(error);
         this.#updateRequestState(
           cacheKey,
           createErrorState(
@@ -2174,6 +2195,17 @@ export class RampsController extends BaseController<
     }
   }
 
+  #getNormalizedTransakError(
+    error: unknown,
+    options: { syncAuth?: boolean } = {},
+  ): NormalizedRampsError {
+    if (options.syncAuth) {
+      this.#syncTransakAuthOnError(error);
+    }
+
+    return getNormalizedRampsError(error);
+  }
+
   /**
    * Sets the Transak API key used for all Transak API requests.
    *
@@ -2235,7 +2267,11 @@ export class RampsController extends BaseController<
     email: string;
     expiresIn: number;
   }> {
-    return this.messenger.call('TransakService:sendUserOtp', email);
+    try {
+      return await this.messenger.call('TransakService:sendUserOtp', email);
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2252,14 +2288,18 @@ export class RampsController extends BaseController<
     verificationCode: string,
     stateToken: string,
   ): Promise<TransakAccessToken> {
-    const token = await this.messenger.call(
-      'TransakService:verifyUserOtp',
-      email,
-      verificationCode,
-      stateToken,
-    );
-    this.transakSetAuthenticated(true);
-    return token;
+    try {
+      const token = await this.messenger.call(
+        'TransakService:verifyUserOtp',
+        email,
+        verificationCode,
+        stateToken,
+      );
+      this.transakSetAuthenticated(true);
+      return token;
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2270,8 +2310,9 @@ export class RampsController extends BaseController<
    */
   async transakLogout(): Promise<string> {
     try {
-      const result = await this.messenger.call('TransakService:logout');
-      return result;
+      return await this.messenger.call('TransakService:logout');
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
     } finally {
       this.transakClearAccessToken();
       this.update((state) => {
@@ -2302,9 +2343,12 @@ export class RampsController extends BaseController<
       });
       return details;
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      const errorInfo = getRampsErrorInfo(error);
-      const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+        {
+          syncAuth: true,
+        },
+      );
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
         state.nativeProviders.transak.userDetails.error = errorInfo.message;
@@ -2352,8 +2396,9 @@ export class RampsController extends BaseController<
       });
       return quote;
     } catch (error) {
-      const errorInfo = getRampsErrorInfo(error);
-      const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+      );
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
         state.nativeProviders.transak.buyQuote.error = errorInfo.message;
@@ -2389,9 +2434,12 @@ export class RampsController extends BaseController<
       });
       return requirement;
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      const errorInfo = getRampsErrorInfo(error);
-      const normalizedError = normalizeRampsErrorForRethrow(error, errorInfo);
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+        {
+          syncAuth: true,
+        },
+      );
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
         state.nativeProviders.transak.kycRequirement.error = errorInfo.message;
@@ -2417,8 +2465,8 @@ export class RampsController extends BaseController<
         quoteId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2444,8 +2492,8 @@ export class RampsController extends BaseController<
         paymentMethodId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2462,12 +2510,16 @@ export class RampsController extends BaseController<
     wallet: string,
     paymentDetails?: TransakOrderPaymentMethod[],
   ): Promise<TransakDepositOrder> {
-    return this.messenger.call(
-      'TransakService:getOrder',
-      orderId,
-      wallet,
-      paymentDetails,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:getOrder',
+        orderId,
+        wallet,
+        paymentDetails,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2491,8 +2543,8 @@ export class RampsController extends BaseController<
         kycType,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2505,8 +2557,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:requestOtt');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2547,8 +2599,8 @@ export class RampsController extends BaseController<
         purpose,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2562,8 +2614,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:patchUser', data);
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2585,8 +2637,8 @@ export class RampsController extends BaseController<
         quoteId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2608,8 +2660,8 @@ export class RampsController extends BaseController<
         paymentMethodId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2622,7 +2674,11 @@ export class RampsController extends BaseController<
   async transakGetTranslation(
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
-    return this.messenger.call('TransakService:getTranslation', request);
+    try {
+      return await this.messenger.call('TransakService:getTranslation', request);
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2640,8 +2696,8 @@ export class RampsController extends BaseController<
         workFlowRunId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2658,8 +2714,8 @@ export class RampsController extends BaseController<
         depositOrderId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2673,8 +2729,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:cancelAllActiveOrders');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2687,8 +2743,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 }

@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -1080,6 +1081,38 @@ describe('RampsController', () => {
     });
 
     it('tags circuit breaker errors with a localized error key', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const error = new BrokenCircuitError();
+        const fetcher = async (): Promise<string> => {
+          throw error;
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-broken-circuit',
+            fetcher,
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        const requestState =
+          controller.state.requests['error-key-broken-circuit'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+        expect(error.message).toBe(circuitBreakerOpenErrorMessage);
+        expect((error as Error & { errorKey?: string }).errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
+    it('falls back to message matching for circuit breaker-shaped errors', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const error = new Error(circuitBreakerOpenErrorMessage);
         const fetcher = async (): Promise<string> => {
@@ -7125,6 +7158,27 @@ describe('RampsController', () => {
           expect(result).toStrictEqual(mockResult);
         });
       });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:sendUserOtp',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakSendUserOtp',
+              'test@example.com',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
     });
 
     describe('transakVerifyUserOtp', () => {
@@ -7652,6 +7706,24 @@ describe('RampsController', () => {
         });
       });
 
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getAdditionalRequirements',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            controller.transakGetAdditionalRequirements('quote-1'),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
+
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.call('RampsController:transakSetAuthenticated', true);
@@ -7694,6 +7766,29 @@ describe('RampsController', () => {
             '/payments/debit-credit-card',
           );
           expect(result).toStrictEqual(mockOrder);
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:createOrder',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakCreateOrder',
+              'quote-1',
+              '0x123',
+              'card',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
 
@@ -7826,6 +7921,24 @@ describe('RampsController', () => {
             'RampsController:transakRequestOtt',
           );
           expect(result).toStrictEqual(mockResult);
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:requestOtt',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call('RampsController:transakRequestOtt'),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
 
