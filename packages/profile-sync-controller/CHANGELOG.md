@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#8642](https://github.com/MetaMask/core/pull/8642))
   - Add `performProfilePairing` public method (and messenger action) to `AuthenticationController` — pairs all SRPs via `POST /profile/pair` when 2+ SRPs exist; intended to be called by the client-side `useAutoProfilePairing` hook rather than inline with sign-in
   - Add `hasPairedAtLeastOnce: boolean` to `AuthenticationControllerState` — monotonic flag (false → true, never reset) set by `performProfilePairing` on first successful pairing; persisted across sessions so the client hook can determine first-launch pairing needs
   - Add `canonicalProfileId` to `UserProfile` — the unified profile ID across paired SRPs
