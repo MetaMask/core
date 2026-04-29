@@ -7,6 +7,7 @@ export * as Mocks from './mocks';
 
 export type {
   AuthenticationControllerPerformSignInAction,
+  AuthenticationControllerPerformProfilePairingAction,
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
