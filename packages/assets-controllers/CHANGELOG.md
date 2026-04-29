@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add ZetaChain network support (`7000`/`0x1b58`) ([#8627](https://github.com/MetaMask/core/pull/8627))
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+
 ## [105.0.0]
 
 ### Added
