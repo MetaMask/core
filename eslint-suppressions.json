@@ -88,11 +88,6 @@
       "count": 2
     }
   },
-  "packages/account-tree-controller/src/rules/snap.ts": {
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/type-utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -108,12 +103,12 @@
   },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/accounts-controller/src/AccountsController.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/accounts-controller/src/index.ts": {

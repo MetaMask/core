@@ -1,3 +1,4 @@
+export { fetchWithTimeout } from './fetchWithTimeout';
 export { normalizeAssetId } from './normalizeAssetId';
 export { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 export { formatStateForTransactionPay } from './formatStateForTransactionPay';

@@ -53,6 +53,7 @@ describe('BridgeStrategy', () => {
   describe('getQuotes', () => {
     it('returns result from util', async () => {
       const result = new BridgeStrategy().getQuotes({
+        accountSupports7702: true,
         messenger: {} as TransactionPayControllerMessenger,
         requests: [],
         transaction: {} as TransactionMeta,
@@ -86,6 +87,7 @@ describe('BridgeStrategy', () => {
   describe('execute', () => {
     it('calls util', async () => {
       await new BridgeStrategy().execute({
+        accountSupports7702: true,
         isSmartTransaction: () => false,
         quotes: [QUOTE_MOCK],
         messenger: {} as TransactionPayControllerMessenger,

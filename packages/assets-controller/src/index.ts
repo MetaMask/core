@@ -3,6 +3,7 @@ export {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController';
+export { AssetsDataSourceError } from './errors';
 export type { PendingTokenMetadata } from './AssetsController';
 
 // State and messenger types
@@ -148,7 +149,15 @@ export type {
 } from './data-sources';
 
 // Middlewares
-export { DetectionMiddleware } from './middlewares';
+export {
+  CustomAssetGraduationMiddleware,
+  DetectionMiddleware,
+  RpcFallbackMiddleware,
+} from './middlewares';
+export type {
+  CustomAssetGraduationMiddlewareOptions,
+  RpcFallbackMiddlewareOptions,
+} from './middlewares';
 
 // Utilities
 export {

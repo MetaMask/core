@@ -628,6 +628,85 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchPositionById', () => {
+    it('fetches position from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      const result = await service.fetchPositionById({
+        positionId: 'position-1',
+      });
+
+      expect(result).toStrictEqual(mockPosition);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/position/position-1`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('encodes the positionId in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      await service.fetchPositionById({ positionId: 'pos/with/slashes' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/position/pos%2Fwith%2Fslashes`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchPositionById({ positionId: 'position-1' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED}: 404`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ positionId: 123 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchPositionById({ positionId: 'position-1' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
+      );
+    });
+
+    it('returns cached result on repeated calls with same positionId', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      await service.fetchPositionById({ positionId: 'position-1' });
+      await service.fetchPositionById({ positionId: 'position-1' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('fetchFollowing', () => {
     const mockFollowingResponse = {
       following: [mockProfileSummary],

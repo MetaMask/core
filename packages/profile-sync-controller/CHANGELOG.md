@@ -20,11 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Propagate canonical profile ID to all `srpSessionData` entries after pairing
   - Add `refreshCanonicalProfileId` method — forces a fresh canonical retrieval from the server (1 primary SRP login) and propagates it to all cached SRP sessions. For best-effort reads, use `getSessionProfile().canonicalProfileId` instead.
   - Force re-login when cached session is missing `canonicalProfileId`
+- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#8626](https://github.com/MetaMask/core/pull/8626))
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.3.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [28.0.2]

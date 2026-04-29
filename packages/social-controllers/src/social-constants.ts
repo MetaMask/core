@@ -27,4 +27,7 @@ export const SocialServiceErrorMessage = {
   UNFOLLOW_FAILED: 'SocialService: Unfollow request failed',
   UNFOLLOW_INVALID_RESPONSE:
     'SocialService: Unfollow returned invalid response',
+  FETCH_POSITION_BY_ID_FAILED: 'SocialService: Position request failed',
+  FETCH_POSITION_BY_ID_INVALID_RESPONSE:
+    'SocialService: Position returned invalid response',
 } as const;
