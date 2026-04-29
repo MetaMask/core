@@ -695,6 +695,14 @@ export class Messenger<
    * selector's return value. The handler is only invoked when this returns `true`.
    * @template EventType - A type union of Event type strings.
    * @template SelectorReturnValue - The selector return value.
+   * @example
+   * ```typescript
+   * messenger.subscribeOnce(
+   *   'TransactionController:transactionConfirmed',
+   *   (hash) => { ... },
+   *   { selector: (tx) => tx.hash, condition: (hash) => hash === 'foo' },
+   * );
+   * ```
    */
   subscribeOnce<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
@@ -721,6 +729,14 @@ export class Messenger<
    * @param options.condition - A predicate evaluated against the event payload.
    * The handler is only invoked when this returns `true`.
    * @template EventType - A type union of Event type strings.
+   * @example
+   * ```typescript
+   * messenger.subscribeOnce(
+   *   'TransactionController:transactionConfirmed',
+   *   (tx) => { ... },
+   *   { condition: (tx) => tx.hash === 'foo' },
+   * );
+   * ```
    */
   subscribeOnce<EventType extends Event['type']>(
     eventType: EventType,
@@ -777,6 +793,13 @@ export class Messenger<
    * @template EventType - A type union of Event type strings.
    * @template SelectorReturnValue - The selector return value.
    * @returns A promise that resolves with the selector's return value.
+   * @example
+   * ```typescript
+   * const [hash] = await messenger.waitUntil(
+   *   'TransactionController:transactionConfirmed',
+   *   { selector: (tx) => tx.hash, condition: (hash) => hash === 'foo' },
+   * );
+   * ```
    */
   waitUntil<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
@@ -798,6 +821,13 @@ export class Messenger<
    * The promise only resolves when this returns `true`.
    * @template EventType - A type union of Event type strings.
    * @returns A promise that resolves with the event payload.
+   * @example
+   * ```typescript
+   * const [transactionMeta] = await messenger.waitUntil(
+   *   'TransactionController:transactionConfirmed',
+   *   { condition: (tx) => tx.hash === 'foo' },
+   * );
+   * ```
    */
   waitUntil<EventType extends Event['type']>(
     eventType: EventType,
