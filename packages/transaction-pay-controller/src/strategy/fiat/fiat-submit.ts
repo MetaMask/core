@@ -1,4 +1,3 @@
-import type { FiatQuote } from './types';
 import type {
   RampsOrder,
   RampsOrderCryptoCurrency,
@@ -8,10 +7,10 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { projectLogger } from '../../logger';
 import type { TransactionPayFiatAsset } from './constants';
 import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment } from './utils';
-import { projectLogger } from '../../logger';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -357,6 +356,7 @@ async function submitRelayAfterFiatCompletion({
   });
 
   const relayQuotes = await getRelayQuotes({
+    accountSupports7702: request.accountSupports7702,
     messenger,
     requests: [relayRequest],
     transaction,
@@ -379,6 +379,7 @@ async function submitRelayAfterFiatCompletion({
   });
 
   const relaySubmitRequest: PayStrategyExecuteRequest<RelayQuote> = {
+    accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,
     quotes: relayQuotes,
