@@ -71,7 +71,9 @@ type CreateMethodMiddlewareBaseOptions<
   Handlers extends Record<string, AnyMethodHandler>,
 > = {
   handlers: Handlers;
-  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
+  hooks: [HandlerHooks<Handlers[keyof Handlers]>] extends [never]
+    ? Record<string, never>
+    : UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
 };
 
 /**

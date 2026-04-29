@@ -18,7 +18,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import {
-  isPlainObject,
+  isObject,
   KnownCaipNamespace,
   numberToHex,
 } from '@metamask/utils';
@@ -82,11 +82,11 @@ async function handleWalletInvokeMethod(
   end: JsonRpcEngineEndCallback,
   hooks: WalletInvokeMethodHooks,
 ) {
-  if (!isPlainObject(request.params)) {
+  if (!isObject(request.params)) {
     return end(rpcErrors.invalidParams({ data: { request } }));
   }
-  const { scope, request: wrappedRequest } = request.params;
 
+  const { scope, request: wrappedRequest } = request.params;
   assertIsInternalScopeString(scope);
 
   let caveat;

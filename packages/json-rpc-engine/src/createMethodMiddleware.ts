@@ -118,7 +118,13 @@ type CreateMethodMiddlewareBaseOptions<
   Handlers extends Record<string, AnyMethodHandler>,
 > = {
   handlers: Handlers;
-  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
+  // Due to a quirk of TypeScript's inference over generics, the hooks property must
+  // be present even if no hooks are needed. Otherwise, TypeScript will fail to infer
+  // the correct type for the messenger property. `Record<string, never>` is the
+  // (hopefully) least confusing way to satisfy this requirement.
+  hooks: [HandlerHooks<Handlers[keyof Handlers]>] extends [never]
+    ? Record<string, never>
+    : UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
   /**
    * Called when a handler throws, before the error is forwarded to `end`.
    * Intended for logging; must not throw.
