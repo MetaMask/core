@@ -2872,6 +2872,7 @@ describe('BridgeController', function () {
           },
         };
       }) as unknown as QuoteResponse[];
+      const snapRequestScopes: (string | undefined)[] = [];
 
       messengerCallMock.mockImplementation(
         (
@@ -2914,10 +2915,10 @@ describe('BridgeController', function () {
           }
 
           if (actionType === 'SnapController:handleRequest') {
-            expect(
+            snapRequestScopes.push(
               (params as { request?: { params?: { scope?: string } } }).request
                 ?.params?.scope,
-            ).toBe(XlmScope.Pubnet);
+            );
             return Promise.resolve([
               {
                 type: 'base',
@@ -2956,6 +2957,10 @@ describe('BridgeController', function () {
       expect(quotes).toHaveLength(2);
       expect(quotes[0].nonEvmFeesInNative).toBe('0.00001');
       expect(quotes[1].nonEvmFeesInNative).toBe('0.00001');
+      expect(snapRequestScopes).toStrictEqual([
+        XlmScope.Pubnet,
+        XlmScope.Pubnet,
+      ]);
     });
   });
 

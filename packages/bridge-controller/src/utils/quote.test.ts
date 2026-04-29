@@ -2,14 +2,14 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  ChainId,
-  type GenericQuoteRequest,
-  type QuoteResponse,
-  type Quote,
-  type NonEvmFees,
-  type L1GasFees,
-  type TxData,
+import { ChainId } from '../types';
+import type {
+  GenericQuoteRequest,
+  QuoteResponse,
+  Quote,
+  NonEvmFees,
+  L1GasFees,
+  TxData,
 } from '../types';
 import {
   isValidQuoteRequest,

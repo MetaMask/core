@@ -41,7 +41,7 @@ import {
 export const isCrossChain = (
   srcChainId: GenericQuoteRequest['srcChainId'],
   destChainId?: GenericQuoteRequest['destChainId'],
-) => {
+): boolean => {
   try {
     if (!destChainId) {
       return false;
@@ -115,7 +115,7 @@ export const getNativeAssetForChainId = (
  */
 export const getEthUsdtResetData = (
   destChainId: GenericQuoteRequest['destChainId'],
-) => {
+): string => {
   const spenderAddress = isCrossChain(CHAIN_IDS.MAINNET, destChainId)
     ? METABRIDGE_ETHEREUM_ADDRESS
     : SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];
@@ -132,7 +132,7 @@ export const getEthUsdtResetData = (
 export const isEthUsdt = (
   chainId: GenericQuoteRequest['srcChainId'],
   address: string,
-) =>
+): boolean =>
   formatChainIdToDec(chainId) === ChainId.ETH &&
   address.toLowerCase() === ETH_USDT_ADDRESS.toLowerCase();
 
@@ -156,7 +156,7 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
 export const isSwapsDefaultTokenAddress = (
   address: string,
   chainId: Hex | CaipChainId,
-) => {
+): boolean => {
   if (!address || !chainId) {
     return false;
   }
@@ -175,7 +175,7 @@ export const isSwapsDefaultTokenAddress = (
 export const isSwapsDefaultTokenSymbol = (
   symbol: string,
   chainId: Hex | CaipChainId,
-) => {
+): boolean => {
   if (!symbol || !chainId) {
     return false;
   }
@@ -189,7 +189,7 @@ export const isSwapsDefaultTokenSymbol = (
  * @param address - The address to check
  * @returns Whether the address is a native asset
  */
-export const isNativeAddress = (address?: string | null) =>
+export const isNativeAddress = (address?: string | null): boolean =>
   address === AddressZero || // bridge and swap apis set the native asset address to zero
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
@@ -207,7 +207,7 @@ export const isNativeAddress = (address?: string | null) =>
  */
 export const isSolanaChainId = (
   chainId: Hex | number | CaipChainId | string,
-) => {
+): boolean => {
   if (isCaipChainId(chainId)) {
     return chainId === SolScope.Mainnet.toString();
   }
@@ -216,14 +216,16 @@ export const isSolanaChainId = (
 
 export const isBitcoinChainId = (
   chainId: Hex | number | CaipChainId | string,
-) => {
+): boolean => {
   if (isCaipChainId(chainId)) {
     return chainId === BtcScope.Mainnet.toString();
   }
   return chainId.toString() === ChainId.BTC.toString();
 };
 
-export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
+export const isTronChainId = (
+  chainId: Hex | number | CaipChainId | string,
+): boolean => {
   if (isCaipChainId(chainId)) {
     return chainId === TrxScope.Mainnet.toString();
   }
@@ -232,7 +234,7 @@ export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
 
 export const isStellarChainId = (
   chainId: Hex | number | CaipChainId | string,
-) => {
+): boolean => {
   if (isCaipChainId(chainId)) {
     return chainId === XlmScope.Pubnet.toString();
   }
