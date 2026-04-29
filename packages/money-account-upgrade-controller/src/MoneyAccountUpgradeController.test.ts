@@ -63,6 +63,11 @@ type Mocks = {
   getServiceDetails: jest.Mock;
   signPersonalMessage: jest.Mock;
   associateAddress: jest.Mock;
+  createUpgrade: jest.Mock;
+  signEip7702Authorization: jest.Mock;
+  findNetworkClientIdByChainId: jest.Mock;
+  getNetworkClientById: jest.Mock;
+  providerRequest: jest.Mock;
 };
 
 function setup(): {
@@ -71,6 +76,22 @@ function setup(): {
   messenger: MoneyAccountUpgradeControllerMessenger;
   mocks: Mocks;
 } {
+  // 65-byte signature — r (32 bytes) + s (32 bytes) + v = 0x1c (28).
+  const signature = `0x${'1'.repeat(64)}${'2'.repeat(64)}1c`;
+
+  // Default provider responses: account is a plain EOA with nonce 0.
+  const providerRequest = jest
+    .fn()
+    .mockImplementation(async ({ method }: { method: string }) => {
+      if (method === 'eth_getCode') {
+        return '0x';
+      }
+      if (method === 'eth_getTransactionCount') {
+        return '0x0';
+      }
+      throw new Error(`Unexpected RPC method: ${method}`);
+    });
+
   const mocks: Mocks = {
     getServiceDetails: jest
       .fn()
@@ -81,6 +102,19 @@ function setup(): {
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'CREATED',
     }),
+    createUpgrade: jest.fn().mockResolvedValue({
+      signerAddress: MOCK_ACCOUNT_ADDRESS,
+      status: 'pending',
+      createdAt: '2026-04-21T12:00:00.000Z',
+    }),
+    signEip7702Authorization: jest.fn().mockResolvedValue(signature),
+    findNetworkClientIdByChainId: jest
+      .fn()
+      .mockReturnValue('network-client-id'),
+    getNetworkClientById: jest.fn().mockReturnValue({
+      provider: { request: providerRequest },
+    }),
+    providerRequest,
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -99,6 +133,22 @@ function setup(): {
     'ChompApiService:associateAddress',
     mocks.associateAddress,
   );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:createUpgrade',
+    mocks.createUpgrade,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:signEip7702Authorization',
+    mocks.signEip7702Authorization,
+  );
+  rootMessenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mocks.findNetworkClientIdByChainId,
+  );
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    mocks.getNetworkClientById,
+  );
 
   const messenger: MoneyAccountUpgradeControllerMessenger = new Messenger({
     namespace: 'MoneyAccountUpgradeController',
@@ -110,6 +160,10 @@ function setup(): {
       'ChompApiService:getServiceDetails',
       'KeyringController:signPersonalMessage',
       'ChompApiService:associateAddress',
+      'ChompApiService:createUpgrade',
+      'KeyringController:signEip7702Authorization',
+      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
     ],
     events: [],
     messenger,
@@ -240,6 +294,15 @@ describe('MoneyAccountUpgradeController', () => {
         expect.objectContaining({ from: MOCK_ACCOUNT_ADDRESS }),
       );
       expect(mocks.associateAddress).toHaveBeenCalledWith(
+        expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
+      );
+      expect(mocks.signEip7702Authorization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: MOCK_ACCOUNT_ADDRESS,
+          contractAddress: MOCK_CONFIG.delegatorImplAddress,
+        }),
+      );
+      expect(mocks.createUpgrade).toHaveBeenCalledWith(
         expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
       );
     });

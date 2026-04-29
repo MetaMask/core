@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add ZetaChain network support (`7000`/`0x1b58`) ([#8627](https://github.com/MetaMask/core/pull/8627))
+
+## [105.0.0]
+
+### Added
+
 - Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
   - The following actions are now available:
     - `CurrencyRateController:setCurrentCurrency`
@@ -25,7 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When Blockaid bulk token scan API calls fail or return no results, tokens are allowed through
   - This prevents legitimate tokens from being blocked due to API outages, network issues, or missing token data
   - Malicious tokens that slip through are caught by the periodic rescan (runs daily by default)
-- Bump `@metamask/transaction-controller` from `^64.3.0` to `^64.4.0` ([#8585](https://github.com/MetaMask/core/pull/8585))
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.0.0` ([#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+
+### Fixed
+
+- Fix `selectAssetsBySelectedAccountGroup` crashing when an account referenced in the account tree is missing from internal accounts ([#8604](https://github.com/MetaMask/core/pull/8604))
 
 ## [104.3.0]
 
@@ -2967,7 +2977,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...HEAD
+[105.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...@metamask/assets-controllers@105.0.0
 [104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
 [104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
 [104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0

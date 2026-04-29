@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Add Stellar sort-order support ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Now use `SnapController:getSnap` when applying Snap rule (instead of using `account.metadata.snap.enabled`. ([#8584](https://github.com/MetaMask/core/pull/8584))
+  - As a result of this, Snap accounts that reference unavailable Snap (read, not available on the `SnapController`) will now be grouped under the Keyring rule instead (e.g being put in the "Snap Wallet" section).
 
 ## [7.1.0]
 

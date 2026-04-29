@@ -236,6 +236,9 @@
       "path": "./packages/signature-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/snap-account-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/social-controllers/tsconfig.build.json"
     },
     {

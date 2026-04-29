@@ -9,6 +9,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
+import { accountSupports7702 } from '../utils/7702';
 import { getStrategyByName } from '../utils/strategy';
 import { updateTransaction } from '../utils/transaction';
 
@@ -81,8 +82,10 @@ export class TransactionPayPublishHook {
     );
 
     const strategy = getStrategyByName(quotes[0].strategy);
+    const from = transactionMeta.txParams.from as Hex;
 
     return await strategy.execute({
+      accountSupports7702: accountSupports7702(this.#messenger, from),
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,

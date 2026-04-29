@@ -6,15 +6,24 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type {
   ChompApiServiceAssociateAddressAction,
+  ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetServiceDetailsAction,
 } from '@metamask/chomp-api-service';
-import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerSignEip7702AuthorizationAction,
+  KeyringControllerSignPersonalMessageAction,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
+} from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { associateAddressStep } from './associate-address';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
-import type { Step } from './step';
+import { associateAddressStep } from './steps/associate-address';
+import { eip7702AuthorizationStep } from './steps/eip-7702-authorization';
+import type { Step } from './steps/step';
 import type { InitConfig } from './types';
 
 export const controllerName = 'MoneyAccountUpgradeController';
@@ -38,8 +47,12 @@ export type MoneyAccountUpgradeControllerActions =
 
 type AllowedActions =
   | ChompApiServiceAssociateAddressAction
+  | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetServiceDetailsAction
-  | KeyringControllerSignPersonalMessageAction;
+  | KeyringControllerSignEip7702AuthorizationAction
+  | KeyringControllerSignPersonalMessageAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type MoneyAccountUpgradeControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -66,9 +79,9 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerMessenger
 > {
-  #initialized: boolean;
+  #config?: { chainId: Hex; delegatorImplAddress: Hex };
 
-  readonly #steps: Step[] = [associateAddressStep];
+  readonly #steps: Step[] = [associateAddressStep, eip7702AuthorizationStep];
 
   /**
    * Constructor for the MoneyAccountUpgradeController.
@@ -88,8 +101,6 @@ export class MoneyAccountUpgradeController extends BaseController<
       state: {},
     });
 
-    this.#initialized = false;
-
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -101,9 +112,9 @@ export class MoneyAccountUpgradeController extends BaseController<
    * given chain.
    *
    * @param chainId - The chain to initialize for.
-   * @param _initConfig - Contract addresses not available from the service details API.
+   * @param initConfig - Contract addresses not available from the service details API.
    */
-  async init(chainId: Hex, _initConfig: InitConfig): Promise<void> {
+  async init(chainId: Hex, initConfig: InitConfig): Promise<void> {
     const response = await this.messenger.call(
       'ChompApiService:getServiceDetails',
       [chainId],
@@ -127,7 +138,10 @@ export class MoneyAccountUpgradeController extends BaseController<
       );
     }
 
-    this.#initialized = true;
+    this.#config = {
+      chainId,
+      delegatorImplAddress: initConfig.delegatorImplAddress,
+    };
   }
 
   /**
@@ -139,14 +153,18 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
-    if (!this.#initialized) {
+    if (!this.#config) {
       throw new Error(
         'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
       );
     }
 
     for (const step of this.#steps) {
-      await step.run({ messenger: this.messenger, address });
+      await step.run({
+        messenger: this.messenger,
+        address,
+        ...this.#config,
+      });
     }
   }
 }
