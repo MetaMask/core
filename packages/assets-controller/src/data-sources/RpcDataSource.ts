@@ -60,6 +60,7 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -919,12 +920,14 @@ export class RpcDataSource extends AbstractDataSource<
 
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
-
-        // Build a single AssetFetchEntry[] for native + custom ERC-20s
         const nativeAssetId = this.#getNativeAssetForChain(chainId);
-        const assetsToFetch: AssetFetchEntry[] = [
-          { assetId: nativeAssetId, address: ZERO_ADDRESS },
-        ];
+
+        const shouldSkipNative = shouldSkipNativeForCaipChainId(chainId);
+        const assetsToFetch: AssetFetchEntry[] = [];
+        if (!shouldSkipNative) {
+          // Build a single AssetFetchEntry[] for native + custom ERC-20s
+          assetsToFetch.push({ assetId: nativeAssetId, address: ZERO_ADDRESS });
+        }
 
         if (request.customAssets) {
           const existingMetadata = this.#getExistingAssetsMetadata();
@@ -1019,17 +1022,20 @@ export class RpcDataSource extends AbstractDataSource<
           if (!assetsBalance[accountId]) {
             assetsBalance[accountId] = {};
           }
-          assetsBalance[accountId][nativeAssetId] = { amount: '0' };
 
-          // Even on error, include native token metadata
-          const chainStatus = this.#chainStatuses[chainId];
-          if (chainStatus) {
-            assetsInfo[nativeAssetId] = {
-              type: 'native',
-              symbol: chainStatus.nativeCurrency,
-              name: chainStatus.nativeCurrency,
-              decimals: 18,
-            };
+          if (!shouldSkipNative) {
+            assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+
+            // Even on error, include native token metadata
+            const chainStatus = this.#chainStatuses[chainId];
+            if (chainStatus) {
+              assetsInfo[nativeAssetId] = {
+                type: 'native',
+                symbol: chainStatus.nativeCurrency,
+                name: chainStatus.nativeCurrency,
+                decimals: 18,
+              };
+            }
           }
 
           if (!failedChains.includes(chainId)) {

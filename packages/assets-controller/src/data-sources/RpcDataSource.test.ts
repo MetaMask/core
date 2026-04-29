@@ -19,6 +19,7 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
 import type { RpcDataSourceOptions } from './RpcDataSource';
 import {
   RpcDataSource,
@@ -247,6 +248,10 @@ jest.mock('@ethersproject/providers', () => ({
   })),
 }));
 
+jest.mock('./evm-rpc-services/utils/assets', () => ({
+  shouldSkipNativeForCaipChainId: jest.fn().mockReturnValue(false),
+}));
+
 describe('caipChainIdToHex', () => {
   it('returns hex unchanged when given hex string', () => {
     expect(caipChainIdToHex('0x1')).toBe('0x1');
@@ -469,6 +474,18 @@ describe('RpcDataSource', () => {
       });
     });
 
+    it('fetches balances for accounts except native for native skip chain', async () => {
+      jest.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
+      await withController(async ({ controller }) => {
+        const response = await controller.fetch(createDataRequest());
+        expect(response).toBeDefined();
+        expect(response.assetsBalance).toBeDefined();
+        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).not.toHaveProperty(
+          'eip155:1/slip44:60',
+        );
+      });
+    });
+
     it('converts fetched balances to human-readable and merges metadata', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       await withController(async ({ controller }) => {
@@ -503,6 +520,30 @@ describe('RpcDataSource', () => {
           symbol: 'ETH',
           decimals: 18,
         });
+      });
+    });
+
+    it('skips native asset call even in the getBalance fallback when Multicall aggregate3 fails', async () => {
+      const { Web3Provider } = jest.requireMock('@ethersproject/providers');
+      jest.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
+
+      const mockCall = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
+        .mockResolvedValue('0x0');
+      const mockGetBalance = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1000000000000000000' });
+      (Web3Provider as jest.Mock).mockImplementationOnce(() => ({
+        call: mockCall,
+        getBalance: mockGetBalance,
+      }));
+
+      await withController(async ({ controller }) => {
+        const response = await controller.fetch(createDataRequest());
+        expect(response.assetsBalance).toBeDefined();
+        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({});
+        expect(mockGetBalance).not.toHaveBeenCalled();
       });
     });
 
@@ -573,6 +614,25 @@ describe('RpcDataSource', () => {
         expect(
           response.assetsBalance?.[MOCK_ACCOUNT_ID]?.['eip155:1/slip44:60'],
         ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('initializes assetsBalance[accountId] with no native in catch when first fetch for account throws on native skip chain', async () => {
+      await withController(async ({ controller }) => {
+        jest
+          .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
+          .mockRejectedValue(new Error('RPC unavailable'));
+        // Indicates that we want to skip native for that chain
+        jest.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
+        const request = createDataRequest();
+        const response = await controller.fetch(request);
+        expect(response.errors).toBeDefined();
+        expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe('RPC fetch failed');
+        expect(response.assetsBalance).toBeDefined();
+        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toBeDefined();
+        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).not.toHaveProperty(
+          'eip155:1/slip44:60',
+        );
       });
     });
 

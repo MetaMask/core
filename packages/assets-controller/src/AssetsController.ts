@@ -12,7 +12,6 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
@@ -73,6 +72,7 @@ import type {
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
@@ -2377,11 +2377,7 @@ export class AssetsController extends BaseController<
    */
   #shouldHideNativeToken(chainId: ChainId, metadata: AssetMetadata): boolean {
     // Check if it's a chain that should skip native tokens
-    if (
-      !CHAIN_IDS_WITH_NO_NATIVE_TOKEN.includes(
-        chainId as (typeof CHAIN_IDS_WITH_NO_NATIVE_TOKEN)[number],
-      )
-    ) {
+    if (!shouldSkipNativeForCaipChainId(chainId)) {
       return false;
     }
 
