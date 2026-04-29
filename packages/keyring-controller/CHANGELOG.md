@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.3.0]
+
 ### Uncategorized
 
 - chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
@@ -991,7 +993,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...HEAD
+[25.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...@metamask/keyring-controller@25.3.0
 [25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...@metamask/keyring-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.0.0...@metamask/keyring-controller@25.1.0

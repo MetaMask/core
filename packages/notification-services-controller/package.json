@@ -108,7 +108,7 @@
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/keyring-controller": "^25.2.0",
+    "@metamask/keyring-controller": "^25.3.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/utils": "^11.9.0",
