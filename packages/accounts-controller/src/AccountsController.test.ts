@@ -253,6 +253,29 @@ function setExpectedLastSelectedAsAny(
 }
 
 /**
+ * Builds a mock SnapKeyringV2 instance with the given `snapId` and overrides.
+ *
+ * @param snapId - The snap ID to use for the mock instance.
+ * @param overrides - Optional overrides for the mock instance.
+ * @returns A mock SnapKeyringV2 instance.
+ */
+function buildMockSnapKeyringV2(
+  snapId: string,
+  overrides: Partial<SnapKeyringV2> = {},
+): SnapKeyringV2 {
+  // We need to use the same prototype as we use some `instanceof` checks.
+  const instance = Object.create(SnapKeyringV2.prototype) as SnapKeyringV2;
+
+  // The `snapId` is usually injected via `deserialize`, but here we just mock the getter directly.
+  Object.defineProperty(instance, 'snapId', {
+    value: snapId,
+    configurable: true,
+  });
+
+  return Object.assign(instance, overrides);
+}
+
+/**
  * Builds a new instance of the root messenger.
  *
  * @returns A new instance of the root messenger.
@@ -847,10 +870,9 @@ describe('AccountsController', () => {
           scopes: [EthScope.Eoa],
         };
 
-        const mockKeyringV2Instance = Object.assign(
-          Object.create(SnapKeyringV2.prototype),
+        const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+          mockSnapV2SnapId,
           {
-            snapId: mockSnapV2SnapId,
             lookupByAddress: jest
               .fn()
               .mockReturnValue(mockSnapV2KeyringAccount),
@@ -860,7 +882,7 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
-          mockGetKeyringByType.mockReturnValue([mockKeyringV2Instance]),
+          mockGetKeyringByType.mockReturnValue([mockSnapKeyringV2Instance]),
         );
 
         const mockNewKeyringState = {
@@ -913,10 +935,9 @@ describe('AccountsController', () => {
       it('handles the event when a Snap v2 deleted the account before it was added', () => {
         const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
 
-        const mockKeyringV2Instance = Object.assign(
-          Object.create(SnapKeyringV2.prototype),
+        const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+          'mock-snap-v2-id',
           {
-            snapId: 'mock-snap-v2-id',
             lookupByAddress: jest.fn().mockReturnValue(undefined),
           },
         );
@@ -924,7 +945,7 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
-          mockGetKeyringByType.mockReturnValue([mockKeyringV2Instance]),
+          mockGetKeyringByType.mockReturnValue([mockSnapKeyringV2Instance]),
         );
 
         const mockNewKeyringState = {
@@ -3248,10 +3269,9 @@ describe('AccountsController', () => {
         scopes: [EthScope.Eoa],
       };
 
-      const mockKeyringV2Instance = Object.assign(
-        Object.create(SnapKeyringV2.prototype),
+      const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+        mockSnapV2SnapId,
         {
-          snapId: mockSnapV2SnapId,
           lookupByAddress: jest.fn().mockReturnValue(mockSnapV2KeyringAccount),
         },
       );
@@ -3274,7 +3294,7 @@ describe('AccountsController', () => {
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
-        mockGetKeyringByType.mockReturnValue([mockKeyringV2Instance]),
+        mockGetKeyringByType.mockReturnValue([mockSnapKeyringV2Instance]),
       );
 
       const { accountsController } = setupAccountsController({
