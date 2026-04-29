@@ -14,9 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
-
-### Removed
-
 - Stop synthesising a native gas-fee required token in `parseRequiredTokens`; only token-transfer assets are returned now ([#8615](https://github.com/MetaMask/core/pull/8615))
   - The implicit native-token entry was a remnant of the legacy bridge strategy and is not used by the gas station.
 
