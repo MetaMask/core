@@ -154,7 +154,7 @@ async function handleWalletRevokeSession(
   return end();
 }
 
-type WalletRevokeSessionMethodHandler = MethodHandler<
+export type WalletRevokeSessionHandler = MethodHandler<
   WalletRevokeSessionHooks,
   never,
   WalletRevokeSessionParams,
@@ -162,15 +162,11 @@ type WalletRevokeSessionMethodHandler = MethodHandler<
   { origin: string }
 >;
 
-export const walletRevokeSession = {
+export const walletRevokeSessionHandler = {
   implementation: handleWalletRevokeSession,
   hookNames: {
     revokePermissionForOrigin: true,
     updateCaveat: true,
     getCaveatForOrigin: true,
   },
-} satisfies WalletRevokeSessionMethodHandler;
-
-export const walletRevokeSessionHandler = {
-  wallet_revokeSession: walletRevokeSession,
-};
+} satisfies WalletRevokeSessionHandler;

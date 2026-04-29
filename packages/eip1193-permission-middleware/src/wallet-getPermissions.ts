@@ -9,7 +9,6 @@ import type {
   JsonRpcEngineNextCallback,
   MethodHandler,
 } from '@metamask/json-rpc-engine';
-import { MethodNames } from '@metamask/permission-controller';
 import type {
   CaveatSpecificationConstraint,
   PermissionController,
@@ -33,7 +32,7 @@ export type GetPermissionsHooks = {
   getAccounts: (options?: { ignoreLock?: boolean }) => string[];
 };
 
-type GetPermissionsHandler = MethodHandler<
+export type GetPermissionsHandler = MethodHandler<
   GetPermissionsHooks,
   never,
   Json[],
@@ -41,17 +40,13 @@ type GetPermissionsHandler = MethodHandler<
   { origin: string }
 >;
 
-export const getPermissions = {
+export const getPermissionsHandler = {
   implementation: getPermissionsImplementation,
   hookNames: {
     getPermissionsForOrigin: true,
     getAccounts: true,
   },
 } satisfies GetPermissionsHandler;
-
-export const getPermissionsHandler = {
-  [MethodNames.GetPermissions]: getPermissions,
-};
 
 /**
  * Get Permissions implementation to be used in JsonRpcEngine middleware, specifically for `wallet_getPermissions` RPC method.

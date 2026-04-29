@@ -4,7 +4,7 @@ import type {
   JsonRpcEngineEndCallback,
   MethodHandler,
 } from '@metamask/json-rpc-engine';
-import { invalidParams, MethodNames } from '@metamask/permission-controller';
+import { invalidParams } from '@metamask/permission-controller';
 import { isNonEmptyArray } from '@metamask/utils';
 import type {
   Json,
@@ -18,7 +18,7 @@ export type RevokePermissionsHooks = {
   revokePermissionsForOrigin: (permissionKeys: string[]) => void;
 };
 
-type RevokePermissionsHandler = MethodHandler<
+export type RevokePermissionsHandler = MethodHandler<
   RevokePermissionsHooks,
   never,
   Json[],
@@ -26,16 +26,12 @@ type RevokePermissionsHandler = MethodHandler<
   { origin: string }
 >;
 
-export const revokePermissions = {
+export const revokePermissionsHandler = {
   implementation: revokePermissionsImplementation,
   hookNames: {
     revokePermissionsForOrigin: true,
   },
 } satisfies RevokePermissionsHandler;
-
-export const revokePermissionsHandler = {
-  [MethodNames.RevokePermissions]: revokePermissions,
-};
 
 /**
  * Revoke Permissions implementation to be used in JsonRpcEngine middleware.

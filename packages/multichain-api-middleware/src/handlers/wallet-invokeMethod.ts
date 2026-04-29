@@ -162,7 +162,7 @@ async function handleWalletInvokeMethod(
   return end();
 }
 
-type WalletInvokeMethodMethodHandler = MethodHandler<
+export type WalletInvokeMethodHandler = MethodHandler<
   WalletInvokeMethodHooks,
   never,
   WalletInvokeMethodParams,
@@ -170,7 +170,7 @@ type WalletInvokeMethodMethodHandler = MethodHandler<
   { origin: string }
 >;
 
-export const walletInvokeMethod = {
+export const walletInvokeMethodHandler = {
   implementation: handleWalletInvokeMethod,
   hookNames: {
     getCaveatForOrigin: true,
@@ -180,8 +180,4 @@ export const walletInvokeMethod = {
     sortAccountIdsByLastSelected: true,
     handleNonEvmRequestForOrigin: true,
   },
-} satisfies WalletInvokeMethodMethodHandler;
-
-export const walletInvokeMethodHandler = {
-  wallet_invokeMethod: walletInvokeMethod,
-};
+} satisfies WalletInvokeMethodHandler;

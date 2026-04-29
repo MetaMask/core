@@ -6,7 +6,7 @@ import type {
 } from '@metamask/utils';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
-import { getPermissions } from './wallet-getPermissions';
+import { getPermissionsHandler } from './wallet-getPermissions';
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
@@ -70,7 +70,7 @@ const createMockedHandler = () => {
     id: 0,
   };
   const handler = (request: JsonRpcRequest<Json[]>) =>
-    getPermissions.implementation(request, response, next, end, {
+    getPermissionsHandler.implementation(request, response, next, end, {
       getPermissionsForOrigin,
       getAccounts,
     });

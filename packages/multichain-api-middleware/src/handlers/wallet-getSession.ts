@@ -79,7 +79,7 @@ async function handleWalletGetSession(
   return end();
 }
 
-type WalletGetSessionMethodHandler = MethodHandler<
+export type WalletGetSessionHandler = MethodHandler<
   WalletGetSessionHooks,
   never,
   JsonRpcParams,
@@ -87,15 +87,11 @@ type WalletGetSessionMethodHandler = MethodHandler<
   { origin: string }
 >;
 
-export const walletGetSession = {
+export const walletGetSessionHandler = {
   implementation: handleWalletGetSession,
   hookNames: {
     getCaveatForOrigin: true,
     getNonEvmSupportedMethods: true,
     sortAccountIdsByLastSelected: true,
   },
-} satisfies WalletGetSessionMethodHandler;
-
-export const walletGetSessionHandler = {
-  wallet_getSession: walletGetSession,
-};
+} satisfies WalletGetSessionHandler;

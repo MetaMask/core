@@ -7,7 +7,7 @@ import type {
 } from '@metamask/utils';
 
 import { EndowmentTypes, RestrictedMethods } from './types';
-import { revokePermissions } from './wallet-revokePermissions';
+import { revokePermissionsHandler } from './wallet-revokePermissions';
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
@@ -31,7 +31,7 @@ const createMockedHandler = () => {
     id: 0,
   };
   const handler = (request: JsonRpcRequest<Json[]>) =>
-    revokePermissions.implementation(request, response, next, end, {
+    revokePermissionsHandler.implementation(request, response, next, end, {
       revokePermissionsForOrigin,
     });
 
@@ -44,7 +44,7 @@ const createMockedHandler = () => {
   };
 };
 
-describe('revokePermissions', () => {
+describe('revokePermissionsHandler', () => {
   it('returns an error if params is malformed', () => {
     const { handler, end } = createMockedHandler();
 

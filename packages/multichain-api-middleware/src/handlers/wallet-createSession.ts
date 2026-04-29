@@ -290,7 +290,7 @@ async function handleWalletCreateSession(
   }
 }
 
-type WalletCreateSessionMethodHandler = MethodHandler<
+export type WalletCreateSessionHandler = MethodHandler<
   WalletCreateSessionHooks,
   never,
   Params,
@@ -298,7 +298,7 @@ type WalletCreateSessionMethodHandler = MethodHandler<
   { origin: string }
 >;
 
-export const walletCreateSession = {
+export const walletCreateSessionHandler = {
   implementation: handleWalletCreateSession,
   hookNames: {
     findNetworkClientIdByChainId: true,
@@ -310,8 +310,4 @@ export const walletCreateSession = {
     sortAccountIdsByLastSelected: true,
     trackSessionCreatedEvent: true,
   },
-} satisfies WalletCreateSessionMethodHandler;
-
-export const walletCreateSessionHandler = {
-  wallet_createSession: walletCreateSession,
-};
+} satisfies WalletCreateSessionHandler;

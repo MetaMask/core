@@ -18,7 +18,7 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { walletCreateSession } from './wallet-createSession';
+import { walletCreateSessionHandler } from './wallet-createSession';
 
 jest.mock('@metamask/rpc-errors', () => ({
   ...jest.requireActual('@metamask/rpc-errors'),
@@ -110,7 +110,7 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
-    walletCreateSession.implementation(request, response, next, end, {
+    walletCreateSessionHandler.implementation(request, response, next, end, {
       findNetworkClientIdByChainId,
       requestPermissionsForOrigin,
       listAccounts,

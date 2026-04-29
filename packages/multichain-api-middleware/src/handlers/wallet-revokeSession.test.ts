@@ -9,7 +9,7 @@ import {
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import { walletRevokeSession } from './wallet-revokeSession';
+import { walletRevokeSessionHandler } from './wallet-revokeSession';
 
 const baseRequest: JsonRpcRequest & {
   origin: string;
@@ -39,7 +39,7 @@ const createMockedHandler = () => {
       params: { scopes?: string[] };
     },
   ) =>
-    walletRevokeSession.implementation(request, response, next, end, {
+    walletRevokeSessionHandler.implementation(request, response, next, end, {
       revokePermissionForOrigin,
       updateCaveat,
       getCaveatForOrigin,

@@ -10,7 +10,7 @@ import type {
   JsonRpcEngineEndCallback,
   MethodHandler,
 } from '@metamask/json-rpc-engine';
-import { invalidParams, MethodNames } from '@metamask/permission-controller';
+import { invalidParams } from '@metamask/permission-controller';
 import type {
   Caveat,
   CaveatSpecificationConstraint,
@@ -38,7 +38,7 @@ export type RequestPermissionsHooks = {
   ) => RequestedPermissions;
 };
 
-type RequestPermissionsHandler = MethodHandler<
+export type RequestPermissionsHandler = MethodHandler<
   RequestPermissionsHooks,
   never,
   [RequestedPermissions],
@@ -46,7 +46,7 @@ type RequestPermissionsHandler = MethodHandler<
   { origin: string }
 >;
 
-export const requestPermissions = {
+export const requestPermissionsHandler = {
   implementation: requestPermissionsImplementation,
   hookNames: {
     getAccounts: true,
@@ -54,10 +54,6 @@ export const requestPermissions = {
     getCaip25PermissionFromLegacyPermissionsForOrigin: true,
   },
 } satisfies RequestPermissionsHandler;
-
-export const requestPermissionsHandler = {
-  [MethodNames.RequestPermissions]: requestPermissions,
-};
 
 type AbstractPermissionController = PermissionController<
   PermissionSpecificationConstraint,

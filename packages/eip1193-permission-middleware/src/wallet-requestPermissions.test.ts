@@ -7,7 +7,7 @@ import type { RequestedPermissions } from '@metamask/permission-controller';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
-import { requestPermissions } from './wallet-requestPermissions';
+import { requestPermissionsHandler } from './wallet-requestPermissions';
 
 const getBaseRequest = (overrides = {}) => ({
   jsonrpc: '2.0' as const,
@@ -39,7 +39,7 @@ const createMockedHandler = () => {
     id: 0,
   };
   const handler = (request: unknown) =>
-    requestPermissions.implementation(
+    requestPermissionsHandler.implementation(
       request as JsonRpcRequest<[RequestedPermissions]> & { origin: string },
       response,
       next,

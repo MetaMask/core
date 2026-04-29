@@ -2,7 +2,7 @@ import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permiss
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
 import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
-import { walletInvokeMethod } from './wallet-invokeMethod';
+import { walletInvokeMethodHandler } from './wallet-invokeMethod';
 
 // Allow individual modules to be mocked
 jest.mock('@metamask/chain-agnostic-permission', () => ({
@@ -62,7 +62,7 @@ const createMockedHandler = () => {
   const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
   const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
-    walletInvokeMethod.implementation(request, response, next, end, {
+    walletInvokeMethodHandler.implementation(request, response, next, end, {
       getCaveatForOrigin,
       findNetworkClientIdByChainId,
       getSelectedNetworkClientId,
