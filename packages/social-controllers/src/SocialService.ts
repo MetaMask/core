@@ -24,6 +24,7 @@ import { serviceName, SocialServiceErrorMessage } from './social-constants';
 import type {
   FetchFollowersOptions,
   FetchLeaderboardOptions,
+  FetchPositionByIdOptions,
   FetchPositionsOptions,
   FetchTraderProfileOptions,
   FollowersResponse,
@@ -31,6 +32,7 @@ import type {
   FollowOptions,
   FollowResponse,
   LeaderboardResponse,
+  Position,
   PositionsResponse,
   TraderProfileResponse,
   UnfollowOptions,
@@ -174,6 +176,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchClosedPositions',
   'fetchFollowers',
   'fetchFollowing',
+  'fetchPositionById',
   'follow',
   'unfollow',
 ] as const;
@@ -420,6 +423,43 @@ export class SocialService extends BaseDataService<
     });
 
     return followersResponse;
+  }
+
+  /**
+   * Fetches a single position by its unique ID.
+   *
+   * Calls `GET ${baseUrl}/traders/position/${positionId}`.
+   *
+   * @param options - Options bag.
+   * @param options.positionId - Unique position ID (UUID).
+   * @returns The position.
+   */
+  async fetchPositionById(
+    options: FetchPositionByIdOptions,
+  ): Promise<Position> {
+    const { positionId } = options;
+
+    const positionResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchPositionById`, positionId],
+      queryFn: async () => {
+        const url = `${this.#v1Url}/traders/position/${encodeURIComponent(positionId)}`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, { headers: authHeaders });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED,
+        );
+        const positionData = await response.json();
+        if (!is(positionData, PositionStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
+          );
+        }
+        return positionData as Position;
+      },
+    });
+
+    return positionResponse;
   }
 
   /**

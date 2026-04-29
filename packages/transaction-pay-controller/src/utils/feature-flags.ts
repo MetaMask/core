@@ -121,7 +121,7 @@ export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
   relay?: {
     enabled?: boolean;
-    executeEnabled?: boolean;
+    gaslessEnabled?: boolean;
     originGasOverhead?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
@@ -477,7 +477,7 @@ export function isRelayExecuteEnabled(
     (state.remoteFeatureFlags?.confirmations_pay as
       | FeatureFlagsRaw
       | undefined) ?? {};
-  return featureFlags.payStrategies?.relay?.executeEnabled ?? false;
+  return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
 }
 
 /**

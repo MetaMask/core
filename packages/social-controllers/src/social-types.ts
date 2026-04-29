@@ -242,6 +242,11 @@ export type FetchFollowersOptions = {
   addressOrId: string;
 };
 
+export type FetchPositionByIdOptions = {
+  /** Unique position ID (UUID). */
+  positionId: string;
+};
+
 export type FollowOptions = {
   /** Array of wallet addresses or profile IDs to follow. */
   targets: string[];

@@ -125,7 +125,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/keyring-api": "^23.0.1",
-    "@metamask/keyring-internal-api": "^10.1.1",
+    "@metamask/keyring-internal-api": "^11.0.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

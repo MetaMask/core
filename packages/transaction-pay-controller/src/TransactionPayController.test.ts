@@ -37,6 +37,7 @@ describe('TransactionPayController', () => {
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
+  let getKeyringControllerStateMock: jest.Mock;
 
   /**
    * Create a TransactionPayController.
@@ -53,7 +54,21 @@ describe('TransactionPayController', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    messenger = getMessengerMock({ skipRegister: true }).messenger;
+    const mocks = getMessengerMock({ skipRegister: true });
+    messenger = mocks.messenger;
+    getKeyringControllerStateMock = mocks.getKeyringControllerStateMock;
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: ['0x1234567890123456789012345678901234567891'],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
+
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
   });
