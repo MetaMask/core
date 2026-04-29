@@ -9,6 +9,9 @@ export type {
 export { PhishingDetector } from './PhishingDetector';
 export type {
   PhishingDetectionScanResult,
+  PhishingDetectionScanWireResult,
+  PhishingDetectionBulkScanResult,
+  PhishingDetectionBulkScanWireResult,
   AddressScanResult,
   BulkTokenScanResponse,
   ApprovalsResponse,
@@ -23,7 +26,8 @@ export type { TokenScanCacheData } from './types';
 export { TokenScanResultType } from './types';
 export {
   PhishingDetectorResultType,
-  RecommendedAction,
+  RecommendedActionV1,
+  RecommendedActionV2,
   AddressScanResultType,
   ApprovalResultType,
   ApprovalFeatureType,

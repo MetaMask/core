@@ -74,39 +74,11 @@ export enum PhishingDetectorResultType {
 }
 
 /**
- * PhishingDetectionScanResult represents the result of a phishing detection scan.
+ * Recommended action from PDS **v1** URL risk models (`NONE` / `WARN` / `BLOCK` only).
+ * Used for the single-URL {@link PhishingController.scanUrl} client result and for bulk-scan
+ * wire rows (PDS bulk maps each result from the v1 scan shape).
  */
-export type PhishingDetectionScanResult = {
-  /**
-   * Key sent to PDS and used for the URL scan cache. Bulk scans use hostname only; single URL
-   * scans may append pathname (query/fragment stripped) for path-based gateway hosts.
-   * Empty when no lookup applies.
-   */
-  scanLookupKey: string;
-  /**
-   * Indicates the warning level based on risk factors.
-   *
-   * - "NONE" means it is most likely safe.
-   * - "WARN" means there is some risk.
-   * - "BLOCK" means it is highly likely to be malicious.
-   * - "VERIFIED" means it has been associated as an official domain of a
-   * company or organization and/or a top Web3 domain.
-   */
-  recommendedAction: RecommendedAction;
-  /**
-   * An optional error message that exists if:
-   * - The link requested is not a valid web URL.
-   * - Failed to fetch the result from the phishing detector.
-   *
-   * Consumers can use the existence of this field to retry.
-   */
-  fetchError?: string;
-};
-
-/**
- * Indicates the warning level based on risk factors
- */
-export enum RecommendedAction {
+export enum RecommendedActionV1 {
   /**
    * None means it is most likely safe
    */
@@ -119,12 +91,77 @@ export enum RecommendedAction {
    * Block means it is highly likely to be malicious
    */
   Block = 'BLOCK',
+}
+
+/**
+ * Recommended action from PDS **v2** URL risk models, including verified / official domains.
+ * Used for {@link PhishingController.bulkScanUrls} client results and for the v2 single-URL scan
+ * wire payload. The URL scan cache stores v2 actions internally.
+ */
+export enum RecommendedActionV2 {
+  None = 'NONE',
+  Warn = 'WARN',
+  Block = 'BLOCK',
   /**
    * Verified means it has been associated as an official domain of a
    * company or organization and/or a top Web3 domain.
    */
   Verified = 'VERIFIED',
 }
+
+/**
+ * JSON shape returned by PDS single-URL scan (`v2/scan`). Includes v2 recommended action
+ * (may be `VERIFIED`).
+ */
+export type PhishingDetectionScanWireResult = {
+  domainName: string;
+  recommendedAction: RecommendedActionV2;
+};
+
+/**
+ * JSON shape for one successful row in PDS bulk URL scan. Matches v1 scan fields
+ * (`domainName` + v1 `recommendedAction`).
+ */
+export type PhishingDetectionBulkScanWireResult = {
+  domainName: string;
+  recommendedAction: RecommendedActionV1;
+};
+
+/**
+ * Client result for {@link PhishingController.scanUrl}: v1 action only (no `VERIFIED`).
+ */
+export type PhishingDetectionScanResult = {
+  recommendedAction: RecommendedActionV1;
+  /**
+   * An optional error message that exists if:
+   * - The link requested is not a valid web URL.
+   * - Failed to fetch the result from the phishing detector.
+   *
+   * Consumers can use the existence of this field to retry.
+   */
+  fetchError?: string;
+};
+
+/**
+ * Client result for one URL in {@link PhishingController.bulkScanUrls}: v2 recommended action.
+ * Same shape as entries stored in the controller URL scan cache.
+ */
+export type PhishingDetectionBulkScanResult = {
+  recommendedAction: RecommendedActionV2;
+  fetchError?: string;
+};
+
+/**
+ * Response for bulk phishing URL scan requests (from {@link PhishingController.bulkScanUrls}).
+ * `results` / `errors` keys match the caller URL strings and PDS.
+ *
+ * `errors` matches PDS: one message string per key. When multiple batches surface the same
+ * synthetic key (e.g. `api_error`), messages are joined with `"; "`.
+ */
+export type BulkPhishingDetectionScanResponse = {
+  results: Record<string, PhishingDetectionBulkScanResult>;
+  errors: Record<string, string>;
+};
 
 /**
  * Request for bulk token scan

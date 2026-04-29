@@ -1,6 +1,7 @@
 import { ListKeys, ListNames } from './PhishingController';
 import type { PhishingListState } from './PhishingController';
 import type { TokenScanResultType } from './types';
+import { RecommendedActionV1, RecommendedActionV2 } from './types';
 import {
   applyDiffs,
   buildCacheKey,
@@ -16,6 +17,8 @@ import {
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
+  recommendedActionV1ToV2,
+  recommendedActionV2ToV1,
   resolveChainName,
   roundToNearestMinute,
   sha256Hash,
@@ -1006,10 +1009,11 @@ describe('getPhishingDetectionScanUrlParam', () => {
   ] as const)(
     'for URL %s returns scan param %s, hostname %s, ok %s',
     (input, expectedParam, expectedHostname, expectedOk) => {
-      const [param, hostname, ok] = getPhishingDetectionScanUrlParam(input);
+      const [param, ok] = getPhishingDetectionScanUrlParam(input);
       expect(param).toBe(expectedParam);
-      expect(hostname).toBe(expectedHostname);
       expect(ok).toBe(expectedOk);
+      const [hostnameFromUrl] = getHostnameFromWebUrl(input);
+      expect(hostnameFromUrl).toBe(expectedHostname);
     },
   );
 });
@@ -1028,6 +1032,26 @@ describe('getPhishingDetectionBulkScanUrlParam', () => {
       expect(ok).toBe(expectedOk);
     },
   );
+});
+
+describe('recommendedActionV1ToV2 / recommendedActionV2ToV1', () => {
+  it('maps v1 actions to matching v2 values', () => {
+    expect(recommendedActionV1ToV2(RecommendedActionV1.None)).toBe(
+      RecommendedActionV2.None,
+    );
+    expect(recommendedActionV1ToV2(RecommendedActionV1.Warn)).toBe(
+      RecommendedActionV2.Warn,
+    );
+    expect(recommendedActionV1ToV2(RecommendedActionV1.Block)).toBe(
+      RecommendedActionV2.Block,
+    );
+  });
+
+  it('maps v2 VERIFIED to v1 NONE', () => {
+    expect(recommendedActionV2ToV1(RecommendedActionV2.Verified)).toBe(
+      RecommendedActionV1.None,
+    );
+  });
 });
 
 describe('isPhishingDetectionPathBasedHostname', () => {

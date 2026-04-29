@@ -28,12 +28,16 @@ import type {
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
-  RecommendedAction,
+  RecommendedActionV1,
   AddressScanResultType,
 } from './types';
 import type {
   PhishingDetectorResult,
+  BulkPhishingDetectionScanResponse,
+  PhishingDetectionBulkScanResult,
+  PhishingDetectionBulkScanWireResult,
   PhishingDetectionScanResult,
+  PhishingDetectionScanWireResult,
   TokenScanCacheData,
   BulkTokenScanResponse,
   BulkTokenScanRequest,
@@ -54,7 +58,11 @@ import {
   resolveChainName,
   getPathnameFromUrl,
   isApprovalSupportedChain,
+  recommendedActionV2ToV1,
+  wireBulkRowToBulkScanResult,
 } from './utils';
+
+export type { BulkPhishingDetectionScanResponse } from './types';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -350,7 +358,7 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
-  urlScanCache: Record<string, CacheEntry<PhishingDetectionScanResult>>;
+  urlScanCache: Record<string, CacheEntry<PhishingDetectionBulkScanResult>>;
   tokenScanCache: Record<string, CacheEntry<TokenScanCacheData>>;
   addressScanCache: Record<string, CacheEntry<AddressScanCacheData>>;
 };
@@ -438,22 +446,6 @@ export type PhishingControllerMessenger = Messenger<
 >;
 
 /**
- * BulkPhishingDetectionScanResponse
- *
- * Response for bulk phishing detection scan requests.
- * When returned from {@link PhishingController.bulkScanUrls}, `results` and `errors` are keyed
- * by the caller's input URL strings. The PDS bulk API keys its payload by hostname-only scan
- * params (see {@link getPhishingDetectionBulkScanUrlParam}); the controller remaps to input URLs.
- *
- * `errors` matches PDS: one message string per key. When multiple batches surface the same
- * synthetic key (e.g. `api_error`), messages are joined with `"; "`.
- */
-export type BulkPhishingDetectionScanResponse = {
-  results: Record<string, PhishingDetectionScanResult>;
-  errors: Record<string, string>;
-};
-
-/**
  * Controller that manages community-maintained lists of approved and unapproved website origins.
  */
 export class PhishingController extends BaseController<
@@ -471,7 +463,7 @@ export class PhishingController extends BaseController<
 
   readonly #c2DomainBlocklistRefreshInterval: number;
 
-  readonly #urlScanCache: CacheManager<PhishingDetectionScanResult>;
+  readonly #urlScanCache: CacheManager<PhishingDetectionBulkScanResult>;
 
   readonly #tokenScanCache: CacheManager<TokenScanCacheData>;
 
@@ -532,7 +524,7 @@ export class PhishingController extends BaseController<
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
     this.#transactionControllerStateChangeHandler =
       this.#onTransactionControllerStateChange.bind(this);
-    this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
+    this.#urlScanCache = new CacheManager<PhishingDetectionBulkScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
       initialCache: this.state.urlScanCache,
@@ -923,18 +915,20 @@ export class PhishingController extends BaseController<
    * @returns The phishing detection scan result.
    */
   async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
-    const [scanUrlParam, , ok] = getPhishingDetectionScanUrlParam(url);
+    const [scanUrlParam, ok] = getPhishingDetectionScanUrlParam(url);
     if (!ok) {
       return {
-        scanLookupKey: '',
-        recommendedAction: RecommendedAction.None,
+        recommendedAction: RecommendedActionV1.None,
         fetchError: 'url is not a valid web URL',
       };
     }
 
     const cachedResult = this.#urlScanCache.get(scanUrlParam);
     if (cachedResult) {
-      return cachedResult;
+      return {
+        recommendedAction: recommendedActionV2ToV1(cachedResult.recommendedAction),
+        fetchError: cachedResult.fetchError,
+      };
     }
 
     const apiResponse = await safelyExecuteWithTimeout(
@@ -963,32 +957,33 @@ export class PhishingController extends BaseController<
     // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and errors.
     if (!apiResponse) {
       return {
-        scanLookupKey: '',
-        recommendedAction: RecommendedAction.None,
+        recommendedAction: RecommendedActionV1.None,
         fetchError: 'timeout of 8000ms exceeded',
       };
     } else if ('error' in apiResponse) {
       return {
-        scanLookupKey: '',
-        recommendedAction: RecommendedAction.None,
+        recommendedAction: RecommendedActionV1.None,
         fetchError: apiResponse.error,
       };
     }
 
-    const result = {
-      scanLookupKey: scanUrlParam,
-      recommendedAction: apiResponse.recommendedAction,
+    const wire = apiResponse as PhishingDetectionScanWireResult;
+    const cacheEntry: PhishingDetectionBulkScanResult = {
+      recommendedAction: wire.recommendedAction,
     };
 
-    this.#urlScanCache.set(scanUrlParam, result);
+    this.#urlScanCache.set(scanUrlParam, cacheEntry);
 
-    return result;
+    return {
+      recommendedAction: recommendedActionV2ToV1(wire.recommendedAction),
+    };
   }
 
   /**
-   * Scan multiple URLs for phishing in bulk. Each URL is normalized to **hostname only** for PDS
-   * (paths are not included). For pathname-aware scans on gateway hosts, use {@link scanUrl}.
-   * Results are keyed by the input URL strings. Only `http:` / `https:` web URLs are supported.
+   * Scan multiple URLs for phishing in bulk. Each URL string is sent to PDS as-is; response
+   * `results` / `errors` keys match those strings. For single-URL pathname-aware scanning when
+   * paths matter on gateway hosts, use {@link scanUrl}.
+   * Only `http:` / `https:` web URLs are supported.
    *
    * @param urls - The URLs to scan.
    * @returns A mapping of URLs to their phishing detection scan results and errors.
@@ -1020,8 +1015,7 @@ export class PhishingController extends BaseController<
       errors: {},
     };
 
-    // Extract PDS scan keys (hostname + path) from URLs and check for validity and length constraints
-    const urlsToScanKeys: Record<string, string> = {};
+    // Validate URLs; bulk POST uses each caller URL string so PDS keys results/errors by the same value.
     const urlsToFetch: string[] = [];
 
     for (const url of urls) {
@@ -1031,19 +1025,20 @@ export class PhishingController extends BaseController<
         continue;
       }
 
-      const [scanKey, , ok] = getPhishingDetectionBulkScanUrlParam(url);
+      const [, , ok] = getPhishingDetectionBulkScanUrlParam(url);
       if (!ok) {
         combinedResponse.errors[url] = 'url is not a valid web URL';
         continue;
       }
 
-      // Check if result is already in cache
-      const cachedResult = this.#urlScanCache.get(scanKey);
+      const [scanUrlParam, scanParamOk] =
+        getPhishingDetectionScanUrlParam(url);
+      const cachedResult =
+        this.#urlScanCache.get(url) ??
+        (scanParamOk ? this.#urlScanCache.get(scanUrlParam) : undefined);
       if (cachedResult) {
         combinedResponse.results[url] = cachedResult;
       } else {
-        // Add to list of URLs to fetch
-        urlsToScanKeys[url] = scanKey;
         urlsToFetch.push(url);
       }
     }
@@ -1066,9 +1061,11 @@ export class PhishingController extends BaseController<
       batchResults.forEach((batchResponse) => {
         // Add results to cache and combine with response
         Object.entries(batchResponse.results).forEach(([url, result]) => {
-          const scanKey = urlsToScanKeys[url];
-          if (scanKey) {
-            this.#urlScanCache.set(scanKey, result);
+          this.#urlScanCache.set(url, result);
+          const [scanUrlParam, scanParamOk] =
+            getPhishingDetectionScanUrlParam(url);
+          if (scanParamOk && scanUrlParam !== url) {
+            this.#urlScanCache.set(scanUrlParam, result);
           }
           combinedResponse.results[url] = result;
         });
@@ -1180,7 +1177,10 @@ export class PhishingController extends BaseController<
     const cacheKey = buildCacheKey(normalizedChainId, normalizedAddress);
     const cachedResult = this.#addressScanCache.get(cacheKey);
     if (cachedResult) {
-      return cachedResult;
+      return {
+        result_type: cachedResult.result_type,
+        label: cachedResult.label,
+      };
     }
 
     const apiResponse = await safelyExecuteWithTimeout(
@@ -1393,11 +1393,6 @@ export class PhishingController extends BaseController<
   readonly #processBatch = async (
     urls: string[],
   ): Promise<BulkPhishingDetectionScanResponse> => {
-    const scanKeys = urls.map((originalUrl) => {
-      const [scanUrlParam] = getPhishingDetectionBulkScanUrlParam(originalUrl);
-      return scanUrlParam;
-    });
-
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
@@ -1408,7 +1403,7 @@ export class PhishingController extends BaseController<
               Accept: 'application/json',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ urls: scanKeys }),
+            body: JSON.stringify({ urls }),
           },
         );
 
@@ -1452,7 +1447,7 @@ export class PhishingController extends BaseController<
     }
 
     const raw = apiResponse as {
-      results: Record<string, PhishingDetectionScanResult>;
+      results: Record<string, PhishingDetectionBulkScanWireResult>;
       errors: Record<string, string>;
     };
     const remapped: BulkPhishingDetectionScanResponse = {
@@ -1460,19 +1455,14 @@ export class PhishingController extends BaseController<
       errors: {},
     };
 
-    for (let i = 0; i < urls.length; i++) {
-      const originalUrl = urls[i];
-      const scanKey = scanKeys[i];
-      const scanResult = raw.results[scanKey];
-      if (scanResult !== undefined) {
-        remapped.results[originalUrl] = {
-          ...scanResult,
-          scanLookupKey: scanKey,
-        };
+    for (const url of urls) {
+      const wireResult = raw.results[url];
+      if (wireResult !== undefined) {
+        remapped.results[url] = wireBulkRowToBulkScanResult(wireResult);
       }
-      const scanErrors = raw.errors[scanKey];
-      if (scanErrors !== undefined) {
-        remapped.errors[originalUrl] = scanErrors;
+      const urlErrors = raw.errors[url];
+      if (urlErrors !== undefined) {
+        remapped.errors[url] = urlErrors;
       }
     }
 

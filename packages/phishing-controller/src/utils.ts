@@ -8,9 +8,16 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import { APPROVAL_SUPPORTED_CHAINS, DEFAULT_CHAIN_ID_TO_NAME } from './types';
+import {
+  APPROVAL_SUPPORTED_CHAINS,
+  DEFAULT_CHAIN_ID_TO_NAME,
+  RecommendedActionV1,
+  RecommendedActionV2,
+} from './types';
 import type {
   ApprovalSupportedChain,
+  PhishingDetectionBulkScanResult,
+  PhishingDetectionBulkScanWireResult,
   TokenScanCacheData,
   TokenScanResult,
 } from './types';
@@ -397,41 +404,42 @@ export function isPhishingDetectionPathBasedHostname(
  * plus pathname, without protocol, query, or fragment. For all other hosts, only hostname is used.
  *
  * @param url - A web URL string (must use `http:` or `https:` — same rules as {@link getHostnameFromWebUrl}).
- * @returns A tuple of `[scanUrlParam, hostname, ok]` where `ok` is false when the URL is not a valid web URL.
+ * @returns A tuple of `[scanUrlParam, ok]` where `ok` is false when the URL is not a valid web URL.
  */
 export const getPhishingDetectionScanUrlParam = (
   url: string,
-): [scanUrlParam: string, hostname: string, ok: boolean] => {
+): [scanUrlParam: string, ok: boolean] => {
   const [hostname, ok] = getHostnameFromWebUrl(url);
   if (!ok) {
-    return ['', '', false];
+    return ['', false];
   }
 
   if (!isPhishingDetectionPathBasedHostname(hostname)) {
-    return [hostname, hostname, true];
+    return [hostname, true];
   }
 
   let pathname: string;
   try {
     pathname = new URL(url).pathname;
   } catch {
-    return ['', '', false];
+    return ['', false];
   }
 
   const pathSuffix = pathname === '/' ? '' : pathname;
   const scanUrlParam = pathSuffix ? `${hostname}${pathSuffix}` : hostname;
 
-  return [scanUrlParam, hostname, true];
+  return [scanUrlParam, true];
 };
 
 /**
- * Normalized scan key for phishing bulk-scan requests to PDS: **hostname only**, including for
- * gateway/path-based root domains. Path segments are not sent on bulk scans; use
- * {@link getPhishingDetectionScanUrlParam} for single URL scans when pathname matters for those hosts.
+ * Helpers for bulk-scan **validation** in {@link PhishingController.bulkScanUrls}: confirms the URL
+ * is a supported web URL and exposes the hostname. The bulk API request body uses each caller URL
+ * string as-is; PDS keys `results` / `errors` by those same strings. For path-aware scanning on
+ * gateway hosts, use {@link getPhishingDetectionScanUrlParam} with {@link PhishingController.scanUrl}.
  *
  * @param url - A web URL string (`http:` / `https:` — same rules as {@link getHostnameFromWebUrl}).
- * @returns A tuple of `[scanUrlParam, hostname, ok]` where `scanUrlParam` is the hostname and `ok`
- * is false when the URL is not a valid web URL.
+ * @returns A tuple of `[hostnameKey, hostname, ok]` where both hostname fields match for valid URLs
+ * and `ok` is false when the URL is not a valid web URL.
  */
 export const getPhishingDetectionBulkScanUrlParam = (
   url: string,
@@ -442,6 +450,54 @@ export const getPhishingDetectionBulkScanUrlParam = (
   }
   return [hostname, hostname, true];
 };
+
+/**
+ * Map a v1 recommended action (bulk wire / v1 models) to v2 for client bulk results and cache.
+ */
+export const recommendedActionV1ToV2 = (
+  action: RecommendedActionV1,
+): RecommendedActionV2 => {
+  switch (action) {
+    case RecommendedActionV1.None:
+      return RecommendedActionV2.None;
+    case RecommendedActionV1.Warn:
+      return RecommendedActionV2.Warn;
+    case RecommendedActionV1.Block:
+      return RecommendedActionV2.Block;
+    default:
+      return RecommendedActionV2.None;
+  }
+};
+
+/**
+ * Map a v2 recommended action to v1 for single-URL `scanUrl` client results.
+ * `VERIFIED` is treated as safe and mapped to {@link RecommendedActionV1.None}.
+ */
+export const recommendedActionV2ToV1 = (
+  action: RecommendedActionV2,
+): RecommendedActionV1 => {
+  switch (action) {
+    case RecommendedActionV2.Verified:
+      return RecommendedActionV1.None;
+    case RecommendedActionV2.None:
+      return RecommendedActionV1.None;
+    case RecommendedActionV2.Warn:
+      return RecommendedActionV1.Warn;
+    case RecommendedActionV2.Block:
+      return RecommendedActionV1.Block;
+    default:
+      return RecommendedActionV1.None;
+  }
+};
+
+/**
+ * Map a PDS bulk-scan wire row to the client/cache bulk result shape (v1 → v2 action).
+ */
+export const wireBulkRowToBulkScanResult = (
+  wire: PhishingDetectionBulkScanWireResult,
+): PhishingDetectionBulkScanResult => ({
+  recommendedAction: recommendedActionV1ToV2(wire.recommendedAction),
+});
 
 export const getPathnameFromUrl = (url: string): string => {
   try {

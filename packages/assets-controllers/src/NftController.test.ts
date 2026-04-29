@@ -33,7 +33,7 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import type { BulkPhishingDetectionScanResponse } from '@metamask/phishing-controller';
-import { RecommendedAction } from '@metamask/phishing-controller';
+import { RecommendedActionV2 } from '@metamask/phishing-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
@@ -5223,16 +5223,16 @@ describe('NftController', () => {
       const mockBulkScanUrls = jest.fn().mockResolvedValue({
         results: {
           'http://malicious-site.com/image.png': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-domain.com': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://safe-site.com/image.png': {
-            recommendedAction: RecommendedAction.None,
+            recommendedAction: RecommendedActionV2.None,
           },
           'http://legitimate-domain.com': {
-            recommendedAction: RecommendedAction.None,
+            recommendedAction: RecommendedActionV2.None,
           },
         },
       });
@@ -5330,28 +5330,28 @@ describe('NftController', () => {
       const mockBulkScanUrls = jest.fn().mockResolvedValue({
         results: {
           'http://malicious-image.com/image.png': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-preview.com/preview.png': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-thumb.com/thumb.png': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-original.com/original.png': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-animation.com/animation.mp4': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-animation-orig.com/animation-orig.mp4': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-external.com': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://malicious-collection.com': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
         },
       });
@@ -5412,13 +5412,13 @@ describe('NftController', () => {
       const mockBulkScanUrls = jest.fn().mockResolvedValue({
         results: {
           'http://safe-image.com/image.png': {
-            recommendedAction: RecommendedAction.None,
+            recommendedAction: RecommendedActionV2.None,
           },
           'http://malicious-preview.com/preview.png': {
-            recommendedAction: RecommendedAction.Block,
+            recommendedAction: RecommendedActionV2.Block,
           },
           'http://safe-external.com': {
-            recommendedAction: RecommendedAction.None,
+            recommendedAction: RecommendedActionV2.None,
           },
         },
       });
@@ -5492,34 +5492,34 @@ describe('NftController', () => {
         return Promise.resolve({
           results: {
             'http://image-0.com/image.png': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://external-0.com': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://image-1.com/image.png': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://external-1.com': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://image-2.com/image.png': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://external-2.com': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://image-3.com/image.png': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://external-3.com': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://image-4.com/image.png': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
             'http://external-4.com': {
-              recommendedAction: RecommendedAction.None,
+              recommendedAction: RecommendedActionV2.None,
             },
           },
         });

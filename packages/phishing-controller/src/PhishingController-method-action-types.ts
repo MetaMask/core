@@ -65,7 +65,7 @@ export type PhishingControllerBypassAction = {
  * only the hostname is sent. Only `http:` / `https:` web URLs are supported.
  *
  * @param url - The URL to scan.
- * @returns The phishing detection scan result (including `scanLookupKey`, the PDS/cache key).
+ * @returns The phishing detection scan result.
  */
 export type PhishingControllerScanUrlAction = {
   type: `PhishingController:scanUrl`;
@@ -73,12 +73,12 @@ export type PhishingControllerScanUrlAction = {
 };
 
 /**
- * Scan multiple URLs for phishing in bulk. Each URL is normalized to **hostname only** for PDS
- * (paths are omitted); pathname-aware scanning uses {@link PhishingController.scanUrl}.
- * Results are keyed by the input URL strings. Only `http:` / `https:` web URLs are supported.
+ * Scan multiple URLs for phishing in bulk. Each URL string is sent to PDS as-is; response
+ * `results` / `errors` keys match those strings. For pathname-aware scans on gateway hosts, use
+ * {@link scanUrl}. Only `http:` / `https:` web URLs are supported.
  *
  * @param urls - The URLs to scan.
- * @returns A mapping of URLs to their phishing detection scan results and errors (each error value is a single string, matching PDS).
+ * @returns A mapping of URLs to their phishing detection scan results and errors.
  */
 export type PhishingControllerBulkScanUrlsAction = {
   type: `PhishingController:bulkScanUrls`;
