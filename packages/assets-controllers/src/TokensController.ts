@@ -45,20 +45,28 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
+import {
+  formatAggregatorNames,
+  formatIconUrlWithProxy,
+} from './assetsUtil';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
+  fetchSecurityDataForAssets,
 } from './token-service';
 import type {
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import type { TokenSecurityInfo } from './token-service';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
+import { convertHexToDecimal } from '@metamask/controller-utils';
+import type { CaipAssetType } from '@metamask/utils';
+import { parseCaipAssetType } from '@metamask/utils';
 
 /**
  * @type SuggestedAssetMeta
@@ -131,6 +139,7 @@ const metadata: StateMetadata<TokensControllerState> = {
 };
 
 const controllerName = 'TokensController';
+
 
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -209,6 +218,8 @@ export class TokensController extends BaseController<
 
   readonly #abortController: AbortController;
 
+  readonly #useExternalServices: () => boolean;
+
   /**
    * Tokens controller options
    *
@@ -217,16 +228,19 @@ export class TokensController extends BaseController<
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
+   * @param options.useExternalServices - Callback that returns whether external API calls are allowed (privacy/basic functionality toggle).
    */
   constructor({
     provider,
     state,
     messenger,
+    useExternalServices = (): boolean => true,
   }: {
     chainId: Hex;
     provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
+    useExternalServices?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -239,6 +253,7 @@ export class TokensController extends BaseController<
     });
 
     this.#provider = provider;
+    this.#useExternalServices = useExternalServices;
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
@@ -374,6 +389,50 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * Fetch security data for multiple tokens in batch.
+   * Extracts only the resultType and lastFetchedAt to keep state minimal.
+   * Respects basic functionality toggle: returns empty map if external services disabled.
+   * Fail-open: returns empty map on error, never blocks token addition.
+   *
+   * @param tokenAddresses - Array of token addresses to fetch security data for.
+   * @param chainId - Chain ID for the tokens.
+   * @returns Promise resolving to a map of address to security info.
+   */
+  async #fetchSecurityDataBatch(
+    tokenAddresses: string[],
+    chainId: Hex,
+  ): Promise<Record<string, TokenSecurityInfo>> {
+    if (tokenAddresses.length === 0) {
+      return {};
+    }
+
+    // Respect basic functionality toggle
+    if (!this.#useExternalServices()) {
+      return {};
+    }
+
+    // Build CAIP-19 asset IDs for ERC20 tokens
+    const chainIdDecimal = convertHexToDecimal(chainId);
+    const assetIds: CaipAssetType[] = tokenAddresses.map(
+      (address) =>
+        `eip155:${chainIdDecimal}/erc20:${address.toLowerCase()}` as CaipAssetType,
+    );
+
+    // Fetch security data (handles batching internally)
+    const securityDataByAssetId = await fetchSecurityDataForAssets(assetIds);
+
+    // Map back from assetId -> token address
+    const securityMap: Record<string, TokenSecurityInfo> = {};
+    for (const [assetId, security] of Object.entries(securityDataByAssetId)) {
+      const { assetReference } = parseCaipAssetType(assetId as CaipAssetType);
+      const checksummedAddress = toChecksumHexAddress(assetReference);
+      securityMap[checksummedAddress] = security;
+    }
+
+    return securityMap;
+  }
+
+  /**
    * Fetch metadata for a token.
    *
    * @param tokenAddress - The address of the token.
@@ -475,6 +534,16 @@ export class TokensController extends BaseController<
         name,
         ...(rwaData !== undefined && { rwaData }),
       };
+
+      // Fetch security data for the token
+      const securityDataMap = await this.#fetchSecurityDataBatch(
+        [address],
+        chainIdToUse,
+      );
+      if (securityDataMap[address]) {
+        newEntry.security = securityDataMap[address];
+      }
+
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
@@ -541,6 +610,16 @@ export class TokensController extends BaseController<
       return output;
     }, {});
     try {
+      // Fetch security data for tokens being imported (only scan new/updated tokens)
+      // Batching is handled automatically inside #fetchSecurityDataBatch
+      const importAddresses = tokensToImport.map((token) =>
+        toChecksumHexAddress(token.address),
+      );
+      const securityDataMap = await this.#fetchSecurityDataBatch(
+        importAddresses,
+        interactingChainId,
+      );
+
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name, rwaData } =
           tokenToAdd;
@@ -554,6 +633,12 @@ export class TokensController extends BaseController<
           name,
           ...(rwaData && { rwaData }),
         };
+
+        // Attach security data to the token being imported
+        if (securityDataMap[checksumAddress]) {
+          formattedToken.security = securityDataMap[checksumAddress];
+        }
+
         newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
         return formattedToken;

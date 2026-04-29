@@ -14,8 +14,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `CurrencyRateController:setCurrentCurrency`
     - `CurrencyRateController:updateExchangeRate`
   - Corresponding action types (e.g. `CurrencyRateControllerSetCurrentCurrencyAction`) are available as well.
+- `TokensController` and `MultichainAssetsController` now fetch and store token security data for trust badges
+  - Security data includes `resultType` (e.g., Verified, Malicious, Spam) and `lastFetchedAt` timestamp
+  - Implements smart caching: security data is refreshed only if older than 12 hours
+  - Fail-open strategy: security data fetching never blocks token addition or balance updates
 
 ### Changed
+
+- **BREAKING:** `TokensController` constructor now requires a `useExternalServices` callback parameter
+  - This callback controls whether external API calls are allowed (e.g., for privacy/basic functionality toggle)
+  - Clients must pass a function that returns the current state of `PreferencesController.state.useExternalServices`
+  - Example: `useExternalServices: () => preferencesController.state.useExternalServices ?? true`
+  - The callback is invoked at runtime each time security data is fetched, respecting user privacy settings changes
+- **BREAKING:** `MultichainAssetsController` constructor now requires a `useExternalServices` callback parameter
+  - This callback controls whether external API calls (Blockaid scans) are allowed
+  - Clients must pass a function that returns the current state of `PreferencesController.state.useExternalServices`
+  - Example: `useExternalServices: () => preferencesController.state.useExternalServices ?? true`
+  - The callback is invoked at runtime each time security scans are performed
+- `TokenSecurityInfo` type now includes `lastFetchedAt: number` field for smart caching (12-hour freshness window)
 
 - **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
   - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.

@@ -17,12 +17,13 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
-import { TokenRwaData } from './token-service';
+import { TokenRwaData, type TokenSecurityInfo } from './token-service';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
   TokensControllerState,
 } from './TokensController';
+
 
 /**
  * @type Token
@@ -48,6 +49,7 @@ export type Token = {
   isERC721?: boolean;
   name?: string;
   rwaData?: TokenRwaData;
+  security?: TokenSecurityInfo;
 };
 
 const DEFAULT_INTERVAL = 180000;

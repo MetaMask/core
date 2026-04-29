@@ -43,12 +43,31 @@ import { Mutex } from 'async-mutex';
 
 import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
 import { getChainIdsCaveat } from './utils';
+import { shouldFetchSecurityData } from '../assetsUtil';
 
 const controllerName = 'MultichainAssetsController';
 
+/**
+ * Minimal token security information for displaying trust badges.
+ * Stores only the result type from Blockaid scans.
+ * Includes lastFetchedAt timestamp for smart caching (12-hour freshness).
+ */
+type TokenSecurityInfo = {
+  resultType: string;
+  lastFetchedAt: number;
+};
+
+/**
+ * Extends FungibleAssetMetadata with security information.
+ * Security is optional to support gradual enrichment (existing assets may not have it yet).
+ */
+type AssetMetadataWithSecurity = FungibleAssetMetadata & {
+  security?: TokenSecurityInfo;
+};
+
 export type MultichainAssetsControllerState = {
   assetsMetadata: {
-    [asset: CaipAssetType]: FungibleAssetMetadata;
+    [asset: CaipAssetType]: AssetMetadataWithSecurity;
   };
   accountsAssets: { [account: string]: CaipAssetType[] };
   allIgnoredAssets: { [account: string]: CaipAssetType[] };
@@ -212,15 +231,20 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
   readonly #controllerOperationMutex = new Mutex();
 
+  readonly #useExternalServices: () => boolean;
+
   constructor({
     messenger,
     state = {},
     blockaidTokenRescanInterval = DEFAULT_BLOCKAID_TOKEN_RESCAN_INTERVAL_MS,
+    useExternalServices = (): boolean => true,
   }: {
     messenger: MultichainAssetsControllerMessenger;
     state?: Partial<MultichainAssetsControllerState>;
     /** Blockaid re-scan interval (ms); default daily. `0` disables. */
     blockaidTokenRescanInterval?: number;
+    /** Callback that returns whether external API calls are allowed (privacy/basic functionality toggle). */
+    useExternalServices?: () => boolean;
   }) {
     super({
       messenger,
@@ -233,6 +257,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     });
 
     this.#snaps = {};
+    this.#useExternalServices = useExternalServices;
 
     if (blockaidTokenRescanInterval > 0) {
       this.setIntervalLength(blockaidTokenRescanInterval);
@@ -453,6 +478,8 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     const assetsForMetadataRefresh = new Set<CaipAssetType>([]);
     const accountsAndAssetsToUpdate: AccountAssetListUpdatedEventPayload['assets'] =
       {};
+    const allSecurityData: Record<CaipAssetType, TokenSecurityInfo> = {};
+
     for (const [accountId, { added, removed }] of Object.entries(
       event.assets,
     )) {
@@ -469,8 +496,12 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         );
 
         // Filter out tokens that cannot be verified or are flagged malicious
-        const filteredToBeAddedAssets =
+        // This also returns security data from the Blockaid scan
+        const { filteredAssets: filteredToBeAddedAssets, securityData } =
           await this.#filterBlockaidSpamTokensOnAdd(preFilteredToBeAddedAssets);
+
+        // Collect security data
+        Object.assign(allSecurityData, securityData);
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
         const filteredToBeRemovedAssets = removed.filter(
@@ -518,6 +549,20 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
 
+    // Add security data from Blockaid scans to metadata
+    if (Object.keys(allSecurityData).length > 0) {
+      this.update((state) => {
+        for (const [assetId, securityInfo] of Object.entries(
+          allSecurityData,
+        )) {
+          if (state.assetsMetadata[assetId as CaipAssetType]) {
+            state.assetsMetadata[assetId as CaipAssetType].security =
+              securityInfo;
+          }
+        }
+      });
+    }
+
     this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
       assets: accountsAndAssetsToUpdate,
     });
@@ -556,13 +601,25 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         account.metadata.snap.id,
       );
       const caipAssets = allAssets.filter(isCaipAssetType);
-      const filteredCaip =
+      const { filteredAssets: filteredCaip, securityData } =
         await this.#filterBlockaidSpamTokensOnAdd(caipAssets);
       const filteredCaipSet = new Set(filteredCaip);
       const assets = allAssets.filter(
         (asset) => !isCaipAssetType(asset) || filteredCaipSet.has(asset),
       );
       await this.#refreshAssetsMetadata(assets);
+
+      // Add security data to metadata
+      if (Object.keys(securityData).length > 0) {
+        this.update((state) => {
+          for (const [assetId, securityInfo] of Object.entries(securityData)) {
+            if (state.assetsMetadata[assetId as CaipAssetType]) {
+              state.assetsMetadata[assetId as CaipAssetType].security =
+                securityInfo;
+            }
+          }
+        });
+      }
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
       });
@@ -827,22 +884,70 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
   /**
    * Fail-open Blockaid filter for newly detected `token:` assets (native/other namespaces unchanged).
+   * Also returns security data from the scan for badge display.
+   * Implements smart caching: skips tokens with fresh data (<12 hours old).
+   * Respects basic functionality toggle: skips scanning if external services disabled.
    *
    * @param assets - CAIP assets to filter.
-   * @returns Filtered list, original order preserved.
+   * @returns Object with filtered assets and security data from scan.
    */
   async #filterBlockaidSpamTokensOnAdd(
     assets: CaipAssetType[],
-  ): Promise<CaipAssetType[]> {
+  ): Promise<{
+    filteredAssets: CaipAssetType[];
+    securityData: Record<CaipAssetType, TokenSecurityInfo>;
+  }> {
+    // Respect basic functionality toggle
+    if (!this.#useExternalServices()) {
+      return { filteredAssets: [...assets], securityData: {} };
+    }
+
     const tokensByChain = this.#groupTokenAssetsByChain(assets);
 
     if (Object.keys(tokensByChain).length === 0) {
-      return [...assets];
+      return { filteredAssets: [...assets], securityData: {} };
     }
 
     const rejectedAssets = new Set<CaipAssetType>();
+    const securityData: Record<CaipAssetType, TokenSecurityInfo> = {};
+    const now = Date.now();
 
-    for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
+    // Filter out assets that already have fresh security data (smart caching)
+    const assetsToScan: CaipAssetType[] = [];
+    const tokensByChainFiltered: Record<string, ChainTokenEntry[]> = {};
+
+    for (const asset of assets) {
+      const existingMetadata = this.state.assetsMetadata[asset];
+      if (
+        existingMetadata?.security?.lastFetchedAt &&
+        !shouldFetchSecurityData(existingMetadata.security.lastFetchedAt)
+      ) {
+        // Asset has fresh security data, reuse it
+        securityData[asset] = existingMetadata.security;
+      } else {
+        // Asset needs scanning
+        assetsToScan.push(asset);
+      }
+    }
+
+    // Group only assets that need scanning
+    for (const [chainName, entries] of Object.entries(tokensByChain)) {
+      const filteredEntries = entries.filter((entry) =>
+        assetsToScan.includes(entry.asset),
+      );
+      if (filteredEntries.length > 0) {
+        tokensByChainFiltered[chainName] = filteredEntries;
+      }
+    }
+
+    // If all assets have fresh data, return early
+    if (Object.keys(tokensByChainFiltered).length === 0) {
+      return { filteredAssets: [...assets], securityData };
+    }
+
+    for (const [chainName, tokenEntries] of Object.entries(
+      tokensByChainFiltered,
+    )) {
       const batchOutcomes = await this.#runBatchedBulkTokenScans(
         chainName,
         tokenEntries,
@@ -853,20 +958,29 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
           // Fail-open: if API fails, allow all tokens in this batch through
           continue;
         }
+
         for (const entry of outcome.entries) {
           const scanned = outcome.response[entry.address];
-          // Reject only if we have a definitive malicious result
-          if (
-            scanned?.result_type &&
-            scanned.result_type === TokenScanResultType.Malicious
-          ) {
-            rejectedAssets.add(entry.asset);
+
+          if (scanned?.result_type) {
+            // Store security data with timestamp for all scanned tokens
+            securityData[entry.asset] = {
+              resultType: scanned.result_type,
+              lastFetchedAt: now,
+            };
+
+            // Reject only if malicious
+            if (scanned.result_type === TokenScanResultType.Malicious) {
+              rejectedAssets.add(entry.asset);
+            }
           }
         }
       }
     }
 
-    return assets.filter((asset) => !rejectedAssets.has(asset));
+    const filteredAssets = assets.filter((asset) => !rejectedAssets.has(asset));
+
+    return { filteredAssets, securityData };
   }
 
   /**
