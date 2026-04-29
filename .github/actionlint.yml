@@ -1,8 +1,0 @@
-# Please see the documentation for all configuration options:
-# https://github.com/rhysd/actionlint/blob/main/docs/config.md#configuration-file
-
-paths:
-  .github/workflows/publish-release.yml:
-    ignore:
-      # Queue option is not supported by actionlint yet.
-      - 'unexpected key "queue" for "concurrency" section. expected one of "cancel-in-progress", "group"'

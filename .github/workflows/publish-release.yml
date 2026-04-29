@@ -8,10 +8,6 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 
-concurrency:
-  group: publish-release
-  queue: max
-
 jobs:
   publish-release:
     permissions:
