@@ -59,8 +59,9 @@ export type PhishingControllerBypassAction = {
 };
 
 /**
- * Scan a URL for phishing. It will only scan the hostname of the URL. It also only supports
- * web URLs.
+ * Scan a URL for phishing. For most hosts only the hostname is sent to the API; for known
+ * shared gateways the pathname is included (see `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`).
+ * Only supports web URLs (`http:` / `https:`).
  *
  * @param url - The URL to scan.
  * @returns The phishing detection scan result.
