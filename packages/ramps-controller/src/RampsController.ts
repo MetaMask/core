@@ -250,12 +250,6 @@ function normalizeRampsErrorForRethrow(
     return error;
   }
 
-  if (typeof error === 'string') {
-    return Object.assign(new Error(errorInfo.message), {
-      errorKey: errorInfo.errorKey,
-    });
-  }
-
   return Object.assign(new Error(errorInfo.message), {
     errorKey: errorInfo.errorKey,
   });
@@ -2396,9 +2390,8 @@ export class RampsController extends BaseController<
       });
       return quote;
     } catch (error) {
-      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
-        error,
-      );
+      const { errorInfo, normalizedError } =
+        this.#getNormalizedTransakError(error);
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
         state.nativeProviders.transak.buyQuote.error = errorInfo.message;
@@ -2675,7 +2668,10 @@ export class RampsController extends BaseController<
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
     try {
-      return await this.messenger.call('TransakService:getTranslation', request);
+      return await this.messenger.call(
+        'TransakService:getTranslation',
+        request,
+      );
     } catch (error) {
       throw this.#getNormalizedTransakError(error).normalizedError;
     }

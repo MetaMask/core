@@ -7205,6 +7205,29 @@ describe('RampsController', () => {
           );
         });
       });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:verifyUserOtp',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakVerifyUserOtp',
+              'test@example.com',
+              '123456',
+              'state-token',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
     });
 
     describe('transakLogout', () => {
@@ -7863,6 +7886,28 @@ describe('RampsController', () => {
           );
         });
       });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getOrder',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakGetOrder',
+              'order-1',
+              '0x123',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
     });
 
     describe('transakGetUserLimits', () => {
@@ -8224,6 +8269,33 @@ describe('RampsController', () => {
             request,
           );
           expect(result).toStrictEqual(mockTranslation);
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const request: TransakTranslationRequest = {
+            cryptoCurrencyId: 'BTC',
+            chainId: 'bitcoin',
+            fiatCurrencyId: 'USD',
+            paymentMethod: 'credit_debit_card',
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:getTranslation',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakGetTranslation',
+              request,
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
     });
