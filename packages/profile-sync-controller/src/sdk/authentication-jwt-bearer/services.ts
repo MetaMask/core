@@ -357,6 +357,7 @@ export async function authenticate(
               metametrics: {
                 metametrics_id: await metametrics.getMetaMetricsId(),
                 agent: metametrics.agent,
+                app_version: await metametrics.getAppVersion?.(),
               },
             }
           : {}),

@@ -57,7 +57,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/polling-controller": "^16.0.4",
     "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/remote-feature-flag-controller": "^4.2.0",

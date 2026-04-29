@@ -56,7 +56,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.1"
+    "@metamask/messenger": "^1.2.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

@@ -57,7 +57,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-data-service": "^0.1.1",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^30.0.1",
     "@metamask/superstruct": "^3.1.0",
