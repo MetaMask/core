@@ -49,7 +49,7 @@ export type AuthenticationControllerState = {
    * new SRP is added later) are also fired by the hook based on keyring
    * changes, independently of this flag.
    */
-  hasPairedAtLeastOnce: boolean;
+  hasPairedAtLeastOnce?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
