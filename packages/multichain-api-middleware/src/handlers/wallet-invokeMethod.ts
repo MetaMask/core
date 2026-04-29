@@ -17,11 +17,7 @@ import type {
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import {
-  isObject,
-  KnownCaipNamespace,
-  numberToHex,
-} from '@metamask/utils';
+import { isObject, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import type {
   CaipAccountId,
   CaipChainId,
