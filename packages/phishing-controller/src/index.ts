@@ -9,6 +9,7 @@ export type {
 export { PhishingDetector } from './PhishingDetector';
 export type {
   PhishingDetectionScanResult,
+  PhishingDetectionScanWireResult,
   AddressScanResult,
   BulkTokenScanResponse,
   ApprovalsResponse,

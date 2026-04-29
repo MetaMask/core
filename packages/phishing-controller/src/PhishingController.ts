@@ -34,6 +34,7 @@ import {
 import type {
   PhishingDetectorResult,
   PhishingDetectionScanResult,
+  PhishingDetectionScanWireResult,
   TokenScanCacheData,
   BulkTokenScanResponse,
   BulkTokenScanRequest,
@@ -926,7 +927,6 @@ export class PhishingController extends BaseController<
     const [scanUrlParam, , ok] = getPhishingDetectionScanUrlParam(url);
     if (!ok) {
       return {
-        scanLookupKey: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'url is not a valid web URL',
       };
@@ -963,21 +963,19 @@ export class PhishingController extends BaseController<
     // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and errors.
     if (!apiResponse) {
       return {
-        scanLookupKey: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       };
     } else if ('error' in apiResponse) {
       return {
-        scanLookupKey: '',
         recommendedAction: RecommendedAction.None,
         fetchError: apiResponse.error,
       };
     }
 
-    const result = {
-      scanLookupKey: scanUrlParam,
-      recommendedAction: apiResponse.recommendedAction,
+    const wire = apiResponse as PhishingDetectionScanWireResult;
+    const result: PhishingDetectionScanResult = {
+      recommendedAction: wire.recommendedAction,
     };
 
     this.#urlScanCache.set(scanUrlParam, result);
@@ -1452,7 +1450,7 @@ export class PhishingController extends BaseController<
     }
 
     const raw = apiResponse as {
-      results: Record<string, PhishingDetectionScanResult>;
+      results: Record<string, PhishingDetectionScanWireResult>;
       errors: Record<string, string>;
     };
     const remapped: BulkPhishingDetectionScanResponse = {
@@ -1463,11 +1461,10 @@ export class PhishingController extends BaseController<
     for (let i = 0; i < urls.length; i++) {
       const originalUrl = urls[i];
       const scanKey = scanKeys[i];
-      const scanResult = raw.results[scanKey];
-      if (scanResult !== undefined) {
+      const wireResult = raw.results[scanKey];
+      if (wireResult !== undefined) {
         remapped.results[originalUrl] = {
-          ...scanResult,
-          scanLookupKey: scanKey,
+          recommendedAction: wireResult.recommendedAction,
         };
       }
       const scanErrors = raw.errors[scanKey];

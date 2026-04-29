@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `PhishingDetectionScanResult` no longer includes `hostname`. Use `scanLookupKey` (the PDS and URL scan cache key: hostname for bulk scans and typical hosts; hostname plus pathname for single `scanUrl` on gateway/path-based hosts only) instead. For display, parse the key or derive a host with `new URL('https://' + scanLookupKey)`.
+- **BREAKING:** `PhishingDetectionScanResult` now only exposes `recommendedAction` and optional `fetchError` (no `hostname` or `scanLookupKey`). PDS wire fields such as `domainName` are represented by the exported `PhishingDetectionScanWireResult` type.
 - **BREAKING:** `BulkPhishingDetectionScanResponse.errors` is now `Record<string, string>` (one message per key), matching PDS; multiple synthetic errors for the same key from parallel batches are joined with `"; "`.
 - **BREAKING:** `PhishingController:bulkScanUrls` sends **hostname only** to PDS for every URL. Path-aware scanning for gateway hosts applies only to `PhishingController:scanUrl`. Added `getPhishingDetectionBulkScanUrlParam` for the bulk normalization key.
 - `PhishingController:scanUrl` still sends hostname plus pathname to PDS for `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS` / `isPhishingDetectionPathBasedHostname`, with query strings and fragments stripped; all other hosts remain hostname-only. Export of the allowlist and predicate is available from the package entrypoint.

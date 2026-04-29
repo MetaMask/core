@@ -74,15 +74,17 @@ export enum PhishingDetectorResultType {
 }
 
 /**
- * PhishingDetectionScanResult represents the result of a phishing detection scan.
+ * JSON shape returned by PDS URL scan endpoints (`domainName` in JSON).
+ */
+export type PhishingDetectionScanWireResult = {
+  domainName: string;
+  recommendedAction: RecommendedAction;
+};
+
+/**
+ * Client-facing result of a phishing URL scan: mirrors the actionable PDS fields only.
  */
 export type PhishingDetectionScanResult = {
-  /**
-   * Key sent to PDS and used for the URL scan cache. Bulk scans use hostname only; single URL
-   * scans may append pathname (query/fragment stripped) for path-based gateway hosts.
-   * Empty when no lookup applies.
-   */
-  scanLookupKey: string;
   /**
    * Indicates the warning level based on risk factors.
    *

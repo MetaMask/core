@@ -65,7 +65,7 @@ export type PhishingControllerBypassAction = {
  * only the hostname is sent. Only `http:` / `https:` web URLs are supported.
  *
  * @param url - The URL to scan.
- * @returns The phishing detection scan result (including `scanLookupKey`, the PDS/cache key).
+ * @returns The phishing detection scan result (`recommendedAction` and optional `fetchError`).
  */
 export type PhishingControllerScanUrlAction = {
   type: `PhishingController:scanUrl`;
