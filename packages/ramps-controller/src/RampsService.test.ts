@@ -423,8 +423,8 @@ describe('RampsService', () => {
       `);
     });
 
-    it('uses development cache URL when environment is Development', async () => {
-      nock('https://on-ramp-cache.dev-api.cx.metamask.io')
+    it('uses development regions URL without cache hostname', async () => {
+      nock('https://on-ramp.dev-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
           sdk: '2.1.6',
