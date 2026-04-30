@@ -316,5 +316,14 @@ describe('CAIP Formatters', () => {
         `${XlmScope.Pubnet}/sep41:${tokenAddress}`,
       );
     });
+
+    it('should not create Stellar asset types for bare issuer account addresses', () => {
+      expect(
+        formatAddressToAssetId(
+          'GDTVUGOC5UHFYH3Y3XECEG7UO7H5PRPI6WPMOMKN5UVBFZNQOKHM4C7I',
+          ChainId.STELLAR,
+        ),
+      ).toBeUndefined();
+    });
   });
 });

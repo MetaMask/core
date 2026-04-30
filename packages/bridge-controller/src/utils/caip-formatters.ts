@@ -29,6 +29,9 @@ import {
   isTronChainId,
 } from './bridge';
 
+const STELLAR_CLASSIC_ASSET_REGEX = /^[a-zA-Z0-9]{1,12}-G[A-Z2-7]{55}$/u;
+const STELLAR_SOROBAN_CONTRACT_REGEX = /^C[A-Z2-7]{55}$/u;
+
 /**
  * Converts a chainId to a CaipChainId
  *
@@ -178,12 +181,17 @@ export const formatAddressToAssetId = (
   }
 
   if (chainIdCaip === XlmScope.Pubnet) {
-    const stellarAssetNamespace = addressOrAssetId.includes('-')
-      ? 'asset'
-      : 'sep41';
-    return CaipAssetTypeStruct.create(
-      `${chainIdCaip}/${stellarAssetNamespace}:${addressOrAssetId}`,
-    );
+    if (STELLAR_CLASSIC_ASSET_REGEX.test(addressOrAssetId)) {
+      return CaipAssetTypeStruct.create(
+        `${chainIdCaip}/asset:${addressOrAssetId}`,
+      );
+    }
+    if (STELLAR_SOROBAN_CONTRACT_REGEX.test(addressOrAssetId)) {
+      return CaipAssetTypeStruct.create(
+        `${chainIdCaip}/sep41:${addressOrAssetId}`,
+      );
+    }
+    return undefined;
   }
 
   // EVM assets
