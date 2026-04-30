@@ -72,9 +72,9 @@ export const eip7702AuthorizationStep: Step = {
       s,
       v,
       yParity,
-      address,
-      chainId: chainIdDecimal.toString(),
-      nonce: nonce.toString(),
+      address: delegatorImplAddress,
+      chainId,
+      nonce: add0x(nonce.toString(16)),
     });
 
     return 'completed';
