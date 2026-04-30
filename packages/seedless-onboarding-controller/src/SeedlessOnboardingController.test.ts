@@ -79,9 +79,8 @@ import {
 } from './SeedlessOnboardingController';
 import type {
   SeedlessOnboardingControllerMessenger,
-  SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController';
-import type { SeedlessOnboardingControllerState } from './types';
+import type { SeedlessOnboardingControllerOptions, SeedlessOnboardingControllerState } from './types';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -165,6 +164,9 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
       WithControllerOptions<EKey, SupportedKeyDerivationParams>,
       WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationParams>,
     ];
+
+const mockFetchFunction = jest.fn() as typeof fetch;
+const mockAuthServiceBaseUrl = 'https://mock-auth-service.example';
 
 /**
  * Get the default vault encryptor for the Seedless Onboarding Controller.
@@ -255,6 +257,8 @@ async function withController<ReturnValue>(
     refreshJWTToken: mockRefreshJWTToken,
     revokeRefreshToken: mockRevokeRefreshToken,
     renewRefreshToken: mockRenewRefreshToken,
+    fetchFunction: mockFetchFunction,
+    authServiceBaseUrl: mockAuthServiceBaseUrl,
     ...rest,
   });
 
@@ -739,6 +743,8 @@ describe('SeedlessOnboardingController', () => {
         refreshJWTToken: mockRefreshJWTToken,
         revokeRefreshToken: mockRevokeRefreshToken,
         renewRefreshToken: mockRenewRefreshToken,
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
       expect(controller).toBeDefined();
       expect(controller.state).toStrictEqual(
@@ -766,6 +772,8 @@ describe('SeedlessOnboardingController', () => {
             refreshJWTToken: mockRefreshJWTToken,
             revokeRefreshToken: mockRevokeRefreshToken,
             renewRefreshToken: mockRenewRefreshToken,
+            authServiceBaseUrl: mockAuthServiceBaseUrl,
+            fetchFunction: mockFetchFunction,
           }),
       ).not.toThrow();
     });
@@ -839,6 +847,8 @@ describe('SeedlessOnboardingController', () => {
         revokeRefreshToken: mockRevokeRefreshToken,
         renewRefreshToken: mockRenewRefreshToken,
         state: initialState,
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
       expect(controller).toBeDefined();
       expect(controller.state).toMatchObject(initialState);
@@ -899,6 +909,144 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(getNodeDetailsSpy).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('mintProfilePairingTokenAndAuthenticate', () => {
+    const mockFetch = jest.fn();
+
+    it('should mint a profile pairing token and authenticate with the minted credentials', async () => {
+      const mintedTokenResult = {
+        idTokens: ['minted-id-token'],
+        accessToken: 'minted-access-token',
+        metadataAccessToken: 'minted-metadata-access-token',
+        refreshToken: 'minted-refresh-token',
+        revokeToken: 'minted-revoke-token',
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mintedTokenResult),
+      });
+
+      await withController(
+        {
+          fetchFunction: mockFetch,
+          authServiceBaseUrl: mockAuthServiceBaseUrl,
+        },
+        async ({ controller }) => {
+          const authenticateResult = {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          };
+          const authenticateSpy = jest
+            .spyOn(controller, 'authenticate')
+            .mockResolvedValue(authenticateResult);
+
+          const result =
+            await controller.mintProfilePairingTokenAndAuthenticate({
+              profilePairingToken: 'profile-pairing-token',
+              authConnection,
+              authConnectionId,
+              groupedAuthConnectionId,
+              userId,
+              socialLoginEmail,
+            });
+
+          expect(mockFetch).toHaveBeenCalledWith(
+            'https://mock-auth-service.example/profile-pairing/mint',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                id_token: 'profile-pairing-token',
+              }),
+            },
+          );
+          expect(authenticateSpy).toHaveBeenCalledWith({
+            idTokens: mintedTokenResult.idTokens,
+            accessToken: mintedTokenResult.accessToken,
+            metadataAccessToken: mintedTokenResult.metadataAccessToken,
+            authConnection,
+            authConnectionId,
+            userId,
+            groupedAuthConnectionId,
+            socialLoginEmail,
+            refreshToken: mintedTokenResult.refreshToken,
+            revokeToken: mintedTokenResult.revokeToken,
+            skipLock: true,
+          });
+          expect(result).toStrictEqual(authenticateResult);
+        },
+      );
+    });
+
+    it('should throw an error if the minting request failed', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+      });
+
+      await withController(
+        {
+          fetchFunction: mockFetch,
+          authServiceBaseUrl: mockAuthServiceBaseUrl,
+        },
+        async ({ controller }) => {
+          const authenticateSpy = jest.spyOn(controller, 'authenticate');
+
+          await expect(
+            controller.mintProfilePairingTokenAndAuthenticate({
+              profilePairingToken: 'profile-pairing-token',
+              authConnection,
+              authConnectionId,
+              groupedAuthConnectionId,
+              userId,
+              socialLoginEmail,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToMintProfilePairingToken,
+          );
+          expect(authenticateSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw when the minted token response has an invalid shape', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          idTokens,
+          accessToken,
+          metadataAccessToken,
+          revokeToken,
+        }),
+      });
+
+      await withController(
+        {
+          fetchFunction: mockFetch,
+          authServiceBaseUrl: mockAuthServiceBaseUrl,
+        },
+        async ({ controller }) => {
+          const authenticateSpy = jest.spyOn(controller, 'authenticate');
+
+          await expect(
+            controller.mintProfilePairingTokenAndAuthenticate({
+              profilePairingToken: 'profile-pairing-token',
+              authConnection,
+              authConnectionId,
+              groupedAuthConnectionId,
+              userId,
+              socialLoginEmail,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult,
+          );
+          expect(authenticateSpy).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
@@ -7547,6 +7695,8 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: validToken,
         }),
         renewRefreshToken: jest.fn(),
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
       expect(controller).toBeDefined();
 
@@ -7572,6 +7722,8 @@ describe('SeedlessOnboardingController', () => {
         revokeRefreshToken: jest.fn(),
         state,
         renewRefreshToken: jest.fn(),
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
       expect(controller).toBeDefined();
 
@@ -7598,6 +7750,8 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: expiredToken,
         }),
         renewRefreshToken: jest.fn(),
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
 
       // mock refreshAuthTokens to return a new token
@@ -7628,6 +7782,8 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: nearExpiryToken,
         }),
         renewRefreshToken: jest.fn(),
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
 
       jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
@@ -7657,6 +7813,8 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: freshToken,
         }),
         renewRefreshToken: jest.fn(),
+        authServiceBaseUrl: mockAuthServiceBaseUrl,
+        fetchFunction: mockFetchFunction,
       });
 
       jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();

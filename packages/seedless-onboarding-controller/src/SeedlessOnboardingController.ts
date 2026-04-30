@@ -516,7 +516,7 @@ export class SeedlessOnboardingController<
         });
 
         if (!response.ok) {
-          throw new Error('Failed to mint profile pairing token');
+          throw new Error(SeedlessOnboardingControllerErrorMessage.FailedToMintProfilePairingToken);
         }
 
         const data = await response.json();
@@ -2798,7 +2798,7 @@ export class SeedlessOnboardingController<
       this.#assertIsAuthenticatedUser(this.state);
       const { metadataAccessToken } = this.state;
       // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
-      const decodedToken = decodeJWTToken(metadataAccessToken as string);
+      const decodedToken = decodeJWTToken(metadataAccessToken);
       return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens

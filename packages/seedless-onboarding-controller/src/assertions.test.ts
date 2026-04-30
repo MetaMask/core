@@ -1,10 +1,97 @@
 import {
+  assertIsSeedlessOnboardingUserAuthenticated,
   assertIsPasswordOutdatedCacheValid,
   assertIsValidPassword,
+  assertIsValidTokenMintResult,
   assertIsValidVaultData,
 } from './assertions';
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import { VaultData } from './types';
+import { AuthConnection, SeedlessOnboardingControllerErrorMessage } from './constants';
+import { AuthenticatedUserDetails, TokenMintResult, VaultData } from './types';
+
+describe('assertIsValidTokenMintResult', () => {
+  const createValidTokenMintResult = (): TokenMintResult => ({
+    idTokens: ['id-token'],
+    accessToken: 'access-token',
+    metadataAccessToken: 'metadata-access-token',
+    revokeToken: 'revoke-token',
+    refreshToken: 'refresh-token',
+  });
+
+  it('should throw when the value is not an object', () => {
+    expect(() => {
+      assertIsValidTokenMintResult(null);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+
+    expect(() => {
+      assertIsValidTokenMintResult(undefined);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+
+    expect(() => {
+      assertIsValidTokenMintResult('invalid');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  });
+
+  it.each([
+    [
+      'idTokens is missing',
+      (): TokenMintResult => {
+        const invalidResult = createValidTokenMintResult();
+        delete (invalidResult as Record<string, unknown>).idTokens;
+        return invalidResult;
+      },
+    ],
+    [
+      'idTokens is not an array',
+      (): TokenMintResult => ({
+        ...createValidTokenMintResult(),
+        // @ts-expect-error - invalid type for testing
+        idTokens: 'invalid',
+      }),
+    ],
+    [
+      'accessToken is missing',
+      (): TokenMintResult => {
+        const invalidResult = createValidTokenMintResult();
+        delete (invalidResult as Record<string, unknown>).accessToken;
+        return invalidResult;
+      },
+    ],
+    [
+      'metadataAccessToken is not a string',
+      (): TokenMintResult => ({
+        ...createValidTokenMintResult(),
+        // @ts-expect-error - invalid type for testing
+        metadataAccessToken: 123,
+      }),
+    ],
+    [
+      'revokeToken is missing',
+      (): TokenMintResult => {
+        const invalidResult = createValidTokenMintResult();
+        delete (invalidResult as Record<string, unknown>).revokeToken;
+        return invalidResult;
+      },
+    ],
+    [
+      'refreshToken is not a string',
+      (): TokenMintResult => ({
+        ...createValidTokenMintResult(),
+        // @ts-expect-error - invalid type for testing
+        refreshToken: false,
+      }),
+    ],
+  ])('should throw when %s', (_caseName, buildInvalidValue) => {
+    expect(() => {
+      assertIsValidTokenMintResult(buildInvalidValue());
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  });
+
+  it('should not throw for a valid token mint result', () => {
+    expect(() => {
+      assertIsValidTokenMintResult(createValidTokenMintResult());
+    }).not.toThrow();
+  });
+});
 
 describe('assertIsValidPassword', () => {
   it('should throw when password is not a string', () => {
@@ -42,6 +129,119 @@ describe('assertIsValidPassword', () => {
   });
 });
 
+describe('assertIsSeedlessOnboardingUserAuthenticated', () => {
+  const createValidAuthenticatedUser = (): AuthenticatedUserDetails => ({
+    authConnection: AuthConnection.Google,
+    authConnectionId: 'seedless-onboarding',
+    userId: 'user@example.com',
+    socialLoginEmail: 'user@example.com',
+    nodeAuthTokens: [
+      {
+        authToken: 'auth-token-1',
+        nodeIndex: 1,
+        nodePubKey: 'node-pub-key-1',
+      },
+      {
+        authToken: 'auth-token-2',
+        nodeIndex: 2,
+        nodePubKey: 'node-pub-key-2',
+      },
+      {
+        authToken: 'auth-token-3',
+        nodeIndex: 3,
+        nodePubKey: 'node-pub-key-3',
+      },
+    ],
+    refreshToken: 'refresh-token',
+    metadataAccessToken: 'metadata-access-token',
+    revokeToken: 'revoke-token',
+  });
+
+  it.each([
+    [
+      'authConnectionId is missing',
+      (): AuthenticatedUserDetails => {
+        const invalidUser = createValidAuthenticatedUser();
+        delete (invalidUser as Record<string, unknown>).authConnectionId;
+        return invalidUser;
+      },
+    ],
+    [
+      'userId is not a string',
+      (): AuthenticatedUserDetails => ({
+        ...createValidAuthenticatedUser(),
+        // @ts-expect-error - invalid type for testing
+        userId: 123,
+      }),
+    ],
+  ])('should throw MissingAuthUserInfo when %s', (_caseName, buildValue) => {
+    expect(() => {
+      assertIsSeedlessOnboardingUserAuthenticated(buildValue());
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo);
+  });
+
+  it.each([
+    [
+      'nodeAuthTokens is missing',
+      (): AuthenticatedUserDetails => {
+        const invalidUser = createValidAuthenticatedUser();
+        delete (invalidUser as Record<string, unknown>).nodeAuthTokens;
+        return invalidUser;
+      },
+    ],
+    [
+      'nodeAuthTokens is not an array',
+      (): AuthenticatedUserDetails   => ({
+        ...createValidAuthenticatedUser(),
+        // @ts-expect-error - invalid type for testing
+        nodeAuthTokens: 'invalid',
+      }),
+    ],
+    [
+      'nodeAuthTokens does not meet the minimum threshold',
+      (): AuthenticatedUserDetails => ({
+        ...createValidAuthenticatedUser(),
+        nodeAuthTokens: [createValidAuthenticatedUser().nodeAuthTokens[0]],
+      }),
+    ],
+  ])(
+    'should throw InsufficientAuthToken when %s',
+    (_caseName, buildValue) => {
+      expect(() => {
+        assertIsSeedlessOnboardingUserAuthenticated(buildValue());
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken);
+    },
+  );
+
+  it('should throw InvalidRefreshToken when refreshToken is missing', () => {
+    const invalidUser = createValidAuthenticatedUser();
+    delete (invalidUser as Record<string, unknown>).refreshToken;
+
+    expect(() => {
+      assertIsSeedlessOnboardingUserAuthenticated(invalidUser);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken);
+  });
+
+  it('should throw InvalidMetadataAccessToken when metadataAccessToken is invalid', () => {
+    expect(() => {
+      assertIsSeedlessOnboardingUserAuthenticated({
+        ...createValidAuthenticatedUser(),
+        metadataAccessToken: 123,
+      });
+    }).toThrow(
+      SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+    );
+  });
+
+  it('should not throw for a valid authenticated user', () => {
+    expect(() => {
+      assertIsSeedlessOnboardingUserAuthenticated(
+        createValidAuthenticatedUser(),
+      );
+    }).not.toThrow();
+  });
+});
+
 describe('assertIsValidVaultData', () => {
   /**
    * Helper function to create valid vault data for testing
@@ -54,6 +254,7 @@ describe('assertIsValidVaultData', () => {
     toprfAuthKeyPair: 'mock_auth_key_pair',
     accessToken: 'mock_access_token',
     revokeToken: 'mock_revoke_token',
+    profilePairingToken: 'mock_profile_pairing_token',
   });
 
   describe('should throw VaultDataError for invalid data', () => {
