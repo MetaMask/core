@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update default Sei Mainnet block explorer URL from `seitrace.com` to
-  `seiscan.io` (`BuiltInNetworkName.SeiMainnet`).
+- Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
 
 ## [11.20.0]
 
