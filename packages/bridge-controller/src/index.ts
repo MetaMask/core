@@ -9,6 +9,7 @@ export {
 } from './utils/metrics/constants';
 
 export type {
+  AccountHardwareType,
   RequiredEventContextFromClient,
   CrossChainSwapsEventProperties,
   TradeData,
@@ -20,6 +21,7 @@ export type {
 } from './utils/metrics/types';
 
 export {
+  getAccountHardwareType,
   formatProviderLabel,
   getRequestParams,
   getSwapType,

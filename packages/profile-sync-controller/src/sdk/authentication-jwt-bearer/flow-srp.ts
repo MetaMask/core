@@ -15,7 +15,9 @@ import {
   authorizeOIDC,
   getNonce,
   getUserProfileLineage,
+  pairProfiles,
 } from './services';
+import type { PairProfilesResponse } from './services';
 import type {
   AuthConfig,
   AuthSigningOptions,
@@ -26,6 +28,7 @@ import type {
   UserProfile,
   UserProfileLineage,
 } from './types';
+import { computeIdentifierId } from './utils/identifier';
 import * as timeUtils from './utils/time';
 
 type JwtBearerAuth_SRP_Options = {
@@ -150,6 +153,13 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    return await pairProfiles(accessTokens, authAccessToken, this.#config.env);
+  }
+
   async signMessage(
     message: string,
     entropySourceId?: string,
@@ -182,6 +192,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   ): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse(entropySourceId);
     if (!validateLoginResponse(auth)) {
+      return null;
+    }
+
+    // get canonical profile id from server if not present in the cached session
+    if (!auth.profile.canonicalProfileId) {
       return null;
     }
 
@@ -220,6 +235,37 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       this.#metametrics,
     );
 
+    // Resolve original profileId from aliases.
+    // This is done mainly to preserve the original profileId for storage key derivation
+    // until we migrate to the canonical profileId storage system.
+    const canonicalProfileId = authResponse.profile.profileId;
+    const profile = { ...authResponse.profile };
+
+    if (authResponse.profileAliases?.length > 0) {
+      const targetIdentifierId = computeIdentifierId(
+        publicKey,
+        this.#config.env,
+      );
+
+      const matchingAliases = authResponse.profileAliases.filter((alias) =>
+        alias.identifierIds.some((id) => id.id === targetIdentifierId),
+      );
+
+      // Prefer the leaf alias (single identifier) — it's the original profile
+      // created for this SRP. Multi-identifier aliases are former canonicals
+      // that absorbed other profiles; they are correct only when this SRP's
+      // original profile was itself a canonical before being absorbed.
+      const targetAlias =
+        matchingAliases.find((alias) => alias.identifierIds.length === 1) ??
+        matchingAliases[0];
+
+      if (targetAlias) {
+        profile.profileId = targetAlias.aliasProfileId;
+      }
+    }
+
+    profile.canonicalProfileId = canonicalProfileId;
+
     // Authorize
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
@@ -229,7 +275,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
     // Save
     const result: LoginResponse = {
-      profile: authResponse.profile,
+      profile,
       token: tokenResponse,
     };
 

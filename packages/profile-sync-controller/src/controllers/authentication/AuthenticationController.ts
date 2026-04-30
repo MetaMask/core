@@ -15,6 +15,7 @@ import type { Json } from '@metamask/utils';
 
 import type {
   LoginResponse,
+  ProfileAlias,
   SRPInterface,
   UserProfile,
   UserProfileLineage,
@@ -89,6 +90,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'performSignOut',
   'getBearerToken',
   'getSessionProfile',
+  'refreshCanonicalProfileId',
   'getUserProfileLineage',
   'isSignedIn',
 ] as const;
@@ -108,7 +110,20 @@ export type AuthenticationControllerStateChangeEvent =
     AuthenticationControllerState
   >;
 
-export type Events = AuthenticationControllerStateChangeEvent;
+export type ProfileSignInInfo = {
+  profileId: string;
+  profileAliases: ProfileAlias[];
+  profileIdChanged: boolean;
+};
+
+export type AuthenticationControllerProfileSignInEvent = {
+  type: `${typeof controllerName}:profileSignIn`;
+  payload: [ProfileSignInInfo];
+};
+
+export type Events =
+  | AuthenticationControllerStateChangeEvent
+  | AuthenticationControllerProfileSignInEvent;
 
 // Allowed Actions
 type AllowedActions =
@@ -286,7 +301,7 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('performSignIn');
 
     const allPublicKeys = await this.#snapGetAllPublicKeys();
-    const accessTokens = [];
+    const accessTokens: string[] = [];
 
     // We iterate sequentially in order to be sure that the first entry
     // is the primary SRP LoginResponse.
@@ -295,7 +310,80 @@ export class AuthenticationController extends BaseController<
       accessTokens.push(accessToken);
     }
 
+    // Pair SRP profiles (idempotent — no-op if already paired)
+    if (accessTokens.length >= 2) {
+      await this.#performPairing(accessTokens);
+    }
+
     return accessTokens;
+  }
+
+  async #performPairing(accessTokens: string[]): Promise<void> {
+    const previousCanonical = await this.#getCanonicalProfileId();
+
+    try {
+      const profileAliases = await this.#pairSrpProfiles(accessTokens);
+
+      const newCanonical = await this.#getCanonicalProfileId();
+      const profileIdChanged = previousCanonical !== newCanonical;
+      const shouldEmitProfileSignInEvent =
+        profileIdChanged || profileAliases.length > 0;
+
+      if (shouldEmitProfileSignInEvent && newCanonical) {
+        this.messenger.publish('AuthenticationController:profileSignIn', {
+          profileId: newCanonical,
+          profileAliases,
+          profileIdChanged,
+        });
+      }
+    } catch {
+      // Pairing failure is non-fatal — retry on next performSignIn
+    }
+  }
+
+  async #pairSrpProfiles(accessTokens: string[]): Promise<ProfileAlias[]> {
+    if (accessTokens.length < 2) {
+      return [];
+    }
+    const primaryAccessToken = accessTokens[0]; // Associated with primary SRP.
+    const {
+      profileAliases,
+      profile: { canonicalProfileId },
+    } = await this.#auth.pairSrpProfiles(accessTokens, primaryAccessToken);
+    this.#propagateCanonical(canonicalProfileId);
+    return profileAliases;
+  }
+
+  #propagateCanonical(canonicalProfileId: string): void {
+    const { srpSessionData } = this.state;
+    if (!srpSessionData) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const entry of Object.values(state.srpSessionData ?? {})) {
+        if (entry?.profile) {
+          entry.profile.canonicalProfileId = canonicalProfileId;
+        }
+      }
+    });
+  }
+
+  /**
+   * Returns the canonical profile id from the primary SRP's cached session.
+   * Returns `null` when no session exists yet for the primary SRP.
+   *
+   * Always reads from the primary SRP because the canonical is shared across
+   * all paired SRPs after `#propagateCanonical`.
+   *
+   * @returns The canonical profile id, or `null` if unavailable.
+   */
+  async #getCanonicalProfileId(): Promise<string | null> {
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    return (
+      this.state.srpSessionData?.[primaryEntropySourceId]?.profile
+        ?.canonicalProfileId ?? null
+    );
   }
 
   public performSignOut(): void {
@@ -307,12 +395,16 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Will return a bearer token.
-   * Logs a user in if a user is not logged in.
+   * Returns a bearer token for the specified SRP, logging in if needed.
    *
-   * @returns profile for the session.
+   * When called without `entropySourceId`, returns the primary (first) SRP's
+   * access token, which is effectively the canonical
+   * profile's token that can be used by alias-aware consumers for cross-SRP
+   * operations.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The OIDC access token.
    */
-
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
     const resolvedId =
@@ -321,8 +413,13 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Will return a session profile.
-   * Logs a user in if a user is not logged in.
+   * Returns the cached session profile, logging in if no session exists.
+   *
+   * The returned `canonicalProfileId` reflects the value from the most recent
+   * login or pairing. In the rare event where a canonical changed because of
+   * a pairing that happened on another device, the cached value may be stale
+   * until the next login. For guaranteed freshness, call
+   * `refreshCanonicalProfileId()` before reading `canonicalProfileId`.
    *
    * @param entropySourceId - The entropy source ID used to derive the key,
    * when multiple sources are available (Multi-SRP).
@@ -335,6 +432,52 @@ export class AuthenticationController extends BaseController<
     const resolvedId =
       entropySourceId ?? (await this.#getPrimaryEntropySourceId());
     return await this.#auth.getUserProfile(resolvedId);
+  }
+
+  /**
+   * Forces a fresh retrieval of the canonical profile ID from the server
+   * and propagates it to all cached SRP sessions.
+   *
+   * This method invalidates the primary SRP's cached session and forces a
+   * re-login. Use it before operations that require a guaranteed-fresh
+   * canonical (e.g. storage key derivation for Accounts ADR 0005). For
+   * best-effort reads, use
+   * `getSessionProfile().canonicalProfileId` instead.
+   *
+   * Only the primary SRP is re-logged-in regardless of how many SRPs exist —
+   * the server returns the current canonical for the entire pairing group
+   * from any single SRP login.
+   *
+   * @returns The refreshed canonical profile ID.
+   */
+  public async refreshCanonicalProfileId(): Promise<string> {
+    this.#assertIsUnlocked('refreshCanonicalProfileId');
+
+    const primaryEntropySourceId = await this.#getPrimaryEntropySourceId();
+    this.#invalidateSrpSession(primaryEntropySourceId);
+    await this.#auth.getAccessToken(primaryEntropySourceId);
+
+    const canonical = await this.#getCanonicalProfileId();
+    if (!canonical) {
+      throw new Error(
+        'refreshCanonicalProfileId - Unable to resolve canonical profile ID',
+      );
+    }
+
+    this.#propagateCanonical(canonical);
+    return canonical;
+  }
+
+  #invalidateSrpSession(entropySourceId: string): void {
+    this.update((state) => {
+      const entry = state.srpSessionData?.[entropySourceId];
+      if (entry?.profile) {
+        // Setting canonicalProfileId to '' forces a re-fetch on the next
+        // #getAuthSession call. The falsy check (!auth.profile.canonicalProfileId)
+        // treats '' the same as undefined/null — all signal an invalid session.
+        entry.profile.canonicalProfileId = '';
+      }
+    });
   }
 
   public async getUserProfileLineage(

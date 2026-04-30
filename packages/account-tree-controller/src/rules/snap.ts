@@ -21,22 +21,6 @@ type SnapAccount<Account extends InternalAccount> = Account & {
   };
 };
 
-/**
- * Check if an account is a Snap account.
- *
- * @param account - The account to check.
- * @returns True if the account is a Snap account, false otherwise.
- */
-function isSnapAccount(
-  account: InternalAccount,
-): account is SnapAccount<InternalAccount> {
-  return (
-    account.metadata.keyring.type === (KeyringTypes.snap as string) &&
-    account.metadata.snap !== undefined &&
-    account.metadata.snap.enabled
-  );
-}
-
 export class SnapRule
   extends BaseRule
   implements Rule<AccountWalletType.Snap, AccountGroupType.SingleAccount>
@@ -50,7 +34,7 @@ export class SnapRule
   ):
     | RuleResult<AccountWalletType.Snap, AccountGroupType.SingleAccount>
     | undefined {
-    if (!isSnapAccount(account)) {
+    if (!this.#isSnapAccount(account)) {
       return undefined;
     }
 
@@ -100,5 +84,31 @@ export class SnapRule
     _wallet: AccountWalletObjectOf<AccountWalletType.Snap>,
   ): string {
     return getAccountGroupPrefixFromKeyringType(KeyringTypes.snap);
+  }
+
+  /**
+   * Check if an account is a Snap account.
+   *
+   * @param account - The account to check.
+   * @returns True if the account is a Snap account, false otherwise.
+   */
+  #isSnapAccount(
+    account: InternalAccount,
+  ): account is SnapAccount<InternalAccount> {
+    const snapId = account.metadata.snap?.id;
+    if (snapId === undefined) {
+      return false;
+    }
+
+    const snap = this.messenger.call('SnapController:getSnap', snapId);
+    if (snap === null) {
+      return false;
+    }
+
+    return (
+      account.metadata.keyring.type === (KeyringTypes.snap as string) &&
+      snap.enabled &&
+      !snap.blocked
+    );
   }
 }

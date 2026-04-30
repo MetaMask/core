@@ -55,7 +55,7 @@
     "@metamask/chain-agnostic-permission": "^1.5.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/json-rpc-engine": "^10.2.4",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/network-controller": "^30.1.0",
     "@metamask/permission-controller": "^12.3.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.9.0",
@@ -64,7 +64,7 @@
     "jsonschema": "^1.4.1"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
     "@metamask/multichain-transactions-controller": "^7.0.4",
     "@metamask/safe-event-emitter": "^3.0.0",

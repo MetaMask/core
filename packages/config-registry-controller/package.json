@@ -1,6 +1,6 @@
 {
   "name": "@metamask/config-registry-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Manages configuration registry for MetaMask",
   "keywords": [
     "Ethereum",
@@ -44,8 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/config-registry-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/config-registry-controller",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -56,8 +56,8 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/keyring-controller": "^25.2.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/keyring-controller": "^25.3.0",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/polling-controller": "^16.0.4",
     "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/remote-feature-flag-controller": "^4.2.0",
@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
-    "@metamask/auto-changelog": "^6.0.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

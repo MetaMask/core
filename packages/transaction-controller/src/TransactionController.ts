@@ -31,7 +31,10 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignEip7702AuthorizationAction,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTracker,
@@ -149,6 +152,7 @@ import {
   getTransactionHistoryLimit,
 } from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
+import type { EstimateGasBatchResult } from './utils/gas';
 import {
   addGasBuffer,
   estimateGas,
@@ -491,6 +495,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | ApprovalControllerAddRequestAction
+  | KeyringControllerGetStateAction
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -758,6 +763,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateEditableParams',
   'updateIncomingTransactions',
   'updateTransaction',
+  'wipeTransactions',
 ] as const;
 
 /**
@@ -1717,7 +1723,7 @@ export class TransactionController extends BaseController<
     chainId: Hex;
     from: Hex;
     transactions: BatchTransactionParams[];
-  }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+  }): Promise<EstimateGasBatchResult> {
     return estimateGasBatch({
       from,
       getSimulationConfig: this.#getSimulationConfig,
@@ -2220,6 +2226,15 @@ export class TransactionController extends BaseController<
 
     if (containerTypes) {
       updatedTransaction.containerTypes = containerTypes;
+
+      const isNewlyWrapped =
+        containerTypes.length && !transactionMeta.containerTypes?.length;
+
+      if (isNewlyWrapped && !transactionMeta.txParamsOriginal) {
+        updatedTransaction.txParamsOriginal = cloneDeep(
+          transactionMeta.txParams,
+        );
+      }
     }
 
     await updateTransactionLayer1GasFee({

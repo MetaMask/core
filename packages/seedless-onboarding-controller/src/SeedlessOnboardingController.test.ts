@@ -17,6 +17,10 @@ import {
   encryptWithKey as encryptWithKeyBrowserPassworder,
 } from '@metamask/browser-passworder';
 import {
+  DefaultEncryptionResult,
+  Encryptor,
+} from '@metamask/keyring-controller';
+import {
   EncAccountDataType,
   TOPRFError,
   TOPRFErrorCode,
@@ -69,18 +73,15 @@ import {
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
+import {
+  SeedlessOnboardingController,
+  getInitialSeedlessOnboardingControllerStateWithDefaults,
+} from './SeedlessOnboardingController';
 import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController';
-import {
-  getInitialSeedlessOnboardingControllerStateWithDefaults,
-  SeedlessOnboardingController,
-} from './SeedlessOnboardingController';
-import type {
-  SeedlessOnboardingControllerState,
-  VaultEncryptor,
-} from './types';
+import type { SeedlessOnboardingControllerState } from './types';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -132,9 +133,14 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }: {
     controller: SeedlessOnboardingController<
       EKey,
-      SupportedKeyDerivationOptions
+      SupportedKeyDerivationOptions,
+      DefaultEncryptionResult<SupportedKeyDerivationOptions>
     >;
-    encryptor: VaultEncryptor<EKey, SupportedKeyDerivationOptions>;
+    encryptor: Encryptor<
+      EKey,
+      SupportedKeyDerivationOptions,
+      DefaultEncryptionResult<SupportedKeyDerivationOptions>
+    >;
     initialState: SeedlessOnboardingControllerState;
     messenger: SeedlessOnboardingControllerMessenger;
     baseMessenger: RootMessenger;
@@ -146,7 +152,11 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
   }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions<EKey, SupportedKeyDerivationParams> = Partial<
-  SeedlessOnboardingControllerOptions<EKey, SupportedKeyDerivationParams>
+  SeedlessOnboardingControllerOptions<
+    EKey,
+    SupportedKeyDerivationParams,
+    DefaultEncryptionResult<SupportedKeyDerivationParams>
+  >
 >;
 
 type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
@@ -163,9 +173,10 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
  *
  * @returns The default vault encryptor for the Seedless Onboarding Controller.
  */
-function getDefaultSeedlessOnboardingVaultEncryptor(): VaultEncryptor<
+function getDefaultSeedlessOnboardingVaultEncryptor(): Encryptor<
   EncryptionKey | webcrypto.CryptoKey,
-  KeyDerivationOptions
+  KeyDerivationOptions,
+  DefaultEncryptionResult<KeyDerivationOptions>
 > {
   return {
     encrypt,
