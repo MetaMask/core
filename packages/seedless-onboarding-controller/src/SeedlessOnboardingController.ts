@@ -41,6 +41,7 @@ import {
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
+  assertIsValidTokenMintResult,
   assertIsValidVaultData,
 } from './assertions';
 import type { AuthConnection } from './constants';
@@ -70,7 +71,7 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
-  ToprfKeyDeriver,
+  SeedlessOnboardingControllerOptions,
 } from './types';
 import {
   compareAndGetLatestToken,
@@ -141,80 +142,6 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
   SeedlessOnboardingControllerActions | AllowedActions,
   SeedlessOnboardingControllerEvents | AllowedEvents
 >;
-
-/**
- * Seedless Onboarding Controller Options.
- *
- * @param messenger - The messenger to use for this controller.
- * @param state - The initial state to set on this controller.
- * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
- */
-export type SeedlessOnboardingControllerOptions<
-  EncryptionKey = encryptionUtils.EncryptionKey,
-  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
-  EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationParams> =
-    DefaultEncryptionResult<SupportedKeyDerivationParams>,
-> = {
-  messenger: SeedlessOnboardingControllerMessenger;
-
-  /**
-   * Initial state to set on this controller.
-   */
-  state?: Partial<SeedlessOnboardingControllerState>;
-
-  /**
-   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  encryptor: Encryptor<
-    EncryptionKey,
-    SupportedKeyDerivationParams,
-    EncryptionResult
-  >;
-
-  /**
-   * A function to get a new jwt token using refresh token.
-   */
-  refreshJWTToken: RefreshJWTToken;
-
-  /**
-   * A function to revoke the refresh token.
-   */
-  revokeRefreshToken: RevokeRefreshToken;
-
-  /**
-   * A function to renew the refresh token and get new revoke token.
-   */
-  renewRefreshToken: RenewRefreshToken;
-
-  /**
-   * Optional key derivation interface for the TOPRF client.
-   *
-   * If provided, it will be used as an additional step during
-   * key derivation. This can be used, for example, to inject a slow key
-   * derivation step to protect against local brute force attacks on the
-   * password.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  toprfKeyDeriver?: ToprfKeyDeriver;
-
-  /**
-   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
-   *
-   * @default Web3AuthNetwork.Mainnet
-   */
-  network?: Web3AuthNetwork;
-
-  /**
-   * The TTL of the password outdated cache in milliseconds.
-   *
-   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
-   */
-  passwordOutdatedCacheTTL?: number;
-};
 
 /**
  * Get the initial state for the Seedless Onboarding Controller with defaults.
@@ -383,6 +310,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    profilePairingToken: {
+      includeInStateLogs: false,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
   };
 
 export class SeedlessOnboardingController<
@@ -414,6 +347,10 @@ export class SeedlessOnboardingController<
   #pendingRefreshPromise: Promise<void> | undefined;
 
   readonly toprfClient: ToprfSecureBackup;
+
+  readonly #fetch: typeof fetch;
+
+  readonly #authServiceBaseUrl: string;
 
   readonly #refreshJWTToken: RefreshJWTToken;
 
@@ -447,6 +384,8 @@ export class SeedlessOnboardingController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * @param options.fetchFunction - A function to make an HTTP request. e.g. Fetch API.
+   * @param options.authServiceBaseUrl - The base URL of the auth service, which is used to mint the profile pairing token.
    * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
@@ -463,6 +402,8 @@ export class SeedlessOnboardingController<
     refreshJWTToken,
     revokeRefreshToken,
     renewRefreshToken,
+    fetchFunction,
+    authServiceBaseUrl,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
@@ -486,6 +427,8 @@ export class SeedlessOnboardingController<
       keyDeriver: toprfKeyDeriver,
       fetchMetadataAccessCreds: this.fetchMetadataAccessCreds.bind(this),
     });
+    this.#fetch = fetchFunction;
+    this.#authServiceBaseUrl = authServiceBaseUrl;
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
@@ -533,6 +476,70 @@ export class SeedlessOnboardingController<
       await this.toprfClient.getNodeDetails();
     } catch {
       log('Failed to fetch node details');
+    }
+  }
+
+  /**
+   * Mint a profile pairing token for the user.
+   * This function is used to mint the token from the Social login (Telegram for now).
+   * The minting will return values ready for the Toprf authentication and authenticate the user.
+   *
+   * @param params - The parameters for minting the profile pairing token.
+   * @param params.profilePairingToken - The profile pairing token to be used for minting the profile pairing token.
+   * @param params.authConnection - The social login provider.
+   * @param params.authConnectionId - OAuth authConnectionId from dashboard
+   * @param params.userId - user email or id from Social login
+   * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
+   * @param params.socialLoginEmail - The user email from Social login.
+   * @returns A promise that resolves to the TOPRF Authentication result.
+   */
+  async mintProfilePairingTokenAndAuthenticate(params: {
+    profilePairingToken: string;
+    authConnection: AuthConnection;
+    authConnectionId: string;
+    userId: string;
+    groupedAuthConnectionId?: string;
+    socialLoginEmail?: string;
+  }): Promise<AuthenticateResult> {
+    try {
+      const authenticateResult = await this.#withControllerLock(async () => {
+        const { profilePairingToken, authConnection, authConnectionId, userId, groupedAuthConnectionId, socialLoginEmail } = params;
+
+        const response = await this.#fetch(`${this.#authServiceBaseUrl}/profile-pairing/mint`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id_token: profilePairingToken,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to mint profile pairing token');
+        }
+
+        const data = await response.json();
+        assertIsValidTokenMintResult(data);
+
+        return this.authenticate({
+          idTokens: data.idTokens,
+          accessToken: data.accessToken,
+          metadataAccessToken: data.metadataAccessToken,
+          authConnection,
+          authConnectionId,
+          userId,
+          groupedAuthConnectionId,
+          socialLoginEmail,
+          refreshToken: data.refreshToken,
+          revokeToken: data.revokeToken,
+          skipLock: true, // skip lock since we already have the lock
+        })
+      });
+      return authenticateResult;
+    } catch (error) {
+      log('Error minting profile pairing token', error);
+      throw error;
     }
   }
 

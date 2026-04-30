@@ -1,5 +1,32 @@
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
-import type { AuthenticatedUserDetails, VaultData } from './types';
+import type { AuthenticatedUserDetails, TokenMintResult, VaultData } from './types';
+import { hasProperty } from '@metamask/utils';
+
+export function assertIsValidTokenMintResult(value: unknown): asserts value is TokenMintResult {
+  if (!value || typeof value !== 'object') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  }
+
+  if (!hasProperty(value, 'idTokens') || !Array.isArray(value.idTokens)) {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  }
+
+  if (!hasProperty(value, 'accessToken') || typeof value.accessToken !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  }
+  
+  if (!hasProperty(value, 'metadataAccessToken') || typeof value.metadataAccessToken !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  }
+
+  if (!hasProperty(value, 'revokeToken') || typeof value.revokeToken !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  }
+  
+  if (!hasProperty(value, 'refreshToken') || typeof value.refreshToken !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
+  }
+}
 
 /**
  * Assert that the provided password is a valid non-empty string.
@@ -33,9 +60,9 @@ export function assertIsSeedlessOnboardingUserAuthenticated(
   if (
     !value ||
     typeof value !== 'object' ||
-    !('authConnectionId' in value) ||
+    !hasProperty(value, 'authConnectionId') ||
     typeof value.authConnectionId !== 'string' ||
-    !('userId' in value) ||
+    !hasProperty(value, 'userId') ||
     typeof value.userId !== 'string'
   ) {
     throw new Error(
@@ -44,7 +71,7 @@ export function assertIsSeedlessOnboardingUserAuthenticated(
   }
 
   if (
-    !('nodeAuthTokens' in value) ||
+    !hasProperty(value, 'nodeAuthTokens') ||
     typeof value.nodeAuthTokens !== 'object' ||
     !Array.isArray(value.nodeAuthTokens) ||
     value.nodeAuthTokens.length < 3 // At least 3 auth tokens are required for Threshold OPRF service
@@ -54,13 +81,16 @@ export function assertIsSeedlessOnboardingUserAuthenticated(
     );
   }
 
-  if (!('refreshToken' in value) || typeof value.refreshToken !== 'string') {
+  if (
+    !hasProperty(value, 'refreshToken') ||
+    typeof value.refreshToken !== 'string'
+  ) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
     );
   }
   if (
-    !('metadataAccessToken' in value) ||
+    !hasProperty(value, 'metadataAccessToken') ||
     typeof value.metadataAccessToken !== 'string'
   ) {
     throw new Error(
@@ -104,23 +134,23 @@ export function assertIsValidVaultData(
   if (
     !value || // value is not defined
     typeof value !== 'object' || // value is not an object
-    !('toprfEncryptionKey' in value) || // toprfEncryptionKey is not defined
+    !hasProperty(value, 'toprfEncryptionKey') || // toprfEncryptionKey is not defined
     typeof value.toprfEncryptionKey !== 'string' || // toprfEncryptionKey is not a string
-    !('toprfPwEncryptionKey' in value) || // toprfPwEncryptionKey is not defined
+    !hasProperty(value, 'toprfPwEncryptionKey') || // toprfPwEncryptionKey is not defined
     typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
-    !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
+    !hasProperty(value, 'toprfAuthKeyPair') || // toprfAuthKeyPair is not defined
     typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
   ) {
     throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
   }
 
-  if (!('revokeToken' in value) || typeof value.revokeToken !== 'string') {
+  if (!hasProperty(value, 'revokeToken') || typeof value.revokeToken !== 'string') {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
     );
   }
 
-  if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
+  if (!hasProperty(value, 'accessToken') || typeof value.accessToken !== 'string') {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
     );

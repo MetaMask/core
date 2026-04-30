@@ -62,4 +62,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
+  InvalidTokenMintResult = `${controllerName} - Invalid token mint result.`,
 }
