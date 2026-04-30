@@ -5,9 +5,13 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
+import type {
+  Keyring as KeyringV2,
+  KeyringCapabilities,
+} from '@metamask/keyring-api/v2';
 import type {
   KeyringMetadata,
+  KeyringSelector,
   KeyringSelectorV2,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -155,8 +159,56 @@ export abstract class BaseBip44AccountProvider<
     ) as unknown as Account;
   }
 
+  /**
+   * Run an operation against a V1 keyring selected by `selector`.
+   *
+   * Forwards to `KeyringController:withKeyring`. Use this for keyrings that
+   * have not yet migrated to the unified V2 `Keyring` interface (e.g. the
+   * snap keyring).
+   *
+   * @param selector - The selector identifying the keyring.
+   * @param operation - The operation to run with the selected keyring.
+   * @returns The result of the operation.
+   */
   protected async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelectorV2,
+    selector: KeyringSelector,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    const result = await this.messenger.call(
+      'KeyringController:withKeyring',
+      selector,
+      ({ keyring, metadata }) =>
+        operation({
+          keyring: keyring as SelectedKeyring,
+          metadata,
+        }),
+    );
+
+    return result as CallbackResult;
+  }
+
+  /**
+   * Run an operation against a V2 keyring selected by `selector`.
+   *
+   * Forwards to `KeyringController:withKeyringV2`. Use this for keyrings
+   * that implement the unified V2 `Keyring` interface from
+   * `@metamask/keyring-api/v2`.
+   *
+   * @param selector - The selector identifying the keyring.
+   * @param operation - The operation to run with the selected keyring.
+   * @returns The result of the operation.
+   */
+  protected async withKeyringV2<
+    SelectedKeyring extends KeyringV2 = KeyringV2,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelectorV2<SelectedKeyring>,
     operation: ({
       keyring,
       metadata,

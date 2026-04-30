@@ -155,7 +155,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     groupIndex: number;
     throwOnGap: boolean;
   }): Promise<[string, boolean]> {
-    const result = await this.withKeyring<Keyring, [string, boolean]>(
+    const result = await this.withKeyringV2<Keyring, [string, boolean]>(
       { id: entropySource },
       async ({ keyring }) => {
         const existing = await keyring.getAccounts();
@@ -200,7 +200,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       const { range } = options;
 
       // Use a single withKeyring call for the entire range.
-      const accountIds = await this.withKeyring<Keyring, AccountId[]>(
+      const accountIds = await this.withKeyringV2<Keyring, AccountId[]>(
         { id: entropySource },
         async ({ keyring }) => {
           const existing = await keyring.getAccounts();
@@ -368,7 +368,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         // not. The AccountsController lookup happens AFTER the callback
         // completes, because newly created accounts are only visible to the
         // AccountsController after withKeyringV2 persists and fires stateChange.
-        const discoveredAddress = await this.withKeyring<
+        const discoveredAddress = await this.withKeyringV2<
           Keyring,
           string | null
         >({ id: entropySource }, async ({ keyring }) => {
