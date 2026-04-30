@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Stop synthesising a native gas-fee required token in `parseRequiredTokens`, only token-transfer assets are returned now ([#8554](https://github.com/MetaMask/core/pull/8554))
+- Add layered submission error prefixes for failure-surface attribution in error metrics ([#8656](https://github.com/MetaMask/core/pull/8656))
+  - `MetaMask Pay:` wraps all errors from the Pay publish hook
+  - `Relay submit:` wraps all errors from the relay strategy
+  - `Relay execute:` cascades inside `Relay submit:` for `/execute` POST failures
+  - Relay non-OK responses now surface as `<status> - <body message or error>` (or just `<status>`), replacing the previous URL-leaking generic fetch failure message
 
 ## [20.1.0]
 

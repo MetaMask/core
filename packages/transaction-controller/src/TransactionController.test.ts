@@ -3924,7 +3924,9 @@ describe('TransactionController', () => {
 
       rpcRequestMock.mockRejectedValueOnce(error);
 
-      await expect(controller.stopTransaction('2')).rejects.toThrow(error);
+      await expect(controller.stopTransaction('2')).rejects.toThrow(
+        'RPC submit: Another reason',
+      );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
         ([request]) => request.method === 'eth_sendRawTransaction',
@@ -4276,13 +4278,48 @@ describe('TransactionController', () => {
 
       rpcRequestMock.mockRejectedValueOnce(error);
 
-      await expect(controller.speedUpTransaction('2')).rejects.toThrow(error);
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'RPC submit: Another reason',
+      );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
         ([request]) => request.method === 'eth_sendRawTransaction',
       );
       expect(sendRawTransactionCalls).toHaveLength(1);
       expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('extracts nested data.message and prefixes it with RPC submit', async () => {
+      const error = {
+        message: 'Outer message',
+        data: { message: 'Nested rpc error message' },
+      };
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.retry,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      rpcRequestMock.mockRejectedValueOnce(error);
+
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'RPC submit: Nested rpc error message',
+      );
     });
 
     it('creates additional transaction with increased gas', async () => {

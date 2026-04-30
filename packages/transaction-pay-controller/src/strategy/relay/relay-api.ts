@@ -1,5 +1,3 @@
-import { successfulFetch } from '@metamask/controller-utils';
-
 import type { TransactionPayControllerMessenger } from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
 import { RELAY_STATUS_URL } from './constants';
@@ -26,7 +24,7 @@ export async function fetchRelayQuote(
 ): Promise<RelayQuote> {
   const { relayQuoteUrl } = getFeatureFlags(messenger);
 
-  const response = await successfulFetch(relayQuoteUrl, {
+  const response = await relayFetch(relayQuoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -52,7 +50,7 @@ export async function submitRelayExecute(
 ): Promise<RelayExecuteResponse> {
   const { relayExecuteUrl } = getFeatureFlags(messenger);
 
-  const response = await successfulFetch(relayExecuteUrl, {
+  const response = await relayFetch(relayExecuteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -72,7 +70,39 @@ export async function getRelayStatus(
 ): Promise<RelayStatusResponse> {
   const url = `${RELAY_STATUS_URL}?requestId=${requestId}`;
 
-  const response = await successfulFetch(url, { method: 'GET' });
+  const response = await relayFetch(url, { method: 'GET' });
 
   return (await response.json()) as RelayStatusResponse;
+}
+
+/**
+ * Fetch a Relay endpoint, throwing an error containing the response body's
+ * `message` or `error` field (or status code) on non-OK responses, so the
+ * Relay server's actual reason is preserved without leaking the request URL
+ * via the default `successfulFetch` message.
+ *
+ * @param url - The Relay endpoint to fetch.
+ * @param init - Fetch init options.
+ * @returns The successful response.
+ */
+async function relayFetch(url: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(url, init);
+
+  if (!response.ok) {
+    let detail: string | undefined;
+    try {
+      const body = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+      detail = body.message ?? body.error;
+    } catch {
+      // Body wasn't JSON; fall through to status-only error.
+    }
+    throw new Error(
+      detail ? `${response.status} - ${detail}` : String(response.status),
+    );
+  }
+
+  return response;
 }

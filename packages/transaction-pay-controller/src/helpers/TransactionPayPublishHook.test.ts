@@ -190,9 +190,25 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
-  it('throws errors from submit', async () => {
+  it('throws errors from submit prefixed with MetaMask Pay', async () => {
     executeMock.mockRejectedValue(new Error('Test error'));
 
-    await expect(runHook()).rejects.toThrow('Test error');
+    await expect(runHook()).rejects.toThrow('MetaMask Pay: Test error');
+  });
+
+  it('cascades MetaMask Pay prefix on top of strategy-level prefixes', async () => {
+    executeMock.mockRejectedValue(
+      new Error('Relay submit: Relay execute: backend boom'),
+    );
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Relay submit: Relay execute: backend boom',
+    );
+  });
+
+  it('wraps non-Error throws with the MetaMask Pay prefix', async () => {
+    executeMock.mockRejectedValue('boom');
+
+    await expect(runHook()).rejects.toThrow('MetaMask Pay: boom');
   });
 });
