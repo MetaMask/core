@@ -353,7 +353,9 @@ export type QuoteStatusUpdateResponse =
   | {
       statusCode: number;
       message: string;
-      type: QuoteStatusUpdateErrorType.InvalidStatusTransaction | QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch;
+      type:
+        | QuoteStatusUpdateErrorType.InvalidStatusTransaction
+        | QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch;
       currentStatus: QuoteStatusUpdateStatus;
       newStatus: QuoteStatusUpdateStatus;
     }

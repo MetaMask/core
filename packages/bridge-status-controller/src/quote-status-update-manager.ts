@@ -393,7 +393,10 @@ export class QuoteStatusUpdateManager {
   ): Promise<void> {
     const { type } = response;
 
-    if (type === QuoteStatusUpdateErrorType.InvalidStatusTransaction || type === QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch) {
+    if (
+      type === QuoteStatusUpdateErrorType.InvalidStatusTransaction ||
+      type === QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch
+    ) {
       const finalizationStatus = response.currentStatus;
       entry.pendingStatuses = [finalizationStatus];
       this.#persistToState();
