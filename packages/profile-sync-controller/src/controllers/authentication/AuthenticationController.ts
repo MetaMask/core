@@ -394,10 +394,7 @@ export class AuthenticationController extends BaseController<
    * Used to skip the gate clear if `requestProfilePairing` ran while the
    * pair API call was in-flight.
    */
-  async #doPair(
-    accessTokens: string[],
-    epochAtStart: number,
-  ): Promise<void> {
+  async #doPair(accessTokens: string[], epochAtStart: number): Promise<void> {
     const previousCanonical = await this.#getCanonicalProfileId();
 
     const profileAliases = await this.#pairSrpProfiles(accessTokens);
