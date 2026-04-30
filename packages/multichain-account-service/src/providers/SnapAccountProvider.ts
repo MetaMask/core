@@ -387,7 +387,12 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
         if (batched) {
           // Batch account creations.
+          console.log(`[DEBUGG] Batching account creations with options: ${JSON.stringify(options)} for provider: ${this.getName()}`);
+          const start = performance.now();
           snapAccounts = await createAccountsV2(options);
+          const end = performance.now();
+          console.log(`[DEBUGG] Time taken to create accounts: ${end - start}ms`);
+          console.log(`[DEBUGG] Result: ${snapAccounts.length} accounts created`);
         } else {
           const { range } = options;
 
@@ -439,6 +444,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
+    console.log(`[DEBUGG] Creating accounts with options: ${JSON.stringify(options)}`);
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
       `${AccountCreationType.Bip44DeriveIndexRange}`,
