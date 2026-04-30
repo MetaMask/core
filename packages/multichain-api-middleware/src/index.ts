@@ -1,4 +1,5 @@
 export { methodHandlers } from './handlers';
+export type { MethodHandlerHooks } from './handlers';
 
 export { multichainMethodCallValidatorMiddleware } from './middlewares/multichainMethodCallValidatorMiddleware';
 export { MultichainMiddlewareManager } from './middlewares/MultichainMiddlewareManager';

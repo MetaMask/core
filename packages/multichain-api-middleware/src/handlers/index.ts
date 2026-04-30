@@ -1,7 +1,20 @@
+import type { UnionToIntersection } from '@metamask/json-rpc-engine/v2';
+
+import type { WalletCreateSessionHooks } from './wallet-createSession';
 import { walletCreateSessionHandler } from './wallet-createSession';
+import type { WalletGetSessionHooks } from './wallet-getSession';
 import { walletGetSessionHandler } from './wallet-getSession';
+import type { WalletInvokeMethodHooks } from './wallet-invokeMethod';
 import { walletInvokeMethodHandler } from './wallet-invokeMethod';
+import type { WalletRevokeSessionHooks } from './wallet-revokeSession';
 import { walletRevokeSessionHandler } from './wallet-revokeSession';
+
+export type MethodHandlerHooks = UnionToIntersection<
+  | WalletCreateSessionHooks
+  | WalletGetSessionHooks
+  | WalletInvokeMethodHooks
+  | WalletRevokeSessionHooks
+>;
 
 const MethodNames = {
   WalletCreateSession: 'wallet_createSession',

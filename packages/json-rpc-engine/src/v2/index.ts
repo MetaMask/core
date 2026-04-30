@@ -30,4 +30,5 @@ export type {
   JsonRpcNotification,
   JsonRpcParams,
   JsonRpcRequest,
+  UnionToIntersection,
 } from './utils';
