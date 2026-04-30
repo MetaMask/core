@@ -13,6 +13,7 @@ export enum Web3AuthNetwork {
 export enum AuthConnection {
   Google = 'google',
   Apple = 'apple',
+  Telegram = 'telegram',
 }
 
 export enum SecretType {
@@ -36,6 +37,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidRevokeToken = `${controllerName} - Invalid revoke token`,
   InvalidAccessToken = `${controllerName} - Invalid access token`,
   InvalidMetadataAccessToken = `${controllerName} - Invalid metadata access token`,
+  InvalidProfilePairingToken = `${controllerName} - Invalid profile pairing token`,
   MissingCredentials = `${controllerName} - Cannot unlock vault without password and encryption key`,
   ExpiredCredentials = `${controllerName} - Encryption key and salt provided are expired`,
   InvalidEmptyPassword = `${controllerName} - Password cannot be empty.`,
@@ -64,4 +66,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
   FailedToMintProfilePairingToken = `${controllerName} - Failed to mint profile pairing token`,
   InvalidTokenMintResult = `${controllerName} - Invalid token mint result.`,
+  FailedToPairSocialLoginWithIdentityProfileService = `${controllerName} - Failed to pair social login with identity profile service`,
 }

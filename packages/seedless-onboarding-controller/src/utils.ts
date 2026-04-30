@@ -64,6 +64,7 @@ export function serializeVaultData(data: DeserializedVaultData): string {
     toprfAuthKeyPair,
     revokeToken: data.revokeToken,
     accessToken: data.accessToken,
+    profilePairingToken: data.profilePairingToken,
   });
 }
 

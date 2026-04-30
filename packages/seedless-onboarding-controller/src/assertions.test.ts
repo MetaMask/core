@@ -338,6 +338,17 @@ describe('assertIsValidVaultData', () => {
         assertIsValidVaultData(invalidData2);
       }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidAccessToken);
     });
+
+    it('should throw when profilePairingToken is present but not a string', () => {
+      expect(() => {
+        assertIsValidVaultData({
+          ...createValidVaultData(),
+          profilePairingToken: 123,
+        });
+      }).toThrow(
+        SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+      );
+    });
   });
 
   describe('should NOT throw for valid data', () => {
@@ -358,6 +369,15 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(validDataWithExtras);
+      }).not.toThrow();
+    });
+
+    it('should not throw when profilePairingToken is omitted', () => {
+      const validDataWithoutProfilePairingToken = createValidVaultData();
+      delete validDataWithoutProfilePairingToken.profilePairingToken;
+
+      expect(() => {
+        assertIsValidVaultData(validDataWithoutProfilePairingToken);
       }).not.toThrow();
     });
   });

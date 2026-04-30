@@ -155,4 +155,11 @@ export function assertIsValidVaultData(
       SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
     );
   }
+
+  // if profilePairingToken is provided, it must be a string
+  if (hasProperty(value, 'profilePairingToken') && typeof value.profilePairingToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+    );
+  }
 }

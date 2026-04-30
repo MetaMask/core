@@ -44,7 +44,7 @@ import {
   assertIsValidTokenMintResult,
   assertIsValidVaultData,
 } from './assertions';
-import type { AuthConnection } from './constants';
+import { AuthConnection } from './constants';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -350,7 +350,9 @@ export class SeedlessOnboardingController<
 
   readonly #fetch: typeof fetch;
 
-  readonly #authServiceBaseUrl: string;
+  readonly #idTokenMintEndpoint: string;
+
+  readonly #profilePairingEndpoint: string;
 
   readonly #refreshJWTToken: RefreshJWTToken;
 
@@ -385,7 +387,8 @@ export class SeedlessOnboardingController<
    * @param options.state - Initial state to set on this controller.
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
    * @param options.fetchFunction - A function to make an HTTP request. e.g. Fetch API.
-   * @param options.authServiceBaseUrl - The base URL of the auth service, which is used to mint the profile pairing token.
+   * @param options.idTokenMintEndpoint - The base URL of the auth service, which is used to mint the profile pairing token.
+   * @param options.profilePairingEndpoint - The base URL of the profile service, which is used to pair the user social profile with the profile sync auth service.
    * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
@@ -403,7 +406,8 @@ export class SeedlessOnboardingController<
     revokeRefreshToken,
     renewRefreshToken,
     fetchFunction,
-    authServiceBaseUrl,
+    idTokenMintEndpoint,
+    profilePairingEndpoint,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
@@ -428,7 +432,8 @@ export class SeedlessOnboardingController<
       fetchMetadataAccessCreds: this.fetchMetadataAccessCreds.bind(this),
     });
     this.#fetch = fetchFunction;
-    this.#authServiceBaseUrl = authServiceBaseUrl;
+    this.#idTokenMintEndpoint = idTokenMintEndpoint;
+    this.#profilePairingEndpoint = profilePairingEndpoint;
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
@@ -505,7 +510,7 @@ export class SeedlessOnboardingController<
       const authenticateResult = await this.#withControllerLock(async () => {
         const { profilePairingToken, authConnection, authConnectionId, userId, groupedAuthConnectionId, socialLoginEmail } = params;
 
-        const response = await this.#fetch(`${this.#authServiceBaseUrl}/profile-pairing/mint`, {
+        const response = await this.#fetch(this.#idTokenMintEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1154,6 +1159,46 @@ export class SeedlessOnboardingController<
 
       this.#cachedDecryptedVaultData = undefined;
       this.#isUnlocked = false;
+    });
+  }
+
+  /**
+   * Pair the user social profile with the profile sync auth service.
+   *
+   * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
+   * @returns A promise that resolves to the success of the operation.
+   */
+  async pairProfileServiceWithSocialLogin(profileSvcToken: string): Promise<void> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+      
+      const { profilePairingToken, authConnection } = this.state;
+      if (authConnection !== AuthConnection.Telegram) {
+        // we don't throw the error here, since we don't support profile pairing for other social logins yet
+        // technically, clients should not call this method for other social logins
+        log(`warning: skipping profile pairing for ${authConnection} social login`);
+        return;
+      }
+
+      if (!profilePairingToken) {
+        log('Error: profile pairing token is not available for Telegram social login');
+        throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken);
+      }
+
+      const response = await this.#fetch(this.#profilePairingEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${profileSvcToken}`,
+        },
+        body: JSON.stringify({
+          jwts: [profilePairingToken],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService);
+      }
     });
   }
 
@@ -1829,6 +1874,7 @@ export class SeedlessOnboardingController<
         state.vaultEncryptionSalt = vaultEncryptionSalt;
         state.revokeToken = vaultData.revokeToken;
         state.accessToken = vaultData.accessToken;
+        state.profilePairingToken = vaultData.profilePairingToken;
       });
 
       const deserializedVaultData = deserializeVaultData(vaultData);
@@ -2024,8 +2070,8 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    const { accessToken, revokeToken } =
-      await this.#getAccessTokenAndRevokeToken(password);
+    const { accessToken, revokeToken, profilePairingToken } =
+      await this.#getRevokeTokenAndProfilePairingTokens(password);
 
     const vaultData: DeserializedVaultData = {
       toprfAuthKeyPair: rawToprfAuthKeyPair,
@@ -2033,6 +2079,7 @@ export class SeedlessOnboardingController<
       toprfPwEncryptionKey: rawToprfPwEncryptionKey,
       revokeToken,
       accessToken,
+      profilePairingToken,
     };
 
     await this.#updateVault({
@@ -2155,19 +2202,20 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Get the access token and revoke token from the state or the vault.
+   * Get the revoke token and profile pairing tokens (accessToken and profilePairingToken) from the state or the vault.
    *
    * @param password - The password to decrypt the vault.
    * @returns The access token and revoke token.
    */
-  async #getAccessTokenAndRevokeToken(
+  async #getRevokeTokenAndProfilePairingTokens(
     password: string,
-  ): Promise<{ accessToken: string; revokeToken: string }> {
-    let { accessToken, revokeToken } = this.state;
+  ): Promise<{ revokeToken: string; accessToken: string; profilePairingToken?: string }> {
+    let { accessToken, revokeToken, profilePairingToken } = this.state;
+    const { authConnection } = this.state;
     // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
-    if (accessToken && revokeToken) {
-      return { accessToken, revokeToken };
+    if (accessToken && revokeToken && profilePairingToken) {
+      return { accessToken, profilePairingToken, revokeToken };
     }
 
     // if `password` is provided to decrypt the vault, decrypt the vault and get the access token and revoke token from the vault
@@ -2176,6 +2224,7 @@ export class SeedlessOnboardingController<
       const { vaultData } = await this.#decryptAndParseVaultData({ password });
       accessToken = accessToken ?? vaultData.accessToken;
       revokeToken = revokeToken ?? vaultData.revokeToken;
+      profilePairingToken = profilePairingToken ?? vaultData.profilePairingToken;
     }
 
     // we should always throw an error if the access token or revoke token is not available
@@ -2193,7 +2242,12 @@ export class SeedlessOnboardingController<
       );
     }
 
-    return { accessToken, revokeToken };
+    if (authConnection === AuthConnection.Telegram && !profilePairingToken) {
+      // for now, profilePairingToken is only available for Telegram social login
+      throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken);
+    }
+
+    return { accessToken, profilePairingToken, revokeToken };
   }
 
   /**

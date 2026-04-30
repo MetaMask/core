@@ -1,7 +1,7 @@
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType, Web3AuthNetwork } from './constants';
+import { AuthConnection, SecretType, Web3AuthNetwork } from './constants';
 import { DefaultEncryptionResult, EncryptionResultConstraint, Encryptor } from '@metamask/keyring-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
 import type { SeedlessOnboardingControllerMessenger } from './SeedlessOnboardingController';
@@ -304,7 +304,12 @@ export type SeedlessOnboardingControllerOptions<
   /**
    * The base URL of the auth service, which is used to mint the profile pairing token.
    */
-  authServiceBaseUrl: string;
+  idTokenMintEndpoint: string;
+
+  /**
+   * The base URL of the profile service, which is used to pair the user social profile with the profile sync auth service.
+   */
+  profilePairingEndpoint: string;
 
   /**
    * A function to get a new jwt token using refresh token.
@@ -394,12 +399,12 @@ export type VaultData = {
   /**
    * The profile pairing token used to pair the user social profile with the profile sync auth service later after the onboarding is complete.
    */
-  profilePairingToken: string;
+  profilePairingToken?: string;
 };
 
 export type DeserializedVaultData = Pick<
   VaultData,
-  'accessToken' | 'revokeToken'
+  'accessToken' | 'revokeToken' | 'profilePairingToken'
 > & {
   toprfEncryptionKey: Uint8Array;
   toprfPwEncryptionKey: Uint8Array;
