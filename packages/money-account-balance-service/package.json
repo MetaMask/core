@@ -55,8 +55,8 @@
   "dependencies": {
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-data-service": "^0.1.1",
-    "@metamask/controller-utils": "^11.20.0",
+    "@metamask/base-data-service": "^0.2.0",
+    "@metamask/controller-utils": "^11.21.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^30.1.0",

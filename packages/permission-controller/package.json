@@ -54,8 +54,8 @@
   },
   "dependencies": {
     "@metamask/approval-controller": "^9.0.1",
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^11.20.0",
+    "@metamask/base-controller": "^9.1.1",
+    "@metamask/controller-utils": "^11.21.0",
     "@metamask/json-rpc-engine": "^10.2.4",
     "@metamask/messenger": "^1.2.0",
     "@metamask/rpc-errors": "^7.0.2",

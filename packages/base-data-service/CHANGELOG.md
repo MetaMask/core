@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Uncategorized
 
 - chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
@@ -35,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.1...@metamask/base-data-service@0.2.0
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.0...@metamask/base-data-service@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/base-data-service@0.1.0

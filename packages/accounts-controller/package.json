@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-controller": "^9.1.1",
     "@metamask/eth-snap-keyring": "^22.0.0",
     "@metamask/keyring-api": "^23.0.1",
     "@metamask/keyring-controller": "^25.3.0",
@@ -72,7 +72,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/controller-utils": "^11.20.0",
+    "@metamask/controller-utils": "^11.21.0",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
