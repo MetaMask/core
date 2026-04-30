@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
+
 ## [11.20.0]
 
 ### Added
