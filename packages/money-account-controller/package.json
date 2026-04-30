@@ -55,8 +55,8 @@
   "dependencies": {
     "@metamask/accounts-controller": "^37.2.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/eth-money-keyring": "^2.0.3",
-    "@metamask/keyring-api": "^23.0.1",
+    "@metamask/eth-money-keyring": "^2.0.4",
+    "@metamask/keyring-api": "^23.1.0",
     "@metamask/keyring-controller": "^25.3.0",
     "@metamask/messenger": "^1.2.0",
     "async-mutex": "^0.5.0"

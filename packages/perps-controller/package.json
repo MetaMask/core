@@ -71,7 +71,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/geolocation-controller": "^0.1.2",
     "@metamask/keyring-controller": "^25.3.0",
-    "@metamask/keyring-internal-api": "^11.0.0",
+    "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/network-controller": "^30.1.0",
     "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/remote-feature-flag-controller": "^4.2.0",
