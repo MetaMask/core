@@ -1,5 +1,7 @@
+import { publicToAddress } from '@ethereumjs/util';
 import { isBip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+import { HdKeyring as LegacyHdKeyring } from '@metamask/eth-hd-keyring';
 import { AccountCreationType, EthScope } from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type { Keyring } from '@metamask/keyring-api/v2';
@@ -10,6 +12,7 @@ import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
+import { add0x, bytesToHex } from '@metamask/utils';
 
 import { TraceName } from '../analytics/traces';
 import {
@@ -30,6 +33,44 @@ import {
   EvmAccountProviderConfig,
 } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
+
+// Real HD root rooted at a valid BIP-39 test mnemonic so the address peeked via
+// `keyring.root.deriveChild(groupIndex)` matches the address that the mock's
+// `createAccounts` later returns at the same index.
+const TEST_MNEMONIC =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+let mockHdRoot: NonNullable<LegacyHdKeyring['root']>;
+
+/**
+ * Derives the EVM address for a given group index using the test mnemonic.
+ *
+ * @param groupIndex - The BIP-44 group index.
+ * @returns The lowercase hex address.
+ */
+function deriveAddressForIndex(groupIndex: number): string {
+  const child = mockHdRoot.deriveChild(groupIndex);
+  if (!child.publicKey) {
+    throw new Error('Expected derived public key to be set');
+  }
+  return add0x(
+    bytesToHex(publicToAddress(child.publicKey, true)).toLowerCase(),
+  );
+}
+
+/**
+ * Builds an HD account fixture whose address matches what
+ * `mockHdRoot.deriveChild(groupIndex)` would derive.
+ *
+ * @param groupIndex - The BIP-44 group index.
+ * @returns A Bip44 InternalAccount fixture for the index.
+ */
+function makeDerivedHdAccount(groupIndex: number): InternalAccount {
+  return MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+    .withUuid()
+    .withAddress(deriveAddressForIndex(groupIndex))
+    .withGroupIndex(groupIndex)
+    .get();
+}
 
 /**
  * Converts an InternalAccount to a minimal KeyringAccount shape
@@ -70,6 +111,16 @@ class MockHdKeyringV2 implements Keyring {
     this.accounts = accounts;
   }
 
+  /**
+   * The HD root that the EVM provider uses to peek the next address
+   * (via `root.deriveChild(groupIndex)`) without persisting an account.
+   *
+   * @returns The HD root derived from the test mnemonic.
+   */
+  get root(): NonNullable<LegacyHdKeyring['root']> {
+    return mockHdRoot;
+  }
+
   getAccounts = jest
     .fn()
     .mockImplementation(() => this.accounts.map(toKeyringAccount));
@@ -88,11 +139,8 @@ class MockHdKeyringV2 implements Keyring {
       const newAccounts: InternalAccount[] = [];
 
       if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
-        const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-          .withUuid()
-          .withAddressSuffix(`${this.accounts.length}`)
-          .withGroupIndex(this.accounts.length)
-          .get();
+        const groupIndex = this.accounts.length;
+        const account = makeDerivedHdAccount(groupIndex);
         this.accounts.push(account);
         newAccounts.push(account);
       }
@@ -232,6 +280,15 @@ function setup({
 }
 
 describe('EvmAccountProvider', () => {
+  beforeAll(async () => {
+    const legacy = new LegacyHdKeyring();
+    await legacy.deserialize({ mnemonic: TEST_MNEMONIC });
+    if (!legacy.root) {
+      throw new Error('Failed to initialize test HD root');
+    }
+    mockHdRoot = legacy.root;
+  });
+
   it('getName returns EVM', () => {
     const { provider } = setup({ accounts: [] });
     expect(provider.getName()).toBe(EVM_ACCOUNT_PROVIDER_NAME);
@@ -504,12 +561,8 @@ describe('EvmAccountProvider', () => {
       accounts: [],
     });
 
-    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withAddressSuffix('0')
-      .get();
-
     const expectedAccount = {
-      ...account,
+      ...makeDerivedHdAccount(0),
       id: expect.any(String),
     };
 
@@ -545,7 +598,7 @@ describe('EvmAccountProvider', () => {
     );
   });
 
-  it('stops discovery if there is no transaction activity and deletes the created account', async () => {
+  it('stops discovery if there is no transaction activity', async () => {
     const { provider, keyring } = setup({
       accounts: [],
       discovery: {
@@ -561,9 +614,10 @@ describe('EvmAccountProvider', () => {
     ).toStrictEqual([]);
 
     expect(provider.getAccounts()).toStrictEqual([]);
-    // The account was created to peek at the address, then deleted
-    // because there was no on-chain activity.
-    expect(keyring.deleteAccount).toHaveBeenCalledTimes(1);
+    // Address is peeked via `keyring.root.deriveChild`, so no account
+    // is created (or deleted) when there is no on-chain activity.
+    expect(keyring.createAccounts).not.toHaveBeenCalled();
+    expect(keyring.deleteAccount).not.toHaveBeenCalled();
   });
 
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
@@ -640,12 +694,8 @@ describe('EvmAccountProvider', () => {
       accounts: [],
     });
 
-    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withAddressSuffix('0')
-      .get();
-
     const expectedAccount = {
-      ...account,
+      ...makeDerivedHdAccount(0),
       id: expect.any(String),
     };
 
@@ -676,12 +726,8 @@ describe('EvmAccountProvider', () => {
       accounts: [],
     });
 
-    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withAddressSuffix('0')
-      .get();
-
     const expectedAccount = {
-      ...account,
+      ...makeDerivedHdAccount(0),
       id: expect.any(String),
     };
 
