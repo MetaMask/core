@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add third generic type parameter `EncryptionResult` to `SeedlessOnboardingController` and `SeedlessOnboardingControllerOptions`, constrained by `EncryptionResultConstraint` and defaulting to `DefaultEncryptionResult`, so the vault `encryptor` matches the full `Encryptor` typing from `@metamask/keyring-controller` ([#8411](https://github.com/MetaMask/core/pull/8411))
+- Add Telegram profile-pairing support with `mintProfilePairingTokenAndAuthenticate` and `pairProfileServiceWithSocialLogin`, including `AuthConnection.Telegram`, new token/error types, and encrypted-vault storage for `profilePairingToken` ([#8652](https://github.com/MetaMask/core/pull/8652))
 
 ### Changed
 
@@ -35,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `version` getter from `SecretMetadata`; use `storageVersion` instead ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 - **BREAKING:** Remove `VaultEncryptor` type alias; use `Encryptor` from `@metamask/keyring-controller` with encryption key, key derivation params, and encryption result types ([#8411](https://github.com/MetaMask/core/pull/8411))
+- **BREAKING:** Constructor now require `fetchFunction`, `idTokenMintEndpoint`, and `profilePairingEndpoint` in `SeedlessOnboardingControllerOptions` so the controller can mint Telegram login tokens and pair social logins with the profile sync service ([#8652](https://github.com/MetaMask/core/pull/8652))
+  - Consumers constructing `SeedlessOnboardingController` must now provide the HTTP transport plus both endpoint URLs
 
 ### Fixed
 
