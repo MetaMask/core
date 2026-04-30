@@ -601,11 +601,14 @@ export class GatorPermissionsController extends BaseController<
         permissionRules,
       });
 
-      const { rule: { permissionType }, expiry, data } =
-        selectUniqueRuleAndDecodedPermission({
-          candidateRules: matchingRules,
-          caveats,
-        });
+      const {
+        rule: { permissionType },
+        expiry,
+        data,
+      } = selectUniqueRuleAndDecodedPermission({
+        candidateRules: matchingRules,
+        caveats,
+      });
 
       const permission = reconstructDecodedPermission({
         chainId,

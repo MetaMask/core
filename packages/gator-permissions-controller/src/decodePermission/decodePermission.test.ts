@@ -80,7 +80,9 @@ describe('decodePermission', () => {
       });
 
       expect(rules).toHaveLength(3);
-      expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+      expect(
+        rules.map((matchingRule) => matchingRule.permissionType).sort(),
+      ).toStrictEqual(
         [
           'native-token-periodic',
           'native-token-stream',
@@ -221,7 +223,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
           [expectedPermissionType, 'native-token-allowance'].sort(),
         );
       });
@@ -237,7 +241,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
           [expectedPermissionType, 'native-token-allowance'].sort(),
         );
       });
@@ -278,7 +284,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
           [expectedPermissionType, 'native-token-allowance'].sort(),
         );
       });
@@ -407,7 +415,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
           [expectedPermissionType, 'erc20-token-allowance'].sort(),
         );
       });
@@ -423,7 +433,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
           [expectedPermissionType, 'erc20-token-allowance'].sort(),
         );
       });
@@ -464,7 +476,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType).sort()).toStrictEqual(
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
           [expectedPermissionType, 'erc20-token-allowance'].sort(),
         );
       });
@@ -770,7 +784,11 @@ describe('decodePermission', () => {
         {
           ...dummyRuleFields,
           permissionType: 'native-token-stream',
-          validateAndDecodePermission: () => ({ isValid: true, expiry: 9, data }),
+          validateAndDecodePermission: () => ({
+            isValid: true,
+            expiry: 9,
+            data,
+          }),
         },
         {
           ...dummyRuleFields,
@@ -834,12 +852,20 @@ describe('decodePermission', () => {
         {
           ...dummyRuleFields,
           permissionType: 'native-token-stream',
-          validateAndDecodePermission: () => ({ isValid: true, expiry: 1, data }),
+          validateAndDecodePermission: () => ({
+            isValid: true,
+            expiry: 1,
+            data,
+          }),
         },
         {
           ...dummyRuleFields,
           permissionType: 'native-token-periodic',
-          validateAndDecodePermission: () => ({ isValid: true, expiry: 1, data }),
+          validateAndDecodePermission: () => ({
+            isValid: true,
+            expiry: 1,
+            data,
+          }),
         },
       ];
 

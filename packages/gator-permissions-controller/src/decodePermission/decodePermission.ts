@@ -68,14 +68,17 @@ export const findRuleWithMatchingCaveatAddresses = ({
   return matchingRules[0];
 };
 
-type SuccessfulValidateAndDecodeResult = Extract<ValidateAndDecodeResult, { isValid: true }>;
+type SuccessfulValidateAndDecodeResult = Extract<
+  ValidateAndDecodeResult,
+  { isValid: true }
+>;
 
 type RuleAndDecodedPermission = {
   rule: PermissionRule;
-  rules: SuccessfulValidateAndDecodeResult['rules']; 
-  data: SuccessfulValidateAndDecodeResult['data']
+  rules: SuccessfulValidateAndDecodeResult['rules'];
+  data: SuccessfulValidateAndDecodeResult['data'];
   expiry: SuccessfulValidateAndDecodeResult['expiry'];
-}
+};
 
 /**
  * Runs {@link PermissionRule.validateAndDecodePermission} on each candidate
@@ -99,13 +102,18 @@ export const selectUniqueRuleAndDecodedPermission = ({
   }
 
   const successfulDecodingResult: RuleAndDecodedPermission[] = [];
-  
+
   const failedAttempts: { permissionType: PermissionType; error: Error }[] = [];
-  
+
   for (const rule of candidateRules) {
     const decodeResult = rule.validateAndDecodePermission(caveats);
     if (decodeResult.isValid) {
-      successfulDecodingResult.push({ rule, rules: decodeResult.rules, data: decodeResult.data, expiry: decodeResult.expiry });
+      successfulDecodingResult.push({
+        rule,
+        rules: decodeResult.rules,
+        data: decodeResult.data,
+        expiry: decodeResult.expiry,
+      });
     } else {
       failedAttempts.push({
         permissionType: rule.permissionType,
@@ -119,7 +127,9 @@ export const selectUniqueRuleAndDecodedPermission = ({
   }
 
   if (successfulDecodingResult.length > 1) {
-    const types = successfulDecodingResult.map((result) => result.rule.permissionType).join(', ');
+    const types = successfulDecodingResult
+      .map((result) => result.rule.permissionType)
+      .join(', ');
     throw new Error(
       `Multiple permission types validate the same delegation caveats: ${types}`,
     );
