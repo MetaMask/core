@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Seed mUSD (`0xaca92e438df0b2401ff60da7e4337b687a2435da`) into `allTokens` state as a default tracked asset on Ethereum mainnet (`0x1`), Linea (`0xe708`), Monad mainnet (`0x8f`), and Monad testnet (`0x279f`) ([#8620](https://github.com/MetaMask/core/pull/8620))
+  - `TokenDetectionController.start()` now calls `TokensController:addTokens` for mUSD on every supported chain that is configured in `NetworkController` — this is the primary trigger and uses the proven `addTokens` API. Re-runs on `AccountsController:selectedEvmAccountChange` (since `addTokens` only seeds for the currently selected account).
+  - `TokensController` also seeds mUSD directly into state as a defense-in-depth measure: at startup for existing EVM accounts, on accounts already in persisted `allTokens` state, on `AccountsController:accountAdded`, on `AccountsController:selectedEvmAccountChange`, on `KeyringController:unlock`, on `NetworkController:networkAdded`, and on `NetworkController:stateChange` add patches.
+  - `TokensControllerMessenger` now requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, and `KeyringControllerUnlockEvent` as allowed events.
+- Add ZetaChain network support (`7000`/`0x1b58`) ([#8627](https://github.com/MetaMask/core/pull/8627))
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.3.0` ([#8634](https://github.com/MetaMask/core/pull/8634))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [105.0.0]
+
+### Added
+
 - Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
   - The following actions are now available:
     - `CurrencyRateController:setCurrentCurrency`
@@ -2971,7 +2987,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...HEAD
+[105.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...@metamask/assets-controllers@105.0.0
 [104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
 [104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
 [104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0

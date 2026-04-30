@@ -1,6 +1,7 @@
 import type {
   PermissionRequest,
   PermissionTypes,
+  Rule,
 } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -31,6 +32,8 @@ export type DecodedPermission = Pick<
   };
   expiry: number | null;
   origin: string;
+  /** Rules recovered from caveats (e.g. redeemer allowlist). */
+  rules?: Rule[];
 };
 
 /**
@@ -51,6 +54,7 @@ export type ChecksumEnforcersByChainId = {
   timestampEnforcer: Hex;
   nonceEnforcer: Hex;
   allowedCalldataEnforcer: Hex;
+  redeemerEnforcer: Hex;
 };
 
 /** Caveat with checksummed enforcer address; used by rule decode functions. */
@@ -65,6 +69,7 @@ export type ValidateAndDecodeResult =
       isValid: true;
       expiry: number | null;
       data: DecodedPermission['permission']['data'];
+      rules?: Rule[];
     }
   | { isValid: false; error: Error };
 

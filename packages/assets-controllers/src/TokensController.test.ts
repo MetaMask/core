@@ -1467,6 +1467,31 @@ describe('TokensController', () => {
           expect(result.isERC721).toBe(false);
         });
       });
+
+      it('should add isERC721 = false when supportsInterface rejects and token is not in contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({
+              supportsInterface: true,
+              supportsInterfaceThrows: true,
+            }),
+          );
+          const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
+            networkClientId: 'mainnet',
+          });
+
+          const result = await controller.updateTokenType(
+            tokenAddress,
+            'mainnet',
+          );
+          expect(result.isERC721).toBe(false);
+        });
+      });
     });
 
     describe('addToken method', () => {
@@ -1682,6 +1707,56 @@ describe('TokensController', () => {
       });
     });
 
+    it('updates an already-imported token when addDetectedTokens includes the same contract address', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        const address = '0x0000000000000000000000000000000000000b01';
+
+        await controller.addToken({
+          address,
+          symbol: 'OLD',
+          decimals: 18,
+          networkClientId: 'mainnet',
+        });
+
+        await controller.addDetectedTokens(
+          [
+            {
+              address,
+              symbol: 'NEW',
+              decimals: 6,
+              aggregators: ['aave'],
+              image: 'https://example.com/icon.png',
+              isERC721: false,
+              name: 'Updated name',
+            },
+          ],
+          {
+            selectedAddress: defaultMockInternalAccount.address,
+            chainId: ChainId.mainnet,
+          },
+        );
+
+        const list =
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ];
+        expect(list).toHaveLength(1);
+        expect(list[0]).toStrictEqual(
+          expect.objectContaining({
+            symbol: 'NEW',
+            decimals: 6,
+            name: 'Updated name',
+            aggregators: ['aave'],
+            image: 'https://example.com/icon.png',
+            isERC721: false,
+          }),
+        );
+      });
+    });
+
     it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
       const CONFIGURED_ADDRESS = '0xConfiguredAddress';
       const configuredAccount = createMockInternalAccount({
@@ -1712,16 +1787,18 @@ describe('TokensController', () => {
           const OTHER_ADDRESS = '0xOtherAddress';
 
           // Mock some tokens to add
-          const generateTokens = (len: number) =>
-            [...Array(len)].map((_, i) => ({
-              address: `0x${i}`,
-              symbol: String.fromCharCode(65 + i),
-              decimals: 2,
-              aggregators: [],
-              name: undefined,
-              isERC721: false,
-              image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
-            }));
+          const generateTokens = (len: number): Token[] =>
+            [...Array(len)].map(
+              (_, i): Token => ({
+                address: `0x${i}`,
+                symbol: String.fromCharCode(65 + i),
+                decimals: 2,
+                aggregators: [],
+                name: undefined,
+                isERC721: false,
+                image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
+              }),
+            );
 
           const [
             addedTokenConfiguredAccount,
@@ -2498,6 +2575,43 @@ describe('TokensController', () => {
       });
     });
 
+    it('includes pageMeta on the approval request when provided', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = 'page-meta-req';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
+        const pageMeta = { title: 'Test Dapp' };
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+          networkClientId: 'mainnet',
+          pageMeta,
+        });
+
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+        expect(addAndShowApprovalRequestSpy.mock.calls[0][0]).toStrictEqual(
+          expect.objectContaining({
+            id: requestId,
+            origin: ORIGIN_METAMASK,
+            type: ApprovalType.WatchAsset,
+            requestData: expect.objectContaining({
+              id: requestId,
+              interactingAddress: '0x1',
+              asset,
+              metadata: { pageMeta },
+            }),
+          }),
+        );
+      });
+    });
+
     it('falls back to ORIGIN_METAMASK when origin is empty string', async () => {
       await withController(async ({ controller, approvalController }) => {
         const requestId = '12345';
@@ -2773,7 +2887,7 @@ describe('TokensController', () => {
           ).mockReturnValueOnce(buildMockERC20StandardFromToken(anotherAsset));
 
           const promiseForApprovals = new Promise<void>((resolve) => {
-            const listener = (state: ApprovalControllerState) => {
+            const listener = (state: ApprovalControllerState): void => {
               if (state.pendingApprovalCount === 2) {
                 messenger.unsubscribe(
                   'ApprovalController:stateChange',
@@ -3570,6 +3684,52 @@ describe('TokensController', () => {
         },
       );
     });
+
+    it('does not mutate token state when patches omit networkConfigurationsByChainId', async () => {
+      const initialState = {
+        allTokens: {
+          '0x1': {
+            '0x134': [
+              {
+                address: '0x01',
+                symbol: 'TKN1',
+                decimals: 18,
+                aggregators: [],
+                name: 'Token 1',
+              },
+            ],
+          },
+        },
+        tokens: [],
+        ignoredTokens: [],
+        detectedTokens: [],
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      await withController(
+        { options: { state: initialState } },
+        ({ controller, triggerNetworkStateChange }) => {
+          const before = controller.state;
+
+          triggerNetworkStateChange({} as NetworkState, [
+            {
+              op: 'replace',
+              path: ['selectedNetworkClientId'],
+              value: 'sepolia',
+            } as Patch,
+          ]);
+
+          expect(controller.state.allTokens).toStrictEqual(before.allTokens);
+          expect(controller.state.allIgnoredTokens).toStrictEqual(
+            before.allIgnoredTokens,
+          );
+          expect(controller.state.allDetectedTokens).toStrictEqual(
+            before.allDetectedTokens,
+          );
+        },
+      );
+    });
   });
 
   describe('resetState', () => {
@@ -3634,12 +3794,6 @@ describe('TokensController', () => {
     it('removes the list of tokens for the removed account', async () => {
       const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
       const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
-      const firstAccount = createMockInternalAccount({
-        address: firstAddress,
-      });
-      const secondAccount = createMockInternalAccount({
-        address: secondAddress,
-      });
       const initialState: TokensControllerState = {
         allTokens: {
           [ChainId.mainnet]: {
@@ -3678,48 +3832,79 @@ describe('TokensController', () => {
           options: {
             state: initialState,
           },
-          listAccounts: [firstAccount, secondAccount],
         },
         ({ controller, triggerAccountRemoved }) => {
-          expect(controller.state).toStrictEqual(initialState);
+          triggerAccountRemoved(firstAddress);
 
-          triggerAccountRemoved(firstAccount.address);
-
-          expect(controller.state).toStrictEqual({
-            allTokens: {
-              [ChainId.mainnet]: {
-                [secondAddress]: [
-                  {
-                    address: '0x04',
-                    symbol: 'barD',
-                    decimals: 2,
-                    aggregators: [],
-                    image: undefined,
-                    name: undefined,
-                  },
-                ],
+          // firstAddress is removed from all chains; only secondAddress remains
+          expect(controller.state.allTokens[ChainId.mainnet]).toStrictEqual({
+            [secondAddress]: [
+              {
+                address: '0x04',
+                symbol: 'barD',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
               },
-            },
-            allIgnoredTokens: {},
-            allDetectedTokens: {
-              [ChainId.mainnet]: {
-                [secondAddress]: [],
-              },
-            },
+            ],
           });
+          expect(
+            controller.state.allTokens[ChainId.mainnet]?.[firstAddress],
+          ).toBeUndefined();
+          expect(controller.state.allIgnoredTokens).toStrictEqual({});
+          expect(controller.state.allDetectedTokens).toStrictEqual({
+            [ChainId.mainnet]: { [secondAddress]: [] },
+          });
+        },
+      );
+    });
+
+    it('removes ignored-token lists for the removed account across chains', async () => {
+      const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
+      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
+      const initialState: TokensControllerState = {
+        allTokens: {},
+        allIgnoredTokens: {
+          [ChainId.mainnet]: {
+            [firstAddress]: ['0x01', '0x02'],
+            [secondAddress]: ['0x03'],
+          },
+          [ChainId.sepolia]: {
+            [firstAddress]: ['0x04'],
+          },
+        },
+        allDetectedTokens: {},
+      };
+
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+        },
+        ({ controller, triggerAccountRemoved }) => {
+          triggerAccountRemoved(firstAddress);
+
+          expect(controller.state.allIgnoredTokens).toStrictEqual({
+            [ChainId.mainnet]: {
+              [secondAddress]: ['0x03'],
+            },
+            [ChainId.sepolia]: {},
+          });
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet]?.[firstAddress],
+          ).toBeUndefined();
+          expect(
+            controller.state.allIgnoredTokens[ChainId.sepolia]?.[firstAddress],
+          ).toBeUndefined();
         },
       );
     });
 
     it('removes an account with no tokens', async () => {
       const firstAddress = '0xA73d9021f67931563fDfe3E8f66261086319a1FC';
-      const secondAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
-      const firstAccount = createMockInternalAccount({
-        address: firstAddress,
-      });
-      const secondAccount = createMockInternalAccount({
-        address: secondAddress,
-      });
+      const nonEvmAddress = '0xB73d9021f67931563fDfe3E8f66261086319a1FK';
       const initialState: TokensControllerState = {
         allTokens: {
           [ChainId.mainnet]: {
@@ -3747,14 +3932,19 @@ describe('TokensController', () => {
           options: {
             state: initialState,
           },
-          listAccounts: [firstAccount, secondAccount],
         },
         ({ controller, triggerAccountRemoved }) => {
-          expect(controller.state).toStrictEqual(initialState);
+          // Removing a non-EVM address is a no-op; firstAddress should be untouched
+          triggerAccountRemoved(nonEvmAddress);
 
-          triggerAccountRemoved(secondAccount.address);
-
-          expect(controller.state).toStrictEqual(initialState);
+          expect(
+            controller.state.allTokens[ChainId.mainnet]?.[firstAddress],
+          ).toStrictEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ address: '0x03' }),
+            ]),
+          );
+          expect(controller.state.allIgnoredTokens).toStrictEqual({});
         },
       );
     });
@@ -3821,6 +4011,372 @@ describe('TokensController', () => {
       });
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // mUSD default token seeding
+  // ---------------------------------------------------------------------------
+
+  const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+  const MUSD_TOKEN = {
+    address: MUSD_ADDRESS,
+    decimals: 18,
+    symbol: 'mUSD',
+    name: 'MetaMask USD',
+  };
+
+  describe('mUSD default token seeding', () => {
+    describe('at startup', () => {
+      it('seeds mUSD into allTokens for every existing EVM account on supported chains', async () => {
+        const account1 = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+        const account2 = createMockInternalAccount({
+          address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        });
+
+        await withController(
+          { listAccounts: [account1, account2] },
+          ({ controller }) => {
+            // Ethereum mainnet
+            expect(
+              controller.state.allTokens['0x1'][account1.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0x1'][account2.address],
+            ).toContainEqual(MUSD_TOKEN);
+
+            // Linea
+            expect(
+              controller.state.allTokens['0xe708'][account1.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0xe708'][account2.address],
+            ).toContainEqual(MUSD_TOKEN);
+
+            // Monad testnet
+            expect(
+              controller.state.allTokens['0x8f'][account1.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0x8f'][account2.address],
+            ).toContainEqual(MUSD_TOKEN);
+          },
+        );
+      });
+
+      it('does not seed mUSD on chains that are not in the supported list', async () => {
+        const account = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+
+        await withController({ listAccounts: [account] }, ({ controller }) => {
+          expect(controller.state.allTokens['0x5']).toBeUndefined();
+          expect(controller.state.allTokens['0xa']).toBeUndefined();
+        });
+      });
+
+      it('does not duplicate mUSD when initial state already contains it', async () => {
+        const account = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+
+        const existingState: Partial<TokensControllerState> = {
+          allTokens: {
+            '0x1': { [account.address]: [MUSD_TOKEN] },
+          },
+        };
+
+        await withController(
+          { listAccounts: [account], options: { state: existingState } },
+          ({ controller }) => {
+            const mainnetTokens =
+              controller.state.allTokens['0x1'][account.address];
+            const musdCount = mainnetTokens.filter(
+              (token) =>
+                token.address.toLowerCase() === MUSD_ADDRESS.toLowerCase(),
+            ).length;
+            expect(musdCount).toBe(1);
+          },
+        );
+      });
+
+      it('does not seed mUSD when there are no accounts', async () => {
+        await withController({ listAccounts: [] }, ({ controller }) => {
+          expect(controller.state.allTokens).toStrictEqual({});
+        });
+      });
+
+      it('seeds mUSD for accounts already present in persisted allTokens state, without needing AccountsController', async () => {
+        const existingAddress = '0xcccccccccccccccccccccccccccccccccccccccc';
+        const existingToken = {
+          address: '0x01',
+          symbol: 'TKN',
+          decimals: 18,
+          aggregators: [],
+        };
+        const persistedState: Partial<TokensControllerState> = {
+          allTokens: {
+            // Only mainnet is in persisted state — Linea and Monad are absent
+            '0x1': { [existingAddress]: [existingToken] },
+          },
+        };
+
+        // listAccounts returns [] to simulate AccountsController not ready yet
+        await withController(
+          { listAccounts: [], options: { state: persistedState } },
+          ({ controller }) => {
+            // mUSD should be seeded on 0x1 (address was in persisted state)
+            expect(
+              controller.state.allTokens['0x1'][existingAddress],
+            ).toContainEqual(MUSD_TOKEN);
+            // mUSD should be seeded on Linea and Monad too
+            expect(
+              controller.state.allTokens['0xe708'][existingAddress],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0x8f'][existingAddress],
+            ).toContainEqual(MUSD_TOKEN);
+            // Original token is preserved
+            expect(
+              controller.state.allTokens['0x1'][existingAddress],
+            ).toContainEqual(existingToken);
+          },
+        );
+      });
+    });
+
+    describe('when AccountsController:accountAdded is published', () => {
+      it('seeds mUSD for the newly added account on every supported chain', async () => {
+        const newAccount = createMockInternalAccount({
+          address: '0xffffffffffffffffffffffffffffffffffffffff',
+        });
+
+        await withController(
+          { listAccounts: [] },
+          ({ controller, triggerAccountAdded }) => {
+            // Nothing seeded at startup since listAccounts returned []
+            expect(controller.state.allTokens).toStrictEqual({});
+
+            triggerAccountAdded(newAccount);
+
+            expect(
+              controller.state.allTokens['0x1'][newAccount.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0xe708'][newAccount.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0x8f'][newAccount.address],
+            ).toContainEqual(MUSD_TOKEN);
+          },
+        );
+      });
+
+      it('does not seed mUSD for non-EVM addresses', async () => {
+        const nonEvmAccount = createMockInternalAccount({
+          address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+        });
+
+        await withController(
+          { listAccounts: [] },
+          ({ controller, triggerAccountAdded }) => {
+            triggerAccountAdded(nonEvmAccount);
+
+            expect(controller.state.allTokens).toStrictEqual({});
+          },
+        );
+      });
+    });
+
+    describe('when KeyringController:unlock is published', () => {
+      it('seeds mUSD for all accounts available at unlock time', async () => {
+        const account1 = createMockInternalAccount({
+          address: '0x1111111111111111111111111111111111111111',
+        });
+        const account2 = createMockInternalAccount({
+          address: '0x2222222222222222222222222222222222222222',
+        });
+
+        await withController(
+          // listAccounts is empty at construction; will be populated by the
+          // time KeyringController:unlock fires
+          { listAccounts: [] },
+          ({ controller, triggerKeyringUnlock, messenger }) => {
+            expect(controller.state.allTokens).toStrictEqual({});
+
+            // Simulate AccountsController having loaded accounts after
+            // construction by re-registering the action handler
+            messenger.unregisterActionHandler(
+              'AccountsController:listAccounts',
+            );
+            messenger.registerActionHandler(
+              'AccountsController:listAccounts',
+              () => [account1, account2],
+            );
+
+            triggerKeyringUnlock();
+
+            expect(
+              controller.state.allTokens['0x1'][account1.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0x1'][account2.address],
+            ).toContainEqual(MUSD_TOKEN);
+          },
+        );
+      });
+    });
+
+    describe('when AccountsController:selectedEvmAccountChange is published', () => {
+      it('seeds mUSD for the newly selected account', async () => {
+        const newAccount = createMockInternalAccount({
+          address: '0xcccccccccccccccccccccccccccccccccccccccc',
+        });
+
+        await withController(
+          { listAccounts: [] },
+          ({ controller, triggerSelectedAccountChange }) => {
+            expect(controller.state.allTokens['0x1']).toBeUndefined();
+
+            triggerSelectedAccountChange(newAccount);
+
+            expect(
+              controller.state.allTokens['0x1'][newAccount.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0xe708'][newAccount.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(
+              controller.state.allTokens['0x8f'][newAccount.address],
+            ).toContainEqual(MUSD_TOKEN);
+          },
+        );
+      });
+
+      it('does not duplicate mUSD when the account already has it', async () => {
+        const account = createMockInternalAccount({
+          address: '0xcccccccccccccccccccccccccccccccccccccccc',
+        });
+
+        const existingState: Partial<TokensControllerState> = {
+          allTokens: {
+            '0x1': { [account.address]: [MUSD_TOKEN] },
+          },
+        };
+
+        await withController(
+          { listAccounts: [account], options: { state: existingState } },
+          ({ controller, triggerSelectedAccountChange }) => {
+            triggerSelectedAccountChange(account);
+
+            const mainnetTokens =
+              controller.state.allTokens['0x1'][account.address];
+            const musdCount = mainnetTokens.filter(
+              (token) =>
+                token.address.toLowerCase() === MUSD_ADDRESS.toLowerCase(),
+            ).length;
+            expect(musdCount).toBe(1);
+          },
+        );
+      });
+    });
+
+    describe('when NetworkController:networkAdded is published', () => {
+      it('seeds mUSD for all accounts when a supported chain is added', async () => {
+        const account = createMockInternalAccount({
+          address: '0xdddddddddddddddddddddddddddddddddddddddd',
+        });
+
+        await withController(
+          { listAccounts: [account] },
+          ({ controller, triggerNetworkAdded }) => {
+            // Clear state manually to simulate the account not yet having Monad seeded
+            controller.update((state) => {
+              delete state.allTokens['0x8f'];
+            });
+            expect(controller.state.allTokens['0x8f']).toBeUndefined();
+
+            triggerNetworkAdded('0x8f');
+
+            expect(
+              controller.state.allTokens['0x8f'][account.address],
+            ).toContainEqual(MUSD_TOKEN);
+          },
+        );
+      });
+
+      it('does not seed mUSD when an unsupported chain is added', async () => {
+        const account = createMockInternalAccount({
+          address: '0xdddddddddddddddddddddddddddddddddddddddd',
+        });
+
+        await withController(
+          { listAccounts: [account] },
+          ({ controller, triggerNetworkAdded }) => {
+            const tokensBefore = { ...controller.state.allTokens };
+
+            triggerNetworkAdded('0x5'); // Goerli — not supported
+
+            // Only the pre-seeded mUSD chains should be present; no Goerli entry
+            expect(controller.state.allTokens).toStrictEqual(tokensBefore);
+          },
+        );
+      });
+    });
+
+    describe('when NetworkController:stateChange patch adds a supported chain', () => {
+      it('seeds mUSD for all accounts', async () => {
+        const account = createMockInternalAccount({
+          address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        });
+
+        await withController(
+          { listAccounts: [account] },
+          ({ controller, triggerNetworkStateChange }) => {
+            // Simulate adding Monad via a state patch
+            controller.update((state) => {
+              delete state.allTokens['0x8f'];
+            });
+
+            triggerNetworkStateChange({} as NetworkState, [
+              {
+                op: 'add',
+                path: ['networkConfigurationsByChainId', '0x8f'],
+                value: {},
+              },
+            ]);
+
+            expect(
+              controller.state.allTokens['0x8f'][account.address],
+            ).toContainEqual(MUSD_TOKEN);
+          },
+        );
+      });
+
+      it('does not seed mUSD when an unsupported chain is added via state patch', async () => {
+        const account = createMockInternalAccount({
+          address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        });
+
+        await withController(
+          { listAccounts: [account] },
+          ({ controller, triggerNetworkStateChange }) => {
+            const tokensBefore = { ...controller.state.allTokens };
+
+            triggerNetworkStateChange({} as NetworkState, [
+              {
+                op: 'add',
+                path: ['networkConfigurationsByChainId', '0x5'],
+                value: {},
+              },
+            ]);
+
+            expect(controller.state.allTokens).toStrictEqual(tokensBefore);
+          },
+        );
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
@@ -3843,6 +4399,9 @@ type WithControllerCallback<ReturnValue> = ({
     networkState: NetworkState,
     patches: Patch[],
   ) => void;
+  triggerNetworkAdded: (chainId: string) => void;
+  triggerAccountAdded: (account: InternalAccount) => void;
+  triggerKeyringUnlock: () => void;
   getAccountHandler: jest.Mock;
   getSelectedAccountHandler: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -3932,10 +4491,13 @@ async function withController<ReturnValue>(
     ],
     events: [
       'NetworkController:networkDidChange',
+      'NetworkController:networkAdded',
       'NetworkController:stateChange',
+      'AccountsController:accountAdded',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
       'KeyringController:accountRemoved',
+      'KeyringController:unlock',
     ],
   });
 
@@ -3972,7 +4534,9 @@ async function withController<ReturnValue>(
     ...options,
   });
 
-  const triggerSelectedAccountChange = (internalAccount: InternalAccount) => {
+  const triggerSelectedAccountChange = (
+    internalAccount: InternalAccount,
+  ): void => {
     getAccountHandler.mockReturnValue(internalAccount);
     messenger.publish(
       'AccountsController:selectedEvmAccountChange',
@@ -3980,7 +4544,7 @@ async function withController<ReturnValue>(
     );
   };
 
-  const triggerAccountRemoved = (accountAddress: string) => {
+  const triggerAccountRemoved = (accountAddress: string): void => {
     messenger.publish('KeyringController:accountRemoved', accountAddress);
   };
 
@@ -3988,7 +4552,7 @@ async function withController<ReturnValue>(
     selectedNetworkClientId,
   }: {
     selectedNetworkClientId: NetworkClientId;
-  }) => {
+  }): void => {
     messenger.publish('NetworkController:networkDidChange', {
       ...getDefaultNetworkControllerState(),
       selectedNetworkClientId,
@@ -4006,8 +4570,27 @@ async function withController<ReturnValue>(
   const triggerNetworkStateChange = (
     networkState: NetworkState,
     patches: Patch[],
-  ) => {
+  ): void => {
     messenger.publish('NetworkController:stateChange', networkState, patches);
+  };
+
+  const triggerNetworkAdded = (chainId: string): void => {
+    messenger.publish('NetworkController:networkAdded', {
+      chainId,
+      blockExplorerUrls: [],
+      name: 'Test Network',
+      nativeCurrency: 'ETH',
+      defaultRpcEndpointIndex: 0,
+      rpcEndpoints: [],
+    } as never);
+  };
+
+  const triggerAccountAdded = (account: InternalAccount): void => {
+    messenger.publish('AccountsController:accountAdded', account);
+  };
+
+  const triggerKeyringUnlock = (): void => {
+    messenger.publish('KeyringController:unlock');
   };
 
   return await fn({
@@ -4017,6 +4600,9 @@ async function withController<ReturnValue>(
     approvalController,
     triggerSelectedAccountChange,
     triggerNetworkStateChange,
+    triggerNetworkAdded,
+    triggerAccountAdded,
+    triggerKeyringUnlock,
     triggerAccountRemoved,
     getAccountHandler,
     getSelectedAccountHandler,
@@ -4141,16 +4727,25 @@ function buildMockERC1155Standard({
  * @param args - The arguments to this function.
  * @param args.supportsInterface - Whether the contract will report as supporting
  * the given ERC721 ABI.
+ * @param args.supportsInterfaceThrows - When true, `supportsInterface` rejects
+ * instead of returning a boolean (simulates a contract revert).
  * @returns The mock contract.
  */
 function buildMockEthersERC721Contract({
   supportsInterface,
+  supportsInterfaceThrows = false,
 }: {
   supportsInterface: boolean;
+  supportsInterfaceThrows?: boolean;
 }): Contract {
   // @ts-expect-error This intentionally does not support all of the methods
   // for the contract, only the ones we care about
   return {
-    supportsInterface: async () => supportsInterface,
+    supportsInterface: async (): Promise<boolean> => {
+      if (supportsInterfaceThrows) {
+        throw new Error('supportsInterface reverted');
+      }
+      return supportsInterface;
+    },
   };
 }

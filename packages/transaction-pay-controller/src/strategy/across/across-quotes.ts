@@ -76,7 +76,7 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const { messenger, signal, transaction } = fullRequest;
   const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
   const {
     from,
@@ -109,6 +109,7 @@ async function getSingleQuote(
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
     recipient: destination.recipient,
+    signal,
     slippage: slippageDecimal,
     tradeType,
   });
@@ -134,6 +135,7 @@ type AcrossApprovalRequest = {
   originChainId: Hex;
   outputToken: Hex;
   recipient: Hex;
+  signal?: AbortSignal;
   slippage?: number;
   tradeType: 'exactInput' | 'exactOutput';
 };
@@ -151,6 +153,7 @@ async function requestAcrossApproval(
     originChainId,
     outputToken,
     recipient,
+    signal,
     slippage,
     tradeType,
   } = request;
@@ -178,6 +181,7 @@ async function requestAcrossApproval(
       'Content-Type': 'application/json',
     },
     method: 'POST',
+    signal,
   };
   const response = await successfulFetch(url, options);
 
