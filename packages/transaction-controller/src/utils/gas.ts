@@ -23,7 +23,11 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '../types';
-import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
+import {
+  DELEGATION_PREFIX,
+  doesAccountSupportEIP7702,
+  generateEIP7702BatchTransaction,
+} from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { getChainId, rpcRequest } from './provider';
 
@@ -33,6 +37,12 @@ export type UpdateGasRequest = {
   getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
+};
+
+export type EstimateGasBatchResult = {
+  gasLimits: number[];
+  requiresAuthorizationList?: true;
+  totalGasLimit: number;
 };
 
 export const log = createModuleLogger(projectLogger, 'gas');
@@ -202,7 +212,7 @@ export async function estimateGasBatch({
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
   transactions: BatchTransactionParams[];
-}): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+}): Promise<EstimateGasBatchResult> {
   const chainId = getChainId({ messenger, networkClientId });
 
   const is7702Result = await isAtomicBatchSupported({
@@ -210,7 +220,12 @@ export async function estimateGasBatch({
     chainIds: [chainId],
   });
 
-  const chainResult = is7702Result.find((result) => result.chainId === chainId);
+  const accountSupports7702 = doesAccountSupportEIP7702(messenger, from);
+
+  const chainResult = accountSupports7702
+    ? is7702Result.find((result) => result.chainId === chainId)
+    : undefined;
+
   const isUpgradeRequired = Boolean(chainResult && !chainResult.isSupported);
 
   if (isUpgradeRequired && !chainResult?.upgradeContractAddress) {
@@ -245,7 +260,11 @@ export async function estimateGasBatch({
 
     log('Estimated EIP-7702 gas limit', totalGasLimit);
 
-    return { totalGasLimit, gasLimits: [totalGasLimit] };
+    return {
+      gasLimits: [totalGasLimit],
+      ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+      totalGasLimit,
+    };
   }
 
   const allTransactionsHaveGas = transactions.every(

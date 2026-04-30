@@ -15,6 +15,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
+import { fetchWithTimeout } from '../utils';
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { reduceInBatchesSerially } from './evm-rpc-services';
 
@@ -24,6 +25,7 @@ import { reduceInBatchesSerially } from './evm-rpc-services';
 
 const CONTROLLER_NAME = 'PriceDataSource';
 const DEFAULT_POLL_INTERVAL = 60_000; // 1 minute for price updates
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 /** Maximum number of asset IDs per Price API request. */
 const PRICE_API_BATCH_SIZE = 50;
@@ -38,6 +40,11 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type PriceDataSourceConfig = {
   /** Polling interval in ms (default: 60000) */
   pollInterval?: number;
+  /**
+   * Timeout in ms for a single Price API call (default: 15000). When it fires,
+   * the batch rejects so the caller can proceed without prices.
+   */
+  fetchTimeoutMs?: number;
 };
 
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
@@ -128,6 +135,8 @@ export class PriceDataSource {
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
+  readonly #fetchTimeoutMs: number;
+
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -143,6 +152,7 @@ export class PriceDataSource {
     this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
   // ============================================================================
@@ -233,23 +243,34 @@ export class PriceDataSource {
     usdPrices: V3SpotPricesResponse;
   }> {
     if (selectedCurrency === 'usd') {
-      const selectedCurrencyPrices =
-        await this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-          currency: selectedCurrency,
-          includeMarketData: true,
-        });
+      const selectedCurrencyPrices = await fetchWithTimeout(
+        () =>
+          this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+            currency: selectedCurrency,
+            includeMarketData: true,
+          }),
+        this.#fetchTimeoutMs,
+      );
       return { selectedCurrencyPrices, usdPrices: selectedCurrencyPrices };
     }
 
     const [selectedCurrencyPrices, usdPrices] = await Promise.all([
-      this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-        currency: selectedCurrency,
-        includeMarketData: true,
-      }),
-      this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-        currency: 'usd',
-        includeMarketData: true,
-      }),
+      fetchWithTimeout(
+        () =>
+          this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+            currency: selectedCurrency,
+            includeMarketData: true,
+          }),
+        this.#fetchTimeoutMs,
+      ),
+      fetchWithTimeout(
+        () =>
+          this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+            currency: 'usd',
+            includeMarketData: true,
+          }),
+        this.#fetchTimeoutMs,
+      ),
     ]);
 
     return { selectedCurrencyPrices, usdPrices };

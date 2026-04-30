@@ -877,6 +877,18 @@ describe('token-selectors', () => {
       expect(result).toStrictEqual(expectedMockResult);
     });
 
+    it('skips accounts referenced in accountTree but missing from internalAccounts', () => {
+      const state = cloneDeep(mockedMergedState);
+
+      state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'].groups[
+        'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'
+      ].accounts.push('non-existent-account-id');
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+
+      expect(result).toStrictEqual(expectedMockResult);
+    });
+
     it('returns no tokens if there is no selected account group', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,

@@ -20,6 +20,7 @@ import type {
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import { buildDefaultAssetsInfo } from './defaults';
 import type {
   Caip19AssetId,
   AccountId,
@@ -156,6 +157,11 @@ async function withController<ReturnValue>(
   ]: [WithControllerOptions, WithControllerCallback<ReturnValue>] =
     args.length === 2 ? args : [{}, args[0]];
 
+  const {
+    priceDataSourceConfig: incomingPriceDataSourceConfig,
+    ...restControllerOptions
+  } = controllerOptions;
+
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -226,7 +232,10 @@ async function withController<ReturnValue>(
     subscribeToBasicFunctionalityChange: (): void => {
       /* no-op for tests */
     },
-    ...controllerOptions,
+    ...restControllerOptions,
+    priceDataSourceConfig: {
+      ...incomingPriceDataSourceConfig,
+    },
   });
 
   try {
@@ -239,11 +248,11 @@ async function withController<ReturnValue>(
 
 describe('AssetsController', () => {
   describe('getDefaultAssetsControllerState', () => {
-    it('returns default state with empty maps', () => {
+    it('returns default state with empty balance/price maps and pre-seeded assetsInfo', () => {
       const defaultState = getDefaultAssetsControllerState();
 
       expect(defaultState).toStrictEqual({
-        assetsInfo: {},
+        assetsInfo: buildDefaultAssetsInfo(),
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -257,7 +266,7 @@ describe('AssetsController', () => {
     it('initializes with default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          assetsInfo: {},
+          assetsInfo: buildDefaultAssetsInfo(),
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -326,7 +335,7 @@ describe('AssetsController', () => {
       // Controller should still have default state (from super() call)
       expect(controller.state).toStrictEqual({
         assetPreferences: {},
-        assetsInfo: {},
+        assetsInfo: buildDefaultAssetsInfo(),
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -348,7 +357,7 @@ describe('AssetsController', () => {
         // Controller should have default state
         expect(controller.state).toStrictEqual({
           assetPreferences: {},
-          assetsInfo: {},
+          assetsInfo: buildDefaultAssetsInfo(),
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -534,6 +543,99 @@ describe('AssetsController', () => {
           '0x6B175474E89094C44Da98b954EedeAC495271d0F',
         );
       });
+    });
+  });
+
+  describe('custom asset graduation', () => {
+    const SOLANA_ASSET_ID =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+
+    it('graduates an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1000000' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+        );
+
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+      });
+    });
+
+    it('graduates an EVM custom asset when BackendWebsocketDataSource reports a balance for it', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1000000' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+      });
+    });
+
+    it('does not graduate when RpcDataSource reports a balance for a custom asset', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1000000' },
+              },
+            },
+          },
+          'RpcDataSource',
+        );
+
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
+      });
+    });
+
+    it('does not graduate a non-EVM (Solana) custom asset', async () => {
+      await withController(
+        {
+          state: {
+            customAssets: { [MOCK_ACCOUNT_ID]: [SOLANA_ASSET_ID] },
+          },
+        },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [SOLANA_ASSET_ID]: { amount: '1000000' },
+                },
+              },
+            },
+            'AccountsApiDataSource',
+          );
+
+          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+            SOLANA_ASSET_ID,
+          );
+        },
+      );
     });
   });
 

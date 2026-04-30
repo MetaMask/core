@@ -217,6 +217,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -230,6 +231,7 @@ describe('Across Quotes', () => {
 
     it('filters out requests with zero target amount', async () => {
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -246,6 +248,7 @@ describe('Across Quotes', () => {
 
     it('filters out non-max requests with missing target amount', async () => {
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -265,6 +268,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -278,6 +282,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
         transaction: TRANSACTION_META_MOCK,
@@ -290,12 +295,33 @@ describe('Across Quotes', () => {
       expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
+    it('forwards the abort signal to the underlying fetch', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const controller = new AbortController();
+
+      await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        signal: controller.signal,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const [, options] = successfulFetchMock.mock.calls[0];
+
+      expect((options as RequestInit).signal).toBe(controller.signal);
+    });
+
     it('uses exactOutput trade type for non-max amount quotes', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -316,6 +342,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -352,6 +379,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -371,6 +399,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -395,6 +424,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -437,6 +467,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -463,6 +494,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -486,6 +518,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -513,6 +546,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -539,6 +573,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -642,6 +677,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -679,6 +715,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -729,6 +766,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -749,6 +787,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -801,6 +840,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -825,6 +865,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -844,6 +885,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -857,6 +899,7 @@ describe('Across Quotes', () => {
     it('throws when destination flow is not transfer-style', async () => {
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -873,6 +916,7 @@ describe('Across Quotes', () => {
     it('throws when txParams include authorization list', async () => {
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -899,6 +943,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -919,6 +964,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -940,6 +986,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -963,6 +1010,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -986,6 +1034,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1010,6 +1059,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [request],
         transaction: TRANSACTION_META_MOCK,
@@ -1027,6 +1077,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1046,6 +1097,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1063,6 +1115,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1097,6 +1150,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1144,6 +1198,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1188,6 +1243,7 @@ describe('Across Quotes', () => {
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 51000,
         gasLimits: [51000],
+        requiresAuthorizationList: true,
       });
 
       successfulFetchMock.mockResolvedValue({
@@ -1205,6 +1261,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1232,6 +1289,7 @@ describe('Across Quotes', () => {
         },
       ]);
       expect(result[0].original.metamask.is7702).toBe(true);
+      expect(result[0].original.metamask.requiresAuthorizationList).toBe(true);
       expect(calculateGasCostMock).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
@@ -1251,6 +1309,70 @@ describe('Across Quotes', () => {
           maxPriorityFeePerGas: '0x1',
         }),
       );
+    });
+
+    it('omits requiresAuthorizationList when batch estimation does not include it', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask.is7702).toBe(true);
+      expect(
+        result[0].original.metamask.requiresAuthorizationList,
+      ).toBeUndefined();
+    });
+
+    it('returns per-transaction gas limits when account does not support 7702', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 42000,
+        gasLimits: [21000, 21000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: false,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(result[0].original.metamask.gasLimits).toHaveLength(2);
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {
@@ -1282,6 +1404,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -1314,6 +1437,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -1338,6 +1462,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1370,6 +1495,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1437,6 +1563,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1471,6 +1598,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1512,6 +1640,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1534,6 +1663,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1559,6 +1689,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1578,6 +1709,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1604,6 +1736,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [request],
         transaction: TRANSACTION_META_MOCK,
@@ -1618,6 +1751,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1638,6 +1772,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -1662,6 +1797,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -1684,6 +1820,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1704,6 +1841,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -1724,6 +1862,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1741,6 +1880,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -1766,6 +1906,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -1791,6 +1932,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {

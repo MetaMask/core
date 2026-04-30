@@ -63,6 +63,7 @@ export const findRuleWithMatchingCaveatAddresses = ({
  * @param args.data - Permission-specific decoded data payload.
  * @param args.justification - Human-readable justification for the permission.
  * @param args.specifiedOrigin - The origin reported in the request metadata.
+ * @param args.rules - Rules recovered from caveats (e.g. redeemer allowlist).
  *
  * @returns The reconstructed {@link DecodedPermission}.
  */
@@ -76,6 +77,7 @@ export const reconstructDecodedPermission = ({
   data,
   justification,
   specifiedOrigin,
+  rules,
 }: {
   chainId: number;
   permissionType: PermissionType;
@@ -86,6 +88,7 @@ export const reconstructDecodedPermission = ({
   data: DecodedPermission['permission']['data'];
   justification: string;
   specifiedOrigin: string;
+  rules?: DecodedPermission['rules'];
 }): DecodedPermission => {
   if (authority !== ROOT_AUTHORITY) {
     throw new Error('Invalid authority');
@@ -102,6 +105,7 @@ export const reconstructDecodedPermission = ({
     },
     expiry,
     origin: specifiedOrigin,
+    ...(rules === undefined ? {} : { rules }),
   };
 
   return permission;

@@ -697,6 +697,7 @@ function createMockStoredProfile(): LoginResponse {
     profile: {
       identifierId: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
       profileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
+      canonicalProfileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
       metaMetricsId: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
     },
   };

@@ -29,6 +29,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkAddedEvent,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -56,6 +57,36 @@ import type {
 } from './TokensController-method-action-types';
 
 const DEFAULT_INTERVAL = 180000;
+
+/**
+ * Canonical contract address for MetaMask USD (mUSD) — same across every
+ * chain we deploy it to.
+ */
+const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
+/**
+ * Pre-built Token entry for mUSD — used when seeding default state.
+ */
+const MUSD_TOKEN: Token = {
+  address: MUSD_ADDRESS,
+  decimals: 18,
+  symbol: 'mUSD',
+  name: 'MetaMask USD',
+};
+
+/**
+ * Hex chain IDs on which mUSD is deployed and should be added by default.
+ * - 0x1     — Ethereum mainnet (1)
+ * - 0xe708  — Linea (59144)
+ * - 0x8f    — Monad mainnet (143)
+ * - 0x279f  — Monad testnet (10143)
+ */
+const MUSD_SUPPORTED_CHAIN_IDS: ReadonlySet<Hex> = new Set<Hex>([
+  '0x1',
+  '0xe708',
+  '0x8f',
+  '0x279f',
+]);
 
 type LegacyToken = {
   name: string;
@@ -142,6 +173,7 @@ export type TokenDetectionControllerEvents =
 
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
+  | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkDidChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
@@ -213,6 +245,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   readonly #useTokenDetection: () => boolean;
 
   readonly #useExternalServices: () => boolean;
+
+  /** Tracks whether default tokens (mUSD) have been seeded for the current session. */
+  #defaultTokensSeeded = false;
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
@@ -352,6 +387,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           this.#selectedAccountId !== selectedAccount.id;
         if (isSelectedAccountIdChanged) {
           this.#selectedAccountId = selectedAccount.id;
+          // Re-seed mUSD for the newly selected account. addTokens only adds
+          // tokens for the currently selected account, so we need to re-run
+          // it whenever the active account changes.
+          this.#defaultTokensSeeded = false;
+          this.#seedDefaultTokens().catch(() => {
+            // Silently handle default-token seeding errors
+          });
           this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
             chainIds,
@@ -369,6 +411,23 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           chainIds: [transactionMeta.chainId],
         }).catch(() => {
           // Silently handle token detection errors
+        });
+      },
+    );
+
+    // Re-seed mUSD whenever a network is added. Covers the case where the
+    // user adds a supported chain (e.g. Monad testnet) after the controller
+    // has already started — the chain wasn't configured at start() time so
+    // findNetworkClientIdByChainId would have skipped it.
+    this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      ({ chainId }) => {
+        if (!MUSD_SUPPORTED_CHAIN_IDS.has(chainId)) {
+          return;
+        }
+        this.#defaultTokensSeeded = false;
+        this.#seedDefaultTokens().catch(() => {
+          // Silently handle default-token seeding errors
         });
       },
     );
@@ -402,6 +461,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    */
   async start(): Promise<void> {
     this.enable();
+    // Seed mUSD as a default token via TokensController:addTokens. Runs
+    // once per session; idempotent because addTokens dedupes on address.
+    await this.#seedDefaultTokens();
     await this.#startPolling();
   }
 
@@ -693,6 +755,49 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#tokenListCache.set(chainId, { data: tokenList, timestamp: now });
     return tokenList;
+  }
+
+  /**
+   * Seed mUSD into `TokensController.allTokens` via the public `addTokens`
+   * action for every supported chain that is currently configured in
+   * `NetworkController`.
+   *
+   * Runs once per session (idempotent guard via `#defaultTokensSeeded`), but
+   * `addTokens` itself dedupes by contract address so re-running is safe.
+   *
+   * @returns Promise that resolves once seeding has been attempted on every
+   * supported chain.
+   */
+  async #seedDefaultTokens(): Promise<void> {
+    if (this.#defaultTokensSeeded) {
+      return;
+    }
+    this.#defaultTokensSeeded = true;
+
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+
+    for (const supportedChainId of MUSD_SUPPORTED_CHAIN_IDS) {
+      if (!networkConfigurationsByChainId[supportedChainId]) {
+        continue;
+      }
+
+      try {
+        const networkClientId = this.messenger.call(
+          'NetworkController:findNetworkClientIdByChainId',
+          supportedChainId,
+        );
+        await this.messenger.call(
+          'TokensController:addTokens',
+          [MUSD_TOKEN],
+          networkClientId,
+        );
+      } catch {
+        // Silently handle per-chain seeding errors so one failure does not
+        // block seeding on the remaining supported chains.
+      }
+    }
   }
 
   async #addDetectedTokens({

@@ -400,6 +400,14 @@ export type BridgeControllerState = {
    */
   tokenWarnings: TokenFeature[];
   /**
+   * Client-supplied security classification for the destination token in the
+   * current quote request, used as the `token_security_type_destination`
+   * analytics property. Set via the `context` arg of
+   * `updateBridgeQuoteRequestParams` and reset whenever the quote request is
+   * reset. `null` when the client has no security data for the token.
+   */
+  tokenSecurityTypeDestination: string | null;
+  /**
    * Metadata about the completed quote stream, populated from the `complete` SSE event.
    * Set to null at the start of each fetch and updated when the complete event is received.
    */

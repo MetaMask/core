@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `createPermissionMiddlewareV2`, a `JsonRpcEngineV2` variant of the standalone permission middleware factory ([#8532](https://github.com/MetaMask/core/pull/8532))
+- Add `messenger` option to permission specification builders, allowing restricted-method specs to receive a scoped messenger in place of `methodHooks` ([#8551](https://github.com/MetaMask/core/pull/8551))
+  - Use the `actionNames` field on the specification builder and `createRestrictedMethodMessenger` to construct the scoped messenger.
 
 ### Changed
 
@@ -18,12 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New integrations should prefer `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2`.
   - `PermissionController.getRestrictedMethod` no longer serves a purpose, and is removed. Restricted methods should be invoked via the `:executeRestrictedMethod` action instead.
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ### Deprecated
 
 - Deprecate `createPermissionMiddleware` in favor of `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2` ([#8532](https://github.com/MetaMask/core/pull/8532))
+
+### Removed
+
+- **BREAKING:** Remove `factoryHooks`, `validatorHooks`, and related fields from permission specification builders ([#8551](https://github.com/MetaMask/core/pull/8551))
 
 ## [12.3.0]
 
