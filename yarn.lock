@@ -3146,7 +3146,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chomp-api-service@npm:^2.0.0, @metamask/chomp-api-service@workspace:packages/chomp-api-service":
+"@metamask/chomp-api-service@npm:^3.0.0, @metamask/chomp-api-service@workspace:packages/chomp-api-service":
   version: 0.0.0-use.local
   resolution: "@metamask/chomp-api-service@workspace:packages/chomp-api-service"
   dependencies:
@@ -4518,7 +4518,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/chomp-api-service": "npm:^2.0.0"
+    "@metamask/chomp-api-service": "npm:^3.0.0"
     "@metamask/keyring-controller": "npm:^25.3.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^30.1.0"
