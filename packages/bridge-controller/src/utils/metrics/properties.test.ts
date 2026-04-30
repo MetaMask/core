@@ -266,12 +266,15 @@ describe('properties', () => {
     });
 
     it('should format request params correctly with all values provided', () => {
-      const result = getRequestParams({
-        srcChainId: 1,
-        destChainId: SolScope.Mainnet,
-        srcTokenAddress: '0x123',
-        destTokenAddress: 'ABD456',
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: 1,
+          destChainId: SolScope.Mainnet,
+          srcTokenAddress: '0x123',
+          destTokenAddress: 'ABD456',
+        },
+        'Malicious',
+      );
 
       expect(result).toStrictEqual({
         chain_id_destination: SolScope.Mainnet,
@@ -279,54 +282,81 @@ describe('properties', () => {
         token_address_destination:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:ABD456',
         token_address_source: 'eip155:1/erc20:0x123',
+        token_security_type_destination: 'Malicious',
       });
     });
 
     it('should fallback to src chainId when destChainId is undefined', () => {
-      const result = getRequestParams({
-        srcChainId: formatChainIdToCaip(1),
-        srcTokenAddress: getNativeAssetForChainId('0x1')?.address,
-        destTokenAddress: getNativeAssetForChainId('0xa')?.address,
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: formatChainIdToCaip(1),
+          srcTokenAddress: getNativeAssetForChainId('0x1')?.address,
+          destTokenAddress: getNativeAssetForChainId('0xa')?.address,
+        },
+        null,
+      );
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
         chain_id_destination: null,
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination: 'eip155:1/slip44:60',
+        token_security_type_destination: null,
       });
     });
 
     it('should use native asset when srcTokenAddress is not provided', () => {
-      const result = getRequestParams({
-        srcChainId: 'eip155:1' as CaipChainId,
-        destChainId: '2',
-        srcTokenAddress: undefined,
-        destTokenAddress: '0x456',
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: 'eip155:1' as CaipChainId,
+          destChainId: '2',
+          srcTokenAddress: undefined,
+          destTokenAddress: '0x456',
+        },
+        null,
+      );
 
       expect(result).toStrictEqual({
         chain_id_destination: 'eip155:2',
         chain_id_source: 'eip155:1',
         token_address_destination: 'eip155:2/erc20:0x456',
         token_address_source: 'eip155:1/slip44:60',
+        token_security_type_destination: null,
       });
     });
 
     it('should use native asset when formatAddressToAssetId returns null', () => {
-      const result = getRequestParams({
-        srcChainId: 'eip155:1' as CaipChainId,
-        destChainId: '2',
-        srcTokenAddress: '123',
-        destTokenAddress: '456',
-      });
+      const result = getRequestParams(
+        {
+          srcChainId: 'eip155:1' as CaipChainId,
+          destChainId: '2',
+          srcTokenAddress: '123',
+          destTokenAddress: '456',
+        },
+        null,
+      );
 
       expect(result).toStrictEqual({
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:2',
         token_address_destination: null,
         token_address_source: 'eip155:1/slip44:60',
+        token_security_type_destination: null,
       });
+    });
+
+    it('passes through the supplied tokenSecurityTypeDestination value', () => {
+      const result = getRequestParams(
+        {
+          srcChainId: 1,
+          destChainId: 1,
+          srcTokenAddress: '0x123',
+          destTokenAddress: '0x456',
+        },
+        'Warning',
+      );
+
+      expect(result.token_security_type_destination).toBe('Warning');
     });
   });
 

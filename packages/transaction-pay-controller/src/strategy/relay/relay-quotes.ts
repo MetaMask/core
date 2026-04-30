@@ -191,7 +191,12 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const {
+    accountSupports7702: supports7702,
+    messenger,
+    signal,
+    transaction,
+  } = fullRequest;
 
   const {
     from,
@@ -220,8 +225,6 @@ async function getSingleQuote(
     // For regular flows with a target amount, use EXPECTED_OUTPUT.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
-
-    const { accountSupports7702: supports7702 } = fullRequest;
 
     const useExecute =
       supports7702 &&
@@ -256,7 +259,7 @@ async function getSingleQuote(
 
     log('Request body', body);
 
-    const quote = await fetchRelayQuote(messenger, body);
+    const quote = await fetchRelayQuote(messenger, body, signal);
 
     log('Fetched relay quote', quote);
 

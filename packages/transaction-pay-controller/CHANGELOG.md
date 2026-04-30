@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `TransactionData` type from public API ([#8630](https://github.com/MetaMask/core/pull/8630))
+
+### Changed
+
+- Abort in-flight quote requests when a newer request is made for the same transaction, preventing stale responses from overwriting newer ones ([#8612](https://github.com/MetaMask/core/pull/8612))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [20.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^6.2.0` to `^6.2.1` ([#8622](https://github.com/MetaMask/core/pull/8622))
+- Bump `@metamask/assets-controllers` from `^104.3.0` to `^105.0.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+- Bump `@metamask/bridge-controller` from `^70.2.0` to `^71.0.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+- Bump `@metamask/bridge-status-controller` from `^71.0.0` to `^71.1.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+
 ## [20.0.0]
 
 ### Changed
@@ -716,7 +735,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.0...@metamask/transaction-pay-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...@metamask/transaction-pay-controller@20.0.0
 [19.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.2...@metamask/transaction-pay-controller@19.3.0
 [19.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.2.1...@metamask/transaction-pay-controller@19.2.2

@@ -16,10 +16,15 @@ export type AuthenticationControllerPerformSignOutAction = {
 };
 
 /**
- * Will return a bearer token.
- * Logs a user in if a user is not logged in.
+ * Returns a bearer token for the specified SRP, logging in if needed.
  *
- * @returns profile for the session.
+ * When called without `entropySourceId`, returns the primary (first) SRP's
+ * access token, which is effectively the canonical
+ * profile's token that can be used by alias-aware consumers for cross-SRP
+ * operations.
+ *
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The OIDC access token.
  */
 export type AuthenticationControllerGetBearerTokenAction = {
   type: `AuthenticationController:getBearerToken`;
@@ -27,8 +32,13 @@ export type AuthenticationControllerGetBearerTokenAction = {
 };
 
 /**
- * Will return a session profile.
- * Logs a user in if a user is not logged in.
+ * Returns the cached session profile, logging in if no session exists.
+ *
+ * The returned `canonicalProfileId` reflects the value from the most recent
+ * login or pairing. In the rare event where a canonical changed because of
+ * a pairing that happened on another device, the cached value may be stale
+ * until the next login. For guaranteed freshness, call
+ * `refreshCanonicalProfileId()` before reading `canonicalProfileId`.
  *
  * @param entropySourceId - The entropy source ID used to derive the key,
  * when multiple sources are available (Multi-SRP).
@@ -37,6 +47,27 @@ export type AuthenticationControllerGetBearerTokenAction = {
 export type AuthenticationControllerGetSessionProfileAction = {
   type: `AuthenticationController:getSessionProfile`;
   handler: AuthenticationController['getSessionProfile'];
+};
+
+/**
+ * Forces a fresh retrieval of the canonical profile ID from the server
+ * and propagates it to all cached SRP sessions.
+ *
+ * This method invalidates the primary SRP's cached session and forces a
+ * re-login. Use it before operations that require a guaranteed-fresh
+ * canonical (e.g. storage key derivation for Accounts ADR 0005). For
+ * best-effort reads, use
+ * `getSessionProfile().canonicalProfileId` instead.
+ *
+ * Only the primary SRP is re-logged-in regardless of how many SRPs exist —
+ * the server returns the current canonical for the entire pairing group
+ * from any single SRP login.
+ *
+ * @returns The refreshed canonical profile ID.
+ */
+export type AuthenticationControllerRefreshCanonicalProfileIdAction = {
+  type: `AuthenticationController:refreshCanonicalProfileId`;
+  handler: AuthenticationController['refreshCanonicalProfileId'];
 };
 
 export type AuthenticationControllerGetUserProfileLineageAction = {
@@ -57,5 +88,6 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction
   | AuthenticationControllerIsSignedInAction;

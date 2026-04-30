@@ -124,12 +124,11 @@ describe('associateAddressStep', () => {
     expect(result).toBe('completed');
   });
 
-  it('returns "already-done" when CHOMP responds with already_associated (409)', async () => {
+  it('returns "already-done" when CHOMP responds with active (409)', async () => {
     const { messenger, mocks } = setup();
     mocks.associateAddress.mockResolvedValue({
-      profileId: 'profile-1',
       address: MOCK_ADDRESS,
-      status: 'already_associated',
+      status: 'active',
     });
 
     const result = await associateAddressStep.run({
