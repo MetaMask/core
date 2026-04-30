@@ -162,6 +162,18 @@ export type TransactionControllerUpdateTransactionAction = {
 };
 
 /**
+ * Remove transactions from state.
+ *
+ * @param options - The options bag.
+ * @param options.address - Remove transactions from this account only. Defaults to all accounts.
+ * @param options.chainId - Remove transactions for the specified chain only. Defaults to all chains.
+ */
+export type TransactionControllerWipeTransactionsAction = {
+  type: `TransactionController:wipeTransactions`;
+  handler: TransactionController['wipeTransactions'];
+};
+
+/**
  * Adds external provided transaction to state as confirmed transaction.
  *
  * @param transactionMeta - TransactionMeta to add transactions.
@@ -367,6 +379,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerWipeTransactionsAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerUpdateEditableParamsAction

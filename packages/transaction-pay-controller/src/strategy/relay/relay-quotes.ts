@@ -191,7 +191,12 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const {
+    accountSupports7702: supports7702,
+    messenger,
+    signal,
+    transaction,
+  } = fullRequest;
 
   const {
     from,
@@ -222,6 +227,7 @@ async function getSingleQuote(
     const useExactInput = isMaxAmount || request.isPostQuote;
 
     const useExecute =
+      supports7702 &&
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
@@ -253,7 +259,7 @@ async function getSingleQuote(
 
     log('Request body', body);
 
-    const quote = await fetchRelayQuote(messenger, body);
+    const quote = await fetchRelayQuote(messenger, body, signal);
 
     log('Fetched relay quote', quote);
 
@@ -471,23 +477,9 @@ async function normalizeQuote(
     request.targetTokenAddress,
   );
 
-  const additionalTargetAmountUsd =
-    quote.request.tradeType === 'EXACT_INPUT'
-      ? subsidizedFeeUsd
-      : new BigNumber(0);
-
-  if (additionalTargetAmountUsd.gt(0)) {
-    log(
-      'Including subsidized fee in target amount',
-      additionalTargetAmountUsd.toString(10),
-    );
-  }
-
-  const baseTargetAmountUsd = isTargetStablecoin
+  const targetAmountUsd = isTargetStablecoin
     ? new BigNumber(currencyOut.amountFormatted)
     : new BigNumber(currencyOut.amountUsd);
-
-  const targetAmountUsd = baseTargetAmountUsd.plus(additionalTargetAmountUsd);
 
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 

@@ -608,7 +608,7 @@ export class GatorPermissionsController extends BaseController<
         });
       }
 
-      const { expiry, data } = decodeResult;
+      const { expiry, data, rules } = decodeResult;
 
       const permission = reconstructDecodedPermission({
         chainId,
@@ -620,6 +620,7 @@ export class GatorPermissionsController extends BaseController<
         data,
         justification,
         specifiedOrigin,
+        rules,
       });
 
       return permission;

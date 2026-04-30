@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.9.0"
   },

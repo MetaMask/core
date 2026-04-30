@@ -1,3 +1,4 @@
+export { fetchWithTimeout } from './fetchWithTimeout';
 export { normalizeAssetId } from './normalizeAssetId';
 export { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
 export { formatStateForTransactionPay } from './formatStateForTransactionPay';
@@ -7,3 +8,7 @@ export type {
   LegacyToken,
   TransactionPayLegacyFormat,
 } from './formatStateForTransactionPay';
+export {
+  buildNativeAssetsFromConstant,
+  buildNativeAssetsFromApi,
+} from './native-assets';

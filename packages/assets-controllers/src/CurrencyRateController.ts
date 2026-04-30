@@ -17,6 +17,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import type { CurrencyRateControllerMethodActions } from './CurrencyRateController-method-action-types';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 
@@ -45,6 +46,11 @@ export type CurrencyRateState = {
 
 const name = 'CurrencyRateController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'setCurrentCurrency',
+  'updateExchangeRate',
+] as const;
+
 export type CurrencyRateStateChange = ControllerStateChangeEvent<
   typeof name,
   CurrencyRateState
@@ -52,12 +58,14 @@ export type CurrencyRateStateChange = ControllerStateChangeEvent<
 
 export type CurrencyRateControllerEvents = CurrencyRateStateChange;
 
-export type GetCurrencyRateState = ControllerGetStateAction<
+export type CurrencyRateControllerGetStateAction = ControllerGetStateAction<
   typeof name,
   CurrencyRateState
 >;
 
-export type CurrencyRateControllerActions = GetCurrencyRateState;
+export type CurrencyRateControllerActions =
+  | CurrencyRateControllerGetStateAction
+  | CurrencyRateControllerMethodActions;
 
 type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
@@ -168,6 +176,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     this.#useExternalServices = useExternalServices;
     this.setIntervalLength(interval);
     this.#tokenPricesService = tokenPricesService;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

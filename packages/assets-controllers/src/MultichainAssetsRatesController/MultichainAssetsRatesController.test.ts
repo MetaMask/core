@@ -150,41 +150,43 @@ const setupController = ({
   controller: MultichainAssetsRatesController;
   messenger: RootMessenger;
   updateSpy: jest.SpyInstance;
+  mockGetAssetsState: jest.Mock;
 } => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
+  const mockGetAssetsState = jest.fn().mockImplementation(() => ({
+    accountsAssets: {
+      account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      account5: [
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      ],
+    },
+    assetsMetadata: {
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+        name: 'Solana',
+        symbol: 'SOL',
+        fungible: true,
+        iconUrl: 'https://example.com/solana.png',
+        units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
+      },
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
+        {
+          name: 'USDC',
+          symbol: 'USDC',
+          fungible: true,
+          iconUrl: 'https://example.com/usdc.png',
+          units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
+        },
+    },
+    allIgnoredAssets: {},
+  }));
   messenger.registerActionHandler(
     'MultichainAssetsController:getState',
-    () => ({
-      accountsAssets: {
-        account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
-        account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
-        account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
-        account5: [
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        ],
-      },
-      assetsMetadata: {
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-          name: 'Solana',
-          symbol: 'SOL',
-          fungible: true,
-          iconUrl: 'https://example.com/solana.png',
-          units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
-        },
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-          {
-            name: 'USDC',
-            symbol: 'USDC',
-            fungible: true,
-            iconUrl: 'https://example.com/usdc.png',
-            units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
-          },
-      },
-      allIgnoredAssets: {},
-    }),
+    mockGetAssetsState,
   );
 
   messenger.registerActionHandler(
@@ -240,6 +242,7 @@ const setupController = ({
     controller,
     messenger,
     updateSpy,
+    mockGetAssetsState,
   };
 };
 
@@ -520,6 +523,149 @@ describe('MultichainAssetsRatesController', () => {
         rate: '200',
         conversionTime: 1738539923277,
         currency: 'swift:0/iso4217:USD',
+      },
+    });
+  });
+
+  it('removes stale rates and historical prices for assets no longer tracked by any account', async () => {
+    const removedAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:removed-token' as CaipAssetType;
+    const keptAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType;
+    const { controller, messenger, mockGetAssetsState } = setupController({
+      config: {
+        state: {
+          conversionRates: {
+            [removedAsset]: {
+              rate: '10',
+              conversionTime: 1738539923277,
+              currency: 'swift:0/iso4217:USD',
+            },
+            [keptAsset]: {
+              rate: '202.11',
+              conversionTime: 1738539923277,
+              currency: 'swift:0/iso4217:USD',
+            },
+          },
+          historicalPrices: {
+            [removedAsset]: {
+              USD: {
+                intervals: fakeHistoricalPrices.historicalPrice.intervals,
+                updateTime: 1737542312,
+                expirationTime: 1737542312,
+              },
+            },
+            [keptAsset]: {
+              USD: {
+                intervals: fakeHistoricalPrices.historicalPrice.intervals,
+                updateTime: 1737542312,
+                expirationTime: 1737542312,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {
+        account1: [keptAsset],
+      },
+      assetsMetadata: {},
+      allIgnoredAssets: {},
+    });
+
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [],
+          removed: [removedAsset],
+        },
+      },
+    });
+
+    await Promise.resolve();
+    await jestAdvanceTime({ duration: 10 });
+
+    expect(controller.state.conversionRates).toStrictEqual({
+      [keptAsset]: {
+        rate: '202.11',
+        conversionTime: 1738539923277,
+        currency: 'swift:0/iso4217:USD',
+      },
+    });
+    expect(controller.state.historicalPrices).toStrictEqual({
+      [keptAsset]: {
+        USD: {
+          intervals: fakeHistoricalPrices.historicalPrice.intervals,
+          updateTime: 1737542312,
+          expirationTime: 1737542312,
+        },
+      },
+    });
+  });
+
+  it('keeps rates for removed assets that are still tracked by another account', async () => {
+    const sharedAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:shared-token' as CaipAssetType;
+    const { controller, messenger, mockGetAssetsState } = setupController({
+      config: {
+        state: {
+          conversionRates: {
+            [sharedAsset]: {
+              rate: '77',
+              conversionTime: 1738539923277,
+              currency: 'swift:0/iso4217:USD',
+            },
+          },
+          historicalPrices: {
+            [sharedAsset]: {
+              USD: {
+                intervals: fakeHistoricalPrices.historicalPrice.intervals,
+                updateTime: 1737542312,
+                expirationTime: 1737542312,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {
+        account1: [],
+        account2: [sharedAsset],
+      },
+      assetsMetadata: {},
+      allIgnoredAssets: {},
+    });
+
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [],
+          removed: [sharedAsset],
+        },
+      },
+    });
+
+    await Promise.resolve();
+    await jestAdvanceTime({ duration: 10 });
+
+    expect(controller.state.conversionRates).toStrictEqual({
+      [sharedAsset]: {
+        rate: '77',
+        conversionTime: 1738539923277,
+        currency: 'swift:0/iso4217:USD',
+      },
+    });
+    expect(controller.state.historicalPrices).toStrictEqual({
+      [sharedAsset]: {
+        USD: {
+          intervals: fakeHistoricalPrices.historicalPrice.intervals,
+          updateTime: 1737542312,
+          expirationTime: 1737542312,
+        },
       },
     });
   });

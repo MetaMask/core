@@ -20,7 +20,12 @@ function createValidLoginResponse(
   }),
 ): LoginResponse {
   return {
-    profile: { identifierId: '', metaMetricsId: '', profileId: '' },
+    profile: {
+      identifierId: '',
+      metaMetricsId: '',
+      profileId: '',
+      canonicalProfileId: '',
+    },
     token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
   };
 }

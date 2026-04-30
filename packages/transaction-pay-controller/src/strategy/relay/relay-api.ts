@@ -16,11 +16,13 @@ import type {
  *
  * @param messenger - Controller messenger.
  * @param body - Quote request parameters.
+ * @param signal - Optional abort signal that cancels the underlying fetch.
  * @returns The Relay quote with the request attached.
  */
 export async function fetchRelayQuote(
   messenger: TransactionPayControllerMessenger,
   body: RelayQuoteRequest,
+  signal?: AbortSignal,
 ): Promise<RelayQuote> {
   const { relayQuoteUrl } = getFeatureFlags(messenger);
 
@@ -28,6 +30,7 @@ export async function fetchRelayQuote(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal,
   });
 
   const quote = (await response.json()) as RelayQuote;

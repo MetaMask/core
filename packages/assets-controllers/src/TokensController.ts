@@ -1,6 +1,7 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
+  AccountsControllerAccountAddedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
@@ -25,13 +26,17 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
-import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerAccountRemovedEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerNetworkAddedEvent,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -161,9 +166,12 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
+  | NetworkControllerNetworkAddedEvent
   | TokenListStateChange
+  | AccountsControllerAccountAddedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | KeyringControllerUnlockEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -173,6 +181,34 @@ export type TokensControllerMessenger = Messenger<
   TokensControllerActions | AllowedActions,
   TokensControllerEvents | AllowedEvents
 >;
+
+/**
+ * Canonical contract address for MetaMask USD (mUSD) — same across every
+ * chain we deploy it to.
+ */
+const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
+/**
+ * Pre-built Token entry for mUSD — used when seeding default state.
+ */
+const MUSD_TOKEN: Token = {
+  address: MUSD_ADDRESS,
+  decimals: 18,
+  symbol: 'mUSD',
+  name: 'MetaMask USD',
+};
+
+/**
+ * Hex chain IDs on which mUSD is deployed and should be shown by default.
+ * - 0x1     — Ethereum mainnet (1)
+ * - 0xe708  — Linea (59144)
+ * - 0x8f    — Monad mainnet (143)
+ */
+const MUSD_SUPPORTED_CHAIN_IDS: ReadonlySet<Hex> = new Set<Hex>([
+  '0x1',
+  '0xe708',
+  '0x8f',
+]);
 
 export const getDefaultTokensState = (): TokensControllerState => {
   return {
@@ -262,6 +298,38 @@ export class TokensController extends BaseController<
     );
 
     this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      (networkConfiguration) => {
+        this.#onNetworkAdded(networkConfiguration.chainId);
+      },
+    );
+
+    // Seed mUSD for accounts already known to AccountsController (may return
+    // empty on first start if AccountsController hasn't loaded yet).
+    this.#seedMusdForAllAccounts();
+
+    // Also seed from existing persisted allTokens state so returning users see
+    // mUSD immediately without waiting for KeyringController:unlock.
+    this.#seedMusdFromExistingState();
+
+    // Re-seed mUSD after unlock, because accounts may not be available during
+    // construction (e.g. on restart before AccountsController has finished loading).
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#seedMusdForAllAccounts();
+    });
+
+    // Re-seed mUSD whenever a new account is added. This is the most reliable
+    // trigger when AccountsController populates accounts asynchronously after
+    // TokensController construction — it fires once per account as each one
+    // becomes available.
+    this.messenger.subscribe(
+      'AccountsController:accountAdded',
+      (account: InternalAccount) => {
+        this.#seedMusdForAccount(account.address);
+      },
+    );
+
+    this.messenger.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
@@ -346,20 +414,39 @@ export class TokensController extends BaseController<
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
    */
-  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
-    // Remove state for deleted networks
-    for (const patch of patches) {
-      if (
-        patch.op === 'remove' &&
-        patch.path[0] === 'networkConfigurationsByChainId'
-      ) {
-        const removedChainId = patch.path[1] as Hex;
+  /**
+   * Handles the `NetworkController:networkAdded` event. Seeds mUSD for all
+   * EVM accounts immediately when the user adds a supported chain (e.g. Monad
+   * testnet) — without waiting for the `stateChange` patch cycle.
+   *
+   * @param chainId - The hex chain ID of the newly added network.
+   */
+  #onNetworkAdded(chainId: Hex): void {
+    if (MUSD_SUPPORTED_CHAIN_IDS.has(chainId)) {
+      this.#seedMusdForAllAccounts();
+    }
+  }
 
+  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    for (const patch of patches) {
+      if (patch.path[0] !== 'networkConfigurationsByChainId') {
+        continue;
+      }
+
+      if (patch.op === 'remove') {
+        // Remove state for deleted networks
+        const removedChainId = patch.path[1] as Hex;
         this.update((state) => {
           delete state.allTokens[removedChainId];
           delete state.allIgnoredTokens[removedChainId];
           delete state.allDetectedTokens[removedChainId];
         });
+      } else if (patch.op === 'add') {
+        // When a new chain is added, seed mUSD if it is a supported chain.
+        const addedChainId = patch.path[1] as Hex;
+        if (MUSD_SUPPORTED_CHAIN_IDS.has(addedChainId)) {
+          this.#seedMusdForAllAccounts();
+        }
       }
     }
   }
@@ -371,6 +458,9 @@ export class TokensController extends BaseController<
    */
   #onSelectedAccountChange(selectedAccount: InternalAccount) {
     this.#selectedAccountId = selectedAccount.id;
+    // Ensure mUSD is seeded for the newly active account (e.g. freshly
+    // created account that has never been the selected account before).
+    this.#seedMusdForAccount(selectedAccount.address);
   }
 
   /**
@@ -1137,6 +1227,68 @@ export class TokensController extends BaseController<
       },
       true,
     );
+  }
+
+  /**
+   * Ensure mUSD appears in `allTokens` for the given EVM account address on
+   * every chain where mUSD is a default tracked asset. Does nothing if the
+   * address is not a valid EVM address or if mUSD is already present.
+   *
+   * @param accountAddress - Lowercase hex address of the account.
+   */
+  #seedMusdForAccount(accountAddress: string): void {
+    if (
+      !isStrictHexString(accountAddress.toLowerCase()) ||
+      !isValidHexAddress(accountAddress)
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const chainId of MUSD_SUPPORTED_CHAIN_IDS) {
+        state.allTokens[chainId] ??= {};
+        const accountTokens = state.allTokens[chainId][accountAddress] ?? [];
+        const alreadyPresent = accountTokens.some(
+          (token) => token.address.toLowerCase() === MUSD_ADDRESS,
+        );
+        if (!alreadyPresent) {
+          state.allTokens[chainId][accountAddress] = [
+            ...accountTokens,
+            MUSD_TOKEN,
+          ];
+        }
+      }
+    });
+  }
+
+  /**
+   * Seed mUSD for every existing EVM account via AccountsController.
+   * Called on KeyringController:unlock and on network/account events.
+   */
+  #seedMusdForAllAccounts(): void {
+    const accounts = this.messenger.call('AccountsController:listAccounts');
+    for (const account of accounts) {
+      this.#seedMusdForAccount(account.address);
+    }
+  }
+
+  /**
+   * Seed mUSD for every account address that already has an entry in the
+   * persisted `allTokens` state. This runs at construction time without
+   * relying on AccountsController being ready — it derives account addresses
+   * directly from state so that returning users see mUSD immediately, even
+   * before the keyring unlocks.
+   */
+  #seedMusdFromExistingState(): void {
+    const addresses = new Set<string>();
+    for (const chainTokens of Object.values(this.state.allTokens)) {
+      for (const address of Object.keys(chainTokens)) {
+        addresses.add(address);
+      }
+    }
+    for (const address of addresses) {
+      this.#seedMusdForAccount(address);
+    }
   }
 
   #getSelectedAccount() {
