@@ -380,14 +380,13 @@ export type Encryptor<
    */
   decrypt: (password: string, encryptedString: string) => Promise<unknown>;
   /**
-   * Optional vault migration helper. Checks if the provided vault is up to date
-   * with the desired encryption algorithm.
+   * Checks if the provided vault is up to date with the desired encryption algorithm.
    *
    * @param vault - The encrypted string to check.
    * @param targetDerivationParams - The desired target derivation params.
    * @returns The updated encrypted string.
    */
-  isVaultUpdated?: (
+  isVaultUpdated: (
     vault: string,
     targetDerivationParams?: encryptorUtils.KeyDerivationOptions,
   ) => boolean;
@@ -2755,7 +2754,7 @@ export class KeyringController<
   #isNewEncryptionAvailable(): boolean {
     const { vault } = this.state;
 
-    if (!vault || !this.#encryptor.isVaultUpdated) {
+    if (!vault) {
       return false;
     }
 
