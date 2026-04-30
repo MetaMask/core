@@ -126,7 +126,8 @@ class MockHdKeyringV2 implements Keyring {
 
       if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
         const groupIndex = this.accounts.length;
-        const { metadata, ...keyringAccount } = makeDerivedHdAccount(groupIndex);
+        const { metadata, ...keyringAccount } =
+          makeDerivedHdAccount(groupIndex);
         this.accounts.push(keyringAccount);
         newAccounts.push(keyringAccount);
       }
