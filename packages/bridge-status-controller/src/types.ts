@@ -120,6 +120,7 @@ export type BridgeHistoryItem = {
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
+  quoteId: string;
   status: StatusResponse;
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
@@ -352,14 +353,7 @@ export type QuoteStatusUpdateResponse =
   | {
       statusCode: number;
       message: string;
-      type: QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch;
-      newQuoteStatus: QuoteStatusUpdateStatus;
-      onChainQuoteStatus: QuoteStatusUpdateStatus;
-    }
-  | {
-      statusCode: number;
-      message: string;
-      type: QuoteStatusUpdateErrorType.InvalidStatusTransaction;
+      type: QuoteStatusUpdateErrorType.InvalidStatusTransaction | QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch;
       currentStatus: QuoteStatusUpdateStatus;
       newStatus: QuoteStatusUpdateStatus;
     }

@@ -393,17 +393,8 @@ export class QuoteStatusUpdateManager {
   ): Promise<void> {
     const { type } = response;
 
-    if (type === QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch) {
-      const finalizationStatus = response.onChainQuoteStatus;
-      entry.pendingStatuses = [finalizationStatus];
-      this.#persistToState();
-      this.#inFlight.delete(key);
-      await this.#attemptFinalizationWithRetries(key, entry);
-      return;
-    }
-
-    if (type === QuoteStatusUpdateErrorType.InvalidStatusTransaction) {
-      const finalizationStatus = response.newStatus;
+    if (type === QuoteStatusUpdateErrorType.InvalidStatusTransaction || type === QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch) {
+      const finalizationStatus = response.currentStatus;
       entry.pendingStatuses = [finalizationStatus];
       this.#persistToState();
       this.#inFlight.delete(key);

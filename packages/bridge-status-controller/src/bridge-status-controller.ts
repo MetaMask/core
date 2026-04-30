@@ -261,10 +261,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               isCrossChainTx(txMeta.type) &&
               !isApprovalTxMeta
             ) {
-              const requestId = historyItem?.quote?.requestId;
-              if (requestId) {
+              if (historyItem?.quoteId && txMeta.hash) {
                 this.#quoteStatusUpdateManager.reportSubmitted(
-                  requestId,
+                  historyItem.quoteId,
                   txMeta.hash,
                   txMeta.id,
                 );
@@ -316,14 +315,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ({ transactionMeta }) => {
         const { type, id: txMetaId, hash, actionId } = transactionMeta;
         if (hash && type && isCrossChainTx(type)) {
-          // Look up by txMetaId first, then by actionId (for pre-submission keyed history)
           const historyItem =
             this.state.txHistory[txMetaId] ??
             (actionId ? this.state.txHistory[actionId] : undefined);
-          const requestId = historyItem?.quote.requestId;
-          if (requestId) {
+          if (historyItem?.quoteId) {
             this.#quoteStatusUpdateManager.reportSubmitted(
-              requestId,
+              historyItem.quoteId,
               hash,
               txMetaId,
             );
@@ -1441,9 +1438,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Call reportSubmitted after history is added if hash is available.
       // For batch EVM (STX/delegated), the hash may or may not be available depending on timing.
       // If not available here, the transactionStatusUpdated:submitted handler will catch it.
-      if (quoteResponse.quoteId && txMeta.hash) {
+      const historyItemForSubmit = this.state.txHistory[historyKey];
+      if (historyItemForSubmit && txMeta.hash) {
         this.#quoteStatusUpdateManager.reportSubmitted(
-          quoteResponse.quoteId,
+          historyItemForSubmit.quoteId,
           txMeta.hash,
           txMeta.id,
         );
