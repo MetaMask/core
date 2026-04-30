@@ -3,7 +3,6 @@ export {
   getInitialSeedlessOnboardingControllerStateWithDefaults as getDefaultSeedlessOnboardingControllerState,
 } from './SeedlessOnboardingController';
 export type {
-  SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerGetStateAction,
   SeedlessOnboardingControllerStateChangeEvent,
@@ -39,6 +38,7 @@ export type {
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
 } from './SeedlessOnboardingController-method-action-types';
 export type {
+  SeedlessOnboardingControllerOptions,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SeedlessOnboardingControllerState,

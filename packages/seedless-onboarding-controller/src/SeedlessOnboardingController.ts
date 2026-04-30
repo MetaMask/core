@@ -2218,7 +2218,7 @@ export class SeedlessOnboardingController<
     let { accessToken, revokeToken, profilePairingToken } = this.state;
     // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
-    if (accessToken && revokeToken && profilePairingToken) {
+    if (accessToken && revokeToken) {
       return { accessToken, profilePairingToken, revokeToken };
     }
 
