@@ -1,9 +1,15 @@
 import BitcoinWalletSnap from '@metamask/bitcoin-wallet-snap/dist/preinstalled-snap.json';
-import { Messenger } from '@metamask/messenger';
+import { KeyringControllerWithKeyringAction } from '@metamask/keyring-controller';
+import {
+  Messenger,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import {
   SnapController,
   SnapControllerMessenger,
   PersistedSnapControllerState,
+  PreinstalledSnap,
 } from '@metamask/snaps-controllers';
 import SolanaWalletSnap from '@metamask/solana-wallet-snap/dist/preinstalled-snap.json';
 import TronWalletSnap from '@metamask/tron-wallet-snap/dist/preinstalled-snap.json';
@@ -17,14 +23,26 @@ import {
 } from '../../permissions/specifications';
 import { InitializationConfiguration } from '../types';
 
+type AllowedActions =
+  | MessengerActions<SnapControllerMessenger>
+  | KeyringControllerWithKeyringAction;
+
+type AllowedEvents = MessengerEvents<SnapControllerMessenger>;
+
+type WalletSnapControllerMessenger = Messenger<
+  'SnapController',
+  AllowedActions,
+  AllowedEvents
+>;
+
 export const snapController: InitializationConfiguration<
   SnapController,
-  SnapControllerMessenger
+  WalletSnapControllerMessenger
 > = {
   name: 'SnapController',
   init: ({ messenger, state, options }) => {
     const instance = new SnapController({
-      messenger,
+      messenger: messenger as SnapControllerMessenger,
       // Persisted state is different from actual state, consider changing `state` inference type.
       state: state as PersistedSnapControllerState,
 
@@ -34,12 +52,17 @@ export const snapController: InitializationConfiguration<
         ...ExcludedSnapEndowments,
       },
 
+      // @ts-expect-error Type mismatch.
       encryptor: encryptorFactory(600_000),
 
       getMnemonicSeed: getMnemonicSeed.bind(null, messenger, undefined),
 
       ensureOnboardingComplete: options.ensureOnboardingComplete,
-      preinstalledSnaps: [SolanaWalletSnap, BitcoinWalletSnap, TronWalletSnap],
+      preinstalledSnaps: [
+        SolanaWalletSnap,
+        BitcoinWalletSnap,
+        TronWalletSnap,
+      ] as unknown as PreinstalledSnap[],
     });
 
     return {
@@ -47,7 +70,7 @@ export const snapController: InitializationConfiguration<
     };
   },
   messenger: (parent) => {
-    const controllerMessenger: SnapControllerMessenger = new Messenger({
+    const controllerMessenger: WalletSnapControllerMessenger = new Messenger({
       namespace: 'SnapController',
       parent,
     });

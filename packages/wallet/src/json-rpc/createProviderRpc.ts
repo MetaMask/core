@@ -10,11 +10,13 @@ import {
   SubjectType,
   createPermissionMiddleware,
 } from '@metamask/permission-controller';
+import { CronjobControllerScheduleAction } from '@metamask/snaps-controllers';
 import {
   createWalletSnapPermissionMiddleware,
   createSnapsMethodMiddleware,
 } from '@metamask/snaps-rpc-methods';
-import { createDeferredPromise } from '@metamask/utils';
+import { SnapId } from '@metamask/snaps-sdk';
+import { SnapRpcHookArgs } from '@metamask/snaps-utils';
 import { Duplex, pipeline } from 'readable-stream';
 
 import {
@@ -22,6 +24,7 @@ import {
   DefaultEvents,
   RootMessenger,
 } from '../initialization';
+import { bindMessengerAction } from '../initialization/types';
 
 const METAMASK_EIP_1193_PROVIDER = 'metamask-provider';
 const METAMASK_CAIP_MULTICHAIN_PROVIDER = 'metamask-multichain-provider';
@@ -45,9 +48,9 @@ export function setupMultiplex(connectionStream: Duplex): ObjectMultiplex {
 export function createRpcHooks(
   origin: string,
   messenger: RootMessenger<DefaultActions, DefaultEvents>,
-) {
+): Record<string, unknown> {
   return {
-    clearSnapState: messenger.call.bind(
+    clearSnapState: bindMessengerAction(
       messenger,
       'SnapController:clearSnapState',
       origin,
@@ -59,42 +62,42 @@ export function createRpcHooks(
 
       return messenger.waitUntil('KeyringController:unlock');
     },
-    getSnaps: messenger.call.bind(
+    getSnaps: bindMessengerAction(
       messenger,
       'SnapController:getPermittedSnaps',
       origin,
     ),
-    requestPermissions: messenger.call.bind(
+    requestPermissions: bindMessengerAction(
       messenger,
       'PermissionController:requestPermissions',
       { origin },
     ),
-    getPermissions: messenger.call.bind(
+    getPermissions: bindMessengerAction(
       messenger,
       'PermissionController:getPermissions',
       origin,
     ),
-    getSnapFile: messenger.call.bind(
+    getSnapFile: bindMessengerAction(
       messenger,
       'SnapController:getSnapFile',
       origin,
     ),
-    getSnapState: messenger.call.bind(
+    getSnapState: bindMessengerAction(
       messenger,
       'SnapController:getSnapState',
       origin,
     ),
-    updateSnapState: messenger.call.bind(
+    updateSnapState: bindMessengerAction(
       messenger,
       'SnapController:updateSnapState',
       origin,
     ),
-    installSnaps: messenger.call.bind(
+    installSnaps: bindMessengerAction(
       messenger,
       'SnapController:installSnaps',
       origin,
     ),
-    invokeSnap: messenger.call.bind(
+    invokeSnap: bindMessengerAction(
       messenger,
       'PermissionController:executeRestrictedMethod',
       origin,
@@ -113,52 +116,34 @@ export function createRpcHooks(
     getVersion: () => {
       return process.env.METAMASK_VERSION;
     },
-    getInterfaceState: (...args) =>
+    getInterfaceState: bindMessengerAction(
+      messenger,
+      'SnapInterfaceController:getInterfaceState',
+      origin,
+    ),
+    getInterfaceContext: (id: string) =>
       messenger.call(
-        'SnapInterfaceController:getInterfaceState',
-        origin,
-        ...args,
-      ),
-    getInterfaceContext: (...args) =>
-      messenger.call('SnapInterfaceController:getInterface', origin, ...args)
-        .context,
-    createInterface: messenger.call.bind(
+        'SnapInterfaceController:getInterface',
+        origin as SnapId,
+        id,
+      ).context,
+    createInterface: bindMessengerAction(
       messenger,
       'SnapInterfaceController:createInterface',
       origin,
     ),
-    updateInterface: messenger.call.bind(
+    updateInterface: bindMessengerAction(
       messenger,
       'SnapInterfaceController:updateInterface',
       origin,
     ),
-    resolveInterface: messenger.call.bind(
+    resolveInterface: bindMessengerAction(
       messenger,
       'SnapInterfaceController:resolveInterface',
       origin,
     ),
-    getSnap: messenger.call.bind(messenger, 'SnapController:getSnap'),
-    getAllSnaps: messenger.call.bind(messenger, 'SnapController:getAllSnaps'),
-    openWebSocket: messenger.call.bind(
-      messenger,
-      'WebSocketService:open',
-      origin,
-    ),
-    closeWebSocket: messenger.call.bind(
-      messenger,
-      'WebSocketService:close',
-      origin,
-    ),
-    getWebSockets: messenger.call.bind(
-      messenger,
-      'WebSocketService:getAll',
-      origin,
-    ),
-    sendWebSocketMessage: messenger.call.bind(
-      messenger,
-      'WebSocketService:sendMessage',
-      origin,
-    ),
+    getSnap: bindMessengerAction(messenger, 'SnapController:getSnap'),
+    getAllSnaps: bindMessengerAction(messenger, 'SnapController:getAllSnaps'),
     getEntropySources: () => {
       const state = messenger.call('KeyringController:getState');
 
@@ -177,31 +162,33 @@ export function createRpcHooks(
         })
         .filter(Boolean);
     },
-    hasPermission: messenger.call.bind(
+    hasPermission: bindMessengerAction(
       messenger,
       'PermissionController:hasPermission',
       origin,
     ),
-    scheduleBackgroundEvent: (event) =>
+    scheduleBackgroundEvent: (
+      event: Parameters<CronjobControllerScheduleAction['handler']>[0],
+    ) =>
       messenger.call('CronjobController:schedule', {
         ...event,
-        snapId: origin,
+        snapId: origin as SnapId,
       }),
-    cancelBackgroundEvent: messenger.call.bind(
+    cancelBackgroundEvent: bindMessengerAction(
       messenger,
       'CronjobController:cancel',
       origin,
     ),
-    getBackgroundEvents: messenger.call.bind(
+    getBackgroundEvents: bindMessengerAction(
       messenger,
       'CronjobController:get',
       origin,
     ),
-    getNetworkConfigurationByChainId: messenger.call.bind(
+    getNetworkConfigurationByChainId: bindMessengerAction(
       messenger,
       'NetworkController:getNetworkConfigurationByChainId',
     ),
-    getNetworkClientById: messenger.call.bind(
+    getNetworkClientById: bindMessengerAction(
       messenger,
       'NetworkController:getNetworkClientById',
     ),
@@ -211,8 +198,15 @@ export function createRpcHooks(
     endTrace: () => {
       return null;
     },
-    handleSnapRpcRequest: (args) =>
-      messenger.call('SnapController:handleRequest', { ...args, origin }),
+    handleSnapRpcRequest: (
+      request: Omit<SnapRpcHookArgs, 'origin'> & { snapId: SnapId },
+    ) =>
+      messenger.call('SnapController:handleRequest', {
+        snapId: request.snapId,
+        origin,
+        handler: request.handler,
+        request: request.request,
+      }),
     getAllowedKeyringMethods: () => [],
   };
 }

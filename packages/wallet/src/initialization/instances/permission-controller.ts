@@ -24,6 +24,7 @@ import {
 } from '@metamask/snaps-controllers';
 
 import {
+  PermissionSpecificationsMessenger,
   getCaveatSpecifications,
   getPermissionSpecifications,
   unrestrictedMethods,
@@ -65,8 +66,12 @@ export const permissionController: InitializationConfiguration<
     const instance = new PermissionController({
       messenger: messenger as PermissionControllerMessenger,
       state,
-      permissionSpecifications: getPermissionSpecifications(messenger),
-      caveatSpecifications: getCaveatSpecifications(messenger),
+      permissionSpecifications: getPermissionSpecifications(
+        messenger as PermissionSpecificationsMessenger,
+      ),
+      caveatSpecifications: getCaveatSpecifications(
+        messenger as PermissionSpecificationsMessenger,
+      ),
       unrestrictedMethods,
     });
 

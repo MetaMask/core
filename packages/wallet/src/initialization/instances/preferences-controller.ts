@@ -6,7 +6,7 @@ import {
 
 import { InitializationConfiguration } from '../types';
 
-export const referencesController: InitializationConfiguration<
+export const preferencesController: InitializationConfiguration<
   PreferencesController,
   PreferencesControllerMessenger
 > = {

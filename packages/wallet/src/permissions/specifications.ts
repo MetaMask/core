@@ -84,7 +84,7 @@ type PermissionSpecificationsActions =
 
 type PermissionSpecificationsEvents = KeyringControllerUnlockEvent;
 
-type PermissionSpecificationsMessenger = Messenger<
+export type PermissionSpecificationsMessenger = Messenger<
   string,
   PermissionSpecificationsActions,
   PermissionSpecificationsEvents
