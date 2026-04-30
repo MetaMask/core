@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 946.0.0 ([#8634](https://github.com/MetaMask/core/pull/8634))
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
+- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+
 ### Added
 
 - Expose `updateTransactionsForAccount` as a messenger action (`MultichainTransactionsController:updateTransactionsForAccount`) ([#8391](https://github.com/MetaMask/core/pull/8391))
@@ -46,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0`, ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
 
 ## [7.0.1]
@@ -59,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604)), ([#7642](https://github.com/MetaMask/core/pull/7642), [#7897](https://github.com/MetaMask/core/pull/7897))
+- Move peer dependencies for controller and service packages to direct dependencies, ([#7209](https://github.com/MetaMask/core/pull/7209), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7897](https://github.com/MetaMask/core/pull/7897))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^36.0.0)
     - `@metamask/snaps-controllers` (^17.2.0)
@@ -228,8 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sort transactions (newest first) ([#5339](https://github.com/MetaMask/core/pull/5339))
 - Bump `@metamask/keyring-controller"` from `^19.1.0` to `^19.2.0` ([#5357](https://github.com/MetaMask/core/pull/5357))
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
-- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356)), ([#5366](https://github.com/MetaMask/core/pull/5366))
-- Bump `@metamask/keyring-snap-client` from `^3.0.3` to `^4.0.1` ([#5356](https://github.com/MetaMask/core/pull/5356)), ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3`, ([#5356](https://github.com/MetaMask/core/pull/5356), [#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/keyring-snap-client` from `^3.0.3` to `^4.0.1`, ([#5356](https://github.com/MetaMask/core/pull/5356), [#5366](https://github.com/MetaMask/core/pull/5366))
 - Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ### Fixed
@@ -259,7 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^22.0.0` to `^23.0.0` ([#5292](https://github.com/MetaMask/core/pull/5292))
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.10.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
-- Bump `@metamask/snaps-sdk` from `^6.7.0` to `^6.17.1` ([#5220](https://github.com/MetaMask/core/pull/5220)), ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/snaps-sdk` from `^6.7.0` to `^6.17.1`, ([#5220](https://github.com/MetaMask/core/pull/5220), [#5265](https://github.com/MetaMask/core/pull/5265))
 - Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
 - Bump `@metamask/snaps-controllers` from `^9.10.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
 - Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
@@ -271,15 +281,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
-- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
-- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
-- Bump `@metamask/keyring-snap-client` from `^3.0.0` to `^3.0.3` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0`, ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1`, ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-snap-client` from `^3.0.0` to `^3.0.3`, ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
 
 ## [0.0.1]
 
 ### Added
 
-- Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Initial release, ([#5133](https://github.com/MetaMask/core/pull/5133), [#5177](https://github.com/MetaMask/core/pull/5177))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.4...HEAD
 [7.0.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@7.0.3...@metamask/multichain-transactions-controller@7.0.4

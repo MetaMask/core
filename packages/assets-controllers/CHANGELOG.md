@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore!: bump accounts deps ([#8584](https://github.com/MetaMask/core/pull/8584))
+
 ### Added
 
 - Add ZetaChain network support (`7000`/`0x1b58`) ([#8627](https://github.com/MetaMask/core/pull/8627))
