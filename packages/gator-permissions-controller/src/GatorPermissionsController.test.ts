@@ -835,9 +835,9 @@ describe('GatorPermissionsController', () => {
       const delegator = delegatorAddressA;
       const delegate = delegateAddressB;
 
-      const timestampBeforeThreshold = 1720000;
+      const beforeThreshold = 1720000;
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold },
+        { afterThreshold: 0, beforeThreshold },
         { out: 'hex' },
       );
 
@@ -886,7 +886,7 @@ describe('GatorPermissionsController', () => {
       expect(result.from).toBe(delegator);
       expect(result.to).toStrictEqual(delegate);
       expect(result.permission.type).toBe('native-token-stream');
-      expect(result.expiry).toBe(timestampBeforeThreshold);
+      expect(result.expiry).toBe(beforeThreshold);
       // amounts are hex-encoded in decoded data; startTime is numeric
       expect(result.permission.data.startTime).toBe(startTime);
       // BigInt fields are encoded as hex; compare after decoding
@@ -923,7 +923,7 @@ describe('GatorPermissionsController', () => {
       const { TimestampEnforcer, ValueLteEnforcer } = contracts;
 
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold: 100 },
+        { afterThreshold: 0, beforeThreshold: 100 },
         { out: 'hex' },
       );
 
@@ -964,7 +964,7 @@ describe('GatorPermissionsController', () => {
       } = contracts;
 
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold: 1720000 },
+        { afterThreshold: 0, beforeThreshold: 1720000 },
         { out: 'hex' },
       );
 
@@ -1014,9 +1014,9 @@ describe('GatorPermissionsController', () => {
       const delegator = delegatorAddressA;
       const delegate = delegateAddressB;
 
-      const timestampBeforeThreshold = 2000;
+      const beforeThreshold = 2000;
       const expiryTerms = createTimestampTerms(
-        { timestampAfterThreshold: 0, timestampBeforeThreshold },
+        { afterThreshold: 0, beforeThreshold },
         { out: 'hex' },
       );
 

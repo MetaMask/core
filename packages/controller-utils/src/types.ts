@@ -179,7 +179,7 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.BscMainnet]: 'https://bscscan.com',
   [BuiltInNetworkName.OptimismMainnet]: 'https://optimistic.etherscan.io',
   [BuiltInNetworkName.PolygonMainnet]: 'https://polygonscan.com',
-  [BuiltInNetworkName.SeiMainnet]: 'https://seitrace.com',
+  [BuiltInNetworkName.SeiMainnet]: 'https://seiscan.io',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];

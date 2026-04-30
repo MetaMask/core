@@ -43,8 +43,8 @@ describe('permissionOnChainStatus', () => {
     it('returns expiry from TimestampEnforcer caveat terms', () => {
       const expirySeconds = 1893456000;
       const terms = createTimestampTerms({
-        timestampAfterThreshold: 0,
-        timestampBeforeThreshold: expirySeconds,
+        afterThreshold: 0,
+        beforeThreshold: expirySeconds,
       });
       const delegation: Delegation<Hex> = {
         delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
@@ -329,8 +329,8 @@ describe('permissionOnChainStatus', () => {
     it('sets Expired when latest block time is at or past timestamp caveat expiry', async () => {
       const expirySeconds = 1_000_000_000;
       const terms = createTimestampTerms({
-        timestampAfterThreshold: 0,
-        timestampBeforeThreshold: expirySeconds,
+        afterThreshold: 0,
+        beforeThreshold: expirySeconds,
       });
       const delegation: Delegation<Hex> = {
         delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
@@ -523,8 +523,8 @@ describe('permissionOnChainStatus', () => {
       const expirySeconds = 2_500_000_000;
       const blockSeconds = expirySeconds - 10_000;
       const terms = createTimestampTerms({
-        timestampAfterThreshold: 0,
-        timestampBeforeThreshold: expirySeconds,
+        afterThreshold: 0,
+        beforeThreshold: expirySeconds,
       });
       const delegation: Delegation<Hex> = {
         delegate: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',

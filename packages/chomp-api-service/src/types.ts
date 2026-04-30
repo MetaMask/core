@@ -63,15 +63,53 @@ export type CreateWithdrawalParams = {
 
 // === RESPONSE TYPES ===
 
+/**
+ * Returned by POST /v1/auth/address.
+ *
+ * `profileId` is only included when the address was newly associated
+ * (`status: 'created'`). When the address was already associated with the
+ * authenticated profile (`status: 'active'`), only `address` is returned.
+ */
 export type AssociateAddressResponse = {
-  profileId: string;
+  profileId?: string;
   address: Hex;
-  status: string;
+  status: 'active' | 'created';
 };
 
-export type UpgradeResponse = {
+export type AccountUpgradeStatus = 'pending' | 'upgraded';
+
+export type AuthorizationData = {
+  r: Hex;
+  s: Hex;
+  v: number;
+  yParity: number;
+  address: Hex;
+  chainId: Hex;
+  nonce: Hex;
+};
+
+/**
+ * Returned by POST /v1/account-upgrade.
+ */
+export type CreateUpgradeResponse = {
   signerAddress: Hex;
-  status: string;
+  address: Hex;
+  chainId: Hex;
+  nonce: Hex;
+  status: AccountUpgradeStatus;
+  createdAt: string;
+};
+
+/**
+ * One entry returned by GET /v1/account-upgrade/:address. The endpoint returns
+ * an array of these (one per chain).
+ */
+export type UpgradeEntry = {
+  signerAddress: Hex;
+  chainId: Hex;
+  nonce: Hex;
+  authorization: AuthorizationData;
+  status: AccountUpgradeStatus;
   createdAt: string;
 };
 
@@ -96,9 +134,6 @@ export type SendIntentResponse = {
 
 /**
  * The shape returned by GET /v1/intent/account/:address for each intent.
- *
- * Note: the metadata `type` uses 'deposit' | 'withdraw' here, whereas the
- * create-intent endpoint uses 'cash-deposit' | 'cash-withdrawal'.
  */
 export type IntentEntry = {
   account: Hex;
@@ -109,7 +144,7 @@ export type IntentEntry = {
     allowance: Hex;
     tokenAddress: Hex;
     tokenSymbol: string;
-    type: 'deposit' | 'withdraw';
+    type: 'cash-deposit' | 'cash-withdrawal';
   };
 };
 

@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Changed
 
+- **BREAKING:** update types and methods of chomp-api-service to properly reflect the API ([#8635](https://github.com/MetaMask/core/pull/8635))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 
 ## [2.0.0]
@@ -23,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@2.0.0...@metamask/chomp-api-service@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@1.0.0...@metamask/chomp-api-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chomp-api-service@1.0.0

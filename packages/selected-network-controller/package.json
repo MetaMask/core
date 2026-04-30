@@ -56,7 +56,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/json-rpc-engine": "^10.2.4",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/network-controller": "^30.1.0",
     "@metamask/permission-controller": "^12.3.0",
     "@metamask/swappable-obj-proxy": "^2.3.0",
     "@metamask/utils": "^11.9.0"
