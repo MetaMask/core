@@ -2907,7 +2907,7 @@ describe('BridgeController', function () {
                   type: 'Snap Keyring',
                 },
                 snap: {
-                  id: 'npm:@metamask/stellar-snap',
+                  id: 'npm:@metamask/stellar-wallet-snap',
                   name: 'Stellar Snap',
                 },
               },

@@ -14,6 +14,7 @@ import {
   getAccountHardwareType,
   UnifiedSwapBridgeEventName,
   isCrossChain,
+  isStellarChainId,
   isTronChainId,
   isEvmTxData,
   MetricsActionType,
@@ -1104,6 +1105,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
     );
+    const isStellarTx = isStellarChainId(quoteResponse.quote.srcChainId);
     const isTronTx = isTronChainId(quoteResponse.quote.srcChainId);
 
     try {
@@ -1114,7 +1116,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           undefined,
           preConfirmationProperties,
         );
-      // Submit non-EVM tx (Solana, BTC, Tron)
+      // Submit non-EVM tx (Solana, BTC, Stellar, Tron)
       if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
         // Handle non-EVM approval if present (e.g., Tron token approvals)
         if (quoteResponse.approval && isTronTrade(quoteResponse.approval)) {
@@ -1323,7 +1325,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         // Start polling for bridge tx status
         this.#startPollingForTxId(historyKey);
         // Track non-EVM Swap completed event
-        if (!(isBridgeTx || isTronTx)) {
+        if (!(isBridgeTx || isStellarTx || isTronTx)) {
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             historyKey,

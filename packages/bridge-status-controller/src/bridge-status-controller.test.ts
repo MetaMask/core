@@ -2489,6 +2489,188 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('submitTx: Stellar swap', () => {
+    const stellarTransaction =
+      'AAAAAgAAAAD0nwCHSrVmKCsHgCmbRVWthGc9YjCiouQpBrC7kYHUDAAAAGQAAAABAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAA=';
+    const stellarTxHash =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const stellarAccountAddress =
+      'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+    const stellarNativeAsset = getNativeAssetForChainId(ChainId.STELLAR);
+    const stellarTokenAsset = {
+      chainId: ChainId.STELLAR,
+      address: 'CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75',
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 7,
+      assetId:
+        'stellar:pubnet/sep41:CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75' as CaipAssetType,
+    };
+    const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      quote: {
+        ...getMockQuote({
+          srcChainId: ChainId.STELLAR,
+          destChainId: ChainId.STELLAR,
+        }),
+        requestId: 'stellar-request-id',
+        srcAsset: stellarNativeAsset,
+        destAsset: stellarTokenAsset,
+        bridgeId: 'stellar_native',
+        bridges: ['stellar_native'],
+        steps: [
+          {
+            action: ActionTypes.SWAP,
+            srcChainId: ChainId.STELLAR,
+            destChainId: ChainId.STELLAR,
+            protocol: {
+              name: 'stellar_native',
+              displayName: 'Stellar',
+              icon: '',
+            },
+            srcAsset: stellarNativeAsset,
+            destAsset: stellarTokenAsset,
+            srcAmount: '300000000',
+            destAmount: '100000000',
+          },
+        ],
+      },
+      trade: stellarTransaction,
+      approval: null as never,
+      estimatedProcessingTimeInSeconds: 15,
+      sentAmount: {
+        amount: '30',
+        valueInCurrency: '3.00',
+        usd: '3.00',
+      },
+      toTokenAmount: {
+        amount: '10',
+        valueInCurrency: '10.00',
+        usd: '10.00',
+      },
+      minToTokenAmount: {
+        amount: '9.5',
+        valueInCurrency: '9.50',
+        usd: '9.50',
+      },
+      totalNetworkFee: {
+        amount: '0.00001',
+        valueInCurrency: '0.01',
+        usd: '0.01',
+      },
+      totalMaxNetworkFee: {
+        amount: '0.00001',
+        valueInCurrency: '0.01',
+        usd: '0.01',
+      },
+      gasFee: {
+        effective: { amount: '0.00001', valueInCurrency: '0.01', usd: '0.01' },
+        total: { amount: '0.00001', valueInCurrency: '0.01', usd: '0.01' },
+        max: { amount: '0', valueInCurrency: null, usd: null },
+      },
+      adjustedReturn: {
+        valueInCurrency: '9.99',
+        usd: '9.99',
+      },
+      cost: {
+        valueInCurrency: '0.01',
+        usd: '0.01',
+      },
+      swapRate: '0.3333333',
+    };
+
+    const mockStellarAccount = {
+      id: 'stellar-account-1',
+      address: stellarAccountAddress,
+      metadata: {
+        snap: {
+          id: 'npm:@metamask/stellar-wallet-snap',
+        },
+        keyring: {
+          type: 'any',
+        },
+      },
+      options: { scope: 'stellar:pubnet' },
+    };
+
+    let mockMessengerCall: jest.Mock;
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.clearAllTimers();
+      mockMessengerCall = jest.fn();
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
+    });
+
+    it('should submit a Stellar swap and start polling for status', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockStellarAccount);
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // Submitted event
+      mockMessengerCall.mockResolvedValueOnce({ transactionId: stellarTxHash });
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            stellarAccountAddress,
+            mockQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
+
+          expect(result).toStrictEqual(
+            expect.objectContaining({
+              id: stellarTxHash,
+              hash: stellarTxHash,
+              networkClientId: 'npm:@metamask/stellar-wallet-snap',
+              origin: 'npm:@metamask/stellar-wallet-snap',
+            }),
+          );
+          expect(mockMessengerCall).toHaveBeenCalledWith(
+            'SnapController:handleRequest',
+            expect.objectContaining({
+              snapId: 'npm:@metamask/stellar-wallet-snap',
+              request: expect.objectContaining({
+                method: 'signAndSendTransaction',
+                params: {
+                  accountId: 'stellar-account-1',
+                  scope: 'stellar:pubnet',
+                  transaction: stellarTransaction,
+                },
+              }),
+            }),
+          );
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+          expect(controller.state.txHistory[stellarTxHash]).toMatchObject({
+            txMetaId: stellarTxHash,
+            account: stellarAccountAddress,
+            quote: expect.objectContaining({
+              srcChainId: ChainId.STELLAR,
+              destChainId: ChainId.STELLAR,
+              bridgeId: 'stellar_native',
+            }),
+            status: expect.objectContaining({
+              status: StatusTypes.PENDING,
+              srcChain: {
+                chainId: ChainId.STELLAR,
+                txHash: stellarTxHash,
+              },
+            }),
+          });
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action, eventName]) =>
+                action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+                eventName === UnifiedSwapBridgeEventName.Completed,
+            ),
+          ).toHaveLength(0);
+        },
+      );
+    });
+  });
+
   describe('submitTx: Tron swap with approval', () => {
     const mockTronApproval: TronTradeData = {
       raw_data_hex:

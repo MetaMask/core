@@ -1,3 +1,5 @@
+import { ChainId } from '@metamask/bridge-controller';
+
 import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants';
 import { BridgeClientId } from '../types';
 import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
@@ -216,6 +218,55 @@ describe('utils', () => {
         ),
       ).rejects.toThrow('Network error');
     });
+
+    it('should successfully validate Stellar transaction status', async () => {
+      const stellarTxHash =
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+      const stellarStatusRequest: StatusRequestWithSrcTxHash = {
+        ...mockStatusRequest,
+        bridgeId: 'stellar_native',
+        bridge: 'stellar_native',
+        srcTxHash: stellarTxHash,
+        srcChainId: ChainId.STELLAR,
+        destChainId: ChainId.STELLAR,
+        quote: {
+          ...mockStatusRequest.quote,
+          requestId: 'stellar-request-id',
+          bridgeId: 'stellar_native',
+          bridges: ['stellar_native'],
+          srcChainId: ChainId.STELLAR,
+          destChainId: ChainId.STELLAR,
+        },
+      };
+      const stellarStatusResponse = {
+        status: 'COMPLETE',
+        srcChain: {
+          chainId: ChainId.STELLAR,
+          txHash: stellarTxHash,
+        },
+      };
+      const mockFetch: FetchFunction = jest
+        .fn()
+        .mockResolvedValue(stellarStatusResponse);
+
+      const result = await fetchBridgeTxStatus(
+        stellarStatusRequest,
+        mockClientId,
+        'AUTH_TOKEN',
+        mockFetch,
+        BRIDGE_PROD_API_BASE_URL,
+      );
+
+      const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
+      expect(callUrl).toContain('bridgeId=stellar_native');
+      expect(callUrl).toContain(`srcTxHash=${stellarTxHash}`);
+      expect(callUrl).toContain(`srcChainId=${ChainId.STELLAR}`);
+      expect(callUrl).toContain(`destChainId=${ChainId.STELLAR}`);
+      expect(result).toStrictEqual({
+        status: stellarStatusResponse,
+        validationFailures: [],
+      });
+    });
   });
 
   describe('getStatusRequestDto', () => {
@@ -250,6 +301,33 @@ describe('utils', () => {
         refuel: 'false',
       });
       expect(result).not.toHaveProperty('requestId');
+    });
+
+    it('should stringify Stellar status request chain IDs', () => {
+      const stellarTxHash =
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+      const result = getStatusRequestDto({
+        ...mockStatusRequest,
+        bridgeId: 'stellar_native',
+        srcTxHash: stellarTxHash,
+        bridge: 'stellar_native',
+        srcChainId: ChainId.STELLAR,
+        destChainId: ChainId.STELLAR,
+        quote: {
+          ...mockStatusRequest.quote,
+          requestId: 'stellar-request-id',
+        },
+      });
+
+      expect(result).toStrictEqual({
+        bridgeId: 'stellar_native',
+        srcTxHash: stellarTxHash,
+        bridge: 'stellar_native',
+        srcChainId: ChainId.STELLAR.toString(),
+        destChainId: ChainId.STELLAR.toString(),
+        refuel: 'false',
+        requestId: 'stellar-request-id',
+      });
     });
   });
 

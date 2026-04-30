@@ -221,6 +221,76 @@ describe('Snaps Utils', () => {
         }
       `);
     });
+
+    it('should submit a Stellar transaction with pubnet scope', async () => {
+      const snapId = 'npm:@metamask/stellar-wallet-snap';
+      const transaction = 'stellar-xdr-transaction';
+      const accountId = 'stellar-account-id';
+      const transactionId =
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+      const mockCall = jest.fn((...args: unknown[]) => {
+        const [action] = args;
+        if (action === 'SnapController:handleRequest') {
+          return Promise.resolve({ transactionId });
+        }
+        return undefined;
+      });
+      const messenger = {
+        call: (...args: unknown[]) => mockCall(...args),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      const { time, ...result } = await handleNonEvmTx(
+        messenger,
+        transaction,
+        {
+          quote: {
+            srcChainId: ChainId.STELLAR,
+            destChainId: ChainId.STELLAR,
+            srcAsset: { symbol: 'XLM' },
+            destAsset: { symbol: 'USDC' },
+          },
+          sentAmount: {
+            amount: '30',
+          },
+        } as never,
+        {
+          id: accountId,
+          address: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+          metadata: { snap: { id: snapId } },
+        } as never,
+      );
+
+      expect(mockCall).toHaveBeenCalledWith(
+        'SnapController:handleRequest',
+        expect.objectContaining({
+          snapId,
+          request: expect.objectContaining({
+            method: 'signAndSendTransaction',
+            params: {
+              accountId,
+              scope: 'stellar:pubnet',
+              transaction,
+            },
+          }),
+        }),
+      );
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          hash: transactionId,
+          id: transactionId,
+          networkClientId: snapId,
+          origin: snapId,
+          sourceTokenSymbol: 'XLM',
+          destinationTokenSymbol: 'USDC',
+          txParams: {
+            from: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+            data: transaction,
+          },
+          type: 'swap',
+        }),
+      );
+    });
   });
 
   describe('createClientTransactionRequest', () => {
