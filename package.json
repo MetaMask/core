@@ -95,6 +95,7 @@
     "yargs": "^17.7.2"
   },
   "resolutions": {
+    "@metamask/snaps-controllers": "^20.0.3",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"

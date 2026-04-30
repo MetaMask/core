@@ -1,0 +1,1 @@
+export { encryptorFactory } from './encryption';

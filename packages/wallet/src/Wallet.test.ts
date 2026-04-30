@@ -6,6 +6,7 @@ import {
   EnvironmentType,
 } from '@metamask/remote-feature-flag-controller';
 import { TransactionController } from '@metamask/transaction-controller';
+import { CaipAccountId } from '@metamask/utils';
 import { enableNetConnect } from 'nock';
 
 import { startAnvil } from '../test/anvil';
@@ -15,6 +16,7 @@ import {
   createSecretRecoveryPhrase,
   importSecretRecoveryPhrase,
   sendTransaction,
+  signSolanaTransaction,
 } from './utilities';
 import { Wallet } from './Wallet';
 
@@ -36,6 +38,7 @@ async function setupWallet(): Promise<Wallet> {
       },
     }),
     getMetaMetricsId: (): string => 'fake-metrics-id',
+    ensureOnboardingComplete: () => Promise.resolve(),
   });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_PHRASE);
@@ -47,7 +50,7 @@ describe('Wallet', () => {
   let wallet: Wallet;
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    // jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(async () => {
@@ -62,9 +65,20 @@ describe('Wallet', () => {
 
     expect(
       messenger
-        .call('AccountsController:listAccounts')
-        .map((account) => account.address),
-    ).toStrictEqual(['0xc6d5a3c98ec9073b54fa0969957bd582e8d874bf']);
+        .call('MultichainAccountService:getMultichainAccountWallets')
+        .flatMap((multichainWallet) =>
+          multichainWallet
+            .getAccountGroups()
+            .flatMap((group) =>
+              group.getAccounts().map((account) => account.address),
+            ),
+        ),
+    ).toStrictEqual([
+      '0xc6d5a3c98ec9073b54fa0969957bd582e8d874bf',
+      'CYWSQQ2iiFL6EZzuqvMM9o22CZX3N8PowvvkpBXqLK4e',
+      'bc1quezrxxup6e9u62xusarwd3dd9kqp4lzawm4hpw',
+      'TFSzU7EqVpZipKvPcUFtoNsHbx6DFzkAma',
+    ]);
   });
 
   describe('with local chain', () => {
@@ -78,7 +92,7 @@ describe('Wallet', () => {
       await anvil?.stop();
     });
 
-    it('signs transactions', async () => {
+    it('signs Ethereum transactions', async () => {
       enableNetConnect();
 
       wallet = await setupWallet();
@@ -146,6 +160,7 @@ describe('Wallet', () => {
         },
       }),
       getMetaMetricsId: (): string => 'fake-metrics-id',
+      ensureOnboardingComplete: () => Promise.resolve(),
     });
 
     await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
@@ -153,6 +168,34 @@ describe('Wallet', () => {
     expect(
       wallet.messenger.call('AccountsController:listAccounts'),
     ).toHaveLength(1);
+  });
+
+  describe('non-EVM', () => {
+    it('signs Solana transactions', async () => {
+      wallet = await setupWallet();
+
+      const scope = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
+      const addresses = wallet.messenger
+        .call('AccountsController:listMultichainAccounts', scope)
+        .map((account) => account.address);
+
+      const from = `${scope}:${addresses[0]}` as CaipAccountId;
+      // Transaction generated using https://metamask.github.io/test-dapp-multichain/latest/
+      const transaction =
+        'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAECq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAmMaD4MVkBIM0/goc9L80HyTpzIc4eOb1VKrleF87xAQECAAAMAgAAAOgDAAAAAAAA';
+
+      const result = await signSolanaTransaction(
+        wallet,
+        scope,
+        from,
+        transaction,
+      );
+
+      expect(result.signedTransaction).toBe(
+        'AR1TnpEWCpuEwSY868bmtztdsLsCVVL52/QgdH6FgItQfSiX09KFcID6oZIt8EitHy0qE4rWMx++XKeUvSq7QA8BAAIDq4LYzzyBZsV24vCiZjmS7oxjklcS+UWdcMQtZ4mLlxMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAoCYxoPgxWQEgzT+Chz0vzQfJOnMhzh45vVUquV4XzvEDAgAJAxAnAAAAAAAAAQIAAAwCAAAA6AMAAAAAAAACAAUCAAAAAA==',
+      );
+    });
   });
 
   it('exposes state', async () => {
@@ -182,13 +225,18 @@ describe('Wallet', () => {
         },
       }),
       getMetaMetricsId: (): string => 'fake-metrics-id',
+      ensureOnboardingComplete: () => Promise.resolve(),
     };
 
     it('exposes controllerMetadata for each initialized controller', () => {
       wallet = new Wallet(options);
 
       const names = Object.keys(wallet.controllerMetadata);
-      expect(names).toStrictEqual(Object.keys(wallet.state));
+      expect(names).toStrictEqual(
+        Object.entries(wallet.state)
+          .filter(([_, state]) => state !== null)
+          .map(([key]) => key),
+      );
       for (const name of names) {
         expect(wallet.controllerMetadata[name]).toBeDefined();
       }

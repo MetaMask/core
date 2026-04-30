@@ -1,13 +1,20 @@
-// TODO: Determine if these should be available directly on Wallet.
+import { ApprovalRequest } from '@metamask/approval-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import type {
   AddTransactionOptions,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
+import {
+  CaipAccountId,
+  CaipChainId,
+  Json,
+  parseCaipAccountId,
+} from '@metamask/utils';
 
 import { Wallet } from './Wallet';
 
+// TODO: Determine if these should be available directly on Wallet.
 /**
  * Import a secret recovery phrase using the wallet object.
  *
@@ -23,12 +30,12 @@ export async function importSecretRecoveryPhrase(
   const indices = phrase.split(' ').map((word) => wordlist.indexOf(word));
   const mnemonic = new Uint8Array(new Uint16Array(indices).buffer);
 
-  // TODO: This should use the new MultichainAccountService.
-  await wallet.messenger.call(
-    'KeyringController:createNewVaultAndRestore',
-    password,
-    mnemonic,
+  const multichainWallet = await wallet.messenger.call(
+    'MultichainAccountService:createMultichainAccountWallet',
+    { type: 'restore', password, mnemonic },
   );
+
+  await multichainWallet.discoverAccounts();
 }
 
 /**
@@ -41,11 +48,12 @@ export async function createSecretRecoveryPhrase(
   wallet: Wallet,
   password: string,
 ): Promise<void> {
-  // TODO: This should use the new MultichainAccountService.
-  await wallet.messenger.call(
-    'KeyringController:createNewVaultAndKeychain',
-    password,
+  const multichainWallet = await wallet.messenger.call(
+    'MultichainAccountService:createMultichainAccountWallet',
+    { type: 'create', password },
   );
+
+  await multichainWallet.discoverAccounts();
 }
 
 /**
@@ -72,4 +80,65 @@ export async function sendTransaction(
   await wallet.messenger.call('ApprovalController:acceptRequest', approvalId);
 
   return { transactionMeta, result };
+}
+
+/**
+ * Sign a Solana transaction using the wallet.
+ *
+ * @param wallet - The wallet object.
+ * @param scope - The CAIP-2 scope.
+ * @param address - The CAIP-10 address.
+ * @param transaction - A base64 encoded Solana transaction.
+ * @returns The result.
+ */
+export async function signSolanaTransaction(
+  wallet: Wallet,
+  scope: CaipChainId,
+  address: CaipAccountId,
+  transaction: string,
+): Promise<{ signedTransaction: string }> {
+  const promise = wallet.messenger.call(
+    'MultichainRoutingService:handleRequest',
+    {
+      origin: 'metamask',
+      connectedAddresses: [address],
+      scope,
+      // @ts-expect-error The type here is wrong, a full JSON-RPC request is not required.
+      request: {
+        method: 'signTransaction',
+        params: {
+          account: {
+            address: parseCaipAccountId(address).address,
+          },
+          transaction,
+          scope,
+        },
+      },
+    },
+  );
+
+  // TODO: Figure out a better way to do this.
+  const approval = await new Promise<
+    ApprovalRequest<Record<string, Json> | null>
+  >((resolve) => {
+    wallet.messenger.subscribe(
+      'ApprovalController:stateChange',
+      (approvals: ApprovalRequest<Record<string, Json> | null>[]) => {
+        if (approvals.length > 0) {
+          resolve(approvals[0]);
+        }
+      },
+      (state) => Object.values(state.pendingApprovals),
+    );
+  });
+
+  await wallet.messenger.call(
+    'ApprovalController:acceptRequest',
+    approval.id,
+    true,
+  );
+
+  const result = await promise;
+
+  return result as { signedTransaction: string };
 }

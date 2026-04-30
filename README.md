@@ -559,9 +559,14 @@ linkStyle default opacity:0.5
   wallet --> approval_controller;
   wallet --> connectivity_controller;
   wallet --> controller_utils;
+  wallet --> json_rpc_engine;
+  wallet --> json_rpc_middleware_stream;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> multichain_account_service;
   wallet --> network_controller;
+  wallet --> permission_controller;
+  wallet --> preferences_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> transaction_controller;
   wallet --> foundryup;

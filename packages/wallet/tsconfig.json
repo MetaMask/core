@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "resolveJsonModule": true
   },
   "references": [
     {
@@ -11,10 +12,19 @@
       "path": "../approval-controller/tsconfig.json"
     },
     {
+      "path": "../chain-agnostic-permission/tsconfig.json"
+    },
+    {
       "path": "../connectivity-controller/tsconfig.json"
     },
     {
       "path": "../controller-utils/tsconfig.json"
+    },
+    {
+      "path": "../json-rpc-engine/tsconfig.json"
+    },
+    {
+      "path": "../json-rpc-middleware-stream/tsconfig.json"
     },
     {
       "path": "../keyring-controller/tsconfig.json"
@@ -23,10 +33,22 @@
       "path": "../messenger/tsconfig.json"
     },
     {
+      "path": "../multichain-account-service/tsconfig.json"
+    },
+    {
       "path": "../network-controller/tsconfig.json"
     },
     {
+      "path": "../permission-controller/tsconfig.json"
+    },
+    {
+      "path": "../preferences-controller/tsconfig.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.json"
+    },
+    {
+      "path": "../storage-service/tsconfig.json"
     },
     {
       "path": "../transaction-controller/tsconfig.json"

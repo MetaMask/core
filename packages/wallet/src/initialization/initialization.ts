@@ -1,13 +1,18 @@
 import { Json } from '@metamask/utils';
 
+import { createProviderRpc } from '../json-rpc/createProviderRpc';
 import { WalletOptions } from '../types';
-import type { DefaultInstances } from './defaults';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  DefaultInstances,
+} from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 import { InitializationConfiguration } from './types';
 
 export type InitializeArgs = {
   state: Record<string, Json>;
-  messenger: RootMessenger;
+  messenger: RootMessenger<DefaultActions, DefaultEvents>;
   initializationConfigurations?: InitializationConfiguration<
     unknown,
     unknown
@@ -46,8 +51,19 @@ export function initialize({
       options,
     });
 
-    instances[name] = instance as Record<string, unknown>;
+    instances[name] = instance;
   }
 
-  return instances as DefaultInstances;
+  const castInstances = instances as DefaultInstances;
+
+  Object.values(castInstances).forEach((instance) => {
+    if ('init' in instance) {
+      const potentialPromise = instance.init();
+      if (potentialPromise instanceof Promise) {
+        potentialPromise.catch(console.error);
+      }
+    }
+  });
+
+  return castInstances;
 }

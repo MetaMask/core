@@ -1,162 +1,160 @@
-import type {
-  DetailedEncryptionResult,
-  EncryptionKey,
-  KeyDerivationOptions,
-} from '@metamask/browser-passworder';
-import {
-  encrypt,
-  encryptWithDetail,
-  encryptWithKey,
-  decrypt,
-  decryptWithDetail,
-  decryptWithKey,
-  isVaultUpdated,
-  keyFromPassword,
-  importKey,
-  exportKey,
-  generateSalt,
-} from '@metamask/browser-passworder';
-import type { Encryptor } from '@metamask/keyring-controller';
+import { AccountsControllerUpdateAccountsAction } from '@metamask/accounts-controller';
+import { SnapKeyring, SnapKeyringMessenger } from '@metamask/eth-snap-keyring';
 import {
   KeyringController,
+  KeyringControllerGetAccountsAction,
   KeyringControllerMessenger,
+  KeyringControllerPersistAllKeyringsAction,
+  KeyringControllerUnlockEvent,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
-import { Messenger } from '@metamask/messenger';
+import { Messenger, MessengerActions } from '@metamask/messenger';
+import {
+  SnapControllerGetSnapAction,
+  SnapControllerHandleRequestAction,
+  SnapControllerIsMinimumPlatformVersionAction,
+} from '@metamask/snaps-controllers';
+import { assert } from '@metamask/utils';
 
+import { encryptorFactory } from '../../encryption';
 import { InitializationConfiguration } from '../types';
 
-/**
- * A factory function for the encrypt method of the browser-passworder library,
- * that encrypts with a given number of iterations.
- *
- * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
- * @returns A function that encrypts with the given number of iterations.
- */
-const encryptFactory =
-  (iterations: number) =>
-  async (
-    password: string,
-    data: unknown,
-    key?: EncryptionKey | CryptoKey,
-    salt?: string,
-  ): Promise<string> =>
-    encrypt(password, data, key, salt, {
-      algorithm: 'PBKDF2',
-      params: {
-        iterations,
-      },
-    });
+type InitActions =
+  | SnapControllerHandleRequestAction
+  | SnapControllerGetSnapAction
+  | SnapControllerIsMinimumPlatformVersionAction
+  | AccountsControllerUpdateAccountsAction;
 
-/**
- * A factory function for the encryptWithDetail method of the browser-passworder library,
- * that encrypts with a given number of iterations.
- *
- * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
- * @returns A function that encrypts with the given number of iterations.
- */
-const encryptWithDetailFactory =
-  (iterations: number) =>
-  async (
-    password: string,
-    object: unknown,
-    salt?: string,
-  ): Promise<DetailedEncryptionResult> =>
-    encryptWithDetail(password, object, salt, {
-      algorithm: 'PBKDF2',
-      params: {
-        iterations,
-      },
-    });
+type KeyringControllerAllowedActions =
+  | MessengerActions<KeyringControllerMessenger>
+  | InitActions;
 
-/**
- * A factory function for the keyFromPassword method of the browser-passworder library,
- * that generates a key from a password and a salt.
- *
- * This factory function overrides the default key derivation options with the specified
- * number of iterations, unless existing key derivation options are passed in.
- *
- * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
- * @returns A function that generates a key with a potentially overriden number of iterations.
- */
-const keyFromPasswordFactory =
-  (iterations: number) =>
-  async (
-    password: string,
-    salt: string,
-    exportable?: boolean,
-    opts?: KeyDerivationOptions,
-  ): Promise<EncryptionKey> =>
-    keyFromPassword(
-      password,
-      salt,
-      exportable,
-      opts ?? {
-        algorithm: 'PBKDF2',
-        params: {
-          iterations,
+type WalletKeyringControllerMessenger = Messenger<
+  'KeyringController',
+  KeyringControllerAllowedActions,
+  KeyringControllerUnlockEvent
+>;
+
+type SnapKeyringAllowedActions =
+  | MessengerActions<SnapKeyringMessenger>
+  | InitActions
+  | KeyringControllerGetAccountsAction
+  | KeyringControllerPersistAllKeyringsAction;
+
+type WalletSnapKeyringMessenger = Messenger<
+  'SnapKeyring',
+  SnapKeyringAllowedActions
+>;
+
+const createSnapKeyringBuilder = (
+  controllerMessenger: WalletKeyringControllerMessenger,
+) => {
+  const messenger: WalletSnapKeyringMessenger = new Messenger({
+    namespace: 'SnapKeyring',
+    parent: controllerMessenger,
+  });
+
+  controllerMessenger.delegate({
+    messenger,
+    events: [],
+    actions: [
+      'SnapController:handleRequest',
+      'SnapController:getSnap',
+      'AccountsController:updateAccounts',
+      'SnapController:isMinimumPlatformVersion',
+      'KeyringController:getAccounts',
+      'KeyringController:persistAllKeyrings',
+    ],
+  });
+
+  const SnapKeyringBuilder = (() => {
+    return new SnapKeyring({
+      messenger: messenger as SnapKeyringMessenger,
+      // @ts-expect-error TODO: Partial implementation.
+      callbacks: {
+        addAccount: (
+          _address: string,
+          snapId: string,
+          handleUserInput: (accepted: boolean) => Promise<void>,
+        ) => {
+          // TODO: Improve check.
+          assert(
+            snapId.startsWith('npm:@metamask/'),
+            'Preinstalled Snaps only allowed for now.',
+          );
+          return handleUserInput(true);
+        },
+        addressExists: async (address: string) => {
+          const addresses = await messenger.call(
+            'KeyringController:getAccounts',
+          );
+          return addresses.includes(address.toLowerCase());
+        },
+        saveState: async () => {
+          await messenger.call('KeyringController:persistAllKeyrings');
+          await messenger.call('AccountsController:updateAccounts');
         },
       },
-    );
-
-/**
- * A factory function for the isVaultUpdated method of the browser-passworder library,
- * that checks if the given vault was encrypted with the given number of iterations.
- *
- * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
- * @returns A function that checks if the vault was encrypted with the given number of iterations.
- */
-const isVaultUpdatedFactory =
-  (iterations: number) =>
-  (vault: string): boolean =>
-    isVaultUpdated(vault, {
-      algorithm: 'PBKDF2',
-      params: {
-        iterations,
-      },
+      isAnyAccountTypeAllowed: false,
     });
+  }) as {
+    (): SnapKeyring;
+    type: typeof SnapKeyring.type;
+    state: null;
+  };
 
-/**
- * A factory function that returns an encryptor with the given number of iterations.
- *
- * The returned encryptor is a wrapper around the browser-passworder library, that
- * calls the encrypt and encryptWithDetail methods with the given number of iterations.
- *
- * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
- * @returns An encryptor set with the given number of iterations.
- */
-const encryptorFactory = (iterations: number): Encryptor => ({
-  encrypt: encryptFactory(iterations),
-  encryptWithKey,
-  encryptWithDetail: encryptWithDetailFactory(iterations),
-  decrypt,
-  decryptWithKey,
-  decryptWithDetail,
-  keyFromPassword: keyFromPasswordFactory(iterations),
-  isVaultUpdated: isVaultUpdatedFactory(iterations),
-  importKey,
-  exportKey,
-  generateSalt,
-});
+  SnapKeyringBuilder.state = null;
+  SnapKeyringBuilder.type = SnapKeyring.type;
+
+  return SnapKeyringBuilder;
+};
 
 export const keyringController: InitializationConfiguration<
   KeyringController,
-  KeyringControllerMessenger
+  WalletKeyringControllerMessenger
 > = {
   name: 'KeyringController',
   init: ({ state, messenger }) => {
     const instance = new KeyringController({
       state,
-      messenger,
+      messenger: messenger as KeyringControllerMessenger,
       encryptor: encryptorFactory(600_000),
+      // @ts-expect-error: `addAccounts` is missing in `SnapKeyring` type.
+      keyringBuilders: [createSnapKeyringBuilder(messenger)],
+    });
+
+    // Ensure the SnapKeyring has been added, this happens in different places in the clients.
+    messenger.subscribe('KeyringController:unlock', () => {
+      const [snapKeyring] = instance.getKeyringsByType(KeyringTypes.snap);
+
+      if (!snapKeyring) {
+        instance.addNewKeyring(KeyringTypes.snap).catch(console.error);
+      }
     });
 
     return {
       instance,
     };
   },
-  messenger: (parent) =>
-    new Messenger<'KeyringController', never, never, typeof parent>({
-      namespace: 'KeyringController',
-      parent,
-    }),
+  messenger: (parent) => {
+    const controllerMessenger: WalletKeyringControllerMessenger = new Messenger(
+      {
+        namespace: 'KeyringController',
+        parent,
+      },
+    );
+
+    parent.delegate({
+      messenger: controllerMessenger,
+      events: [],
+      actions: [
+        'SnapController:handleRequest',
+        'SnapController:getSnap',
+        'AccountsController:updateAccounts',
+        'SnapController:isMinimumPlatformVersion',
+      ],
+    });
+
+    return controllerMessenger;
+  },
 };

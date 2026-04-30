@@ -84,6 +84,13 @@ module.exports = {
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
     '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
+    '^@metamask/snaps-controllers/node$': ['@metamask/snaps-controllers/node'],
+    '^@metamask/snaps-execution-environments/node-thread$': [
+      '@metamask/snaps-execution-environments/node-thread',
+    ],
+    '^@metamask/post-message-stream/node$': [
+      '@metamask/post-message-stream/node',
+    ],
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,

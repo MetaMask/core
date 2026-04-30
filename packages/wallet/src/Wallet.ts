@@ -10,6 +10,7 @@ import type {
   RootMessenger,
 } from './initialization';
 import { initialize } from './initialization';
+import { createProviderRpc } from './json-rpc/createProviderRpc';
 import type { WalletOptions } from './types';
 
 export class Wallet {
@@ -38,14 +39,28 @@ export class Wallet {
     this.#controllerMetadata = Object.fromEntries(
       Object.entries(this.#instances)
         .filter(([_, instance]) => hasProperty(instance, 'metadata'))
-        .map(([name, instance]) => [name, instance.metadata]),
+        .map(([name, instance]) => [
+          name,
+          (instance as { metadata: StateMetadataConstraint }).metadata,
+        ]),
+    );
+
+    this.messenger.registerActionHandler(
+      'Wallet:createProviderRpc',
+      ({ origin, subjectType, stream }) =>
+        createProviderRpc({
+          origin,
+          subjectType,
+          stream,
+          messenger: this.messenger,
+        }),
     );
   }
 
   get state(): DefaultState {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (totalState, [name, instance]) => {
-        totalState[name] = instance.state ?? null;
+        totalState[name] = 'state' in instance ? instance.state : null;
         return totalState;
       },
       {},
