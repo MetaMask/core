@@ -12,10 +12,10 @@ type Hooks = GetPermissionsHooks &
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 const makeMockHooks = () =>
   ({
-    getPermissionsForOrigin: (() => ({})) as Hooks['getPermissionsForOrigin'],
+    getPermissionsForOrigin: () => ({}),
     getAccounts: () => ['0x123'],
-    requestPermissionsForOrigin: (() =>
-      Promise.resolve([{}])) as Hooks['requestPermissionsForOrigin'],
+    requestPermissionsForOrigin: () =>
+      Promise.resolve([{}, { id: '1', origin: 'test' }]),
     revokePermissionsForOrigin: () => undefined,
     getCaip25PermissionFromLegacyPermissionsForOrigin: () => ({}),
   }) satisfies Hooks;

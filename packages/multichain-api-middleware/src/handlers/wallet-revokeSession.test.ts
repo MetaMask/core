@@ -86,6 +86,23 @@ describe('wallet_revokeSession', () => {
     expect(response.result).toBe(true);
   });
 
+  it('returns true without revoking if there is no active session and scopes are specified', async () => {
+    const {
+      handler,
+      getCaveatForOrigin,
+      revokePermissionForOrigin,
+      updateCaveat,
+      response,
+    } = createMockedHandler();
+    getCaveatForOrigin.mockReturnValue(undefined);
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:1'] } });
+
+    expect(revokePermissionForOrigin).not.toHaveBeenCalled();
+    expect(updateCaveat).not.toHaveBeenCalled();
+    expect(response.result).toBe(true);
+  });
+
   it('partially revokes the CAIP-25 endowment permission if `scopes` param is passed in', async () => {
     const { handler, getCaveatForOrigin, updateCaveat } = createMockedHandler();
     getCaveatForOrigin.mockImplementation(() => ({

@@ -5,6 +5,7 @@ import type {
   MethodHandler,
 } from '@metamask/json-rpc-engine';
 import { invalidParams } from '@metamask/permission-controller';
+import type { GenericPermissionController } from '@metamask/permission-controller';
 import { isNonEmptyArray } from '@metamask/utils';
 import type {
   Json,
@@ -15,7 +16,9 @@ import type {
 import { EndowmentTypes, RestrictedMethods } from './types';
 
 export type RevokePermissionsHooks = {
-  revokePermissionsForOrigin: (permissionKeys: string[]) => void;
+  revokePermissionsForOrigin: (
+    permissionKeys: string[],
+  ) => ReturnType<GenericPermissionController['revokePermissions']>;
 };
 
 export type RevokePermissionsHandler = MethodHandler<

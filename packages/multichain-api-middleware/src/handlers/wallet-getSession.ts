@@ -1,7 +1,4 @@
-import type {
-  Caip25CaveatValue,
-  NormalizedScopesObject,
-} from '@metamask/chain-agnostic-permission';
+import type { NormalizedScopesObject } from '@metamask/chain-agnostic-permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
@@ -12,25 +9,24 @@ import type {
   JsonRpcEngineNextCallback,
   MethodHandler,
 } from '@metamask/json-rpc-engine';
-import type { Caveat } from '@metamask/permission-controller';
 import type {
-  CaipAccountId,
-  CaipChainId,
   JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import type {
+  Caip25Caveat,
+  GetCaveatForOriginHook,
+  GetNonEvmSupportedMethodsHook,
+  SortAccountIdsByLastSelectedHook,
+} from './types';
+
 type WalletGetSessionResult = { sessionScopes: NormalizedScopesObject };
 
-export type WalletGetSessionHooks = {
-  getCaveatForOrigin: (
-    endowmentPermissionName: string,
-    caveatType: string,
-  ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-  getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-  sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
-};
+export type WalletGetSessionHooks = GetCaveatForOriginHook &
+  GetNonEvmSupportedMethodsHook &
+  SortAccountIdsByLastSelectedHook;
 
 /**
  * Handler for the `wallet_getSession` RPC method as specified by [CAIP-312](https://chainagnostic.org/CAIPs/caip-312).
@@ -55,12 +51,12 @@ async function handleWalletGetSession(
   end: JsonRpcEngineEndCallback,
   hooks: WalletGetSessionHooks,
 ) {
-  let caveat;
+  let caveat: Caip25Caveat | undefined;
   try {
     caveat = hooks.getCaveatForOrigin(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
-    );
+    ) as Caip25Caveat | undefined;
   } catch {
     // noop
   }

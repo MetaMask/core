@@ -13,9 +13,7 @@ import type {
 import { invalidParams } from '@metamask/permission-controller';
 import type {
   Caveat,
-  CaveatSpecificationConstraint,
-  PermissionController,
-  PermissionSpecificationConstraint,
+  GenericPermissionController,
   RequestedPermissions,
   ValidPermission,
 } from '@metamask/permission-controller';
@@ -32,7 +30,7 @@ export type RequestPermissionsHooks = {
   getAccounts: () => string[];
   requestPermissionsForOrigin: (
     requestedPermissions: RequestedPermissions,
-  ) => Promise<[GrantedPermissions]>;
+  ) => ReturnType<GenericPermissionController['requestPermissions']>;
   getCaip25PermissionFromLegacyPermissionsForOrigin: (
     requestedPermissions?: RequestedPermissions,
   ) => RequestedPermissions;
@@ -55,13 +53,8 @@ export const requestPermissionsHandler = {
   },
 } satisfies RequestPermissionsHandler;
 
-type AbstractPermissionController = PermissionController<
-  PermissionSpecificationConstraint,
-  CaveatSpecificationConstraint
->;
-
 type GrantedPermissions = Awaited<
-  ReturnType<AbstractPermissionController['requestPermissions']>
+  ReturnType<GenericPermissionController['requestPermissions']>
 >[0];
 
 /**

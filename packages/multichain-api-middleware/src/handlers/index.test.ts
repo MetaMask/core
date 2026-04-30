@@ -14,11 +14,25 @@ type Hooks = WalletCreateSessionHooks &
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 const makeMockHooks = () =>
   ({
-    listAccounts: () => [{ address: '0x123' }],
+    listAccounts: () => [
+      {
+        type: 'eip155:eoa',
+        address: '0x123',
+        id: '1',
+        options: {},
+        scopes: [],
+        methods: [],
+        metadata: {
+          name: 'Account 1',
+          importTime: Date.now(),
+          keyring: { type: 'HD Key Tree' },
+        },
+      },
+    ],
     findNetworkClientIdByChainId: (() =>
       '1') as Hooks['findNetworkClientIdByChainId'],
-    requestPermissionsForOrigin: (() =>
-      Promise.resolve([{}])) as Hooks['requestPermissionsForOrigin'],
+    requestPermissionsForOrigin: () =>
+      Promise.resolve([{}, { id: '1', origin: 'test' }]),
     getNonEvmSupportedMethods: () => [],
     isNonEvmScopeSupported: () => false,
     getNonEvmAccountAddresses: () => [],

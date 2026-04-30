@@ -9,11 +9,7 @@ import type {
   JsonRpcEngineNextCallback,
   MethodHandler,
 } from '@metamask/json-rpc-engine';
-import type {
-  CaveatSpecificationConstraint,
-  PermissionController,
-  PermissionSpecificationConstraint,
-} from '@metamask/permission-controller';
+import type { GenericPermissionController } from '@metamask/permission-controller';
 import type {
   Json,
   JsonRpcRequest,
@@ -24,10 +20,7 @@ import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
 export type GetPermissionsHooks = {
   getPermissionsForOrigin: () => ReturnType<
-    PermissionController<
-      PermissionSpecificationConstraint,
-      CaveatSpecificationConstraint
-    >['getPermissions']
+    GenericPermissionController['getPermissions']
   >;
   getAccounts: (options?: { ignoreLock?: boolean }) => string[];
 };

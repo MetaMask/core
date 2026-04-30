@@ -12,10 +12,10 @@ import type {
 } from '@metamask/json-rpc-engine';
 import {
   CaveatMutatorOperation,
+  GenericPermissionController,
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
-import type { Caveat } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
 import type {
@@ -24,17 +24,17 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-export type WalletRevokeSessionHooks = {
-  revokePermissionForOrigin: (permissionName: string) => void;
+import type { Caip25Caveat, GetCaveatForOriginHook } from './types';
+
+export type WalletRevokeSessionHooks = GetCaveatForOriginHook & {
+  revokePermissionForOrigin: (
+    permissionName: string,
+  ) => ReturnType<GenericPermissionController['revokePermissions']>;
   updateCaveat: (
     target: string,
     caveatType: string,
     caveatValue: Caip25CaveatValue,
-  ) => void;
-  getCaveatForOrigin: (
-    endowmentPermissionName: string,
-    caveatType: string,
-  ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+  ) => ReturnType<GenericPermissionController['updateCaveat']>;
 };
 
 type WalletRevokeSessionParams = { scopes?: string[] };
@@ -74,10 +74,15 @@ function partialRevokePermissions(
   scopes: string[],
   hooks: WalletRevokeSessionHooks,
 ) {
-  let updatedCaveatValue = hooks.getCaveatForOrigin(
+  const caveat = hooks.getCaveatForOrigin(
     Caip25EndowmentPermissionName,
     Caip25CaveatType,
-  ).value;
+  ) as Caip25Caveat | undefined;
+  if (!caveat) {
+    return;
+  }
+
+  let updatedCaveatValue = caveat.value;
 
   for (const scopeString of scopes) {
     const result = Caip25CaveatMutators[Caip25CaveatType].removeScope(

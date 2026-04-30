@@ -1,3 +1,4 @@
+import type { AccountsController } from '@metamask/accounts-controller';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
@@ -25,8 +26,12 @@ import type {
 } from '@metamask/json-rpc-engine';
 import type { NetworkController } from '@metamask/network-controller';
 import { invalidParams } from '@metamask/permission-controller';
-import type { RequestedPermissions } from '@metamask/permission-controller';
+import type {
+  GenericPermissionController,
+  RequestedPermissions,
+} from '@metamask/permission-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
+import type { MultichainRoutingService } from '@metamask/snaps-controllers';
 import {
   isPlainObject,
   KnownCaipNamespace,
@@ -34,32 +39,33 @@ import {
 } from '@metamask/utils';
 import type {
   CaipAccountId,
-  CaipChainId,
   Hex,
   Json,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { GrantedPermissions } from './types';
+import type {
+  GetNonEvmSupportedMethodsHook,
+  SortAccountIdsByLastSelectedHook,
+} from './types';
 
 const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
-export type WalletCreateSessionHooks = {
-  listAccounts: () => { address: string }[];
-  findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
-  requestPermissionsForOrigin: (
-    requestedPermissions: RequestedPermissions,
-    metadata?: Record<string, Json>,
-  ) => Promise<[GrantedPermissions]>;
-  getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-  isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-  getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
-  sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
-  trackSessionCreatedEvent:
-    | ((approvedCaip25CaveatValue: Caip25CaveatValue) => void)
-    | null;
-};
+export type WalletCreateSessionHooks = GetNonEvmSupportedMethodsHook &
+  SortAccountIdsByLastSelectedHook & {
+    listAccounts: AccountsController['listAccounts'];
+    findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
+    requestPermissionsForOrigin: (
+      requestedPermissions: RequestedPermissions,
+      metadata?: Record<string, Json>,
+    ) => ReturnType<GenericPermissionController['requestPermissions']>;
+    isNonEvmScopeSupported: MultichainRoutingService['isSupportedScope'];
+    getNonEvmAccountAddresses: MultichainRoutingService['getSupportedAccounts'];
+    trackSessionCreatedEvent:
+      | ((approvedCaip25CaveatValue: Caip25CaveatValue) => void)
+      | null;
+  };
 
 type Params = Caip25Authorization;
 
