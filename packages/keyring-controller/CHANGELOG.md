@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/eth-hd-keyring` from `^14.1.0` to `^14.1.1` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Bump `@metamask/eth-simple-keyring` from `^12.0.1` to `^12.0.2` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Bump `@metamask/keyring-api` from `^23.0.1` to `^23.1.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Bump `@metamask/keyring-internal-api` from `^11.0.0` to `^11.0.1` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Bump `@metamask/eth-hd-keyring` from `^14.1.0` to `^14.1.1` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/eth-simple-keyring` from `^12.0.1` to `^12.0.2` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-api` from `^23.0.1` to `^23.1.0` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^11.0.0` to `^11.0.1` ([#8647](https://github.com/MetaMask/core/pull/8647))
 
 ## [25.3.0]
 
