@@ -679,7 +679,7 @@ export class MultichainAccountService {
     const start = performance.now();
     const result = await this.#getWallet(entropySource).createMultichainAccountGroups(
       { from: fromGroupIndex, to: toGroupIndex },
-      { waitForAllProvidersToFinishCreatingAccounts: false },
+      { waitForAllProvidersToFinishCreatingAccounts: true },
     );
     const end = performance.now();
     console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Time taken to create multichain account groups: ${end - start}ms`);

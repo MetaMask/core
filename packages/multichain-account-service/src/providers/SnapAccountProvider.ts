@@ -391,7 +391,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
           const start = performance.now();
           snapAccounts = await createAccountsV2(options);
           const end = performance.now();
-          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountsV2) - Time taken to create accounts: ${end - start} ms`);
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountsV2) - Time taken to create accounts between ${options.range.from} and ${options.range.to}: ${end - start} ms`);
           console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountsV2) - Result: ${snapAccounts.length} accounts created`);
         } else {
           console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountV1) - Creating accounts one by one with options: ${JSON.stringify(options)}`);
