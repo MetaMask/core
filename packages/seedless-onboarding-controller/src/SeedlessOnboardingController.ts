@@ -528,6 +528,7 @@ export class SeedlessOnboardingController<
         assertIsValidTokenMintResult(data);
 
         return this.authenticate({
+          profilePairingToken,
           idTokens: data.idTokens,
           accessToken: data.accessToken,
           metadataAccessToken: data.metadataAccessToken,
@@ -564,6 +565,7 @@ export class SeedlessOnboardingController<
    * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
    * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
    * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
+   * @param params.profilePairingToken - The profile pairing token used to pair the user social profile with the profile sync auth service later after the onboarding is complete.
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
@@ -578,6 +580,7 @@ export class SeedlessOnboardingController<
     refreshToken: string;
     revokeToken?: string;
     skipLock?: boolean;
+    profilePairingToken?: string;
   }): Promise<AuthenticateResult> {
     const doAuthenticateWithNodes = async (): Promise<AuthenticateResult> => {
       try {
@@ -592,6 +595,7 @@ export class SeedlessOnboardingController<
           revokeToken,
           accessToken,
           metadataAccessToken,
+          profilePairingToken,
         } = params;
 
         const authenticationResult = await this.toprfClient.authenticate({
@@ -615,6 +619,7 @@ export class SeedlessOnboardingController<
             state.revokeToken = revokeToken;
           }
           state.accessToken = accessToken;
+          state.profilePairingToken = profilePairingToken;
 
           // we will check if the controller state is properly set with the authenticated user info
           // before setting the isSeedlessOnboardingUserAuthenticated to true
@@ -2211,7 +2216,6 @@ export class SeedlessOnboardingController<
     password: string,
   ): Promise<{ revokeToken: string; accessToken: string; profilePairingToken?: string }> {
     let { accessToken, revokeToken, profilePairingToken } = this.state;
-    const { authConnection } = this.state;
     // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
     if (accessToken && revokeToken && profilePairingToken) {
@@ -2240,11 +2244,6 @@ export class SeedlessOnboardingController<
       throw new Error(
         SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
       );
-    }
-
-    if (authConnection === AuthConnection.Telegram && !profilePairingToken) {
-      // for now, profilePairingToken is only available for Telegram social login
-      throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken);
     }
 
     return { accessToken, profilePairingToken, revokeToken };

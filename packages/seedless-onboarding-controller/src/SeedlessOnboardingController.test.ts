@@ -875,6 +875,40 @@ describe('SeedlessOnboardingController', () => {
       expect(controller.state).toMatchObject(initialState);
     });
 
+    it('should initialize isSeedlessOnboardingUserAuthenticated as false for Telegram users without profilePairingToken', () => {
+      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+        idTokens: ['newIdToken'],
+      });
+      const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
+      const mockRenewRefreshToken = jest.fn().mockResolvedValue({
+        newRevokeToken: 'newRevokeToken',
+        newRefreshToken: 'newRefreshToken',
+      });
+      const { messenger } = mockSeedlessOnboardingMessenger();
+
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
+        refreshJWTToken: mockRefreshJWTToken,
+        revokeRefreshToken: mockRevokeRefreshToken,
+        renewRefreshToken: mockRenewRefreshToken,
+        state: {
+          ...getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            profilePairingToken: undefined,
+          }),
+          authConnection: AuthConnection.Telegram,
+        },
+        idTokenMintEndpoint: mockAuthServiceBaseUrl,
+        profilePairingEndpoint: mockProfilePairingEndpoint,
+        fetchFunction: mockFetchFunction,
+      });
+
+      expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+        false,
+      );
+    });
+
     it('should throw an error if the password outdated cache TTL is not a valid number', () => {
       const mockRefreshJWTToken = jest.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
@@ -989,6 +1023,7 @@ describe('SeedlessOnboardingController', () => {
             idTokens: mintedTokenResult.idTokens,
             accessToken: mintedTokenResult.accessToken,
             metadataAccessToken: mintedTokenResult.metadataAccessToken,
+            profilePairingToken: 'profile-pairing-token',
             authConnection,
             authConnectionId,
             userId,
@@ -1661,6 +1696,31 @@ describe('SeedlessOnboardingController', () => {
         ).toBe(false);
       });
     });
+
+    it('should return false and update state when a Telegram user is missing profilePairingToken', async () => {
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              profilePairingToken: undefined,
+            }),
+            authConnection: AuthConnection.Telegram,
+            isSeedlessOnboardingUserAuthenticated: true,
+          },
+        },
+        async ({ controller, baseMessenger }) => {
+          expect(
+            await baseMessenger.call(
+              'SeedlessOnboardingController:getIsUserAuthenticated',
+            ),
+          ).toBe(false);
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            false,
+          );
+        },
+      );
+    });
   });
 
   describe('createToprfKeyAndBackupSeedPhrase', () => {
@@ -2093,14 +2153,29 @@ describe('SeedlessOnboardingController', () => {
             ...getMockInitialControllerState({
               withMockAuthenticatedUser: true,
               vault: mockVault.encryptedMockVault,
-              profilePairingToken: undefined,
+              profilePairingToken: 'profile-pairing-token',
             }),
             authConnection: AuthConnection.Telegram,
           },
         },
         async ({ controller, toprfClient, baseMessenger }) => {
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+
+          const updateState = (
+            controller as unknown as {
+              update: (
+                callback: (state: SeedlessOnboardingControllerState) => void,
+              ) => void;
+            }
+          ).update.bind(controller);
+
+          jest
+            .spyOn(toprfClient, 'persistLocalKey')
+            .mockImplementationOnce(async () => {
+              updateState((state) => {
+                state.profilePairingToken = undefined;
+              });
+            });
 
           const mockSecretDataAdd = handleMockSecretDataAdd();
 

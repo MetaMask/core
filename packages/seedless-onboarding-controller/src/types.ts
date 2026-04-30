@@ -107,6 +107,12 @@ export type AuthenticatedUserDetails = {
    * The metadata access token used to authenticate with metadata service.
    */
   metadataAccessToken: string;
+
+  /**
+   * The profile pairing token used to pair Telegram social logins with the
+   * profile sync auth service.
+   */
+  profilePairingToken?: string;
 };
 
 export type SRPBackedUpUserDetails = {

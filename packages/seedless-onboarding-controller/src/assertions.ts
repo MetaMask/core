@@ -1,4 +1,7 @@
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import {
+  AuthConnection,
+  SeedlessOnboardingControllerErrorMessage,
+} from './constants';
 import type { AuthenticatedUserDetails, TokenMintResult, VaultData } from './types';
 import { hasProperty } from '@metamask/utils';
 
@@ -95,6 +98,18 @@ export function assertIsSeedlessOnboardingUserAuthenticated(
   ) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidMetadataAccessToken,
+    );
+  }
+
+  // if authConnection is Telegram, profilePairingToken must be provided
+  if (
+    hasProperty(value, 'authConnection') &&
+    value.authConnection === AuthConnection.Telegram &&
+    (!hasProperty(value, 'profilePairingToken') ||
+      typeof value.profilePairingToken !== 'string')
+  ) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
     );
   }
 }
