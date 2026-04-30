@@ -180,6 +180,11 @@ export class AuthenticationController extends BaseController<
 
   #cachedPrimaryEntropySourceId?: string;
 
+  // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
+  // before its first await; if it changes mid-flight we must NOT clear
+  // `needsProfilePairing` (the rearm signal wins).
+  #profilePairingRequestEpoch = 0;
+
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messenger.call('KeyringController:getState');
@@ -320,6 +325,7 @@ export class AuthenticationController extends BaseController<
   public async performSignIn(): Promise<string[]> {
     this.#assertIsUnlocked('performSignIn');
 
+    const epochAtStart = this.#profilePairingRequestEpoch;
     const allPublicKeys = await this.#snapGetAllPublicKeys();
     const accessTokens: string[] = [];
 
@@ -331,16 +337,12 @@ export class AuthenticationController extends BaseController<
     }
 
     if (allPublicKeys.length < 2) {
-      // Single-SRP wallet: nothing to pair. Clear the gate so it doesn't fire.
-      if (this.state.needsProfilePairing) {
-        this.update((state) => {
-          state.needsProfilePairing = false;
-        });
-      }
+      // Single-SRP wallet: nothing to pair.
+      this.#tryClearNeedsProfilePairing(epochAtStart);
     } else {
       // Pair failures must not break sign-in; the gate stays `true` for retry.
       try {
-        await this.#doPair(accessTokens);
+        await this.#doPair(accessTokens, epochAtStart);
       } catch {
         // noop
       }
@@ -355,9 +357,28 @@ export class AuthenticationController extends BaseController<
    * re-runs `performSignIn` and re-pairs.
    */
   public requestProfilePairing(): void {
+    this.#profilePairingRequestEpoch += 1;
     if (!this.state.needsProfilePairing) {
       this.update((state) => {
         state.needsProfilePairing = true;
+      });
+    }
+  }
+
+  /**
+   * Clears `needsProfilePairing` only if no `requestProfilePairing` call
+   * landed since `epochAtStart` was captured. Prevents `performSignIn`
+   * from silently overwriting a concurrent rearm.
+   *
+   * @param epochAtStart - Epoch value captured at the start of `performSignIn`.
+   */
+  #tryClearNeedsProfilePairing(epochAtStart: number): void {
+    if (this.#profilePairingRequestEpoch !== epochAtStart) {
+      return;
+    }
+    if (this.state.needsProfilePairing) {
+      this.update((state) => {
+        state.needsProfilePairing = false;
       });
     }
   }
@@ -369,8 +390,14 @@ export class AuthenticationController extends BaseController<
    * new aliases are returned. Throws on failure.
    *
    * @param accessTokens - Per-SRP access tokens, primary first.
+   * @param epochAtStart - Pairing-request epoch captured by the caller.
+   * Used to skip the gate clear if `requestProfilePairing` ran while the
+   * pair API call was in-flight.
    */
-  async #doPair(accessTokens: string[]): Promise<void> {
+  async #doPair(
+    accessTokens: string[],
+    epochAtStart: number,
+  ): Promise<void> {
     const previousCanonical = await this.#getCanonicalProfileId();
 
     const profileAliases = await this.#pairSrpProfiles(accessTokens);
@@ -380,9 +407,7 @@ export class AuthenticationController extends BaseController<
       return;
     }
 
-    this.update((state) => {
-      state.needsProfilePairing = false;
-    });
+    this.#tryClearNeedsProfilePairing(epochAtStart);
 
     const profileIdChanged = previousCanonical !== newCanonical;
     const shouldEmitProfileSignInEvent =

@@ -512,6 +512,50 @@ describe('AuthenticationController', () => {
         );
       }
     });
+
+    it('does NOT clear needsProfilePairing if requestProfilePairing is called mid-flight (multi-SRP)', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs();
+      const { messenger } = createMockAuthenticationMessenger();
+
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics,
+      });
+
+      // Re-arm BEFORE awaiting performSignIn: the epoch snapshot inside
+      // `performSignIn` runs synchronously, so the increment from this
+      // call lands after it and must prevent the gate from being cleared.
+      const performSignInPromise = controller.performSignIn();
+      controller.requestProfilePairing();
+      await performSignInPromise;
+
+      expect(controller.state.needsProfilePairing).toBe(true);
+    });
+
+    it('does NOT clear needsProfilePairing if requestProfilePairing is called mid-flight (single-SRP)', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+
+      mockSnapGetAllPublicKeys.mockResolvedValue([
+        ['SINGLE_ENTROPY_SOURCE_ID', 'MOCK_PUBLIC_KEY'],
+      ]);
+
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics,
+      });
+
+      const performSignInPromise = controller.performSignIn();
+      controller.requestProfilePairing();
+      await performSignInPromise;
+
+      expect(controller.state.needsProfilePairing).toBe(true);
+    });
   });
 
   describe('requestProfilePairing', () => {
