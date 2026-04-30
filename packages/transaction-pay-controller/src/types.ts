@@ -464,6 +464,13 @@ export type PayStrategyGetQuotesRequest = {
   /** Quote requests for required tokens. */
   requests: QuoteRequest[];
 
+  /**
+   * Signal that aborts when a newer quote request supersedes this one.
+   * Strategies that perform their own network IO should forward this to
+   * their fetch calls so cancelled requests release network resources.
+   */
+  signal?: AbortSignal;
+
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
 };
@@ -493,6 +500,9 @@ export type PayStrategyGetBatchRequest<OriginalQuote> = {
 
   /** Quotes for required tokens. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
 };
 
 /** Request to check whether retrieved quotes can be executed by a strategy. */
@@ -502,6 +512,9 @@ export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
 
   /** Quotes returned by the strategy. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;

@@ -295,6 +295,26 @@ describe('Across Quotes', () => {
       expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
+    it('forwards the abort signal to the underlying fetch', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const controller = new AbortController();
+
+      await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        signal: controller.signal,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const [, options] = successfulFetchMock.mock.calls[0];
+
+      expect((options as RequestInit).signal).toBe(controller.signal);
+    });
+
     it('uses exactOutput trade type for non-max amount quotes', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
