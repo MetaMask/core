@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.1.0` to `^9.1.1` ([#8648](https://github.com/MetaMask/core/pull/8648))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^11.21.0` ([#8648](https://github.com/MetaMask/core/pull/8648))
+
 ## [30.1.0]
 
 ### Added
