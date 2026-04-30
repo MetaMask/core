@@ -681,7 +681,7 @@ export class MultichainAccountService {
       { from: fromGroupIndex, to: toGroupIndex },
       { waitForAllProvidersToFinishCreatingAccounts: false },
     );
-    const end = performance.now();=\
+    const end = performance.now();
     console.log(`[DEBUGG] Time taken to create multichain account groups: ${end - start}ms`);
     console.log(`[DEBUGG] Result: ${result.length} groups created`);
     return result;
