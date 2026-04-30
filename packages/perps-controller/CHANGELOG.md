@@ -7,10 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Force unified-account abstraction mode for HyperLiquid users: deferred `dexAbstraction → unifiedAccount` migration triggered from withdraw, trade, and other action entry points so first trades and withdrawals see unified collateral ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Mode-aware spot folding and tradeable-balance support across unified-mode flows ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+
 ### Changed
 
+- Bump `@nktkas/hyperliquid` from `^0.30.2` to `^0.32.2` for `userAbstraction` / `userSetAbstraction` / `agentSetAbstraction` API surface ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Replace `agentSetAbstraction` wire-code magic string with a typed constant ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
 - Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+
+### Fixed
+
+- Keep users on `portfolioMargin` mode and recover the resolved abstraction mode after migration instead of evicting it ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Retry abstraction mode after transient `userAbstraction` failures and reset the memoized readiness promise after silent migration failures ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Close WebSocket-vs-REST race that could fold spot for Standard users and preserve abstraction REST results across active subscribers ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Drop the pre-fetch generation guard so `userAbstraction` always resolves; treat `#cachedSpotStateUserAddress` as an unambiguous spot owner ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Restore HyperLiquid withdrawal for Unified Account Mode users and support arb USDC withdraw balance in unified mode ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Harden unified-account migration handling and close MM Pay `$0` + analytics gaps ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
 
 ## [4.0.0]
 
