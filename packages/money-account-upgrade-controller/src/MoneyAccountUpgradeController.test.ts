@@ -306,7 +306,11 @@ describe('MoneyAccountUpgradeController', () => {
         }),
       );
       expect(mocks.createUpgrade).toHaveBeenCalledWith(
-        expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
+        expect.objectContaining({
+          address: MOCK_CONFIG.delegatorImplAddress,
+          chainId: MOCK_CHAIN_ID,
+          nonce: '0x0',
+        }),
       );
     });
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the ChompApiService:createUpgrade call in the EIP-7702 auth step, pasing correct arguments ([#8657](https://github.com/MetaMask/core/pull/8657))
+
 ## [1.3.0]
 
 ### Changed
