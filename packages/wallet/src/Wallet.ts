@@ -10,6 +10,7 @@ import type {
   RootMessenger,
 } from './initialization';
 import { initialize } from './initialization';
+import { createProviderRpc } from './json-rpc/createProviderRpc';
 import type { WalletOptions } from './types';
 
 export class Wallet {
@@ -42,6 +43,17 @@ export class Wallet {
           name,
           (instance as { metadata: StateMetadataConstraint }).metadata,
         ]),
+    );
+
+    this.messenger.registerActionHandler(
+      'Wallet:createProviderRpc',
+      ({ origin, subjectType, stream }) =>
+        createProviderRpc({
+          origin,
+          subjectType,
+          stream,
+          messenger: this.messenger,
+        }),
     );
   }
 

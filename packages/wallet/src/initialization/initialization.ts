@@ -49,7 +49,6 @@ export function initialize({
       state: instanceState,
       messenger: instanceMessenger,
       options,
-      createProviderRpc: (args) => createProviderRpc({ ...args, messenger }),
     });
 
     instances[name] = instance;

@@ -1,3 +1,4 @@
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   ActionConstraint,
   EventConstraint,
@@ -5,6 +6,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { SubjectType } from '@metamask/permission-controller';
+import { Duplex } from 'readable-stream';
 
 import * as defaultConfigurations from './instances';
 import type { InitializationConfiguration, InstanceState } from './types';
@@ -36,7 +39,18 @@ export type DefaultInstances = {
   >;
 };
 
-export type DefaultActions = MessengerActions<AllMessengers>;
+export type WalletCreateProviderRpcAction = {
+  type: 'Wallet:createProviderRpc';
+  handler: (options: {
+    origin: string;
+    subjectType: SubjectType;
+    stream: Duplex;
+  }) => { engine: JsonRpcEngine };
+};
+
+export type DefaultActions =
+  | MessengerActions<AllMessengers>
+  | WalletCreateProviderRpcAction;
 
 export type WalletDestroyedEvent = {
   type: 'Wallet:destroyed';
