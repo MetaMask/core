@@ -11,11 +11,9 @@ export type AuthenticationControllerPerformSignInAction = {
 };
 
 /**
- * Marks profile pairing as needed.
- *
- * Clients call this when the SRP set may have changed (e.g. a new keyring
- * was added) so that the next auto-sign-in cycle re-runs `performSignIn`
- * and re-pairs.
+ * Marks profile pairing as needed. Clients call this when the SRP set
+ * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
+ * re-runs `performSignIn` and re-pairs.
  */
 export type AuthenticationControllerRequestProfilePairingAction = {
   type: `AuthenticationController:requestProfilePairing`;
