@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -205,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@2.0.0...@metamask/multichain-api-middleware@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.7...@metamask/multichain-api-middleware@2.0.0
 [1.2.7]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.6...@metamask/multichain-api-middleware@1.2.7
 [1.2.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.5...@metamask/multichain-api-middleware@1.2.6

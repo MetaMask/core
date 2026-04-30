@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -70,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.3...@metamask/eip1193-permission-middleware@2.0.0
 [1.0.3]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.2...@metamask/eip1193-permission-middleware@1.0.3
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.1...@metamask/eip1193-permission-middleware@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/eip1193-permission-middleware@1.0.0...@metamask/eip1193-permission-middleware@1.0.1

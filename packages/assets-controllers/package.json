@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "105.0.0",
+  "version": "105.1.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "Ethereum",
@@ -75,7 +75,7 @@
     "@metamask/multichain-account-service": "^8.0.1",
     "@metamask/network-controller": "^30.1.0",
     "@metamask/network-enablement-controller": "^5.0.2",
-    "@metamask/permission-controller": "^12.3.0",
+    "@metamask/permission-controller": "^13.0.0",
     "@metamask/phishing-controller": "^17.1.1",
     "@metamask/polling-controller": "^16.0.4",
     "@metamask/preferences-controller": "^23.1.0",

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.3.0]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -303,7 +305,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.3.0...HEAD
+[10.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...@metamask/json-rpc-engine@10.3.0
 [10.2.4]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.3...@metamask/json-rpc-engine@10.2.4
 [10.2.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.2...@metamask/json-rpc-engine@10.2.3
 [10.2.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.1...@metamask/json-rpc-engine@10.2.2
