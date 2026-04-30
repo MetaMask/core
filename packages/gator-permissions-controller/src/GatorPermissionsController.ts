@@ -605,6 +605,7 @@ export class GatorPermissionsController extends BaseController<
         rule: { permissionType },
         expiry,
         data,
+        rules,
       } = selectUniqueRuleAndDecodedPermission({
         candidateRules: matchingRules,
         caveats,
@@ -619,7 +620,7 @@ export class GatorPermissionsController extends BaseController<
         expiry,
         data,
         justification,
-        rules: undefined,
+        rules,
         specifiedOrigin,
       });
 
