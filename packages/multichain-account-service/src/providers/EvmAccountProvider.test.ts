@@ -3,7 +3,10 @@ import { isBip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { HdKeyring as LegacyHdKeyring } from '@metamask/eth-hd-keyring';
 import { AccountCreationType, EthScope } from '@metamask/keyring-api';
-import type { KeyringAccount } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  KeyringAccount,
+} from '@metamask/keyring-api';
 import type { Keyring } from '@metamask/keyring-api/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -16,6 +19,7 @@ import { add0x, bytesToHex } from '@metamask/utils';
 
 import { TraceName } from '../analytics/traces';
 import {
+  asKeyringAccount,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_HD_ACCOUNT_1,
@@ -72,24 +76,6 @@ function makeDerivedHdAccount(groupIndex: number): InternalAccount {
     .get();
 }
 
-/**
- * Converts an InternalAccount to a minimal KeyringAccount shape
- * that satisfies what the controller accesses from the V2 keyring.
- *
- * @param account - The internal account to convert.
- * @returns A KeyringAccount-shaped object.
- */
-function toKeyringAccount(account: InternalAccount): KeyringAccount {
-  return {
-    id: account.id,
-    address: account.address,
-    type: account.type,
-    options: account.options,
-    methods: account.methods,
-    scopes: account.scopes ?? [],
-  } as unknown as KeyringAccount;
-}
-
 // Mock V2 HD Keyring implementing the Keyring interface from @metamask/keyring-api/v2.
 class MockHdKeyringV2 implements Keyring {
   readonly type = KeyringType.Hd;
@@ -100,7 +86,7 @@ class MockHdKeyringV2 implements Keyring {
   };
 
   // Internal test-only state — not part of the Keyring interface.
-  readonly accounts: InternalAccount[];
+  readonly accounts: KeyringAccount[];
 
   readonly metadata: KeyringMetadata = {
     id: 'mock-eth-keyring-id',
@@ -108,7 +94,9 @@ class MockHdKeyringV2 implements Keyring {
   };
 
   constructor(accounts: InternalAccount[]) {
-    this.accounts = accounts;
+    this.accounts = accounts.map(
+      ({ metadata, ...keyringAccount }) => keyringAccount,
+    );
   }
 
   /**
@@ -121,31 +109,29 @@ class MockHdKeyringV2 implements Keyring {
     return mockHdRoot;
   }
 
-  getAccounts = jest
-    .fn()
-    .mockImplementation(() => this.accounts.map(toKeyringAccount));
+  getAccounts = jest.fn().mockImplementation(() => this.accounts);
 
   getAccount = jest.fn().mockImplementation((accountId: string) => {
     const account = this.accounts.find((a) => a.id === accountId);
     if (!account) {
       throw new Error(`Account not found: ${accountId}`);
     }
-    return toKeyringAccount(account);
+    return account;
   });
 
   createAccounts = jest
     .fn()
-    .mockImplementation((options: Record<string, unknown>) => {
-      const newAccounts: InternalAccount[] = [];
+    .mockImplementation((options: CreateAccountOptions) => {
+      const newAccounts: KeyringAccount[] = [];
 
       if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
         const groupIndex = this.accounts.length;
-        const account = makeDerivedHdAccount(groupIndex);
-        this.accounts.push(account);
-        newAccounts.push(account);
+        const { metadata, ...keyringAccount } = makeDerivedHdAccount(groupIndex);
+        this.accounts.push(keyringAccount);
+        newAccounts.push(keyringAccount);
       }
 
-      return newAccounts.map(toKeyringAccount);
+      return newAccounts;
     });
 
   deleteAccount = jest.fn().mockImplementation((accountId: string) => {
@@ -300,7 +286,9 @@ describe('EvmAccountProvider', () => {
       accounts,
     });
 
-    expect(provider.getAccounts()).toStrictEqual(accounts);
+    expect(provider.getAccounts()).toStrictEqual(
+      accounts.map(asKeyringAccount),
+    );
   });
 
   it('gets a specific account', () => {
@@ -312,7 +300,9 @@ describe('EvmAccountProvider', () => {
       accounts: [account],
     });
 
-    expect(provider.getAccount(customId)).toStrictEqual(account);
+    expect(provider.getAccount(customId)).toStrictEqual(
+      asKeyringAccount(account),
+    );
   });
 
   it('throws if account does not exist', () => {
@@ -355,7 +345,7 @@ describe('EvmAccountProvider', () => {
       groupIndex: 0,
     });
     expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+    expect(newAccounts[0]).toStrictEqual(asKeyringAccount(MOCK_HD_ACCOUNT_1));
   });
 
   it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
@@ -482,8 +472,8 @@ describe('EvmAccountProvider', () => {
 
     // Should return 4 accounts: 2 existing (indices 0,1) + 2 new (indices 2,3).
     expect(newAccounts).toHaveLength(4);
-    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
-    expect(newAccounts[1]).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    expect(newAccounts[0]).toStrictEqual(asKeyringAccount(MOCK_HD_ACCOUNT_1));
+    expect(newAccounts[1]).toStrictEqual(asKeyringAccount(MOCK_HD_ACCOUNT_2));
     // Only new accounts (indices 2 and 3) should be created — one call each.
     expect(keyring.createAccounts).toHaveBeenCalledTimes(2);
   });
@@ -562,7 +552,7 @@ describe('EvmAccountProvider', () => {
     });
 
     const expectedAccount = {
-      ...makeDerivedHdAccount(0),
+      ...asKeyringAccount(makeDerivedHdAccount(0)),
       id: expect.any(String),
     };
 
@@ -678,7 +668,7 @@ describe('EvmAccountProvider', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
-    ).toStrictEqual([MOCK_HD_ACCOUNT_1]);
+    ).toStrictEqual([asKeyringAccount(MOCK_HD_ACCOUNT_1)]);
   });
 
   it('calls trace callback during account discovery', async () => {
@@ -695,7 +685,7 @@ describe('EvmAccountProvider', () => {
     });
 
     const expectedAccount = {
-      ...makeDerivedHdAccount(0),
+      ...asKeyringAccount(makeDerivedHdAccount(0)),
       id: expect.any(String),
     };
 
@@ -727,7 +717,7 @@ describe('EvmAccountProvider', () => {
     });
 
     const expectedAccount = {
-      ...makeDerivedHdAccount(0),
+      ...asKeyringAccount(makeDerivedHdAccount(0)),
       id: expect.any(String),
     };
 
