@@ -25,7 +25,7 @@ describe('erc20-token-allowance rule', () => {
     enforcer: TimestampEnforcer,
     terms: createTimestampTerms({
       afterThreshold: 0,
-      beforeThreshold: 1720000
+      beforeThreshold: 1720000,
     }),
     args: '0x' as const,
   };
