@@ -10,12 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#8642](https://github.com/MetaMask/core/pull/8642))
-  - Add `performProfilePairing` public method (and messenger action) to `AuthenticationController` — pairs all SRPs via `POST /profile/pair` when 2+ SRPs exist; intended to be called by the client-side `useAutoProfilePairing` hook rather than inline with sign-in
-  - Add `hasPairedAtLeastOnce: boolean` to `AuthenticationControllerState` — monotonic flag (false → true, never reset) set by `performProfilePairing` on first successful pairing; persisted across sessions so the client hook can determine first-launch pairing needs
+  - Pairing runs at the end of `performSignIn`; pair failures are swallowed and retried on the next gate fire.
+  - Add `needsProfilePairing?: boolean` to state (defaults `true`, cleared on successful pair, re-armed via `requestProfilePairing()`). Optional in the type to keep partial-state selectors assignable; treat `undefined` as `true`.
+  - Add `requestProfilePairing()` (and `AuthenticationController:requestProfilePairing` action) for clients to signal SRP-set changes so the next auto-sign-in cycle re-pairs.
+  - Upgrade path: existing signed-in users re-pair automatically on the first auto-sign-in cycle. Pre-pairing sessions miss `canonicalProfileId` and re-login on the next `getAccessToken`, so the pair call runs against fresh v2 JWTs — no client migration needed.
+  - JWT staleness note: a newly added SRP's JWT keeps `sub = alias_id` until that SRP's session is re-logged-in. User storage is unaffected (it keys on `x-profile-id`, not `sub`).
   - Add `canonicalProfileId` to `UserProfile` — the unified profile ID across paired SRPs
   - Add `ProfileAlias` type for transient alias data returned by the pairing API
   - Add `pairSrpProfiles` method to `SRPJwtBearerAuth` and `JwtBearerAuth`
-  - Add `ProfileSignInEvent` (`AuthenticationController:profileSignIn`) emitted by `performProfilePairing` after successful pairing
+  - Add `ProfileSignInEvent` (`AuthenticationController:profileSignIn`) emitted after successful pairing when the canonical profile ID changes or new aliases are returned
   - Send `X-MetaMask-Profile-Pairing: enabled` header on all `/srp/login` requests
   - Resolve original per-SRP `profileId` from `profile_aliases` using `computeIdentifierId`
   - Propagate canonical profile ID to all `srpSessionData` entries after pairing

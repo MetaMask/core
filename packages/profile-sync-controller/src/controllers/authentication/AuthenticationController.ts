@@ -41,19 +41,21 @@ export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
   /**
-   * Whether `performProfilePairing` has ever completed successfully on this
-   * device.
-   * Monotonic — only flips from `false` to `true`, never back. Used by the
-   * client-side `useAutoProfilePairing` hook to decide when to fire the initial
-   * pairing call after install/upgrade. Subsequent re-pairs (e.g. when a
-   * new SRP is added later) are also fired by the hook based on keyring
-   * changes, independently of this flag.
+   * Client gate for profile pairing. Defaults to `true` (fresh install /
+   * upgrade), set to `false` after a successful `performSignIn` pair, set
+   * back to `true` via `requestProfilePairing()` when the SRP set changes,
+   * and left `true` on pair failure so the next state shift retries.
+   *
+   * Optional in the type so partial-state selectors stay assignable to
+   * `AuthenticationControllerState`. The controller seeds it via
+   * `defaultState` at construction; consumers should read `undefined` as
+   * `true` to mirror that runtime default.
    */
-  hasPairedAtLeastOnce?: boolean;
+  needsProfilePairing?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
-  hasPairedAtLeastOnce: false,
+  needsProfilePairing: true,
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
@@ -62,7 +64,7 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  hasPairedAtLeastOnce: {
+  needsProfilePairing: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -105,12 +107,12 @@ type ControllerConfig = {
 const MESSENGER_EXPOSED_METHODS = [
   'performSignIn',
   'performSignOut',
-  'performProfilePairing',
   'getBearerToken',
   'getSessionProfile',
   'refreshCanonicalProfileId',
   'getUserProfileLineage',
   'isSignedIn',
+  'requestProfilePairing',
 ] as const;
 
 export type Actions =
@@ -328,61 +330,70 @@ export class AuthenticationController extends BaseController<
       accessTokens.push(accessToken);
     }
 
+    if (allPublicKeys.length < 2) {
+      // Single-SRP wallet: nothing to pair. Clear the gate so it doesn't fire.
+      if (this.state.needsProfilePairing) {
+        this.update((state) => {
+          state.needsProfilePairing = false;
+        });
+      }
+    } else {
+      // Pair failures must not break sign-in; the gate stays `true` for retry.
+      try {
+        await this.#doPair(accessTokens);
+      } catch {
+        // noop
+      }
+    }
+
     return accessTokens;
   }
 
   /**
-   * Pairs all SRPs of the wallet via `POST /profile/pair`, propagates the
-   * canonical profile ID into every cached SRP session, and emits
-   * `AuthenticationController:profileSignIn` when the canonical changes or
-   * new aliases are returned. Sets `hasPairedAtLeastOnce = true` on success.
-   *
-   * No-op when the wallet has fewer than 2 SRPs (nothing to pair) or when
-   * the wallet is locked.
-   *
-   * Pairing failures are swallowed so the caller (typically the client-side
-   * `useAutoProfilePairing` hook) can simply re-invoke on the next trigger.
+   * Marks profile pairing as needed. Clients call this when the SRP set
+   * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
+   * re-runs `performSignIn` and re-pairs.
    */
-  public async performProfilePairing(): Promise<void> {
-    this.#assertIsUnlocked('performProfilePairing');
+  public requestProfilePairing(): void {
+    if (!this.state.needsProfilePairing) {
+      this.update((state) => {
+        state.needsProfilePairing = true;
+      });
+    }
+  }
 
-    const allPublicKeys = await this.#snapGetAllPublicKeys();
-    if (allPublicKeys.length < 2) {
+  /**
+   * Pairs all SRPs via `POST /profile/pair`, propagates the canonical
+   * profile ID, clears `needsProfilePairing`, and emits
+   * `AuthenticationController:profileSignIn` when the canonical changes or
+   * new aliases are returned. Throws on failure.
+   *
+   * @param accessTokens - Per-SRP access tokens, primary first.
+   */
+  async #doPair(accessTokens: string[]): Promise<void> {
+    const previousCanonical = await this.#getCanonicalProfileId();
+
+    const profileAliases = await this.#pairSrpProfiles(accessTokens);
+    const newCanonical = await this.#getCanonicalProfileId();
+
+    if (!newCanonical) {
       return;
     }
 
-    const previousCanonical = await this.#getCanonicalProfileId();
+    this.update((state) => {
+      state.needsProfilePairing = false;
+    });
 
-    const accessTokens: string[] = [];
-    for (const [entropySourceId] of allPublicKeys) {
-      accessTokens.push(await this.#auth.getAccessToken(entropySourceId));
-    }
+    const profileIdChanged = previousCanonical !== newCanonical;
+    const shouldEmitProfileSignInEvent =
+      profileIdChanged || profileAliases.length > 0;
 
-    try {
-      const profileAliases = await this.#pairSrpProfiles(accessTokens);
-      const newCanonical = await this.#getCanonicalProfileId();
-
-      if (!newCanonical) {
-        return;
-      }
-
-      this.update((state) => {
-        state.hasPairedAtLeastOnce = true;
+    if (shouldEmitProfileSignInEvent) {
+      this.messenger.publish('AuthenticationController:profileSignIn', {
+        profileId: newCanonical,
+        profileAliases,
+        profileIdChanged,
       });
-
-      const profileIdChanged = previousCanonical !== newCanonical;
-      const shouldEmitProfileSignInEvent =
-        profileIdChanged || profileAliases.length > 0;
-
-      if (shouldEmitProfileSignInEvent) {
-        this.messenger.publish('AuthenticationController:profileSignIn', {
-          profileId: newCanonical,
-          profileAliases,
-          profileIdChanged,
-        });
-      }
-    } catch {
-      // Non-fatal — caller re-invokes on the next trigger.
     }
   }
 

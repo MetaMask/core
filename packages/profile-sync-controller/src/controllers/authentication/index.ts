@@ -7,11 +7,11 @@ export * as Mocks from './mocks';
 
 export type {
   AuthenticationControllerPerformSignInAction,
-  AuthenticationControllerPerformProfilePairingAction,
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
   AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerRequestProfilePairingAction,
 } from './AuthenticationController-method-action-types';

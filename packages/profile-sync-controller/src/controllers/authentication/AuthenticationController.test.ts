@@ -30,16 +30,17 @@ const MOCK_ENTROPY_SOURCE_IDS = [
  * Return mock state for the scenario where a user is signed in.
  *
  * @param options - Options.
- * @param options.expiresIn - The timestamp to use for the `expiresIn` token property.
- * @param options.hasPairedAtLeastOnce - Whether pairing has completed at least once.
+ * @param options.expiresIn - The `expiresIn` token property.
+ * @param options.needsProfilePairing - Whether pairing is still needed.
+ * Defaults to `false` (post-pair steady state).
  * @returns Mock AuthenticationController state reflecting a signed in user.
  */
 const mockSignedInState = ({
   expiresIn = Date.now() + 3600,
-  hasPairedAtLeastOnce = false,
+  needsProfilePairing = false,
 }: {
   expiresIn?: number;
-  hasPairedAtLeastOnce?: boolean;
+  needsProfilePairing?: boolean;
 } = {}): AuthenticationControllerState => {
   const srpSessionData = {} as Record<string, LoginResponse>;
 
@@ -61,7 +62,7 @@ const mockSignedInState = ({
 
   return {
     isSignedIn: true,
-    hasPairedAtLeastOnce,
+    needsProfilePairing,
     srpSessionData,
   };
 };
@@ -118,7 +119,9 @@ describe('AuthenticationController', () => {
       });
 
       const result = await controller.performSignIn();
-      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
+      // 1 from `performSignIn` itself + 1 from `#doPair` →
+      // `#getCanonicalProfileId` → `#getPrimaryEntropySourceId` (cold cache).
+      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(2);
       expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(2);
       expect(mockSnapSignMessage).toHaveBeenCalledTimes(1);
       mockEndpoints.mockNonceUrl.done();
@@ -129,7 +132,6 @@ describe('AuthenticationController', () => {
         MOCK_OATH_TOKEN_RESPONSE.access_token,
       ]);
 
-      // Assert - state shows user is logged in
       expect(controller.state.isSignedIn).toBe(true);
       for (const id of MOCK_ENTROPY_SOURCE_IDS) {
         expect(controller.state.srpSessionData?.[id]).toBeDefined();
@@ -201,22 +203,6 @@ describe('AuthenticationController', () => {
       ]);
     });
 
-    it('does not call pairProfiles', async () => {
-      const metametrics = createMockAuthMetaMetrics();
-      const mockEndpoints = arrangeAuthAPIs();
-      const { messenger } = createMockAuthenticationMessenger();
-
-      const controller = new AuthenticationController({
-        messenger,
-        metametrics,
-      });
-
-      await controller.performSignIn();
-
-      expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(false);
-      expect(controller.state.hasPairedAtLeastOnce).toBe(false);
-    });
-
     /**
      * Jest Test & Assert Utility - for testing and asserting endpoint failures
      *
@@ -259,27 +245,8 @@ describe('AuthenticationController', () => {
     }
   });
 
-  describe('performProfilePairing', () => {
-    it('throws when wallet is locked', async () => {
-      const { messenger, baseMessenger, mockKeyringControllerGetState } =
-        createMockAuthenticationMessenger();
-      arrangeAuthAPIs();
-      const metametrics = createMockAuthMetaMetrics();
-
-      mockKeyringControllerGetState.mockReturnValue({ isUnlocked: true });
-
-      const controller = new AuthenticationController({
-        messenger,
-        metametrics,
-      });
-
-      baseMessenger.publish('KeyringController:lock');
-      await expect(controller.performProfilePairing()).rejects.toThrow(
-        expect.any(Error),
-      );
-    });
-
-    it('does nothing and does not flip hasPairedAtLeastOnce when only 1 SRP exists', async () => {
+  describe('pairing (within performSignIn)', () => {
+    it('does NOT call pairProfiles when only 1 SRP exists, but clears needsProfilePairing', async () => {
       const metametrics = createMockAuthMetaMetrics();
       const mockEndpoints = arrangeAuthAPIs();
       const { messenger, mockSnapGetAllPublicKeys } =
@@ -294,51 +261,44 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      await controller.performProfilePairing();
+      await controller.performSignIn();
 
       expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(false);
-      expect(controller.state.hasPairedAtLeastOnce).toBe(false);
+      // Clear the gate so the client `useAutoSignIn` hook doesn't loop.
+      expect(controller.state.needsProfilePairing).toBe(false);
     });
 
-    it('calls pairProfiles and flips hasPairedAtLeastOnce when 2+ SRPs exist', async () => {
+    it('pairs and clears needsProfilePairing when 2+ SRPs exist', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      const mockEndpoints = arrangeAuthAPIs({
-        mockPairProfiles: {
-          status: 200,
-          body: {
-            profile: {
-              identifier_id: 'id-1',
-              metametrics_id: 'mm-1',
-              profile_id: 'canonical-1',
-            },
-            profile_aliases: [
-              {
-                alias_profile_id: 'p1',
-                canonical_profile_id: 'canonical-1',
-                identifier_ids: [{ id: 'h1', type: 'SRP' }],
-              },
-              {
-                alias_profile_id: 'p2',
-                canonical_profile_id: 'canonical-1',
-                identifier_ids: [{ id: 'h2', type: 'SRP' }],
-              },
-            ],
-          },
-        },
+      const mockEndpoints = arrangeAuthAPIs();
+      const { messenger } = createMockAuthenticationMessenger();
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(true);
+      expect(controller.state.needsProfilePairing).toBe(false);
+    });
+
+    it('does NOT throw out of performSignIn when pairProfiles fails, leaves needsProfilePairing=true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({
+        mockPairProfiles: { status: 500 },
       });
       const { messenger } = createMockAuthenticationMessenger();
 
       const controller = new AuthenticationController({
         messenger,
-        // Pre-seed sessions so canonical can be propagated and read back.
-        state: mockSignedInState(),
         metametrics,
       });
 
-      await controller.performProfilePairing();
-
-      expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(true);
-      expect(controller.state.hasPairedAtLeastOnce).toBe(true);
+      expect(await controller.performSignIn()).toBeDefined();
+      // Flag stays `true` so the next gate fire retries the pair.
+      expect(controller.state.needsProfilePairing).toBe(true);
     });
 
     it('propagates the canonical profile ID to all srpSessionData entries', async () => {
@@ -371,12 +331,11 @@ describe('AuthenticationController', () => {
 
       const controller = new AuthenticationController({
         messenger,
-        // Pre-seed sessions so the pair flow has something to read/propagate.
-        state: mockSignedInState(),
+        state: mockSignedInState({ needsProfilePairing: true }),
         metametrics,
       });
 
-      await controller.performProfilePairing();
+      await controller.performSignIn();
 
       for (const id of MOCK_ENTROPY_SOURCE_IDS) {
         expect(
@@ -385,7 +344,7 @@ describe('AuthenticationController', () => {
       }
     });
 
-    it('emits profileSignIn event when the canonical profile ID changes after pairing', async () => {
+    it('emits profileSignIn when the canonical profile ID changes after pairing', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs({
         mockPairProfiles: {
@@ -394,8 +353,7 @@ describe('AuthenticationController', () => {
             profile: {
               identifier_id: 'id-1',
               metametrics_id: 'mm-1',
-              // Intentionally different from the pre-seeded canonical so the
-              // event is triggered by the canonical shift.
+              // Intentionally different from the pre-seeded canonical.
               profile_id: 'new-canonical-after-pairing',
             },
             profile_aliases: [
@@ -420,12 +378,11 @@ describe('AuthenticationController', () => {
 
       const controller = new AuthenticationController({
         messenger,
-        // Pre-seed sessions so there is an existing canonical to compare against.
-        state: mockSignedInState(),
+        state: mockSignedInState({ needsProfilePairing: true }),
         metametrics,
       });
 
-      await controller.performProfilePairing();
+      await controller.performSignIn();
 
       expect(eventPayloads).toHaveLength(1);
       expect(eventPayloads[0].profileId).toBe('new-canonical-after-pairing');
@@ -434,7 +391,6 @@ describe('AuthenticationController', () => {
 
     it('emits profileSignIn with profileIdChanged=false when canonical is unchanged but aliases are returned', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      // Return the same canonical that mockSignedInState pre-seeds, but with aliases.
       arrangeAuthAPIs({
         mockPairProfiles: {
           status: 200,
@@ -466,11 +422,11 @@ describe('AuthenticationController', () => {
 
       const controller = new AuthenticationController({
         messenger,
-        state: mockSignedInState(),
+        state: mockSignedInState({ needsProfilePairing: true }),
         metametrics,
       });
 
-      await controller.performProfilePairing();
+      await controller.performSignIn();
 
       expect(eventPayloads).toHaveLength(1);
       expect(eventPayloads[0].profileIdChanged).toBe(false);
@@ -504,29 +460,13 @@ describe('AuthenticationController', () => {
 
       const controller = new AuthenticationController({
         messenger,
-        state: mockSignedInState(),
+        state: mockSignedInState({ needsProfilePairing: true }),
         metametrics,
       });
 
-      await controller.performProfilePairing();
+      await controller.performSignIn();
 
       expect(eventPayloads).toHaveLength(0);
-    });
-
-    it('does not throw and does not flip hasPairedAtLeastOnce when pairProfiles fails', async () => {
-      const metametrics = createMockAuthMetaMetrics();
-      arrangeAuthAPIs({
-        mockPairProfiles: { status: 500 },
-      });
-      const { messenger } = createMockAuthenticationMessenger();
-
-      const controller = new AuthenticationController({
-        messenger,
-        metametrics,
-      });
-
-      expect(await controller.performProfilePairing()).toBeUndefined();
-      expect(controller.state.hasPairedAtLeastOnce).toBe(false);
     });
 
     it('preserves the original per-SRP profileId after pairing', async () => {
@@ -559,19 +499,63 @@ describe('AuthenticationController', () => {
 
       const controller = new AuthenticationController({
         messenger,
-        state: mockSignedInState(),
+        state: mockSignedInState({ needsProfilePairing: true }),
         metametrics,
       });
 
-      await controller.performProfilePairing();
+      await controller.performSignIn();
 
-      // Pairing only mutates `canonicalProfileId` via `#propagateCanonical`;
-      // each entry's `profileId` keeps the value set at login time.
+      // Pairing only updates `canonicalProfileId`; `profileId` is preserved.
       for (const id of MOCK_ENTROPY_SOURCE_IDS) {
         expect(controller.state.srpSessionData?.[id]?.profile.profileId).toBe(
           MOCK_LOGIN_RESPONSE.profile.profile_id,
         );
       }
+    });
+  });
+
+  describe('requestProfilePairing', () => {
+    it('flips needsProfilePairing from false to true', () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: false }),
+        metametrics,
+      });
+
+      expect(controller.state.needsProfilePairing).toBe(false);
+      controller.requestProfilePairing();
+      expect(controller.state.needsProfilePairing).toBe(true);
+    });
+
+    it('keeps needsProfilePairing true when already true (no-op)', () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics,
+      });
+
+      const stateBefore = controller.state;
+      controller.requestProfilePairing();
+      expect(controller.state.needsProfilePairing).toBe(true);
+      // Identity preserved: the early-return skips `update` (no Immer alloc).
+      expect(controller.state).toBe(stateBefore);
+    });
+
+    it('is exposed via the messenger registry', () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, baseMessenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: false }),
+        metametrics,
+      });
+
+      baseMessenger.call('AuthenticationController:requestProfilePairing');
+      expect(controller.state.needsProfilePairing).toBe(true);
     });
   });
 
@@ -597,7 +581,7 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       const controller = new AuthenticationController({
         messenger,
-        state: { isSignedIn: false, hasPairedAtLeastOnce: false },
+        state: { isSignedIn: false, needsProfilePairing: true },
         metametrics,
       });
 
@@ -749,7 +733,7 @@ describe('AuthenticationController', () => {
       await controller.getBearerToken();
       await controller.getBearerToken();
 
-      // getAllPublicKeys should only be called once despite multiple getBearerToken calls
+      // Only the first call hits the snap; subsequent calls hit the cache.
       expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
     });
 
@@ -792,7 +776,7 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       const controller = new AuthenticationController({
         messenger,
-        state: { isSignedIn: false, hasPairedAtLeastOnce: false },
+        state: { isSignedIn: false, needsProfilePairing: true },
         metametrics,
       });
 
@@ -901,7 +885,7 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       const controller = new AuthenticationController({
         messenger,
-        state: { isSignedIn: false, hasPairedAtLeastOnce: false },
+        state: { isSignedIn: false, needsProfilePairing: true },
         metametrics,
       });
 
@@ -958,7 +942,7 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       const controller = new AuthenticationController({
         messenger,
-        state: { isSignedIn: false, hasPairedAtLeastOnce: false },
+        state: { isSignedIn: false, needsProfilePairing: true },
         metametrics,
       });
 
@@ -1013,7 +997,7 @@ describe('AuthenticationController', () => {
       const { messenger } = createMockAuthenticationMessenger();
       const controller = new AuthenticationController({
         messenger,
-        state: { isSignedIn: false, hasPairedAtLeastOnce: false },
+        state: { isSignedIn: false, needsProfilePairing: true },
         metametrics,
       });
 
@@ -1051,8 +1035,8 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "hasPairedAtLeastOnce": false,
         "isSignedIn": true,
+        "needsProfilePairing": false,
       }
     `);
   });
@@ -1074,8 +1058,8 @@ describe('metadata', () => {
 
       expect(derivedState).toMatchInlineSnapshot(`
         {
-          "hasPairedAtLeastOnce": false,
           "isSignedIn": true,
+          "needsProfilePairing": false,
           "srpSessionData": {
             "MOCK_ENTROPY_SOURCE_ID": {
               "profile": {
@@ -1120,8 +1104,8 @@ describe('metadata', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
-          "hasPairedAtLeastOnce": false,
           "isSignedIn": false,
+          "needsProfilePairing": true,
         }
       `);
     });
@@ -1139,8 +1123,8 @@ describe('metadata', () => {
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
       {
-        "hasPairedAtLeastOnce": false,
         "isSignedIn": true,
+        "needsProfilePairing": false,
         "srpSessionData": {
           "MOCK_ENTROPY_SOURCE_ID": {
             "profile": {
@@ -1189,8 +1173,8 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "hasPairedAtLeastOnce": false,
         "isSignedIn": true,
+        "needsProfilePairing": false,
         "srpSessionData": {
           "MOCK_ENTROPY_SOURCE_ID": {
             "profile": {
