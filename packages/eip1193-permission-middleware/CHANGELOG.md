@@ -9,28 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
-
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
 ### Changed
 
 - **BREAKING:** Consolidate method handlers into a single `methodHandlers` export ([#8583](https://github.com/MetaMask/core/pull/8583))
   - The individual handler exports have been removed. They can still be accessed as properties on the `methodHandlers` export.
   - The new handlers follow the format expected by `createMethodMiddleware` from `@metamask/json-rpc-engine@10.3.0`.
   - The hook types have been updated to cohere with the corresponding `@metamask/permission-controller` methods.
-- Bump `@metamask/chain-agnostic-permission` from `^1.4.0` to `^1.5.0` ([#8290](https://github.com/MetaMask/core/pull/8290))
-- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.4` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.3.0` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.20.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995), [#8344](https://github.com/MetaMask/core/pull/8344))
-- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.3.0` ([#7559](https://github.com/MetaMask/core/pull/7559), [#8225](https://github.com/MetaMask/core/pull/8225), [#8317](https://github.com/MetaMask/core/pull/8317))
-- Bump `@metamask/chain-agnostic-permission` from `^1.3.0` to `^1.4.0` ([#7567](https://github.com/MetaMask/core/pull/7567))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^13.0.0` ([#7559](https://github.com/MetaMask/core/pull/7559), [#8225](https://github.com/MetaMask/core/pull/8225), [#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/chain-agnostic-permission` from `^1.3.0` to `^1.5.0` ([#7567](https://github.com/MetaMask/core/pull/7567), [#8290](https://github.com/MetaMask/core/pull/8290))
 
 ## [1.0.3]
 

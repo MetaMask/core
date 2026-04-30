@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
-
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-
 ### Added
 
 - Add `MethodHandlerHooks` type, the intersection of all method handler hook types ([#8583](https://github.com/MetaMask/core/pull/8583))
@@ -29,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The hook types have been updated to cohere with their corresponding MetaMask controller methods.
 - **BREAKING:** Make `trackSessionCreatedEvent` hook required in `wallet_createSession` handler ([#8583](https://github.com/MetaMask/core/pull/8583))
   - If the hook is not required, `null` can be passed instead.
-- Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661))
 - Bump `@metamask/network-controller` from `^30.0.0` to `^30.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8636](https://github.com/MetaMask/core/pull/8636))
-- Bump `@metamask/permission-controller` from `^12.2.1` to `^12.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/permission-controller` from `^12.2.1` to `^13.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661))
 - Bump `@metamask/multichain-transactions-controller` from `^7.0.3` to `^7.0.4` ([#8325](https://github.com/MetaMask/core/pull/8325))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 

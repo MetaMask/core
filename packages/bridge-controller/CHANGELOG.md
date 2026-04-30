@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controller` from `^6.2.1` to `^6.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/assets-controllers` from `^105.0.0` to `^105.1.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
 - Bump `@metamask/keyring-api` from `^23.0.1` to `^23.1.0` ([#8647](https://github.com/MetaMask/core/pull/8647))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
