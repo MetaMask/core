@@ -400,6 +400,8 @@ export class AuthenticationController extends BaseController<
     const profileAliases = await this.#pairSrpProfiles(accessTokens);
     const newCanonical = await this.#getCanonicalProfileId();
 
+    // If somehow we cannot compute the new canonical profile ID after pairing,
+    // we just return now and do not update the `needsProfilePairing` flag.
     if (!newCanonical) {
       return;
     }

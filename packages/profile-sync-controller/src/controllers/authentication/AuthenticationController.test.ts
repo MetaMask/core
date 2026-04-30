@@ -513,7 +513,7 @@ describe('AuthenticationController', () => {
       }
     });
 
-    it('does NOT clear needsProfilePairing if requestProfilePairing is called mid-flight (multi-SRP)', async () => {
+    it('epoch check: a concurrent requestProfilePairing during multi-SRP performSignIn keeps the gate set', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
       const { messenger } = createMockAuthenticationMessenger();
@@ -524,9 +524,10 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      // Re-arm BEFORE awaiting performSignIn: the epoch snapshot inside
-      // `performSignIn` runs synchronously, so the increment from this
-      // call lands after it and must prevent the gate from being cleared.
+      // `performSignIn` snapshots `#profilePairingRequestEpoch` synchronously
+      // before its first await. Calling `requestProfilePairing()` right after
+      // (still in the same tick, but after the snapshot) bumps the epoch — so
+      // the post-pair gate clear must be skipped and the flag must stay true.
       const performSignInPromise = controller.performSignIn();
       controller.requestProfilePairing();
       await performSignInPromise;
@@ -534,7 +535,7 @@ describe('AuthenticationController', () => {
       expect(controller.state.needsProfilePairing).toBe(true);
     });
 
-    it('does NOT clear needsProfilePairing if requestProfilePairing is called mid-flight (single-SRP)', async () => {
+    it('epoch check: a concurrent requestProfilePairing during single-SRP performSignIn keeps the gate set', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs();
       const { messenger, mockSnapGetAllPublicKeys } =
@@ -553,6 +554,39 @@ describe('AuthenticationController', () => {
       const performSignInPromise = controller.performSignIn();
       controller.requestProfilePairing();
       await performSignInPromise;
+
+      expect(controller.state.needsProfilePairing).toBe(true);
+    });
+
+    it('epoch check: a requestProfilePairing fired from inside #doPair (between snap call and pair API completion) keeps the gate set', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics,
+      });
+
+      // `#snapGetAllPublicKeys` is called twice per `performSignIn`:
+      //  1. directly inside `performSignIn` (to enumerate SRPs)
+      //  2. indirectly inside `#doPair` → `#getCanonicalProfileId` →
+      //     `#getPrimaryEntropySourceId` (cold cache)
+      // We hook the second call to fire the rearm — this is the realistic
+      // production race window (e.g. user adds an SRP while the pair API
+      // request is in flight).
+      mockSnapGetAllPublicKeys
+        .mockResolvedValueOnce(
+          MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']),
+        )
+        .mockImplementationOnce(async () => {
+          controller.requestProfilePairing();
+          return MOCK_ENTROPY_SOURCE_IDS.map((id) => [id, 'MOCK_PUBLIC_KEY']);
+        });
+
+      await controller.performSignIn();
 
       expect(controller.state.needsProfilePairing).toBe(true);
     });
