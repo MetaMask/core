@@ -7,6 +7,7 @@ import {
   getNonce,
   pairIdentifiers,
 } from './authentication-jwt-bearer/services';
+import type { PairProfilesResponse } from './authentication-jwt-bearer/services';
 import type {
   UserProfile,
   Pair,
@@ -80,6 +81,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     entropySourceId?: string,
   ): Promise<UserProfileLineage> {
     return await this.#sdk.getUserProfileLineage(entropySourceId);
+  }
+
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.pairSrpProfiles(accessTokens, authAccessToken);
   }
 
   async signMessage(

@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
+- Export `TransactionData` type from public API ([#8630](https://github.com/MetaMask/core/pull/8630))
+
+### Changed
+
+- Abort in-flight quote requests when a newer request is made for the same transaction, preventing stale responses from overwriting newer ones ([#8612](https://github.com/MetaMask/core/pull/8612))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 - Fix post-quote relay submission when `accountOverride` is set by replacing the prepended original transaction with a delegation transaction so the override account can submit it ([#8615](https://github.com/MetaMask/core/pull/8615))
 
 ## [20.0.1]
