@@ -227,11 +227,13 @@ export function createProviderRpc({
   // TODO: Use V2, currently not compatible with createEngineStream.
   const engine = new JsonRpcEngine();
 
+  // @ts-expect-error This middleware has type issues when used as a legacy middleware.
   engine.push(asLegacyMiddleware(createOriginMiddleware(origin)));
 
   // TODO: A bunch of middlewares are missing.
   // TODO: Configure additional client-specific middlewares
 
+  // @ts-expect-error This middleware has type issues when used as a legacy middleware.
   engine.push(asLegacyMiddleware(createWalletSnapPermissionMiddleware()));
 
   engine.push(createPermissionMiddleware({ messenger, origin }));
