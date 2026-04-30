@@ -4,6 +4,14 @@ export {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 export { AssetsDataSourceError } from './errors';
+export {
+  DEFAULT_TRACKED_ASSETS_BY_CHAIN,
+  CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
+  DEFAULT_ASSET_METADATA,
+  buildDefaultAssetsInfo,
+  getDefaultTrackedAssetsForChain,
+  getDefaultAssetMetadata,
+} from './defaults';
 export type { PendingTokenMetadata } from './AssetsController';
 
 // State and messenger types

@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support `RedeemerEnforcer` caveat when decoding execution permissions ([#8537](https://github.com/MetaMask/core/pull/8537))
+  - Permission decoding now recognizes the `RedeemerEnforcer` as an optional caveat on all execution permission types and extracts a `redeemer` rule containing the allowlisted addresses.
+  - `DecodedPermission` type now includes an optional `rules` property for rules recovered from caveats.
+  - Export new `EXECUTION_PERMISSION_REDEEMER_RULE_TYPE` constant and `RedeemerRule` type.
+
 ### Changed
 
+- Use `decodeRedeemerTerms` from `@metamask/delegation-core` instead of a local implementation ([#8537](https://github.com/MetaMask/core/pull/8537))
+- Bump `@metamask/delegation-core` from `^0.2.0` to `^1.1.0` ([#8537](https://github.com/MetaMask/core/pull/8537))
 - Bump `@metamask/transaction-controller` from `^64.2.0` to `^65.0.0` ([#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))

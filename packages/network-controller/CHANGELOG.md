@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
   - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
 
+### Fixed
+
+- Restore retries for failed requests even if the user is offline, preventing a bad user experience if the reported offline status is inaccurate or stuck ([#8623](https://github.com/MetaMask/core/pull/8623))
+
 ## [30.0.1]
 
 ### Changed

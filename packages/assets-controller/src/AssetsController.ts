@@ -29,6 +29,7 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkAddedEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
@@ -52,6 +53,7 @@ import type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import {
   isCaipChainId,
   isStrictHexString,
@@ -80,6 +82,12 @@ import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import {
+  CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
+  DEFAULT_TRACKED_ASSETS_BY_CHAIN,
+  buildDefaultAssetsInfo,
+  getDefaultAssetMetadata,
+} from './defaults';
 import { AssetsDataSourceError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
@@ -215,11 +223,18 @@ export type AssetsControllerState = {
 /**
  * Returns the default state for AssetsController.
  *
- * @returns The default AssetsController state with empty maps.
+ * @returns The default AssetsController state. Balance, price, and custom
+ * asset maps start empty; `assetsInfo` is pre-seeded for default tracked
+ * assets (see {@link buildDefaultAssetsInfo}).
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
-    assetsInfo: {},
+    // Pre-populate metadata for controller-managed default tracked assets
+    // (e.g. mUSD on Ethereum mainnet, Linea, Monad) so they are
+    // immediately renderable in the UI before any RPC poll completes.
+    // Per-account zero-balance entries are filled into `assetsBalance`
+    // by `#ensureDefaultTrackedAssetsSeeded` once accounts are known.
+    assetsInfo: buildDefaultAssetsInfo(),
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
@@ -303,6 +318,8 @@ type AllowedEvents =
   | TransactionControllerUnapprovedTransactionAddedEvent
   // RpcDataSource, StakedBalanceDataSource
   | NetworkControllerStateChangeEvent
+  // AssetsController (default-asset seeding when a new network is added)
+  | NetworkControllerNetworkAddedEvent
   | TransactionControllerTransactionConfirmedEvent
   | TransactionControllerIncomingTransactionsReceivedEvent
   // StakedBalanceDataSource
@@ -993,6 +1010,19 @@ export class AssetsController extends BaseController<
       },
     );
 
+    // When a new network is added (e.g. the user finally adds Monad
+    // to NetworkController), seed the default tracked assets for it
+    // — but only if the chain is in our defaults registry. This is
+    // what makes mUSD show up on Monad the moment the network is
+    // configured, without waiting for it to also be enabled in
+    // NetworkEnablementController.
+    this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      (networkConfiguration) => {
+        this.#handleNetworkAdded(networkConfiguration.chainId);
+      },
+    );
+
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
       'ClientController:stateChange',
@@ -1097,6 +1127,7 @@ export class AssetsController extends BaseController<
       this.#lastKnownAccountIds = currentIds;
       this.#subscribeAssets();
       this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
       this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
@@ -1962,6 +1993,80 @@ export class AssetsController extends BaseController<
     });
   }
 
+  /**
+   * Seed selected accounts with zero-balance entries for every
+   * controller-managed default tracked asset (e.g. mUSD on mainnet,
+   * Linea, Monad). Also re-asserts the metadata in `assetsInfo` so the
+   * defaults survive a future state migration that strips them.
+   *
+   * `chainsToSeed` lets callers narrow the work to a specific subset
+   * of chains — useful when reacting to a `NetworkEnablementController`
+   * change to seed only the chain that was just added (e.g. when the
+   * user finally turns on Monad). When `undefined`, every chain in the
+   * default tracked assets registry is seeded.
+   *
+   * Existing entries are never clobbered.
+   *
+   * @param chainsToSeed - Optional subset of CAIP-2 chain ids to seed.
+   * If omitted, all default tracked chains are seeded.
+   */
+  #ensureDefaultTrackedAssetsSeeded(chainsToSeed?: ChainId[]): void {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    // Default tracked assets are ERC-20s on EVM chains today. Restrict
+    // seeding to accounts that have at least one EVM scope so we don't
+    // pollute non-EVM accounts. The wildcard `eip155:0` scope counts.
+    const evmAccounts = accounts.filter((account) =>
+      (account.scopes ?? []).some((scope) => scope.startsWith('eip155:')),
+    );
+    if (evmAccounts.length === 0) {
+      return;
+    }
+
+    // Gate seeding on whether the chain is currently enabled. This is
+    // why mUSD appears on mainnet/Linea immediately (those are normally
+    // enabled at startup) but only appears on Monad once the user
+    // turns the Monad network on.
+    const candidateChains = chainsToSeed ?? [...this.#enabledChains];
+    const targetChains = candidateChains.filter((chainId) =>
+      CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(chainId),
+    );
+    if (targetChains.length === 0) {
+      return;
+    }
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      const metadata = state.assetsInfo as Record<string, AssetMetadata>;
+
+      for (const chainId of targetChains) {
+        const defaultAssetIds =
+          DEFAULT_TRACKED_ASSETS_BY_CHAIN.get(chainId) ?? [];
+        for (const assetId of defaultAssetIds) {
+          // Re-seed metadata if state was hydrated from a prior version
+          // that didn't include defaults.
+          if (!metadata[assetId]) {
+            const seed = getDefaultAssetMetadata(assetId);
+            if (seed) {
+              metadata[assetId] = seed;
+            }
+          }
+
+          for (const account of evmAccounts) {
+            balances[account.id] ??= {};
+            const accountBalances = balances[account.id];
+            accountBalances[assetId] ??= { amount: '0' };
+          }
+        }
+      }
+    });
+  }
+
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
@@ -2335,6 +2440,7 @@ export class AssetsController extends BaseController<
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
     this.#subscribeAssets();
     this.#ensureNativeBalancesDefaultZero();
+    this.#ensureDefaultTrackedAssetsSeeded();
     this.getAssets(accounts, {
       chainIds,
       forceUpdate: true,
@@ -2847,6 +2953,7 @@ export class AssetsController extends BaseController<
     }
 
     this.#ensureNativeBalancesDefaultZero();
+    this.#ensureDefaultTrackedAssetsSeeded();
   }
 
   async #handleEnabledNetworksChanged(
@@ -2895,6 +3002,43 @@ export class AssetsController extends BaseController<
     }
 
     this.#ensureNativeBalancesDefaultZero();
+    // Seed default tracked assets (mUSD) for any chain the user has
+    // *just* enabled. This is what makes mUSD appear on Monad after
+    // the user finally adds it to NetworkEnablementController.
+    if (addedChains.length > 0) {
+      this.#ensureDefaultTrackedAssetsSeeded(addedChains);
+    }
+  }
+
+  /**
+   * Handle a `NetworkController:networkAdded` event. When the user
+   * adds a network (e.g. Monad) to NetworkController, seed the
+   * controller-managed default tracked assets for that chain (mUSD on
+   * Monad) into state immediately — without waiting for the chain to
+   * also be enabled in NetworkEnablementController. No-op for chains
+   * that aren't in the defaults registry.
+   *
+   * @param hexChainId - Hex chain id of the newly-added network
+   * configuration (e.g. `0x279f`).
+   */
+  #handleNetworkAdded(hexChainId: Hex): void {
+    let caipChainId: ChainId;
+    try {
+      caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    } catch {
+      return;
+    }
+
+    if (!CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(caipChainId)) {
+      return;
+    }
+
+    log('Network added — seeding default tracked assets', {
+      hexChainId,
+      caipChainId,
+    });
+
+    this.#ensureDefaultTrackedAssetsSeeded([caipChainId]);
   }
 
   /**

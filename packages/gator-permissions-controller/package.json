@@ -56,7 +56,7 @@
     "@metamask/7715-permission-types": "^0.5.0",
     "@metamask/abi-utils": "^2.0.3",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/delegation-core": "^0.2.0",
+    "@metamask/delegation-core": "^1.1.0",
     "@metamask/delegation-deployments": "^0.12.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^30.1.0",
