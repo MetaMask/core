@@ -387,16 +387,18 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
         if (batched) {
           // Batch account creations.
-          console.log(`[DEBUGG] Batching account creations with options: ${JSON.stringify(options)} for provider: ${this.getName()}`);
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountsV2) - Batching account creations with options: ${JSON.stringify(options)}`);
           const start = performance.now();
           snapAccounts = await createAccountsV2(options);
           const end = performance.now();
-          console.log(`[DEBUGG] Time taken to create accounts: ${end - start}ms`);
-          console.log(`[DEBUGG] Result: ${snapAccounts.length} accounts created`);
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountsV2) - Time taken to create accounts: ${end - start} ms`);
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountsV2) - Result: ${snapAccounts.length} accounts created`);
         } else {
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountV1) - Creating accounts one by one with options: ${JSON.stringify(options)}`);
           const { range } = options;
 
           // Create accounts one by one.
+          const start = performance.now();
           for (
             let groupIndex = range.from;
             groupIndex <= range.to;
@@ -406,6 +408,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
             snapAccounts.push(snapAccount);
           }
+          const end = performance.now();
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountV1) - Time taken to create accounts: ${end - start} ms`);
+          console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} (createAccountV1) - Result: ${snapAccounts.length} accounts created`);
         }
 
         // Group indices are sequential, so we just need the starting index.
@@ -444,7 +449,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    console.log(`[DEBUGG] Creating accounts with options: ${JSON.stringify(options)}`);
+    console.log(`[PERFORMANCE DEBUG] SnapAccountProvider ${this.getName()} - Creating accounts with options: ${JSON.stringify(options)}`);
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
       `${AccountCreationType.Bip44DeriveIndexRange}`,

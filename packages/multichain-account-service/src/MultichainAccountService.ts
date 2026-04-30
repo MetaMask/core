@@ -675,15 +675,15 @@ export class MultichainAccountService {
     toGroupIndex: number;
     entropySource: EntropySourceId;
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>[]> {
-    console.log(`[DEBUGG] Creating multichain account groups from ${fromGroupIndex} to ${toGroupIndex} for entropy source: ${entropySource}`);
+    console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Creating multichain account groups from ${fromGroupIndex} to ${toGroupIndex} for entropy source: ${entropySource}`);
     const start = performance.now();
     const result = await this.#getWallet(entropySource).createMultichainAccountGroups(
       { from: fromGroupIndex, to: toGroupIndex },
       { waitForAllProvidersToFinishCreatingAccounts: false },
     );
     const end = performance.now();
-    console.log(`[DEBUGG] Time taken to create multichain account groups: ${end - start}ms`);
-    console.log(`[DEBUGG] Result: ${result.length} groups created`);
+    console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Time taken to create multichain account groups: ${end - start}ms`);
+    console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Result: ${result.length} groups created`);
     return result;
   }
 
