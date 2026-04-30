@@ -19,10 +19,6 @@ export enum MultichainApiNotifications {
 
 export type Caip25Caveat = Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
 
-export type GrantedPermissions = Awaited<
-  ReturnType<GenericPermissionController['requestPermissions']>
->[0];
-
 export type GetCaveatForOriginHook = {
   getCaveatForOrigin: (
     endowmentPermissionName: string,
