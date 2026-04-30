@@ -1486,10 +1486,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Record in bridge history with actual transaction metadata
       try {
-       // Create a bridge transaction metadata keyed by orderUid for intent polling
+        // Create a bridge transaction metadata keyed by orderUid for intent polling
         const bridgeTxMetaForHistory = {
           ...syntheticMeta,
-          id: orderUid
+          id: orderUid,
         };
 
         // Use orderId as the history key for intent transactions
