@@ -6,7 +6,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
-import { randomBytes } from '@noble/ciphers/webcrypto';
 
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
 import {
@@ -24,7 +23,11 @@ import type {
   PasskeyRecord,
   PrfClientExtensionResults,
 } from './types';
-import { decryptWithKey, encryptWithKey } from './utils/crypto';
+import {
+  decryptWithKey,
+  encryptWithKey,
+  randomBytesToBase64URL,
+} from './utils/crypto';
 import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
 import { COSEALG } from './webauthn/constants';
 import { decodeClientDataJSON } from './webauthn/decode-client-data-json';
@@ -211,11 +214,9 @@ export class PasskeyController extends BaseController<
     }
 
     const includePrf = creationOptionsConfig?.prfAvailable !== false;
-    const prfSalt = includePrf
-      ? bytesToBase64URL(randomBytes(32).slice())
-      : undefined;
-    const userHandle = bytesToBase64URL(randomBytes(64).slice());
-    const challenge = bytesToBase64URL(randomBytes(32).slice());
+    const prfSalt = includePrf ? randomBytesToBase64URL(32) : undefined;
+    const userHandle = randomBytesToBase64URL(64);
+    const challenge = randomBytesToBase64URL(32);
 
     const extensions: Record<string, unknown> = {};
     if (prfSalt) {
@@ -283,7 +284,7 @@ export class PasskeyController extends BaseController<
     }
 
     // build auth options
-    const challenge = bytesToBase64URL(randomBytes(32).slice());
+    const challenge = randomBytesToBase64URL(32);
     const extensions: Record<string, unknown> = {};
     if (registrationCeremony.prfSalt) {
       extensions.prf = { eval: { first: registrationCeremony.prfSalt } };
@@ -323,7 +324,7 @@ export class PasskeyController extends BaseController<
   generateAuthenticationOptions(): PasskeyAuthenticationOptions {
     const record = this.#requireEnrolled();
 
-    const challenge = bytesToBase64URL(randomBytes(32).slice());
+    const challenge = randomBytesToBase64URL(32);
 
     const extensions: Record<string, unknown> = {};
     if (record.keyDerivation.method === 'prf') {
@@ -545,15 +546,17 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Re-encrypts the stored vault key after the vault key changes (e.g. password rotation).
+   * Re-wraps the vault key after rotation. Updates persisted `encryptedVaultKey` on success.
    *
-   * Call after verifying the user with {@link retrieveVaultKeyWithPasskey} or
-   * {@link verifyPasskeyAuthentication}, passing the same authentication response.
+   * Does not verify WebAuthn or ceremony state—call only after your layer has authenticated
+   * the user (passkey `get()` + verified assertion, or verified password). On passkey paths,
+   * pass the same `authenticationResponse` you just verified (e.g. from
+   * {@link retrieveVaultKeyWithPasskey} / {@link verifyPasskeyAuthentication}).
    *
    * @param params - Re-wrap inputs.
-   * @param params.authenticationResponse - Assertion from the verification step above.
-   * @param params.oldVaultKey - Expected current vault key before rotation.
-   * @param params.newVaultKey - New vault key to persist encrypted under the passkey.
+   * @param params.authenticationResponse - Used to derive the wrapping key.
+   * @param params.oldVaultKey - Expected current vault key.
+   * @param params.newVaultKey - New vault key to encrypt under the passkey.
    */
   async renewVaultKeyProtection(params: {
     authenticationResponse: PasskeyAuthenticationResponse;
@@ -626,7 +629,8 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Unenrolls the passkey, removing the protected vault key material.
+   * Clears enrolled passkey state and in-flight ceremonies. Call only after the same
+   * auth gate as renewal (verified passkey assertion or password).
    */
   removePasskey(): void {
     this.update(() => getDefaultPasskeyControllerState());
