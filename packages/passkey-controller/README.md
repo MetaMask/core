@@ -42,7 +42,9 @@ const messenger: PasskeyControllerMessenger = /* create via root messenger */;
 
 const controller = new PasskeyController({
   messenger,
-  rpID: 'example.com',
+  rpId: 'example.com',
+  // Or multiple verification candidates: expectedRPID: ['a.example', 'b.example']
+  expectedRPID: 'example.com',
   rpName: 'My Wallet',
   expectedOrigin: 'chrome-extension://abcdef1234567890',
   // Optional — both default to `rpName` when omitted.
@@ -50,6 +52,8 @@ const controller = new PasskeyController({
   userDisplayName: 'My Wallet',
 });
 ```
+
+`expectedRPID` is a string or string array used to verify the authenticator `rpIdHash`. Optional `rpId`, when set, is sent as `rp.id` / `rpId` in generated WebAuthn options; when omitted, those fields are omitted so the client uses its default RP ID behavior.
 
 ### Passkey enrollment (registration)
 

@@ -81,7 +81,8 @@ function createController(
 ): PasskeyController {
   return new PasskeyController({
     messenger: getPasskeyMessenger(),
-    rpID: TEST_RP_ID,
+    expectedRPID: TEST_RP_ID,
+    rpId: TEST_RP_ID,
     rpName: TEST_RP_NAME,
     expectedOrigin: TEST_ORIGIN,
     ...overrides,
@@ -231,6 +232,18 @@ describe('PasskeyController', () => {
   });
 
   describe('constructor', () => {
+    it('allows expectedRPID to be an empty array', () => {
+      expect(
+        () =>
+          new PasskeyController({
+            messenger: getPasskeyMessenger(),
+            expectedRPID: [],
+            rpName: TEST_RP_NAME,
+            expectedOrigin: TEST_ORIGIN,
+          }),
+      ).not.toThrow();
+    });
+
     it('merges partial initial state with defaults', () => {
       const record: PasskeyRecord = {
         credential: {
@@ -284,14 +297,26 @@ describe('PasskeyController', () => {
       ).toBeDefined();
     });
 
-    it('uses rpID and rpName from constructor', () => {
+    it('uses expectedRPID and rpName from constructor', () => {
       const controller = createController({
-        rpID: 'custom-rp.io',
+        expectedRPID: 'custom-rp.io',
         rpName: 'Custom RP',
+        rpId: undefined,
       });
       const options = controller.generateRegistrationOptions();
-      expect(options.rp.id).toBe('custom-rp.io');
-      expect(options.rp.name).toBe('Custom RP');
+      expect(options.rp).toStrictEqual({
+        name: 'Custom RP',
+        id: undefined,
+      });
+    });
+
+    it('uses optional rpId for WebAuthn rp.id when set', () => {
+      const controller = createController({
+        expectedRPID: ['first.example', 'second.example'],
+        rpId: 'second.example',
+      });
+      const options = controller.generateRegistrationOptions();
+      expect(options.rp.id).toBe('second.example');
     });
 
     it('includes PRF extension when prfAvailable is true', () => {
@@ -1579,8 +1604,9 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const controller = createController({
-        rpID: 'custom-rp.com',
+        expectedRPID: 'custom-rp.com',
         expectedOrigin: 'chrome-extension://abc123',
+        rpId: undefined,
       });
 
       const regOpts = controller.generateRegistrationOptions();
@@ -1596,7 +1622,7 @@ describe('PasskeyController', () => {
       expect(mockVerifyRegistrationResponse).toHaveBeenCalledWith(
         expect.objectContaining({
           expectedOrigin: 'chrome-extension://abc123',
-          expectedRPID: 'custom-rp.com',
+          expectedRPIDs: ['custom-rp.com'],
           requireUserVerification: false,
         }),
       );
@@ -1642,7 +1668,7 @@ describe('PasskeyController', () => {
       expect(mockVerifyAuthenticationResponse).toHaveBeenCalledWith(
         expect.objectContaining({
           expectedOrigin: TEST_ORIGIN,
-          expectedRPID: TEST_RP_ID,
+          expectedRPIDs: [TEST_RP_ID],
           credential: expect.objectContaining({
             id: TEST_CREDENTIAL_ID,
             counter: 0,

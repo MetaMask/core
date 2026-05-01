@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `PasskeyController` constructor option `rpID` is replaced with `expectedRPID: string | string[]` (normalized to a string array, which may be empty). Optional `rpId` sets `rp.id` / `rpId` in generated WebAuthn options; when omitted, those fields are omitted. Verification passes that array to `verifyRegistrationResponse` / `verifyAuthenticationResponse` as `expectedRPIDs`.
+- **BREAKING:** `verifyRegistrationResponse` and `verifyAuthenticationResponse` now take `expectedRPIDs: string[]` instead of `expectedRPID: string`.
+- `verifyRegistrationResponse` / `verifyAuthenticationResponse` accept an empty `expectedRPIDs` array to skip RP ID hash allowlist matching; successful authentication then reports `authenticationInfo.rpID` as an empty string.
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 
 ## [1.0.0]

@@ -117,7 +117,9 @@ export class PasskeyController extends BaseController<
 > {
   readonly #ceremonyManager = new CeremonyManager();
 
-  readonly #rpID: string;
+  readonly #expectedRPIDs: string[];
+
+  readonly #rpId: string | undefined;
 
   readonly #rpName: string;
 
@@ -133,7 +135,11 @@ export class PasskeyController extends BaseController<
    * @param args - Constructor options.
    * @param args.messenger - Controller messenger.
    * @param args.state - Partial initial state; merged with {@link getDefaultPasskeyControllerState}.
-   * @param args.rpID - Relying party identifier (e.g. registrable domain or `localhost`).
+   * @param args.expectedRPID - Relying party ID(s) for verification (SHA-256 hash match in
+   *   authenticator data). Pass a string or array of strings; an empty array skips RP ID
+   *   allowlist checks in {@link verifyRegistrationResponse} / {@link verifyAuthenticationResponse}.
+   * @param args.rpId - When set, included as `rp.id` on registration options and `rpId` on
+   *   authentication options. When omitted, those fields are left unset (client default RP ID).
    * @param args.rpName - Relying party name shown in the platform passkey UI.
    * @param args.expectedOrigin - Allowed value(s) for the WebAuthn client origin.
    * @param args.userName - Optional passkey user name; defaults to `rpName`.
@@ -142,7 +148,8 @@ export class PasskeyController extends BaseController<
   constructor({
     messenger,
     state = {},
-    rpID,
+    rpId,
+    expectedRPID,
     rpName,
     expectedOrigin,
     userName,
@@ -150,7 +157,8 @@ export class PasskeyController extends BaseController<
   }: {
     messenger: PasskeyControllerMessenger;
     state?: Partial<PasskeyControllerState>;
-    rpID: string;
+    rpId?: string;
+    expectedRPID: string | string[];
     rpName: string;
     expectedOrigin: string | string[];
     userName?: string;
@@ -163,7 +171,11 @@ export class PasskeyController extends BaseController<
       state: { ...getDefaultPasskeyControllerState(), ...state },
     });
 
-    this.#rpID = rpID;
+    const expectedRPIDs = Array.isArray(expectedRPID)
+      ? expectedRPID
+      : [expectedRPID];
+    this.#expectedRPIDs = [...expectedRPIDs];
+    this.#rpId = rpId;
     this.#rpName = rpName;
     this.#expectedOrigin = expectedOrigin;
     this.#userName = userName ?? rpName;
@@ -224,7 +236,10 @@ export class PasskeyController extends BaseController<
     }
 
     const options: PasskeyRegistrationOptions = {
-      rp: { name: this.#rpName, id: this.#rpID },
+      rp: {
+        name: this.#rpName,
+        id: this.#rpId,
+      },
       user: {
         id: userHandle,
         name: this.#userName,
@@ -291,7 +306,7 @@ export class PasskeyController extends BaseController<
     }
     const options: PasskeyAuthenticationOptions = {
       challenge,
-      rpId: this.#rpID,
+      rpId: this.#rpId,
       allowCredentials: [
         {
           id: registrationResponse.id,
@@ -333,7 +348,7 @@ export class PasskeyController extends BaseController<
 
     const options: PasskeyAuthenticationOptions = {
       challenge,
-      rpId: this.#rpID,
+      rpId: this.#rpId,
       allowCredentials: [
         {
           id: record.credential.id,
@@ -397,7 +412,7 @@ export class PasskeyController extends BaseController<
         response: registrationResponse,
         expectedChallenge: registrationCeremony.challenge,
         expectedOrigin: this.#expectedOrigin,
-        expectedRPID: this.#rpID,
+        expectedRPIDs: this.#expectedRPIDs,
         requireUserVerification: false,
       }).catch((error) => {
         log('Error verifying passkey registration response', error);
@@ -685,7 +700,7 @@ export class PasskeyController extends BaseController<
         response: authenticationResponse,
         expectedChallenge: authenticationCeremony.challenge,
         expectedOrigin: this.#expectedOrigin,
-        expectedRPID: this.#rpID,
+        expectedRPIDs: this.#expectedRPIDs,
         credential: {
           id: credential.id,
           publicKey: base64URLToBytes(credential.publicKey),
