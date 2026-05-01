@@ -13,4 +13,5 @@ export type {
   AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerRequestProfilePairingAction,
 } from './AuthenticationController-method-action-types';

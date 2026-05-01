@@ -3372,7 +3372,7 @@ export class TransactionController extends BaseController<
       const errorMessage =
         errorObject?.data?.message ?? errorObject?.message ?? String(error);
 
-      throw new Error(errorMessage);
+      throw new Error(`RPC submit: ${errorMessage}`);
     }
   }
 

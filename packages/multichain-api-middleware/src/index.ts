@@ -1,7 +1,5 @@
-export { walletCreateSession } from './handlers/wallet-createSession';
-export { walletGetSession } from './handlers/wallet-getSession';
-export { walletInvokeMethod } from './handlers/wallet-invokeMethod';
-export { walletRevokeSession } from './handlers/wallet-revokeSession';
+export { methodHandlers } from './handlers';
+export type { MethodHandlerHooks } from './handlers';
 
 export { multichainMethodCallValidatorMiddleware } from './middlewares/multichainMethodCallValidatorMiddleware';
 export { MultichainMiddlewareManager } from './middlewares/MultichainMiddlewareManager';
