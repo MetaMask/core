@@ -53,8 +53,8 @@ export type VerifiedRegistrationResponse =
  *   `navigator.credentials.create()`, serialized as JSON.
  * @param opts.expectedChallenge - The base64url challenge that was passed
  *   to the authenticator (must match `clientDataJSON.challenge`).
- * @param opts.expectedOrigin - One or more acceptable origins (e.g.
- *   `"chrome-extension://..."` or `"https://metamask.io"`).
+ * @param opts.expectedOrigin - One or more acceptable values for
+ *   `clientDataJSON.origin` (WebAuthn). Extension and HTTPS contexts differ by scheme.
  * @param opts.expectedRPID - The Relying Party ID domain. The
  *   authenticator's `rpIdHash` is compared against `SHA-256(expectedRPID)`.
  * @param opts.requireUserVerification - When `true`, verification fails
