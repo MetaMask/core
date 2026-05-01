@@ -232,8 +232,5 @@ function decodeMessage(data: Hex | undefined): string | undefined {
  * @param revert - Resolved Revert.
  */
 function logRevert(source: string | undefined, revert: Revert): void {
-  log('Decoded %s revert', source ?? 'unknown', {
-    message: revert.message,
-    data: revert.data,
-  });
+  log('Decoded revert', source ?? 'unknown', revert);
 }
