@@ -1004,10 +1004,9 @@ describe('isPhishingDetectionPathBasedHostname', () => {
 
 describe('getPhishingDetectionScanUrlParam', () => {
   it('returns hostname only for non-gateway hosts', () => {
-    expect(getPhishingDetectionScanUrlParam('https://example.com/path?q=1#h')).toStrictEqual([
-      'example.com',
-      true,
-    ]);
+    expect(
+      getPhishingDetectionScanUrlParam('https://example.com/path?q=1#h'),
+    ).toStrictEqual(['example.com', true]);
   });
 
   it('returns hostname plus path for path-based gateway hosts', () => {
@@ -1019,14 +1018,16 @@ describe('getPhishingDetectionScanUrlParam', () => {
   });
 
   it('does not append path when pathname is /', () => {
-    expect(getPhishingDetectionScanUrlParam('https://dweb.link/')).toStrictEqual([
-      'dweb.link',
-      true,
-    ]);
+    expect(
+      getPhishingDetectionScanUrlParam('https://dweb.link/'),
+    ).toStrictEqual(['dweb.link', true]);
   });
 
   it('returns ok false for invalid web URLs', () => {
-    expect(getPhishingDetectionScanUrlParam('not-a-url')).toStrictEqual(['', false]);
+    expect(getPhishingDetectionScanUrlParam('not-a-url')).toStrictEqual([
+      '',
+      false,
+    ]);
   });
 });
 
