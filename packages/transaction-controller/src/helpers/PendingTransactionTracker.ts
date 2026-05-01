@@ -13,7 +13,7 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 import {
-  extractRevertReason,
+  extractRevert,
   OnChainFailureError,
 } from '../utils/extract-revert-reason';
 import {
@@ -445,26 +445,20 @@ export class PendingTransactionTracker {
           txReceipt: receipt,
         };
 
-        const revertReason = await extractRevertReason({
+        const revert = await extractRevert({
           messenger: this.#messenger,
           transactionMeta: txMetaWithReceipt,
         }).catch(
           /* istanbul ignore next */
           (extractionError) => {
-            this.#log(
-              'Failed to extract revert reason',
-              txMeta.id,
-              extractionError,
-            );
+            this.#log('Failed to extract revert', txMeta.id, extractionError);
             return undefined;
           },
         );
 
-        this.#log('Revert reason extraction complete', txMeta.id, {
-          revertReason,
-        });
+        this.#log('Revert extraction complete', txMeta.id, { revert });
 
-        this.#failTransaction(txMeta, new OnChainFailureError(revertReason));
+        this.#failTransaction(txMeta, new OnChainFailureError(revert));
 
         return;
       }

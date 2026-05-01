@@ -127,11 +127,11 @@ function mockFeatureFlags(
 }
 
 describe('PendingTransactionTracker', () => {
-const getTransactionReceiptMock = jest.fn();
-const getTransactionByHashMock = jest.fn();
-const getTransactionCountMock = jest.fn();
-const getBlockByHashMock = jest.fn();
-const estimateGasMock = jest.fn();
+  const getTransactionReceiptMock = jest.fn();
+  const getTransactionByHashMock = jest.fn();
+  const getTransactionCountMock = jest.fn();
+  const getBlockByHashMock = jest.fn();
+  const estimateGasMock = jest.fn();
 
   let blockTracker: jest.Mocked<BlockTracker>;
   let pendingTransactionTracker: PendingTransactionTracker;
@@ -556,9 +556,10 @@ const estimateGasMock = jest.fn();
           expect(emittedError.message).toBe(
             'Transaction failed on-chain: ERC20: transfer amount exceeds balance',
           );
-          expect(emittedError.revertReason).toBe(
-            'ERC20: transfer amount exceeds balance',
-          );
+          expect(emittedError.revert).toStrictEqual({
+            message: 'ERC20: transfer amount exceeds balance',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
         });
       });
 

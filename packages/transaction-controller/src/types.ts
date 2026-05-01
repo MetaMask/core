@@ -27,6 +27,36 @@ type MakeJsonCompatible<T> = T extends Json
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
+ * Decoded revert information from a single source (gas estimation,
+ * simulation, or post-failure receipt replay).
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason, when available. */
+  message?: string;
+
+  /**
+   * Raw revert data hex returned by the EVM. Preserved so consumers can
+   * decode custom errors that the controller does not know about.
+   */
+  data?: Hex;
+};
+
+/**
+ * Revert information collected from one or more stages of a transaction's
+ * lifecycle. Each source is independent and optional.
+ */
+export type RevertSources = {
+  /** Revert observed during pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert observed during transaction simulation (root call frame). */
+  simulation?: Revert;
+
+  /** Revert observed after on-chain failure, via receipt replay. */
+  receipt?: Revert;
+};
+
+/**
  * Information about a single transaction such as status and block number.
  */
 export type TransactionMeta = {
@@ -246,15 +276,6 @@ export type TransactionMeta = {
   gasLimitNoBuffer?: string;
 
   /**
-   * Decoded human-readable revert reason produced by `eth_estimateGas`
-   * during transaction creation. Set when gas estimation reverts (i.e. the
-   * transaction is predicted to fail), allowing UI to surface the reason
-   * before the user confirms. Distinct from `revertReason`, which is set
-   * only after on-chain failure.
-   */
-  gasRevertReason?: string;
-
-  /**
    * The estimated gas used by the transaction, after any refunds. Generated from transaction simulation.
    */
   gasUsed?: Hex;
@@ -426,12 +447,22 @@ export type TransactionMeta = {
   retryCount?: number;
 
   /**
-   * Decoded human-readable revert reason for transactions that failed
-   * on-chain. Extracted by replaying the failed call via `eth_call` and
-   * decoding the returned revert data. Undefined when the transaction did
-   * not fail on-chain or when extraction was not possible.
+   * Revert information collected from each stage where a transaction can
+   * fail. Each source is independent and optional:
+   *
+   * - `gas`: populated when `eth_estimateGas` reverts during transaction
+   *   creation, allowing UI to predict failure before the user confirms.
+   * - `simulation`: populated from the root call frame returned by the
+   *   transaction simulation API when simulation indicates a revert.
+   * - `receipt`: populated when an on-chain receipt has a failed status,
+   *   by replaying the transaction via `eth_estimateGas` against the
+   *   receipt's block.
+   *
+   * Each entry contains an optional decoded `message` and the optional
+   * raw `data` hex returned by the EVM, allowing consumers to render the
+   * decoded reason or perform their own decoding (e.g. for custom errors).
    */
-  revertReason?: string;
+  revert?: RevertSources;
 
   /**
    * The transaction's 's' value as a hex string.

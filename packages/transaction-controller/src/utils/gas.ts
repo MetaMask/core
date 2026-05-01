@@ -13,13 +13,13 @@ import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType } from '../types';
-import { decodeRevertReasonFromError } from './extract-revert-reason';
 import type {
   AuthorizationList,
   BatchTransactionParams,
   GetSimulationConfig,
   IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResult,
+  Revert,
   TransactionBatchSingleRequest,
   TransactionMeta,
   TransactionParams,
@@ -29,6 +29,7 @@ import {
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
 } from './eip7702';
+import { logRevert, revertFromError } from './extract-revert-reason';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { getChainId, rpcRequest } from './provider';
 
@@ -65,13 +66,20 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const [gas, simulationFails, gasLimitNoBuffer, gasRevertReason] =
+  const [gas, simulationFails, gasLimitNoBuffer, gasRevert] =
     await getGas(request);
 
   txMeta.txParams.gas = gas;
   txMeta.simulationFails = simulationFails;
   txMeta.gasLimitNoBuffer = gasLimitNoBuffer;
-  txMeta.gasRevertReason = gasRevertReason;
+
+  if (gasRevert) {
+    txMeta.revert = { ...txMeta.revert, gas: gasRevert };
+  }
+
+  if (simulationFails) {
+    logRevert('gas', txMeta.id, { revert: gasRevert });
+  }
 
   if (!initialParams.gas) {
     txMeta.originalGasEstimate = txMeta.txParams.gas;
@@ -111,7 +119,7 @@ export async function estimateGas({
 }): Promise<{
   blockGasLimit: string;
   estimatedGas: string;
-  gasRevertReason?: string;
+  gasRevert?: Revert;
   isUpgradeWithData: boolean;
   simulationFails: TransactionMeta['simulationFails'];
 }> {
@@ -153,7 +161,7 @@ export async function estimateGas({
 
   let estimatedGas = fallback;
   let simulationFails: TransactionMeta['simulationFails'];
-  let gasRevertReason: string | undefined;
+  let gasRevert: Revert | undefined;
 
   const isUpgradeWithData =
     txParams.type === TransactionEnvelopeType.setCode &&
@@ -190,15 +198,15 @@ export async function estimateGas({
       },
     };
 
-    gasRevertReason = decodeRevertReasonFromError(error);
+    gasRevert = revertFromError(error);
 
-    log('Estimation failed', { ...simulationFails, fallback, gasRevertReason });
+    log('Estimation failed', { ...simulationFails, fallback, gasRevert });
   }
 
   return {
     blockGasLimit,
     estimatedGas,
-    gasRevertReason,
+    gasRevert,
     isUpgradeWithData,
     simulationFails,
   };
@@ -430,7 +438,7 @@ export async function simulateGasBatch({
  */
 async function getGas(
   request: UpdateGasRequest,
-): Promise<[string, TransactionMeta['simulationFails']?, string?, string?]> {
+): Promise<[string, TransactionMeta['simulationFails']?, string?, Revert?]> {
   const {
     isCustomNetwork,
     isSimulationEnabled,
@@ -455,7 +463,7 @@ async function getGas(
   const {
     blockGasLimit,
     estimatedGas,
-    gasRevertReason,
+    gasRevert,
     isUpgradeWithData,
     simulationFails,
   } = await estimateGas({
@@ -477,7 +485,7 @@ async function getGas(
   }
 
   if (simulationFails || disableGasBuffer) {
-    return [estimatedGas, simulationFails, estimatedGas, gasRevertReason];
+    return [estimatedGas, simulationFails, estimatedGas, gasRevert];
   }
 
   const bufferMultiplier = getGasEstimateBuffer({
@@ -497,7 +505,7 @@ async function getGas(
 
   log('Buffered gas', bufferedGas);
 
-  return [bufferedGas, simulationFails, estimatedGas, gasRevertReason];
+  return [bufferedGas, simulationFails, estimatedGas, gasRevert];
 }
 
 /**

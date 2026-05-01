@@ -11,15 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export `decodeAuthorizationSignature` utility that decodes a 65-byte EIP-7702 authorization signature into RLP-canonical `r`, `s`, and `yParity` ([#8656](https://github.com/MetaMask/core/pull/8656))
   - All `eth_sendRawTransaction` failures are prefixed `RPC submit:` for failure-surface attribution in error metrics
-- Extract a human-readable revert reason for transactions that fail on-chain
-  - When a transaction's receipt has a failure status (`0x0`), the controller now replays the call via `eth_estimateGas` and decodes the returned revert data
-  - Supports `Error(string)`, `Panic(uint256)` (with named codes), custom error selectors, and empty reverts; falls back to the provider error message when no revert data is surfaced
-  - Adds `revertReason?: string` field to `TransactionMeta` for consumers that prefer not to parse error strings
-  - Appends the decoded reason to the existing `Transaction failed on-chain` error message
-- Capture revert reason from gas estimation when a transaction is predicted to fail
-  - When `eth_estimateGas` reverts during transaction creation, the controller now decodes the same revert data and stores it on `TransactionMeta.gasRevertReason`
-  - Allows confirmation UI to surface why a transaction is predicted to fail, before the user submits it
-  - Set independently from `revertReason` (which is only populated by on-chain failure detection)
+- Add `revert?: RevertSources` field to `TransactionMeta` capturing decoded revert information from up to three independent sources ([#8589](https://github.com/MetaMask/core/pull/8589))
+  - `revert.gas` is populated when `eth_estimateGas` reverts during transaction creation, allowing confirmation UI to surface predicted failures before submission
+  - `revert.simulation` is populated from the root call frame returned by the simulation API when simulation indicates a revert
+  - `revert.receipt` is populated when a transaction's on-chain receipt has a failure status (`0x0`), by replaying the call via `eth_estimateGas`
+  - Each source is a `Revert` containing an optional decoded `message` (`Error(string)`, `Panic(uint256)` with named codes, or `Custom error: 0x<selector>`) and the raw `data` hex returned by the EVM
+  - The decoded message is derived only from the raw revert data; upstream RPC and simulation message strings are never parsed
+  - Appends the decoded receipt revert message to the existing `Transaction failed on-chain` error message
+- Add raw `output` field to `SimulationResponseCallTrace` to expose the call frame's return data (revert hex when reverted) ([#8589](https://github.com/MetaMask/core/pull/8589))
 
 ### Changed
 
