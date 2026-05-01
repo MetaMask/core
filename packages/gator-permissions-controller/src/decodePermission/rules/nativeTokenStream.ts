@@ -23,10 +23,12 @@ export function makeNativeTokenStreamRule(
     nativeTokenStreamingEnforcer,
     exactCalldataEnforcer,
     nonceEnforcer,
+    redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'native-token-stream',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
+    redeemerEnforcer,
     timestampEnforcer,
     requiredEnforcers: {
       [nativeTokenStreamingEnforcer]: 1,

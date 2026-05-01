@@ -4,6 +4,7 @@ export type {
   KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerCreateNewVaultAndKeychainAction,
   KeyringControllerAddNewKeyringAction,
+  KeyringControllerIsUnlockedAction,
   KeyringControllerGetAccountsAction,
   KeyringControllerGetEncryptionPublicKeyAction,
   KeyringControllerDecryptMessageAction,
@@ -19,10 +20,12 @@ export type {
   KeyringControllerPrepareUserOperationAction,
   KeyringControllerPatchUserOperationAction,
   KeyringControllerSignUserOperationAction,
+  KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringAction,
   KeyringControllerWithKeyringUnsafeAction,
   KeyringControllerWithKeyringV2Action,
   KeyringControllerWithKeyringV2UnsafeAction,
+  KeyringControllerExportSeedPhraseAction,
 } from './KeyringController-method-action-types';
 export type * from './types';
 export * from './errors';

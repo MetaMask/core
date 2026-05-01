@@ -8,7 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import { formatIconUrlWithProxy } from '../assetsUtil';
-import type { GetCurrencyRateState } from '../CurrencyRateController';
+import type { CurrencyRateControllerGetStateAction } from '../CurrencyRateController';
 import type { AbstractTokenPricesService } from '../token-prices-service';
 import {
   fetchTokenMetadata,
@@ -61,7 +61,7 @@ export type TokenSearchDiscoveryDataControllerActions =
 /**
  * All actions that {@link TokenSearchDiscoveryDataController} calls internally.
  */
-export type AllowedActions = GetCurrencyRateState;
+export type AllowedActions = CurrencyRateControllerGetStateAction;
 
 /**
  * The event that {@link TokenSearchDiscoveryDataController} publishes when updating

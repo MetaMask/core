@@ -1514,7 +1514,7 @@ describe('MultichainAssetsController', () => {
       ]);
     });
 
-    it('does not add tokens when bulkScanTokens throws (fail closed)', async () => {
+    it('adds tokens when bulkScanTokens throws (fail open)', async () => {
       const mockAccountId = 'account1';
       const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
 
@@ -1536,10 +1536,12 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
-      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        token,
+      ]);
     });
 
-    it('does not add tokens when bulkScanTokens returns empty (API error handled internally)', async () => {
+    it('adds tokens when bulkScanTokens returns empty (fail open - no result means not rejected)', async () => {
       const mockAccountId = 'account1';
       const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
 
@@ -1562,7 +1564,10 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
-      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
+      // With fail-open blacklist approach, no result means not rejected
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        token,
+      ]);
     });
 
     it('does not scan native (slip44) assets', async () => {
@@ -1592,7 +1597,7 @@ describe('MultichainAssetsController', () => {
       expect(mockBulkScanTokens).not.toHaveBeenCalled();
     });
 
-    it('does not add tokens with no result in the scan response (fail closed)', async () => {
+    it('adds tokens with no result in the scan response (fail open)', async () => {
       const mockAccountId = 'account1';
       const knownToken =
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:KnownAddr';
@@ -1624,8 +1629,10 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
+      // With fail-open blacklist approach, tokens without results are not rejected
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
         knownToken,
+        unknownToken,
       ]);
     });
 
@@ -1765,7 +1772,7 @@ describe('MultichainAssetsController', () => {
       ).toBeUndefined();
     });
 
-    it('drops tokens from batches that fail (partial fail closed)', async () => {
+    it('keeps tokens from batches that fail (partial fail open)', async () => {
       const mockAccountId = 'account1';
       // 120 tokens = batch 1 (100) + batch 2 (20)
       const tokens = Array.from(
@@ -1800,7 +1807,7 @@ describe('MultichainAssetsController', () => {
           }
           return Promise.resolve(results);
         }
-        // Second batch fails — its tokens must not be added
+        // Second batch fails — its tokens are allowed through (fail open)
         return Promise.reject(new Error('API timeout'));
       });
 
@@ -1822,12 +1829,14 @@ describe('MultichainAssetsController', () => {
         ),
       ).toBeUndefined();
 
+      // Tokens from the failed second batch (100-119) should be added (fail open)
       for (let i = 100; i < 120; i++) {
         const tokenCaip = `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(i).padStart(3, '0')}`;
-        expect(storedAssets).not.toContain(tokenCaip);
+        expect(storedAssets).toContain(tokenCaip);
       }
 
-      expect(storedAssets).toHaveLength(99);
+      // 99 from batch 1 (excluding Token099) + 20 from batch 2 = 119 total
+      expect(storedAssets).toHaveLength(119);
     });
 
     it('periodic rescan ignores SPL tokens that Blockaid later marks malicious', async () => {

@@ -710,7 +710,8 @@ export type RampsServiceMessenger = Messenger<
 
 /**
  * Gets the base URL for API requests based on the environment and service type.
- * The Regions service uses a cache URL, while other services use the standard URL.
+ * The Regions service uses a cache hostname in production and staging only;
+ * development serves regions from the same `on-ramp.dev-api` host (no `-cache`).
  *
  * @param environment - The environment to use.
  * @param service - The API service type (determines if cache URL is used).
@@ -720,14 +721,19 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
-  const cache = service === RampsApiService.Regions ? '-cache' : '';
+  const cache =
+    service === RampsApiService.Regions &&
+    environment !== RampsEnvironment.Development
+      ? '-cache'
+      : '';
 
   switch (environment) {
     case RampsEnvironment.Production:
       return `https://on-ramp${cache}.api.cx.metamask.io`;
     case RampsEnvironment.Staging:
-    case RampsEnvironment.Development:
       return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp${cache}.dev-api.cx.metamask.io`;
     case RampsEnvironment.Local:
       return 'http://localhost:3000';
     default:

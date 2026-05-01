@@ -30,6 +30,7 @@ describe('decodePermission', () => {
     NativeTokenStreamingEnforcer,
     NativeTokenPeriodTransferEnforcer,
     NonceEnforcer,
+    RedeemerEnforcer,
   } = contracts;
 
   describe('getPermissionRuleMatchingCaveatTypes()', () => {
@@ -79,6 +80,35 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
           TimestampEnforcer,
+        ];
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
+      });
+
+      it('allows RedeemerEnforcer as extra', () => {
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+          RedeemerEnforcer,
+        ];
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
+      });
+
+      it('allows TimestampEnforcer and RedeemerEnforcer as extras', () => {
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+          TimestampEnforcer,
+          RedeemerEnforcer,
         ];
         const result = findRuleWithMatchingCaveatAddresses({
           enforcers,
@@ -587,6 +617,39 @@ describe('decodePermission', () => {
       });
       expect(result.expiry).toBe(expiry);
       expect(result.origin).toBe(specifiedOrigin);
+    });
+
+    it('includes rules when provided', () => {
+      const permissionType = 'native-token-stream' as const;
+      const data: DecodedPermission['permission']['data'] = {
+        initialAmount: '0x01',
+        maxAmount: '0x02',
+        amountPerSecond: '0x03',
+        startTime: 1715664,
+      } as const;
+      const rules = [
+        {
+          type: 'redeemer' as const,
+          data: {
+            addresses: ['0x1111111111111111111111111111111111111111' as Hex],
+          },
+        },
+      ];
+
+      const result = reconstructDecodedPermission({
+        chainId,
+        permissionType,
+        delegator,
+        delegate,
+        authority: ROOT_AUTHORITY,
+        expiry: null,
+        data,
+        justification,
+        specifiedOrigin,
+        rules,
+      });
+
+      expect(result.rules).toStrictEqual(rules);
     });
 
     it('constructs DecodedPermission with null expiry', () => {

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "10.2.4",
+  "version": "10.3.0",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
     "Ethereum",
@@ -70,6 +70,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/messenger": "^1.2.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^11.9.0",

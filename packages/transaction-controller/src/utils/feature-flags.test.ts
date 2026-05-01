@@ -658,7 +658,7 @@ describe('Feature Flags Utils', () => {
         getGasEstimateBuffer({
           chainId: CHAIN_ID_MOCK,
           isCustomRPC: false,
-          isUpgradeWithDataToSelf: false,
+          isUpgradeWithData: false,
           messenger: controllerMessenger,
         }),
       ).toBe(1.0);
@@ -675,7 +675,7 @@ describe('Feature Flags Utils', () => {
         getGasEstimateBuffer({
           chainId: CHAIN_ID_MOCK,
           isCustomRPC: false,
-          isUpgradeWithDataToSelf: false,
+          isUpgradeWithData: false,
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_MOCK);
@@ -693,7 +693,7 @@ describe('Feature Flags Utils', () => {
         getGasEstimateBuffer({
           chainId: CHAIN_ID_MOCK,
           isCustomRPC: false,
-          isUpgradeWithDataToSelf: false,
+          isUpgradeWithData: false,
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_2_MOCK);
@@ -716,7 +716,7 @@ describe('Feature Flags Utils', () => {
         getGasEstimateBuffer({
           chainId: CHAIN_ID_MOCK,
           isCustomRPC: false,
-          isUpgradeWithDataToSelf: false,
+          isUpgradeWithData: false,
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_3_MOCK);
@@ -740,7 +740,7 @@ describe('Feature Flags Utils', () => {
         getGasEstimateBuffer({
           chainId: CHAIN_ID_MOCK,
           isCustomRPC: false,
-          isUpgradeWithDataToSelf: false,
+          isUpgradeWithData: false,
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_4_MOCK);
@@ -765,7 +765,7 @@ describe('Feature Flags Utils', () => {
         getGasEstimateBuffer({
           chainId: CHAIN_ID_MOCK,
           isCustomRPC: false,
-          isUpgradeWithDataToSelf: true,
+          isUpgradeWithData: true,
           messenger: controllerMessenger,
         }),
       ).toBe(GAS_BUFFER_5_MOCK);

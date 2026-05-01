@@ -20,6 +20,7 @@ import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
 import { getAcrossDestination } from './across-actions';
 import { normalizeAcrossRequest } from './perps';
+import { isAcrossQuoteRequest } from './requests';
 import { getAcrossOrderedTransactions } from './transactions';
 import type {
   AcrossAction,
@@ -50,12 +51,7 @@ export async function getAcrossQuotes(
   log('Fetching quotes', requests);
 
   try {
-    const normalizedRequests = requests.filter(
-      (singleRequest) =>
-        singleRequest.isMaxAmount === true ||
-        (singleRequest.targetAmountMinimum !== undefined &&
-          singleRequest.targetAmountMinimum !== '0'),
-    );
+    const normalizedRequests = requests.filter(isAcrossQuoteRequest);
 
     if (normalizedRequests.length === 0) {
       return [];
@@ -80,7 +76,7 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const { messenger, signal, transaction } = fullRequest;
   const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
   const {
     from,
@@ -113,6 +109,7 @@ async function getSingleQuote(
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
     recipient: destination.recipient,
+    signal,
     slippage: slippageDecimal,
     tradeType,
   });
@@ -138,6 +135,7 @@ type AcrossApprovalRequest = {
   originChainId: Hex;
   outputToken: Hex;
   recipient: Hex;
+  signal?: AbortSignal;
   slippage?: number;
   tradeType: 'exactInput' | 'exactOutput';
 };
@@ -155,6 +153,7 @@ async function requestAcrossApproval(
     originChainId,
     outputToken,
     recipient,
+    signal,
     slippage,
     tradeType,
   } = request;
@@ -182,6 +181,7 @@ async function requestAcrossApproval(
       'Content-Type': 'application/json',
     },
     method: 'POST',
+    signal,
   };
   const response = await successfulFetch(url, options);
 
@@ -204,11 +204,8 @@ async function normalizeQuote(
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
   const dust = getFiatValueFromUsd(dustUsd, usdToFiatRate);
 
-  const { gasLimits, is7702, sourceNetwork } = await calculateSourceNetworkCost(
-    quote,
-    messenger,
-    request,
-  );
+  const { gasLimits, is7702, requiresAuthorizationList, sourceNetwork } =
+    await calculateSourceNetworkCost(quote, messenger, request);
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
 
@@ -248,6 +245,7 @@ async function normalizeQuote(
   const metamask = {
     gasLimits,
     is7702,
+    ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
   };
 
   return {
@@ -394,6 +392,7 @@ async function calculateSourceNetworkCost(
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
   is7702: boolean;
+  requiresAuthorizationList?: true;
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
@@ -413,7 +412,7 @@ async function calculateSourceNetworkCost(
       value: transaction.value ?? '0x0',
     })),
   });
-  const { batchGasLimit, is7702 } = gasEstimates;
+  const { batchGasLimit, is7702, requiresAuthorizationList } = gasEstimates;
 
   if (is7702) {
     if (!batchGasLimit) {
@@ -442,6 +441,7 @@ async function calculateSourceNetworkCost(
         max,
       },
       is7702: true,
+      ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
       gasLimits: [
         {
           estimate: batchGasLimit.estimate,
