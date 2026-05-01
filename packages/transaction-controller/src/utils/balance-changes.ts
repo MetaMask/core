@@ -39,7 +39,7 @@ import type {
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 import { getNativeBalance } from './balance';
-import { decodeRevert } from './revert';
+import { decodeRevert } from './revert-reason';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
@@ -685,7 +685,7 @@ function extractRootRevert(
   if (!call?.error) {
     return undefined;
   }
-  return decodeRevert(call.output);
+  return decodeRevert(call.output, 'simulation');
 }
 
 /**

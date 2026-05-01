@@ -177,7 +177,6 @@ import {
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getChainId, getNetworkClientId, rpcRequest } from './utils/provider';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
-import { logRevert } from './utils/revert';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -4331,10 +4330,6 @@ export class TransactionController extends BaseController<
       simulationData = balanceChangesResult.simulationData;
       gasUsed = balanceChangesResult.gasUsed;
       simulationRevert = balanceChangesResult.simulationRevert;
-
-      if (simulationData.error) {
-        logRevert('simulation', transactionId, simulationRevert);
-      }
 
       if (
         blockTime &&

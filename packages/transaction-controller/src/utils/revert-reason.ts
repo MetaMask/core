@@ -1,12 +1,13 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import type { Revert, TransactionMeta } from '../types';
+import type { Revert, TransactionParams } from '../types';
 import { rpcRequest } from './provider';
 
-const log = createModuleLogger(projectLogger, 'revert');
+const log = createModuleLogger(projectLogger, 'revert-reason');
 
 const ERROR_SELECTOR = '0x08c379a0';
 const PANIC_SELECTOR = '0x4e487b71';
@@ -29,49 +30,37 @@ const PANIC_CODE_MESSAGES: Record<string, string> = {
   '0x51': 'Call to zero-initialized function',
 };
 
-export type RevertSource = 'gas' | 'simulation' | 'receipt';
-
 /**
  * Decode raw EVM revert data into a `Revert` containing both the decoded
- * human-readable message and the original raw `data`. Handles
+ * human-readable message and the original raw `data`. Accepts either the
+ * raw hex string directly or a thrown JSON-RPC error from which `data`
+ * (or nested `data.data` on some forks) is extracted. Handles
  * `Error(string)`, `Panic(uint256)`, and falls back to a raw
  * `Custom error: 0x<selector>` reference for unknown custom errors.
  *
- * @param data - Raw revert data hex.
- * @returns A `Revert` if any data was provided, otherwise `undefined`.
+ * @param input - Raw revert data hex, or a thrown JSON-RPC error.
+ * @param source - Optional label included in debug logs to identify the
+ * caller (e.g. `gas`, `simulation`).
+ * @returns A `Revert` if any data was found, otherwise `undefined`.
  */
-export function decodeRevert(data: unknown): Revert | undefined {
-  const dataHex = isHex(data) && data !== '0x' ? (data as Hex) : undefined;
-  const message = decodeMessage(dataHex);
+export function decodeRevert(
+  input: unknown,
+  source?: string,
+): Revert | undefined {
+  const data = toRevertDataHex(input);
+  const message = decodeMessage(data);
 
-  if (!message && !dataHex) {
+  if (!message && !data) {
     return undefined;
   }
 
-  return {
+  const revert: Revert = {
     ...(message ? { message } : {}),
-    ...(dataHex ? { data: dataHex } : {}),
+    ...(data ? { data } : {}),
   };
-}
 
-/**
- * Emit a structured single-line debug log for one revert source under
- * `metamask:transaction-controller:revert`.
- *
- * @param source - Which source emitted the log.
- * @param transactionId - The transaction's id.
- * @param revert - Resolved Revert (or undefined).
- */
-export function logRevert(
-  source: RevertSource,
-  transactionId: string,
-  revert: Revert | undefined,
-): void {
-  log('source=%s tx=%s %o', source, transactionId, {
-    decoded: revert?.message,
-    data: revert?.data,
-    populated: Boolean(revert),
-  });
+  logRevert(source, revert);
+  return revert;
 }
 
 /**
@@ -84,18 +73,19 @@ export function logRevert(
  *
  * @param input - Extraction inputs.
  * @param input.messenger - Transaction controller messenger.
- * @param input.transactionMeta - Transaction metadata for the failed tx.
+ * @param input.networkClientId - Network client ID to replay against.
+ * @param input.txParams - Transaction parameters for the failed tx.
  * @returns A `Revert`, or `undefined` if none could be observed.
  */
 export async function extractRevert({
   messenger,
-  transactionMeta,
+  networkClientId,
+  txParams,
 }: {
   messenger: TransactionControllerMessenger;
-  transactionMeta: TransactionMeta;
+  networkClientId: NetworkClientId;
+  txParams: TransactionParams;
 }): Promise<Revert | undefined> {
-  const { networkClientId, txParams, id } = transactionMeta;
-
   if (!txParams?.to && !txParams?.data) {
     return undefined;
   }
@@ -121,22 +111,11 @@ export async function extractRevert({
       method: 'eth_estimateGas',
       params: [callParams],
     });
+    logRevert('receipt', undefined);
     return undefined;
   } catch (error: unknown) {
-    return decodeRevert(extractErrorData(error));
-  } finally {
-    log('extracted receipt revert for tx=%s', id);
+    return decodeRevert(error, 'receipt');
   }
-}
-
-/**
- * Build a `Revert` from a thrown JSON-RPC error's `data` payload.
- *
- * @param error - The thrown error.
- * @returns A `Revert`, or `undefined` if no revert data was present.
- */
-export function revertFromError(error: unknown): Revert | undefined {
-  return decodeRevert(extractErrorData(error));
 }
 
 /**
@@ -155,22 +134,27 @@ export class OnChainFailureError extends Error {
 }
 
 /**
- * Pull the revert data hex string from a thrown JSON-RPC error.
- * Standard nodes put the hex on `error.data`; some older forks wrap it
- * one level deeper as `error.data.data`.
+ * Coerce input to a non-empty revert data hex string. Accepts either:
+ *   - A `0x`-prefixed hex string directly.
+ *   - A thrown JSON-RPC error with `data` (standard) or nested
+ *     `data.data` (some older node forks).
  *
- * @param error - The thrown error.
+ * @param input - Raw hex or thrown error.
  * @returns The revert data hex, or `undefined`.
  */
-function extractErrorData(error: unknown): string | undefined {
-  const data = (error as { data?: unknown } | null)?.data;
-  if (isHex(data)) {
-    return data;
+function toRevertDataHex(input: unknown): Hex | undefined {
+  if (isHex(input)) {
+    return input === '0x' ? undefined : (input as Hex);
+  }
+
+  const data = (input as { data?: unknown } | null)?.data;
+  if (isHex(data) && data !== '0x') {
+    return data as Hex;
   }
 
   const nested = (data as { data?: unknown } | null)?.data;
-  if (isHex(nested)) {
-    return nested;
+  if (isHex(nested) && nested !== '0x') {
+    return nested as Hex;
   }
 
   return undefined;
@@ -217,6 +201,24 @@ function decodeMessage(data: Hex | undefined): string | undefined {
   }
 
   return `Custom error: ${selector}`;
+}
+
+/**
+ * Emit a single structured debug line under
+ * `metamask:transaction-controller:revert-reason`.
+ *
+ * @param source - Source label, when known.
+ * @param revert - Resolved Revert, or `undefined` when none was found.
+ */
+function logRevert(
+  source: string | undefined,
+  revert: Revert | undefined,
+): void {
+  log('source=%s %o', source ?? 'unknown', {
+    decoded: revert?.message,
+    data: revert?.data,
+    populated: Boolean(revert),
+  });
 }
 
 /**

@@ -17,7 +17,7 @@ import {
   getTimeoutAttempts,
 } from '../utils/feature-flags';
 import { getChainId, rpcRequest } from '../utils/provider';
-import { extractRevert, OnChainFailureError } from '../utils/revert';
+import { extractRevert, OnChainFailureError } from '../utils/revert-reason';
 import { TransactionPoller } from './TransactionPoller';
 
 /**
@@ -437,23 +437,11 @@ export class PendingTransactionTracker {
           blockNumber: receipt.blockNumber,
         });
 
-        const txMetaWithReceipt: TransactionMeta = {
-          ...txMeta,
-          txReceipt: receipt,
-        };
-
         const revert = await extractRevert({
           messenger: this.#messenger,
-          transactionMeta: txMetaWithReceipt,
-        }).catch(
-          /* istanbul ignore next */
-          (extractionError) => {
-            this.#log('Failed to extract revert', txMeta.id, extractionError);
-            return undefined;
-          },
-        );
-
-        this.#log('Revert extraction complete', txMeta.id, { revert });
+          networkClientId: txMeta.networkClientId,
+          txParams: txMeta.txParams,
+        });
 
         this.#failTransaction(txMeta, new OnChainFailureError(revert));
 

@@ -5,8 +5,7 @@ import {
   decodeRevert,
   extractRevert,
   OnChainFailureError,
-  revertFromError,
-} from './revert';
+} from './revert-reason';
 
 jest.mock('./provider', () => ({
   ...jest.requireActual('./provider'),
@@ -22,105 +21,100 @@ const PANIC_DATA_OVERFLOW =
 const CUSTOM_ERROR_DATA =
   '0xdeadbeef000000000000000000000000000000000000000000000000000000000000007b0000000000000000000000001111111111111111111111111111111111111111';
 
-const TRANSACTION_META_MOCK = {
-  id: 'tx-1',
-  networkClientId: 'networkClient1',
-  txParams: {
-    from: `0x${'11'.repeat(20)}`,
-    to: `0x${'22'.repeat(20)}`,
-    data: '0xa9059cbb',
-    value: '0x0',
-    gas: '0x5208',
-  },
-  txReceipt: {
-    blockNumber: '0x123',
-    status: '0x0',
-  },
-} as unknown as TransactionMeta;
+const NETWORK_CLIENT_ID_MOCK = 'networkClient1';
+
+const TX_PARAMS_MOCK = {
+  from: `0x${'11'.repeat(20)}`,
+  to: `0x${'22'.repeat(20)}`,
+  data: '0xa9059cbb',
+  value: '0x0',
+  gas: '0x5208',
+} as unknown as TransactionMeta['txParams'];
 
 const messengerMock = {} as unknown as TransactionControllerMessenger;
 
 describe('decodeRevert', () => {
-  it('decodes Error(string) reverts', () => {
-    expect(decodeRevert(ERROR_DATA_TRANSFER_EXCEEDS_BALANCE)).toStrictEqual({
-      message: 'ERC20: transfer amount exceeds balance',
-      data: ERROR_DATA_TRANSFER_EXCEEDS_BALANCE,
+  describe('with raw hex input', () => {
+    it('decodes Error(string) reverts', () => {
+      expect(decodeRevert(ERROR_DATA_TRANSFER_EXCEEDS_BALANCE)).toStrictEqual({
+        message: 'ERC20: transfer amount exceeds balance',
+        data: ERROR_DATA_TRANSFER_EXCEEDS_BALANCE,
+      });
+    });
+
+    it('decodes Panic(uint256) reverts with a known code', () => {
+      expect(decodeRevert(PANIC_DATA_OVERFLOW)).toStrictEqual({
+        message: 'Panic (0x11): Arithmetic overflow or underflow',
+        data: PANIC_DATA_OVERFLOW,
+      });
+    });
+
+    it('decodes Panic(uint256) reverts with an unknown code', () => {
+      const data =
+        '0x4e487b7100000000000000000000000000000000000000000000000000000000000000ff';
+      expect(decodeRevert(data)).toStrictEqual({
+        message: 'Panic (0xff): Unknown panic code',
+        data,
+      });
+    });
+
+    it('falls back to the selector for custom errors', () => {
+      expect(decodeRevert(CUSTOM_ERROR_DATA)).toStrictEqual({
+        message: 'Custom error: 0xdeadbeef',
+        data: CUSTOM_ERROR_DATA,
+      });
+    });
+
+    it('returns undefined for empty revert data', () => {
+      expect(decodeRevert('0x')).toBeUndefined();
+    });
+
+    it('returns undefined for non-hex input', () => {
+      expect(decodeRevert(undefined)).toBeUndefined();
+      expect(decodeRevert(123)).toBeUndefined();
+      expect(decodeRevert('not hex')).toBeUndefined();
+    });
+
+    it('surfaces raw hex for short data without a full selector', () => {
+      expect(decodeRevert('0x1234')).toStrictEqual({
+        message: 'execution reverted (0x1234)',
+        data: '0x1234',
+      });
+    });
+
+    it('returns data only when Error(string) payload is malformed', () => {
+      const data = '0x08c379a0deadbeef';
+      expect(decodeRevert(data)).toStrictEqual({ data });
+    });
+
+    it('returns data only when Panic(uint256) payload is malformed', () => {
+      const data = '0x4e487b71deadbeef';
+      expect(decodeRevert(data)).toStrictEqual({ data });
     });
   });
 
-  it('decodes Panic(uint256) reverts with a known code', () => {
-    expect(decodeRevert(PANIC_DATA_OVERFLOW)).toStrictEqual({
-      message: 'Panic (0x11): Arithmetic overflow or underflow',
-      data: PANIC_DATA_OVERFLOW,
+  describe('with thrown JSON-RPC error input', () => {
+    it('decodes data on the top-level error', () => {
+      expect(decodeRevert({ data: PANIC_DATA_OVERFLOW })).toStrictEqual({
+        message: 'Panic (0x11): Arithmetic overflow or underflow',
+        data: PANIC_DATA_OVERFLOW,
+      });
     });
-  });
 
-  it('decodes Panic(uint256) reverts with an unknown code', () => {
-    const data =
-      '0x4e487b7100000000000000000000000000000000000000000000000000000000000000ff';
-    expect(decodeRevert(data)).toStrictEqual({
-      message: 'Panic (0xff): Unknown panic code',
-      data,
+    it('decodes data nested one level deeper', () => {
+      expect(
+        decodeRevert({ data: { data: PANIC_DATA_OVERFLOW } }),
+      ).toStrictEqual({
+        message: 'Panic (0x11): Arithmetic overflow or underflow',
+        data: PANIC_DATA_OVERFLOW,
+      });
     });
-  });
 
-  it('falls back to the selector for custom errors', () => {
-    expect(decodeRevert(CUSTOM_ERROR_DATA)).toStrictEqual({
-      message: 'Custom error: 0xdeadbeef',
-      data: CUSTOM_ERROR_DATA,
+    it('returns undefined when no hex data is present', () => {
+      expect(decodeRevert({ message: 'oops' })).toBeUndefined();
+      expect(decodeRevert(null)).toBeUndefined();
+      expect(decodeRevert('string')).toBeUndefined();
     });
-  });
-
-  it('returns undefined for empty revert data', () => {
-    expect(decodeRevert('0x')).toBeUndefined();
-  });
-
-  it('returns undefined for non-hex input', () => {
-    expect(decodeRevert(undefined)).toBeUndefined();
-    expect(decodeRevert(123)).toBeUndefined();
-    expect(decodeRevert('not hex')).toBeUndefined();
-  });
-
-  it('surfaces raw hex for short data without a full selector', () => {
-    expect(decodeRevert('0x1234')).toStrictEqual({
-      message: 'execution reverted (0x1234)',
-      data: '0x1234',
-    });
-  });
-
-  it('returns data only when Error(string) payload is malformed', () => {
-    const data = '0x08c379a0deadbeef';
-    expect(decodeRevert(data)).toStrictEqual({ data });
-  });
-
-  it('returns data only when Panic(uint256) payload is malformed', () => {
-    const data = '0x4e487b71deadbeef';
-    expect(decodeRevert(data)).toStrictEqual({ data });
-  });
-});
-
-describe('revertFromError', () => {
-  it('decodes data on the top-level error', () => {
-    expect(revertFromError({ data: PANIC_DATA_OVERFLOW })).toStrictEqual({
-      message: 'Panic (0x11): Arithmetic overflow or underflow',
-      data: PANIC_DATA_OVERFLOW,
-    });
-  });
-
-  it('decodes data nested one level deeper', () => {
-    expect(
-      revertFromError({ data: { data: PANIC_DATA_OVERFLOW } }),
-    ).toStrictEqual({
-      message: 'Panic (0x11): Arithmetic overflow or underflow',
-      data: PANIC_DATA_OVERFLOW,
-    });
-  });
-
-  it('returns undefined when no hex data is present', () => {
-    expect(revertFromError({ message: 'oops' })).toBeUndefined();
-    expect(revertFromError(undefined)).toBeUndefined();
-    expect(revertFromError(null)).toBeUndefined();
-    expect(revertFromError('string')).toBeUndefined();
   });
 });
 
@@ -140,7 +134,8 @@ describe('extractRevert', () => {
     expect(
       await extractRevert({
         messenger: messengerMock,
-        transactionMeta: TRANSACTION_META_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: TX_PARAMS_MOCK,
       }),
     ).toStrictEqual({
       message: 'ERC20: transfer amount exceeds balance',
@@ -154,12 +149,13 @@ describe('extractRevert', () => {
     expect(
       await extractRevert({
         messenger: messengerMock,
-        transactionMeta: TRANSACTION_META_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: TX_PARAMS_MOCK,
       }),
     ).toBeUndefined();
   });
 
-  it('returns undefined when the error has no data, even if message looks like a revert', async () => {
+  it('returns undefined when the error has no data', async () => {
     rpcRequestMock.mockRejectedValueOnce({
       message: 'execution reverted: Custom message from node',
     });
@@ -167,7 +163,8 @@ describe('extractRevert', () => {
     expect(
       await extractRevert({
         messenger: messengerMock,
-        transactionMeta: TRANSACTION_META_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: TX_PARAMS_MOCK,
       }),
     ).toBeUndefined();
   });
@@ -176,10 +173,8 @@ describe('extractRevert', () => {
     expect(
       await extractRevert({
         messenger: messengerMock,
-        transactionMeta: {
-          ...TRANSACTION_META_MOCK,
-          txParams: {},
-        } as unknown as TransactionMeta,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: {} as TransactionMeta['txParams'],
       }),
     ).toBeUndefined();
     expect(rpcRequestMock).not.toHaveBeenCalled();
@@ -191,17 +186,22 @@ describe('extractRevert', () => {
     expect(
       await extractRevert({
         messenger: messengerMock,
-        transactionMeta: TRANSACTION_META_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        txParams: TX_PARAMS_MOCK,
       }),
     ).toBeUndefined();
   });
 
   it('does not pass `gas` from txParams (forces full estimation)', async () => {
-    rpcRequestMock.mockResolvedValueOnce('0x5208');
+    rpcRequestMock.mockRejectedValueOnce({
+      message: 'execution reverted',
+      data: ERROR_DATA_TRANSFER_EXCEEDS_BALANCE,
+    });
 
     await extractRevert({
       messenger: messengerMock,
-      transactionMeta: TRANSACTION_META_MOCK,
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+      txParams: TX_PARAMS_MOCK,
     });
 
     const [callArgs] = rpcRequestMock.mock.calls[0];
