@@ -27,31 +27,6 @@ type MakeJsonCompatible<T> = T extends Json
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
- * Decoded revert from a single lifecycle source.
- */
-export type Revert = {
-  /** Decoded human-readable revert reason. */
-  message?: string;
-
-  /** Raw revert data hex returned by the EVM. */
-  data?: Hex;
-};
-
-/**
- * Revert information across each stage where a transaction can fail.
- */
-export type RevertData = {
-  /** Revert from pre-confirmation gas estimation. */
-  gas?: Revert;
-
-  /** Revert from the simulation API's root call frame. */
-  simulation?: Revert;
-
-  /** Revert from on-chain failure, via receipt replay. */
-  receipt?: Revert;
-};
-
-/**
  * Information about a single transaction such as status and block number.
  */
 export type TransactionMeta = {
@@ -2352,4 +2327,29 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/**
+ * Decoded revert from a single lifecycle source.
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason. */
+  message?: string;
+
+  /** Raw revert data hex returned by the EVM. */
+  data?: Hex;
+};
+
+/**
+ * Revert information across each stage where a transaction can fail.
+ */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert from the simulation API's root call frame. */
+  simulation?: Revert;
+
+  /** Revert from on-chain failure, via receipt replay. */
+  receipt?: Revert;
 };

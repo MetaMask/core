@@ -31,21 +31,24 @@ const PANIC_CODE_MESSAGES: Record<string, string> = {
 };
 
 /**
- * Decode raw EVM revert data hex into a `Revert` containing both the
- * decoded human-readable message and the original raw `data`. Handles
- * `Error(string)`, `Panic(uint256)`, and falls back to a raw
- * `Custom error: 0x<selector>` reference for unknown custom errors.
+ * Decode an EVM revert into a `Revert` containing both the decoded
+ * human-readable message and the original raw `data`. Accepts either a
+ * raw revert data hex string, or a thrown JSON-RPC error of the shape
+ * `{ data: Hex | { data: Hex } }`. Handles `Error(string)`,
+ * `Panic(uint256)`, and falls back to a raw `Custom error: 0x<selector>`
+ * reference for unknown custom errors.
  *
- * @param data - Raw revert data hex.
+ * @param input - Raw revert data hex, or a thrown JSON-RPC error.
  * @param source - Optional label included in debug logs to identify the
  * caller (e.g. `gas`, `simulation`).
  * @returns A `Revert` if any data was found, otherwise `undefined`.
  */
 export function decodeRevert(
-  data: Hex | undefined,
+  input: RevertInput,
   source?: string,
 ): Revert | undefined {
-  if (!data || data === '0x') {
+  const data = toRevertDataHex(input);
+  if (!data) {
     return undefined;
   }
 
@@ -110,10 +113,9 @@ export async function extractRevert({
       method: 'eth_estimateGas',
       params: [callParams],
     });
-    logRevert('receipt', undefined);
     return undefined;
   } catch (error: unknown) {
-    return decodeRevert(extractRevertDataHex(error), 'receipt');
+    return decodeRevert(error as RevertInput, 'receipt');
   }
 }
 
@@ -133,24 +135,51 @@ export class OnChainFailureError extends Error {
 }
 
 /**
- * Extract the revert data hex from a thrown JSON-RPC error. Reads `data`
- * (standard) or nested `data.data` (some older node forks).
- *
- * @param error - The thrown error from a JSON-RPC call.
- * @returns The revert data hex, or `undefined` if none present.
+ * Input accepted by `decodeRevert`. Either raw revert data hex, or a
+ * thrown JSON-RPC error carrying the data on `data` (standard) or
+ * nested `data.data` (some older node forks).
  */
-export function extractRevertDataHex(error: unknown): Hex | undefined {
-  const data = (error as { data?: unknown } | null)?.data;
-  if (isHex(data) && data !== '0x') {
-    return data as Hex;
+type RevertInput =
+  | Hex
+  | undefined
+  | { data?: Hex | { data?: Hex } | null }
+  | null;
+
+/**
+ * Coerce a `RevertInput` to a non-empty revert data hex string.
+ *
+ * @param input - Raw hex or thrown JSON-RPC error.
+ * @returns The revert data hex, or `undefined`.
+ */
+function toRevertDataHex(input: RevertInput): Hex | undefined {
+  if (isHex(input)) {
+    return input;
   }
 
-  const nested = (data as { data?: unknown } | null)?.data;
-  if (isHex(nested) && nested !== '0x') {
-    return nested as Hex;
+  if (typeof input !== 'object' || input === null) {
+    return undefined;
+  }
+
+  const { data } = input;
+  if (isHex(data)) {
+    return data;
+  }
+
+  if (typeof data === 'object' && data !== null && isHex(data.data)) {
+    return data.data;
   }
 
   return undefined;
+}
+
+/**
+ * Type guard for non-empty `0x`-prefixed hex strings.
+ *
+ * @param value - Value to test.
+ * @returns Whether the value is a non-empty hex string.
+ */
+function isHex(value: unknown): value is Hex {
+  return typeof value === 'string' && value.startsWith('0x') && value !== '0x';
 }
 
 /**
@@ -186,7 +215,8 @@ function decodeMessage(data: Hex | undefined): string | undefined {
         { toHexString: () => string },
       ];
       const codeHex = code.toHexString().toLowerCase() as Hex;
-      return PANIC_CODE_MESSAGES[codeHex] ?? 'Unknown panic';
+      const description = PANIC_CODE_MESSAGES[codeHex] ?? 'Unknown panic';
+      return `Panic: ${description}`;
     } catch {
       return undefined;
     }
@@ -196,29 +226,14 @@ function decodeMessage(data: Hex | undefined): string | undefined {
 }
 
 /**
- * Emit a single structured debug line under
- * `metamask:transaction-controller:revert-reason`.
+ * Emit a single structured debug line for a decoded revert.
  *
  * @param source - Source label, when known.
- * @param revert - Resolved Revert, or `undefined` when none was found.
+ * @param revert - Resolved Revert.
  */
-function logRevert(
-  source: string | undefined,
-  revert: Revert | undefined,
-): void {
-  log('source=%s %o', source ?? 'unknown', {
-    decoded: revert?.message,
-    data: revert?.data,
-    populated: Boolean(revert),
+function logRevert(source: string | undefined, revert: Revert): void {
+  log('Decoded %s revert', source ?? 'unknown', {
+    message: revert.message,
+    data: revert.data,
   });
-}
-
-/**
- * Type guard for `0x`-prefixed hex strings.
- *
- * @param value - Value to test.
- * @returns Whether the value is a hex string.
- */
-function isHex(value: unknown): value is string {
-  return typeof value === 'string' && value.startsWith('0x');
 }

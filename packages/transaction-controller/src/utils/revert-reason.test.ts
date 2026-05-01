@@ -4,7 +4,6 @@ import { rpcRequest } from './provider';
 import {
   decodeRevert,
   extractRevert,
-  extractRevertDataHex,
   OnChainFailureError,
 } from './revert-reason';
 
@@ -44,7 +43,7 @@ describe('decodeRevert', () => {
 
   it('decodes Panic(uint256) reverts with a known code', () => {
     expect(decodeRevert(PANIC_DATA_OVERFLOW)).toStrictEqual({
-      message: 'Arithmetic overflow or underflow',
+      message: 'Panic: Arithmetic overflow or underflow',
       data: PANIC_DATA_OVERFLOW,
     });
   });
@@ -53,7 +52,7 @@ describe('decodeRevert', () => {
     const data =
       '0x4e487b7100000000000000000000000000000000000000000000000000000000000000ff';
     expect(decodeRevert(data)).toStrictEqual({
-      message: 'Unknown panic',
+      message: 'Panic: Unknown panic',
       data,
     });
   });
@@ -89,26 +88,26 @@ describe('decodeRevert', () => {
     const data = '0x4e487b71deadbeef';
     expect(decodeRevert(data)).toStrictEqual({ data });
   });
-});
 
-describe('extractRevertDataHex', () => {
-  it('returns hex from top-level `data`', () => {
-    expect(extractRevertDataHex({ data: PANIC_DATA_OVERFLOW })).toStrictEqual(
-      PANIC_DATA_OVERFLOW,
+  it('decodes data on a thrown JSON-RPC error', () => {
+    expect(decodeRevert({ data: PANIC_DATA_OVERFLOW })).toStrictEqual({
+      message: 'Panic: Arithmetic overflow or underflow',
+      data: PANIC_DATA_OVERFLOW,
+    });
+  });
+
+  it('decodes data nested one level deeper', () => {
+    expect(decodeRevert({ data: { data: PANIC_DATA_OVERFLOW } })).toStrictEqual(
+      {
+        message: 'Panic: Arithmetic overflow or underflow',
+        data: PANIC_DATA_OVERFLOW,
+      },
     );
   });
 
-  it('returns hex from nested `data.data`', () => {
-    expect(
-      extractRevertDataHex({ data: { data: PANIC_DATA_OVERFLOW } }),
-    ).toStrictEqual(PANIC_DATA_OVERFLOW);
-  });
-
-  it('returns undefined when no hex data is present', () => {
-    expect(extractRevertDataHex({ message: 'oops' })).toBeUndefined();
-    expect(extractRevertDataHex(null)).toBeUndefined();
-    expect(extractRevertDataHex('string')).toBeUndefined();
-    expect(extractRevertDataHex({ data: '0x' })).toBeUndefined();
+  it('returns undefined when error has no hex data', () => {
+    expect(decodeRevert({ data: '0x' })).toBeUndefined();
+    expect(decodeRevert(null)).toBeUndefined();
   });
 });
 
