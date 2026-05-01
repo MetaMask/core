@@ -31,6 +31,32 @@ const PANIC_CODE_MESSAGES: Record<string, string> = {
 };
 
 /**
+ * Input accepted by `decodeRevert`. Either raw revert data hex, or a
+ * thrown JSON-RPC error carrying the data on `data` (standard) or
+ * nested `data.data` (some older node forks).
+ */
+type RevertInput =
+  | Hex
+  | undefined
+  | { data?: Hex | { data?: Hex } | null }
+  | null;
+
+/**
+ * Error thrown by `PendingTransactionTracker` when a transaction failed
+ * on-chain, carrying any decoded revert.
+ */
+export class OnChainFailureError extends Error {
+  readonly revert?: Revert;
+
+  constructor(revert?: Revert) {
+    const suffix = revert?.message ? `: ${revert.message}` : '';
+    super(`Transaction failed on-chain${suffix}`);
+    this.name = 'OnChainFailureError';
+    this.revert = revert;
+  }
+}
+
+/**
  * Decode an EVM revert into a `Revert` containing both the decoded
  * human-readable message and the original raw `data`. Accepts either a
  * raw revert data hex string, or a thrown JSON-RPC error of the shape
@@ -118,32 +144,6 @@ export async function extractRevert({
     return decodeRevert(error as RevertInput, 'receipt');
   }
 }
-
-/**
- * Error thrown by `PendingTransactionTracker` when a transaction failed
- * on-chain, carrying any decoded revert.
- */
-export class OnChainFailureError extends Error {
-  readonly revert?: Revert;
-
-  constructor(revert?: Revert) {
-    const suffix = revert?.message ? `: ${revert.message}` : '';
-    super(`Transaction failed on-chain${suffix}`);
-    this.name = 'OnChainFailureError';
-    this.revert = revert;
-  }
-}
-
-/**
- * Input accepted by `decodeRevert`. Either raw revert data hex, or a
- * thrown JSON-RPC error carrying the data on `data` (standard) or
- * nested `data.data` (some older node forks).
- */
-type RevertInput =
-  | Hex
-  | undefined
-  | { data?: Hex | { data?: Hex } | null }
-  | null;
 
 /**
  * Coerce a `RevertInput` to a non-empty revert data hex string.
