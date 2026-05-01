@@ -1,6 +1,6 @@
-import { createPerpOrderNotification } from './perp-notifications';
 import { mockCreatePerpNotification } from '../__fixtures__/mockServices';
 import type { OrderInput } from '../types/perps';
+import { createPerpOrderNotification } from './perp-notifications';
 
 const mockOrderInput = (): OrderInput => ({
   user_id: '0x111', // User Address
@@ -14,7 +14,9 @@ describe('Perps Service - createPerpOrderNotification', () => {
     jest.clearAllMocks();
   });
 
-  const arrangeMocks = () => {
+  const arrangeMocks = (): {
+    consoleErrorSpy: jest.SpyInstance<void, Parameters<typeof console.error>>;
+  } => {
     const consoleErrorSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(jest.fn());

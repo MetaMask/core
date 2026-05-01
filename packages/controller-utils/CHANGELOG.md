@@ -7,9 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
+
+## [11.20.0]
+
 ### Added
 
-- Add `monad-testnet` to `InfuraNetworkType` ([#7067](https://github.com/MetaMask/core/pull/7067))
+- Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
+
+## [11.19.0]
+
+### Added
+
+- Add `megaeth-mainnet` to `BUILT_IN_NETWORKS` ([#7994](https://github.com/MetaMask/core/pull/7994))
+
+## [11.18.0]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Update MegaETH Testnet "v2" RPC constants ([#7566](https://github.com/MetaMask/core/pull/7566))
+  - Change RPC endpoint from `https://timothy.megaeth.com/rpc` to `https://carrot.megaeth.com/rpc`
+
+## [11.17.0]
+
+### Added
+
+- Add MegaETH Testnet "v2" to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Add `megaeth-testnet-v2` to `BUILT_IN_NETWORKS`
+  - Add `megaeth-testnet-v2` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
+  - Add `MegaETHTestnetV2` to `BuiltInNetworkName` enum
+  - Add `megaeth-testnet-v2` to `ChainId` type
+  - Add `MegaETHTestnetV2` to `NetworksTicker` enum
+  - Add `MegaETHTestnetV2` to `BlockExplorerUrl` quasi-enum
+  - Add `MegaETHTestnetV2` to `NetworkNickname` quasi-enum
+
+### Deprecated
+
+- Deprecate references to MegaETH Testnet "v1" in favor of "v2" ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Deprecate `BUILT_IN_CUSTOM_NETWORKS_RPC["megaeth-testnet"]`
+  - Deprecate `CustomNetworkType["megaeth-testnet"]`
+  - Deprecate `BuiltInNetworkName["megaeth-testnet"]`
+  - Deprecate `ChainId["megaeth-testnet"]`
+  - Deprecate `NetworksTicker["megaeth-testnet"]`
+  - Deprecate `BlockExplorerUrl["megaeth-testnet"]`
+  - Deprecate `NetworkNickname["megaeth-testnet"]`
 
 ### Changed
 
@@ -579,7 +624,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/constants.ts` (but see below)
     - `src/util.ts` (but see below)
@@ -587,7 +631,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkType` and `NetworkChainsId` from `src/network/NetworkController.ts` (via `types.ts`)
   - `ESTIMATE_GAS_ERROR`, which used to be exported by `src/constants.ts`, is now available via the `@metamask/gas-fee-controller` package.
   - A number of functions and types that were previously exported by `src/util.ts` are now available via other packages. Here's a breakdown of these exports and their new locations:
-
     - `@metamask/assets-controllers`:
       - `SupportedTokenDetectionNetworks`
       - `addUrlProtocolPrefix`
@@ -617,7 +660,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...HEAD
+[11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
+[11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
+[11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
+[11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
 [11.16.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...@metamask/controller-utils@11.16.0
 [11.15.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.1...@metamask/controller-utils@11.15.0
 [11.14.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.0...@metamask/controller-utils@11.14.1

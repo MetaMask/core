@@ -9,18 +9,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7258](https://github.com/MetaMask/core/pull/7258), [#7289](https://github.com/MetaMask/core/pull/7289))
-  - The dependencies moved are:
-    - `@metamask/multichain-network-controller` (^3.0.0)
-    - `@metamask/network-controller` (^27.0.0)
-    - `@metamask/transaction-controller` (^62.4.0)
-  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
-    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
-  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
-- Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.5.0` ([#7325](https://github.com/MetaMask/core/pull/7325))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.0.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [5.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [5.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/multichain-network-controller` from `^3.0.5` to `^3.0.6` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [5.0.0]
+
+### Added
+
+- Expose missing public `NetworkEnablementController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following actions are now available:
+    - `NetworkEnablementController:init`
+    - `NetworkEnablementController:initNativeAssetIdentifiers`
+    - `NetworkEnablementController:enableNetworkInNamespace`
+    - `NetworkEnablementController:enableAllPopularNetworks`
+    - `NetworkEnablementController:isNetworkEnabled`
+  - Corresponding action type (`NetworkEnablementControllerIsNetworkEnabledAction`) is available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `NetworkEnablementController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The `NetworkEnablementController` action `NetworkEnablementControllerSetEnabledNetworksAction` has been renamed to `NetworkEnablementControllerEnableNetworkAction` so it matches the method name.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NetworkEnablementController` messengers.
+- Bump `@metamask/multichain-network-controller` from `^3.0.4` to `^3.0.5` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.20.0` to `^63.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [4.2.0]
+
+### Added
+
+- Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively ([#8105](https://github.com/MetaMask/core/pull/8105)).
+- Add `listPopularEvmNetworks()` and `NetworkEnablementController:listPopularEvmNetworks` for popular EVM networks only (returns hex chain IDs); add `listPopularMultichainNetworks()` and `NetworkEnablementController:listPopularMultichainNetworks` for Bitcoin, Solana, and Tron mainnets only (each restricted to configured networks in the corresponding controller state) ([#8105](https://github.com/MetaMask/core/pull/8105)).
+
+### Changed
+
+- `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list ([#8105](https://github.com/MetaMask/core/pull/8105)).
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
+
+## [4.1.2]
+
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^3.0.3` to `^3.0.4` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.17.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-network-controller` from `3.0.2` to `3.0.3` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ### Fixed
 
+- Override SLIP-44 for HyperEVM (chain ID 999) to 2457 so native asset identifier is `eip155:999/slip44:2457` instead of the incorrect value from chainid.network (chain collision with Wanchain) ([#7975](https://github.com/MetaMask/core/pull/7975))
+
+## [4.1.0]
+
+### Added
+
+- Add `nativeAssetIdentifiers` state property that maps CAIP-2 chain IDs to CAIP-19-like native asset identifiers (e.g., `eip155:1/slip44:60`) ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Add `initNativeAssetIdentifiers` method to populate `nativeAssetIdentifiers` state property ([#7609](https://github.com/MetaMask/core/pull/7609))
+  - This is designed to be called during controller initialization.
+- Add `Slip44Service` to look up SLIP-44 coin types by native currency symbol ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Add `@metamask/slip44` dependency for SLIP-44 coin type lookups ([#7609](https://github.com/MetaMask/core/pull/7609))
+- Subscribe to `NetworkController:stateChange` to update `nativeAssetIdentifiers` when a network's native currency changes ([#7609](https://github.com/MetaMask/core/pull/7609))
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7258](https://github.com/MetaMask/core/pull/7258), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+  - The dependencies moved are:
+    - `@metamask/multichain-network-controller` (^3.0.2)
+    - `@metamask/network-controller` (^29.0.0)
+    - `@metamask/transaction-controller` (^62.9.2)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+### Fixed
+
+- Clean up Slip44Service ([#7626](https://github.com/MetaMask/core/pull/7626))
 - Add missing MegaETH to POPULARE_NETWORKS list ([#7286](https://github.com/MetaMask/core/pull/7286))
 
 ## [4.0.0]
@@ -179,7 +272,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.2...HEAD
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.1...@metamask/network-enablement-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.0...@metamask/network-enablement-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...@metamask/network-enablement-controller@5.0.0
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...@metamask/network-enablement-controller@4.2.0
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.1...@metamask/network-enablement-controller@4.1.2
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.0...@metamask/network-enablement-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...@metamask/network-enablement-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.1.0...@metamask/network-enablement-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@3.0.0...@metamask/network-enablement-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@2.1.2...@metamask/network-enablement-controller@3.0.0

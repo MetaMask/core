@@ -1,4 +1,4 @@
-export enum KeyringControllerError {
+export enum KeyringControllerErrorMessage {
   NoKeyring = 'KeyringController - No keyring found',
   KeyringNotFound = 'KeyringController - Keyring not found.',
   UnsafeDirectKeyringAccess = 'KeyringController - Returning keyring instances is unsafe',
@@ -38,4 +38,6 @@ export enum KeyringControllerError {
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
   LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
   EncryptionKeyNotSet = 'KeyringController - Encryption key not set',
+  KeyringV2NotSupported = 'KeyringController - The selected keyring does not support the KeyringV2 API.',
+  CannotRemovePrimaryKeyring = 'KeyringController - Cannot remove the primary keyring',
 }

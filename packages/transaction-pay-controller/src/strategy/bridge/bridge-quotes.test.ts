@@ -4,13 +4,7 @@ import type { TxData } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import {
-  getBridgeBatchTransactions,
-  getBridgeQuotes,
-  getBridgeRefreshInterval,
-  refreshQuote,
-} from './bridge-quotes';
-import type { TransactionPayBridgeQuote } from './types';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyGetBatchRequest,
@@ -20,6 +14,13 @@ import type {
 import type { QuoteRequest } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
+import {
+  getBridgeBatchTransactions,
+  getBridgeQuotes,
+  getBridgeRefreshInterval,
+  refreshQuote,
+} from './bridge-quotes';
+import type { TransactionPayBridgeQuote } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
@@ -126,7 +127,7 @@ describe('Bridge Quotes Utils', () => {
     });
 
     getRemoteFeatureFlagControllerStateMock.mockImplementation(() => ({
-      cacheTimestamp: 0,
+      ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay: getFeatureFlagsMock(),
       },
@@ -142,6 +143,7 @@ describe('Bridge Quotes Utils', () => {
     });
 
     request = {
+      accountSupports7702: true,
       requests: [QUOTE_REQUEST_1_MOCK, QUOTE_REQUEST_2_MOCK],
       messenger,
       transaction: TRANSACTION_META_MOCK,
@@ -715,6 +717,30 @@ describe('Bridge Quotes Utils', () => {
       });
     });
 
+    it('returns target amount in quote', async () => {
+      const quotes = await getBridgeQuotes({
+        ...request,
+        requests: [QUOTE_REQUEST_1_MOCK],
+      });
+
+      expect(quotes[0].targetAmount).toStrictEqual({
+        fiat: '24.6',
+        usd: '36.9',
+      });
+    });
+
+    it('returns zero metaMask fee in quote', async () => {
+      const quotes = await getBridgeQuotes({
+        ...request,
+        requests: [QUOTE_REQUEST_1_MOCK],
+      });
+
+      expect(quotes[0].fees.metaMask).toStrictEqual({
+        usd: '0',
+        fiat: '0',
+      });
+    });
+
     it('returns target network fee in quote', async () => {
       calculateTransactionGasCostMock.mockReturnValue({
         fiat: '1.23',
@@ -1009,7 +1035,7 @@ describe('Bridge Quotes Utils', () => {
   describe('getBridgeRefreshInterval', () => {
     it('returns chain interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1031,7 +1057,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns global interval from feature flags', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {
@@ -1054,7 +1080,7 @@ describe('Bridge Quotes Utils', () => {
 
     it('returns undefined if no chain or global interval', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        cacheTimestamp: 0,
+        ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           bridgeConfigV2: {
             chains: {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable jest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
@@ -12,10 +13,10 @@ import {
   ChainId,
   FeeType,
   StatusTypes,
-  BridgeController,
   getNativeAssetForChainId,
   FeatureId,
   getQuotesReceivedProperties,
+  UnifiedSwapBridgeEventName,
 } from '@metamask/bridge-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -23,6 +24,8 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { Provider } from '@metamask/network-controller';
+import { CHAIN_IDS } from '@metamask/transaction-controller';
 import {
   TransactionType,
   TransactionStatus,
@@ -34,10 +37,12 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
+import { flushPromises } from '../../../tests/helpers';
 import { BridgeStatusController } from './bridge-status-controller';
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
+  DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
 } from './constants';
 import { BridgeClientId } from './types';
@@ -50,9 +55,8 @@ import type {
   StatusResponse,
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
+import * as historyUtils from './utils/history';
 import * as transactionUtils from './utils/transaction';
-import { flushPromises } from '../../../tests/helpers';
-import { CHAIN_IDS } from '../../bridge-controller/src/constants/chains';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;
@@ -84,7 +88,6 @@ const EMPTY_INIT_STATE: BridgeStatusControllerState = {
   ...DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
 };
 
-const mockMessengerSubscribe = jest.fn();
 const MockStatusResponse = {
   getPending: ({
     srcTxHash = '0xsrcTxHash1',
@@ -94,7 +97,7 @@ const MockStatusResponse = {
     status: 'PENDING' as StatusTypes,
     srcChain: {
       chainId: srcChainId,
-      txHash: srcTxHash,
+      txHash: srcTxHash === 'undefined' ? undefined : srcTxHash,
       amount: '991250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
@@ -295,16 +298,8 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
 } = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
   bridgeTxMeta: {
     id: txMetaId,
+    hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  statusRequest: {
-    bridgeId: 'lifi',
-    srcTxHash,
-    bridge: 'across',
-    srcChainId,
-    destChainId,
-    quote: getMockQuote({ srcChainId, destChainId }),
-    refuel: false,
-  },
   quoteResponse: {
     quote: getMockQuote({ srcChainId, destChainId }),
     trade: {
@@ -342,12 +337,16 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
 const MockTxHistory = {
   getInitNoSrcTxHash: ({
     txMetaId = 'bridgeTxMetaId1',
+    actionId = undefined,
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 10,
+    srcTxHash = '0xsrcTxHash1',
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
+      originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
@@ -357,20 +356,25 @@ const MockTxHistory = {
       initialDestAssetBalance: undefined,
       pricingData: { amountSent: '1.234' },
       status: MockStatusResponse.getPending({
+        srcTxHash,
         srcChainId,
       }),
       hasApprovalTx: false,
       approvalTxId: undefined,
+      location: undefined,
     },
   }),
   getInit: ({
     txMetaId = 'bridgeTxMetaId1',
+    actionId = undefined,
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 10,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
+      originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
@@ -383,23 +387,29 @@ const MockTxHistory = {
         srcChainId,
       }),
       hasApprovalTx: false,
+      location: undefined,
     },
   }),
   getPending: ({
     txMetaId = 'bridgeTxMetaId1',
     batchId = undefined,
+    actionId = undefined,
     approvalTxId = undefined,
     srcTxHash = '0xsrcTxHash1',
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 10,
     featureId = undefined,
+    attempts = undefined as BridgeHistoryItem['attempts'],
+    startTime = 1729964825189,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
+      originalTransactionId: txMetaId,
       batchId,
       quote: getMockQuote({ srcChainId, destChainId }),
-      startTime: 1729964825189,
+      startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
       account,
@@ -420,12 +430,14 @@ const MockTxHistory = {
       isStxEnabled: false,
       hasApprovalTx: false,
       completionTime: undefined,
-      attempts: undefined,
+      attempts,
       featureId,
+      location: undefined,
     },
   }),
   getUnknown: ({
     txMetaId = 'bridgeTxMetaId2',
+    actionId = undefined,
     srcTxHash = '0xsrcTxHash2',
     account = '0xaccount1',
     srcChainId = 42161,
@@ -433,6 +445,8 @@ const MockTxHistory = {
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
+      originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
@@ -456,20 +470,25 @@ const MockTxHistory = {
       approvalTxId: undefined,
       hasApprovalTx: false,
       completionTime: undefined,
+      location: undefined,
     },
   }),
   getPendingSwap: ({
     txMetaId = 'swapTxMetaId1',
+    actionId = undefined,
     srcTxHash = '0xsrcTxHash1',
     account = '0xaccount1',
     srcChainId = 42161,
     destChainId = 42161,
     featureId = undefined,
+    startTime = 1729964825189,
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
+      originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
-      startTime: 1729964825189,
+      startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
       account,
@@ -490,10 +509,12 @@ const MockTxHistory = {
       hasApprovalTx: false,
       completionTime: undefined,
       featureId,
+      location: undefined,
     },
   }),
   getComplete: ({
     txMetaId = 'bridgeTxMetaId1',
+    actionId = undefined,
     batchId = undefined,
     srcTxHash = '0xsrcTxHash1',
     account = '0xaccount1',
@@ -502,6 +523,8 @@ const MockTxHistory = {
   } = {}): Record<string, BridgeHistoryItem> => ({
     [txMetaId]: {
       txMetaId,
+      actionId,
+      originalTransactionId: txMetaId,
       batchId,
       featureId: undefined,
       quote: getMockQuote({ srcChainId, destChainId }),
@@ -524,51 +547,186 @@ const MockTxHistory = {
       isStxEnabled: true,
       hasApprovalTx: false,
       attempts: undefined,
+      location: undefined,
     },
   }),
 };
 
-const getMessengerMock = ({
-  account = '0xaccount1',
-  srcChainId = 42161,
-  txHash = '0xsrcTxHash1',
-  txMetaId = 'bridgeTxMetaId1',
-} = {}) =>
-  ({
-    call: jest.fn((method: string) => {
-      if (method === 'AccountsController:getSelectedMultichainAccount') {
-        return {
-          address: account,
-          metadata: { snap: { id: 'snapId' } },
-          options: { scope: 'scope' },
-        };
-      } else if (method === 'NetworkController:findNetworkClientIdByChainId') {
-        return 'networkClientId';
-      } else if (method === 'NetworkController:getState') {
-        return { selectedNetworkClientId: 'networkClientId' };
-      } else if (method === 'NetworkController:getNetworkClientById') {
-        return {
-          configuration: {
-            chainId: numberToHex(srcChainId),
-          },
-        };
-      } else if (method === 'TransactionController:getState') {
-        return {
-          transactions: [
-            {
-              id: txMetaId,
-              hash: txHash,
-            },
-          ],
-        };
-      }
-      return null;
+const addTransactionBatchFn = jest.fn();
+
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function getControllerMessenger(
+  rootMessenger: RootMessenger,
+): BridgeStatusControllerMessenger {
+  const messenger = new Messenger({
+    namespace: BRIDGE_STATUS_CONTROLLER_NAME,
+    parent: rootMessenger,
+  }) as unknown as BridgeStatusControllerMessenger;
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AccountsController:getAccountByAddress',
+      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+      'SnapController:handleRequest',
+      'TransactionController:getState',
+      'TransactionController:updateTransaction',
+      'TransactionController:addTransaction',
+      'TransactionController:estimateGasFee',
+      'TransactionController:isAtomicBatchSupported',
+      'BridgeController:trackUnifiedSwapBridgeEvent',
+      'BridgeController:stopPollingForQuotes',
+      'GasFeeController:getState',
+      'RemoteFeatureFlagController:getState',
+      'AuthenticationController:getBearerToken',
+      'KeyringController:signTypedMessage',
+    ],
+    events: ['TransactionController:transactionStatusUpdated'],
+  });
+  return messenger;
+}
+
+function registerDefaultActionHandlers(
+  rootMessenger: RootMessenger,
+  {
+    account = '0xaccount1',
+    srcChainId = 42161,
+    txHash = '0xsrcTxHash1',
+    txMetaId = 'bridgeTxMetaId1',
+    status = TransactionStatus.confirmed,
+    provider,
+    maxPendingHistoryItemAgeMs = DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
+  }: {
+    account?: string;
+    srcChainId?: number;
+    txHash?: string;
+    txMetaId?: string;
+    status?: TransactionStatus;
+    provider?: 'undefined' | Partial<Provider>;
+    maxPendingHistoryItemAgeMs?: number;
+  } = {},
+) {
+  rootMessenger.registerActionHandler(
+    'AccountsController:getAccountByAddress',
+    () => ({
+      address: account,
+      metadata: { keyring: { type: 'any' } },
     }),
-    subscribe: mockMessengerSubscribe,
-    publish: jest.fn(),
-    registerActionHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-  }) as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+  );
+
+  rootMessenger.registerActionHandler(
+    'BridgeController:trackUnifiedSwapBridgeEvent',
+    jest.fn(),
+  );
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    () => {
+      if (provider === 'undefined') {
+        throw new Error('Provider is undefined');
+      }
+      return 'networkClientId';
+    },
+  );
+
+  rootMessenger.registerActionHandler('NetworkController:getState', () => ({
+    selectedNetworkClientId: 'networkClientId',
+  }));
+
+  const mockProvider = provider ?? {
+    request: jest.fn().mockResolvedValue('0xreceipt1'),
+    sendAsync: jest.fn(),
+    send: jest.fn(),
+  };
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    () => ({
+      configuration: {
+        chainId: numberToHex(srcChainId),
+      },
+      // @ts-expect-error: Partial mock.
+      provider: mockProvider,
+    }),
+  );
+
+  rootMessenger.registerActionHandler('TransactionController:getState', () => ({
+    transactions: [
+      {
+        // @ts-expect-error: this is ok
+        id: txMetaId === 'undefined' ? undefined : txMetaId,
+        hash: txHash,
+        status,
+      },
+    ],
+  }));
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        bridgeConfig: {
+          maxPendingHistoryItemAgeMs,
+        },
+      },
+      cacheTimestamp: 1776474747215,
+    }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    () => Promise.resolve('auth-token'),
+  );
+}
+
+type WithControllerCallback<ReturnValue> = (payload: {
+  controller: BridgeStatusController;
+  rootMessenger: RootMessenger;
+  messenger: BridgeStatusControllerMessenger;
+  startPollingForBridgeTxStatusSpy: jest.Mock;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = {
+  options?: Partial<ConstructorParameters<typeof BridgeStatusController>[0]>;
+  mockMessengerCall?: jest.Mock;
+};
+
+async function withController<ReturnValue>(
+  ...args:
+    | [WithControllerCallback<ReturnValue>]
+    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
+): Promise<ReturnValue> {
+  const [{ options = {}, mockMessengerCall = undefined }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
+  const rootMessenger = getRootMessenger();
+  const messenger = getControllerMessenger(rootMessenger);
+  if (mockMessengerCall) {
+    jest.spyOn(messenger, 'call').mockImplementation(mockMessengerCall);
+  }
+  const controller = new BridgeStatusController({
+    messenger,
+    clientId: BridgeClientId.EXTENSION,
+    fetchFn: jest.fn(),
+    addTransactionBatchFn,
+    ...options,
+  });
+  const startPollingForBridgeTxStatusSpy = jest.fn();
+  if (mockMessengerCall) {
+    jest
+      .spyOn(controller, 'startPolling')
+      .mockImplementation(startPollingForBridgeTxStatusSpy);
+  }
+  return await testFunction({
+    controller,
+    rootMessenger,
+    messenger,
+    startPollingForBridgeTxStatusSpy,
+  });
+}
 
 const executePollingWithPendingStatus = async () => {
   // Setup
@@ -579,20 +737,22 @@ const executePollingWithPendingStatus = async () => {
       status: MockStatusResponse.getPending(),
       validationFailures: [],
     });
+
+  const rootMessenger = getRootMessenger();
+  registerDefaultActionHandlers(rootMessenger);
+  const messenger = getControllerMessenger(rootMessenger);
   const bridgeStatusController = new BridgeStatusController({
-    messenger: getMessengerMock(),
+    messenger,
     clientId: BridgeClientId.EXTENSION,
     fetchFn: jest.fn(),
-    addTransactionFn: jest.fn(),
     addTransactionBatchFn: jest.fn(),
-    updateTransactionFn: jest.fn(),
-    estimateGasFeeFn: jest.fn(),
     config: {},
   });
   const startPollingSpy = jest.spyOn(bridgeStatusController, 'startPolling');
 
   // Execution
-  bridgeStatusController.startPollingForBridgeTxStatus(
+  rootMessenger.call(
+    'BridgeStatusController:startPollingForBridgeTxStatus',
     getMockStartPollingForBridgeTxStatusArgs(),
   );
   fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
@@ -606,6 +766,7 @@ const executePollingWithPendingStatus = async () => {
 
   return {
     bridgeStatusController,
+    rootMessenger,
     startPollingSpy,
     fetchBridgeTxStatusSpy,
   };
@@ -623,118 +784,391 @@ const mockSelectedAccount = {
   },
 };
 
-const addTransactionFn = jest.fn();
-const addTransactionBatchFn = jest.fn();
-const updateTransactionFn = jest.fn();
-const estimateGasFeeFn = jest.fn();
-
-const getController = (
-  call: jest.Mock,
-  traceFn?: jest.Mock,
-  clientId: BridgeClientId = BridgeClientId.EXTENSION,
-  mockFetchFn = jest.fn(),
-) => {
-  const controller = new BridgeStatusController({
-    messenger: {
-      call,
-      subscribe: mockMessengerSubscribe,
-      publish: jest.fn(),
-      registerActionHandler: jest.fn(),
-      registerInitialEventPayload: jest.fn(),
-    } as never,
-    clientId,
-    fetchFn: mockFetchFn,
-    addTransactionFn,
-    addTransactionBatchFn,
-    estimateGasFeeFn,
-    updateTransactionFn,
-    traceFn,
-  });
-
-  const startPollingSpy = jest.fn();
-  jest.spyOn(controller, 'startPolling').mockImplementation(startPollingSpy);
-  return {
-    controller,
-    startPollingForBridgeTxStatusSpy: startPollingSpy,
-  };
-};
-
-describe('BridgeStatusController', () => {
+describe('BridgeStatusController constructor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
   });
 
-  describe('constructor', () => {
-    it('should setup correctly', () => {
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
-      expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
-      expect(mockMessengerSubscribe.mock.calls).toMatchSnapshot();
+  it('should setup correctly', async () => {
+    await withController(async ({ controller }) => {
+      expect(controller.state).toStrictEqual(EMPTY_INIT_STATE);
     });
+  });
 
-    it('rehydrates the tx history state', async () => {
-      // Setup
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        state: {
-          txHistory: MockTxHistory.getPending(),
+  it('rehydrates the tx history state', async () => {
+    await withController(
+      { options: { state: { txHistory: MockTxHistory.getPending() } } },
+      async ({ controller }) => {
+        // Assertion
+        expect(controller.state.txHistory).toMatchSnapshot();
+        controller.stopAllPolling();
+      },
+    );
+  });
+
+  it('restarts polling for history items that are not complete', async () => {
+    // Setup
+    jest.useFakeTimers();
+    const fetchBridgeTxStatusSpy = jest.spyOn(
+      bridgeStatusUtils,
+      'fetchBridgeTxStatus',
+    );
+    const provider = {
+      request: jest.fn().mockResolvedValueOnce('txReceipt1'),
+    };
+
+    jest.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
+
+    await withController(
+      {
+        options: {
+          state: {
+            txHistory: {
+              ...MockTxHistory.getPending(),
+              ...MockTxHistory.getUnknown(),
+              ...MockTxHistory.getPendingSwap({
+                srcTxHash: '0xswapSrcTxHash',
+              }),
+              ...MockTxHistory.getInitNoSrcTxHash({
+                txMetaId: 'oldBridgeTxMetaId',
+                srcTxHash: '0xoldSrcTxHash',
+              }),
+            },
+          },
+          fetchFn: jest
+            .fn()
+            .mockResolvedValueOnce(MockStatusResponse.getPending())
+            .mockResolvedValueOnce(MockStatusResponse.getComplete())
+            .mockResolvedValueOnce(MockStatusResponse.getPending()),
         },
-      });
+      },
+      async ({ controller, rootMessenger }) => {
+        registerDefaultActionHandlers(rootMessenger, {
+          provider,
+        });
+        const initialStatuses = {
+          bridgeTxMetaId1: 'PENDING',
+          bridgeTxMetaId2: 'UNKNOWN',
+          swapTxMetaId1: 'PENDING',
+          oldBridgeTxMetaId: 'PENDING',
+        };
+        expect(
+          Object.entries(controller.state.txHistory).reduce(
+            (acc, [key, value]) => ({
+              ...acc,
+              [key]: value.status.status,
+            }),
+            {},
+          ),
+        ).toStrictEqual(initialStatuses);
 
-      // Assertion
-      expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
-      bridgeStatusController.stopAllPolling();
-    });
+        expect(
+          Object.entries(controller.state.txHistory).reduce(
+            (acc, [key, value]) => ({
+              ...acc,
+              [key]: value.status.srcChain.txHash,
+            }),
+            {},
+          ),
+        ).toMatchInlineSnapshot(`
+            {
+              "bridgeTxMetaId1": "0xsrcTxHash1",
+              "bridgeTxMetaId2": "0xsrcTxHash2",
+              "oldBridgeTxMetaId": "0xoldSrcTxHash",
+              "swapTxMetaId1": "0xswapSrcTxHash",
+            }
+          `);
 
-    it('restarts polling for history items that are not complete', async () => {
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(3);
+        expect(provider.request.mock.calls.flat()).toMatchInlineSnapshot(`[]`);
+
+        expect(controller.state.txHistory.bridgeTxMetaId1.status.status).toBe(
+          StatusTypes.PENDING,
+        );
+        expect(controller.state.txHistory.bridgeTxMetaId2.status.status).toBe(
+          StatusTypes.COMPLETE,
+        );
+        expect(controller.state.txHistory.swapTxMetaId1.status.status).toBe(
+          StatusTypes.PENDING,
+        );
+        expect(controller.state.txHistory.oldBridgeTxMetaId.status.status).toBe(
+          StatusTypes.PENDING,
+        );
+        controller.stopAllPolling();
+      },
+    );
+  });
+
+  it.each([
+    {
+      title: 'tx hash, provider returns receipt',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () => await Promise.resolve('txReceipt1'),
+      expectedHistoryTxMetaId: 'unknownTxMetaId1',
+      expectedStatusFetchCount: 1,
+    },
+    {
+      title: 'tx hash, provider returns receipt, status is complete',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () => await Promise.resolve('txReceipt1'),
+      expectedHistoryTxMetaId: 'unknownTxMetaId1',
+      expectedStatusFetchCount: 1,
+      statusResponse: MockStatusResponse.getComplete,
+    },
+    {
+      title: 'tx hash, provider returns no receipt',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () => await Promise.resolve(),
+      expectedStatusFetchCount: 1,
+    },
+    {
+      title: 'tx hash, provider throws error',
+      txHash: '0xsrcTxHash2',
+      providerAction: async () =>
+        await Promise.reject(new Error('Provider error')),
+      expectedStatusFetchCount: 1,
+    },
+    {
+      title: 'tx hash, no provider',
+      txHash: '0xsrcTxHash2',
+      provider: 'undefined' as const,
+      expectedStatusFetchCount: 1,
+      expectedHistoryTxMetaId: 'unknownTxMetaId1',
+    },
+    {
+      title: 'no tx hash, has txMeta',
+      txMeta: {
+        id: 'txMetaId2',
+        hash: '0xsrcTxHash3',
+      },
+      expectedStatusFetchCount: 1,
+    },
+    {
+      title: 'no tx hash, no txMeta',
+      txMeta: {
+        id: 'undefined',
+      },
+    },
+    {
+      title: 'solana srcChainId, no tx hash, no txMeta',
+      txMeta: {
+        id: 'solanaTxMetaId1',
+      },
+      srcChainId: ChainId.SOLANA,
+      expectedStatusFetchCount: 1,
+      txHash: 'solanaTxHash',
+    },
+    {
+      title: 'no txHash, no txMeta, provider returns no receipt',
+      txMeta: {
+        id: 'undefined',
+      },
+      providerAction: async () => await Promise.resolve(),
+    },
+    {
+      title: 'no txHash, no txMeta, provider returns receipt',
+      txMeta: {
+        id: 'undefined',
+      },
+      providerAction: async () => await Promise.resolve('txReceipt1'),
+    },
+    {
+      title: 'no txHash, no txMeta, provider throws error',
+      txMeta: {
+        id: 'undefined',
+      },
+      providerAction: async () =>
+        await Promise.reject(new Error('Provider error')),
+    },
+  ])(
+    'when history has $title and is older than 2 days',
+    async ({
+      txHash = 'undefined',
+      providerAction = () => Promise.resolve(),
+      txMeta,
+      expectedHistoryTxMetaId,
+      srcChainId,
+      provider: providerParam,
+      expectedStatusFetchCount = 0,
+      statusResponse = MockStatusResponse.getPending,
+    }) => {
       // Setup
       jest.useFakeTimers();
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
         'fetchBridgeTxStatus',
       );
+      const provider = {
+        request: jest
+          .fn()
+          .mockImplementationOnce(async () => await providerAction()),
+      };
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementationOnce(() => jest.fn());
 
-      // Execution
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        state: {
-          txHistory: {
-            ...MockTxHistory.getPending(),
-            ...MockTxHistory.getUnknown(),
-            ...MockTxHistory.getPendingSwap(),
+      const [historyKey, txHistoryItem] = Object.entries(
+        MockTxHistory.getPending({
+          txMetaId: txMeta?.id ?? 'unknownTxMetaId1',
+          srcTxHash: txHash,
+          srcChainId,
+        }),
+      )[0];
+
+      const startTime =
+        Date.now() - DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS - 1000;
+
+      await withController(
+        {
+          options: {
+            state: {
+              txHistory: {
+                [historyKey]: {
+                  ...txHistoryItem,
+                  attempts: undefined,
+                  startTime,
+                },
+              },
+            },
+            fetchFn: jest.fn().mockResolvedValueOnce(
+              statusResponse({
+                srcTxHash: txMeta?.hash ?? txHash,
+              }),
+            ),
           },
         },
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest
-          .fn()
-          .mockResolvedValueOnce(MockStatusResponse.getPending())
-          .mockResolvedValueOnce(MockStatusResponse.getComplete()),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
+        async ({ controller, rootMessenger, messenger }) => {
+          const stopPollingSpy = jest.spyOn(
+            controller,
+            'stopPollingByPollingToken',
+          );
+          const messengerCallSpy = jest.spyOn(messenger, 'call');
 
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
-      bridgeStatusController.stopAllPolling();
-    });
+          registerDefaultActionHandlers(rootMessenger, {
+            provider: providerParam ?? provider,
+            txMetaId: txMeta?.id,
+            txHash: txMeta?.hash,
+          });
+          controller.startPolling({ bridgeTxMetaId: historyKey });
+
+          expect(
+            controller.state.txHistory[historyKey].status.status,
+          ).toStrictEqual(StatusTypes.PENDING);
+
+          jest.advanceTimersByTime(11000);
+          await flushPromises();
+
+          // Assertions
+          expect(fetchBridgeTxStatusSpy.mock.calls).toHaveLength(
+            expectedStatusFetchCount,
+          );
+          expect(controller.state.txHistory[historyKey]?.txMetaId).toBe(
+            expectedHistoryTxMetaId,
+          );
+          expect(
+            consoleWarnSpy.mock.calls.map((call) => JSON.stringify(call)),
+          ).toStrictEqual([]);
+
+          expect(controller.state.txHistory[historyKey]?.status.status).toBe(
+            expectedHistoryTxMetaId ? statusResponse()?.status : undefined,
+          );
+          expect(
+            controller.state.txHistory[historyKey]?.attempts?.counter,
+          ).toBeUndefined();
+
+          // Should always stop polling for the tx after 2 days
+          expect(stopPollingSpy.mock.calls).toStrictEqual(
+            expectedHistoryTxMetaId &&
+              statusResponse()?.status !== StatusTypes.COMPLETE
+              ? []
+              : [['test-uuid-1234']],
+          );
+
+          expect(
+            controller.state.txHistory[historyKey]?.status.srcChain.txHash,
+          ).toBe(expectedHistoryTxMetaId ? txHash : undefined);
+
+          expect(provider.request.mock.calls.flat()).toMatchSnapshot(
+            'provider tx receipt calls',
+          );
+
+          expect(
+            messengerCallSpy.mock.calls.find(
+              (call) =>
+                call[1] === UnifiedSwapBridgeEventName.PollingStatusUpdated,
+            ),
+          ).toStrictEqual(
+            expectedHistoryTxMetaId
+              ? undefined
+              : [
+                  'BridgeController:trackUnifiedSwapBridgeEvent',
+                  'Unified SwapBridge Polling Status Updated',
+                  {
+                    account_hardware_type: null,
+                    action_type: 'swapbridge-v1',
+                    actual_time_minutes: 0,
+                    allowance_reset_transaction: undefined,
+                    approval_transaction: undefined,
+                    chain_id_destination: 'eip155:10',
+                    // eslint-disable-next-line jest/no-conditional-expect
+                    chain_id_source: expect.any(String),
+                    custom_slippage: true,
+                    destination_transaction: 'PENDING',
+                    gas_included: false,
+                    gas_included_7702: false,
+                    is_hardware_wallet: false,
+                    location: 'Main View',
+                    polling_status: 'invalid_transaction_hash',
+                    price_impact: 0,
+                    provider: 'lifi_across',
+                    quote_vs_execution_ratio: 0,
+                    quoted_time_minutes: 0.25,
+                    quoted_vs_used_gas_ratio: 0,
+                    retry_attempts: 0,
+                    security_warnings: [],
+                    slippage_limit: 0,
+                    // eslint-disable-next-line jest/no-conditional-expect
+                    source_transaction: expect.any(String),
+                    stx_enabled: false,
+                    swap_type: 'crosschain',
+                    token_address_destination: 'eip155:10/slip44:60',
+                    // eslint-disable-next-line jest/no-conditional-expect
+                    token_address_source: expect.any(String),
+                    token_security_type_destination: null,
+                    token_symbol_destination: 'ETH',
+                    token_symbol_source: 'ETH',
+                    usd_actual_gas: 0,
+                    usd_actual_return: 0,
+                    usd_amount_source: 0,
+                    usd_quoted_gas: 2.5778,
+                    usd_quoted_return: 0,
+                  },
+                ],
+          );
+
+          jest.advanceTimersByTime(11000);
+          await flushPromises();
+
+          // Assertions
+          expect(controller.state.txHistory[historyKey]?.status.status).toBe(
+            expectedHistoryTxMetaId ? statusResponse()?.status : undefined,
+          );
+        },
+      );
+    },
+  );
+});
+
+describe('BridgeStatusController', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+    jest.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
   });
 
   describe('startPolling - error handling', () => {
@@ -760,57 +1194,55 @@ describe('BridgeStatusController', () => {
         'fetchBridgeTxStatus',
       );
 
-      const mockFetchFn = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Network error'));
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: mockFetchFn,
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
+      await withController(
+        {
+          options: {
+            fetchFn: jest
+              .fn()
+              .mockRejectedValueOnce(new Error('Network error')),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          registerDefaultActionHandlers(rootMessenger);
 
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
+          // Execution
+          rootMessenger.call(
+            'BridgeStatusController:startPollingForBridgeTxStatus',
+            getMockStartPollingForBridgeTxStatusArgs(),
+          );
+
+          // Trigger polling
+          jest.advanceTimersByTime(10000);
+          await flushPromises();
+
+          // Assertions
+          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+          // Transaction should still be in history but status should remain unchanged
+          expect(controller.state.txHistory).toHaveProperty('bridgeTxMetaId1');
+          expect(controller.state.txHistory.bridgeTxMetaId1.status.status).toBe(
+            'PENDING',
+          );
+
+          // Should increment attempts counter
+          expect(
+            controller.state.txHistory.bridgeTxMetaId1.attempts?.counter,
+          ).toBe(1);
+          expect(
+            controller.state.txHistory.bridgeTxMetaId1.attempts
+              ?.lastAttemptTime,
+          ).toBeDefined();
+
+          controller.stopAllPolling();
+          expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
+            [
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Network error],
+              ],
+            ]
+          `);
+        },
       );
-
-      // Trigger polling
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
-
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-      // Transaction should still be in history but status should remain unchanged
-      expect(bridgeStatusController.state.txHistory).toHaveProperty(
-        'bridgeTxMetaId1',
-      );
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
-      ).toBe('PENDING');
-
-      // Should increment attempts counter
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
-          ?.counter,
-      ).toBe(1);
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
-          ?.lastAttemptTime,
-      ).toBeDefined();
-
-      bridgeStatusController.stopAllPolling();
-      expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Network error],
-          ],
-        ]
-      `);
     });
 
     it('should stop polling after max attempts are reached', async () => {
@@ -821,77 +1253,76 @@ describe('BridgeStatusController', () => {
         'fetchBridgeTxStatus',
       );
 
-      const failedFetch = jest
-        .fn()
-        .mockRejectedValue(new Error('Persistent error'));
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: failedFetch,
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
+      await withController(
+        {
+          options: {
+            fetchFn: jest.fn().mockRejectedValue(new Error('Persistent error')),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          registerDefaultActionHandlers(rootMessenger);
 
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
+          // Execution
+          rootMessenger.call(
+            'BridgeStatusController:startPollingForBridgeTxStatus',
+            getMockStartPollingForBridgeTxStatusArgs(),
+          );
+
+          // Trigger polling with exponential backoff timing
+          for (let i = 0; i < MAX_ATTEMPTS * 2; i++) {
+            jest.advanceTimersByTime(10_000 * 2 ** i);
+            await flushPromises();
+          }
+
+          // Assertions
+          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(MAX_ATTEMPTS);
+          expect(
+            controller.state.txHistory.bridgeTxMetaId1?.attempts?.counter,
+          ).toBe(MAX_ATTEMPTS);
+
+          // Verify polling stops after max attempts - even with a long wait, no more calls
+          const callCountBeforeExtraTime =
+            fetchBridgeTxStatusSpy.mock.calls.length;
+          jest.advanceTimersByTime(1_000_000_000);
+          await flushPromises();
+          expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(
+            callCountBeforeExtraTime,
+          );
+          controller.stopAllPolling();
+          expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
+            [
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+              [
+                "Failed to fetch bridge tx status",
+                [Error: Persistent error],
+              ],
+            ]
+          `);
+        },
       );
-
-      // Trigger polling with exponential backoff timing
-      for (let i = 0; i < MAX_ATTEMPTS * 2; i++) {
-        jest.advanceTimersByTime(10_000 * 2 ** i);
-        await flushPromises();
-      }
-
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(MAX_ATTEMPTS);
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts
-          ?.counter,
-      ).toBe(MAX_ATTEMPTS);
-
-      // Verify polling stops after max attempts - even with a long wait, no more calls
-      const callCountBeforeExtraTime = fetchBridgeTxStatusSpy.mock.calls.length;
-      jest.advanceTimersByTime(1_000_000_000);
-      await flushPromises();
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(
-        callCountBeforeExtraTime,
-      );
-      bridgeStatusController.stopAllPolling();
-      expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-          Array [
-            "Failed to fetch bridge tx status",
-            [Error: Persistent error],
-          ],
-        ]
-      `);
     });
   });
 
@@ -900,28 +1331,65 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
     });
 
-    it('sets the inital tx history state', async () => {
-      // Setup
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest
-          .fn()
-          .mockResolvedValueOnce(MockStatusResponse.getPending()),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
+    it('throws error when bridgeTxMeta.id is not provided', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const argsWithoutId = getMockStartPollingForBridgeTxStatusArgs();
+        // Remove the id from bridgeTxMeta
+        argsWithoutId.bridgeTxMeta = {} as never;
+
+        expect(() => {
+          rootMessenger.call(
+            'BridgeStatusController:startPollingForBridgeTxStatus',
+            argsWithoutId,
+          );
+        }).toThrow(
+          'Cannot start polling: bridgeTxMeta.id is required for polling',
+        );
+
+        controller.stopAllPolling();
       });
+    });
 
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
+    it('throws error when bridgeTxMeta is undefined', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const argsWithoutMeta = getMockStartPollingForBridgeTxStatusArgs();
+        // Remove bridgeTxMeta entirely
+        argsWithoutMeta.bridgeTxMeta = undefined;
+
+        expect(() => {
+          rootMessenger.call(
+            'BridgeStatusController:startPollingForBridgeTxStatus',
+            argsWithoutMeta,
+          );
+        }).toThrow(
+          'Cannot start polling: bridgeTxMeta.id is required for polling',
+        );
+
+        controller.stopAllPolling();
+      });
+    });
+
+    it('sets the inital tx history state', async () => {
+      await withController(
+        {
+          options: {
+            fetchFn: jest
+              .fn()
+              .mockResolvedValueOnce(MockStatusResponse.getPending()),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          // Execution
+          rootMessenger.call(
+            'BridgeStatusController:startPollingForBridgeTxStatus',
+            getMockStartPollingForBridgeTxStatusArgs(),
+          );
+
+          // Assertion
+          expect(controller.state.txHistory).toMatchSnapshot();
+          controller.stopAllPolling();
+        },
       );
-
-      // Assertion
-      expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
-      bridgeStatusController.stopAllPolling();
     });
 
     it('starts polling and updates the tx history when the status response is received', async () => {
@@ -946,125 +1414,92 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockImplementation(() => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
-      const messengerMock = getMessengerMock();
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
+
+      await withController(async ({ controller, messenger, rootMessenger }) => {
+        registerDefaultActionHandlers(rootMessenger);
+        const messengerCallSpy = jest.spyOn(messenger, 'call');
+        const messengerPublishSpy = jest.spyOn(messenger, 'publish');
+        const fetchBridgeTxStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeTxStatus',
+        );
+        const stopPollingByNetworkClientIdSpy = jest.spyOn(
+          controller,
+          'stopPollingByPollingToken',
+        );
+
+        // Execution
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs({ isStxEnabled: true }),
+        );
+        fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
+          return {
+            status: MockStatusResponse.getComplete(),
+            validationFailures: [],
+          };
+        });
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+        expect(stopPollingByNetworkClientIdSpy).toHaveBeenCalledTimes(1);
+        expect(controller.state.txHistory).toStrictEqual(
+          MockTxHistory.getComplete(),
+        );
+
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        expect(messengerPublishSpy.mock.calls.at(-1)).toMatchSnapshot();
+        // Cleanup
+        jest.restoreAllMocks();
       });
-      const fetchBridgeTxStatusSpy = jest.spyOn(
-        bridgeStatusUtils,
-        'fetchBridgeTxStatus',
-      );
-      const stopPollingByNetworkClientIdSpy = jest.spyOn(
-        bridgeStatusController,
-        'stopPollingByPollingToken',
-      );
-
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs({
-          isStxEnabled: true,
-        }),
-      );
-      fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
-        return {
-          status: MockStatusResponse.getComplete(),
-          validationFailures: [],
-        };
-      });
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
-
-      // Assertions
-      expect(stopPollingByNetworkClientIdSpy).toHaveBeenCalledTimes(1);
-      expect(bridgeStatusController.state.txHistory).toStrictEqual(
-        MockTxHistory.getComplete(),
-      );
-
-      expect(messengerMock.call.mock.calls).toMatchSnapshot();
-      expect(messengerMock.publish.mock.calls.at(-1)).toMatchSnapshot();
-      // Cleanup
-      jest.restoreAllMocks();
     });
 
     it('does not poll if the srcTxHash is not available', async () => {
       // Setup
       jest.useFakeTimers();
 
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
-              },
-            };
-          } else if (method === 'TransactionController:getState') {
-            return {
-              transactions: [
-                {
-                  id: 'bridgeTxMetaId1',
-                  hash: undefined,
-                },
-              ],
-            };
-          }
-          return null;
-        }),
-        subscribe: mockMessengerSubscribe,
-        publish: jest.fn(),
-        registerActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+      await withController(async ({ controller, rootMessenger }) => {
+        // Register handlers - but TransactionController:getState returns hash: undefined
+        registerDefaultActionHandlers(rootMessenger);
 
-      const fetchBridgeTxStatusSpy = jest.spyOn(
-        bridgeStatusUtils,
-        'fetchBridgeTxStatus',
-      );
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
+        rootMessenger.unregisterActionHandler('TransactionController:getState');
+        rootMessenger.registerActionHandler(
+          'TransactionController:getState',
+          () => ({
+            transactions: [{ id: 'bridgeTxMetaId1', hash: undefined }],
+          }),
+        );
+
+        const fetchBridgeTxStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeTxStatus',
+        );
+
+        // Start polling with args that have no srcTxHash
+        const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs({
+          srcTxHash: 'undefined',
+        });
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          startPollingArgs,
+        );
+
+        // Advance timer to trigger polling
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions
+        expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
+        expect(controller.state.txHistory).toHaveProperty('bridgeTxMetaId1');
+        expect(
+          controller.state.txHistory.bridgeTxMetaId1.status.srcChain.txHash,
+        ).toBeFalsy();
+
+        // Cleanup
+        jest.restoreAllMocks();
       });
-
-      // Start polling with args that have no srcTxHash
-      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
-      startPollingArgs.statusRequest.srcTxHash = undefined;
-      bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
-
-      // Advance timer to trigger polling
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
-
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
-      expect(bridgeStatusController.state.txHistory).toHaveProperty(
-        'bridgeTxMetaId1',
-      );
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
-          .txHash,
-      ).toBeUndefined();
-
-      // Cleanup
-      jest.restoreAllMocks();
     });
 
     it('emits bridgeTransactionComplete event when the status response is complete', async () => {
@@ -1074,38 +1509,31 @@ describe('BridgeStatusController', () => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
 
-      const messengerMock = getMessengerMock();
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
+      await withController(async ({ rootMessenger }) => {
+        registerDefaultActionHandlers(rootMessenger);
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockImplementationOnce(async () => {
+            return {
+              status: MockStatusResponse.getComplete(),
+              validationFailures: [],
+            };
+          });
+
+        // Execution
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs(),
+        );
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+
+        // Cleanup
+        jest.restoreAllMocks();
       });
-
-      const fetchBridgeTxStatusSpy = jest
-        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete(),
-            validationFailures: [],
-          };
-        });
-
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
-      );
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
-
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
-      // Cleanup
-      jest.restoreAllMocks();
     });
 
     it('emits bridgeTransactionFailed event when the status response is failed', async () => {
@@ -1115,132 +1543,127 @@ describe('BridgeStatusController', () => {
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
 
-      const messengerMock = getMessengerMock();
-      const fetchBridgeTxStatusSpy = jest
-        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getFailed(),
-            validationFailures: [],
-          };
-        });
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
+      await withController(async ({ rootMessenger, messenger }) => {
+        registerDefaultActionHandlers(rootMessenger);
+        const messengerCallSpy = jest.spyOn(messenger, 'call');
+        const messengerPublishSpy = jest.spyOn(messenger, 'publish');
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockImplementationOnce(async () => {
+            return {
+              status: MockStatusResponse.getFailed(),
+              validationFailures: [],
+            };
+          });
+
+        // Execution
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs(),
+        );
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        // Assertions
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        expect(messengerPublishSpy).not.toHaveBeenCalledWith(
+          'BridgeStatusController:destinationTransactionCompleted',
+        );
+
+        // Cleanup
+        jest.restoreAllMocks();
       });
-
-      // Execution
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
-      );
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
-
-      // Assertions
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-      expect(messengerMock.call.mock.calls).toMatchSnapshot();
-      expect(messengerMock.publish).not.toHaveBeenCalledWith(
-        'BridgeStatusController:destinationTransactionCompleted',
-      );
-
-      // Cleanup
-      jest.restoreAllMocks();
     });
 
-    it('updates the srcTxHash when one is available', async () => {
-      // Setup
-      jest.useFakeTimers();
-      let getStateCallCount = 0;
+    it.each([
+      {
+        status: TransactionStatus.confirmed,
+      },
+      { status: TransactionStatus.failed },
+      { status: TransactionStatus.dropped },
+      { status: TransactionStatus.rejected },
+      { status: TransactionStatus.signed, shouldSetSrcTxHash: false },
+    ])(
+      'updates the srcTxHash when one is available, with status %s',
+      async ({ status, shouldSetSrcTxHash = true }) => {
+        // Setup
+        jest.useFakeTimers();
+        let getStateCallCount = 0;
 
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
-            return {
-              configuration: {
-                chainId: numberToHex(42161),
+        await withController(
+          {
+            options: {
+              fetchFn: jest
+                .fn()
+                .mockResolvedValueOnce(MockStatusResponse.getPending()),
+              traceFn: jest.fn(),
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+
+            rootMessenger.unregisterActionHandler(
+              'TransactionController:getState',
+            );
+            rootMessenger.registerActionHandler(
+              'TransactionController:getState',
+              // @ts-expect-error: Partial mock.
+              () => {
+                getStateCallCount += 1;
+                return {
+                  transactions: [
+                    {
+                      id: 'bridgeTxMetaId1',
+                      hash: getStateCallCount === 0 ? undefined : '0xnewTxHash',
+                      status,
+                    },
+                  ],
+                };
               },
-            };
-          } else if (method === 'TransactionController:getState') {
-            getStateCallCount += 1;
-            return {
-              transactions: [
-                {
-                  id: 'bridgeTxMetaId1',
-                  hash: getStateCallCount === 0 ? undefined : '0xnewTxHash',
-                },
-              ],
-            };
-          }
-          return null;
-        }),
-        subscribe: mockMessengerSubscribe,
-        publish: jest.fn(),
-        registerActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+            );
 
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest
-          .fn()
-          .mockResolvedValueOnce(MockStatusResponse.getPending()),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        traceFn: jest.fn(),
-      });
+            // Start polling with no srcTxHash
+            const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs({
+              srcTxHash: 'undefined',
+            });
+            rootMessenger.call(
+              'BridgeStatusController:startPollingForBridgeTxStatus',
+              startPollingArgs,
+            );
 
-      // Start polling with no srcTxHash
-      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
-      startPollingArgs.statusRequest.srcTxHash = undefined;
-      bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
+            // Verify initial state has no srcTxHash
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.status.srcChain.txHash,
+            ).toBeUndefined();
 
-      // Verify initial state has no srcTxHash
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
-          .txHash,
-      ).toBeUndefined();
+            // Advance timer to trigger polling with new hash
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
 
-      // Advance timer to trigger polling with new hash
-      jest.advanceTimersByTime(10000);
-      await flushPromises();
+            // Verify the srcTxHash was updated
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.status.srcChain.txHash,
+            ).toBe(shouldSetSrcTxHash ? '0xsrcTxHash1' : undefined);
 
-      // Verify the srcTxHash was updated
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
-          .txHash,
-      ).toBe('0xsrcTxHash1');
-
-      // Cleanup
-      bridgeStatusController.stopAllPolling();
-      jest.restoreAllMocks();
-    });
+            // Cleanup
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      },
+    );
   });
 
   describe('resetState', () => {
     it('resets the state', async () => {
-      const { bridgeStatusController } =
+      const { bridgeStatusController, rootMessenger } =
         await executePollingWithPendingStatus();
 
       expect(bridgeStatusController.state.txHistory).toStrictEqual(
         MockTxHistory.getPending(),
       );
-      bridgeStatusController.resetState();
+      rootMessenger.call('BridgeStatusController:resetState');
       expect(bridgeStatusController.state.txHistory).toStrictEqual(
         EMPTY_INIT_STATE.txHistory,
       );
@@ -1249,12 +1672,13 @@ describe('BridgeStatusController', () => {
 
   describe('getBridgeHistoryItemByTxMetaId', () => {
     it('returns the bridge history item when it exists', async () => {
-      const { bridgeStatusController } =
-        await executePollingWithPendingStatus();
+      const { rootMessenger } = await executePollingWithPendingStatus();
 
       const txMetaId = 'bridgeTxMetaId1';
-      const bridgeHistoryItem =
-        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
+      const bridgeHistoryItem = rootMessenger.call(
+        'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
+        txMetaId,
+      );
 
       expect(bridgeHistoryItem).toBeDefined();
       expect(bridgeHistoryItem?.quote.srcChainId).toBe(42161);
@@ -1263,418 +1687,315 @@ describe('BridgeStatusController', () => {
     });
 
     it('returns undefined when the transaction does not exist', async () => {
-      const { bridgeStatusController } =
-        await executePollingWithPendingStatus();
+      const { rootMessenger } = await executePollingWithPendingStatus();
 
       const txMetaId = 'nonExistentTxId';
-      const bridgeHistoryItem =
-        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
+      const bridgeHistoryItem = rootMessenger.call(
+        'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
+        txMetaId,
+      );
 
       expect(bridgeHistoryItem).toBeUndefined();
     });
 
-    it('handles the case when txHistory is empty', () => {
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        state: EMPTY_INIT_STATE,
-      });
-
-      const txMetaId = 'anyTxId';
-      const bridgeHistoryItem =
-        bridgeStatusController.getBridgeHistoryItemByTxMetaId(txMetaId);
-
-      expect(bridgeHistoryItem).toBeUndefined();
+    it('handles the case when txHistory is empty', async () => {
+      await withController(
+        { options: { state: EMPTY_INIT_STATE } },
+        async ({ rootMessenger }) => {
+          const bridgeHistoryItem = rootMessenger.call(
+            'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
+            'anyTxId',
+          );
+          expect(bridgeHistoryItem).toBeUndefined();
+        },
+      );
     });
 
-    it('returns the correct transaction when multiple transactions exist', () => {
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        state: {
-          txHistory: {
-            bridgeTxMetaId1: {
-              ...MockTxHistory.getPending().bridgeTxMetaId1,
-              quote: {
-                ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
-                srcChainId: 10,
-                destChainId: 137,
-              },
-            },
-            anotherTxId: {
-              ...MockTxHistory.getPending().bridgeTxMetaId1,
-              txMetaId: 'anotherTxId',
-              quote: {
-                ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
-                srcChainId: 1,
-                destChainId: 42161,
+    it('returns the correct transaction when multiple transactions exist', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              txHistory: {
+                bridgeTxMetaId1: {
+                  ...MockTxHistory.getPending().bridgeTxMetaId1,
+                  quote: {
+                    ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
+                    srcChainId: 10,
+                    destChainId: 137,
+                  },
+                },
+                anotherTxId: {
+                  ...MockTxHistory.getPending().bridgeTxMetaId1,
+                  txMetaId: 'anotherTxId',
+                  quote: {
+                    ...MockTxHistory.getPending().bridgeTxMetaId1.quote,
+                    srcChainId: 1,
+                    destChainId: 42161,
+                  },
+                },
               },
             },
           },
         },
-      });
+        async ({ rootMessenger }) => {
+          // Get the first transaction
+          const firstTransaction = rootMessenger.call(
+            'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
+            'bridgeTxMetaId1',
+          );
+          expect(firstTransaction?.quote.srcChainId).toBe(10);
+          expect(firstTransaction?.quote.destChainId).toBe(137);
 
-      // Get the first transaction
-      const firstTransaction =
-        bridgeStatusController.getBridgeHistoryItemByTxMetaId(
-          'bridgeTxMetaId1',
-        );
-      expect(firstTransaction?.quote.srcChainId).toBe(10);
-      expect(firstTransaction?.quote.destChainId).toBe(137);
-
-      // Get the second transaction
-      const secondTransaction =
-        bridgeStatusController.getBridgeHistoryItemByTxMetaId('anotherTxId');
-      expect(secondTransaction?.quote.srcChainId).toBe(1);
-      expect(secondTransaction?.quote.destChainId).toBe(42161);
+          // Get the second transaction
+          const secondTransaction = rootMessenger.call(
+            'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
+            'anotherTxId',
+          );
+          expect(secondTransaction?.quote.srcChainId).toBe(1);
+          expect(secondTransaction?.quote.destChainId).toBe(42161);
+        },
+      );
     });
   });
 
   describe('wipeBridgeStatus', () => {
+    beforeEach(() => {
+      jest.clearAllTimers();
+      jest.clearAllMocks();
+    });
+
     it('wipes the bridge status for the given address', async () => {
       // Setup
       jest.useFakeTimers();
 
-      let getSelectedMultichainAccountCalledTimes = 0;
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            let account;
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        registerDefaultActionHandlers(rootMessenger, {
+          account: '0xaccount1',
+        });
+        const messengerCallSpy = jest.spyOn(messenger, 'call');
 
-            if (getSelectedMultichainAccountCalledTimes === 0) {
-              account = '0xaccount1';
-            } else {
-              account = '0xaccount2';
-            }
-            getSelectedMultichainAccountCalledTimes += 1;
-            return { address: account };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockImplementationOnce(async () => {
             return {
-              configuration: {
-                chainId: numberToHex(42161),
-              },
+              status: MockStatusResponse.getComplete(),
+              validationFailures: [],
             };
-          } else if (method === 'TransactionController:getState') {
+          })
+          .mockImplementationOnce(async () => {
             return {
-              transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
+              status: MockStatusResponse.getComplete({
+                srcTxHash: '0xsrcTxHash2',
+                destTxHash: '0xdestTxHash2',
+              }),
+              validationFailures: [],
             };
-          }
-          return null;
-        }),
-        subscribe: mockMessengerSubscribe,
-        publish: jest.fn(),
-        registerActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
-      const fetchBridgeTxStatusSpy = jest
-        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete(),
-            validationFailures: [],
-          };
-        })
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete({
-              srcTxHash: '0xsrcTxHash2',
-              destTxHash: '0xdestTxHash2',
-            }),
-            validationFailures: [],
-          };
+          });
+
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs(),
+        );
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+        jest.advanceTimersByTime(10_000);
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+
+        // Start polling for 0xaccount2
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs({
+            txMetaId: 'bridgeTxMetaId2',
+            srcTxHash: '0xsrcTxHash2',
+            account: '0xaccount2',
+          }),
+        );
+        jest.advanceTimersByTime(10_000);
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+
+        // Check that both accounts have a tx history entry
+        expect(controller.state.txHistory).toHaveProperty('bridgeTxMetaId1');
+        expect(controller.state.txHistory).toHaveProperty('bridgeTxMetaId2');
+
+        // Wipe the status for 1 account only
+        rootMessenger.call('BridgeStatusController:wipeBridgeStatus', {
+          address: '0xaccount1',
+          ignoreNetwork: false,
         });
 
-      // Start polling for 0xaccount1
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs(),
-      );
-      jest.advanceTimersByTime(10_000);
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
-      // Start polling for 0xaccount2
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs({
-          txMetaId: 'bridgeTxMetaId2',
-          srcTxHash: '0xsrcTxHash2',
-          account: '0xaccount2',
-        }),
-      );
-      jest.advanceTimersByTime(10_000);
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
-
-      // Check that both accounts have a tx history entry
-      expect(bridgeStatusController.state.txHistory).toHaveProperty(
-        'bridgeTxMetaId1',
-      );
-      expect(bridgeStatusController.state.txHistory).toHaveProperty(
-        'bridgeTxMetaId2',
-      );
-
-      // Wipe the status for 1 account only
-      bridgeStatusController.wipeBridgeStatus({
-        address: '0xaccount1',
-        ignoreNetwork: false,
+        // Assertions
+        const txHistoryItems = Object.values(controller.state.txHistory);
+        expect(txHistoryItems).toHaveLength(1);
+        expect(txHistoryItems[0].account).toBe('0xaccount2');
+        expect(
+          messengerCallSpy.mock.calls.map((call) => call.slice(0, 2)),
+        ).toMatchSnapshot();
       });
-
-      // Assertions
-      const txHistoryItems = Object.values(
-        bridgeStatusController.state.txHistory,
-      );
-      expect(txHistoryItems).toHaveLength(1);
-      expect(txHistoryItems[0].account).toBe('0xaccount2');
-      expect(messengerMock.call.mock.calls).toMatchSnapshot();
     });
 
-    it('wipes the bridge status for all networks if ignoreNetwork is true', () => {
+    it('wipes the bridge status for all networks if ignoreNetwork is true', async () => {
       // Setup
       jest.useFakeTimers();
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerDefaultActionHandlers(rootMessenger);
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockImplementationOnce(async () => {
             return {
-              configuration: {
-                chainId: numberToHex(42161),
-              },
+              status: MockStatusResponse.getComplete(),
+              validationFailures: [],
             };
-          } else if (method === 'TransactionController:getState') {
+          })
+          .mockImplementationOnce(async () => {
             return {
-              transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
+              status: MockStatusResponse.getComplete({
+                srcTxHash: '0xsrcTxHash2',
+              }),
+              validationFailures: [],
             };
-          }
-          return null;
-        }),
-        subscribe: mockMessengerSubscribe,
-        publish: jest.fn(),
-        registerActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
-      const fetchBridgeTxStatusSpy = jest
-        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete(),
-            validationFailures: [],
-          };
-        })
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete({
-              srcTxHash: '0xsrcTxHash2',
-            }),
-            validationFailures: [],
-          };
+          });
+
+        // Start polling for chainId 42161 to chainId 1
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs({
+            account: '0xaccount1',
+            srcTxHash: '0xsrcTxHash1',
+            txMetaId: 'bridgeTxMetaId1',
+            srcChainId: 42161,
+            destChainId: 1,
+          }),
+        );
+        jest.advanceTimersToNextTimer();
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+
+        // Start polling for chainId 10 to chainId 123
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs({
+            account: '0xaccount1',
+            srcTxHash: '0xsrcTxHash2',
+            txMetaId: 'bridgeTxMetaId2',
+            srcChainId: 10,
+            destChainId: 123,
+          }),
+        );
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+
+        // Check we have a tx history entry for each chainId
+        expect(
+          controller.state.txHistory.bridgeTxMetaId1.quote.srcChainId,
+        ).toBe(42161);
+        expect(
+          controller.state.txHistory.bridgeTxMetaId1.quote.destChainId,
+        ).toBe(1);
+
+        expect(
+          controller.state.txHistory.bridgeTxMetaId2.quote.srcChainId,
+        ).toBe(10);
+        expect(
+          controller.state.txHistory.bridgeTxMetaId2.quote.destChainId,
+        ).toBe(123);
+
+        rootMessenger.call('BridgeStatusController:wipeBridgeStatus', {
+          address: '0xaccount1',
+          ignoreNetwork: true,
         });
 
-      // Start polling for chainId 42161 to chainId 1
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs({
-          account: '0xaccount1',
-          srcTxHash: '0xsrcTxHash1',
-          txMetaId: 'bridgeTxMetaId1',
-          srcChainId: 42161,
-          destChainId: 1,
-        }),
-      );
-      jest.advanceTimersByTime(10_000);
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
-      // Start polling for chainId 10 to chainId 123
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs({
-          account: '0xaccount1',
-          srcTxHash: '0xsrcTxHash2',
-          txMetaId: 'bridgeTxMetaId2',
-          srcChainId: 10,
-          destChainId: 123,
-        }),
-      );
-      jest.advanceTimersByTime(10_000);
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
-
-      // Check we have a tx history entry for each chainId
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote.srcChainId,
-      ).toBe(42161);
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote
-          .destChainId,
-      ).toBe(1);
-
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote.srcChainId,
-      ).toBe(10);
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote
-          .destChainId,
-      ).toBe(123);
-
-      bridgeStatusController.wipeBridgeStatus({
-        address: '0xaccount1',
-        ignoreNetwork: true,
+        // Assertions
+        const txHistoryItems = Object.values(controller.state.txHistory);
+        expect(txHistoryItems).toHaveLength(0);
       });
-
-      // Assertions
-      const txHistoryItems = Object.values(
-        bridgeStatusController.state.txHistory,
-      );
-      expect(txHistoryItems).toHaveLength(0);
     });
 
-    it('wipes the bridge status only for the current network if ignoreNetwork is false', () => {
+    it('wipes the bridge status only for the current network if ignoreNetwork is false', async () => {
       // Setup
       jest.useFakeTimers();
-      const messengerMock = {
-        call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedMultichainAccount') {
-            return { address: '0xaccount1' };
-          } else if (
-            method === 'NetworkController:findNetworkClientIdByChainId'
-          ) {
-            return 'networkClientId';
-          } else if (method === 'NetworkController:getState') {
-            return { selectedNetworkClientId: 'networkClientId' };
-          } else if (method === 'NetworkController:getNetworkClientById') {
+      await withController(async ({ controller, rootMessenger }) => {
+        // This is what controls the selectedNetwork and what gets wiped in this test
+        registerDefaultActionHandlers(rootMessenger);
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockImplementationOnce(async () => {
             return {
-              configuration: {
-                // This is what controls the selectedNetwork and what gets wiped in this test
-                chainId: numberToHex(42161),
-              },
+              status: MockStatusResponse.getComplete(),
+              validationFailures: [],
             };
-          } else if (method === 'TransactionController:getState') {
+          })
+          .mockImplementationOnce(async () => {
             return {
-              transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
+              status: MockStatusResponse.getComplete({
+                srcTxHash: '0xsrcTxHash2',
+              }),
+              validationFailures: [],
             };
-          }
-          return null;
-        }),
-        subscribe: mockMessengerSubscribe,
-        publish: jest.fn(),
-        registerActionHandler: jest.fn(),
-        registerInitialEventPayload: jest.fn(),
-      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
-      const bridgeStatusController = new BridgeStatusController({
-        messenger: messengerMock,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-      });
-      const fetchBridgeTxStatusSpy = jest
-        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete(),
-            validationFailures: [],
-          };
-        })
-        .mockImplementationOnce(async () => {
-          return {
-            status: MockStatusResponse.getComplete({
-              srcTxHash: '0xsrcTxHash2',
-            }),
-            validationFailures: [],
-          };
+          });
+
+        // Start polling for chainId 42161 to chainId 1
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs({
+            account: '0xaccount1',
+            srcTxHash: '0xsrcTxHash1',
+            txMetaId: 'bridgeTxMetaId1',
+            srcChainId: 42161,
+            destChainId: 1,
+          }),
+        );
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+        jest.advanceTimersByTime(10_000);
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+
+        // Start polling for chainId 10 to chainId 123
+        rootMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          getMockStartPollingForBridgeTxStatusArgs({
+            account: '0xaccount1',
+            srcTxHash: '0xsrcTxHash2',
+            txMetaId: 'bridgeTxMetaId2',
+            srcChainId: 10,
+            destChainId: 123,
+          }),
+        );
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+        jest.advanceTimersByTime(10_000);
+        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+
+        // Check we have a tx history entry for each chainId
+        expect(
+          controller.state.txHistory.bridgeTxMetaId1.quote.srcChainId,
+        ).toBe(42161);
+        expect(
+          controller.state.txHistory.bridgeTxMetaId1.quote.destChainId,
+        ).toBe(1);
+
+        expect(
+          controller.state.txHistory.bridgeTxMetaId2.quote.srcChainId,
+        ).toBe(10);
+        expect(
+          controller.state.txHistory.bridgeTxMetaId2.quote.destChainId,
+        ).toBe(123);
+
+        rootMessenger.call('BridgeStatusController:wipeBridgeStatus', {
+          address: '0xaccount1',
+          ignoreNetwork: false,
         });
 
-      // Start polling for chainId 42161 to chainId 1
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs({
-          account: '0xaccount1',
-          srcTxHash: '0xsrcTxHash1',
-          txMetaId: 'bridgeTxMetaId1',
-          srcChainId: 42161,
-          destChainId: 1,
-        }),
-      );
-      jest.advanceTimersByTime(10_000);
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-
-      // Start polling for chainId 10 to chainId 123
-      bridgeStatusController.startPollingForBridgeTxStatus(
-        getMockStartPollingForBridgeTxStatusArgs({
-          account: '0xaccount1',
-          srcTxHash: '0xsrcTxHash2',
-          txMetaId: 'bridgeTxMetaId2',
-          srcChainId: 10,
-          destChainId: 123,
-        }),
-      );
-      jest.advanceTimersByTime(10_000);
-      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
-
-      // Check we have a tx history entry for each chainId
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote.srcChainId,
-      ).toBe(42161);
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote
-          .destChainId,
-      ).toBe(1);
-
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote.srcChainId,
-      ).toBe(10);
-      expect(
-        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote
-          .destChainId,
-      ).toBe(123);
-
-      bridgeStatusController.wipeBridgeStatus({
-        address: '0xaccount1',
-        ignoreNetwork: false,
+        // Assertions
+        const txHistoryItems = Object.values(controller.state.txHistory);
+        expect(txHistoryItems).toHaveLength(1);
+        expect(txHistoryItems[0].quote.srcChainId).toBe(10);
+        expect(txHistoryItems[0].quote.destChainId).toBe(123);
       });
-
-      // Assertions
-      const txHistoryItems = Object.values(
-        bridgeStatusController.state.txHistory,
-      );
-      expect(txHistoryItems).toHaveLength(1);
-      expect(txHistoryItems[0].quote.srcChainId).toBe(10);
-      expect(txHistoryItems[0].quote.destChainId).toBe(123);
     });
   });
 
@@ -1811,7 +2132,8 @@ describe('BridgeStatusController', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       jest.clearAllTimers();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -1820,23 +2142,35 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockResolvedValueOnce('signature');
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        'SOLaccountAddress',
-        mockQuoteResponse,
-        false,
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'SOLaccountAddress',
+            mockQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
+
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+          expect(
+            startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+          ).toMatchSnapshot();
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+        },
       );
-      controller.stopAllPolling();
-
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-      expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
-      ).toMatchSnapshot();
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
     });
 
     it('should throw error when snap ID is missing', async () => {
@@ -1847,30 +2181,44 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: undefined snap id',
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'SOLaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: undefined snap id',
+          );
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
       );
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
     it('should throw error when account is missing', async () => {
       mockMessengerCall.mockReturnValueOnce(undefined);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: undefined multichain account',
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'SOLaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: undefined multichain account',
+          );
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+        },
       );
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
 
     it('should handle snap controller errors', async () => {
@@ -1878,14 +2226,21 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow('Snap error');
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'SOLaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow('Snap error');
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
@@ -2012,7 +2367,7 @@ describe('BridgeStatusController', () => {
           id: 'test-snap',
         },
         keyring: {
-          type: 'Hardware',
+          type: 'QR Hardware Wallet Device',
         },
       },
       options: { scope: 'solana-chain-id' },
@@ -2023,7 +2378,8 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       jest.clearAllTimers();
       mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -2033,23 +2389,32 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockResolvedValueOnce({
         signature: 'signature',
       });
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockReturnValueOnce({
         transactions: [],
       });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        'SOLaccountAddress',
-        mockQuoteResponse,
-        false,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'SOLaccountAddress',
+            mockQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
 
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(result).toMatchSnapshot();
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+        },
+      );
     });
 
     it('should throw error when snap ID is missing', async () => {
@@ -2060,31 +2425,45 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce(accountWithoutSnap);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: undefined snap id',
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'SOLaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: undefined snap id',
+          );
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+        },
       );
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
 
     it('should throw error when account is missing', async () => {
       mockMessengerCall.mockReturnValueOnce(undefined);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: undefined multichain account',
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'SOLaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: undefined multichain account',
+          );
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+        },
       );
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
     });
 
     it('should handle snap controller errors', async () => {
@@ -2092,14 +2471,21 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockRejectedValueOnce(new Error('Snap error'));
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('SOLaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow('Snap error');
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'SOLaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow('Snap error');
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
@@ -2247,7 +2633,9 @@ describe('BridgeStatusController', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       jest.clearAllTimers();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -2258,20 +2646,28 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockResolvedValueOnce('approval-signature'); // approval tx
       mockMessengerCall.mockResolvedValueOnce('swap-signature'); // swap tx
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        'TRXaccountAddress',
-        mockQuoteResponse,
-        false,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'TRXaccountAddress',
+            mockQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
 
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(result).toMatchSnapshot();
-      // Swaps don't start polling (only bridges do)
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          // Tron swaps start polling for async settlement
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+        },
+      );
     });
 
     it('should handle approval transaction errors', async () => {
@@ -2281,14 +2677,21 @@ describe('BridgeStatusController', () => {
         new Error('Approval transaction failed'),
       ); // approval tx error
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      await expect(
-        controller.submitTx('TRXaccountAddress', mockQuoteResponse, false),
-      ).rejects.toThrow('Approval transaction failed');
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              'TRXaccountAddress',
+              mockQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow('Approval transaction failed');
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should successfully submit a Tron bridge with approval transaction', async () => {
@@ -2305,22 +2708,30 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockResolvedValueOnce('approval-signature'); // approval tx
       mockMessengerCall.mockResolvedValueOnce('bridge-signature'); // bridge tx
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        'TRXaccountAddress',
-        mockTronBridgeQuote,
-        false,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'TRXaccountAddress',
+            mockTronBridgeQuote,
+            false,
+          );
+          controller.stopAllPolling();
 
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
-      expect(
-        startPollingForBridgeTxStatusSpy.mock.lastCall[0],
-      ).toMatchSnapshot();
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+          expect(
+            startPollingForBridgeTxStatusSpy.mock.lastCall[0],
+          ).toMatchSnapshot();
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+        },
+      );
     });
   });
 
@@ -2433,14 +2844,20 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       jest.clearAllTimers();
       mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValue(0.456);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567893);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.458);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
     const setupEventTrackingMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockImplementationOnce(jest.fn()); // track event
+      mockCall.mockReturnValueOnce([]); // isAtomicBatchSupported
     };
 
     const setupApprovalMocks = (mockCall: jest.Mock) => {
@@ -2449,8 +2866,8 @@ describe('BridgeStatusController', () => {
       mockCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockApprovalTxMeta,
         result: Promise.resolve('0xapprovalTxHash'),
       });
@@ -2465,8 +2882,8 @@ describe('BridgeStatusController', () => {
       mockCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
+      mockCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockCall.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
         result: Promise.resolve('0xevmTxHash'),
       });
@@ -2487,7 +2904,7 @@ describe('BridgeStatusController', () => {
       mockCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
       });
@@ -2507,57 +2924,70 @@ describe('BridgeStatusController', () => {
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        'otherAccount',
-        mockEvmQuoteResponse,
-        false,
-      );
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'otherAccount',
+            mockEvmQuoteResponse,
+            false,
+          );
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      controller.stopAllPolling();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          controller.stopAllPolling();
+        },
+      );
     });
 
     it('should successfully submit an EVM bridge transaction with no approval', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const erc20Token = {
-        address: '0x0000000000000000000000000000000000000032',
-        assetId: `eip155:10/slip44:60` as CaipAssetType,
-        chainId: 10,
-        symbol: 'WETH',
-        decimals: 18,
-        name: 'WETH',
-        coinKey: 'WETH',
-        logoURI:
-          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-        priceUSD: '2478.63',
-        icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-      };
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(
-        (quoteWithoutApproval.trade as TxData).from,
-        {
-          ...quoteWithoutApproval,
-          quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
-        },
-        false,
-      );
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const erc20Token = {
+            address: '0x0000000000000000000000000000000000000032',
+            assetId: `eip155:10/slip44:60` as CaipAssetType,
+            chainId: 10,
+            symbol: 'WETH',
+            decimals: 18,
+            name: 'WETH',
+            coinKey: 'WETH',
+            logoURI:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+            priceUSD: '2478.63',
+            icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+          };
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (quoteWithoutApproval.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
+            },
+            false,
+          );
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should handle smart transactions and include quotesReceivedContext', async () => {
@@ -2567,102 +2997,145 @@ describe('BridgeStatusController', () => {
         batchId: 'batchId1',
       });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(
-        (quoteWithoutApproval.trade as TxData).from,
-        quoteWithoutApproval,
-        true,
-        getQuotesReceivedProperties(quoteWithoutApproval, ['low_return'], true),
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (quoteWithoutApproval.trade as TxData).from,
+            quoteWithoutApproval,
+            true,
+            getQuotesReceivedProperties(
+              quoteWithoutApproval,
+              ['low_return'],
+              true,
+            ),
+          );
+          controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should throw an error if account is not found', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
-      await expect(
-        controller.submitTx(
-          (quoteWithoutApproval.trade as TxData).from,
-          quoteWithoutApproval,
-          false,
-        ),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: unknown account in trade data',
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (quoteWithoutApproval.trade as TxData).from,
+              quoteWithoutApproval,
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: unknown account in trade data',
+          );
+          controller.stopAllPolling();
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const addTransactionCall = mockMessengerCall.mock.calls.find(
+            (call) => call[0] === 'TransactionController:addTransaction',
+          );
+          expect(addTransactionCall).toBeUndefined();
+        },
       );
-      controller.stopAllPolling();
-
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(addTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should throw an error if EVM trade data is not valid', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
-      await expect(
-        controller.submitTx(
-          (quoteWithoutApproval.trade as TxData).from,
-          {
-            ...quoteWithoutApproval,
-            trade: (quoteWithoutApproval.trade as TxData).data,
-          },
-          false,
-        ),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (quoteWithoutApproval.trade as TxData).from,
+              {
+                ...quoteWithoutApproval,
+                trade: (quoteWithoutApproval.trade as TxData).data,
+              },
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
+          );
+          controller.stopAllPolling();
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const addTransactionCall = mockMessengerCall.mock.calls.find(
+            (call) => call[0] === 'TransactionController:addTransaction',
+          );
+          expect(addTransactionCall).toBeUndefined();
+        },
       );
-      controller.stopAllPolling();
-
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(addTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should throw an error if Solana trade data is not valid', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
-      await expect(
-        controller.submitTx(
-          (quoteWithoutApproval.trade as TxData).from,
-          {
-            ...quoteWithoutApproval,
-            quote: {
-              ...quoteWithoutApproval.quote,
-              srcChainId: ChainId.SOLANA,
-            },
-          },
-          false,
-        ),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (quoteWithoutApproval.trade as TxData).from,
+              {
+                ...quoteWithoutApproval,
+                quote: {
+                  ...quoteWithoutApproval.quote,
+                  srcChainId: ChainId.SOLANA,
+                },
+              },
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
+          );
+          controller.stopAllPolling();
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const addTransactionCall = mockMessengerCall.mock.calls.find(
+            (call) => call[0] === 'TransactionController:addTransaction',
+          );
+          expect(addTransactionCall).toBeUndefined();
+        },
       );
-      controller.stopAllPolling();
-
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(addTransactionFn).not.toHaveBeenCalled();
     });
 
     it('should reset USDT allowance', async () => {
@@ -2678,31 +3151,37 @@ describe('BridgeStatusController', () => {
       // Bridge transaction
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...mockEvmQuoteResponse,
-          resetApproval: {
-            chainId: 1,
-            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
-            from: '0xaccount1',
-            gasLimit: 21000,
-            to: '0xtokenContract',
-            value: '0x0',
-          },
-        },
-        false,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...mockEvmQuoteResponse,
+              resetApproval: {
+                chainId: 1,
+                data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+                from: '0xaccount1',
+                gasLimit: 21000,
+                to: '0xtokenContract',
+                value: '0x0',
+              },
+            },
+            false,
+          );
+          controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should handle smart transactions with USDT reset', async () => {
@@ -2712,15 +3191,15 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
       });
@@ -2729,35 +3208,58 @@ describe('BridgeStatusController', () => {
       });
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...mockEvmQuoteResponse,
-          resetApproval: {
-            chainId: 1,
-            data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
-            from: '0xaccount1',
-            gasLimit: 21000,
-            to: '0xtokenContract',
-            value: '0x0',
-          },
-        },
-        true,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...mockEvmQuoteResponse,
+              resetApproval: {
+                chainId: 1,
+                data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+                from: '0xaccount1',
+                gasLimit: 21000,
+                to: '0xtokenContract',
+                value: '0x0',
+              },
+            },
+            true,
+          );
+          controller.stopAllPolling();
 
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { quote, txMetaId, batchId } =
-        controller.state.txHistory[result.id];
-      expect(quote).toBeDefined();
-      expect(txMetaId).toBe(result.id);
-      expect(batchId).toBe('batchId1');
-      expect(estimateGasFeeFn).toHaveBeenCalledTimes(3);
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const { quote, txMetaId, batchId } =
+            controller.state.txHistory[result.id];
+          expect(quote).toBeDefined();
+          expect(txMetaId).toBe(result.id);
+          expect(batchId).toBe('batchId1');
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:estimateGasFee',
+            ),
+          ).toHaveLength(3);
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+          expect(
+            mockCalls.filter(
+              ([action]) =>
+                action === 'TransactionController:updateTransaction',
+            ),
+          ).toHaveLength(1);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(14);
+        },
+      );
     });
 
     it('should throw an error if approval tx fails', async () => {
@@ -2767,23 +3269,25 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockRejectedValueOnce(new Error('Approval tx failed'));
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockRejectedValueOnce(new Error('Approval tx failed'));
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow('Approval tx failed');
 
-      await expect(
-        controller.submitTx(
-          (mockEvmQuoteResponse.trade as TxData).from,
-          mockEvmQuoteResponse,
-          false,
-        ),
-      ).rejects.toThrow('Approval tx failed');
-
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should throw an error if approval tx meta does not exist', async () => {
@@ -2793,8 +3297,8 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: undefined,
         result: new Promise((resolve) => resolve('0xevmTxHash')),
       });
@@ -2803,22 +3307,25 @@ describe('BridgeStatusController', () => {
       });
 
       setupBridgeMocks(mockMessengerCall);
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
 
-      await expect(
-        controller.submitTx(
-          (mockEvmQuoteResponse.trade as TxData).from,
-          mockEvmQuoteResponse,
-          false,
-        ),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
+      await withController(
+        { mockMessengerCall },
+        async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              false,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
+          );
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
       );
-
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(addTransactionFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
     it('should delay after submitting linea approval', async () => {
@@ -2833,34 +3340,39 @@ describe('BridgeStatusController', () => {
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } = getController(
-        mockMessengerCall,
-        mockTraceFn,
+      await withController(
+        { mockMessengerCall, options: { traceFn: mockTraceFn } },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const lineaQuoteResponse = {
+            ...mockEvmQuoteResponse,
+            quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
+            trade: {
+              ...(mockEvmQuoteResponse.trade as TxData),
+              gasLimit: undefined,
+            },
+          };
+
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'otherAccount',
+            lineaQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
+
+          expect(mockTraceFn).toHaveBeenCalledTimes(2);
+          expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(mockTraceFn.mock.calls).toMatchSnapshot();
+        },
       );
-
-      const lineaQuoteResponse = {
-        ...mockEvmQuoteResponse,
-        quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
-        trade: {
-          ...(mockEvmQuoteResponse.trade as TxData),
-          gasLimit: undefined,
-        } as never,
-      };
-
-      const result = await controller.submitTx(
-        'otherAccount',
-        lineaQuoteResponse,
-        false,
-      );
-      controller.stopAllPolling();
-
-      expect(mockTraceFn).toHaveBeenCalledTimes(2);
-      expect(handleLineaDelaySpy).toHaveBeenCalledTimes(1);
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
     it('should delay after submitting base approval', async () => {
@@ -2875,37 +3387,48 @@ describe('BridgeStatusController', () => {
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } = getController(
-        mockMessengerCall,
-        mockTraceFn,
+      await withController(
+        { mockMessengerCall, options: { traceFn: mockTraceFn } },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const baseQuoteResponse = {
+            ...mockEvmQuoteResponse,
+            quote: { ...mockEvmQuoteResponse.quote, srcChainId: 8453 },
+            trade: {
+              ...(mockEvmQuoteResponse.trade as TxData),
+              gasLimit: undefined,
+            },
+          };
+
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'otherAccount',
+            baseQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
+
+          expect(mockTraceFn).toHaveBeenCalledTimes(2);
+          expect(handleBaseDelaySpy).toHaveBeenCalledTimes(1);
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(mockTraceFn.mock.calls).toMatchSnapshot();
+        },
       );
-
-      const baseQuoteResponse = {
-        ...mockEvmQuoteResponse,
-        quote: { ...mockEvmQuoteResponse.quote, srcChainId: 8453 },
-        trade: {
-          ...(mockEvmQuoteResponse.trade as TxData),
-          gasLimit: undefined,
-        } as never,
-      };
-
-      const result = await controller.submitTx(
-        'otherAccount',
-        baseQuoteResponse,
-        false,
-      );
-      controller.stopAllPolling();
-
-      expect(mockTraceFn).toHaveBeenCalledTimes(2);
-      expect(handleBaseDelaySpy).toHaveBeenCalledTimes(1);
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
-    it('should call handleMobileHardwareWalletDelay for hardware wallet on mobile', async () => {
+    it('waits for approval tx confirmation before swap for hardware wallet on mobile', async () => {
+      const waitForTxConfirmationSpy = jest
+        .spyOn(transactionUtils, 'waitForTxConfirmation')
+        .mockResolvedValueOnce({
+          ...mockApprovalTxMeta,
+          status: TransactionStatus.confirmed,
+        } as never);
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
@@ -2924,31 +3447,46 @@ describe('BridgeStatusController', () => {
         },
       });
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } = getController(
-        mockMessengerCall,
-        mockTraceFn,
-        BridgeClientId.MOBILE,
-      );
+      await withController(
+        {
+          mockMessengerCall,
+          options: { traceFn: mockTraceFn, clientId: BridgeClientId.MOBILE },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
 
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
-        false,
+          expect(mockTraceFn).toHaveBeenCalledTimes(2);
+          expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
+          expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(true);
+          expect(
+            handleMobileHardwareWalletDelaySpy.mock.invocationCallOrder[0],
+          ).toBeLessThan(waitForTxConfirmationSpy.mock.invocationCallOrder[0]);
+          expect(waitForTxConfirmationSpy).toHaveBeenCalledWith(
+            expect.any(Object),
+            mockApprovalTxMeta.id,
+          );
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(mockTraceFn.mock.calls).toMatchSnapshot();
+        },
       );
-      controller.stopAllPolling();
-
-      expect(mockTraceFn).toHaveBeenCalledTimes(2);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(true);
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
     it('should not call handleMobileHardwareWalletDelay on extension', async () => {
@@ -2963,28 +3501,40 @@ describe('BridgeStatusController', () => {
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } = getController(
-        mockMessengerCall,
-        mockTraceFn,
-        BridgeClientId.EXTENSION, // Using EXTENSION client
-      );
+      await withController(
+        {
+          mockMessengerCall,
+          options: {
+            traceFn: mockTraceFn,
+            clientId: BridgeClientId.EXTENSION,
+          },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            'otherAccount',
+            mockEvmQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
 
-      const result = await controller.submitTx(
-        'otherAccount',
-        mockEvmQuoteResponse,
-        false,
+          expect(mockTraceFn).toHaveBeenCalledTimes(2);
+          // Should call the function but with false since it's Extension
+          expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
+          expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(
+            false,
+          );
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(mockTraceFn.mock.calls).toMatchSnapshot();
+        },
       );
-      controller.stopAllPolling();
-
-      expect(mockTraceFn).toHaveBeenCalledTimes(2);
-      // Should call the function but with false since it's Extension
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(false);
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
     it('should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile', async () => {
@@ -3006,32 +3556,190 @@ describe('BridgeStatusController', () => {
         },
       });
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
 
-      const { controller, startPollingForBridgeTxStatusSpy } = getController(
-        mockMessengerCall,
-        mockTraceFn,
-        BridgeClientId.MOBILE, // Using MOBILE client
-      );
+      await withController(
+        {
+          mockMessengerCall,
+          options: { traceFn: mockTraceFn, clientId: BridgeClientId.MOBILE },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
 
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
-        false,
+          expect(mockTraceFn).toHaveBeenCalledTimes(2);
+          // Should call the function but with false since it's not a hardware wallet
+          expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
+          expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(
+            false,
+          );
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(mockTraceFn.mock.calls).toMatchSnapshot();
+        },
       );
-      controller.stopAllPolling();
+    });
 
-      expect(mockTraceFn).toHaveBeenCalledTimes(2);
-      // Should call the function but with false since it's not a hardware wallet
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(false);
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
-      expect(mockTraceFn.mock.calls).toMatchSnapshot();
+    describe('actionId tracking and rekeying', () => {
+      it('should add pre-submission history keyed by actionId and rekey to txMeta.id after success', async () => {
+        // Mock generateActionId to return a predictable value
+        const mockActionId = '1234567890.456';
+        jest
+          .spyOn(transactionUtils, 'generateActionId')
+          .mockReturnValue(mockActionId);
+
+        setupEventTrackingMocks(mockMessengerCall);
+        // No approval for this test - direct to bridge tx
+        const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+        setupBridgeMocks(mockMessengerCall);
+
+        await withController(
+          { mockMessengerCall },
+          async ({
+            controller,
+            rootMessenger,
+            startPollingForBridgeTxStatusSpy,
+          }) => {
+            const result = await rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (quoteWithoutApproval.trade as TxData).from,
+              quoteWithoutApproval,
+              false, // STX disabled - uses non-batch path
+            );
+            controller.stopAllPolling();
+
+            // Verify the final history is keyed by txMeta.id (not actionId)
+            expect(controller.state.txHistory[result.id]).toBeDefined();
+            expect(controller.state.txHistory[result.id].txMetaId).toBe(
+              result.id,
+            );
+            expect(controller.state.txHistory[result.id].actionId).toBe(
+              mockActionId,
+            );
+
+            // Verify the actionId key no longer exists (was rekeyed)
+            expect(controller.state.txHistory[mockActionId]).toBeUndefined();
+
+            // Verify srcTxHash was updated during rekey
+            expect(
+              controller.state.txHistory[result.id].status.srcChain.txHash,
+            ).toBe(result.hash);
+
+            expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
+
+      it('should preserve pre-submission history for tracking when trade tx submission fails', async () => {
+        const mockActionId = '9876543210.789';
+        jest
+          .spyOn(transactionUtils, 'generateActionId')
+          .mockReturnValue(mockActionId);
+
+        setupEventTrackingMocks(mockMessengerCall);
+        const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+
+        // Setup for trade tx (no approval)
+        mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+        mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
+        mockMessengerCall.mockReturnValueOnce({
+          gasFeeEstimates: { estimatedBaseFee: '0x1234' },
+        });
+        mockMessengerCall.mockResolvedValueOnce({
+          estimates: {
+            high: {
+              suggestedMaxFeePerGas: '0x1234',
+              suggestedMaxPriorityFeePerGas: '0x5678',
+            },
+          },
+        });
+
+        // Trade tx fails during submission
+        mockMessengerCall.mockRejectedValueOnce(
+          new Error('Trade tx submission failed'),
+        );
+
+        await withController(
+          { mockMessengerCall },
+          async ({
+            controller,
+            rootMessenger,
+            startPollingForBridgeTxStatusSpy,
+          }) => {
+            await expect(
+              rootMessenger.call(
+                'BridgeStatusController:submitTx',
+                (quoteWithoutApproval.trade as TxData).from,
+                quoteWithoutApproval,
+                false,
+              ),
+            ).rejects.toThrow('Trade tx submission failed');
+
+            // Verify: Pre-submission history should still exist keyed by actionId
+            // This allows failed event tracking to find the quote data
+            expect(controller.state.txHistory[mockActionId]).toBeDefined();
+            expect(controller.state.txHistory[mockActionId].actionId).toBe(
+              mockActionId,
+            );
+            expect(
+              controller.state.txHistory[mockActionId].txMetaId,
+            ).toBeUndefined();
+            expect(
+              controller.state.txHistory[mockActionId].status.srcChain.txHash,
+            ).toBeUndefined(); // Empty since tx w submitted
+
+            expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
+
+      it('should use provided actionId from addTransactionFn result', async () => {
+        const mockActionId = '1111111111.222';
+        jest
+          .spyOn(transactionUtils, 'generateActionId')
+          .mockReturnValue(mockActionId);
+
+        setupEventTrackingMocks(mockMessengerCall);
+        setupApprovalMocks(mockMessengerCall);
+        setupBridgeMocks(mockMessengerCall);
+
+        await withController(
+          { mockMessengerCall },
+          async ({
+            controller,
+            rootMessenger,
+            startPollingForBridgeTxStatusSpy,
+          }) => {
+            const result = await rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              false, // STX disabled
+            );
+            controller.stopAllPolling();
+
+            // Verify actionId is stored in the history item
+            expect(controller.state.txHistory[result.id].actionId).toBe(
+              mockActionId,
+            );
+            expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
     });
   });
 
@@ -3134,14 +3842,18 @@ describe('BridgeStatusController', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValue(0.456);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
     const setupEventTrackingMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockImplementationOnce(jest.fn()); // track event
+      mockCall.mockReturnValueOnce([]); // isAtomicBatchSupported
     };
 
     const setupApprovalMocks = () => {
@@ -3150,8 +3862,8 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockApprovalTxMeta,
         result: Promise.resolve('0xapprovalTxHash'),
       });
@@ -3166,8 +3878,8 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      addTransactionFn.mockResolvedValueOnce({
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
         result: Promise.resolve('0xevmTxHash'),
       });
@@ -3176,9 +3888,6 @@ describe('BridgeStatusController', () => {
       });
 
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      // mockMessengerCall.mockReturnValueOnce({
-      //   transactions: [mockEvmTxMeta],
-      // });
     };
 
     it('should successfully submit an EVM swap transaction with approval', async () => {
@@ -3186,50 +3895,69 @@ describe('BridgeStatusController', () => {
       setupApprovalMocks();
       setupBridgeMocks();
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
-        false,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            false,
+          );
+          controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { approvalTxId } = controller.state.txHistory[result.id];
-      expect(approvalTxId).toBe('test-approval-tx-id');
-      expect(addTransactionFn).toHaveBeenCalledTimes(2);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(11);
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const { approvalTxId } = controller.state.txHistory[result.id];
+          expect(approvalTxId).toBe('test-approval-tx-id');
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(2);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(16);
+        },
+      );
     });
 
     it('should successfully submit an EVM swap transaction with featureId', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
       setupApprovalMocks();
       setupBridgeMocks();
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...mockEvmQuoteResponse,
-          featureId: FeatureId.PERPS,
-        },
-        false,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...mockEvmQuoteResponse,
+              featureId: FeatureId.PERPS,
+            },
+            false,
+          );
+          controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      const { approvalTxId } = controller.state.txHistory[result.id];
-      expect(approvalTxId).toBe('test-approval-tx-id');
-      expect(controller.state.txHistory[result.id].featureId).toBe(
-        FeatureId.PERPS,
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const { approvalTxId } = controller.state.txHistory[result.id];
+          expect(approvalTxId).toBe('test-approval-tx-id');
+          expect(controller.state.txHistory[result.id].featureId).toBe(
+            FeatureId.PERPS,
+          );
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
       );
-      expect(addTransactionFn).toHaveBeenCalledTimes(2);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
     it('should handle a gasless swap transaction with approval', async () => {
@@ -3243,80 +3971,100 @@ describe('BridgeStatusController', () => {
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
       });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...mockEvmQuoteResponse,
-          quote: {
-            ...mockEvmQuoteResponse.quote,
-            gasIncluded: true,
-            feeData: {
-              txFee: {
-                maxFeePerGas: '123',
-                maxPriorityFeePerGas: '123',
-              } as never,
-            } as never,
-          },
-        },
-        true,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...mockEvmQuoteResponse,
+              quote: {
+                ...mockEvmQuoteResponse.quote,
+                gasIncluded: true,
+                feeData: {
+                  txFee: {
+                    maxFeePerGas: '123',
+                    maxPriorityFeePerGas: '123',
+                  },
+                },
+              },
+            },
+            true,
+          );
+          controller.stopAllPolling();
 
-      const { txParams, ...resultsToCheck } = result;
-      expect(resultsToCheck).toMatchInlineSnapshot(`
-        Object {
-          "batchId": "batchId1",
-          "chainId": "0xa4b1",
-          "hash": "0xevmTxHash",
-          "id": "test-tx-id",
-          "status": "unapproved",
-          "time": 1234567890,
-          "type": "swap",
-        }
-      `);
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(6);
+          const { txParams, ...resultsToCheck } = result;
+          expect(resultsToCheck).toMatchInlineSnapshot(`
+            {
+              "batchId": "batchId1",
+              "chainId": "0xa4b1",
+              "hash": "0xevmTxHash",
+              "id": "test-tx-id",
+              "status": "unapproved",
+              "time": 1234567890,
+              "type": "swap",
+            }
+          `);
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(8);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+        },
+      );
     });
 
     it('should successfully submit an EVM swap transaction with no approval', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeMocks();
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const erc20Token = {
-        address: '0x0000000000000000000000000000000000000032',
-        assetId: `eip155:10/slip44:60` as CaipAssetType,
-        chainId: 10,
-        symbol: 'WETH',
-        decimals: 18,
-        name: 'WETH',
-        coinKey: 'WETH',
-        logoURI:
-          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-        priceUSD: '2478.63',
-        icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-      };
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...quoteWithoutApproval,
-          quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
-        },
-        false,
-      );
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const erc20Token = {
+            address: '0x0000000000000000000000000000000000000032',
+            assetId: `eip155:10/slip44:60` as CaipAssetType,
+            chainId: 10,
+            symbol: 'WETH',
+            decimals: 18,
+            name: 'WETH',
+            coinKey: 'WETH',
+            logoURI:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+            priceUSD: '2478.63',
+            icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+          };
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
+              gasFee: undefined as never,
+            },
+            false,
+          );
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
-      expect(addTransactionFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should use quote txFee when gasIncluded is true and STX is off (Max native token swap)', async () => {
@@ -3325,7 +4073,7 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
       // Skip GasFeeController mock since we use quote's txFee directly
-      addTransactionFn.mockResolvedValueOnce({
+      mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
         result: Promise.resolve('0xevmTxHash'),
       });
@@ -3334,76 +4082,198 @@ describe('BridgeStatusController', () => {
       });
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...quoteWithoutApproval,
-          quote: {
-            ...quoteWithoutApproval.quote,
-            gasIncluded: true,
-            gasIncluded7702: false,
-            feeData: {
-              ...quoteWithoutApproval.quote.feeData,
-              txFee: {
-                maxFeePerGas: '1395348', // Decimal string from quote
-                maxPriorityFeePerGas: '1000001',
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: {
+                ...quoteWithoutApproval.quote,
+                gasIncluded: true,
+                gasIncluded7702: false,
+                feeData: {
+                  ...quoteWithoutApproval.quote.feeData,
+                  txFee: {
+                    maxFeePerGas: '1395348', // Decimal string from quote
+                    maxPriorityFeePerGas: '1000001',
+                  },
+                },
               },
             },
-          },
-        } as never,
-        false, // isStxEnabledOnClient = FALSE (key for this test)
+            false, // isStxEnabledOnClient = FALSE (key for this test)
+          );
+          controller.stopAllPolling();
+
+          const mockCalls = mockMessengerCall.mock.calls;
+
+          // Should use single tx path (addTransactionFn), NOT batch path
+          const addTransactionCalls = mockCalls.filter(
+            ([action]) => action === 'TransactionController:addTransaction',
+          );
+          expect(addTransactionCalls).toHaveLength(1);
+          // Should NOT estimate gas (uses quote's txFee instead)
+          const estimateGasFeeCalls = mockCalls.filter(
+            ([action]) => action === 'TransactionController:estimateGasFee',
+          );
+          expect(estimateGasFeeCalls).toHaveLength(0);
+
+          // Verify the tx params have hex-converted gas fees from quote
+          const txParams = addTransactionCalls[0]?.[1];
+          expect(txParams.maxFeePerGas).toBe('0x154a94'); // toHex(1395348)
+          expect(txParams.maxPriorityFeePerGas).toBe('0xf4241'); // toHex(1000001)
+          expect(txParams.gas).toBe('0x5208');
+
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+        },
       );
-      controller.stopAllPolling();
+    });
 
-      // Should use single tx path (addTransactionFn), NOT batch path
-      expect(addTransactionFn).toHaveBeenCalledTimes(1);
-      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+    it('should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit)', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      // Setup for single tx path - no gas estimation needed since gasIncluded=true
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      // Skip GasFeeController mock since we use quote's txFee directly
+      mockMessengerCall.mockResolvedValueOnce({
+        transactionMeta: mockEvmTxMeta,
+        result: Promise.resolve('0xevmTxHash'),
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [mockEvmTxMeta],
+      });
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
-      // Should NOT estimate gas (uses quote's txFee instead)
-      expect(estimateGasFeeFn).not.toHaveBeenCalled();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: {
+                ...quoteWithoutApproval.quote,
+                gasIncluded: true,
+                gasIncluded7702: false,
+                feeData: {
+                  ...quoteWithoutApproval.quote.feeData,
+                  txFee: {
+                    maxFeePerGas: '1395348', // Decimal string from quote
+                    maxPriorityFeePerGas: '1000001',
+                  },
+                },
+              },
+              trade: {
+                ...(quoteWithoutApproval.trade as TxData),
+                gasLimit: undefined as never,
+              },
+              sentAmount: {
+                amount: null as never,
+                valueInCurrency: null,
+                usd: null,
+              },
+            },
+            false, // isStxEnabledOnClient = FALSE (key for this test)
+          );
+          controller.stopAllPolling();
 
-      // Verify the tx params have hex-converted gas fees from quote
-      const txParams = addTransactionFn.mock.calls[0][0];
-      expect(txParams.maxFeePerGas).toBe('0x154a94'); // toHex(1395348)
-      expect(txParams.maxPriorityFeePerGas).toBe('0xf4241'); // toHex(1000001)
+          const mockCalls = mockMessengerCall.mock.calls;
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          // Should NOT estimate gas (uses quote's txFee instead)
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:estimateGasFee',
+            ),
+          ).toHaveLength(0);
+          expect(
+            mockCalls.filter(
+              ([action]) =>
+                action === 'TransactionController:addTransactionBatch',
+            ),
+          ).toHaveLength(0);
+
+          // Should use single tx path (addTransactionFn), NOT batch path
+          const addTransactionCalls = mockCalls.filter(
+            ([action]) => action === 'TransactionController:addTransaction',
+          );
+          expect(addTransactionCalls).toHaveLength(1);
+          // Verify the tx params have hex-converted gas fees from quote
+          const txParams = addTransactionCalls[0]?.[1];
+          expect(txParams.maxFeePerGas).toBe('0x154a94'); // toHex(1395348)
+          expect(txParams.maxPriorityFeePerGas).toBe('0xf4241'); // toHex(1000001)
+          expect(txParams.gas).toBeUndefined();
+
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+        },
+      );
     });
 
     it('should estimate gas when gasIncluded is false and STX is off', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeMocks();
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: {
+                ...quoteWithoutApproval.quote,
+                gasIncluded: false,
+                gasIncluded7702: false,
+              },
+            },
+            false, // STX off
+          );
+          controller.stopAllPolling();
 
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...quoteWithoutApproval,
-          quote: {
-            ...quoteWithoutApproval.quote,
-            gasIncluded: false,
-            gasIncluded7702: false,
-          },
+          // Should estimate gas since gasIncluded is false
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:estimateGasFee',
+            ),
+          ).toHaveLength(1);
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(1);
+          expect(
+            mockCalls.filter(
+              ([action]) =>
+                action === 'TransactionController:addTransactionBatch',
+            ),
+          ).toHaveLength(0);
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(result).toMatchSnapshot();
         },
-        false, // STX off
       );
-      controller.stopAllPolling();
-
-      // Should estimate gas since gasIncluded is false
-      expect(estimateGasFeeFn).toHaveBeenCalledTimes(1);
-      expect(addTransactionFn).toHaveBeenCalledTimes(1);
-      expect(addTransactionBatchFn).not.toHaveBeenCalled();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(result).toMatchSnapshot();
     });
 
     it('should use batch path when gasIncluded7702 is true regardless of STX setting', async () => {
@@ -3417,36 +4287,92 @@ describe('BridgeStatusController', () => {
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
       });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-
-      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        {
-          ...quoteWithoutApproval,
-          quote: {
-            ...quoteWithoutApproval.quote,
-            gasIncluded: true,
-            gasIncluded7702: true, // 7702 takes precedence → batch path
-            feeData: {
-              ...quoteWithoutApproval.quote.feeData,
-              txFee: {
-                maxFeePerGas: '1395348',
-                maxPriorityFeePerGas: '1000001',
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: {
+                ...quoteWithoutApproval.quote,
+                gasIncluded: true,
+                gasIncluded7702: true, // 7702 takes precedence → batch path
+                feeData: {
+                  ...quoteWithoutApproval.quote.feeData,
+                  txFee: {
+                    maxFeePerGas: '1395348',
+                    maxPriorityFeePerGas: '1000001',
+                  },
+                },
               },
             },
-          },
-        } as never,
-        false, // STX off, but gasIncluded7702 = true forces batch path
-      );
-      controller.stopAllPolling();
+            false, // STX off, but gasIncluded7702 = true forces batch path
+          );
+          controller.stopAllPolling();
 
-      // Should use batch path because gasIncluded7702 = true
-      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(result).toMatchSnapshot();
+          // Should use batch path because gasIncluded7702 = true
+          expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(result).toMatchSnapshot();
+        },
+      );
+    });
+
+    it('should use batch path when gasIncluded7702 is true regardless of STX setting (with approval)', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [
+          { ...mockApprovalTxMeta, batchId: 'batchId1' },
+          { ...mockEvmTxMeta, batchId: 'batchId1' },
+        ],
+      });
+
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...mockEvmQuoteResponse,
+              quote: {
+                ...mockEvmQuoteResponse.quote,
+                gasIncluded: true,
+                gasIncluded7702: true, // 7702 takes precedence → batch path
+                feeData: {
+                  ...mockEvmQuoteResponse.quote.feeData,
+                  txFee: {
+                    maxFeePerGas: '1395348',
+                    maxPriorityFeePerGas: '1000001',
+                  },
+                },
+              },
+            },
+            false, // STX off, but gasIncluded7702 = true forces batch path
+          );
+          controller.stopAllPolling();
+
+          expect(result).toMatchSnapshot();
+        },
+      );
     });
 
     it('should handle smart transactions', async () => {
@@ -3456,11 +4382,11 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
       });
@@ -3468,46 +4394,111 @@ describe('BridgeStatusController', () => {
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
       });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      const result = await controller.submitTx(
-        (mockEvmQuoteResponse.trade as TxData).from,
-        mockEvmQuoteResponse,
-        true,
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            true,
+          );
+          controller.stopAllPolling();
 
-      expect(result).toMatchSnapshot();
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(controller.state.txHistory[result.id]).toMatchSnapshot();
-      expect(estimateGasFeeFn.mock.calls).toMatchSnapshot();
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
-      expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+          expect(result).toMatchSnapshot();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(addTransactionBatchFn.mock.calls).toMatchSnapshot();
+          expect(mockMessengerCall.mock.calls).toMatchSnapshot();
+        },
+      );
     });
 
     it('should throw error if account is not found', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(undefined);
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      await expect(
-        controller.submitTx(
-          (mockEvmQuoteResponse.trade as TxData).from,
-          mockEvmQuoteResponse,
-          true,
-        ),
-      ).rejects.toThrow(
-        'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              true,
+            ),
+          ).rejects.toThrow(
+            'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
+          );
+          controller.stopAllPolling();
 
-      expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
-      expect(estimateGasFeeFn).not.toHaveBeenCalled();
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn).not.toHaveBeenCalled();
-      expect(mockMessengerCall).toHaveBeenCalledTimes(4);
+          expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:estimateGasFee',
+            ),
+          ).toHaveLength(0);
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(
+            mockCalls.filter(
+              ([action]) =>
+                action === 'TransactionController:addTransactionBatch',
+            ),
+          ).toHaveLength(0);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(6);
+          expect(
+            mockCalls.find(
+              ([action, eventName]) =>
+                action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+                eventName === UnifiedSwapBridgeEventName.Failed,
+            ),
+          ).toMatchInlineSnapshot(`
+            [
+              "BridgeController:trackUnifiedSwapBridgeEvent",
+              "Unified SwapBridge Failed",
+              {
+                "account_hardware_type": null,
+                "action_type": "swapbridge-v1",
+                "chain_id_destination": "eip155:42161",
+                "chain_id_source": "eip155:42161",
+                "custom_slippage": false,
+                "error_message": "Failed to submit cross-chain swap batch transaction: unknown account in trade data",
+                "gas_included": false,
+                "gas_included_7702": false,
+                "is_hardware_wallet": false,
+                "location": "Main View",
+                "price_impact": 0,
+                "provider": "lifi_across",
+                "quoted_time_minutes": 0,
+                "stx_enabled": true,
+                "swap_type": "single_chain",
+                "token_address_destination": "eip155:10/slip44:60",
+                "token_address_source": "eip155:42161/slip44:60",
+                "token_security_type_destination": null,
+                "token_symbol_destination": "ETH",
+                "token_symbol_source": "ETH",
+                "usd_amount_source": 1.01,
+                "usd_quoted_gas": 2.5778,
+                "usd_quoted_return": 0,
+              },
+            ]
+          `);
+        },
+      );
     });
 
     it('should throw error if batched tx is not found', async () => {
@@ -3517,11 +4508,11 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockReturnValueOnce({
         gasFeeEstimates: { estimatedBaseFee: '0x1234' },
       });
-      estimateGasFeeFn.mockResolvedValueOnce(mockEstimateGasFeeResult);
+      mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
       });
@@ -3529,358 +4520,459 @@ describe('BridgeStatusController', () => {
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchIdUnknown' }],
       });
 
-      const { controller, startPollingForBridgeTxStatusSpy } =
-        getController(mockMessengerCall);
-      await expect(
-        controller.submitTx(
-          (mockEvmQuoteResponse.trade as TxData).from,
-          mockEvmQuoteResponse,
-          true,
-        ),
-      ).rejects.toThrow(
-        'Failed to update cross-chain swap transaction batch: tradeMeta not found',
-      );
-      controller.stopAllPolling();
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              mockEvmQuoteResponse,
+              true,
+            ),
+          ).rejects.toThrow(
+            'Failed to update cross-chain swap transaction batch: tradeMeta not found',
+          );
+          controller.stopAllPolling();
 
-      expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-      expect(estimateGasFeeFn).toHaveBeenCalledTimes(2);
-      expect(addTransactionFn).not.toHaveBeenCalled();
-      expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(8);
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:estimateGasFee',
+            ),
+          ).toHaveLength(2);
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(12);
+          expect(
+            mockCalls.find(
+              ([action, eventName]) =>
+                action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+                eventName === UnifiedSwapBridgeEventName.Failed,
+            ),
+          ).toMatchInlineSnapshot(`
+            [
+              "BridgeController:trackUnifiedSwapBridgeEvent",
+              "Unified SwapBridge Failed",
+              {
+                "account_hardware_type": null,
+                "action_type": "swapbridge-v1",
+                "chain_id_destination": "eip155:42161",
+                "chain_id_source": "eip155:42161",
+                "custom_slippage": false,
+                "error_message": "Failed to update cross-chain swap transaction batch: tradeMeta not found",
+                "gas_included": false,
+                "gas_included_7702": false,
+                "is_hardware_wallet": false,
+                "location": "Main View",
+                "price_impact": 0,
+                "provider": "lifi_across",
+                "quoted_time_minutes": 0,
+                "stx_enabled": true,
+                "swap_type": "single_chain",
+                "token_address_destination": "eip155:10/slip44:60",
+                "token_address_source": "eip155:42161/slip44:60",
+                "token_security_type_destination": null,
+                "token_symbol_destination": "ETH",
+                "token_symbol_source": "ETH",
+                "usd_amount_source": 1.01,
+                "usd_quoted_gas": 2.5778,
+                "usd_quoted_return": 0,
+              },
+            ]
+          `);
+        },
+      );
+    });
+
+    it('should gracefully handle isAtomicBatchSupported failure', async () => {
+      // Manually set up mocks without setupEventTrackingMocks
+      // to control the isAtomicBatchSupported mock
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // getAccountByAddress
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockRejectedValueOnce(
+        new Error('isAtomicBatchSupported failed'),
+      ); // isAtomicBatchSupported throws
+      setupApprovalMocks();
+      setupBridgeMocks();
+
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            mockEvmQuoteResponse,
+            false, // STX disabled - uses non-batch path
+          );
+          controller.stopAllPolling();
+
+          // Should fall back to non-batch path when isAtomicBatchSupported throws
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:estimateGasFee',
+            ),
+          ).toHaveLength(2);
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(2);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(16);
+          expect(addTransactionBatchFn).not.toHaveBeenCalled();
+          expect(mockCalls).toMatchSnapshot();
+          expect(result).toMatchInlineSnapshot(`
+            {
+              "chainId": "0xa4b1",
+              "hash": "0xevmTxHash",
+              "id": "test-tx-id",
+              "status": "unapproved",
+              "time": 1234567890,
+              "txParams": {
+                "chainId": "0xa4b1",
+                "data": "0xdata",
+                "from": "0xaccount1",
+                "gasLimit": "0x5208",
+                "to": "0xbridgeContract",
+                "value": "0x0",
+              },
+              "type": "swap",
+            }
+          `);
+        },
+      );
     });
   });
 
   describe('resetAttempts', () => {
-    let bridgeStatusController: BridgeStatusController;
-    let mockMessenger: jest.Mocked<BridgeStatusControllerMessenger>;
-
-    beforeEach(() => {
-      mockMessenger = getMessengerMock();
-      bridgeStatusController = new BridgeStatusController({
-        messenger: mockMessenger,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        addTransactionFn: jest.fn(),
-        addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
-        state: {
-          txHistory: {
-            ...MockTxHistory.getPending({
-              txMetaId: 'bridgeTxMetaId1',
-              srcTxHash: '0xsrcTxHash1',
-            }),
-            ...MockTxHistory.getPendingSwap({
-              txMetaId: 'swapTxMetaId1',
-              srcTxHash: '0xswapTxHash1',
-            }),
-          },
-        },
-      });
-    });
+    const defaultState = {
+      txHistory: {
+        ...MockTxHistory.getPending({
+          txMetaId: 'bridgeTxMetaId1',
+          srcTxHash: '0xsrcTxHash1',
+        }),
+        ...MockTxHistory.getPendingSwap({
+          txMetaId: 'swapTxMetaId1',
+          srcTxHash: '0xswapTxHash1',
+        }),
+      },
+    };
 
     describe('success cases', () => {
-      it('should reset attempts by txMetaId for bridge transaction', () => {
-        // Setup - add attempts to the history item using controller state initialization
-        const controllerWithAttempts = new BridgeStatusController({
-          messenger: mockMessenger,
-          clientId: BridgeClientId.EXTENSION,
-          fetchFn: jest.fn(),
-          addTransactionFn: jest.fn(),
-          addTransactionBatchFn: jest.fn(),
-          updateTransactionFn: jest.fn(),
-          estimateGasFeeFn: jest.fn(),
-          state: {
-            txHistory: {
-              bridgeTxMetaId1: {
-                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
-                  .bridgeTxMetaId1,
-                attempts: {
-                  counter: 5,
-                  lastAttemptTime: Date.now(),
+      it('should reset attempts by txMetaId for bridge transaction', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                      .bridgeTxMetaId1,
+                    attempts: { counter: 5, lastAttemptTime: Date.now() },
+                  },
                 },
               },
             },
           },
-        });
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts?.counter,
+            ).toBe(5);
 
-        expect(
-          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts
-            ?.counter,
-        ).toBe(5);
+            rootMessenger.call(
+              'BridgeStatusController:restartPollingForFailedAttempts',
+              { txMetaId: 'bridgeTxMetaId1' },
+            );
 
-        // Execute
-        controllerWithAttempts.restartPollingForFailedAttempts({
-          txMetaId: 'bridgeTxMetaId1',
-        });
-
-        // Assert
-        expect(
-          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts,
-        ).toBeUndefined();
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts,
+            ).toBeUndefined();
+          },
+        );
       });
 
-      it('should reset attempts by txHash for bridge transaction', () => {
-        // Setup - add attempts to the history item using controller state initialization
-        const controllerWithAttempts = new BridgeStatusController({
-          messenger: mockMessenger,
-          clientId: BridgeClientId.EXTENSION,
-          fetchFn: jest.fn(),
-          addTransactionFn: jest.fn(),
-          addTransactionBatchFn: jest.fn(),
-          updateTransactionFn: jest.fn(),
-          estimateGasFeeFn: jest.fn(),
-          state: {
-            txHistory: {
-              bridgeTxMetaId1: {
-                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
-                  .bridgeTxMetaId1,
-                attempts: {
-                  counter: 3,
-                  lastAttemptTime: Date.now(),
+      it('should reset attempts by txHash for bridge transaction', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                      .bridgeTxMetaId1,
+                    attempts: { counter: 3, lastAttemptTime: Date.now() },
+                  },
                 },
               },
             },
           },
-        });
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts?.counter,
+            ).toBe(3);
 
-        expect(
-          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts
-            ?.counter,
-        ).toBe(3);
+            rootMessenger.call(
+              'BridgeStatusController:restartPollingForFailedAttempts',
+              { txHash: '0xsrcTxHash1' },
+            );
 
-        // Execute
-        controllerWithAttempts.restartPollingForFailedAttempts({
-          txHash: '0xsrcTxHash1',
-        });
-
-        // Assert
-        expect(
-          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts,
-        ).toBeUndefined();
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts,
+            ).toBeUndefined();
+          },
+        );
       });
 
-      it('should prioritize txMetaId when both txMetaId and txHash are provided', () => {
-        // Setup - create controller with attempts on both transactions
-        const controllerWithAttempts = new BridgeStatusController({
-          messenger: mockMessenger,
-          clientId: BridgeClientId.EXTENSION,
-          fetchFn: jest.fn(),
-          addTransactionFn: jest.fn(),
-          addTransactionBatchFn: jest.fn(),
-          updateTransactionFn: jest.fn(),
-          estimateGasFeeFn: jest.fn(),
-          state: {
-            txHistory: {
-              bridgeTxMetaId1: {
-                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
-                  .bridgeTxMetaId1,
-                attempts: {
-                  counter: 3,
-                  lastAttemptTime: Date.now(),
-                },
-              },
-              swapTxMetaId1: {
-                ...MockTxHistory.getPendingSwap({ txMetaId: 'swapTxMetaId1' })
-                  .swapTxMetaId1,
-                attempts: {
-                  counter: 5,
-                  lastAttemptTime: Date.now(),
+      it('should prioritize txMetaId when both txMetaId and txHash are provided', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                      .bridgeTxMetaId1,
+                    attempts: { counter: 3, lastAttemptTime: Date.now() },
+                  },
+                  swapTxMetaId1: {
+                    ...MockTxHistory.getPendingSwap({
+                      txMetaId: 'swapTxMetaId1',
+                    }).swapTxMetaId1,
+                    attempts: { counter: 5, lastAttemptTime: Date.now() },
+                  },
                 },
               },
             },
           },
-        });
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            // Execute with both identifiers - should use txMetaId (bridgeTxMetaId1)
+            rootMessenger.call(
+              'BridgeStatusController:restartPollingForFailedAttempts',
+              { txMetaId: 'bridgeTxMetaId1', txHash: '0xswapTxHash1' },
+            );
 
-        // Execute with both identifiers - should use txMetaId (bridgeTxMetaId1)
-        controllerWithAttempts.restartPollingForFailedAttempts({
-          txMetaId: 'bridgeTxMetaId1',
-          txHash: '0xswapTxHash1',
-        });
-
-        // Assert - only bridgeTxMetaId1 should have attempts reset
-        expect(
-          controllerWithAttempts.state.txHistory.bridgeTxMetaId1.attempts,
-        ).toBeUndefined();
-        expect(
-          controllerWithAttempts.state.txHistory.swapTxMetaId1.attempts
-            ?.counter,
-        ).toBe(5);
+            // Assert - only bridgeTxMetaId1 should have attempts reset
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts,
+            ).toBeUndefined();
+            expect(
+              controller.state.txHistory.swapTxMetaId1.attempts?.counter,
+            ).toBe(5);
+          },
+        );
       });
 
       it('should restart polling for bridge transaction when attempts are reset', async () => {
-        // Setup - use the same pattern as "restarts polling for history items that are not complete"
         jest.useFakeTimers();
         const fetchBridgeTxStatusSpy = jest.spyOn(
           bridgeStatusUtils,
           'fetchBridgeTxStatus',
         );
         fetchBridgeTxStatusSpy
-          .mockImplementationOnce(async () => {
-            return {
-              status: MockStatusResponse.getPending(),
-              validationFailures: [],
-            };
-          })
-          .mockImplementationOnce(async () => {
-            return {
-              status: MockStatusResponse.getPending(),
-              validationFailures: [],
-            };
-          });
+          .mockImplementationOnce(async () => ({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          }))
+          .mockImplementationOnce(async () => ({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          }));
 
-        // Create controller with a bridge transaction that has failed attempts
-        const controllerWithFailedAttempts = new BridgeStatusController({
-          messenger: getMessengerMock(),
-          clientId: BridgeClientId.EXTENSION,
-          fetchFn: jest.fn(),
-          addTransactionFn: jest.fn(),
-          addTransactionBatchFn: jest.fn(),
-          updateTransactionFn: jest.fn(),
-          estimateGasFeeFn: jest.fn(),
-          state: {
-            txHistory: {
-              bridgeTxMetaId1: {
-                ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
-                  .bridgeTxMetaId1,
-                attempts: {
-                  counter: MAX_ATTEMPTS + 1, // High number to simulate failed attempts
-                  lastAttemptTime: Date.now() - 60000, // 1 minute ago
-                },
-              },
-            },
-          },
-        });
-
-        // Verify initial state has attempts
-        expect(
-          controllerWithFailedAttempts.state.txHistory.bridgeTxMetaId1.attempts
-            ?.counter,
-        ).toBe(MAX_ATTEMPTS + 1);
-
-        // Execute resetAttempts - this should reset attempts and restart polling
-        controllerWithFailedAttempts.restartPollingForFailedAttempts({
-          txMetaId: 'bridgeTxMetaId1',
-        });
-
-        // Verify attempts were reset
-        expect(
-          controllerWithFailedAttempts.state.txHistory.bridgeTxMetaId1.attempts,
-        ).toBeUndefined();
-        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
-
-        // Now advance timer again - polling should work since attempts are reset
-        jest.advanceTimersByTime(10000);
-        await flushPromises();
-
-        // Assertions - polling should now happen since attempts were reset
-        expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
-        expect(
-          controllerWithFailedAttempts.state.txHistory.bridgeTxMetaId1.attempts
-            ?.counter,
-        ).toBeUndefined(); // Should be undefined since we've reset attempts and fetchBridgeTxStatus did not error
-      });
-    });
-
-    describe('error cases', () => {
-      it('should throw error when no identifier is provided', () => {
-        expect(() => {
-          bridgeStatusController.restartPollingForFailedAttempts({});
-        }).toThrow('Either txMetaId or txHash must be provided');
-      });
-
-      it('should throw error when txMetaId is not found', () => {
-        expect(() => {
-          bridgeStatusController.restartPollingForFailedAttempts({
-            txMetaId: 'nonexistentTxMetaId',
-          });
-        }).toThrow(
-          'No bridge transaction history found for txMetaId: nonexistentTxMetaId',
-        );
-      });
-
-      it('should throw error when txHash is not found', () => {
-        expect(() => {
-          bridgeStatusController.restartPollingForFailedAttempts({
-            txHash: '0xnonexistentTxHash',
-          });
-        }).toThrow(
-          'No bridge transaction history found for txHash: 0xnonexistentTxHash',
-        );
-      });
-
-      it('should throw error when txMetaId is empty string', () => {
-        expect(() => {
-          bridgeStatusController.restartPollingForFailedAttempts({
-            txMetaId: '',
-          });
-        }).toThrow('Either txMetaId or txHash must be provided');
-      });
-
-      it('should throw error when txHash is empty string', () => {
-        expect(() => {
-          bridgeStatusController.restartPollingForFailedAttempts({
-            txHash: '',
-          });
-        }).toThrow('Either txMetaId or txHash must be provided');
-      });
-    });
-
-    describe('edge cases', () => {
-      it('should handle transaction with no srcChain.txHash when searching by txHash', () => {
-        // Setup - create a controller with a transaction without srcChain.txHash
-        const controllerWithNoHash = new BridgeStatusController({
-          messenger: mockMessenger,
-          clientId: BridgeClientId.EXTENSION,
-          fetchFn: jest.fn(),
-          addTransactionFn: jest.fn(),
-          addTransactionBatchFn: jest.fn(),
-          updateTransactionFn: jest.fn(),
-          estimateGasFeeFn: jest.fn(),
-          state: {
-            txHistory: {
-              noHashTx: {
-                ...MockTxHistory.getPending({ txMetaId: 'noHashTx' }).noHashTx,
-                status: {
-                  ...MockTxHistory.getPending({ txMetaId: 'noHashTx' }).noHashTx
-                    .status,
-                  srcChain: {
-                    ...MockTxHistory.getPending({ txMetaId: 'noHashTx' })
-                      .noHashTx.status.srcChain,
-                    txHash: undefined as never,
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending({ txMetaId: 'bridgeTxMetaId1' })
+                      .bridgeTxMetaId1,
+                    attempts: {
+                      counter: MAX_ATTEMPTS + 1,
+                      lastAttemptTime: Date.now() - 60000,
+                    },
                   },
                 },
               },
             },
           },
-        });
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
 
-        expect(() => {
-          controllerWithNoHash.restartPollingForFailedAttempts({
-            txHash: '0xsomeHash',
-          });
-        }).toThrow(
-          'No bridge transaction history found for txHash: 0xsomeHash',
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts?.counter,
+            ).toBe(MAX_ATTEMPTS + 1);
+
+            rootMessenger.call(
+              'BridgeStatusController:restartPollingForFailedAttempts',
+              { txMetaId: 'bridgeTxMetaId1' },
+            );
+
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts,
+            ).toBeUndefined();
+            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+
+            // Advance in steps to allow recursive setTimeout to be set up properly with Jest 28
+            jest.advanceTimersByTime(0);
+            await flushPromises();
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts?.counter,
+            ).toBeUndefined();
+          },
+        );
+      });
+    });
+
+    describe('error cases', () => {
+      it('should throw error when no identifier is provided', async () => {
+        await withController(
+          { options: { state: defaultState } },
+          async ({ rootMessenger }) => {
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                {},
+              );
+            }).toThrow('Either txMetaId or txHash must be provided');
+          },
         );
       });
 
-      it('should handle transaction that exists but has no attempts to reset', () => {
-        // Ensure transaction has no attempts initially
-        expect(
-          bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
-        ).toBeUndefined();
+      it('should throw error when txMetaId is not found', async () => {
+        await withController(
+          { options: { state: defaultState } },
+          async ({ rootMessenger }) => {
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                { txMetaId: 'nonexistentTxMetaId' },
+              );
+            }).toThrow(
+              'No bridge transaction history found for txMetaId: nonexistentTxMetaId',
+            );
+          },
+        );
+      });
 
-        // Execute - should not throw error
-        expect(() => {
-          bridgeStatusController.restartPollingForFailedAttempts({
-            txMetaId: 'bridgeTxMetaId1',
-          });
-        }).not.toThrow();
+      it('should throw error when txHash is not found', async () => {
+        await withController(
+          { options: { state: defaultState } },
+          async ({ rootMessenger }) => {
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                { txHash: '0xnonexistentTxHash' },
+              );
+            }).toThrow(
+              'No bridge transaction history found for txHash: 0xnonexistentTxHash',
+            );
+          },
+        );
+      });
 
-        // Assert - attempts should still be undefined
-        expect(
-          bridgeStatusController.state.txHistory.bridgeTxMetaId1.attempts,
-        ).toBeUndefined();
+      it('should throw error when txMetaId is empty string', async () => {
+        await withController(
+          { options: { state: defaultState } },
+          async ({ rootMessenger }) => {
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                { txMetaId: '' },
+              );
+            }).toThrow('Either txMetaId or txHash must be provided');
+          },
+        );
+      });
+
+      it('should throw error when txHash is empty string', async () => {
+        await withController(
+          { options: { state: defaultState } },
+          async ({ rootMessenger }) => {
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                { txHash: '' },
+              );
+            }).toThrow('Either txMetaId or txHash must be provided');
+          },
+        );
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should handle transaction with no srcChain.txHash when searching by txHash', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                txHistory: {
+                  noHashTx: {
+                    ...MockTxHistory.getPending({ txMetaId: 'noHashTx' })
+                      .noHashTx,
+                    status: {
+                      ...MockTxHistory.getPending({ txMetaId: 'noHashTx' })
+                        .noHashTx.status,
+                      srcChain: {
+                        ...MockTxHistory.getPending({ txMetaId: 'noHashTx' })
+                          .noHashTx.status.srcChain,
+                        txHash: undefined,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                { txHash: '0xsomeHash' },
+              );
+            }).toThrow(
+              'No bridge transaction history found for txHash: 0xsomeHash',
+            );
+          },
+        );
+      });
+
+      it('should handle transaction that exists but has no attempts to reset', async () => {
+        await withController(
+          { options: { state: defaultState } },
+          async ({ controller, rootMessenger }) => {
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts,
+            ).toBeUndefined();
+
+            expect(() => {
+              rootMessenger.call(
+                'BridgeStatusController:restartPollingForFailedAttempts',
+                { txMetaId: 'bridgeTxMetaId1' },
+              );
+            }).not.toThrow();
+
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.attempts,
+            ).toBeUndefined();
+          },
+        );
       });
     });
   });
@@ -3893,7 +4985,6 @@ describe('BridgeStatusController', () => {
       MessengerEvents<BridgeStatusControllerMessenger>,
       RootMessenger
     >;
-    let mockTrackEventFn: jest.Mock;
     let bridgeStatusController: BridgeStatusController;
 
     let mockFetchFn: jest.Mock;
@@ -3901,6 +4992,7 @@ describe('BridgeStatusController', () => {
     let consoleFnSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      jest.useFakeTimers();
       jest.clearAllTimers();
       jest.clearAllMocks();
       // eslint-disable-next-line no-empty-function
@@ -3916,11 +5008,9 @@ describe('BridgeStatusController', () => {
           'TransactionController:getState',
           'BridgeController:trackUnifiedSwapBridgeEvent',
           'AccountsController:getAccountByAddress',
+          'RemoteFeatureFlagController:getState',
         ],
-        events: [
-          'TransactionController:transactionFailed',
-          'TransactionController:transactionConfirmed',
-        ],
+        events: ['TransactionController:transactionStatusUpdated'],
       });
 
       jest
@@ -3929,36 +5019,18 @@ describe('BridgeStatusController', () => {
           return Promise.resolve();
         });
 
-      const mockBridgeMessenger = new Messenger<
-        'BridgeController',
-        MessengerActions<BridgeControllerMessenger>,
-        MessengerEvents<BridgeControllerMessenger>,
-        RootMessenger
-      >({
-        namespace: 'BridgeController',
-        parent: mockMessenger,
-      });
-      mockTrackEventFn = jest.fn();
-      new BridgeController({
-        messenger: mockBridgeMessenger,
-        clientId: BridgeClientId.EXTENSION,
-        fetchFn: jest.fn(),
-        trackMetaMetricsFn: mockTrackEventFn,
-        getLayer1GasFee: jest.fn(),
-        clientVersion: '13.4.0',
-      });
-
       mockFetchFn = jest
         .fn()
         .mockResolvedValueOnce(MockStatusResponse.getPending());
+
+      // Create base history item for actionId-keyed entries
+      const baseHistoryItem = MockTxHistory.getPending().bridgeTxMetaId1;
+
       bridgeStatusController = new BridgeStatusController({
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: mockFetchFn,
-        addTransactionFn: jest.fn(),
         addTransactionBatchFn: jest.fn(),
-        updateTransactionFn: jest.fn(),
-        estimateGasFeeFn: jest.fn(),
         state: {
           txHistory: {
             ...MockTxHistory.getPending(),
@@ -3976,6 +5048,22 @@ describe('BridgeStatusController', () => {
               srcTxHash: '0xperpsSrcTxHash1',
               featureId: FeatureId.PERPS as never,
             }),
+            // ActionId-keyed entries for pre-submission failure tests
+            'pre-submission-action-id': {
+              ...baseHistoryItem,
+              actionId: 'pre-submission-action-id',
+              txMetaId: undefined,
+            } as BridgeHistoryItem,
+            'action-id-for-tracking': {
+              ...baseHistoryItem,
+              actionId: 'action-id-for-tracking',
+              txMetaId: undefined,
+            } as BridgeHistoryItem,
+            'action-id-for-rejection': {
+              ...baseHistoryItem,
+              actionId: 'action-id-for-rejection',
+              txMetaId: undefined,
+            } as BridgeHistoryItem,
           },
         },
       });
@@ -3984,23 +5072,27 @@ describe('BridgeStatusController', () => {
     afterEach(() => {
       bridgeStatusController.stopAllPolling();
       console.warn = consoleFn;
+      jest.useRealTimers();
     });
 
-    describe('TransactionController:transactionFailed', () => {
+    describe('TransactionController:transactionStatusUpdated (failed)', () => {
       it('should track failed event for bridge transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.bridge,
-            status: TransactionStatus.failed,
-            id: 'bridgeTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'bridgeTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
@@ -4008,22 +5100,86 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
       });
 
+      it('should include ab_tests and active_ab_tests from history in tracked event properties', () => {
+        const abTestsTxMetaId = 'bridgeTxMetaIdAbTests';
+        mockMessenger.call(
+          'BridgeStatusController:startPollingForBridgeTxStatus',
+          {
+            ...getMockStartPollingForBridgeTxStatusArgs({
+              txMetaId: abTestsTxMetaId,
+              srcTxHash: '0xsrcTxHashAbTests',
+            }),
+            abTests: { token_details_layout: 'treatment' },
+            activeAbTests: [
+              { key: 'bridge_quote_sorting', value: 'variant_b' },
+            ],
+          },
+        );
+
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: abTestsTxMetaId,
+            },
+          },
+        );
+
+        expect(messengerCallSpy).toHaveBeenCalledWith(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          expect.anything(),
+          expect.objectContaining({
+            ab_tests: { token_details_layout: 'treatment' },
+            active_ab_tests: [
+              { key: 'bridge_quote_sorting', value: 'variant_b' },
+            ],
+          }),
+        );
+      });
+
       it('should track failed event for bridge transaction if approval is dropped', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.bridgeApproval,
-            status: TransactionStatus.dropped,
-            id: 'bridgeApprovalTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridgeApproval,
+              status: TransactionStatus.dropped,
+              id: 'bridgeApprovalTxMetaId1',
+            },
           },
-        });
+        );
 
-        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.dropped,
+              id: 'bridgeTxMetaId1WithApproval',
+            },
+          },
+        );
+
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
             .status.status,
@@ -4032,18 +5188,21 @@ describe('BridgeStatusController', () => {
 
       it('should not track failed event for bridge transaction with featureId', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.bridge,
-            status: TransactionStatus.failed,
-            id: 'perpsBridgeTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'perpsBridgeTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(
           bridgeStatusController.state.txHistory.perpsBridgeTxMetaId1.status
@@ -4054,41 +5213,55 @@ describe('BridgeStatusController', () => {
 
       it('should track failed event for swap transaction if approval fails', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.swapApproval,
-            status: TransactionStatus.failed,
-            id: 'bridgeApprovalTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'approval-tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swapApproval,
+              status: TransactionStatus.failed,
+              id: 'bridgeApprovalTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
         expect(
           bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
             .status.status,
         ).toBe(StatusTypes.FAILED);
+        expect(
+          bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
+            .status.srcChain.txHash,
+        ).toBe('0xsrcTxHash1');
+        expect(
+          bridgeStatusController.state.txHistory.bridgeTxMetaId1WithApproval
+            .approvalTxId,
+        ).toBe('bridgeApprovalTxMetaId1');
       });
 
       it('should track failed event for bridge transaction if not in txHistory', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         const expectedHistory = bridgeStatusController.state.txHistory;
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.bridge,
-            status: TransactionStatus.failed,
-            id: 'bridgeTxMetaIda',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'bridgeTxMetaIda',
+            },
           },
-        });
+        );
 
         expect(bridgeStatusController.state.txHistory).toStrictEqual(
           expectedHistory,
@@ -4098,18 +5271,21 @@ describe('BridgeStatusController', () => {
 
       it('should track failed event for swap transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.swap,
-            status: TransactionStatus.failed,
-            id: 'swapTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swap,
+              status: TransactionStatus.failed,
+              id: 'swapTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(
           bridgeStatusController.state.txHistory.swapTxMetaId1.status.status,
@@ -4117,68 +5293,219 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
+      it('should not call getAccountByAddress with undefined when txParams.from is missing', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'bridgeTxMetaId1',
+            },
+          },
+        );
+
+        const accountLookupCalls = messengerCallSpy.mock.calls.filter(
+          (call) => call[0] === 'AccountsController:getAccountByAddress',
+        );
+        expect(accountLookupCalls).not.toContainEqual([
+          'AccountsController:getAccountByAddress',
+          undefined,
+        ]);
+      });
+
+      it('should call getAccountByAddress when txParams.from is set', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'bridgeTxMetaId1',
+            },
+          },
+        );
+
+        expect(messengerCallSpy).toHaveBeenCalledWith(
+          'AccountsController:getAccountByAddress',
+          '0xaccount1',
+        );
+      });
+
       it('should not track failed event for signed status', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.swap,
-            status: TransactionStatus.signed,
-            id: 'swapTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swap,
+              status: TransactionStatus.signed,
+              id: 'swapTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
       it('should not track failed event for approved status', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.swap,
-            status: TransactionStatus.approved,
-            id: 'swapTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swap,
+              status: TransactionStatus.approved,
+              id: 'swapTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
       it('should not track failed event for other transaction types', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionFailed', {
-          error: 'tx-error',
-          transactionMeta: {
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'eth-id',
-            time: Date.now(),
-            txParams: {} as unknown as TransactionParams,
-            type: TransactionType.simpleSend,
-            status: TransactionStatus.failed,
-            id: 'simpleSendTxMetaId1',
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.simpleSend,
+              status: TransactionStatus.failed,
+              id: 'simpleSendTxMetaId1',
+            },
           },
-        });
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
+
+      it('should find history by actionId when txMeta.id not in history (pre-submission failure)', () => {
+        // The history entry keyed by actionId is set up in beforeEach
+        const actionId = 'pre-submission-action-id';
+        const unknownTxMetaId = 'unknown-tx-meta-id';
+
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: unknownTxMetaId,
+              actionId, // ActionId matches the history entry
+            },
+          },
+        );
+
+        // Verify: History entry keyed by actionId should be marked as failed
+        expect(
+          bridgeStatusController.state.txHistory[actionId].status.status,
+        ).toBe(StatusTypes.FAILED);
+        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
+      });
+
+      it('should track failed event using actionId lookup when id not found', () => {
+        // The history entry keyed by actionId is set up in beforeEach
+        const actionId = 'action-id-for-tracking';
+
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'non-existent-tx-id',
+              actionId,
+            },
+          },
+        );
+
+        // The Failed event should be tracked with the history data from actionId lookup
+        expect(messengerCallSpy).toHaveBeenCalled();
+        expect(
+          bridgeStatusController.state.txHistory[actionId].status.status,
+        ).toBe(StatusTypes.FAILED);
+      });
+
+      it('should not track failed event when transaction is rejected', () => {
+        // The history entry keyed by actionId is set up in beforeEach
+        const actionId = 'action-id-for-rejection';
+
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'User rejected' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.rejected,
+              id: 'rejected-tx-id',
+              actionId,
+            },
+          },
+        );
+
+        // Status should still be marked as failed
+        expect(
+          bridgeStatusController.state.txHistory[actionId].status.status,
+        ).toBe(StatusTypes.FAILED);
+        // But Failed event should NOT be tracked for rejected status
+        // (check that call was not made for tracking - only for marking failed)
+        expect(messengerCallSpy).not.toHaveBeenCalled();
+      });
     });
 
-    describe('TransactionController:transactionConfirmed', () => {
+    describe('TransactionController:transactionStatusUpdated (confirmed)', () => {
       beforeEach(() => {
         jest.clearAllMocks();
       });
 
       it('should start polling for bridge tx if status response is invalid', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4186,25 +5513,30 @@ describe('BridgeStatusController', () => {
           ...MockStatusResponse.getComplete(),
           status: 'INVALID',
         });
-        const oldHistoryItem =
-          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
-            'bridgeTxMetaId1',
-          );
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.bridge,
-          status: TransactionStatus.confirmed,
-          id: 'bridgeTxMetaId1',
-        });
+        const oldHistoryItem = mockMessenger.call(
+          'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
+          'bridgeTxMetaId1',
+        );
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.confirmed,
+              id: 'bridgeTxMetaId1',
+            },
+          },
+        );
 
         jest.advanceTimersByTime(500);
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
-        expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
+        expect(messengerCallSpy.mock.calls).toMatchSnapshot();
         expect(mockFetchFn).toHaveBeenCalledTimes(3);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xsrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
@@ -4213,7 +5545,8 @@ describe('BridgeStatusController', () => {
           },
         );
         expect(
-          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+          mockMessenger.call(
+            'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
             'bridgeTxMetaId1',
           ),
         ).toStrictEqual({
@@ -4226,28 +5559,41 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for completed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
         mockFetchFn.mockResolvedValueOnce(
           MockStatusResponse.getComplete({ srcTxHash: '0xperpsSrcTxHash1' }),
         );
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.bridge,
-          status: TransactionStatus.confirmed,
-          id: 'perpsBridgeTxMetaId1',
-        });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.confirmed,
+              id: 'perpsBridgeTxMetaId1',
+            },
+          },
+        );
 
         jest.advanceTimersByTime(30500);
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
-        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+          ]
+        `);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
           {
@@ -4255,7 +5601,8 @@ describe('BridgeStatusController', () => {
           },
         );
         expect(
-          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+          mockMessenger.call(
+            'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
             'perpsBridgeTxMetaId1',
           )?.status,
         ).toMatchSnapshot();
@@ -4263,28 +5610,41 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for failed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
         mockFetchFn.mockResolvedValueOnce(
           MockStatusResponse.getFailed({ srcTxHash: '0xperpsSrcTxHash1' }),
         );
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.bridge,
-          status: TransactionStatus.confirmed,
-          id: 'perpsBridgeTxMetaId1',
-        });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.confirmed,
+              id: 'perpsBridgeTxMetaId1',
+            },
+          },
+        );
 
         jest.advanceTimersByTime(40500);
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
-        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+          ]
+        `);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
           {
@@ -4292,7 +5652,8 @@ describe('BridgeStatusController', () => {
           },
         );
         expect(
-          bridgeStatusController.getBridgeHistoryItemByTxMetaId(
+          mockMessenger.call(
+            'BridgeStatusController:getBridgeHistoryItemByTxMetaId',
             'perpsBridgeTxMetaId1',
           )?.status,
         ).toMatchSnapshot();
@@ -4301,125 +5662,265 @@ describe('BridgeStatusController', () => {
 
       it('should track completed event for swap transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.swap,
-          status: TransactionStatus.confirmed,
-          id: 'swapTxMetaId1',
-        });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swap,
+              status: TransactionStatus.confirmed,
+              id: 'swapTxMetaId1',
+            },
+          },
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
       it('should not track completed event for swap transaction with featureId', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.swap,
-          status: TransactionStatus.confirmed,
-          id: 'perpsSwapTxMetaId1',
-        });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.swap,
+              status: TransactionStatus.confirmed,
+              id: 'perpsSwapTxMetaId1',
+            },
+          },
+        );
 
         expect(messengerCallSpy).not.toHaveBeenCalled();
       });
 
       it('should not track completed event for other transaction types', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.bridge,
-          status: TransactionStatus.confirmed,
-          id: 'bridgeTxMetaId1',
-        });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.confirmed,
+              id: 'bridgeTxMetaId1',
+            },
+          },
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
+      it('should not start poll or track completed event if the transaction is an approval', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        const startPollingSpy = jest.spyOn(
+          bridgeStatusController,
+          'startPolling',
+        );
+
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.contractInteraction,
+              status: TransactionStatus.confirmed,
+              id: 'bridgeApprovalTxMetaId1',
+            },
+          },
+        );
+
+        expect(messengerCallSpy.mock.calls).toHaveLength(0);
+        expect(startPollingSpy).not.toHaveBeenCalled();
+      });
+
       it('should not start polling for bridge tx if tx is not in txHistory', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
-        mockMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: CHAIN_IDS.ARBITRUM,
-          networkClientId: 'eth-id',
-          time: Date.now(),
-          txParams: {} as unknown as TransactionParams,
-          type: TransactionType.bridge,
-          status: TransactionStatus.confirmed,
-          id: 'bridgeTxMetaId1Unknown',
-        });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.confirmed,
+              id: 'bridgeTxMetaId1Unknown',
+            },
+          },
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
+
+      it('should not append auth token to status request when getBearerToken throws an error', async () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        consoleFnSpy = jest
+          .spyOn(console, 'error')
+          .mockImplementationOnce(jest.fn());
+        consoleFnSpy.mockImplementationOnce(jest.fn());
+
+        messengerCallSpy.mockReturnValueOnce({
+          remoteFeatureFlags: {
+            bridgeConfig: {
+              maxPendingHistoryItemAgeMs:
+                DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
+            },
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+        messengerCallSpy.mockImplementationOnce(() => {
+          throw new Error(
+            'AuthenticationController:getBearerToken not implemented',
+          );
+        });
+
+        messengerCallSpy.mockReturnValueOnce({
+          remoteFeatureFlags: {
+            bridgeConfig: {
+              maxPendingHistoryItemAgeMs:
+                DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
+            },
+          },
+          cacheTimestamp: Date.now(),
+        });
+        messengerCallSpy.mockImplementationOnce(() => {
+          throw new Error(
+            'AuthenticationController:getBearerToken not implemented',
+          );
+        });
+
+        mockFetchFn.mockClear();
+        mockFetchFn.mockResolvedValueOnce(
+          MockStatusResponse.getComplete({ srcTxHash: '0xperpsSrcTxHash1' }),
+        );
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: 1729964825189,
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.confirmed,
+              id: 'perpsBridgeTxMetaId1',
+            },
+          },
+        );
+
+        jest.advanceTimersByTime(30500);
+        bridgeStatusController.stopAllPolling();
+        await flushPromises();
+
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
+            ],
+            [
+              "TransactionController:getState",
+            ],
+          ]
+        `);
+        expect(mockFetchFn).toHaveBeenCalledWith(
+          'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
+          {
+            headers: { 'X-Client-Id': BridgeClientId.EXTENSION },
+          },
+        );
+        expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "Error getting JWT token for bridge-api request",
+              [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+          ]
+        `);
       });
     });
   });
 
   describe('metadata', () => {
-    it('includes expected state in debug snapshots', () => {
-      const { controller } = getController(jest.fn());
-
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'includeInDebugSnapshot',
-        ),
-      ).toMatchInlineSnapshot(`Object {}`);
+    it('includes expected state in debug snapshots', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInDebugSnapshot',
+          ),
+        ).toMatchInlineSnapshot(`{}`);
+      });
     });
 
-    it('includes expected state in state logs', () => {
-      const { controller } = getController(jest.fn());
-
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'includeInStateLogs',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
-        }
-      `);
+    it('includes expected state in state logs', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "txHistory": {},
+          }
+        `);
+      });
     });
 
-    it('persists expected state', () => {
-      const { controller } = getController(jest.fn());
-
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'persist',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
-        }
-      `);
+    it('persists expected state', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "txHistory": {},
+          }
+        `);
+      });
     });
 
-    it('exposes expected state to UI', () => {
-      const { controller } = getController(jest.fn());
-
-      expect(
-        deriveStateFromMetadata(
-          controller.state,
-          controller.metadata,
-          'usedInUi',
-        ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
-        }
-      `);
+    it('exposes expected state to UI', async () => {
+      await withController(async ({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "txHistory": {},
+          }
+        `);
+      });
     });
   });
 });

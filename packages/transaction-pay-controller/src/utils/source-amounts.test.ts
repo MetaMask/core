@@ -1,13 +1,18 @@
-import { updateSourceAmounts } from './source-amounts';
-import { getTokenFiatRate } from './token';
-import { getTransaction } from './transaction';
+import { TransactionType } from '@metamask/transaction-controller';
+
 import { TransactionPayStrategy } from '..';
 import type { TransactionPaymentToken } from '..';
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionData, TransactionPayRequiredToken } from '../types';
+import { updateSourceAmounts } from './source-amounts';
+import { getTokenFiatRate } from './token';
+import { getTransaction } from './transaction';
 
-jest.mock('./token');
+jest.mock('./token', () => ({
+  ...jest.requireActual('./token'),
+  getTokenFiatRate: jest.fn(),
+}));
 jest.mock('./transaction');
 
 const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
@@ -50,7 +55,9 @@ describe('Source Amounts Utils', () => {
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
     getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
-    getTransactionMock.mockReturnValue({ id: TRANSACTION_ID_MOCK } as never);
+    getTransactionMock.mockReturnValue({
+      id: TRANSACTION_ID_MOCK,
+    } as never);
   });
 
   describe('updateSourceAmounts', () => {
@@ -92,6 +99,34 @@ describe('Source Amounts Utils', () => {
 
     it('does not return empty array if payment token matches but hyperliquid deposit and relay strategy', () => {
       getStrategyMock.mockReturnValue(TransactionPayStrategy.Relay);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but supported perps deposit and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDeposit,
+      } as never);
 
       const transactionData: TransactionData = {
         isLoading: false,
@@ -163,6 +198,25 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toStrictEqual([]);
     });
 
+    it('uses payment token balance if isMaxAmount is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
     it('does nothing if no payment token', () => {
       const transactionData: TransactionData = {
         isLoading: false,
@@ -189,6 +243,200 @@ describe('Source Amounts Utils', () => {
     // eslint-disable-next-line jest/expect-expect
     it('does nothing if no transaction data', () => {
       updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, messenger);
+    });
+
+    describe('post-quote (withdrawal) flow', () => {
+      const DESTINATION_TOKEN_MOCK = {
+        address: '0xdef' as const,
+        balanceFiat: '100.00',
+        balanceHuman: '1.00',
+        balanceRaw: '1000000000000000000',
+        balanceUsd: '100.00',
+        chainId: '0x38' as const,
+        decimals: 18,
+        symbol: 'BNB',
+      };
+
+      it('calculates source amounts from tokens for post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('filters out skipIfBalance tokens in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              skipIfBalance: true,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('does nothing for post-quote if no paymentToken', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          tokens: [TRANSACTION_TOKEN_MOCK],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toBeUndefined();
+      });
+
+      it('filters out zero amount tokens in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '0',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('filters out same token on same chain in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('does not filter out same token when isHyperliquidSource is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isHyperliquidSource: true,
+          paymentToken: {
+            ...DESTINATION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+            decimals: 6,
+            symbol: 'USDC',
+          },
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: ARBITRUM_USDC_ADDRESS,
+              chainId: CHAIN_ID_ARBITRUM,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ]);
+      });
+
+      it('still filters out same token when isHyperliquidSource is false in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isHyperliquidSource: false,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('uses token balance when isMaxAmount is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
     });
   });
 });

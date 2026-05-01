@@ -16,7 +16,7 @@ type MockReply = {
   body?: nock.Body;
 };
 
-export const handleMockCommitment = (mockReply?: MockReply) => {
+export const handleMockCommitment = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_TOPRF_COMMITMENT_RESPONSE,
@@ -30,7 +30,7 @@ export const handleMockCommitment = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const handleMockAuthenticate = (mockReply?: MockReply) => {
+export const handleMockAuthenticate = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_TOPRF_AUTHENTICATION_RESPONSE,
@@ -43,7 +43,7 @@ export const handleMockAuthenticate = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const handleMockSecretDataAdd = (mockReply?: MockReply) => {
+export const handleMockSecretDataAdd = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_SECRET_DATA_ADD_RESPONSE,
@@ -55,7 +55,9 @@ export const handleMockSecretDataAdd = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const handleMockBatchSecretDataAdd = (mockReply?: MockReply) => {
+export const handleMockBatchSecretDataAdd = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_BATCH_SECRET_DATA_ADD_RESPONSE,
@@ -67,7 +69,7 @@ export const handleMockBatchSecretDataAdd = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const handleMockSecretDataGet = (mockReply?: MockReply) => {
+export const handleMockSecretDataGet = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_SECRET_DATA_GET_RESPONSE,
@@ -79,7 +81,9 @@ export const handleMockSecretDataGet = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const handleMockAcquireMetadataLock = (mockReply?: MockReply) => {
+export const handleMockAcquireMetadataLock = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_ACQUIRE_METADATA_LOCK_RESPONSE,
@@ -91,7 +95,9 @@ export const handleMockAcquireMetadataLock = (mockReply?: MockReply) => {
   return mockEndpoint;
 };
 
-export const handleMockReleaseMetadataLock = (mockReply?: MockReply) => {
+export const handleMockReleaseMetadataLock = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_RELEASE_METADATA_LOCK_RESPONSE,

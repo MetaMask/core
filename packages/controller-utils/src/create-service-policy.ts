@@ -189,7 +189,7 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  */
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
-const isServiceFailure = (error: unknown) => {
+const isServiceFailure = (error: unknown): boolean => {
   if (
     typeof error === 'object' &&
     error !== null &&
@@ -369,18 +369,18 @@ export function createServicePolicy(
   // breaker will have already changed.
   const policy = wrap(retryPolicy, circuitBreakerPolicy);
 
-  const getRemainingCircuitOpenDuration = () => {
+  const getRemainingCircuitOpenDuration = (): number | null => {
     if (internalCircuitState.state === CircuitState.Open) {
       return internalCircuitState.openedAt + circuitBreakDuration - Date.now();
     }
     return null;
   };
 
-  const getCircuitState = () => {
+  const getCircuitState = (): CircuitState => {
     return circuitBreakerPolicy.state;
   };
 
-  const reset = () => {
+  const reset = (): void => {
     // Set the state of the policy to "isolated" regardless of its current state
     const { dispose } = circuitBreakerPolicy.isolate();
     // Reset the state to "closed"

@@ -35,7 +35,7 @@ type WithPollingBlockTrackerCallback = (args: {
 type FakeProviderStub =
   | {
       methodName: string;
-      result: any;
+      result: Json;
     }
   | {
       methodName: string;
@@ -69,7 +69,7 @@ function getFakeProvider({
   stubs: initialStubs = [],
 }: {
   stubs?: FakeProviderStub[];
-} = {}) {
+} = {}): InternalProvider {
   const originalStubs = initialStubs.slice();
 
   const stubs = initialStubs.slice();
@@ -158,7 +158,7 @@ export async function withPollingBlockTracker(
   ...args:
     | [WithPollingBlockTrackerOptions, WithPollingBlockTrackerCallback]
     | [WithPollingBlockTrackerCallback]
-) {
+): Promise<void> {
   const [options, callback] = args.length === 2 ? args : [{}, args[0]];
   const provider =
     options.provider === undefined

@@ -16,8 +16,10 @@ export enum ClaimStatusEnum {
   // submitted to Intercom
   SUBMITTED = 'submitted',
   // in progress by Intercom
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match the API response format
   IN_PROGRESS = 'in_progress',
   // waiting for customer reply
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match the API response format
   WAITING_FOR_CUSTOMER = 'waiting_for_customer',
   // approved by Intercom
   APPROVED = 'approved',

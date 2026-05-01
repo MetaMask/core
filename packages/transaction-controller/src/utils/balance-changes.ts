@@ -1,13 +1,12 @@
 import type { Fragment, LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { getNativeBalance } from './balance';
 import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
@@ -27,6 +26,7 @@ import {
   SimulationRevertedError,
 } from '../errors';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   SimulationBalanceChange,
   SimulationData,
@@ -37,6 +37,7 @@ import type {
   GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
+import { getNativeBalance } from './balance';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
@@ -53,7 +54,8 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
-  ethQuery: EthQuery;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
   getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
@@ -121,6 +123,8 @@ export async function getBalanceChanges(
 ): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
   log('Request', request);
 
+  let callTraceErrors: string[] | undefined;
+
   try {
     const response = await baseRequest({
       request,
@@ -130,7 +134,9 @@ export async function getBalanceChanges(
       },
     });
 
-    const transactionError = response.transactions?.[0]?.error;
+    const transactionResponse = response.transactions?.[0];
+    callTraceErrors = extractCallTraceErrors(transactionResponse?.callTrace);
+    const transactionError = transactionResponse?.error;
 
     if (transactionError) {
       throw new SimulationError(transactionError);
@@ -143,8 +149,9 @@ export async function getBalanceChanges(
 
     const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
-    const gasUsed = response.transactions?.[0]?.gasUsed;
+    const gasUsed = transactionResponse?.gasUsed;
     const simulationData = {
+      callTraceErrors,
       nativeBalanceChange,
       tokenBalanceChanges,
     };
@@ -167,6 +174,7 @@ export async function getBalanceChanges(
 
     return {
       simulationData: {
+        callTraceErrors,
         tokenBalanceChanges: [],
         error: {
           code,
@@ -633,6 +641,26 @@ function extractLogs(
 }
 
 /**
+ * Extract all error messages from a call trace tree.
+ *
+ * @param call - The root call trace.
+ * @returns An array of error messages.
+ */
+function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
+  if (!call) {
+    return [];
+  }
+
+  const errors = call.error ? [call.error] : [];
+  const nestedCalls = call.calls ?? [];
+  const nestedErrors = nestedCalls.flatMap((nestedCall) =>
+    extractCallTraceErrors(nestedCall),
+  );
+
+  return [...errors, ...nestedErrors];
+}
+
+/**
  * Generate balance change data from previous and new balances.
  *
  * @param previousBalance - The previous balance.
@@ -702,8 +730,14 @@ async function baseRequest({
   before?: SimulationRequestTransaction[];
   after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, chainId, ethQuery, getSimulationConfig, txParams } =
-    request;
+  const {
+    blockTime,
+    chainId,
+    messenger,
+    networkClientId,
+    getSimulationConfig,
+    txParams,
+  } = request;
   const { authorizationList } = txParams;
   const from = txParams.from as Hex;
 
@@ -730,7 +764,11 @@ async function baseRequest({
 
   log('Required balance', requiredBalanceHex);
 
-  const { balanceRaw } = await getNativeBalance(from, ethQuery);
+  const { balanceRaw } = await getNativeBalance(
+    from,
+    messenger,
+    networkClientId,
+  );
   const currentBalanceHex = toHex(balanceRaw);
   const currentBalanceBN = hexToBN(currentBalanceHex);
 

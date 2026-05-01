@@ -4,7 +4,7 @@ This monorepo is a collection of packages used across multiple MetaMask clients 
 
 ## Contributing
 
-See the [Contributor Guide](./docs/contributing.md) for help on:
+See the [Contributor Documentation](./docs) for help on:
 
 - Setting up your development environment
 - Working with the monorepo
@@ -23,18 +23,28 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
+- [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
+- [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
+- [`@metamask/authenticated-user-storage`](packages/authenticated-user-storage)
 - [`@metamask/base-controller`](packages/base-controller)
+- [`@metamask/base-data-service`](packages/base-data-service)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
+- [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
+- [`@metamask/client-controller`](packages/client-controller)
+- [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/config-registry-controller`](packages/config-registry-controller)
+- [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
@@ -43,19 +53,23 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
 - [`@metamask/ens-controller`](packages/ens-controller)
-- [`@metamask/error-reporting-service`](packages/error-reporting-service)
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
 - [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
+- [`@metamask/geolocation-controller`](packages/geolocation-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
+- [`@metamask/messenger-cli`](packages/messenger-cli)
+- [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
+- [`@metamask/money-account-controller`](packages/money-account-controller)
+- [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
 - [`@metamask/multichain-api-middleware`](packages/multichain-api-middleware)
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
@@ -64,22 +78,28 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
+- [`@metamask/passkey-controller`](packages/passkey-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
+- [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
+- [`@metamask/ramps-controller`](packages/ramps-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/react-data-query`](packages/react-data-query)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/snap-account-service`](packages/snap-account-service)
+- [`@metamask/social-controllers`](packages/social-controllers)
+- [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
-- [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
@@ -95,18 +115,28 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
+  analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
+  assets_controller(["@metamask/assets-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
+  authenticated_user_storage(["@metamask/authenticated-user-storage"]);
   base_controller(["@metamask/base-controller"]);
+  base_data_service(["@metamask/base-data-service"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
+  chomp_api_service(["@metamask/chomp-api-service"]);
   claims_controller(["@metamask/claims-controller"]);
+  client_controller(["@metamask/client-controller"]);
+  compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  config_registry_controller(["@metamask/config-registry-controller"]);
+  connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
   delegation_controller(["@metamask/delegation-controller"]);
@@ -115,19 +145,23 @@ linkStyle default opacity:0.5
   eip_7702_internal_rpc_middleware(["@metamask/eip-7702-internal-rpc-middleware"]);
   eip1193_permission_middleware(["@metamask/eip1193-permission-middleware"]);
   ens_controller(["@metamask/ens-controller"]);
-  error_reporting_service(["@metamask/error-reporting-service"]);
   eth_block_tracker(["@metamask/eth-block-tracker"]);
   eth_json_rpc_middleware(["@metamask/eth-json-rpc-middleware"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   gator_permissions_controller(["@metamask/gator-permissions-controller"]);
+  geolocation_controller(["@metamask/geolocation-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
+  messenger_cli(["@metamask/messenger-cli"]);
+  money_account_balance_service(["@metamask/money-account-balance-service"]);
+  money_account_controller(["@metamask/money-account-controller"]);
+  money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
   multichain_api_middleware(["@metamask/multichain-api-middleware"]);
   multichain_network_controller(["@metamask/multichain-network-controller"]);
@@ -136,22 +170,28 @@ linkStyle default opacity:0.5
   network_controller(["@metamask/network-controller"]);
   network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
+  passkey_controller(["@metamask/passkey-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
+  perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
+  ramps_controller(["@metamask/ramps-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  react_data_query(["@metamask/react-data-query"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  snap_account_service(["@metamask/snap-account-service"]);
+  social_controllers(["@metamask/social-controllers"]);
+  storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
-  token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
@@ -169,14 +209,35 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   address_book_controller --> messenger;
+  ai_controllers --> base_controller;
+  ai_controllers --> messenger;
   analytics_controller --> base_controller;
   analytics_controller --> messenger;
+  analytics_data_regulation_controller --> base_controller;
+  analytics_data_regulation_controller --> controller_utils;
+  analytics_data_regulation_controller --> messenger;
   announcement_controller --> base_controller;
   announcement_controller --> messenger;
   app_metadata_controller --> base_controller;
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> account_tree_controller;
+  assets_controller --> accounts_controller;
+  assets_controller --> assets_controllers;
+  assets_controller --> base_controller;
+  assets_controller --> client_controller;
+  assets_controller --> controller_utils;
+  assets_controller --> core_backend;
+  assets_controller --> keyring_controller;
+  assets_controller --> messenger;
+  assets_controller --> network_controller;
+  assets_controller --> network_enablement_controller;
+  assets_controller --> permission_controller;
+  assets_controller --> phishing_controller;
+  assets_controller --> polling_controller;
+  assets_controller --> preferences_controller;
+  assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -187,15 +248,23 @@ linkStyle default opacity:0.5
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
+  assets_controllers --> network_enablement_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
+  assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
+  authenticated_user_storage --> base_data_service;
+  authenticated_user_storage --> controller_utils;
+  authenticated_user_storage --> messenger;
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
+  base_data_service --> controller_utils;
+  base_data_service --> messenger;
   bridge_controller --> accounts_controller;
+  bridge_controller --> assets_controller;
   bridge_controller --> assets_controllers;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
@@ -204,6 +273,7 @@ linkStyle default opacity:0.5
   bridge_controller --> multichain_network_controller;
   bridge_controller --> network_controller;
   bridge_controller --> polling_controller;
+  bridge_controller --> profile_sync_controller;
   bridge_controller --> remote_feature_flag_controller;
   bridge_controller --> transaction_controller;
   bridge_controller --> eth_json_rpc_provider;
@@ -212,26 +282,44 @@ linkStyle default opacity:0.5
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> gas_fee_controller;
+  bridge_status_controller --> keyring_controller;
+  bridge_status_controller --> messenger;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
+  bridge_status_controller --> profile_sync_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
-  chain_agnostic_permission --> network_controller;
   chain_agnostic_permission --> permission_controller;
+  chomp_api_service --> base_data_service;
+  chomp_api_service --> controller_utils;
+  chomp_api_service --> messenger;
   claims_controller --> base_controller;
   claims_controller --> controller_utils;
-  claims_controller --> messenger;
   claims_controller --> keyring_controller;
+  claims_controller --> messenger;
   claims_controller --> profile_sync_controller;
+  client_controller --> base_controller;
+  client_controller --> messenger;
+  compliance_controller --> base_controller;
+  compliance_controller --> controller_utils;
+  compliance_controller --> messenger;
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
+  config_registry_controller --> base_controller;
+  config_registry_controller --> controller_utils;
+  config_registry_controller --> keyring_controller;
+  config_registry_controller --> messenger;
+  config_registry_controller --> polling_controller;
+  config_registry_controller --> profile_sync_controller;
+  config_registry_controller --> remote_feature_flag_controller;
+  connectivity_controller --> base_controller;
+  connectivity_controller --> messenger;
   core_backend --> accounts_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
   core_backend --> messenger;
   core_backend --> profile_sync_controller;
-  delegation_controller --> accounts_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
@@ -253,24 +341,27 @@ linkStyle default opacity:0.5
   ens_controller --> controller_utils;
   ens_controller --> messenger;
   ens_controller --> network_controller;
-  error_reporting_service --> base_controller;
-  error_reporting_service --> messenger;
   eth_block_tracker --> eth_json_rpc_provider;
   eth_block_tracker --> json_rpc_engine;
   eth_json_rpc_middleware --> eth_block_tracker;
   eth_json_rpc_middleware --> eth_json_rpc_provider;
   eth_json_rpc_middleware --> json_rpc_engine;
   eth_json_rpc_middleware --> message_manager;
-  eth_json_rpc_middleware --> error_reporting_service;
   eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
+  gas_fee_controller --> messenger;
   gas_fee_controller --> network_controller;
   gas_fee_controller --> polling_controller;
   gator_permissions_controller --> base_controller;
   gator_permissions_controller --> messenger;
+  gator_permissions_controller --> network_controller;
   gator_permissions_controller --> transaction_controller;
+  geolocation_controller --> base_controller;
+  geolocation_controller --> controller_utils;
+  geolocation_controller --> messenger;
+  json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> messenger;
@@ -280,11 +371,25 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   message_manager --> messenger;
+  money_account_balance_service --> base_data_service;
+  money_account_balance_service --> controller_utils;
+  money_account_balance_service --> messenger;
+  money_account_balance_service --> network_controller;
+  money_account_controller --> accounts_controller;
+  money_account_controller --> base_controller;
+  money_account_controller --> keyring_controller;
+  money_account_controller --> messenger;
+  money_account_upgrade_controller --> base_controller;
+  money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> keyring_controller;
+  money_account_upgrade_controller --> messenger;
+  money_account_upgrade_controller --> network_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
-  multichain_account_service --> error_reporting_service;
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
+  multichain_account_service --> controller_utils;
+  multichain_api_middleware --> accounts_controller;
   multichain_api_middleware --> chain_agnostic_permission;
   multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;
@@ -306,8 +411,8 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   name_controller --> messenger;
   network_controller --> base_controller;
+  network_controller --> connectivity_controller;
   network_controller --> controller_utils;
-  network_controller --> error_reporting_service;
   network_controller --> eth_block_tracker;
   network_controller --> eth_json_rpc_middleware;
   network_controller --> eth_json_rpc_provider;
@@ -324,6 +429,8 @@ linkStyle default opacity:0.5
   notification_services_controller --> keyring_controller;
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
+  passkey_controller --> base_controller;
+  passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
@@ -332,6 +439,16 @@ linkStyle default opacity:0.5
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
   permission_log_controller --> messenger;
+  perps_controller --> base_controller;
+  perps_controller --> controller_utils;
+  perps_controller --> messenger;
+  perps_controller --> account_tree_controller;
+  perps_controller --> geolocation_controller;
+  perps_controller --> keyring_controller;
+  perps_controller --> network_controller;
+  perps_controller --> profile_sync_controller;
+  perps_controller --> remote_feature_flag_controller;
+  perps_controller --> transaction_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -339,24 +456,32 @@ linkStyle default opacity:0.5
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
   polling_controller --> network_controller;
+  polling_controller --> messenger;
   preferences_controller --> base_controller;
-  preferences_controller --> controller_utils;
-  preferences_controller --> keyring_controller;
   preferences_controller --> messenger;
+  profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
   profile_metrics_controller --> controller_utils;
+  profile_metrics_controller --> keyring_controller;
   profile_metrics_controller --> messenger;
+  profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
+  profile_metrics_controller --> transaction_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
+  ramps_controller --> base_controller;
+  ramps_controller --> controller_utils;
+  ramps_controller --> messenger;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
+  react_data_query --> base_data_service;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
   sample_controllers --> base_controller;
+  sample_controllers --> base_data_service;
   sample_controllers --> messenger;
   sample_controllers --> network_controller;
   sample_controllers --> controller_utils;
@@ -382,24 +507,32 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> messenger;
+  social_controllers --> base_controller;
+  social_controllers --> base_data_service;
+  social_controllers --> controller_utils;
+  social_controllers --> messenger;
+  social_controllers --> profile_sync_controller;
+  storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> transaction_controller;
-  token_search_discovery_controller --> base_controller;
-  token_search_discovery_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> core_backend;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
   transaction_controller --> remote_feature_flag_controller;
+  transaction_controller --> connectivity_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
+  transaction_pay_controller --> assets_controller;
   transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
   transaction_pay_controller --> bridge_controller;
@@ -408,6 +541,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> network_controller;
+  transaction_pay_controller --> ramps_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
   transaction_pay_controller --> transaction_controller;
   user_operation_controller --> approval_controller;

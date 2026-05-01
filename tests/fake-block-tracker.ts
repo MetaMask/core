@@ -21,7 +21,9 @@ export class FakeBlockTracker<
     // Don't start the polling loop
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this as any).start = () => {};
+    (this as any).start = (): void => {
+      // Intentionally empty.
+    };
   }
 
   /**
@@ -29,11 +31,11 @@ export class FakeBlockTracker<
    *
    * @param latestBlockNumber - The block number to use.
    */
-  mockLatestBlockNumber(latestBlockNumber: string) {
+  mockLatestBlockNumber(latestBlockNumber: string): void {
     this.#latestBlockNumber = latestBlockNumber;
   }
 
-  override async getLatestBlock() {
+  override async getLatestBlock(): Promise<string> {
     return this.#latestBlockNumber;
   }
 

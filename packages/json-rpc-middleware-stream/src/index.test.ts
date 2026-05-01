@@ -5,11 +5,11 @@ import type { Runtime } from 'webextension-polyfill-ts';
 
 import { createStreamMiddleware, createEngineStream } from '.';
 
-const artificialDelay = async (time = 0) =>
+const artificialDelay = async (time = 0): Promise<unknown> =>
   new Promise((resolve) => setTimeout(resolve, time));
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const noop = function (_a: any) {};
+const noop = function (_a: unknown): void {
+  // noop
+};
 
 const jsonrpc = '2.0' as const;
 
@@ -76,6 +76,9 @@ describe('createEngineStream', () => {
       });
 
       stream.on('error', (errorObj) => {
+        // We don't control the source of this error, so we can't guarantee it's
+        // an Error instance.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         reject(errorObj);
       });
 
@@ -144,7 +147,7 @@ describe('retry logic in middleware connected to a port', () => {
       onMessage: {
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        addListener: (messageCallback: any) => {
+        addListener: (messageCallback: any): void => {
           messageConsumer = messageCallback;
         },
       },
@@ -153,7 +156,7 @@ describe('retry logic in middleware connected to a port', () => {
       },
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      postMessage(message: any) {
+      postMessage(message: any): void {
         messages.push(message);
       },
     };

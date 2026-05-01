@@ -20,6 +20,7 @@ import {
   WALLET_PREFIX,
   CAVEAT_TYPES,
 } from './enums';
+import type { PermissionLogControllerMethodActions } from './PermissionLogController-method-action-types';
 
 export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,
@@ -79,7 +80,8 @@ export type PermissionLogControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type PermissionLogControllerActions =
-  PermissionLogControllerGetStateAction;
+  | PermissionLogControllerGetStateAction
+  | PermissionLogControllerMethodActions;
 
 export type PermissionLogControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof name, PermissionLogControllerState>;
@@ -99,6 +101,11 @@ const defaultState: PermissionLogControllerState = {
 };
 
 const name = 'PermissionLogController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateAccountsHistory',
+  'createMiddleware',
+] as const;
 
 /**
  * Controller with middleware for logging requests and responses to restricted
@@ -136,6 +143,10 @@ export class PermissionLogController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.#restrictedMethods = restrictedMethods;
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -147,7 +158,7 @@ export class PermissionLogController extends BaseController<
    * @param origin - The origin that the accounts are exposed to.
    * @param accounts - The accounts.
    */
-  updateAccountsHistory(origin: string, accounts: string[]) {
+  updateAccountsHistory(origin: string, accounts: string[]): void {
     if (accounts.length === 0) {
       return;
     }
@@ -186,7 +197,7 @@ export class PermissionLogController extends BaseController<
         const requestedMethods = this.#getRequestedMethods(req);
 
         // Call next with a return handler for capturing the response
-        next((cb) => {
+        next((callback) => {
           const time = Date.now();
           this.#logResponse(activityEntry, res, time);
 
@@ -199,7 +210,7 @@ export class PermissionLogController extends BaseController<
               isEthRequestAccounts,
             );
           }
-          cb();
+          callback();
         });
         return;
       }
@@ -271,7 +282,7 @@ export class PermissionLogController extends BaseController<
     entry: PermissionActivityLog,
     response: PendingJsonRpcResponse,
     time: number,
-  ) {
+  ): void {
     if (!entry || !response) {
       return;
     }
@@ -310,7 +321,7 @@ export class PermissionLogController extends BaseController<
     result: Json,
     time: number,
     isEthRequestAccounts: boolean,
-  ) {
+  ): void {
     let newEntries: PermissionEntry;
 
     if (isEthRequestAccounts) {
@@ -370,7 +381,7 @@ export class PermissionLogController extends BaseController<
    * @param origin - The requesting origin.
    * @param newEntries - The new entries to commit.
    */
-  #commitNewHistory(origin: string, newEntries: PermissionEntry) {
+  #commitNewHistory(origin: string, newEntries: PermissionEntry): void {
     const { permissionHistory } = this.state;
 
     // a simple merge updates most permissions

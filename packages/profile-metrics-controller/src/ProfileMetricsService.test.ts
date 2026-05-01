@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -6,8 +7,6 @@ import type {
 } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import { ProfileMetricsService } from '.';
 import type {
@@ -15,7 +14,6 @@ import type {
   ProfileMetricsServiceMessenger,
 } from '.';
 import { getAuthUrl } from './ProfileMetricsService';
-import { HttpError } from '../../controller-utils/src/util';
 
 const defaultBaseEndpoint = getAuthUrl(SDK.Env.DEV);
 
@@ -37,14 +35,12 @@ function createMockRequest(
 }
 
 describe('ProfileMetricsService', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -80,6 +76,28 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
+    it('sends fetch requests with credentials omitted', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
+        new Response(JSON.stringify({ data: { success: true } }), {
+          status: 200,
+        }),
+      );
+      const { rootMessenger } = getService({
+        options: { fetch: mockFetch },
+      });
+
+      await rootMessenger.call(
+        'ProfileMetricsService:submitMetrics',
+        createMockRequest(),
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({ credentials: 'omit' }),
+      );
+    });
+
     it('resolves when there is a successful response from the API and the accounts do not have an entropy source id', async () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
@@ -104,7 +122,7 @@ describe('ProfileMetricsService', () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
         .reply(200, () => {
-          clock.tick(6000);
+          jest.advanceTimersByTime(6000);
           return {
             data: {
               success: true,
@@ -127,7 +145,7 @@ describe('ProfileMetricsService', () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
         .reply(200, () => {
-          clock.tick(1000);
+          jest.advanceTimersByTime(1000);
           return {
             data: {
               success: true,
@@ -153,7 +171,9 @@ describe('ProfileMetricsService', () => {
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
       nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(clock.next);
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call(
@@ -168,7 +188,9 @@ describe('ProfileMetricsService', () => {
     it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
       nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(clock.next);
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
@@ -186,7 +208,9 @@ describe('ProfileMetricsService', () => {
     it('intercepts requests and throws a circuit break error after the 4th failed attempt, running onBreak listeners', async () => {
       nock(defaultBaseEndpoint).put('/profile/accounts').times(12).reply(500);
       const { service, rootMessenger } = getService();
-      service.onRetry(clock.next);
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
 
@@ -252,7 +276,9 @@ describe('ProfileMetricsService', () => {
           policyOptions: { circuitBreakDuration },
         },
       });
-      service.onRetry(clock.next);
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
 
       await expect(
         rootMessenger.call(
@@ -286,7 +312,7 @@ describe('ProfileMetricsService', () => {
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
-      await clock.tickAsync(circuitBreakDuration);
+      jest.advanceTimersByTime(circuitBreakDuration);
       const submitMetricsResponse =
         await service.submitMetrics(createMockRequest());
       expect(submitMetricsResponse).toBeUndefined();

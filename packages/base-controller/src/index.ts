@@ -10,5 +10,6 @@ export type {
   StatePropertyMetadataConstraint,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
 } from './BaseController';
 export { BaseController, deriveStateFromMetadata } from './BaseController';

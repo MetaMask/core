@@ -1,12 +1,13 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
+  AccountsControllerAccountAddedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -25,13 +26,17 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
-import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerAccountRemovedEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerNetworkAddedEvent,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -39,7 +44,7 @@ import type {
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -51,12 +56,14 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
+  TokenRwaData,
 } from './token-service';
 import type {
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
 /**
  * @type SuggestedAssetMeta
@@ -75,6 +82,21 @@ type SuggestedAssetMeta = {
   type: string;
   asset: Token;
   interactingAddress: string;
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+type WatchAssetRequestMetadata = {
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+const getNonEmptyString = (
+  ...candidates: (string | undefined)[]
+): string | undefined => {
+  return candidates.find(
+    (candidate) => typeof candidate === 'string' && candidate.trim() !== '',
+  );
 };
 
 /**
@@ -115,31 +137,20 @@ const metadata: StateMetadata<TokensControllerState> = {
 
 const controllerName = 'TokensController';
 
-export type TokensControllerActions =
-  | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction
-  | TokensControllerAddTokensAction;
-
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensControllerState
 >;
 
-export type TokensControllerAddDetectedTokensAction = {
-  type: `${typeof controllerName}:addDetectedTokens`;
-  handler: TokensController['addDetectedTokens'];
-};
-
-export type TokensControllerAddTokensAction = {
-  type: `${typeof controllerName}:addTokens`;
-  handler: TokensController['addTokens'];
-};
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerMethodActions;
 
 /**
  * The external actions available to the {@link TokensController}.
  */
 export type AllowedActions =
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -155,9 +166,12 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
+  | NetworkControllerNetworkAddedEvent
   | TokenListStateChange
+  | AccountsControllerAccountAddedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | KeyringControllerUnlockEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -168,6 +182,34 @@ export type TokensControllerMessenger = Messenger<
   TokensControllerEvents | AllowedEvents
 >;
 
+/**
+ * Canonical contract address for MetaMask USD (mUSD) — same across every
+ * chain we deploy it to.
+ */
+const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
+/**
+ * Pre-built Token entry for mUSD — used when seeding default state.
+ */
+const MUSD_TOKEN: Token = {
+  address: MUSD_ADDRESS,
+  decimals: 6,
+  symbol: 'mUSD',
+  name: 'MetaMask USD',
+};
+
+/**
+ * Hex chain IDs on which mUSD is deployed and should be shown by default.
+ * - 0x1     — Ethereum mainnet (1)
+ * - 0xe708  — Linea (59144)
+ * - 0x8f    — Monad mainnet (143)
+ */
+const MUSD_SUPPORTED_CHAIN_IDS: ReadonlySet<Hex> = new Set<Hex>([
+  '0x1',
+  '0xe708',
+  '0x8f',
+]);
+
 export const getDefaultTokensState = (): TokensControllerState => {
   return {
     allTokens: {},
@@ -175,6 +217,17 @@ export const getDefaultTokensState = (): TokensControllerState => {
     allDetectedTokens: {},
   };
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addDetectedTokens',
+  'addTokens',
+  'addToken',
+  'ignoreTokens',
+  'updateTokenType',
+  'watchAsset',
+  'clearIgnoredTokens',
+  'resetState',
+] as const;
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -227,15 +280,7 @@ export class TokensController extends BaseController<
 
     this.#abortController = new AbortController();
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokens` as const,
-      this.addDetectedTokens.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addTokens` as const,
-      this.addTokens.bind(this),
-    );
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
@@ -253,6 +298,38 @@ export class TokensController extends BaseController<
     );
 
     this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      (networkConfiguration) => {
+        this.#onNetworkAdded(networkConfiguration.chainId);
+      },
+    );
+
+    // Seed mUSD for accounts already known to AccountsController (may return
+    // empty on first start if AccountsController hasn't loaded yet).
+    this.#seedMusdForAllAccounts();
+
+    // Also seed from existing persisted allTokens state so returning users see
+    // mUSD immediately without waiting for KeyringController:unlock.
+    this.#seedMusdFromExistingState();
+
+    // Re-seed mUSD after unlock, because accounts may not be available during
+    // construction (e.g. on restart before AccountsController has finished loading).
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#seedMusdForAllAccounts();
+    });
+
+    // Re-seed mUSD whenever a new account is added. This is the most reliable
+    // trigger when AccountsController populates accounts asynchronously after
+    // TokensController construction — it fires once per account as each one
+    // becomes available.
+    this.messenger.subscribe(
+      'AccountsController:accountAdded',
+      (account: InternalAccount) => {
+        this.#seedMusdForAccount(account.address);
+      },
+    );
+
+    this.messenger.subscribe(
       'TokenListController:stateChange',
       ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
@@ -262,16 +339,19 @@ export class TokensController extends BaseController<
         const updatedAllTokens = cloneDeep(allTokens);
 
         for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data || {};
+          const chainData = chainCache?.data ?? {};
 
           if (updatedAllTokens[chainId as Hex]) {
             if (updatedAllTokens[chainId as Hex][selectedAddress]) {
               const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
 
               for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address];
+                const cachedToken = chainData[token.address.toLowerCase()];
                 if (cachedToken && cachedToken.name && !token.name) {
                   token.name = cachedToken.name; // Update the token name
+                }
+                if (cachedToken?.rwaData) {
+                  token.rwaData = cachedToken.rwaData; // Update the token RWA data
                 }
               }
             }
@@ -334,20 +414,39 @@ export class TokensController extends BaseController<
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
    */
-  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
-    // Remove state for deleted networks
-    for (const patch of patches) {
-      if (
-        patch.op === 'remove' &&
-        patch.path[0] === 'networkConfigurationsByChainId'
-      ) {
-        const removedChainId = patch.path[1] as Hex;
+  /**
+   * Handles the `NetworkController:networkAdded` event. Seeds mUSD for all
+   * EVM accounts immediately when the user adds a supported chain (e.g. Monad
+   * testnet) — without waiting for the `stateChange` patch cycle.
+   *
+   * @param chainId - The hex chain ID of the newly added network.
+   */
+  #onNetworkAdded(chainId: Hex): void {
+    if (MUSD_SUPPORTED_CHAIN_IDS.has(chainId)) {
+      this.#seedMusdForAllAccounts();
+    }
+  }
 
+  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    for (const patch of patches) {
+      if (patch.path[0] !== 'networkConfigurationsByChainId') {
+        continue;
+      }
+
+      if (patch.op === 'remove') {
+        // Remove state for deleted networks
+        const removedChainId = patch.path[1] as Hex;
         this.update((state) => {
           delete state.allTokens[removedChainId];
           delete state.allIgnoredTokens[removedChainId];
           delete state.allDetectedTokens[removedChainId];
         });
+      } else if (patch.op === 'add') {
+        // When a new chain is added, seed mUSD if it is a supported chain.
+        const addedChainId = patch.path[1] as Hex;
+        if (MUSD_SUPPORTED_CHAIN_IDS.has(addedChainId)) {
+          this.#seedMusdForAllAccounts();
+        }
       }
     }
   }
@@ -359,6 +458,9 @@ export class TokensController extends BaseController<
    */
   #onSelectedAccountChange(selectedAccount: InternalAccount) {
     this.#selectedAccountId = selectedAccount.id;
+    // Ensure mUSD is seeded for the newly active account (e.g. freshly
+    // created account that has never been the selected account before).
+    this.#seedMusdForAccount(selectedAccount.address);
   }
 
   /**
@@ -401,6 +503,7 @@ export class TokensController extends BaseController<
    * @param options.image - Image of the token.
    * @param options.interactingAddress - The address of the account to add a token to.
    * @param options.networkClientId - Network Client ID.
+   * @param options.rwaData - Optional RWA data for the token.
    * @returns Current token list.
    */
   async addToken({
@@ -411,6 +514,7 @@ export class TokensController extends BaseController<
     image,
     interactingAddress,
     networkClientId,
+    rwaData,
   }: {
     address: string;
     symbol: string;
@@ -419,6 +523,7 @@ export class TokensController extends BaseController<
     image?: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    rwaData?: TokenRwaData;
   }): Promise<Token[]> {
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -433,11 +538,11 @@ export class TokensController extends BaseController<
 
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[chainIdToUse]?.[accountAddress] || [];
+      const tokens = allTokens[chainIdToUse]?.[accountAddress] ?? [];
       const ignoredTokens =
-        allIgnoredTokens[chainIdToUse]?.[accountAddress] || [];
+        allIgnoredTokens[chainIdToUse]?.[accountAddress] ?? [];
       const detectedTokens =
-        allDetectedTokens[chainIdToUse]?.[accountAddress] || [];
+        allDetectedTokens[chainIdToUse]?.[accountAddress] ?? [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this.#detectIsERC721(address, networkClientId),
@@ -449,14 +554,16 @@ export class TokensController extends BaseController<
         symbol,
         decimals,
         image:
-          image ||
-          formatIconUrlWithProxy({
-            chainId: chainIdToUse,
-            tokenAddress: address,
-          }),
+          image && image.trim() !== ''
+            ? image
+            : formatIconUrlWithProxy({
+                chainId: chainIdToUse,
+                tokenAddress: address,
+              }),
         isERC721,
-        aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
         name,
+        ...(rwaData !== undefined && { rwaData }),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -516,7 +623,7 @@ export class TokensController extends BaseController<
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ??
         []),
       ...tokensToImport,
     ].reduce<{ [address: string]: Token }>((output, token) => {
@@ -525,7 +632,7 @@ export class TokensController extends BaseController<
     }, {});
     try {
       tokensToImport.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators, name } =
+        const { address, symbol, decimals, image, aggregators, name, rwaData } =
           tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
@@ -535,6 +642,7 @@ export class TokensController extends BaseController<
           image,
           aggregators,
           name,
+          ...(rwaData && { rwaData }),
         };
         newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
@@ -592,14 +700,14 @@ export class TokensController extends BaseController<
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     const ignoredTokens =
-      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
 
     const tokens =
-      allTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const detectedTokens =
-      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -664,6 +772,7 @@ export class TokensController extends BaseController<
           aggregators,
           isERC721,
           name,
+          rwaData,
         } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
@@ -674,6 +783,7 @@ export class TokensController extends BaseController<
           isERC721,
           aggregators,
           name,
+          ...(rwaData && { rwaData }),
         };
 
         const previousImportedIndex = newTokens.findIndex(
@@ -717,9 +827,9 @@ export class TokensController extends BaseController<
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
       const selectedAddress = this.#getSelectedAddress();
 
-      newTokens = newAllTokens?.[chainId]?.[selectedAddress] || [];
+      newTokens = newAllTokens?.[chainId]?.[selectedAddress] ?? [];
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] ?? [];
 
       this.update((state) => {
         state.allTokens = newAllTokens;
@@ -741,7 +851,7 @@ export class TokensController extends BaseController<
   async updateTokenType(
     tokenAddress: string,
     networkClientId: NetworkClientId,
-  ) {
+  ): Promise<Token> {
     const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -832,6 +942,9 @@ export class TokensController extends BaseController<
    * @param options.type - The asset type.
    * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
    * @param options.networkClientId - Network Client ID.
+   * @param options.origin - The origin to set on the approval request.
+   * @param options.pageMeta - The metadata for the page initiating the request.
+   * @param options.requestMetadata - Metadata for the request, including pageMeta and origin.
    * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
   async watchAsset({
@@ -839,11 +952,17 @@ export class TokensController extends BaseController<
     type,
     interactingAddress,
     networkClientId,
+    origin,
+    pageMeta,
+    requestMetadata,
   }: {
     asset: Token;
     type: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    origin?: string;
+    pageMeta?: Record<string, Json>;
+    requestMetadata?: WatchAssetRequestMetadata;
   }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
@@ -951,11 +1070,13 @@ export class TokensController extends BaseController<
       time: Date.now(),
       type,
       interactingAddress: selectedAddress,
+      origin: getNonEmptyString(requestMetadata?.origin, origin),
+      pageMeta: requestMetadata?.pageMeta ?? pageMeta,
     };
 
     await this.#requestApproval(suggestedAssetMeta);
 
-    const { address, symbol, decimals, name, image } = asset;
+    const { address, symbol, decimals, name, image, rwaData } = asset;
     await this.addToken({
       address,
       symbol,
@@ -964,6 +1085,7 @@ export class TokensController extends BaseController<
       image,
       interactingAddress: suggestedAssetMeta.interactingAddress,
       networkClientId,
+      rwaData,
     });
   }
 
@@ -1075,25 +1197,98 @@ export class TokensController extends BaseController<
   }
 
   async #requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
+    const requestData: Record<string, Json> = {
+      id: suggestedAssetMeta.id,
+      interactingAddress: suggestedAssetMeta.interactingAddress,
+      asset: {
+        address: suggestedAssetMeta.asset.address,
+        decimals: suggestedAssetMeta.asset.decimals,
+        symbol: suggestedAssetMeta.asset.symbol,
+        image:
+          suggestedAssetMeta.asset.image &&
+          suggestedAssetMeta.asset.image.trim() !== ''
+            ? suggestedAssetMeta.asset.image
+            : null,
+      },
+    };
+    if (suggestedAssetMeta.pageMeta) {
+      requestData.metadata = {
+        pageMeta: suggestedAssetMeta.pageMeta,
+      };
+    }
+
     return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        origin: ORIGIN_METAMASK,
+        origin: getNonEmptyString(suggestedAssetMeta.origin) ?? ORIGIN_METAMASK,
         type: ApprovalType.WatchAsset,
-        requestData: {
-          id: suggestedAssetMeta.id,
-          interactingAddress: suggestedAssetMeta.interactingAddress,
-          asset: {
-            address: suggestedAssetMeta.asset.address,
-            decimals: suggestedAssetMeta.asset.decimals,
-            symbol: suggestedAssetMeta.asset.symbol,
-            image: suggestedAssetMeta.asset.image || null,
-          },
-        },
+        requestData,
       },
       true,
     );
+  }
+
+  /**
+   * Ensure mUSD appears in `allTokens` for the given EVM account address on
+   * every chain where mUSD is a default tracked asset. Does nothing if the
+   * address is not a valid EVM address or if mUSD is already present.
+   *
+   * @param accountAddress - Lowercase hex address of the account.
+   */
+  #seedMusdForAccount(accountAddress: string): void {
+    if (
+      !isStrictHexString(accountAddress.toLowerCase()) ||
+      !isValidHexAddress(accountAddress)
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const chainId of MUSD_SUPPORTED_CHAIN_IDS) {
+        state.allTokens[chainId] ??= {};
+        const accountTokens = state.allTokens[chainId][accountAddress] ?? [];
+        const alreadyPresent = accountTokens.some(
+          (token) => token.address.toLowerCase() === MUSD_ADDRESS,
+        );
+        if (!alreadyPresent) {
+          state.allTokens[chainId][accountAddress] = [
+            ...accountTokens,
+            MUSD_TOKEN,
+          ];
+        }
+      }
+    });
+  }
+
+  /**
+   * Seed mUSD for every existing EVM account via AccountsController.
+   * Called on KeyringController:unlock and on network/account events.
+   */
+  #seedMusdForAllAccounts(): void {
+    const accounts = this.messenger.call('AccountsController:listAccounts');
+    for (const account of accounts) {
+      this.#seedMusdForAccount(account.address);
+    }
+  }
+
+  /**
+   * Seed mUSD for every account address that already has an entry in the
+   * persisted `allTokens` state. This runs at construction time without
+   * relying on AccountsController being ready — it derives account addresses
+   * directly from state so that returning users see mUSD immediately, even
+   * before the keyring unlocks.
+   */
+  #seedMusdFromExistingState(): void {
+    const addresses = new Set<string>();
+    for (const chainTokens of Object.values(this.state.allTokens)) {
+      for (const address of Object.keys(chainTokens)) {
+        addresses.add(address);
+      }
+    }
+    for (const address of addresses) {
+      this.#seedMusdForAccount(address);
+    }
   }
 
   #getSelectedAccount() {
@@ -1106,7 +1301,7 @@ export class TokensController extends BaseController<
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return account?.address || '';
+    return account?.address ?? '';
   }
 
   /**

@@ -1,14 +1,18 @@
 import { toHex } from '@metamask/controller-utils';
 
-import { ClaimsController } from './ClaimsController';
+import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
+import type { WithControllerArgs } from '../tests/types';
+import {
+  ClaimsController,
+  getDefaultClaimsControllerState,
+} from './ClaimsController';
 import { ClaimsControllerErrorMessages, ClaimStatusEnum } from './constants';
 import type {
   Claim,
+  ClaimDraft,
   ClaimsConfigurationsResponse,
   CreateClaimRequest,
 } from './types';
-import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
-import type { WithControllerArgs } from '../tests/types';
 
 const mockClaimServiceRequestHeaders = jest.fn();
 const mockClaimServiceGetClaimsApiUrl = jest.fn();
@@ -16,6 +20,35 @@ const mockClaimServiceGenerateMessageForClaimSignature = jest.fn();
 const mockKeyringControllerSignPersonalMessage = jest.fn();
 const mockClaimsServiceGetClaims = jest.fn();
 const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
+
+const MOCK_CLAIM_1: Claim = {
+  id: 'mock-claim-1',
+  shortId: 'mock-claim-1',
+  status: ClaimStatusEnum.CREATED,
+  createdAt: '2021-01-01',
+  updatedAt: '2021-01-01',
+  chainId: '0x1',
+  email: 'test@test.com',
+  impactedWalletAddress: '0x123',
+  impactedTxHash: '0x123',
+  reimbursementWalletAddress: '0x456',
+  description: 'test description',
+  signature: '0xdeadbeef',
+};
+const MOCK_CLAIM_2: Claim = {
+  id: 'mock-claim-2',
+  shortId: 'mock-claim-2',
+  status: ClaimStatusEnum.CREATED,
+  createdAt: '2021-01-01',
+  updatedAt: '2021-01-01',
+  chainId: '0x1',
+  email: 'test2@test.com',
+  impactedWalletAddress: '0x789',
+  impactedTxHash: '0x789',
+  reimbursementWalletAddress: '0x012',
+  description: 'test description 2',
+  signature: '0xdeadbeef',
+};
 
 /**
  * Builds a controller based on the given options and calls the given function with that controller.
@@ -25,7 +58,7 @@ const mockClaimsServiceFetchClaimsConfigurations = jest.fn();
  */
 async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
-) {
+): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { messenger, rootMessenger } = createMockClaimsControllerMessenger({
     mockClaimServiceRequestHeaders,
@@ -71,9 +104,11 @@ describe('ClaimsController', () => {
     });
 
     it('should fetch claims configurations successfully', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const initialState = controller.state;
-        const configurations = await controller.fetchClaimsConfigurations();
+        const configurations = await rootMessenger.call(
+          'ClaimsController:fetchClaimsConfigurations',
+        );
         expect(configurations).toBeDefined();
 
         const expectedConfigurations = {
@@ -120,9 +155,11 @@ describe('ClaimsController', () => {
     });
 
     it('should be able to generate valid submit claim config', async () => {
-      await withController(async ({ controller }) => {
-        const submitClaimConfig =
-          await controller.getSubmitClaimConfig(MOCK_CLAIM);
+      await withController(async ({ rootMessenger }) => {
+        const submitClaimConfig = await rootMessenger.call(
+          'ClaimsController:getSubmitClaimConfig',
+          MOCK_CLAIM,
+        );
 
         expect(mockClaimServiceRequestHeaders).toHaveBeenCalledTimes(1);
         expect(mockClaimServiceGetClaimsApiUrl).toHaveBeenCalledTimes(1);
@@ -150,9 +187,12 @@ describe('ClaimsController', () => {
             ],
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getSubmitClaimConfig(MOCK_CLAIM),
+            rootMessenger.call(
+              'ClaimsController:getSubmitClaimConfig',
+              MOCK_CLAIM,
+            ),
           ).rejects.toThrow(
             ClaimsControllerErrorMessages.CLAIM_ALREADY_SUBMITTED,
           );
@@ -180,8 +220,9 @@ describe('ClaimsController', () => {
     });
 
     it('should generate a message and signature successfully', async () => {
-      await withController(async ({ controller }) => {
-        const signature = await controller.generateClaimSignature(
+      await withController(async ({ rootMessenger }) => {
+        const signature = await rootMessenger.call(
+          'ClaimsController:generateClaimSignature',
           1,
           MOCK_WALLET_ADDRESS,
         );
@@ -193,14 +234,18 @@ describe('ClaimsController', () => {
     });
 
     it('should throw an error if claims API response with invalid SIWE message', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         mockClaimServiceGenerateMessageForClaimSignature.mockRestore();
         mockClaimServiceGenerateMessageForClaimSignature.mockResolvedValueOnce({
           message: 'invalid SIWE message',
           nonce: 'B4Y8k8lGdMml0nrqk',
         });
         await expect(
-          controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
+          rootMessenger.call(
+            'ClaimsController:generateClaimSignature',
+            1,
+            MOCK_WALLET_ADDRESS,
+          ),
         ).rejects.toThrow(
           ClaimsControllerErrorMessages.INVALID_SIGNATURE_MESSAGE,
         );
@@ -209,42 +254,13 @@ describe('ClaimsController', () => {
   });
 
   describe('getClaims', () => {
-    const MOCK_CLAIM_1: Claim = {
-      id: 'mock-claim-1',
-      shortId: 'mock-claim-1',
-      status: ClaimStatusEnum.CREATED,
-      createdAt: '2021-01-01',
-      updatedAt: '2021-01-01',
-      chainId: '0x1',
-      email: 'test@test.com',
-      impactedWalletAddress: '0x123',
-      impactedTxHash: '0x123',
-      reimbursementWalletAddress: '0x456',
-      description: 'test description',
-      signature: '0xdeadbeef',
-    };
-    const MOCK_CLAIM_2: Claim = {
-      id: 'mock-claim-2',
-      shortId: 'mock-claim-2',
-      status: ClaimStatusEnum.CREATED,
-      createdAt: '2021-01-01',
-      updatedAt: '2021-01-01',
-      chainId: '0x1',
-      email: 'test2@test.com',
-      impactedWalletAddress: '0x789',
-      impactedTxHash: '0x789',
-      reimbursementWalletAddress: '0x012',
-      description: 'test description 2',
-      signature: '0xdeadbeef',
-    };
-
     it('should be able to get the list of claims', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         mockClaimsServiceGetClaims.mockResolvedValueOnce([
           MOCK_CLAIM_1,
           MOCK_CLAIM_2,
         ]);
-        const claims = await controller.getClaims();
+        const claims = await rootMessenger.call('ClaimsController:getClaims');
         expect(claims).toBeDefined();
         expect(claims).toStrictEqual([MOCK_CLAIM_1, MOCK_CLAIM_2]);
         expect(mockClaimsServiceGetClaims).toHaveBeenCalledTimes(1);
@@ -253,6 +269,167 @@ describe('ClaimsController', () => {
           MOCK_CLAIM_2,
         ]);
       });
+    });
+  });
+
+  describe('Claims Drafts', () => {
+    const MOCK_DRAFT: Omit<ClaimDraft, 'draftId'> = {
+      chainId: '0x1',
+      email: 'test@test.com',
+      impactedWalletAddress: '0x123',
+      impactedTxHash: '0x123',
+      reimbursementWalletAddress: '0x456',
+      description: 'test description',
+      updatedAt: '2025-12-17T06:10:32.213Z',
+    };
+    const MOCK_CLAIM_DRAFTS: ClaimDraft[] = [
+      {
+        draftId: 'mock-draft-1',
+        chainId: '0x1',
+        email: 'test@test.com',
+        impactedWalletAddress: '0x123',
+        impactedTxHash: '0x123',
+        reimbursementWalletAddress: '0x456',
+        description: 'test description',
+        updatedAt: '2025-12-17T06:10:32.213Z',
+      },
+      {
+        draftId: 'mock-draft-2',
+        chainId: '0x1',
+        email: 'test2@test.com',
+        impactedWalletAddress: '0x789',
+        impactedTxHash: '0x789',
+        reimbursementWalletAddress: '0x012',
+        description: 'test description 2',
+        updatedAt: '2025-12-17T06:10:32.213Z',
+      },
+    ];
+
+    it('should be able to save a claim draft', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const initialState = controller.state;
+        rootMessenger.call(
+          'ClaimsController:saveOrUpdateClaimDraft',
+          MOCK_DRAFT,
+        );
+        const updatedState = controller.state;
+        expect(updatedState).not.toBe(initialState);
+        expect(updatedState.drafts).toHaveLength(1);
+        expect(updatedState.drafts[0].draftId).toBeDefined();
+        expect(updatedState.drafts[0]).toMatchObject({
+          ...MOCK_DRAFT,
+          updatedAt: expect.any(String),
+        });
+        expect(updatedState.drafts[0].draftId).toBeDefined();
+      });
+    });
+
+    it('should be able to get the list of claim drafts', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ rootMessenger }) => {
+          const claimDrafts = rootMessenger.call(
+            'ClaimsController:getClaimDrafts',
+          );
+          expect(claimDrafts).toBeDefined();
+          expect(claimDrafts).toStrictEqual(MOCK_CLAIM_DRAFTS);
+        },
+      );
+    });
+
+    it('should be able to update a claim draft', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.call('ClaimsController:saveOrUpdateClaimDraft', {
+            draftId: 'mock-draft-1',
+            chainId: '0x1',
+            email: 'test@test.com',
+            impactedWalletAddress: '0x123',
+            impactedTxHash: '0x123',
+            reimbursementWalletAddress: '0x456',
+            description: 'test description updated',
+          });
+          const updatedState = controller.state;
+          expect(updatedState.drafts[0].description).toBe(
+            'test description updated',
+          );
+        },
+      );
+    });
+
+    it('should be able to delete a claim draft', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const initialState = controller.state;
+          expect(initialState.drafts).toHaveLength(2);
+          rootMessenger.call(
+            'ClaimsController:deleteClaimDraft',
+            'mock-draft-1',
+          );
+          const updatedState = controller.state;
+          expect(updatedState.drafts).toHaveLength(1);
+          expect(updatedState.drafts[0].draftId).toBe('mock-draft-2');
+        },
+      );
+    });
+
+    it('should be able to delete all claim drafts', async () => {
+      await withController(
+        {
+          state: {
+            drafts: MOCK_CLAIM_DRAFTS,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const initialState = controller.state;
+          expect(initialState.drafts).toHaveLength(2);
+          rootMessenger.call('ClaimsController:deleteAllClaimDrafts');
+          const updatedState = controller.state;
+          expect(updatedState.drafts).toHaveLength(0);
+        },
+      );
+    });
+  });
+
+  describe('clearState', () => {
+    it('should reset state to default values', async () => {
+      await withController(
+        {
+          state: {
+            claims: [MOCK_CLAIM_1, MOCK_CLAIM_2],
+            drafts: [MOCK_CLAIM_1, MOCK_CLAIM_2].map((claim) => ({
+              draftId: claim.id,
+              ...claim,
+            })),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          expect(controller.state.claims).toHaveLength(2);
+          expect(controller.state.drafts).toHaveLength(2);
+
+          rootMessenger.call('ClaimsController:clearState');
+
+          expect(controller.state).toStrictEqual(
+            getDefaultClaimsControllerState(),
+          );
+          expect(controller.state.claims).toHaveLength(0);
+          expect(controller.state.drafts).toHaveLength(0);
+        },
+      );
     });
   });
 });

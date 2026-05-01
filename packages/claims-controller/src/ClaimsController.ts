@@ -9,6 +9,7 @@ import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyri
 import type { Messenger } from '@metamask/messenger';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 
+import type { ClaimsControllerMethodActions } from './ClaimsController-method-action-types';
 import type {
   ClaimsServiceFetchClaimsConfigurationsAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
@@ -25,6 +26,7 @@ import {
 } from './constants';
 import type {
   Claim,
+  ClaimDraft,
   ClaimsConfigurations,
   ClaimsControllerState,
   CreateClaimRequest,
@@ -36,7 +38,9 @@ export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   ClaimsControllerState
 >;
 
-export type ClaimsControllerActions = ClaimsControllerGetStateAction;
+export type ClaimsControllerActions =
+  | ClaimsControllerGetStateAction
+  | ClaimsControllerMethodActions;
 
 export type AllowedActions =
   | ClaimsServiceFetchClaimsConfigurationsAction
@@ -77,6 +81,12 @@ const ClaimsControllerStateMetadata: StateMetadata<ClaimsControllerState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
+  drafts: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -88,8 +98,21 @@ export function getDefaultClaimsControllerState(): ClaimsControllerState {
   return {
     claimsConfigurations: DEFAULT_CLAIMS_CONFIGURATIONS,
     claims: [],
+    drafts: [],
   };
 }
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchClaimsConfigurations',
+  'getSubmitClaimConfig',
+  'generateClaimSignature',
+  'getClaims',
+  'saveOrUpdateClaimDraft',
+  'getClaimDrafts',
+  'deleteClaimDraft',
+  'deleteAllClaimDrafts',
+  'clearState',
+] as const;
 
 export class ClaimsController extends BaseController<
   typeof CONTROLLER_NAME,
@@ -103,6 +126,11 @@ export class ClaimsController extends BaseController<
       name: CONTROLLER_NAME,
       state: { ...getDefaultClaimsControllerState(), ...state },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -205,6 +233,92 @@ export class ClaimsController extends BaseController<
       state.claims = claims;
     });
     return claims;
+  }
+
+  /**
+   * Save a claim draft to the state.
+   * If the draft name is not provided, a default name will be generated.
+   * If the draft with the same id already exists, it will be updated.
+   *
+   * @param draft - The draft to save.
+   * @returns The saved draft.
+   */
+  saveOrUpdateClaimDraft(draft: Partial<ClaimDraft>): ClaimDraft {
+    const { drafts } = this.state;
+
+    const isExistingDraft = drafts.some(
+      (existingDraft) =>
+        draft.draftId && existingDraft.draftId === draft.draftId,
+    );
+
+    if (isExistingDraft) {
+      const updatedAt = new Date().toISOString();
+      this.update((state) => {
+        state.drafts = state.drafts.map((existingDraft) =>
+          existingDraft.draftId === draft.draftId
+            ? {
+                ...existingDraft,
+                ...draft,
+                updatedAt,
+              }
+            : existingDraft,
+        );
+      });
+      return { ...draft, updatedAt } as ClaimDraft;
+    }
+
+    // generate a new draft id, name and add it to the state
+    const draftId = `draft-${Date.now()}`;
+
+    const newDraft: ClaimDraft = {
+      ...draft,
+      draftId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.update((state) => {
+      state.drafts.push(newDraft);
+    });
+
+    return newDraft;
+  }
+
+  /**
+   * Get the list of claim drafts.
+   *
+   * @returns The list of claim drafts.
+   */
+  getClaimDrafts(): ClaimDraft[] {
+    return this.state.drafts;
+  }
+
+  /**
+   * Delete a claim draft from the state.
+   *
+   * @param draftId - The ID of the draft to delete.
+   */
+  deleteClaimDraft(draftId: string): void {
+    this.update((state) => {
+      state.drafts = state.drafts.filter((draft) => draft.draftId !== draftId);
+    });
+  }
+
+  /**
+   * Delete all claim drafts from the state.
+   */
+  deleteAllClaimDrafts(): void {
+    this.update((state) => {
+      state.drafts = [];
+    });
+  }
+
+  /**
+   * Clears the claims state and resets to default values.
+   */
+  clearState(): void {
+    this.update(() => {
+      return getDefaultClaimsControllerState();
+    });
   }
 
   /**

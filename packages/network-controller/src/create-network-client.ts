@@ -1,3 +1,4 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type {
   CockatielFailureReason,
   InfuraNetworkType,
@@ -34,6 +35,13 @@ import type {
   NetworkControllerMessenger,
 } from './NetworkController';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import {
+  isConnectionError,
+  isConnectionResetError,
+  isJsonParseError,
+  isHttpServerError,
+  isTimeoutError,
+} from './rpc-service/rpc-service';
 import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
@@ -43,6 +51,50 @@ import type {
 import { NetworkClientType } from './types';
 
 const SECOND = 1000;
+
+/**
+ * Why the degraded event was emitted.
+ */
+export type DegradedEventType = 'slow_success' | 'retries_exhausted';
+
+/**
+ * The category of error that was retried until retries were exhausted.
+ */
+export type RetryReason =
+  | 'connection_failed'
+  | 'response_not_json'
+  | 'non_successful_http_status'
+  | 'timed_out'
+  | 'connection_reset'
+  | 'unknown';
+
+/**
+ * Classifies the error that was being retried when retries were exhausted.
+ *
+ * @param error - The error from the last retry attempt.
+ * @returns A classification string.
+ */
+export function classifyRetryReason(error: unknown): RetryReason {
+  if (!(error instanceof Error)) {
+    return 'unknown';
+  }
+  if (isConnectionError(error)) {
+    return 'connection_failed';
+  }
+  if (isJsonParseError(error)) {
+    return 'response_not_json';
+  }
+  if (isHttpServerError(error)) {
+    return 'non_successful_http_status';
+  }
+  if (isTimeoutError(error)) {
+    return 'timed_out';
+  }
+  if (isConnectionResetError(error)) {
+    return 'connection_reset';
+  }
+  return 'unknown';
+}
 
 /**
  * The pair of provider / block tracker that can be used to interface with the
@@ -159,7 +211,7 @@ export function createNetworkClient({
     }),
   });
 
-  const destroy = () => {
+  const destroy = (): void => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker.destroy();
@@ -206,14 +258,23 @@ function createRpcServiceChain({
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
   logger?: Logger;
-}) {
+}): RpcServiceChain {
   const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
     ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
     : [primaryEndpointUrl];
+
+  const isOffline = (): boolean => {
+    const connectivityState = messenger.call('ConnectivityController:getState');
+    return (
+      connectivityState.connectivityStatus === CONNECTIVITY_STATUSES.Offline
+    );
+  };
+
   const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
     ...getRpcServiceOptions(endpointUrl),
     endpointUrl,
     logger,
+    isOffline,
   }));
 
   /**
@@ -235,7 +296,7 @@ function createRpcServiceChain({
    */
   const getError = (
     value: CockatielFailureReason<unknown> | Record<never, never>,
-  ) => {
+  ): Error | unknown | undefined => {
     if ('error' in value) {
       return value.error;
     } else if ('value' in value) {
@@ -289,12 +350,17 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded((data) => {
-    const error = getError(data);
+  rpcServiceChain.onDegraded(({ rpcMethodName, ...rest }) => {
+    const error = getError(rest);
+    const type: DegradedEventType =
+      error === undefined ? 'slow_success' : 'retries_exhausted';
     messenger.publish('NetworkController:rpcEndpointChainDegraded', {
       chainId: configuration.chainId,
       networkClientId: id,
       error,
+      rpcMethodName,
+      type,
+      retryReason: error === undefined ? undefined : classifyRetryReason(error),
     });
   });
 
@@ -302,15 +368,23 @@ function createRpcServiceChain({
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      rpcMethodName,
       ...rest
     }) => {
       const error = getError(rest);
+      const type: DegradedEventType =
+        error === undefined ? 'slow_success' : 'retries_exhausted';
+
       messenger.publish('NetworkController:rpcEndpointDegraded', {
         chainId: configuration.chainId,
         networkClientId: id,
         primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
+        rpcMethodName,
+        type,
+        retryReason:
+          error === undefined ? undefined : classifyRetryReason(error),
       });
     },
   );
@@ -365,8 +439,10 @@ function createBlockTracker({
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   provider: InternalProvider;
-}) {
+}): PollingBlockTracker {
   const testOptions =
+    // Needed for testing.
+    // eslint-disable-next-line no-restricted-globals
     process.env.IN_TEST && networkClientType === NetworkClientType.Custom
       ? { pollingInterval: SECOND }
       : {};
@@ -398,7 +474,11 @@ function createInfuraNetworkMiddleware({
   network: InfuraNetworkType;
   rpcProvider: InternalProvider;
   rpcApiMiddleware: RpcApiMiddleware;
-}) {
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string; skipCache: boolean }>
+> {
   return JsonRpcEngineV2.create({
     middleware: [
       createNetworkAndChainIdMiddleware({ network }),
@@ -423,7 +503,7 @@ function createNetworkAndChainIdMiddleware({
   network,
 }: {
   network: InfuraNetworkType;
-}) {
+}): JsonRpcMiddleware<JsonRpcRequest> {
   return createScaffoldMiddleware({
     eth_chainId: ChainId[network],
   });
@@ -457,7 +537,13 @@ function createCustomNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   chainId: Hex;
   rpcApiMiddleware: RpcApiMiddleware;
-}) {
+}): JsonRpcMiddleware<
+  JsonRpcRequest,
+  Json,
+  MiddlewareContext<{ origin: string; skipCache: boolean }>
+> {
+  // Needed for testing.
+  // eslint-disable-next-line no-restricted-globals
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

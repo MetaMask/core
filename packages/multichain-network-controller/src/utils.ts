@@ -100,7 +100,7 @@ export const toMultichainNetworkConfiguration = (
     defaultRpcEndpointIndex,
     nativeCurrency,
     blockExplorerUrls,
-    defaultBlockExplorerUrlIndex,
+    defaultBlockExplorerUrlIndex = 0,
   } = network;
   return {
     chainId: toEvmCaipChainId(chainId),
@@ -108,7 +108,7 @@ export const toMultichainNetworkConfiguration = (
     name: name || rpcEndpoints[defaultRpcEndpointIndex].url,
     nativeCurrency,
     blockExplorerUrls,
-    defaultBlockExplorerUrlIndex: defaultBlockExplorerUrlIndex || 0,
+    defaultBlockExplorerUrlIndex,
   };
 };
 

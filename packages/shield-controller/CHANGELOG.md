@@ -7,11 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/signature-controller` from `^39.1.2` to `^39.2.0` ([#8478](https://github.com/MetaMask/core/pull/8478))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.0.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [5.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/signature-controller` from `^39.1.1` to `^39.1.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [5.1.0]
+
+### Added
+
+- Expose all public `ShieldController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - The following actions are now available:
+    - `ShieldController:start`
+    - `ShieldController:stop`
+    - `ShieldController:clearState`
+    - `ShieldController:checkSignatureCoverage`
+  - Corresponding action types are now exported (e.g. `ShieldControllerCheckCoverageAction`)
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/signature-controller` from `^39.1.0` to `^39.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [5.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.12.0` to `^63.0.0` ([#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897), [#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/signature-controller` from `^39.0.1` to `^39.1.0` ([#7897](https://github.com/MetaMask/core/pull/7897), [#7946](https://github.com/MetaMask/core/pull/7946), [#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140), [#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [5.0.1]
+
+### Added
+
+- Added new public method, `clearState` to clear/reset the shield controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.12.0` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775))
+- Bump `@metamask/signature-controller` from `^39.0.0` to `^39.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [5.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^38.0.0` to `^39.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7634](https://github.com/MetaMask/core/pull/7634))
+  - When passing a signature request to `checkSignatureCoverage`, the `decodedPermission` property of the request has a different shape. See changelog for `@metamask/gator-permissions-controller` 1.0.0 for more.
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.9.1` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [4.1.0]
+
+### Added
+
+- Add optional constructor param, `captureException` to capture any errors during coverage API calls. ([#7555](https://github.com/MetaMask/core/pull/7555))
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/transaction-controller` from `^62.5.0` to `^62.7.0` ([#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
 ## [4.0.0]
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/signature-controller` from `^37.0.0` to `^38.0.0` ([#7330](https://github.com/MetaMask/core/pull/7330))
+- Bump `@metamask/signature-controller` from `^37.0.0` to `^38.0.0` ([#7330](https://github.com/MetaMask/core/pull/7330))
 - Bump `@metamask/transaction-controller` from `^62.3.0` to `^62.5.0` ([#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325))
 
 ## [3.1.0]
@@ -169,7 +243,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.1...HEAD
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.0...@metamask/shield-controller@5.1.1
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.2...@metamask/shield-controller@5.1.0
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.1...@metamask/shield-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.0...@metamask/shield-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.1.0...@metamask/shield-controller@5.0.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.0.0...@metamask/shield-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.1.0...@metamask/shield-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.0.0...@metamask/shield-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@2.1.1...@metamask/shield-controller@3.0.0

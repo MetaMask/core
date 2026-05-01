@@ -8,11 +8,9 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
+import { TokenRwaData } from 'src/token-service';
 
-import {
-  parseBalanceWithDecimals,
-  stringifyBalanceWithDecimals,
-} from './stringify-balance';
+import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -21,6 +19,10 @@ import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import {
+  parseBalanceWithDecimals,
+  stringifyBalanceWithDecimals,
+} from './stringify-balance';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {
@@ -30,6 +32,9 @@ export const TRON_RESOURCE = {
   MAX_BANDWIDTH: 'max-bandwidth',
   STRX_ENERGY: 'strx-energy',
   STRX_BANDWIDTH: 'strx-bandwidth',
+  TRX_READY_FOR_WITHDRAWAL: 'trx-ready-for-withdrawal',
+  TRX_STAKING_REWARDS: 'trx-staking-rewards',
+  TRX_IN_LOCK_PERIOD: 'trx-in-lock-period',
 } as const;
 
 export type TronResourceSymbol =
@@ -84,10 +89,12 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
+  rwaData?: TokenRwaData;
 };
 
 export type AssetListState = {
   accountTree: AccountTreeControllerState['accountTree'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   internalAccounts: AccountsControllerState['internalAccounts'];
   allTokens: TokensControllerState['allTokens'];
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
@@ -133,6 +140,10 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
 
+          if (!internalAccount) {
+            continue;
+          }
+
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')
@@ -170,6 +181,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (!shouldIncludeNativeToken(chainId)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
@@ -206,6 +221,7 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           currencyRates,
           chainId,
           nativeToken.address,
+          nativeCurrency, // Pass native currency symbol for fallback when market data is missing
         );
 
         groupChainAssets.push({
@@ -325,6 +341,7 @@ const selectAllEvmAssets = createAssetListSelector(
                 }
               : undefined,
             chainId,
+            ...(token.rwaData && { rwaData: token.rwaData }),
           });
         }
       }
@@ -391,7 +408,7 @@ const selectAllMultichainAssets = createAssetListSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
-        const decimals = assetMetadata.units.find(
+        const decimals = assetMetadata.units?.find(
           (unit) =>
             unit.name === assetMetadata.name &&
             unit.symbol === assetMetadata.symbol,
@@ -441,7 +458,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-const selectAllAssets = createAssetListSelector(
+export const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,
@@ -497,14 +514,13 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
     selectAllAssets,
-    (state) => state.accountTree,
+    (state) => state.selectedAccountGroup,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
-  (groupAssets, accountTree, opts) => {
-    const { selectedAccountGroup } = accountTree;
+  (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
       return {};
     }
@@ -561,6 +577,7 @@ function mergeAssets(
  * @param currencyRates - The currency rates for the token
  * @param chainId - The chain id of the token
  * @param tokenAddress - The address of the token
+ * @param nativeCurrencySymbol - The native currency symbol (e.g., 'ETH', 'BNB') - used for fallback when market data is missing for native tokens
  * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the market data or currency rates.
  */
 function getFiatBalanceForEvmToken(
@@ -570,8 +587,28 @@ function getFiatBalanceForEvmToken(
   currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
+  nativeCurrencySymbol?: string,
 ) {
   const tokenMarketData = marketData[chainId]?.[tokenAddress];
+
+  // For native tokens: if no market data exists, use price=1 and look up currency rate directly
+  // This is because native tokens are priced in themselves (1 ETH = 1 ETH)
+  if (!tokenMarketData && nativeCurrencySymbol) {
+    const currencyRate = currencyRates[nativeCurrencySymbol];
+
+    if (!currencyRate?.conversionRate) {
+      return undefined;
+    }
+
+    const fiatBalance =
+      (convertHexToDecimal(rawBalance) / 10 ** decimals) *
+      currencyRate.conversionRate;
+
+    return {
+      balance: fiatBalance,
+      conversionRate: currencyRate.conversionRate,
+    };
+  }
 
   if (!tokenMarketData) {
     return undefined;

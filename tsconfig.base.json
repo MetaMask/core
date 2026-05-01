@@ -5,6 +5,7 @@
   "compilerOptions": {
     "composite": true,
     "esModuleInterop": true,
+    "isolatedModules": true,
     "lib": ["ES2020", "DOM"],
     "module": "Node16",
     "moduleResolution": "Node16",

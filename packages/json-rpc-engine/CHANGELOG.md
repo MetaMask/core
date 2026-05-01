@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createOriginMiddleware` utility to `v2` ([#8522](https://github.com/MetaMask/core/pull/8522))
+- Add `createMethodMiddleware` utility to `v2` ([#8506](https://github.com/MetaMask/core/pull/8506), [#8583](https://github.com/MetaMask/core/pull/8583))
+  - This utility allows JSON-RPC method implementations to use both the hooks pattern and the messenger.
+- Add legacy `createMethodMiddleware` ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - Consolidates bespoke `makeMethodMiddlewareMaker` implementations from the MetaMask extension and mobile clients.
+  - Handlers may now declare `actionNames` and receive a delegated messenger as the sixth argument to `implementation`, mirroring the v2 `createMethodMiddleware`.
+  - Deprecated in favor of the v2 `createMethodMiddleware`.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+
+## [10.2.4]
+
+### Fixed
+
+- `JsonRpcServer.handle()` no longer throws or produces unhandled promise rejections when the `onError` callback throws or rejects ([#8071](https://github.com/MetaMask/core/pull/8071))
+
+## [10.2.3]
+
+### Fixed
+
+- Clone `JsonRpcEngineV2` return values to prevent returning frozen objects ([#8077](https://github.com/MetaMask/core/pull/8077))
+
+## [10.2.2]
+
+### Fixed
+
+- Preserve `data.cause` in RPC errors when using JsonRpcEngine compatibility tools ([#7838](https://github.com/MetaMask/core/pull/7838))
+
+## [10.2.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+### Fixed
+
+- Ensure non-object data in RPC errors is deserialized correctly when using JsonRpcEngine compatibility tools ([#7638](https://github.com/MetaMask/core/pull/7638))
+
 ## [10.2.0]
 
 ### Added
@@ -254,7 +296,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...HEAD
+[10.2.4]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.3...@metamask/json-rpc-engine@10.2.4
+[10.2.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.2...@metamask/json-rpc-engine@10.2.3
+[10.2.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.1...@metamask/json-rpc-engine@10.2.2
+[10.2.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.0...@metamask/json-rpc-engine@10.2.1
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.1...@metamask/json-rpc-engine@10.2.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.1.0...@metamask/json-rpc-engine@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.3...@metamask/json-rpc-engine@10.1.0

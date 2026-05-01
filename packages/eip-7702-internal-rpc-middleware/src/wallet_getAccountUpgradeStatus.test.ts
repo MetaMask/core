@@ -7,7 +7,13 @@ import { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus'
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const NETWORK_CLIENT_ID = 'mainnet';
 
-const createTestHooks = () => {
+const createTestHooks = (): {
+  getCode: jest.Mock;
+  getCurrentChainIdForDomain: jest.Mock;
+  getSelectedNetworkClientIdForChain: jest.Mock;
+  getPermittedAccountsForOrigin: jest.Mock;
+  isEip7702Supported: jest.Mock;
+} => {
   const getCode = jest.fn();
   const getCurrentChainIdForDomain = jest.fn().mockReturnValue('0x1');
   const getPermittedAccountsForOrigin = jest
@@ -27,7 +33,7 @@ const createTestHooks = () => {
     getSelectedNetworkClientIdForChain,
     getPermittedAccountsForOrigin,
     isEip7702Supported,
-  };
+  } as const;
 };
 
 const createTestRequest = (

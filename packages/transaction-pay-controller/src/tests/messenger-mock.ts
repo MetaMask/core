@@ -2,7 +2,11 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type { BridgeStatusControllerGetStateAction } from '@metamask/bridge-status-controller';
+import type {
+  BridgeStatusControllerGetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+} from '@metamask/bridge-status-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -15,17 +19,18 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
 import type { TransactionPayControllerMessenger } from '..';
-import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
-} from '../types';
+} from '../TransactionPayController-method-action-types';
 import type { TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
@@ -116,6 +121,29 @@ export function getMessengerMock({
   const getGasFeeTokensMock: jest.MockedFn<
     TransactionControllerGetGasFeeTokensAction['handler']
   > = jest.fn();
+
+  const estimateGasMock: jest.MockedFn<
+    TransactionControllerEstimateGasAction['handler']
+  > = jest.fn();
+
+  const estimateGasBatchMock: jest.MockedFn<
+    TransactionControllerEstimateGasBatchAction['handler']
+  > = jest.fn();
+
+  const getAssetsControllerStateMock = jest.fn();
+
+  const getKeyringControllerStateMock: jest.MockedFn<
+    KeyringControllerGetStateAction['handler']
+  > = jest.fn().mockReturnValue({
+    isUnlocked: true,
+    keyrings: [
+      {
+        type: 'HD Key Tree',
+        accounts: ['0x1234567890123456789012345678901234567891'],
+        metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+      },
+    ],
+  });
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -221,13 +249,36 @@ export function getMessengerMock({
       'TransactionController:getGasFeeTokens',
       getGasFeeTokensMock,
     );
+
+    messenger.registerActionHandler(
+      'TransactionController:estimateGas',
+      estimateGasMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:estimateGasBatch',
+      estimateGasBatchMock,
+    );
+
+    messenger.registerActionHandler(
+      'AssetsController:getStateForTransactionPay',
+      getAssetsControllerStateMock,
+    );
   }
+
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    getKeyringControllerStateMock,
+  );
 
   const publish = messenger.publish.bind(messenger);
 
   return {
     addTransactionMock,
+    getAssetsControllerStateMock,
     addTransactionBatchMock,
+    estimateGasMock,
+    estimateGasBatchMock,
     fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
@@ -237,6 +288,7 @@ export function getMessengerMock({
     getDelegationTransactionMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
+    getKeyringControllerStateMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,

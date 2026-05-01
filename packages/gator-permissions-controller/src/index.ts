@@ -1,51 +1,47 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
 export {
-  serializeGatorPermissionsMap,
-  deserializeGatorPermissionsMap,
-} from './utils';
+  DELEGATION_FRAMEWORK_VERSION,
+  EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
+} from './constants';
+export type {
+  GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
+  GatorPermissionsControllerAddPendingRevocationAction,
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
+  GatorPermissionsControllerInitializeAction,
+  GatorPermissionsControllerIsPendingRevocationAction,
+  GatorPermissionsControllerSubmitDirectRevocationAction,
+  GatorPermissionsControllerSubmitRevocationAction,
+} from './GatorPermissionsController-method-action-types';
 export type {
   GatorPermissionsControllerState,
+  GatorPermissionsControllerConfig,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
-  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
-  GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
-  GatorPermissionsControllerEnableGatorPermissionsAction,
-  GatorPermissionsControllerDisableGatorPermissionsAction,
-  GatorPermissionsControllerSubmitRevocationAction,
-  GatorPermissionsControllerAddPendingRevocationAction,
-  GatorPermissionsControllerSubmitDirectRevocationAction,
-  GatorPermissionsControllerIsPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';
 export type { DecodedPermission } from './decodePermission';
-export { DELEGATION_FRAMEWORK_VERSION } from './constants';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
-  CustomPermission,
-  PermissionTypesWithCustom,
   PermissionRequest,
   PermissionResponse,
-  PermissionResponseSanitized,
+  PermissionInfo,
   StoredGatorPermission,
-  StoredGatorPermissionSanitized,
-  GatorPermissionsMap,
-  SupportedGatorPermissionType,
-  GatorPermissionsMapByPermissionType,
-  GatorPermissionsListByPermissionTypeAndChainId,
+  PermissionInfoWithMetadata,
+  GatorPermissionStatus,
   DelegationDetails,
   RevocationParams,
+  RevocationMetadata,
+  SupportedPermissionType,
 } from './types';
 
+export type { RedeemerRule } from './redeemerRule';
 export type {
   NativeTokenStreamPermission,
   NativeTokenPeriodicPermission,
   Erc20TokenStreamPermission,
   Erc20TokenPeriodicPermission,
-  AccountSigner,
-  WalletSigner,
-  Signer,
   MetaMaskBasePermissionData,
 } from '@metamask/7715-permission-types';

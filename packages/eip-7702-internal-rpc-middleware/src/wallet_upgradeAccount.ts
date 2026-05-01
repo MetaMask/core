@@ -51,9 +51,7 @@ export async function walletUpgradeAccount(
 
   // Use current app selected chain ID if not passed as a param
   let targetChainId: Hex;
-  if (chainId !== undefined) {
-    targetChainId = chainId;
-  } else {
+  if (chainId === undefined) {
     const currentChainIdForDomain = hooks.getCurrentChainIdForDomain(origin);
     if (!currentChainIdForDomain) {
       throw rpcErrors.invalidParams({
@@ -61,6 +59,8 @@ export async function walletUpgradeAccount(
       });
     }
     targetChainId = currentChainIdForDomain;
+  } else {
+    targetChainId = chainId;
   }
 
   try {

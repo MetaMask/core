@@ -1,33 +1,39 @@
+import { removeFencedCode } from '..';
+import type { FeatureLabels } from '..';
 import {
   DirectiveCommand,
   multiSplice,
   validateCommand,
 } from './remove-fenced-code';
-import { removeFencedCode } from '..';
-import type { FeatureLabels } from '..';
 
 const FEATURE_A = 'feature-a';
 const FEATURE_B = 'feature-b';
 const FEATURE_C = 'feature-c';
 
-const getFeatures = ({ all, active }: FeatureLabels) => ({
+const getFeatures = ({
+  all,
+  active,
+}: FeatureLabels): {
+  all: Set<string>;
+  active: Set<string>;
+} => ({
   all: new Set(all),
   active: new Set(active),
 });
 
-const getFencedCode = (...params: string[]) =>
+const getFencedCode = (...params: string[]): string =>
   `///: BEGIN:ONLY_INCLUDE_IF(${params.join(',')})
 Conditionally_Included
 ///: END:ONLY_INCLUDE_IF
 `;
 
-const getUnfencedCode = () => `
+const getUnfencedCode = (): string => `
 Always included
 Always included
 Always included
 `;
 
-const join = (...args: string[]) => args.join('\n');
+const join = (...args: string[]): string => args.join('\n');
 
 describe('build transforms', () => {
   describe('removeFencedCode', () => {

@@ -1,6 +1,7 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
+import { FirstTimeInteractionError } from '../errors';
 import type {
   GetAccountAddressRelationshipRequest,
   GetAccountTransactionsResponse,
@@ -9,7 +10,6 @@ import {
   getAccountAddressRelationship,
   getAccountTransactions,
 } from './accounts-api';
-import { FirstTimeInteractionError } from '../errors';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -22,7 +22,7 @@ const CURSOR_MOCK = '0x456';
 const END_TIMESTAMP_MOCK = 123;
 const START_TIMESTAMP_MOCK = 456;
 const CHAIN_ID_SUPPORTED = 1;
-const CHAIN_ID_UNSUPPORTED = 999;
+const CHAIN_ID_UNSUPPORTED = 123456789;
 const FROM_ADDRESS = '0xSender';
 const TO_ADDRESS = '0xRecipient';
 const TAG_MOCK = 'test1';

@@ -4,7 +4,7 @@ import type { UnionToIntersection } from './utils';
 const MiddlewareContextSymbol = Symbol.for('json-rpc-engine#MiddlewareContext');
 
 /**
- * An context object for middleware that attempts to protect against accidental
+ * A context object for middleware that attempts to protect against accidental
  * modifications. Its interface is frozen.
  *
  * Map keys may not be directly overridden with {@link set}. Instead, use
@@ -30,6 +30,9 @@ const MiddlewareContextSymbol = Symbol.for('json-rpc-engine#MiddlewareContext');
 export class MiddlewareContext<
   KeyValues extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > extends Map<keyof KeyValues, KeyValues[keyof KeyValues]> {
+  // This is a computed property name, and it doesn't seem possible to make it
+  // hash private using `#`.
+  // eslint-disable-next-line no-restricted-syntax
   private readonly [MiddlewareContextSymbol] = true;
 
   /**
@@ -56,8 +59,8 @@ export class MiddlewareContext<
     Object.freeze(this);
   }
 
-  get<K extends keyof KeyValues>(key: K): KeyValues[K] | undefined {
-    return super.get(key) as KeyValues[K] | undefined;
+  get<Key extends keyof KeyValues>(key: Key): KeyValues[Key] | undefined {
+    return super.get(key) as KeyValues[Key] | undefined;
   }
 
   /**
@@ -66,11 +69,11 @@ export class MiddlewareContext<
    * @param key - The key to get the value for.
    * @returns The value.
    */
-  assertGet<K extends keyof KeyValues>(key: K): KeyValues[K] {
+  assertGet<Key extends keyof KeyValues>(key: Key): KeyValues[Key] {
     if (!super.has(key)) {
       throw new Error(`Context key "${String(key)}" not found`);
     }
-    return super.get(key) as KeyValues[K];
+    return super.get(key) as KeyValues[Key];
   }
 
   /**
@@ -82,7 +85,7 @@ export class MiddlewareContext<
    * @param value - The value to set.
    * @returns The context.
    */
-  set<K extends keyof KeyValues>(key: K, value: KeyValues[K]): this {
+  set<Key extends keyof KeyValues>(key: Key, value: KeyValues[Key]): this {
     if (super.has(key)) {
       throw new Error(`MiddlewareContext key "${String(key)}" already exists`);
     }
@@ -122,8 +125,8 @@ function entriesFromKeyValues<KeyValues extends Record<PropertyKey, unknown>>(
 /**
  * Infer the KeyValues type from a {@link MiddlewareContext}.
  */
-export type InferKeyValues<T> =
-  T extends MiddlewareContext<infer U> ? U : never;
+export type InferKeyValues<Type> =
+  Type extends MiddlewareContext<infer KeyValues> ? KeyValues : never;
 
 /**
  * Simplifies an object type by "merging" its properties.
@@ -136,7 +139,9 @@ export type InferKeyValues<T> =
  * type A = { a: string } & { b: number };
  * type B = Simplify<A>; // { a: string; b: number }
  */
-type Simplify<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
+type Simplify<Type> = Type extends infer Object
+  ? { [Key in keyof Object]: Object[Key] }
+  : never;
 
 /**
  * Rejects record types that contain any `never`-valued property.
@@ -148,10 +153,10 @@ type Simplify<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
  * type A = ExcludeNever<{ a: string; b: never }>; // never
  * type B = ExcludeNever<{ a: string; b: number }>; // { a: string; b: number }
  */
-type ExcludeNever<T extends Record<PropertyKey, unknown>> = {
-  [K in keyof T]-?: [T[K]] extends [never] ? K : never;
-}[keyof T] extends never
-  ? T
+type ExcludeNever<Type extends Record<PropertyKey, unknown>> = {
+  [Key in keyof Type]-?: [Type[Key]] extends [never] ? Key : never;
+}[keyof Type] extends never
+  ? Type
   : never;
 
 /**

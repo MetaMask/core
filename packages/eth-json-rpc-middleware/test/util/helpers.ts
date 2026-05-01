@@ -22,6 +22,8 @@ export const createRequest = <
     jsonrpc: '2.0',
     id: request.id ?? '1',
     method: request.method ?? 'test_request',
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     params: request.params === undefined ? [] : request.params,
   } as Output;
 };
@@ -231,7 +233,9 @@ export function createStubForBlockNumberRequest(
 export function createStubForGenericRequest<
   Params extends JsonRpcParams,
   Result extends Json,
->(requestStub: ProviderRequestStub<Params, Result>) {
+>(
+  requestStub: ProviderRequestStub<Params, Result>,
+): ProviderRequestStub<Params, Result> {
   return requestStub;
 }
 
@@ -247,7 +251,7 @@ export function createStubForGenericRequest<
 export function expectProviderRequestNotToHaveBeenMade(
   requestSpy: jest.SpyInstance,
   requestMatcher: Partial<JsonRpcRequest>,
-) {
+): void {
   expect(
     requestSpy.mock.calls.some((args) =>
       requestMatches(requestMatcher, args[0]),
@@ -274,7 +278,10 @@ export function expectProviderRequestNotToHaveBeenMade(
 export function stubProviderRequests<
   Params extends JsonRpcParams = JsonRpcParams,
   Result extends Json = Json,
->(provider: InternalProvider, stubs: ProviderRequestStub<Params, Result>[]) {
+>(
+  provider: InternalProvider,
+  stubs: ProviderRequestStub<Params, Result>[],
+): jest.SpyInstance<Promise<Json>, Parameters<InternalProvider['request']>> {
   const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'request').mockImplementation(async (request) => {

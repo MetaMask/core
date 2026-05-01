@@ -1,10 +1,10 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import type { MockRequest, MockResponse, ProviderType } from './helpers';
-import { withMockedCommunications, withNetworkClient } from './helpers';
 import { ignoreRejection } from '../../../../tests/helpers';
 import { buildRootMessenger } from '../helpers';
+import type { MockRequest, MockResponse, ProviderType } from './helpers';
+import { withMockedCommunications, withNetworkClient } from './helpers';
 
 /**
  * Tests for RPC failover behavior.
@@ -34,7 +34,7 @@ export function testsForRpcFailoverBehavior({
   isRetriableFailure: boolean;
   getExpectedError: (url: string) => Error | jest.Constructable;
   getExpectedBreakError?: (url: string) => Error | jest.Constructable;
-}) {
+}): void {
   const blockNumber = '0x100';
   const backoffDuration = 100;
   const maxConsecutiveFailures = 15;
@@ -88,12 +88,13 @@ export function testsForRpcFailoverBehavior({
                 getRpcServiceOptions: () => ({
                   fetch,
                   btoa,
+                  isOffline: (): boolean => false,
                   policyOptions: {
                     backoff: new ConstantBackoff(backoffDuration),
                   },
                 }),
               },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 messenger.subscribe(
                   'NetworkController:rpcEndpointRetried',
                   () => {
@@ -102,7 +103,7 @@ export function testsForRpcFailoverBehavior({
                     // We also don't need to await this, it just needs to
                     // be added to the promise queue.
                     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                    clock.tickAsync(backoffDuration);
+                    jest.advanceTimersByTimeAsync(backoffDuration);
                   },
                 );
 
@@ -177,7 +178,11 @@ export function testsForRpcFailoverBehavior({
                   failoverRpcUrls: ['https://failover.endpoint'],
                   messenger,
                   getRpcServiceOptions: (rpcEndpointUrl) => {
-                    const commonOptions = { fetch, btoa };
+                    const commonOptions = {
+                      fetch,
+                      btoa,
+                      isOffline: (): boolean => false,
+                    };
                     if (rpcEndpointUrl === 'https://failover.endpoint') {
                       const headers: HeadersInit = {
                         'X-Baz': 'Qux',
@@ -205,7 +210,7 @@ export function testsForRpcFailoverBehavior({
                     };
                   },
                 },
-                async ({ makeRpcCall, clock }) => {
+                async ({ makeRpcCall }) => {
                   messenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
@@ -214,7 +219,7 @@ export function testsForRpcFailoverBehavior({
                       // We also don't need to await this, it just needs to
                       // be added to the promise queue.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      clock.tickAsync(backoffDuration);
+                      jest.advanceTimersByTimeAsync(backoffDuration);
                     },
                   );
 
@@ -263,19 +268,20 @@ export function testsForRpcFailoverBehavior({
             getRpcServiceOptions: () => ({
               fetch,
               btoa,
+              isOffline: (): boolean => false,
               policyOptions: {
                 backoff: new ConstantBackoff(backoffDuration),
               },
             }),
           },
-          async ({ makeRpcCall, clock, rpcUrl }) => {
+          async ({ makeRpcCall, rpcUrl }) => {
             messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
               // Ensure that we advance to the next RPC request
               // retry, not the next block tracker request.
               // We also don't need to await this, it just needs to
               // be added to the promise queue.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.tickAsync(backoffDuration);
+              jest.advanceTimersByTimeAsync(backoffDuration);
             });
 
             for (let i = 0; i < numRequestsToMake - 1; i++) {

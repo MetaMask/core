@@ -5,15 +5,11 @@ import {
   getPermittedEthChainIds,
 } from '@metamask/chain-agnostic-permission';
 import type {
-  AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+  MethodHandler,
 } from '@metamask/json-rpc-engine';
-import { MethodNames } from '@metamask/permission-controller';
-import type {
-  CaveatSpecificationConstraint,
-  PermissionController,
-  PermissionSpecificationConstraint,
-} from '@metamask/permission-controller';
+import type { GenericPermissionController } from '@metamask/permission-controller';
 import type {
   Json,
   JsonRpcRequest,
@@ -22,14 +18,28 @@ import type {
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
+export type GetPermissionsHooks = {
+  getPermissionsForOrigin: () => ReturnType<
+    GenericPermissionController['getPermissions']
+  >;
+  getAccounts: (options?: { ignoreLock?: boolean }) => string[];
+};
+
+export type GetPermissionsHandler = MethodHandler<
+  GetPermissionsHooks,
+  never,
+  Json[],
+  Json,
+  { origin: string }
+>;
+
 export const getPermissionsHandler = {
-  methodNames: [MethodNames.GetPermissions],
   implementation: getPermissionsImplementation,
   hookNames: {
     getPermissionsForOrigin: true,
     getAccounts: true,
   },
-};
+} satisfies GetPermissionsHandler;
 
 /**
  * Get Permissions implementation to be used in JsonRpcEngine middleware, specifically for `wallet_getPermissions` RPC method.
@@ -47,20 +57,9 @@ export const getPermissionsHandler = {
 async function getPermissionsImplementation(
   _req: JsonRpcRequest<Json[]>,
   res: PendingJsonRpcResponse,
-  _next: AsyncJsonRpcEngineNextCallback,
+  _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
-  {
-    getPermissionsForOrigin,
-    getAccounts,
-  }: {
-    getPermissionsForOrigin: () => ReturnType<
-      PermissionController<
-        PermissionSpecificationConstraint,
-        CaveatSpecificationConstraint
-      >['getPermissions']
-    >;
-    getAccounts: (options?: { ignoreLock?: boolean }) => string[];
-  },
+  { getPermissionsForOrigin, getAccounts }: GetPermissionsHooks,
 ) {
   const permissions = { ...getPermissionsForOrigin() };
   const caip25Endowment = permissions[Caip25EndowmentPermissionName];

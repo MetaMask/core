@@ -1,4 +1,8 @@
-import type { DataWithOptionalCause } from '@metamask/rpc-errors';
+import {
+  DataWithOptionalCause,
+  EthereumProviderError,
+  OptionalDataWithOptionalCause,
+} from '@metamask/rpc-errors';
 import {
   errorCodes,
   providerErrors,
@@ -21,7 +25,9 @@ type UnauthorizedArg = {
  * @param opts - Optional arguments that add extra context
  * @returns The built error
  */
-export function unauthorized(opts: UnauthorizedArg) {
+export function unauthorized(
+  opts: UnauthorizedArg,
+): EthereumProviderError<UnauthorizedArg> {
   return providerErrors.unauthorized({
     message:
       'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
@@ -36,7 +42,10 @@ export function unauthorized(opts: UnauthorizedArg) {
  * @param data - Optional data for context.
  * @returns The built error
  */
-export function methodNotFound(method: string, data?: DataWithOptionalCause) {
+export function methodNotFound(
+  method: string,
+  data?: DataWithOptionalCause,
+): JsonRpcError<OptionalDataWithOptionalCause> {
   const message = `The method "${method}" does not exist / is not available.`;
 
   const opts: Parameters<typeof rpcErrors.methodNotFound>[0] = { message };
@@ -57,7 +66,9 @@ type InvalidParamsArg = {
  * @param opts - Optional arguments that add extra context
  * @returns The built error
  */
-export function invalidParams(opts: InvalidParamsArg) {
+export function invalidParams(
+  opts: InvalidParamsArg,
+): JsonRpcError<DataWithOptionalCause> {
   return rpcErrors.invalidParams({
     data: opts.data,
     message: opts.message,

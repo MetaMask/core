@@ -1,7 +1,7 @@
 import { HttpError } from '@metamask/controller-utils';
 
-import { PollingWithCockatielPolicy } from './polling-with-policy';
 import { delay } from '../tests/utils';
+import { PollingWithCockatielPolicy } from './polling-with-policy';
 
 describe('PollingWithCockatielPolicy', () => {
   it('should return the success result', async () => {
@@ -119,7 +119,7 @@ describe('PollingWithCockatielPolicy', () => {
   it('should resolve the result when two requests are started with the different request ids', async () => {
     const policy = new PollingWithCockatielPolicy();
 
-    const requestFn = (result: string) =>
+    const requestFn = (result: string): jest.Mock =>
       jest.fn().mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((resolve, reject) => {
           if (abortSignal.aborted) {

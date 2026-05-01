@@ -29,6 +29,11 @@ import {
   isEvmCaipChainId,
 } from '../utils';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'setActiveNetwork',
+  'getNetworksWithTransactionActivityByAccounts',
+] as const;
+
 /**
  * The MultichainNetworkController is responsible for fetching and caching account
  * balances.
@@ -249,7 +254,7 @@ export class MultichainNetworkController extends BaseController<
    *
    * @param account - The account that was changed
    */
-  #handleOnSelectedAccountChange(account: InternalAccount) {
+  #handleOnSelectedAccountChange(account: InternalAccount): void {
     const { type: accountType, scopes } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
@@ -290,7 +295,7 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Subscribes to message events.
    */
-  #subscribeToMessageEvents() {
+  #subscribeToMessageEvents(): void {
     // Handle network switch when account is changed
     this.messenger.subscribe(
       'AccountsController:selectedAccountChange',
@@ -301,14 +306,10 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Registers message handlers.
    */
-  #registerMessageHandlers() {
-    this.messenger.registerActionHandler(
-      'MultichainNetworkController:setActiveNetwork',
-      this.setActiveNetwork.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'MultichainNetworkController:getNetworksWithTransactionActivityByAccounts',
-      this.getNetworksWithTransactionActivityByAccounts.bind(this),
+  #registerMessageHandlers(): void {
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 }

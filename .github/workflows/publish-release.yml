@@ -8,6 +8,10 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 
+concurrency:
+  group: publish-release
+  queue: max
+
 jobs:
   publish-release:
     permissions:
@@ -23,7 +27,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn build
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: publish-release-artifacts-${{ github.sha }}
           include-hidden-files: true
@@ -43,7 +47,7 @@ jobs:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
       - name: Restore build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Dry run publish to NPM
@@ -64,7 +68,7 @@ jobs:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
       - name: Restore build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Publish to NPM

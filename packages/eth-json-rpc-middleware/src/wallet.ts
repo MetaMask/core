@@ -10,6 +10,10 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
+import { createWalletGetGrantedExecutionPermissionsHandler } from './methods/wallet-get-granted-execution-permissions';
+import type { ProcessGetGrantedExecutionPermissionsHook } from './methods/wallet-get-granted-execution-permissions';
+import { createWalletGetSupportedExecutionPermissionsHandler } from './methods/wallet-get-supported-execution-permissions';
+import type { ProcessGetSupportedExecutionPermissionsHook } from './methods/wallet-get-supported-execution-permissions';
 import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions';
 import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions';
 import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission';
@@ -19,6 +23,9 @@ import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
+  validateTypedDataForPrototypePollution,
+  validateTypedDataV1ForPrototypePollution,
+  validateTypedMessageKeys,
 } from './utils/validation';
 
 export type TransactionParams = {
@@ -83,6 +90,8 @@ export type WalletMiddlewareOptions = {
   ) => Promise<string>;
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
+  processGetGrantedExecutionPermissions?: ProcessGetGrantedExecutionPermissionsHook;
+  processGetSupportedExecutionPermissions?: ProcessGetSupportedExecutionPermissionsHook;
 };
 
 export type WalletMiddlewareKeyValues = {
@@ -117,6 +126,8 @@ export type WalletMiddlewareParams = MiddlewareParams<
  * @param options.processTypedMessageV4 - The function to process the typed message v4 request.
  * @param options.processRequestExecutionPermissions - The function to process the request execution permissions request.
  * @param options.processRevokeExecutionPermission - The function to process the revoke execution permission request.
+ * @param options.processGetGrantedExecutionPermissions - The function to process the get granted execution permissions request.
+ * @param options.processGetSupportedExecutionPermissions - The function to process the get supported execution permissions request.
  * @returns A JSON-RPC middleware that handles wallet-related JSON-RPC methods.
  */
 export function createWalletMiddleware({
@@ -131,6 +142,8 @@ export function createWalletMiddleware({
   processTypedMessageV4,
   processRequestExecutionPermissions,
   processRevokeExecutionPermission,
+  processGetGrantedExecutionPermissions,
+  processGetSupportedExecutionPermissions,
 }: WalletMiddlewareOptions): JsonRpcMiddleware<
   JsonRpcRequest,
   Json,
@@ -166,6 +179,14 @@ export function createWalletMiddleware({
     wallet_revokeExecutionPermission:
       createWalletRevokeExecutionPermissionHandler({
         processRevokeExecutionPermission,
+      }),
+    wallet_getGrantedExecutionPermissions:
+      createWalletGetGrantedExecutionPermissionsHandler({
+        processGetGrantedExecutionPermissions,
+      }),
+    wallet_getSupportedExecutionPermissions:
+      createWalletGetSupportedExecutionPermissionsHandler({
+        processGetSupportedExecutionPermissions,
       }),
   });
 
@@ -230,6 +251,8 @@ export function createWalletMiddleware({
     const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
+      // Not using nullish coalescing, since `params` may be `null`.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
     return await processTransaction(txParams, request, context);
@@ -261,6 +284,8 @@ export function createWalletMiddleware({
     const params = request.params[0] as TransactionParams | undefined;
     const txParams: TransactionParams = {
       ...params,
+      // Not using nullish coalescing, since `params` may be `null`.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       from: await validateAndNormalizeKeyholder(params?.from || '', context),
     };
     return await processSignTransaction(txParams, request, context);
@@ -301,6 +326,9 @@ export function createWalletMiddleware({
     const message = params[0];
     const address = await validateAndNormalizeKeyholder(params[1], context);
     const version = 'V1';
+    validateTypedDataV1ForPrototypePollution(message);
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
     const msgParams: TypedMessageV1Params = {
       ...extraParams,
@@ -342,6 +370,7 @@ export function createWalletMiddleware({
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
+    validateTypedDataForPrototypePollution(message);
     const version = 'V3';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -380,8 +409,10 @@ export function createWalletMiddleware({
 
     const address = await validateAndNormalizeKeyholder(params[0], context);
     const message = normalizeTypedMessage(params[1]);
+    validateTypedMessageKeys(message);
     validatePrimaryType(message);
     validateVerifyingContract(message);
+    validateTypedDataForPrototypePollution(message);
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -422,6 +453,8 @@ export function createWalletMiddleware({
     const firstParam = params[0];
     const secondParam = params[1];
     // non-standard "extraParams" to be appended to our "msgParams" obj
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
 
     // We initially incorrectly ordered these parameters.
@@ -543,6 +576,8 @@ export function createWalletMiddleware({
       params[1],
       context,
     );
+    // Not using nullish coalescing, since `params` may be `null`.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
     const msgParams: MessageParams = {
       ...extraParams,
@@ -583,7 +618,7 @@ export function createWalletMiddleware({
  *
  * @param data - The data passed in typedSign request.
  */
-function validatePrimaryType(data: string) {
+function validatePrimaryType(data: string): void {
   const { primaryType, types } = parseTypedMessage(data);
   if (!types) {
     throw rpcErrors.invalidInput();
@@ -608,7 +643,7 @@ function validatePrimaryType(data: string) {
  * - The string "cosmos" (as it is hard-coded in some Cosmos ecosystem's EVM adapters)
  * - An empty string
  */
-function validateVerifyingContract(data: string) {
+function validateVerifyingContract(data: string): void {
   const { domain: { verifyingContract } = {} } = parseTypedMessage(data);
   // Explicit check for cosmos here has been added to address this issue
   // https://github.com/MetaMask/eth-json-rpc-middleware/issues/337

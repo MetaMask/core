@@ -1,4 +1,4 @@
-const EMPTY_FUNCTION = () => {
+const EMPTY_FUNCTION = (): void => {
   // intentionally left blank
 };
 

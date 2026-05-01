@@ -6,6 +6,7 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { IDisposable } from 'cockatiel';
 
 import type { ProfileMetricsServiceMethodActions } from '.';
 
@@ -47,7 +48,7 @@ export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
  * Actions from other messengers that {@link ProfileMetricsService} calls.
  */
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link ProfileMetricsService} exposes to other consumers.
@@ -150,7 +151,7 @@ export class ProfileMetricsService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
+  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
     return this.#policy.onRetry(listener);
   }
 
@@ -163,7 +164,7 @@ export class ProfileMetricsService {
    * {@link CockatielEvent}.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
+  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
     return this.#policy.onBreak(listener);
   }
 
@@ -184,7 +185,9 @@ export class ProfileMetricsService {
    * @returns An object that can be used to unregister the handler. See
    * {@link CockatielEvent}.
    */
-  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
+  onDegraded(
+    listener: Parameters<ServicePolicy['onDegraded']>[0],
+  ): IDisposable {
     return this.#policy.onDegraded(listener);
   }
 
@@ -195,11 +198,11 @@ export class ProfileMetricsService {
    * @returns The response from the API.
    */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
-    const authToken = await this.#messenger.call(
-      'AuthenticationController:getBearerToken',
-      data.entropySourceId || undefined,
-    );
     await this.#policy.execute(async () => {
+      const authToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+        data.entropySourceId ?? undefined,
+      );
       const url = new URL(`${this.#baseURL}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',
@@ -211,6 +214,11 @@ export class ProfileMetricsService {
           metametrics_id: data.metametricsId,
           accounts: data.accounts,
         }),
+        // The auth API is stateless (no cookies used)
+        // prevent marketing cookies scoped to
+        // .metamask.io from being forwarded to api which
+        // causes 431 Request Header Fields Too Large errors.
+        credentials: 'omit',
       });
       if (!localResponse.ok) {
         throw new HttpError(

@@ -1,8 +1,8 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerListMultichainAccountsAction,
@@ -16,17 +16,19 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
+import type {
+  MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupsAction,
+} from '@metamask/multichain-account-service';
+import type { MultichainAccountServiceWalletStatusChangeEvent } from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
   UserStorageController,
 } from '@metamask/profile-sync-controller';
-import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { SnapControllerGetSnapAction } from '@metamask/snaps-controllers';
 
-import type {
-  AccountTreeController,
-  controllerName,
-} from './AccountTreeController';
+import type { controllerName } from './AccountTreeController';
+import type { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types';
 import type {
   BackupAndSyncAnalyticsEventPayload,
   BackupAndSyncEmitAnalyticsEventParams,
@@ -39,7 +41,6 @@ import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
-import type { MultichainAccountServiceWalletStatusChangeEvent } from '../../multichain-account-service/src/types';
 
 // Backward compatibility aliases using indexed access types
 /**
@@ -58,8 +59,8 @@ export type AccountTreeControllerState = {
       // Wallets:
       [walletId: AccountWalletId]: AccountWalletObject;
     };
-    selectedAccountGroup: AccountGroupId | '';
   };
+  selectedAccountGroup: AccountGroupId | '';
   isAccountTreeSyncingInProgress: boolean;
   hasAccountTreeSyncingSyncedAtLeastOnce: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
@@ -79,65 +80,25 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
   AccountTreeControllerState
 >;
 
-export type AccountTreeControllerSetSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:setSelectedAccountGroup`;
-  handler: AccountTreeController['setSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerGetSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:getSelectedAccountGroup`;
-  handler: AccountTreeController['getSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:getAccountsFromSelectedAccountGroup`;
-  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerSetAccountWalletNameAction = {
-  type: `${typeof controllerName}:setAccountWalletName`;
-  handler: AccountTreeController['setAccountWalletName'];
-};
-
-export type AccountTreeControllerSetAccountGroupNameAction = {
-  type: `${typeof controllerName}:setAccountGroupName`;
-  handler: AccountTreeController['setAccountGroupName'];
-};
-
-export type AccountTreeControllerSetAccountGroupHiddenAction = {
-  type: `${typeof controllerName}:setAccountGroupHidden`;
-  handler: AccountTreeController['setAccountGroupHidden'];
-};
-
-export type AccountTreeControllerSetAccountGroupPinnedAction = {
-  type: `${typeof controllerName}:setAccountGroupPinned`;
-  handler: AccountTreeController['setAccountGroupPinned'];
-};
-
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedMultichainAccountAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
-  | SnapControllerGetSnap
+  | SnapControllerGetSnapAction
   | UserStorageController.UserStorageControllerGetStateAction
-  | UserStorageController.UserStorageControllerPerformGetStorage
-  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntries
-  | UserStorageController.UserStorageControllerPerformSetStorage
-  | UserStorageController.UserStorageControllerPerformBatchSetStorage
-  | AuthenticationController.AuthenticationControllerGetSessionProfile
-  | MultichainAccountServiceCreateMultichainAccountGroupAction;
+  | UserStorageController.UserStorageControllerPerformGetStorageAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
+  | UserStorageController.UserStorageControllerPerformSetStorageAction
+  | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
+  | AuthenticationController.AuthenticationControllerGetSessionProfileAction
+  | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
-  | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
-  | AccountTreeControllerSetAccountWalletNameAction
-  | AccountTreeControllerSetAccountGroupNameAction
-  | AccountTreeControllerSetAccountGroupPinnedAction
-  | AccountTreeControllerSetAccountGroupHiddenAction;
+  | AccountTreeControllerMethodActions;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -163,8 +124,8 @@ export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
 };
 
 export type AllowedEvents =
-  | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountsAddedEvent
+  | AccountsControllerAccountsRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | UserStorageController.UserStorageControllerStateChangeEvent
   | MultichainAccountServiceWalletStatusChangeEvent;

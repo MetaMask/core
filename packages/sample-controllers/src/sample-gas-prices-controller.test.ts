@@ -36,8 +36,8 @@ describe('SampleGasPricesController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -201,6 +201,52 @@ describe('SampleGasPricesController', () => {
         expect(fetchGasPrices).toHaveBeenCalledTimes(1);
       });
     });
+
+    it('calls `messenger.captureException` if fetching gas prices fails', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const chainId = '0x42';
+
+        const fetchGasPrices = jest.fn(async (givenChainId) => {
+          if (givenChainId === chainId) {
+            throw new Error('Failed to fetch gas prices');
+          }
+
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+        });
+
+        const captureException = jest.spyOn(rootMessenger, 'captureException');
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          fetchGasPrices,
+        );
+
+        rootMessenger.registerActionHandler(
+          'NetworkController:getNetworkClientById',
+          buildMockGetNetworkClientById({
+            // @ts-expect-error We are not supplying a complete NetworkClient.
+            'AAAA-AAAA-AAAA-AAAA': {
+              chainId,
+            },
+          }),
+        );
+
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+
+        await flushPromises();
+
+        expect(captureException).toHaveBeenCalledTimes(1);
+        expect(captureException).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Failed to fetch gas prices',
+          }),
+        );
+      });
+    });
   });
 
   describe('SampleGasPricesController:updateGasPrices', () => {
@@ -300,7 +346,7 @@ describe('SampleGasPricesController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -313,8 +359,8 @@ describe('SampleGasPricesController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -329,8 +375,8 @@ describe('SampleGasPricesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -345,8 +391,8 @@ describe('SampleGasPricesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -387,7 +433,10 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
+  });
 }
 
 /**

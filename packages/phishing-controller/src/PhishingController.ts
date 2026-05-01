@@ -20,6 +20,11 @@ import { CacheManager } from './CacheManager';
 import type { CacheEntry } from './CacheManager';
 import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
 import type { PathTrie } from './PathTrie';
+import type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerMethodActions,
+  PhishingControllerTestOriginAction,
+} from './PhishingController-method-action-types';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -35,6 +40,7 @@ import type {
   TokenScanApiResponse,
   AddressScanCacheData,
   AddressScanResult,
+  ApprovalsResponse,
 } from './types';
 import {
   applyDiffs,
@@ -46,6 +52,7 @@ import {
   splitCacheHits,
   resolveChainName,
   getPathnameFromUrl,
+  isApprovalSupportedChain,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -66,13 +73,14 @@ export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 export const ADDRESS_SCAN_ENDPOINT = '/address/evm/scan';
+export const APPROVALS_ENDPOINT = '/address/evm/approvals';
 
 // Cache configuration defaults
-export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_URL_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 250;
-export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE = 1000;
-export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE = 1000;
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -374,30 +382,27 @@ export type PhishingControllerOptions = {
   state?: Partial<PhishingControllerState>;
 };
 
-export type MaybeUpdateState = {
-  type: `${typeof controllerName}:maybeUpdateState`;
-  handler: PhishingController['maybeUpdateState'];
-};
+const MESSENGER_EXPOSED_METHODS = [
+  'maybeUpdateState',
+  'testOrigin',
+  'isBlockedRequest',
+  'bypass',
+  'scanUrl',
+  'bulkScanUrls',
+  'bulkScanTokens',
+  'scanAddress',
+  'getApprovals',
+] as const;
 
-export type TestOrigin = {
-  type: `${typeof controllerName}:testOrigin`;
-  handler: PhishingController['test'];
-};
+/**
+ *  @deprecated Use `PhishingControllerTestOriginAction` instead.
+ */
+export type TestOrigin = PhishingControllerTestOriginAction;
 
-export type PhishingControllerBulkScanUrlsAction = {
-  type: `${typeof controllerName}:bulkScanUrls`;
-  handler: PhishingController['bulkScanUrls'];
-};
-
-export type PhishingControllerBulkScanTokensAction = {
-  type: `${typeof controllerName}:bulkScanTokens`;
-  handler: PhishingController['bulkScanTokens'];
-};
-
-export type PhishingControllerScanAddressAction = {
-  type: `${typeof controllerName}:scanAddress`;
-  handler: PhishingController['scanAddress'];
-};
+/**
+ *  @deprecated Use `PhishingControllerMaybeUpdateStateAction` instead.
+ */
+export type MaybeUpdateState = PhishingControllerMaybeUpdateStateAction;
 
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -406,11 +411,7 @@ export type PhishingControllerGetStateAction = ControllerGetStateAction<
 
 export type PhishingControllerActions =
   | PhishingControllerGetStateAction
-  | MaybeUpdateState
-  | TestOrigin
-  | PhishingControllerBulkScanUrlsAction
-  | PhishingControllerBulkScanTokensAction
-  | PhishingControllerScanAddressAction;
+  | PhishingControllerMethodActions;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -460,11 +461,11 @@ export class PhishingController extends BaseController<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #detector: any;
 
-  #stalelistRefreshInterval: number;
+  readonly #stalelistRefreshInterval: number;
 
-  #hotlistRefreshInterval: number;
+  readonly #hotlistRefreshInterval: number;
 
-  #c2DomainBlocklistRefreshInterval: number;
+  readonly #c2DomainBlocklistRefreshInterval: number;
 
   readonly #urlScanCache: CacheManager<PhishingDetectionScanResult>;
 
@@ -558,7 +559,10 @@ export class PhishingController extends BaseController<
       },
     });
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.updatePhishingDetector();
     this.#subscribeToTransactionControllerStateChange();
@@ -568,37 +572,6 @@ export class PhishingController extends BaseController<
     this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
-    );
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:maybeUpdateState` as const,
-      this.maybeUpdateState.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:testOrigin` as const,
-      this.test.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:bulkScanUrls` as const,
-      this.bulkScanUrls.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:bulkScanTokens` as const,
-      this.bulkScanTokens.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:scanAddress` as const,
-      this.scanAddress.bind(this),
     );
   }
 
@@ -729,64 +702,6 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Set the interval at which the stale phishing list will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateStalelist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setStalelistRefreshInterval(interval: number) {
-    this.#stalelistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the interval at which the hot list will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateHotlist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setHotlistRefreshInterval(interval: number) {
-    this.#hotlistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the interval at which the C2 domain blocklist will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateHotlist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setC2DomainBlocklistRefreshInterval(interval: number) {
-    this.#c2DomainBlocklistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the time-to-live for URL scan cache entries.
-   *
-   * @param ttl - The TTL in seconds.
-   */
-  setUrlScanCacheTTL(ttl: number) {
-    this.#urlScanCache.setTTL(ttl);
-  }
-
-  /**
-   * Set the maximum number of entries in the URL scan cache.
-   *
-   * @param maxSize - The maximum cache size.
-   */
-  setUrlScanCacheMaxSize(maxSize: number) {
-    this.#urlScanCache.setMaxSize(maxSize);
-  }
-
-  /**
-   * Clear the URL scan cache.
-   */
-  clearUrlScanCache() {
-    this.#urlScanCache.clear();
-  }
-
-  /**
    * Determine if an update to the stalelist configuration is needed.
    *
    * @returns Whether an update is needed
@@ -856,7 +771,7 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): PhishingDetectorResult {
+  testOrigin(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
@@ -870,6 +785,19 @@ export class PhishingController extends BaseController<
     }
     return this.#detector.check(punycodeOrigin);
   }
+
+  /**
+   * Determines if a given origin is unapproved.
+   *
+   * It is strongly recommended that you call {@link maybeUpdateState} before calling this,
+   * to check whether the phishing configuration is up-to-date. It will be updated if necessary
+   * by calling {@link updateStalelist} or {@link updateHotlist}.
+   *
+   * @param origin - Domain origin of a website.
+   * @returns Whether the origin is an unapproved origin.
+   * @deprecated Use {@link testOrigin} instead. This method is exposed for backward compatibility and will be removed in a future release.
+   */
+  test = this.testOrigin.bind(this);
 
   /**
    * Checks if a request URL's domain is blocked against the request blocklist.
@@ -988,7 +916,7 @@ export class PhishingController extends BaseController<
    * @param url - The URL to scan.
    * @returns The phishing detection scan result.
    */
-  scanUrl = async (url: string): Promise<PhishingDetectionScanResult> => {
+  async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
     const [hostname, ok] = getHostnameFromWebUrl(url);
     if (!ok) {
       return {
@@ -1049,7 +977,7 @@ export class PhishingController extends BaseController<
     this.#urlScanCache.set(hostname, result);
 
     return result;
-  };
+  }
 
   /**
    * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
@@ -1058,9 +986,9 @@ export class PhishingController extends BaseController<
    * @param urls - The URLs to scan.
    * @returns A mapping of URLs to their phishing detection scan results and errors.
    */
-  bulkScanUrls = async (
+  async bulkScanUrls(
     urls: string[],
-  ): Promise<BulkPhishingDetectionScanResponse> => {
+  ): Promise<BulkPhishingDetectionScanResponse> {
     if (!urls || urls.length === 0) {
       return {
         results: {},
@@ -1153,7 +1081,7 @@ export class PhishingController extends BaseController<
     }
 
     return combinedResponse;
-  };
+  }
 
   /**
    * Fetch bulk token scan results from the security alerts API.
@@ -1225,10 +1153,10 @@ export class PhishingController extends BaseController<
    * @param address - The address to scan.
    * @returns The address scan result.
    */
-  scanAddress = async (
+  async scanAddress(
     chainId: string,
     address: string,
-  ): Promise<AddressScanResult> => {
+  ): Promise<AddressScanResult> {
     if (!address || !chainId) {
       return {
         result_type: AddressScanResultType.ErrorResult,
@@ -1307,19 +1235,83 @@ export class PhishingController extends BaseController<
       result_type: apiResponse.result_type,
       label: apiResponse.label,
     };
+  }
+
+  /**
+   * Get token approvals for an EVM address with security enrichments.
+   *
+   * @param chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
+   * @param address - The address to get approvals for.
+   * @returns The approvals response containing approval data, or empty approvals on error.
+   */
+  getApprovals = async (
+    chainId: string,
+    address: string,
+  ): Promise<ApprovalsResponse> => {
+    if (!address || !chainId) {
+      return { approvals: [] };
+    }
+
+    const normalizedChainId = chainId.toLowerCase();
+    const normalizedAddress = address.toLowerCase();
+    const chain = resolveChainName(normalizedChainId);
+
+    if (!chain || !isApprovalSupportedChain(chain)) {
+      return { approvals: [] };
+    }
+
+    const apiResponse = await safelyExecuteWithTimeout(
+      async () => {
+        const res = await fetch(
+          `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
+          {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chain,
+              address: normalizedAddress,
+            }),
+          },
+        );
+        if (!res.ok) {
+          return { error: `${res.status} ${res.statusText}` };
+        }
+        const data: ApprovalsResponse = await res.json();
+        return data;
+      },
+      true,
+      5000,
+    );
+
+    if (
+      !apiResponse ||
+      'error' in apiResponse ||
+      !Array.isArray(apiResponse.approvals)
+    ) {
+      return { approvals: [] };
+    }
+
+    return apiResponse;
   };
 
   /**
    * Scan multiple tokens for malicious activity in bulk.
    *
    * @param request - The bulk scan request containing chainId and tokens.
-   * @param request.chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
+   * @param request.chainId - The chain identifier. Accepts a hex chain ID for
+   * EVM chains (e.g. `'0x1'` for Ethereum) or a chain name for non-EVM chains
+   * (e.g. `'solana'`).
    * @param request.tokens - Array of token addresses to scan.
-   * @returns A mapping of lowercase token addresses to their scan results. Tokens that fail to scan are omitted.
+   * @returns A mapping of token addresses to their scan results. For EVM chains,
+   * addresses are lowercased; for non-EVM chains, original casing is preserved.
+   * Tokens that fail to scan are omitted.
    */
-  bulkScanTokens = async (
+  async bulkScanTokens(
     request: BulkTokenScanRequest,
-  ): Promise<BulkTokenScanResponse> => {
+  ): Promise<BulkTokenScanResponse> {
     const { chainId, tokens } = request;
 
     if (!tokens || tokens.length === 0) {
@@ -1342,11 +1334,16 @@ export class PhishingController extends BaseController<
       return {};
     }
 
+    // EVM addresses are case-insensitive; non-EVM addresses (e.g. Solana
+    // base58) are case-sensitive and must not be lowercased.
+    const caseSensitive = !normalizedChainId.startsWith('0x');
+
     // Split tokens into cached results and tokens that need to be fetched
     const { cachedResults, tokensToFetch } = splitCacheHits(
       this.#tokenScanCache,
       normalizedChainId,
       tokens,
+      caseSensitive,
     );
 
     const results: BulkTokenScanResponse = { ...cachedResults };
@@ -1357,11 +1354,12 @@ export class PhishingController extends BaseController<
         chain,
         tokensToFetch,
       );
-
       if (apiResponse?.results) {
         // Process API results and update cache
         for (const tokenAddress of tokensToFetch) {
-          const normalizedAddress = tokenAddress.toLowerCase();
+          const normalizedAddress = caseSensitive
+            ? tokenAddress
+            : tokenAddress.toLowerCase();
           const tokenResult = apiResponse.results[normalizedAddress];
 
           if (tokenResult?.result_type) {
@@ -1375,6 +1373,7 @@ export class PhishingController extends BaseController<
             const cacheKey = buildCacheKey(
               normalizedChainId,
               normalizedAddress,
+              caseSensitive,
             );
             this.#tokenScanCache.set(cacheKey, {
               result_type: tokenResult.result_type,
@@ -1387,7 +1386,7 @@ export class PhishingController extends BaseController<
     }
 
     return results;
-  };
+  }
 
   /**
    * Process a batch of URLs (up to 50) for phishing detection.
@@ -1490,7 +1489,9 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
-        draftState.c2DomainBlocklistLastFetched = timeNow;
+        if (c2DomainBlocklistResponse) {
+          draftState.c2DomainBlocklistLastFetched = timeNow;
+        }
       });
     }
 
@@ -1582,26 +1583,20 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateC2DomainBlocklist() {
-    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
-
-    try {
-      c2DomainBlocklistResponse =
-        await this.#queryConfig<C2DomainBlocklistResponse>(
-          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
-            this.state.c2DomainBlocklistLastFetched,
-          )}`,
-        );
-    } finally {
-      // Set `c2DomainBlocklistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
-      this.update((draftState) => {
-        draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
-      });
-    }
+    const c2DomainBlocklistResponse =
+      await this.#queryConfig<C2DomainBlocklistResponse>(
+        `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
+          this.state.c2DomainBlocklistLastFetched,
+        )}`,
+      );
 
     if (!c2DomainBlocklistResponse) {
       return;
     }
+
+    this.update((draftState) => {
+      draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
+    });
 
     const recentlyAddedC2Domains = c2DomainBlocklistResponse.recentlyAdded;
     const recentlyRemovedC2Domains = c2DomainBlocklistResponse.recentlyRemoved;

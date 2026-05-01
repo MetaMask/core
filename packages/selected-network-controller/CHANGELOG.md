@@ -9,9 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [26.1.0]
+
+### Added
+
+- Expose missing public `SelectedNetworkController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `SelectedNetworkController:getProviderAndBlockTracker`
+  - Corresponding action types
+    (e.g. `SelectedNetworkControllerGetProviderAndBlockTrackerAction`) are
+    available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.3.0` ([#8225](https://github.com/MetaMask/core/pull/8225), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.4` ([#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+### Deprecated
+
+- Deprecate `SelectedNetworkControllerGetSelectedNetworkStateAction` type in favor of `SelectedNetworkControllerGetStateAction` ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The old types is still exported but is now marked as deprecated and will
+    be removed in a future release.
+
+## [26.0.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+
+## [26.0.2]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [26.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
   - The dependencies moved are:
-    - `@metamask/network-controller` (^27.0.0)
+    - `@metamask/network-controller` (^28.0.0)
     - `@metamask/permission-controller` (^12.1.1)
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
@@ -426,7 +475,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.0...HEAD
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.3...@metamask/selected-network-controller@26.1.0
+[26.0.3]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.2...@metamask/selected-network-controller@26.0.3
+[26.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.1...@metamask/selected-network-controller@26.0.2
+[26.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.0...@metamask/selected-network-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@25.0.0...@metamask/selected-network-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.2...@metamask/selected-network-controller@25.0.0
 [24.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.1...@metamask/selected-network-controller@24.0.2

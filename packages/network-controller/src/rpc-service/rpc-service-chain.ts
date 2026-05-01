@@ -8,7 +8,9 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
+import { IDisposable } from 'cockatiel';
 
+import { projectLogger, createModuleLogger } from '../logger';
 import { RpcService } from './rpc-service';
 import type { RpcServiceOptions } from './rpc-service';
 import type {
@@ -17,7 +19,6 @@ import type {
   ExtractCockatielEventData,
   FetchOptions,
 } from './shared';
-import { projectLogger, createModuleLogger } from '../logger';
 
 const log = createModuleLogger(projectLogger, 'RpcServiceChain');
 
@@ -160,7 +161,7 @@ export class RpcServiceChain {
       RpcService['onRetry'],
       { primaryEndpointUrl: string }
     >,
-  ) {
+  ): { dispose(): void } {
     const disposables = this.#services.map((service) =>
       service.onRetry((data) => {
         listener({
@@ -171,7 +172,7 @@ export class RpcServiceChain {
     );
 
     return {
-      dispose() {
+      dispose(): void {
         disposables.forEach((disposable) => disposable.dispose());
       },
     };
@@ -198,7 +199,7 @@ export class RpcServiceChain {
         'endpointUrl'
       >,
     ) => void,
-  ) {
+  ): IDisposable {
     return this.#onBreakEventEmitter.addListener(listener);
   }
 
@@ -217,7 +218,7 @@ export class RpcServiceChain {
       RpcService['onBreak'],
       { primaryEndpointUrl: string }
     >,
-  ) {
+  ): IDisposable {
     const disposables = this.#services.map((service) =>
       service.onBreak((data) => {
         listener({
@@ -228,7 +229,7 @@ export class RpcServiceChain {
     );
 
     return {
-      dispose() {
+      dispose(): void {
         disposables.forEach((disposable) => disposable.dispose());
       },
     };
@@ -264,7 +265,7 @@ export class RpcServiceChain {
         'endpointUrl'
       >,
     ) => void,
-  ) {
+  ): IDisposable {
     return this.#onDegradedEventEmitter.addListener(listener);
   }
 
@@ -293,7 +294,7 @@ export class RpcServiceChain {
       RpcService['onDegraded'],
       { primaryEndpointUrl: string }
     >,
-  ) {
+  ): IDisposable {
     const disposables = this.#services.map((service) =>
       service.onDegraded((data) => {
         listener({
@@ -304,7 +305,7 @@ export class RpcServiceChain {
     );
 
     return {
-      dispose() {
+      dispose(): void {
         disposables.forEach((disposable) => disposable.dispose());
       },
     };
@@ -333,7 +334,7 @@ export class RpcServiceChain {
         'endpointUrl'
       >,
     ) => void,
-  ) {
+  ): IDisposable {
     return this.#onAvailableEventEmitter.addListener(listener);
   }
 

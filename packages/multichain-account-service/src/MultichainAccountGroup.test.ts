@@ -1,14 +1,17 @@
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
+  isBip44Account,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { GroupState } from './MultichainAccountGroup';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -16,11 +19,10 @@ import {
   MOCK_WALLET_1_ENTROPY_SOURCE,
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
-  setupNamedAccountProvider,
+  setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from './tests';
-import type { MockAccountProvider, RootMessenger } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({
@@ -45,15 +47,14 @@ function setup({
   providers: MockAccountProvider[];
   messenger: MultichainAccountServiceMessenger;
 } {
-  const providers = accounts.map((providerAccounts) => {
-    return setupNamedAccountProvider({ accounts: providerAccounts });
+  const providers = accounts.map((providerAccounts, idx) => {
+    return setupBip44AccountProvider({
+      name: `Provider ${idx + 1}`,
+      accounts: providerAccounts,
+    });
   });
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
-  messenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    jest.fn(),
-  );
 
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -68,10 +69,22 @@ function setup({
     messenger: serviceMessenger,
   });
 
+  // Initialize group state from provided accounts so that constructor tests
+  // observe accounts immediately
+  const groupState = providers.reduce<GroupState>((state, provider, idx) => {
+    const ids = accounts[idx].filter(isBip44Account).map((a) => a.id);
+    if (ids.length > 0) {
+      state[provider.getName()] = ids;
+    }
+    return state;
+  }, {});
+
+  group.init(groupState);
+
   return { wallet, group, providers, messenger: serviceMessenger };
 }
 
-describe('MultichainAccount', () => {
+describe('MultichainAccountGroup', () => {
   describe('constructor', () => {
     it('constructs a multichain account group', async () => {
       const accounts = [
@@ -92,6 +105,10 @@ describe('MultichainAccount', () => {
       expect(group.type).toBe(AccountGroupType.MultichainAccount);
       expect(group.groupIndex).toBe(groupIndex);
       expect(group.wallet).toStrictEqual(wallet);
+      expect(group.hasAccounts()).toBe(true);
+      expect(group.getAccountIds()).toStrictEqual(
+        expectedAccounts.map((a) => a.id),
+      );
       expect(group.getAccounts()).toHaveLength(expectedAccounts.length);
       expect(group.getAccounts()).toStrictEqual(expectedAccounts);
     });
@@ -160,81 +177,6 @@ describe('MultichainAccount', () => {
       const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
 
       expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
-    });
-  });
-
-  describe('alignAccounts', () => {
-    it('creates missing accounts only for providers with no accounts', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [
-          [MOCK_WALLET_1_EVM_ACCOUNT], // provider[0] already has group 0
-          [], // provider[1] missing group 0
-        ],
-      });
-
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-    });
-
-    it('does nothing when already aligned', async () => {
-      const groupIndex = 0;
-      const { group, providers } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
-      });
-
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).not.toHaveBeenCalled();
-    });
-
-    it('warns if provider alignment fails', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
-      });
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
-
-      await group.alignAccounts();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-      expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing`,
-      );
-    });
-
-    it('captures an error when a provider fails to create its account', async () => {
-      const groupIndex = 0;
-      const { group, providers, messenger } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
-      });
-      const providerError = new Error('Unable to create accounts');
-      providers[1].createAccounts.mockRejectedValueOnce(providerError);
-      const callSpy = jest.spyOn(messenger, 'call');
-      await group.alignAccounts();
-      expect(callSpy).toHaveBeenCalledWith(
-        'ErrorReportingService:captureException',
-        new Error('Unable to align accounts with provider "Mocked Provider"'),
-      );
-      expect(callSpy.mock.lastCall[1]).toHaveProperty('cause', providerError);
     });
   });
 });

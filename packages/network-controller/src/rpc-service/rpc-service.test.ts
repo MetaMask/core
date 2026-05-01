@@ -8,8 +8,6 @@ import { CircuitState } from 'cockatiel';
 import deepFreeze from 'deep-freeze-strict';
 import nock from 'nock';
 import { FetchError } from 'node-fetch';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import {
   CUSTOM_RPC_ERRORS,
@@ -18,14 +16,12 @@ import {
 } from './rpc-service';
 
 describe('RpcService', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('resetPolicy', () => {
@@ -56,9 +52,10 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       const jsonRpcRequest = {
@@ -106,9 +103,10 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       const jsonRpcRequest = {
@@ -172,9 +170,10 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       service.onAvailable(onAvailableListener);
 
@@ -225,9 +224,10 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       const jsonRpcRequest = {
@@ -273,9 +273,10 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       service.onBreak(onBreakListener);
 
@@ -320,9 +321,10 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       expect(service.getCircuitState()).toBe(CircuitState.Closed);
@@ -334,7 +336,7 @@ describe('RpcService', () => {
       await ignoreRejection(service.request(jsonRpcRequest));
       expect(service.getCircuitState()).toBe(CircuitState.Open);
 
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       const promise = ignoreRejection(service.request(jsonRpcRequest));
       expect(service.getCircuitState()).toBe(CircuitState.HalfOpen);
       await promise;
@@ -396,7 +398,6 @@ describe('RpcService', () => {
             throw new Error(`Unknown constructor ${constructorName}`);
         }
         testsForRetriableFetchErrors({
-          getClock: () => clock,
           producedError: error,
           expectedError: error,
         });
@@ -412,7 +413,6 @@ describe('RpcService', () => {
         error.code = errorCode;
 
         testsForRetriableFetchErrors({
-          getClock: () => clock,
           producedError: error,
           expectedError: error,
         });
@@ -446,13 +446,14 @@ describe('RpcService', () => {
       testsForNonRetriableErrors({
         createService: ({ endpointUrl, expectedError }) => {
           return new RpcService({
-            fetch: () => {
+            fetch: (): never => {
               // This error could be anything.
               // eslint-disable-next-line @typescript-eslint/only-throw-error
               throw expectedError;
             },
             btoa,
             endpointUrl,
+            isOffline: (): boolean => false,
           });
         },
         expectedError: new Error('oops'),
@@ -463,7 +464,6 @@ describe('RpcService', () => {
       'if the endpoint has a %d response',
       (httpStatus) => {
         testsForRetriableResponses({
-          getClock: () => clock,
           httpStatus,
           expectedError: expect.objectContaining({
             code: errorCodes.rpc.resourceUnavailable,
@@ -580,7 +580,6 @@ describe('RpcService', () => {
       'if the endpoint consistently responds with invalid JSON %o',
       (responseBody) => {
         testsForRetriableResponses({
-          getClock: () => clock,
           httpStatus: 200,
           responseBody,
           expectedError: expect.objectContaining({
@@ -612,6 +611,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       // @ts-expect-error Intentionally passing bad input.
@@ -657,6 +657,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -696,6 +697,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       await service.request({
@@ -731,6 +733,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
       });
 
       await service.request(
@@ -780,6 +783,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -826,6 +830,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request(
@@ -865,6 +870,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
 
       const response = await service.request({
@@ -894,7 +900,7 @@ describe('RpcService', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -906,6 +912,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onDegraded(onDegradedListener);
 
@@ -919,7 +926,147 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
+    });
+
+    it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods both respond slowly', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, () => {
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .reply(200, () => {
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 2,
+            jsonrpc: '2.0',
+            result: '0x100',
+          };
+        });
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onDegraded(onDegradedListener);
+
+      // Start both requests concurrently
+      await Promise.all([
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+        service.request({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        }),
+      ]);
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_blockNumber',
+      });
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_gasPrice',
+      });
+    });
+
+    it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods fail — one slow, one retriable', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      // eth_blockNumber: responds slowly
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, () => {
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      // eth_gasPrice: retries exhausted (5 x 503)
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .times(5)
+        .reply(503);
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+      service.onDegraded(onDegradedListener);
+
+      // Start both requests concurrently
+      await Promise.allSettled([
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+        service.request({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        }),
+      ]);
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedListener).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          rpcMethodName: 'eth_blockNumber',
+        }),
+      );
+      expect(onDegradedListener).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          rpcMethodName: 'eth_gasPrice',
+        }),
+      );
     });
 
     it('calls the onAvailable callback the first time a successful request occurs', async () => {
@@ -943,6 +1090,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onAvailable(onAvailableListener);
 
@@ -969,7 +1117,7 @@ describe('RpcService', () => {
           params: [],
         })
         .reply(200, () => {
-          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -994,6 +1142,7 @@ describe('RpcService', () => {
         fetch,
         btoa,
         endpointUrl,
+        isOffline: (): boolean => false,
       });
       service.onAvailable(onAvailableListener);
 
@@ -1027,9 +1176,9 @@ describe('RpcService', () => {
  * @param promiseOrFn - A promise that rejects, or a function that returns a
  * promise that rejects.
  */
-async function ignoreRejection<T>(
-  promiseOrFn: Promise<T> | (() => T | Promise<T>),
-) {
+async function ignoreRejection<Type>(
+  promiseOrFn: Promise<Type> | (() => Type | Promise<Type>),
+): Promise<void> {
   await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
 }
 
@@ -1048,11 +1197,16 @@ async function ignoreRejection<T>(
  * method is expected to produce.
  */
 function testsForNonRetriableErrors({
-  beforeCreateService = () => {
+  beforeCreateService = (): void => {
     // do nothing
   },
-  createService = (args) => {
-    return new RpcService({ fetch, btoa, endpointUrl: args.endpointUrl });
+  createService = (args): RpcService => {
+    return new RpcService({
+      fetch,
+      btoa,
+      endpointUrl: args.endpointUrl,
+      isOffline: (): boolean => false,
+    });
   },
   endpointUrl = 'https://rpc.example.chain',
   rpcMethod = `eth_chainId`,
@@ -1069,7 +1223,7 @@ function testsForNonRetriableErrors({
   endpointUrl?: string;
   rpcMethod?: string;
   expectedError: string | RegExp | Error | jest.Constructable | undefined;
-}) {
+}): void {
   /* eslint-disable jest/require-top-level-describe */
 
   it('re-throws the error without retrying the request', async () => {
@@ -1162,27 +1316,22 @@ function testsForNonRetriableErrors({
  * made because the `fetch` calls throws a specific error.
  *
  * @param args - The arguments
- * @param args.getClock - A function that returns the Sinon clock, set in
- * `beforeEach`.
  * @param args.producedError - The error produced when `fetch` is called.
  * @param args.expectedError - The error that a call to the service's `request`
  * method is expected to produce.
  */
 function testsForRetriableFetchErrors({
-  getClock,
   producedError,
   expectedError,
 }: {
-  getClock: () => SinonFakeTimers;
   producedError: Error;
   expectedError: string | jest.Constructable | RegExp | Error;
-}) {
+}): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
   /* eslint-disable jest/require-top-level-describe */
 
   it('retries a constantly failing request up to 4 more times before re-throwing the error, if `request` is only called once', async () => {
-    const clock = getClock();
     const mockFetch = jest.fn(() => {
       throw producedError;
     });
@@ -1190,9 +1339,10 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1208,7 +1358,6 @@ function testsForRetriableFetchErrors({
   });
 
   it('calls the onDegraded callback once for each retry round', async () => {
-    const clock = getClock();
     const mockFetch = jest.fn(() => {
       throw producedError;
     });
@@ -1218,9 +1367,10 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     service.onDegraded(onDegradedListener);
@@ -1240,11 +1390,11 @@ function testsForRetriableFetchErrors({
     expect(onDegradedListener).toHaveBeenCalledWith({
       endpointUrl: `${endpointUrl}/`,
       error: expectedError,
+      rpcMethodName: 'eth_chainId',
     });
   });
 
-  it('still re-throws the error even after the circuit breaks', async () => {
-    const clock = getClock();
+  it('still retries a failing request even if the user is offline', async () => {
     const mockFetch = jest.fn(() => {
       throw producedError;
     });
@@ -1252,9 +1402,36 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => true,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
+    });
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+      expectedError,
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(5);
+  });
+
+  it('still re-throws the error even after the circuit breaks', async () => {
+    const mockFetch = jest.fn(() => {
+      throw producedError;
+    });
+    const service = new RpcService({
+      fetch: mockFetch,
+      btoa,
+      endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1272,7 +1449,6 @@ function testsForRetriableFetchErrors({
   });
 
   it('calls the onBreak callback once after the circuit breaks', async () => {
-    const clock = getClock();
     const mockFetch = jest.fn(() => {
       throw producedError;
     });
@@ -1282,9 +1458,10 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
     service.onBreak(onBreakListener);
 
@@ -1306,8 +1483,38 @@ function testsForRetriableFetchErrors({
     });
   });
 
+  it('does not call onBreak if the user is offline after the circuit breaks', async () => {
+    const mockFetch = jest.fn(() => {
+      throw producedError;
+    });
+    const endpointUrl = 'https://rpc.example.chain';
+    const onBreakListener = jest.fn();
+    const service = new RpcService({
+      fetch: mockFetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => true,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+    service.onBreak(onBreakListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+    await ignoreRejection(service.request(jsonRpcRequest));
+    // The last retry breaks the circuit
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onBreakListener).not.toHaveBeenCalled();
+  });
+
   it('throws an error that includes the number of minutes until the circuit is re-closed if a request is attempted while the circuit is open', async () => {
-    const clock = getClock();
     const mockFetch = jest.fn(() => {
       throw producedError;
     });
@@ -1318,9 +1525,10 @@ function testsForRetriableFetchErrors({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1336,7 +1544,7 @@ function testsForRetriableFetchErrors({
     await ignoreRejection(service.request(jsonRpcRequest));
 
     // Advance a minute to test that the message updates dynamically as time passes
-    clock.tick(60000);
+    jest.advanceTimersByTime(60000);
     await expect(service.request(jsonRpcRequest)).rejects.toThrow(
       expect.objectContaining({
         code: errorCodes.rpc.resourceUnavailable,
@@ -1347,7 +1555,6 @@ function testsForRetriableFetchErrors({
   });
 
   it('logs the original CircuitBreakError if a request is attempted while the circuit is open', async () => {
-    const clock = getClock();
     const mockFetch = jest.fn(() => {
       throw producedError;
     });
@@ -1358,9 +1565,10 @@ function testsForRetriableFetchErrors({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1382,11 +1590,12 @@ function testsForRetriableFetchErrors({
   });
 
   it('calls the onAvailable callback if the endpoint becomes degraded via errors and then recovers', async () => {
-    const clock = getClock();
     let invocationIndex = -1;
     const mockFetch = jest.fn(async () => {
       invocationIndex += 1;
       if (invocationIndex === DEFAULT_MAX_RETRIES + 1) {
+        // Only used for testing.
+        // eslint-disable-next-line no-restricted-globals
         return new Response(
           JSON.stringify({
             id: 1,
@@ -1403,10 +1612,11 @@ function testsForRetriableFetchErrors({
       fetch: mockFetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onAvailable(onAvailableListener);
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1430,8 +1640,6 @@ function testsForRetriableFetchErrors({
  * response that is retriable.
  *
  * @param args - The arguments
- * @param args.getClock - A function that returns the Sinon clock, set in
- * `beforeEach`.
  * @param args.httpStatus - The HTTP status code that the response will have.
  * @param args.responseBody - The body that the response will have.
  * @param args.expectedError - The error that a call to the service's `request`
@@ -1440,24 +1648,21 @@ function testsForRetriableFetchErrors({
  * circuit break. Defaults to `expectedError` if not provided.
  */
 function testsForRetriableResponses({
-  getClock,
   httpStatus,
   responseBody = '',
   expectedError,
   expectedOnBreakError = expectedError,
 }: {
-  getClock: () => SinonFakeTimers;
   httpStatus: number;
   responseBody?: string;
   expectedError: string | jest.Constructable | RegExp | Error;
   expectedOnBreakError?: string | jest.Constructable | RegExp | Error;
-}) {
+}): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
   /* eslint-disable jest/require-top-level-describe,jest/no-identical-title */
 
   it('retries a constantly failing request up to 4 more times before re-throwing the error, if `request` is only called once', async () => {
-    const clock = getClock();
     const scope = nock('https://rpc.example.chain')
       .post('/', {
         id: 1,
@@ -1471,9 +1676,10 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1488,8 +1694,38 @@ function testsForRetriableResponses({
     expect(scope.isDone()).toBe(true);
   });
 
+  it('still retries a failing request even if the user is offline', async () => {
+    nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(5)
+      .reply(httpStatus, responseBody);
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => true,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+      expectedError,
+    );
+  });
+
   it('still re-throws the error even after the circuit breaks', async () => {
-    const clock = getClock();
     nock('https://rpc.example.chain')
       .post('/', {
         id: 1,
@@ -1503,9 +1739,10 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl: 'https://rpc.example.chain',
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
 
     const jsonRpcRequest = {
@@ -1523,7 +1760,6 @@ function testsForRetriableResponses({
   });
 
   it('calls the onBreak callback once after the circuit breaks', async () => {
-    const clock = getClock();
     const endpointUrl = 'https://rpc.example.chain';
     nock(endpointUrl)
       .post('/', {
@@ -1539,9 +1775,10 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
     service.onBreak(onBreakListener);
 
@@ -1563,8 +1800,7 @@ function testsForRetriableResponses({
     });
   });
 
-  it('throws an error that includes the number of minutes until the circuit is re-closed if a request is attempted while the circuit is open', async () => {
-    const clock = getClock();
+  it('does not call onBreak if the user is offline when the circuit breaks', async () => {
     const endpointUrl = 'https://rpc.example.chain';
     nock(endpointUrl)
       .post('/', {
@@ -1580,9 +1816,47 @@ function testsForRetriableResponses({
       fetch,
       btoa,
       endpointUrl,
+      isOffline: (): boolean => true,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
+    });
+    service.onBreak(onBreakListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+    await ignoreRejection(service.request(jsonRpcRequest));
+    // The last retry breaks the circuit
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onBreakListener).not.toHaveBeenCalled();
+  });
+
+  it('throws an error that includes the number of minutes until the circuit is re-closed if a request is attempted while the circuit is open', async () => {
+    const endpointUrl = 'https://rpc.example.chain';
+    nock(endpointUrl)
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(15)
+      .reply(httpStatus, responseBody);
+    const onBreakListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
     });
     service.onBreak(onBreakListener);
 
@@ -1599,7 +1873,7 @@ function testsForRetriableResponses({
     await ignoreRejection(service.request(jsonRpcRequest));
 
     // Advance a minute to test that the message updates dynamically as time passes
-    clock.tick(60000);
+    jest.advanceTimersByTime(60000);
     await expect(service.request(jsonRpcRequest)).rejects.toThrow(
       expect.objectContaining({
         code: errorCodes.rpc.resourceUnavailable,
@@ -1610,7 +1884,6 @@ function testsForRetriableResponses({
   });
 
   it('logs the original CircuitBreakError if a request is attempted while the circuit is open', async () => {
-    const clock = getClock();
     const endpointUrl = 'https://rpc.example.chain';
     nock(endpointUrl)
       .post('/', {
@@ -1628,9 +1901,10 @@ function testsForRetriableResponses({
       btoa,
       endpointUrl,
       logger,
+      isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      clock.next();
+      jest.advanceTimersToNextTimer();
     });
     service.onBreak(onBreakListener);
 

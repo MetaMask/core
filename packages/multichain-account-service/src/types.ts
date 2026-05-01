@@ -9,15 +9,18 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerAddNewKeyringAction,
+  KeyringControllerCreateNewVaultAndKeychainAction,
+  KeyringControllerCreateNewVaultAndRestoreAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
+  KeyringControllerRemoveAccountAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
@@ -26,84 +29,21 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
-
 import type {
-  MultichainAccountService,
-  serviceName,
-} from './MultichainAccountService';
+  SnapControllerHandleRequestAction,
+  SnapControllerGetStateAction,
+  SnapControllerStateChangeEvent,
+} from '@metamask/snaps-controllers';
 
-export type MultichainAccountServiceGetMultichainAccountGroupAction = {
-  type: `${typeof serviceName}:getMultichainAccountGroup`;
-  handler: MultichainAccountService['getMultichainAccountGroup'];
-};
-
-export type MultichainAccountServiceGetMultichainAccountGroupsAction = {
-  type: `${typeof serviceName}:getMultichainAccountGroups`;
-  handler: MultichainAccountService['getMultichainAccountGroups'];
-};
-
-export type MultichainAccountServiceGetMultichainAccountWalletAction = {
-  type: `${typeof serviceName}:getMultichainAccountWallet`;
-  handler: MultichainAccountService['getMultichainAccountWallet'];
-};
-
-export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
-  type: `${typeof serviceName}:getMultichainAccountWallets`;
-  handler: MultichainAccountService['getMultichainAccountWallets'];
-};
-
-export type MultichainAccountServiceCreateNextMultichainAccountGroupAction = {
-  type: `${typeof serviceName}:createNextMultichainAccountGroup`;
-  handler: MultichainAccountService['createNextMultichainAccountGroup'];
-};
-
-export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
-  type: `${typeof serviceName}:createMultichainAccountGroup`;
-  handler: MultichainAccountService['createMultichainAccountGroup'];
-};
-
-export type MultichainAccountServiceSetBasicFunctionalityAction = {
-  type: `${typeof serviceName}:setBasicFunctionality`;
-  handler: MultichainAccountService['setBasicFunctionality'];
-};
-
-export type MultichainAccountServiceAlignWalletAction = {
-  type: `${typeof serviceName}:alignWallet`;
-  handler: MultichainAccountService['alignWallet'];
-};
-
-export type MultichainAccountServiceAlignWalletsAction = {
-  type: `${typeof serviceName}:alignWallets`;
-  handler: MultichainAccountService['alignWallets'];
-};
-
-export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
-  type: `${typeof serviceName}:createMultichainAccountWallet`;
-  handler: MultichainAccountService['createMultichainAccountWallet'];
-};
-
-export type MultichainAccountServiceResyncAccountsAction = {
-  type: `${typeof serviceName}:resyncAccounts`;
-  handler: MultichainAccountService['resyncAccounts'];
-};
+import type { serviceName } from './MultichainAccountService';
+import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';
 
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.
  */
 export type MultichainAccountServiceActions =
-  | MultichainAccountServiceGetMultichainAccountGroupAction
-  | MultichainAccountServiceGetMultichainAccountGroupsAction
-  | MultichainAccountServiceGetMultichainAccountWalletAction
-  | MultichainAccountServiceGetMultichainAccountWalletsAction
-  | MultichainAccountServiceCreateNextMultichainAccountGroupAction
-  | MultichainAccountServiceCreateMultichainAccountGroupAction
-  | MultichainAccountServiceSetBasicFunctionalityAction
-  | MultichainAccountServiceAlignWalletAction
-  | MultichainAccountServiceAlignWalletsAction
-  | MultichainAccountServiceCreateMultichainAccountWalletAction
-  | MultichainAccountServiceResyncAccountsAction;
+  MultichainAccountServiceMethodActions;
 
 export type MultichainAccountServiceMultichainAccountGroupCreatedEvent = {
   type: `${typeof serviceName}:multichainAccountGroupCreated`;
@@ -135,25 +75,30 @@ export type MultichainAccountServiceEvents =
  */
 type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
-  | SnapControllerHandleSnapRequestAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerAddNewKeyringAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | ErrorReportingServiceCaptureExceptionAction;
+  | KeyringControllerCreateNewVaultAndKeychainAction
+  | KeyringControllerCreateNewVaultAndRestoreAction
+  | KeyringControllerRemoveAccountAction
+  | SnapControllerGetStateAction
+  | SnapControllerHandleRequestAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
  * subscribes to.
  */
 type AllowedEvents =
-  | KeyringControllerStateChangeEvent
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | KeyringControllerStateChangeEvent
+  | SnapControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events that
@@ -165,6 +110,17 @@ export type MultichainAccountServiceMessenger = Messenger<
   MultichainAccountServiceEvents | AllowedEvents
 >;
 
+/**
+ * Config for the Snap platform watcher (SnapPlatformWatcher).
+ */
+export type SnapPlatformWatcherConfig = {
+  /**
+   * How long to wait for the Snap keyring to appear before rejecting (ms).
+   */
+  timeoutMs?: number;
+};
+
 export type MultichainAccountServiceConfig = {
   trace?: TraceCallback;
+  snapPlatformWatcher?: SnapPlatformWatcherConfig;
 };

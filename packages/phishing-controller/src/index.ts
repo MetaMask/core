@@ -7,11 +7,37 @@ export type {
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
 export { PhishingDetector } from './PhishingDetector';
-export type { PhishingDetectionScanResult, AddressScanResult } from './types';
-export type { TokenScanCacheData, TokenScanResultType } from './types';
+export type {
+  PhishingDetectionScanResult,
+  AddressScanResult,
+  BulkTokenScanResponse,
+  ApprovalsResponse,
+  Approval,
+  Allowance,
+  ApprovalAsset,
+  Exposure,
+  Spender,
+  ApprovalFeature,
+} from './types';
+export type { TokenScanCacheData } from './types';
+export { TokenScanResultType } from './types';
 export {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
+  ApprovalResultType,
+  ApprovalFeatureType,
 } from './types';
 export type { CacheEntry } from './CacheManager';
+
+export type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerTestOriginAction,
+  PhishingControllerIsBlockedRequestAction,
+  PhishingControllerBypassAction,
+  PhishingControllerScanUrlAction,
+  PhishingControllerBulkScanUrlsAction,
+  PhishingControllerBulkScanTokensAction,
+  PhishingControllerScanAddressAction,
+  PhishingControllerGetApprovalsAction,
+} from './PhishingController-method-action-types';

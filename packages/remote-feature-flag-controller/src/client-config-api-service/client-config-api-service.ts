@@ -5,8 +5,8 @@ import {
   DEFAULT_MAX_RETRIES,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
+import type { IDisposable } from 'cockatiel';
 
-import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 import { BASE_URL } from '../constants';
 import type {
   FeatureFlags,
@@ -16,6 +16,7 @@ import type {
   ServiceResponse,
   ApiDataResponse,
 } from '../remote-feature-flag-controller-types';
+import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.
@@ -154,7 +155,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * takes.
    * @returns What {@link ServicePolicy.onBreak} returns.
    */
-  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+  onBreak(...args: Parameters<ServicePolicy['onBreak']>): IDisposable {
     return this.#policy.onBreak(...args);
   }
 
@@ -165,7 +166,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * takes.
    * @returns What {@link ServicePolicy.onDegraded} returns.
    */
-  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>): IDisposable {
     return this.#policy.onDegraded(...args);
   }
 
@@ -194,7 +195,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
       throw new Error('Feature flags api did not return an array');
     }
 
-    const remoteFeatureFlags = this.flattenFeatureFlags(data);
+    const remoteFeatureFlags = this.#flattenFeatureFlags(data);
 
     return {
       remoteFeatureFlags,
@@ -211,7 +212,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * // Input: [{ flag1: true }, { flag2: [] }]
    * // Output: { flag1: true, flag2: [] }
    */
-  private flattenFeatureFlags(responseData: ApiDataResponse): FeatureFlags {
+  #flattenFeatureFlags(responseData: ApiDataResponse): FeatureFlags {
     return responseData.reduce((acc, curr) => {
       return { ...acc, ...curr };
     }, {});

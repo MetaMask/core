@@ -1,27 +1,40 @@
 import { publicToAddress } from '@ethereumjs/util';
 import type { Bip44Account } from '@metamask/account-api';
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  EthAccountType,
+  EthScope,
+} from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { AccountId } from '@metamask/keyring-utils';
 import type { Provider } from '@metamask/network-controller';
-import { add0x, assert, bytesToHex } from '@metamask/utils';
+import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { traceFallback } from '../analytics';
+import { TraceName } from '../analytics/traces';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
+import type { MultichainAccountServiceMessenger } from '../types';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
 } from './BaseBip44AccountProvider';
 import { withRetry, withTimeout } from './utils';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
-import type { MultichainAccountServiceMessenger } from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -41,13 +54,22 @@ function assertInternalAccountExists(
 
 export type EvmAccountProviderConfig = {
   discovery: {
+    enabled?: boolean;
     maxAttempts: number;
     timeoutMs: number;
     backOffMs: number;
   };
 };
 
-export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM' as const;
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM';
+
+export const EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG = {
+  discovery: {
+    maxAttempts: 3,
+    timeoutMs: 500,
+    backOffMs: 500,
+  },
+};
 
 export class EvmAccountProvider extends BaseBip44AccountProvider {
   static NAME = EVM_ACCOUNT_PROVIDER_NAME;
@@ -56,19 +78,27 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
   readonly #trace: TraceCallback;
 
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [EthScope.Eoa],
+    bip44: {
+      deriveIndex: true,
+      deriveIndexRange: true,
+    },
+  };
+
   constructor(
     messenger: MultichainAccountServiceMessenger,
-    config: EvmAccountProviderConfig = {
-      discovery: {
-        maxAttempts: 3,
-        timeoutMs: 500,
-        backOffMs: 500,
-      },
-    },
+    config: EvmAccountProviderConfig = EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
     trace?: TraceCallback,
   ) {
     super(messenger);
-    this.#config = config;
+    this.#config = {
+      ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
+    };
     this.#trace = trace ?? traceFallback;
   }
 
@@ -100,6 +130,28 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return provider;
   }
 
+  /**
+   * Get the account ID for an EVM account.
+   *
+   * Note: Since the account ID is deterministic at the AccountsController level,
+   * we can use this method to get the account ID from the address.
+   *
+   * @param address - The address of the account.
+   * @returns The account ID.
+   */
+  #getAccountId(address: Hex): string {
+    return getUUIDFromAddressOfNormalAccount(address);
+  }
+
+  /**
+   * Create an EVM account.
+   *
+   * @param opts - The options for the creation of the account.
+   * @param opts.entropySource - The entropy source to use for the creation of the account.
+   * @param opts.groupIndex - The index of the group to create the account for.
+   * @param opts.throwOnGap - Whether to throw an error if the account index is not contiguous.
+   * @returns The account ID and a boolean indicating if the account was created.
+   */
   async #createAccount({
     entropySource,
     groupIndex,
@@ -130,22 +182,97 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     return result;
   }
 
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  /**
+   * Create accounts for the EVM provider.
+   *
+   * @param options - The options for the creation of the accounts.
+   * @returns The accounts for the EVM provider.
+   */
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
+    ]);
+
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+
+      // Use a single withKeyring call for the entire range.
+      const accountIds = await this.withKeyring<EthKeyring, AccountId[]>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          const existing = await keyring.getAccounts();
+
+          // Validate no gaps: we can only create accounts starting from existing.length.
+          if (range.from > existing.length) {
+            throw new Error(
+              `Bad account creation request, group index range would create gaps (${range.from} (from) > ${existing.length} (next available index))`,
+            );
+          }
+
+          const result: AccountId[] = [];
+
+          // Collect existing accounts within the range.
+          for (
+            let groupIndex = range.from;
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            if (groupIndex < existing.length) {
+              // Account already exists.
+              result.push(this.#getAccountId(existing[groupIndex]));
+            }
+          }
+
+          // Determine if we need to create new accounts.
+          const from = Math.max(range.from, existing.length);
+          if (from <= range.to) {
+            // Calculate how many new accounts to create.
+            const accountsToCreate = range.to - existing.length + 1;
+
+            // Create all new accounts in one call.
+            const newAccounts = await keyring.addAccounts(accountsToCreate);
+            result.push(
+              ...newAccounts.map((address) => this.#getAccountId(address)),
+            );
+          }
+
+          return result;
+        },
+      );
+
+      const accounts: InternalAccount[] = [];
+      for (const account of this.messenger.call(
+        'AccountsController:getAccounts',
+        accountIds,
+      )) {
+        assertInternalAccountExists(account);
+        this.accounts.add(account.id);
+        accounts.push(account);
+      }
+
+      assertAreBip44Accounts(accounts);
+      return accounts;
+    }
+
+    // Handle Bip44DeriveIndex (single account creation).
+    const { groupIndex } = options;
+
     const [address] = await this.#createAccount({
       entropySource,
       groupIndex,
       throwOnGap: true,
     });
 
+    const accountId = this.#getAccountId(address);
+
     const account = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      address,
+      'AccountsController:getAccount',
+      accountId,
     );
 
     // We MUST have the associated internal account.
@@ -154,20 +281,32 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const accountsArray = [account];
     assertAreBip44Accounts(accountsArray);
 
+    this.accounts.add(account.id);
     return accountsArray;
   }
 
+  /**
+   * Get the transaction count for an EVM account.
+   * This method uses a retry and timeout mechanism to handle transient failures.
+   *
+   * @param provider - The provider to use for the transaction count.
+   * @param address - The address of the account.
+   * @returns The transaction count.
+   */
   async #getTransactionCount(
     provider: Provider,
     address: Hex,
   ): Promise<number> {
-    const countHex = await withRetry<Hex>(
+    const method = 'eth_getTransactionCount';
+
+    const response = await withRetry(
       () =>
         withTimeout(
-          provider.request({
-            method: 'eth_getTransactionCount',
-            params: [address, 'latest'],
-          }),
+          () =>
+            provider.request({
+              method,
+              params: [address, 'latest'],
+            }),
           this.#config.discovery.timeoutMs,
         ),
       {
@@ -176,7 +315,17 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       },
     );
 
-    return parseInt(countHex, 16);
+    // Make sure we got the right response format, if not, we fallback to "0x0", to avoid having to deal with `NaN`.
+    if (!isStrictHexString(response)) {
+      const message = `Received invalid hex response from "${method}" request: ${JSON.stringify(response)}`;
+
+      log(`${WARNING_PREFIX} ${message}`);
+      console.warn(message);
+
+      return 0;
+    }
+
+    return parseInt(response, 16);
   }
 
   async #getAddressFromGroupIndex({
@@ -229,6 +378,10 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         },
       },
       async () => {
+        if (!this.#config.discovery.enabled) {
+          return [];
+        }
+
         const provider = this.getEvmProvider();
         const { entropySource, groupIndex } = opts;
 
@@ -255,12 +408,15 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           'Created account does not match address from group index.',
         );
 
+        const accoundId = this.#getAccountId(address);
+
         const account = this.messenger.call(
-          'AccountsController:getAccountByAddress',
-          address,
+          'AccountsController:getAccount',
+          accoundId,
         );
         assertInternalAccountExists(account);
         assertIsBip44Account(account);
+        this.accounts.add(account.id);
         return [account];
       },
     );

@@ -17,6 +17,7 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants';
+import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types';
 import { PAYMENT_TYPES, PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from './types';
 import type {
   AssignCohortRequest,
@@ -36,6 +37,9 @@ import type {
   RecurringInterval,
   SubscriptionStatus,
   LinkRewardsRequest,
+  StartCryptoSubscriptionResponse,
+  StartSubscriptionResponse,
+  CancelSubscriptionRequest,
 } from './types';
 import type {
   ISubscriptionService,
@@ -65,82 +69,17 @@ export type SubscriptionControllerState = {
   >;
 };
 
-// Messenger Actions
-export type SubscriptionControllerGetSubscriptionsAction = {
-  type: `${typeof controllerName}:getSubscriptions`;
-  handler: SubscriptionController['getSubscriptions'];
-};
-export type SubscriptionControllerGetSubscriptionByProductAction = {
-  type: `${typeof controllerName}:getSubscriptionByProduct`;
-  handler: SubscriptionController['getSubscriptionByProduct'];
-};
-export type SubscriptionControllerCancelSubscriptionAction = {
-  type: `${typeof controllerName}:cancelSubscription`;
-  handler: SubscriptionController['cancelSubscription'];
-};
-export type SubscriptionControllerStartShieldSubscriptionWithCardAction = {
-  type: `${typeof controllerName}:startShieldSubscriptionWithCard`;
-  handler: SubscriptionController['startShieldSubscriptionWithCard'];
-};
-export type SubscriptionControllerGetPricingAction = {
-  type: `${typeof controllerName}:getPricing`;
-  handler: SubscriptionController['getPricing'];
-};
-export type SubscriptionControllerGetCryptoApproveTransactionParamsAction = {
-  type: `${typeof controllerName}:getCryptoApproveTransactionParams`;
-  handler: SubscriptionController['getCryptoApproveTransactionParams'];
-};
-export type SubscriptionControllerStartSubscriptionWithCryptoAction = {
-  type: `${typeof controllerName}:startSubscriptionWithCrypto`;
-  handler: SubscriptionController['startSubscriptionWithCrypto'];
-};
-export type SubscriptionControllerUpdatePaymentMethodAction = {
-  type: `${typeof controllerName}:updatePaymentMethod`;
-  handler: SubscriptionController['updatePaymentMethod'];
-};
-export type SubscriptionControllerGetBillingPortalUrlAction = {
-  type: `${typeof controllerName}:getBillingPortalUrl`;
-  handler: SubscriptionController['getBillingPortalUrl'];
-};
-
-export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
-  type: `${typeof controllerName}:submitSponsorshipIntents`;
-  handler: SubscriptionController['submitSponsorshipIntents'];
-};
-
-export type SubscriptionControllerLinkRewardsAction = {
-  type: `${typeof controllerName}:linkRewards`;
-  handler: SubscriptionController['linkRewards'];
-};
-
-export type SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction =
-  {
-    type: `${typeof controllerName}:submitShieldSubscriptionCryptoApproval`;
-    handler: SubscriptionController['submitShieldSubscriptionCryptoApproval'];
-  };
-
 export type SubscriptionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   SubscriptionControllerState
 >;
 export type SubscriptionControllerActions =
-  | SubscriptionControllerGetSubscriptionsAction
-  | SubscriptionControllerGetSubscriptionByProductAction
-  | SubscriptionControllerCancelSubscriptionAction
-  | SubscriptionControllerStartShieldSubscriptionWithCardAction
-  | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetStateAction
-  | SubscriptionControllerGetCryptoApproveTransactionParamsAction
-  | SubscriptionControllerStartSubscriptionWithCryptoAction
-  | SubscriptionControllerUpdatePaymentMethodAction
-  | SubscriptionControllerGetBillingPortalUrlAction
-  | SubscriptionControllerSubmitSponsorshipIntentsAction
-  | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
-  | SubscriptionControllerLinkRewardsAction;
+  | SubscriptionControllerMethodActions;
 
 export type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerPerformSignOut;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerPerformSignOutAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -249,6 +188,31 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
     },
   };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getPricing',
+  'getSubscriptions',
+  'getSubscriptionByProduct',
+  'getSubscriptionsEligibilities',
+  'cancelSubscription',
+  'unCancelSubscription',
+  'startShieldSubscriptionWithCard',
+  'startSubscriptionWithCrypto',
+  'submitShieldSubscriptionCryptoApproval',
+  'getCryptoApproveTransactionParams',
+  'updatePaymentMethod',
+  'getBillingPortalUrl',
+  'cacheLastSelectedPaymentMethod',
+  'clearLastSelectedPaymentMethod',
+  'submitSponsorshipIntents',
+  'submitUserEvent',
+  'assignUserToCohort',
+  'linkRewards',
+  'getTokenApproveAmount',
+  'getTokenMinimumBalanceAmount',
+  'clearState',
+  'triggerAccessTokenRefresh',
+] as const;
+
 export class SubscriptionController extends StaticIntervalPollingController()<
   typeof controllerName,
   SubscriptionControllerState,
@@ -283,72 +247,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
     this.setIntervalLength(pollingInterval);
     this.#subscriptionService = subscriptionService;
-    this.#registerMessageHandlers();
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getSubscriptions',
-      this.getSubscriptions.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getSubscriptionByProduct',
-      this.getSubscriptionByProduct.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:cancelSubscription',
-      this.cancelSubscription.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:startShieldSubscriptionWithCard',
-      this.startShieldSubscriptionWithCard.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getPricing',
-      this.getPricing.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getCryptoApproveTransactionParams',
-      this.getCryptoApproveTransactionParams.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:startSubscriptionWithCrypto',
-      this.startSubscriptionWithCrypto.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:updatePaymentMethod',
-      this.updatePaymentMethod.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'SubscriptionController:getBillingPortalUrl',
-      this.getBillingPortalUrl.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:submitSponsorshipIntents`,
-      this.submitSponsorshipIntents.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:submitShieldSubscriptionCryptoApproval`,
-      this.submitShieldSubscriptionCryptoApproval.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:linkRewards`,
-      this.linkRewards.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -365,7 +266,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return pricing;
   }
 
-  async getSubscriptions() {
+  async getSubscriptions(): Promise<Subscription[]> {
     const currentSubscriptions = this.state.subscriptions;
     const currentTrialedProducts = this.state.trialedProducts;
     const currentCustomerId = this.state.customerId;
@@ -425,12 +326,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   /**
    * Get the subscription by product.
    *
-   * @param product - The product type.
+   * @param productType - The product type.
    * @returns The subscription.
    */
-  getSubscriptionByProduct(product: ProductType): Subscription | undefined {
+  getSubscriptionByProduct(productType: ProductType): Subscription | undefined {
     return this.state.subscriptions.find((subscription) =>
-      subscription.products.some((p) => p.name === product),
+      subscription.products.some((product) => product.name === productType),
     );
   }
 
@@ -448,13 +349,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
-  async cancelSubscription(request: { subscriptionId: string }) {
+  async cancelSubscription(request: CancelSubscriptionRequest): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     const cancelledSubscription =
-      await this.#subscriptionService.cancelSubscription({
-        subscriptionId: request.subscriptionId,
-      });
+      await this.#subscriptionService.cancelSubscription(request);
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
@@ -467,7 +366,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.triggerAccessTokenRefresh();
   }
 
-  async unCancelSubscription(request: { subscriptionId: string }) {
+  async unCancelSubscription(request: {
+    subscriptionId: string;
+  }): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     const uncancelledSubscription =
@@ -486,7 +387,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     this.triggerAccessTokenRefresh();
   }
 
-  async startShieldSubscriptionWithCard(request: StartSubscriptionRequest) {
+  async startShieldSubscriptionWithCard(
+    request: StartSubscriptionRequest,
+  ): Promise<StartSubscriptionResponse> {
     this.#assertIsUserNotSubscribed({ products: request.products });
 
     const response =
@@ -496,7 +399,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     return response;
   }
 
-  async startSubscriptionWithCrypto(request: StartCryptoSubscriptionRequest) {
+  async startSubscriptionWithCrypto(
+    request: StartCryptoSubscriptionRequest,
+  ): Promise<StartCryptoSubscriptionResponse> {
     this.#assertIsUserNotSubscribed({ products: request.products });
     const response =
       await this.#subscriptionService.startSubscriptionWithCrypto(request);
@@ -516,7 +421,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     txMeta: TransactionMeta,
     isSponsored?: boolean,
     rewardAccountId?: CaipAccountId,
-  ) {
+  ): Promise<void> {
     if (txMeta.type !== TransactionType.shieldSubscriptionApprove) {
       return;
     }
@@ -545,11 +450,13 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     // get the latest subscriptions state to check if the user has an active shield subscription
     await this.getSubscriptions();
     const currentSubscription = this.state.subscriptions.find((subscription) =>
-      subscription.products.some((p) => p.name === PRODUCT_TYPES.SHIELD),
+      subscription.products.some(
+        (product) => product.name === PRODUCT_TYPES.SHIELD,
+      ),
     );
 
     this.#assertValidSubscriptionStateForCryptoApproval({
-      product: PRODUCT_TYPES.SHIELD,
+      productType: PRODUCT_TYPES.SHIELD,
     });
     // if shield subscription exists, this transaction is for changing payment method
     const isChangePaymentMethod = Boolean(currentSubscription);
@@ -604,31 +511,35 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       throw new Error('Subscription pricing not found');
     }
     const product = pricing.products.find(
-      (p) => p.name === request.productType,
+      (productInfo) => productInfo.name === request.productType,
     );
     if (!product) {
       throw new Error('Product price not found');
     }
 
-    const price = product.prices.find((p) => p.interval === request.interval);
+    const price = product.prices.find(
+      (productPrice) => productPrice.interval === request.interval,
+    );
     if (!price) {
       throw new Error('Price not found');
     }
 
     const chainsPaymentInfo = pricing.paymentMethods.find(
-      (t) => t.type === PAYMENT_TYPES.byCrypto,
+      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
     );
     if (!chainsPaymentInfo) {
       throw new Error('Chains payment info not found');
     }
     const chainPaymentInfo = chainsPaymentInfo.chains?.find(
-      (t) => t.chainId === request.chainId,
+      (chain) => chain.chainId === request.chainId,
     );
     if (!chainPaymentInfo) {
       throw new Error('Invalid chain id');
     }
     const tokenPaymentInfo = chainPaymentInfo.tokens.find(
-      (t) => t.address === request.paymentTokenAddress,
+      (token) =>
+        token.address.toLowerCase() ===
+        request.paymentTokenAddress.toLowerCase(),
     );
     if (!tokenPaymentInfo) {
       throw new Error('Invalid token address');
@@ -685,7 +596,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   cacheLastSelectedPaymentMethod(
     product: ProductType,
     paymentMethod: CachedLastSelectedPaymentMethod,
-  ) {
+  ): void {
     if (
       paymentMethod.type === PAYMENT_TYPES.byCrypto &&
       (!paymentMethod.paymentTokenAddress || !paymentMethod.paymentTokenSymbol)
@@ -700,6 +611,21 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         ...state.lastSelectedPaymentMethod,
         [product]: paymentMethod,
       };
+    });
+  }
+
+  /**
+   * Clear the last selected payment method for a specific product.
+   *
+   * @param product - The product to clear the payment method for.
+   */
+  clearLastSelectedPaymentMethod(product: ProductType): void {
+    this.update((state) => {
+      if (state.lastSelectedPaymentMethod) {
+        const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod =
+          rest as typeof state.lastSelectedPaymentMethod;
+      }
     });
   }
 
@@ -765,7 +691,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param request - Request object containing the event to submit.
    * @example { event: SubscriptionUserEvent.ShieldEntryModalViewed, cohort: 'post_tx' }
    */
-  async submitUserEvent(request: SubmitUserEventRequest) {
+  async submitUserEvent(request: SubmitUserEventRequest): Promise<void> {
     await this.#subscriptionService.submitUserEvent(request);
   }
 
@@ -814,7 +740,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param price - The price info
    * @returns The price amount
    */
-  #getSubscriptionPriceAmount(price: ProductPrice) {
+  #getSubscriptionPriceAmount(price: ProductPrice): string {
     // no need to use BigInt since max unitDecimals are always 2 for price
     const amount = new BigNumber(price.unitAmount)
       .div(10 ** price.unitDecimals)
@@ -829,7 +755,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
    * @param price - The price info
    * @returns The balance amount
    */
-  #getSubscriptionBalanceAmount(price: ProductPrice) {
+  #getSubscriptionBalanceAmount(price: ProductPrice): string {
     // no need to use BigInt since max unitDecimals are always 2 for price
     const amount = new BigNumber(price.unitAmount)
       .div(10 ** price.unitDecimals)
@@ -896,9 +822,19 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Clears the subscription state and resets to default values.
+   */
+  clearState(): void {
+    const defaultState = getDefaultSubscriptionControllerState();
+    this.update(() => {
+      return defaultState;
+    });
+  }
+
+  /**
    * Triggers an access token refresh.
    */
-  triggerAccessTokenRefresh() {
+  triggerAccessTokenRefresh(): void {
     // We perform a sign out to clear the access token from the authentication
     // controller. Next time the access token is requested, a new access token
     // will be fetched.
@@ -906,13 +842,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   #getProductPriceByProductAndPlan(
-    product: ProductType,
+    productType: ProductType,
     plan: RecurringInterval,
   ): ProductPrice {
     const { pricing } = this.state;
-    const productPricing = pricing?.products.find((p) => p.name === product);
+    const productPricing = pricing?.products.find(
+      (product) => product.name === productType,
+    );
     const productPrice = productPricing?.prices.find(
-      (p) => p.interval === plan,
+      (price) => price.interval === plan,
     );
     if (!productPrice) {
       throw new Error(SubscriptionControllerErrorMessage.ProductPriceNotFound);
@@ -921,12 +859,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   #assertValidSubscriptionStateForCryptoApproval({
-    product,
+    productType,
   }: {
-    product: ProductType;
-  }) {
+    productType: ProductType;
+  }): void {
     const subscription = this.state.subscriptions.find((sub) =>
-      sub.products.some((p) => p.name === product),
+      sub.products.some((product) => product.name === productType),
     );
 
     const isValid =
@@ -948,9 +886,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
   }
 
-  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }) {
+  #assertIsUserNotSubscribed({ products }: { products: ProductType[] }): void {
     const subscription = this.state.subscriptions.find((sub) =>
-      sub.products.some((p) => products.includes(p.name)),
+      sub.products.some((product) => products.includes(product.name)),
     );
 
     if (
@@ -961,7 +899,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     }
   }
 
-  #assertIsUserSubscribed(request: { subscriptionId: string }) {
+  #assertIsUserSubscribed(request: { subscriptionId: string }): void {
     if (
       !this.state.subscriptions.find(
         (subscription) => subscription.id === request.subscriptionId,
@@ -981,8 +919,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     value: CachedLastSelectedPaymentMethod | undefined,
   ): asserts value is Required<CachedLastSelectedPaymentMethod> {
     if (
-      !value ||
-      value.type !== PAYMENT_TYPES.byCrypto ||
+      value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||
       !value.paymentTokenSymbol
     ) {
@@ -1016,11 +953,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
 
   #getChainSupportsSponsorship(chainId: Hex): boolean {
     const cryptoPaymentInfo = this.state.pricing?.paymentMethods.find(
-      (t) => t.type === PAYMENT_TYPES.byCrypto,
+      (paymentMethod) => paymentMethod.type === PAYMENT_TYPES.byCrypto,
     );
 
     const isSponsorshipSupported = cryptoPaymentInfo?.chains?.find(
-      (t) => t.chainId === chainId,
+      (chain) => chain.chainId === chainId,
     )?.isSponsorshipSupported;
     return Boolean(isSponsorshipSupported);
   }

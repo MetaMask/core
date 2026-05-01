@@ -649,7 +649,7 @@ describe('AddressBookController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -662,8 +662,8 @@ describe('AddressBookController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "addressBook": Object {},
+        {
+          "addressBook": {},
         }
       `);
     });
@@ -678,8 +678,8 @@ describe('AddressBookController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "addressBook": Object {},
+        {
+          "addressBook": {},
         }
       `);
     });
@@ -694,8 +694,8 @@ describe('AddressBookController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "addressBook": Object {},
+        {
+          "addressBook": {},
         }
       `);
     });

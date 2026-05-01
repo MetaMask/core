@@ -29,7 +29,7 @@ export type StateConstraint = Record<string, Json>;
  * @param patches - A list of patches describing any changes (see here for more
  * information: https://immerjs.github.io/immer/docs/patches)
  */
-export type StateChangeListener<T> = (state: T, patches: Patch[]) => void;
+export type StateChangeListener<Type> = (state: Type, patches: Patch[]) => void;
 
 /**
  * An function to derive state.
@@ -40,7 +40,7 @@ export type StateChangeListener<T> = (state: T, patches: Patch[]) => void;
  * @param value - A piece of controller state.
  * @returns Something derived from controller state.
  */
-export type StateDeriver<T extends Json> = (value: T) => Json;
+export type StateDeriver<Type extends Json> = (value: Type) => Json;
 
 /**
  * State metadata.
@@ -48,8 +48,8 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * This metadata describes which parts of state should be persisted, and how to
  * get an anonymized representation of the state.
  */
-export type StateMetadata<T extends StateConstraint> = {
-  [P in keyof T]-?: StatePropertyMetadata<T[P]>;
+export type StateMetadata<Type extends StateConstraint> = {
+  [Key in keyof Type]-?: StatePropertyMetadata<Type[Key]>;
 };
 
 /**
@@ -150,11 +150,23 @@ export type ControllerGetStateAction<
   handler: () => ControllerState;
 };
 
+/**
+ * @deprecated This event type is deprecated. Please use
+ * `ControllerStateChangedEvent` instead.
+ */
 export type ControllerStateChangeEvent<
   ControllerName extends string,
   ControllerState extends StateConstraint,
 > = {
   type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
+export type ControllerStateChangedEvent<
+  ControllerName extends string,
+  ControllerState extends StateConstraint,
+> = {
+  type: `${ControllerName}:stateChanged`;
   payload: [ControllerState, Patch[]];
 };
 
@@ -166,7 +178,9 @@ export type ControllerActions<
 export type ControllerEvents<
   ControllerName extends string,
   ControllerState extends StateConstraint,
-> = ControllerStateChangeEvent<ControllerName, ControllerState>;
+> =
+  | ControllerStateChangeEvent<ControllerName, ControllerState>
+  | ControllerStateChangedEvent<ControllerName, ControllerState>;
 
 /**
  * Controller class that provides state management, subscriptions, and state metadata
@@ -235,12 +249,17 @@ export class BaseController<
       ControllerName,
       ControllerState
     >['type'] extends MessengerActions<ControllerMessenger>['type']
-      ? ControllerEvents<
+      ? ControllerStateChangeEvent<
           ControllerName,
           ControllerState
         >['type'] extends MessengerEvents<ControllerMessenger>['type']
         ? ControllerMessenger
-        : never
+        : ControllerStateChangedEvent<
+              ControllerName,
+              ControllerState
+            >['type'] extends MessengerEvents<ControllerMessenger>['type']
+          ? ControllerMessenger
+          : never
       : never;
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
@@ -269,6 +288,10 @@ export class BaseController<
       eventType: `${name}:stateChange`,
       getPayload: () => [this.state, []],
     });
+    this.#messenger.registerInitialEventPayload({
+      eventType: `${name}:stateChanged`,
+      getPayload: () => [this.state, []],
+    });
   }
 
   /**
@@ -276,7 +299,7 @@ export class BaseController<
    *
    * @returns The current state.
    */
-  get state() {
+  get state(): ControllerState {
     return this.#internalState;
   }
 
@@ -309,7 +332,7 @@ export class BaseController<
     const [nextState, patches, inversePatches] = (
       produceWithPatches as unknown as (
         state: ControllerState,
-        cb: typeof callback,
+        callbackFn: typeof callback,
       ) => [ControllerState, Patch[], Patch[]]
     )(this.#internalState, callback);
 
@@ -318,6 +341,11 @@ export class BaseController<
       this.#internalState = nextState;
       this.#messenger.publish(
         `${this.name}:stateChange` as const,
+        nextState,
+        patches,
+      );
+      this.#messenger.publish(
+        `${this.name}:stateChanged` as const,
         nextState,
         patches,
       );
@@ -333,11 +361,16 @@ export class BaseController<
    * @param patches - An array of immer patches that are to be applied to make
    * or undo changes.
    */
-  protected applyPatches(patches: Patch[]) {
+  protected applyPatches(patches: Patch[]): void {
     const nextState = applyPatches(this.#internalState, patches);
     this.#internalState = nextState;
     this.#messenger.publish(
       `${this.name}:stateChange` as const,
+      nextState,
+      patches,
+    );
+    this.#messenger.publish(
+      `${this.name}:stateChanged` as const,
       nextState,
       patches,
     );
@@ -352,8 +385,9 @@ export class BaseController<
    * least ensures this instance won't be responsible for preventing the
    * listeners from being garbage collected.
    */
-  protected destroy() {
+  protected destroy(): void {
     this.messenger.clearEventSubscriptions(`${this.name}:stateChange`);
+    this.messenger.clearEventSubscriptions(`${this.name}:stateChanged`);
   }
 }
 

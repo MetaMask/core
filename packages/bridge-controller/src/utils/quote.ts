@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   convertHexToDecimal,
   toHex,
@@ -5,8 +6,6 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isNonEvmChainId } from './bridge';
-import { FeatureId } from './validators';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -18,6 +17,8 @@ import type {
   NonEvmFees,
   TxData,
 } from '../types';
+import { isNativeAddress, isNonEvmChainId } from './bridge';
+import { FeatureId } from './validators';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,
@@ -198,7 +199,7 @@ const calcTotalGasFee = ({
   resetApprovalGasLimit?: number | null;
   tradeGasLimit?: number | null;
   l1GasFeesInHexWei?: string | null;
-  feePerGasInDecGwei: string;
+  feePerGasInDecGwei?: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
@@ -208,7 +209,7 @@ const calcTotalGasFee = ({
 
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(feePerGasInDecGwei)
+    .times(feePerGasInDecGwei ?? '0')
     .plus(l1GasFeesInDecGWei);
   const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 
@@ -228,14 +229,14 @@ const calcTotalGasFee = ({
 
 export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
-  estimatedBaseFeeInDecGwei,
+  feePerGasInDecGwei,
   maxFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
   bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
-  estimatedBaseFeeInDecGwei: string;
-  maxFeePerGasInDecGwei: string;
+  maxFeePerGasInDecGwei?: string;
+  feePerGasInDecGwei?: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
@@ -249,7 +250,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
       resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -260,7 +261,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -303,14 +304,12 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * Calculates the total estimated network fees for the bridge transaction
  *
  * @param gasFee - The gas fee for the bridge transaction
- * @param gasFee.effective - The fee to display to the user. If not available, this is equal to the gasLimit (total)
+ * @param gasFee.total - The fee to display to the user. If not available, this is equal to the gasLimit (total)
  * @param relayerFee - The relayer fee paid to bridge providers
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
 export const calcTotalEstimatedNetworkFee = (
-  {
-    effective: gasFeeToDisplay,
-  }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  { total: gasFeeToDisplay }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
@@ -319,12 +318,12 @@ export const calcTotalEstimatedNetworkFee = (
       .toString(),
     valueInCurrency: gasFeeToDisplay?.valueInCurrency
       ? new BigNumber(gasFeeToDisplay.valueInCurrency)
-          .plus(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency ?? '0')
           .toString()
       : null,
     usd: gasFeeToDisplay?.usd
       ? new BigNumber(gasFeeToDisplay.usd)
-          .plus(relayerFee.usd || '0')
+          .plus(relayerFee.usd ?? '0')
           .toString()
       : null,
   };
@@ -338,11 +337,11 @@ export const calcTotalMaxNetworkFee = (
     amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
     valueInCurrency: gasFee.max.valueInCurrency
       ? new BigNumber(gasFee.max.valueInCurrency)
-          .plus(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency ?? '0')
           .toString()
       : null,
     usd: gasFee.max.usd
-      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd || '0').toString()
+      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toString()
       : null,
   };
 };

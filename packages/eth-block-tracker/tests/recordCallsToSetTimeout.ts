@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 
 import EMPTY_FUNCTION from './emptyFunction';
 
-type SetTimeoutCallback = () => any;
+type SetTimeoutCallback = () => unknown;
 
 type SetTimeoutCall = {
   callback: SetTimeoutCallback;
@@ -32,7 +32,7 @@ class SetTimeoutRecorder {
 
   constructor({
     numAutomaticCalls = 0,
-    interceptCallback = (callback) => callback,
+    interceptCallback = (callback): SetTimeoutCallback => callback,
   }: {
     numAutomaticCalls?: number;
     interceptCallback?: InterceptingCallback;
@@ -92,7 +92,7 @@ class SetTimeoutRecorder {
       const index = this.calls.findIndex((call) => call.duration === duration);
 
       if (index === -1) {
-        const listener = (call: SetTimeoutCall, callIndex: number) => {
+        const listener = (call: SetTimeoutCall, callIndex: number): void => {
           if (call.duration === duration) {
             this.calls.splice(callIndex, 1);
             call.callback();
@@ -189,7 +189,7 @@ class SetTimeoutRecorder {
     }
   };
 
-  #stopPassingThroughCalls() {
+  #stopPassingThroughCalls(): void {
     this.#numAutomaticCallsRemaining = 0;
   }
 }
@@ -213,7 +213,7 @@ class SetTimeoutRecorder {
  */
 export default function recordCallsToSetTimeout({
   numAutomaticCalls = 0,
-  interceptCallback = (callback) => callback,
+  interceptCallback = (callback): SetTimeoutCallback => callback,
 }: {
   numAutomaticCalls?: number;
   interceptCallback?: InterceptingCallback;

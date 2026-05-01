@@ -1,4 +1,7 @@
 import { publicToAddress } from '@ethereumjs/util';
+import { isBip44Account } from '@metamask/account-api';
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -11,31 +14,39 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createBytes } from '@metamask/utils';
 
-import {
-  EVM_ACCOUNT_PROVIDER_NAME,
-  EvmAccountProvider,
-} from './EvmAccountProvider';
-import { TimeoutError } from './utils';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
+  MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
+  mockAsInternalAccount,
+  RootMessenger,
 } from '../tests';
-import type { RootMessenger } from '../tests';
+import {
+  EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+  EVM_ACCOUNT_PROVIDER_NAME,
+  EvmAccountProvider,
+  EvmAccountProviderConfig,
+} from './EvmAccountProvider';
+import { TimeoutError } from './utils';
 
-jest.mock('@ethereumjs/util', () => ({
-  publicToAddress: jest.fn(),
-}));
+jest.mock('@ethereumjs/util', () => {
+  const actual = jest.requireActual('@ethereumjs/util');
+  return {
+    ...actual,
+    publicToAddress: jest.fn(),
+  };
+});
 
-function mockNextDiscoveryAddress(address: string) {
+function mockNextDiscoveryAddress(address: string): void {
   jest.mocked(publicToAddress).mockReturnValue(createBytes(address as Hex));
 }
 
-function mockNextDiscoveryAddressOnce(address: string) {
+function mockNextDiscoveryAddressOnce(address: string): void {
   jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
 }
 
@@ -70,11 +81,11 @@ class MockEthKeyring implements EthKeyring {
     this.root = mockHdKey();
   }
 
-  async serialize() {
+  async serialize(): Promise<string> {
     return 'serialized';
   }
 
-  async deserialize(_: string) {
+  async deserialize(_: string): Promise<void> {
     // Not required.
   }
 
@@ -117,39 +128,65 @@ class MockEthKeyring implements EthKeyring {
  * @param options.accounts - List of accounts to use.
  * @param options.discovery - Discovery options.
  * @param options.discovery.transactionCount - Transaction count (use '0x0' to stop the discovery).
+ * @param options.config - Provider config.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
   discovery,
+  config,
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
   discovery?: {
     transactionCount: string;
   };
+  config?: EvmAccountProviderConfig;
 } = {}): {
   provider: EvmAccountProvider;
   messenger: RootMessenger;
   keyring: MockEthKeyring;
   mocks: {
-    getAccountByAddress: jest.Mock;
     mockProviderRequest: jest.Mock;
+    mockGetAccount: jest.Mock;
   };
 } {
   const keyring = new MockEthKeyring(accounts);
 
   messenger.registerActionHandler(
-    'AccountsController:listMultichainAccounts',
-    () => accounts,
+    'AccountsController:getAccounts',
+    (accountIds: string[]) =>
+      keyring.accounts.filter(
+        (account) =>
+          accountIds.includes(account.id) ||
+          accountIds.includes(
+            getUUIDFromAddressOfNormalAccount(account.address),
+          ),
+      ),
   );
 
-  const mockGetAccountByAddress = jest
-    .fn()
-    .mockImplementation((address: string) =>
-      keyring.accounts.find((account) => account.address === address),
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find(
+      (account) =>
+        account.id === id ||
+        getUUIDFromAddressOfNormalAccount(account.address) === id,
     );
+  });
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
+
+  const mockGetAccountByAddress = jest.fn().mockImplementation((address) => {
+    return keyring.accounts.find((account) => account.address === address);
+  });
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccountByAddress',
+    mockGetAccountByAddress,
+  );
 
   const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
     if (method === 'eth_getTransactionCount') {
@@ -157,11 +194,6 @@ function setup({
     }
     throw new Error(`Unknown method: ${method}`);
   });
-
-  messenger.registerActionHandler(
-    'AccountsController:getAccountByAddress',
-    mockGetAccountByAddress,
-  );
 
   messenger.registerActionHandler(
     'KeyringController:withKeyring',
@@ -190,15 +222,19 @@ function setup({
 
   const provider = new EvmAccountProvider(
     getMultichainAccountServiceMessenger(messenger),
+    config,
   );
+
+  const accountIds = accounts.map((account) => account.id);
+  provider.init(accountIds);
 
   return {
     provider,
     messenger,
     keyring,
     mocks: {
-      getAccountByAddress: mockGetAccountByAddress,
       mockProviderRequest,
+      mockGetAccount,
     },
   };
 }
@@ -219,12 +255,15 @@ describe('EvmAccountProvider', () => {
   });
 
   it('gets a specific account', () => {
-    const account = MOCK_HD_ACCOUNT_1;
+    const customId = 'custom-id-123';
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withId(customId)
+      .get();
     const { provider } = setup({
       accounts: [account],
     });
 
-    expect(provider.getAccount(account.id)).toStrictEqual(account);
+    expect(provider.getAccount(customId)).toStrictEqual(account);
   });
 
   it('throws if account does not exist', () => {
@@ -239,6 +278,22 @@ describe('EvmAccountProvider', () => {
     );
   });
 
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_SOL_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
+  });
+
   it('does not re-create accounts (idempotent)', async () => {
     const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
     const { provider } = setup({
@@ -246,11 +301,137 @@ describe('EvmAccountProvider', () => {
     });
 
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
     expect(newAccounts).toHaveLength(1);
     expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+  });
+
+  it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+    const accounts = [MOCK_HD_ACCOUNT_1];
+    const { provider, keyring } = setup({
+      accounts,
+    });
+
+    const from = 1;
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from,
+        to: 3,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
+    expect(keyring.addAccounts).toHaveBeenCalledWith(3);
+
+    // Verify each account has the correct group index.
+    for (const [index, account] of newAccounts.entries()) {
+      expect(isBip44Account(account)).toBe(true);
+      expect(account.options.entropy.groupIndex).toBe(from + index);
+    }
+  });
+
+  it('creates accounts with range starting from 0', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 2,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
+    expect(keyring.addAccounts).toHaveBeenCalledWith(3);
+  });
+
+  it('creates a single account when range from equals to', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    // First create accounts 0-4 to avoid gaps.
+    await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 4,
+      },
+    });
+
+    // Now create a single account at index 5 where from equals to.
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 5,
+        to: 5,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(1);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(2); // 1 call for range 0-4, 1 call for account 5.
+    expect(
+      isBip44Account(newAccounts[0]) &&
+        newAccounts[0].options.entropy.groupIndex,
+    ).toBe(5);
+  });
+
+  it('throws when trying to create gaps with range', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    const nextGroupIndex = MOCK_HD_ACCOUNT_1.options.entropy.groupIndex + 1;
+
+    const from = 5;
+    await expect(
+      provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: {
+          from,
+          to: 10,
+        },
+      }),
+    ).rejects.toThrow(
+      `Bad account creation request, group index range would create gaps (${from} (from) > ${nextGroupIndex} (next available index))`,
+    );
+  });
+
+  it('returns existing accounts when range includes already created accounts', async () => {
+    const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+    const { provider, keyring } = setup({
+      accounts,
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 3,
+      },
+    });
+
+    // Should return 4 accounts: 2 existing (indices 0,1) + 2 new (indices 2,3).
+    expect(newAccounts).toHaveLength(4);
+    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+    expect(newAccounts[1]).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    // Only 2 new accounts should be created (indices 2 and 3) in a single batched call.
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
+    expect(keyring.addAccounts).toHaveBeenCalledWith(2);
   });
 
   it('throws if the created account is not BIP-44 compatible', async () => {
@@ -259,13 +440,14 @@ describe('EvmAccountProvider', () => {
       accounts,
     });
 
-    mocks.getAccountByAddress.mockReturnValue({
-      ...MOCK_HD_ACCOUNT_1,
+    mocks.mockGetAccount.mockReturnValue({
+      ...mockAsInternalAccount(MOCK_HD_ACCOUNT_1),
       options: {}, // No options, so it cannot be BIP-44 compatible.
     });
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -279,6 +461,7 @@ describe('EvmAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 10,
       }),
@@ -291,14 +474,32 @@ describe('EvmAccountProvider', () => {
     });
 
     // Simulate an account not found.
-    mocks.getAccountByAddress.mockImplementation(() => undefined);
+    mocks.mockGetAccount.mockImplementation(() => undefined);
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
     ).rejects.toThrow('Internal account does not exist');
+  });
+
+  it('throws an error when type is not "bip44:derive-index"', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    await expect(
+      provider.createAccounts({
+        // @ts-expect-error Testing invalid type handling.
+        type: 'unsupported-type',
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow(
+      'Unsupported create account option type: unsupported-type',
+    );
   });
 
   it('discover accounts at the next group index', async () => {
@@ -325,6 +526,28 @@ describe('EvmAccountProvider', () => {
     ).toStrictEqual([expectedAccount]);
 
     expect(provider.getAccounts()).toStrictEqual([expectedAccount]);
+  });
+
+  it('stops discovery gracefully if response is invalid', async () => {
+    const { provider } = setup({
+      accounts: [],
+      discovery: {
+        transactionCount: '', // Faking bad hex number.
+      },
+    });
+
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Received invalid hex response from "eth_getTransactionCount" request: ""',
+    );
   });
 
   it('stops discovery if there is no transaction activity', async () => {
@@ -523,6 +746,26 @@ describe('EvmAccountProvider', () => {
 
     expect(result).toStrictEqual([]);
     expect(mockTrace).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+      config: {
+        ...EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+        discovery: {
+          ...EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
+          enabled: false,
+        },
+      },
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   it('does nothing when re-syncing accounts', async () => {

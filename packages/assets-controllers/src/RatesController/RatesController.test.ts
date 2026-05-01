@@ -5,16 +5,15 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { useFakeTimers } from 'sinon';
 
+import { jestAdvanceTime } from '../../../../tests/helpers';
+import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import {
   Cryptocurrency,
   RatesController,
   name as ratesControllerName,
 } from './RatesController';
 import type { RatesControllerMessenger, RatesControllerState } from './types';
-import { advanceTime } from '../../../../tests/helpers';
-import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 
 type AllActions = MessengerActions<RatesControllerMessenger>;
 
@@ -93,8 +92,6 @@ function setupRatesController({
 }
 
 describe('RatesController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   describe('construct', () => {
     it('constructs the RatesController with default values', () => {
       const { ratesController } = setupRatesController({
@@ -118,11 +115,11 @@ describe('RatesController', () => {
 
   describe('start', () => {
     beforeEach(() => {
-      clock = useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('starts the polling process with default values', async () => {
@@ -174,12 +171,13 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStarted`,
       );
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       const ratesPosUpdate = ratesController.state.rates;
 
-      // checks for the RatesController:stateChange event
-      expect(publishActionSpy).toHaveBeenCalledTimes(3);
+      // checks for the RatesController:stateChange and
+      // RatesController:stateChanged events
+      expect(publishActionSpy).toHaveBeenCalledTimes(5);
       expect(fetchExchangeRateStub).toHaveBeenCalled();
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
@@ -238,7 +236,7 @@ describe('RatesController', () => {
 
       await ratesController.start();
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       const { rates } = ratesController.state;
       expect(fetchExchangeRateStub).toHaveBeenCalled();
@@ -264,11 +262,11 @@ describe('RatesController', () => {
 
   describe('stop', () => {
     beforeEach(() => {
-      clock = useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('stops the polling process', async () => {
@@ -291,29 +289,26 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStarted`,
       );
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
-      // check the 3rd call since the 2nd one is for the
-      // event stateChange
+      // Some of these calls are for state changes
       expect(publishActionSpy).toHaveBeenNthCalledWith(
-        4,
+        6,
         `${ratesControllerName}:pollingStopped`,
       );
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
       await ratesController.stop();
 
-      // check if the stop method is called again, it returns early
-      // and no extra logic is executed
       expect(publishActionSpy).not.toHaveBeenNthCalledWith(
-        3,
+        7,
         `${ratesControllerName}:pollingStopped`,
       );
     });
@@ -422,18 +417,18 @@ describe('RatesController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "cryptocurrencies": Array [
+        {
+          "cryptocurrencies": [
             "btc",
             "sol",
           ],
           "fiatCurrency": "usd",
-          "rates": Object {
-            "btc": Object {
+          "rates": {
+            "btc": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
-            "sol": Object {
+            "sol": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
@@ -457,8 +452,8 @@ describe('RatesController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "cryptocurrencies": Array [
+        {
+          "cryptocurrencies": [
             "btc",
             "sol",
           ],
@@ -482,18 +477,18 @@ describe('RatesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "cryptocurrencies": Array [
+        {
+          "cryptocurrencies": [
             "btc",
             "sol",
           ],
           "fiatCurrency": "usd",
-          "rates": Object {
-            "btc": Object {
+          "rates": {
+            "btc": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
-            "sol": Object {
+            "sol": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
@@ -517,14 +512,14 @@ describe('RatesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "fiatCurrency": "usd",
-          "rates": Object {
-            "btc": Object {
+          "rates": {
+            "btc": {
               "conversionDate": 0,
               "conversionRate": 0,
             },
-            "sol": Object {
+            "sol": {
               "conversionDate": 0,
               "conversionRate": 0,
             },

@@ -1,6 +1,8 @@
 import { AddressZero } from '@ethersproject/constants';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 
+import { CHAIN_IDS } from '../constants/chains';
+import { ChainId } from '../types';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
@@ -8,8 +10,6 @@ import {
   formatAddressToCaipReference,
   formatAddressToAssetId,
 } from './caip-formatters';
-import { CHAIN_IDS } from '../constants/chains';
-import { ChainId } from '../types';
 
 describe('CAIP Formatters', () => {
   describe('formatChainIdToCaip', () => {
@@ -264,6 +264,17 @@ describe('CAIP Formatters', () => {
       // Test with Avalanche
       expect(formatAddressToAssetId(tokenAddress, CHAIN_IDS.AVALANCHE)).toBe(
         `eip155:43114/erc20:${tokenAddress}`,
+      );
+    });
+
+    it('should return undefined when chainId is not provided', () => {
+      expect(formatAddressToAssetId('invalid-address')).toBeUndefined();
+    });
+
+    it('should handle Tron addresses', () => {
+      const tokenAddress = 'TJ1234567890123456789012345678901234567890';
+      expect(formatAddressToAssetId(tokenAddress, ChainId.TRON)).toBe(
+        'tron:728126428/trc20:TJ1234567890123456789012345678901234567890',
       );
     });
   });

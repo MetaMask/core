@@ -1,9 +1,13 @@
+import {
+  BRIDGE_PREFERRED_GAS_ESTIMATE,
+  TxData,
+} from '@metamask/bridge-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { FeeMarketGasFeeEstimates } from '@metamask/transaction-controller';
 import { GasFeeEstimateLevel } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import { calculateGasFees, getTxGasEstimates } from './gas';
+import { calculateGasFees, getTxGasEstimates } from './transaction';
 
 // Mock data
 const mockTxGasFeeEstimates = {
@@ -26,11 +30,24 @@ const mockNetworkGasFeeEstimates = {
   estimatedBaseFee: '0.00000001',
 } as GasFeeState['gasFeeEstimates'];
 
+const mockMessengerCall = jest.fn();
+const mockMessenger = { call: mockMessengerCall };
+
 describe('gas calculation utils', () => {
   describe('getTxGasEstimates', () => {
-    it('should return gas fee estimates with baseAndPriorityFeePerGas when maxPriorityFeePerGas is provided', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should return gas fee estimates with baseAndPriorityFeePerGas when maxPriorityFeePerGas is provided', async () => {
+      mockMessenger.call.mockReturnValueOnce({
+        gasFeeEstimates: mockNetworkGasFeeEstimates,
+      });
+      mockMessenger.call.mockReturnValueOnce({
+        estimates: mockTxGasFeeEstimates,
+      });
       // Call the function
-      const result = getTxGasEstimates({
+      const result = await getTxGasEstimates(mockMessenger, {
         txGasFeeEstimates: mockTxGasFeeEstimates,
         networkGasFeeEstimates: mockNetworkGasFeeEstimates,
       });
@@ -45,16 +62,18 @@ describe('gas calculation utils', () => {
       });
     });
 
-    it('should handle missing high property in txGasFeeEstimates', () => {
-      // Call the function
-      const result = getTxGasEstimates({
-        txGasFeeEstimates: {} as never,
-        networkGasFeeEstimates: {
+    it('should handle missing property in txGasFeeEstimates', async () => {
+      mockMessenger.call.mockReturnValueOnce({
+        gasFeeEstimates: {
           estimatedBaseFee: '0.00000001',
         } as GasFeeState['gasFeeEstimates'],
       });
+      mockMessenger.call.mockReturnValueOnce({
+        estimates: {},
+      });
 
-      // Verify the result
+      const result = await getTxGasEstimates(mockMessenger);
+
       expect(result).toStrictEqual({
         baseAndPriorityFeePerGas: undefined,
         maxFeePerGas: undefined,
@@ -62,11 +81,55 @@ describe('gas calculation utils', () => {
       });
     });
 
-    it('should use default estimatedBaseFee when not provided in networkGasFeeEstimates', () => {
+    it('should use Bridge preferred gas estimate as gas estimates', async () => {
+      const estimates = {
+        type: 'fee-market',
+        [GasFeeEstimateLevel.Low]: {
+          maxFeePerGas: '0xLOW',
+          maxPriorityFeePerGas: '0xLOW_PRIORITY',
+        },
+        [GasFeeEstimateLevel.Medium]: {
+          maxFeePerGas: '0xMEDIUM',
+          maxPriorityFeePerGas: '0xMEDIUM_PRIORITY',
+        },
+        [GasFeeEstimateLevel.High]: {
+          maxFeePerGas: '0xHIGH',
+          maxPriorityFeePerGas: '0xHIGH_PRIORITY',
+        },
+      } as FeeMarketGasFeeEstimates;
+
+      mockMessenger.call.mockReturnValueOnce({
+        gasFeeEstimates: mockNetworkGasFeeEstimates,
+      });
+      mockMessenger.call.mockReturnValueOnce({
+        estimates,
+      });
+
+      const result = await getTxGasEstimates(mockMessenger, {
+        txGasFeeEstimates: estimates,
+        networkGasFeeEstimates: mockNetworkGasFeeEstimates,
+      });
+
+      expect(result.maxFeePerGas).toBe(
+        estimates[BRIDGE_PREFERRED_GAS_ESTIMATE]?.maxFeePerGas,
+      );
+      expect(result.maxPriorityFeePerGas).toBe(
+        estimates[BRIDGE_PREFERRED_GAS_ESTIMATE]?.maxPriorityFeePerGas,
+      );
+    });
+
+    it('should use default estimatedBaseFee when not provided in networkGasFeeEstimates', async () => {
       // Mock data
+      mockMessengerCall.mockClear();
+      mockMessengerCall.mockReturnValueOnce({
+        gasFeeEstimates: {},
+      });
+      mockMessengerCall.mockResolvedValueOnce({
+        estimates: mockTxGasFeeEstimates,
+      });
 
       // Call the function
-      const result = getTxGasEstimates({
+      const result = await getTxGasEstimates(mockMessenger, {
         txGasFeeEstimates: mockTxGasFeeEstimates,
         networkGasFeeEstimates: {},
       });
@@ -83,7 +146,7 @@ describe('gas calculation utils', () => {
   });
 
   describe('calculateGasFees', () => {
-    const mockTrade = {
+    const mockTrade: TxData = {
       chainId: 1,
       gasLimit: 1231,
       to: '0x1',
@@ -92,11 +155,10 @@ describe('gas calculation utils', () => {
       value: '0x1',
     };
 
-    it('should return empty object if 7702 is enabled (disable7702 is false)', async () => {
+    it('should return empty object if gas fields should be skipped (skipGasFields is true)', async () => {
       const result = await calculateGasFees(
-        false,
+        true,
         null as never,
-        jest.fn(),
         mockTrade,
         'mainnet',
         '0x1',
@@ -106,9 +168,8 @@ describe('gas calculation utils', () => {
 
     it('should txFee when provided', async () => {
       const result = await calculateGasFees(
-        true,
+        false,
         null as never,
-        jest.fn(),
         mockTrade,
         'mainnet',
         '0x1',
@@ -141,18 +202,17 @@ describe('gas calculation utils', () => {
             estimatedBaseFee: '0x1234',
           },
         });
-        const mockEstimateGasFeeFn = jest.fn().mockResolvedValueOnce({
+        mockCall.mockResolvedValueOnce({
           estimates: {
-            [GasFeeEstimateLevel.High]: {
+            [GasFeeEstimateLevel.Medium]: {
               maxFeePerGas: '0x1234567890',
               maxPriorityFeePerGas: '0x1234567890',
             },
           },
         });
         const result = await calculateGasFees(
-          true,
+          false,
           { call: mockCall } as never,
-          mockEstimateGasFeeFn,
           { ...mockTrade, gasLimit },
           'mainnet',
           '0x1',

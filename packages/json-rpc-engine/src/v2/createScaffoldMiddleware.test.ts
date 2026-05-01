@@ -1,9 +1,9 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
+import { makeRequest } from '../../tests/utils';
 import type { MiddlewareScaffold } from './createScaffoldMiddleware';
 import { createScaffoldMiddleware } from './createScaffoldMiddleware';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { makeRequest } from '../../tests/utils';
 
 describe('createScaffoldMiddleware', () => {
   it('basic middleware test', async () => {
@@ -16,7 +16,10 @@ describe('createScaffoldMiddleware', () => {
     };
 
     const engine = JsonRpcEngineV2.create({
-      middleware: [createScaffoldMiddleware(scaffold), () => 'passthrough'],
+      middleware: [
+        createScaffoldMiddleware(scaffold),
+        (): string => 'passthrough',
+      ],
     });
 
     const result1 = await engine.handle(makeRequest({ method: 'method1' }));

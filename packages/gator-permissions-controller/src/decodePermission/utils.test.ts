@@ -2,12 +2,11 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { createPermissionRulesForContracts } from './rules';
 import type { DeployedContractsByName } from './types';
 import {
-  createPermissionRulesForChainId,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
-  isSubset,
   splitHex,
 } from './utils';
 
@@ -23,6 +22,7 @@ const buildContracts = (): DeployedContractsByName => ({
   ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
   NonceEnforcer: '0x8888888888888888888888888888888888888888',
   AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
+  RedeemerEnforcer: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
 });
 
 describe('getChecksumEnforcersByChainId', () => {
@@ -52,6 +52,7 @@ describe('getChecksumEnforcersByChainId', () => {
       allowedCalldataEnforcer: getChecksumAddress(
         contracts.AllowedCalldataEnforcer,
       ),
+      redeemerEnforcer: getChecksumAddress(contracts.RedeemerEnforcer),
     });
   });
 
@@ -77,6 +78,7 @@ describe('createPermissionRulesForChainId', () => {
       timestampEnforcer,
       nonceEnforcer,
       allowedCalldataEnforcer,
+      redeemerEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
     // erc20-token-stream
@@ -85,19 +87,24 @@ describe('createPermissionRulesForChainId', () => {
     // native-token-periodic
     // erc20-token-revocation
     const permissionTypeCount = 5;
-    const rules = createPermissionRulesForChainId(contracts);
+    const rules = createPermissionRulesForContracts(contracts);
     expect(rules).toHaveLength(permissionTypeCount);
 
-    const byType = Object.fromEntries(rules.map((r) => [r.permissionType, r]));
+    const byType = Object.fromEntries(
+      rules.map((rule) => [rule.permissionType, rule]),
+    );
 
     // native-token-stream
     expect(byType['native-token-stream']).toBeDefined();
     expect(byType['native-token-stream'].permissionType).toBe(
       'native-token-stream',
     );
-    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(1);
+    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(2);
     expect(
       byType['native-token-stream'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-stream'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -115,9 +122,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].permissionType).toBe(
       'native-token-periodic',
     );
-    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(1);
+    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(2);
     expect(
       byType['native-token-periodic'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-periodic'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -135,9 +145,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].permissionType).toBe(
       'erc20-token-stream',
     );
-    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-stream'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-stream'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -155,9 +168,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].permissionType).toBe(
       'erc20-token-periodic',
     );
-    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-periodic'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-periodic'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -175,9 +191,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-revocation'].permissionType).toBe(
       'erc20-token-revocation',
     );
-    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-revocation'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
     expect(
@@ -190,19 +209,39 @@ describe('createPermissionRulesForChainId', () => {
       ]),
     );
   });
-});
 
-describe('isSubset', () => {
-  it('returns true when subset is contained', () => {
-    expect(isSubset(new Set([1, 2]), new Set([1, 2, 3]))).toBe(true);
-  });
+  it('each rule has caveatAddressesMatch and validateAndDecodePermission', () => {
+    const contracts = buildContracts();
+    const rules = createPermissionRulesForContracts(contracts);
+    const {
+      nativeTokenStreamingEnforcer,
+      exactCalldataEnforcer,
+      nonceEnforcer,
+      timestampEnforcer,
+    } = getChecksumEnforcersByChainId(contracts);
 
-  it('returns false when subset has an extra element', () => {
-    expect(isSubset(new Set([1, 4]), new Set([1, 2, 3]))).toBe(false);
-  });
+    for (const rule of rules) {
+      expect(typeof rule.caveatAddressesMatch).toBe('function');
+      expect(typeof rule.validateAndDecodePermission).toBe('function');
+    }
 
-  it('returns true for empty subset', () => {
-    expect(isSubset(new Set(), new Set([1, 2, 3]))).toBe(true);
+    const nativeStreamRule = rules.find(
+      (candidate) => candidate.permissionType === 'native-token-stream',
+    );
+    expect(nativeStreamRule).toBeDefined();
+    if (!nativeStreamRule) {
+      throw new Error('Rule not found');
+    }
+
+    const matchingCaveatAddresses: Hex[] = [
+      nativeTokenStreamingEnforcer,
+      exactCalldataEnforcer,
+      nonceEnforcer,
+      timestampEnforcer,
+    ];
+    expect(nativeStreamRule.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
+      true,
+    );
   });
 });
 

@@ -15,7 +15,14 @@ import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 import type nock from 'nock';
 
-import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
+import type {
+  NotificationServicesPushControllerAddPushNotificationLinksAction,
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerSubscribeToPushNotificationsAction,
+} from '../NotificationServicesPushController';
+import { ADDRESS_1, ADDRESS_2, ADDRESS_3 } from './__fixtures__/mockAddresses';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
@@ -32,7 +39,9 @@ import {
   createMockFeatureAnnouncementRaw,
 } from './mocks/mock-feature-announcements';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
-import NotificationServicesController, {
+import {
+  NotificationServicesController,
+  ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
   defaultState,
 } from './NotificationServicesController';
 import type {
@@ -44,11 +53,6 @@ import { processNotification } from './processors/process-notifications';
 import { processSnapNotification } from './processors/process-snap-notifications';
 import { notificationsConfigCache } from './services/notification-config-cache';
 import type { INotification, OrderInput } from './types';
-import type {
-  NotificationServicesPushControllerDisablePushNotificationsAction,
-  NotificationServicesPushControllerEnablePushNotificationsAction,
-  NotificationServicesPushControllerSubscribeToNotificationsAction,
-} from '../NotificationServicesPushController';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,12 +65,13 @@ const featureAnnouncementsEnv = {
 };
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = () =>
+const mockErrorLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
-const mockWarnLog = () => jest.spyOn(log, 'warn').mockImplementation(jest.fn());
+const mockWarnLog = (): jest.SpyInstance =>
+  jest.spyOn(log, 'warn').mockImplementation(jest.fn());
 
 // Removing caches to avoid interference
-const clearAPICache = () => {
+const clearAPICache = (): void => {
   notificationsConfigCache.clear();
 };
 
@@ -94,11 +99,11 @@ describe('NotificationServicesController', () => {
   });
 
   describe('init', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> => {
       const messengerMocks = mockNotificationMessenger();
       jest
         .spyOn(ControllerUtils, 'toChecksumHexAddress')
-        .mockImplementation((x) => x);
+        .mockImplementation((address) => address);
 
       return messengerMocks;
     };
@@ -107,7 +112,7 @@ describe('NotificationServicesController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       messenger: any,
       accounts: string[] = ['0x111', '0x222'],
-    ) => {
+    ): Promise<void> => {
       messenger.publish(
         'KeyringController:stateChange',
         {
@@ -117,50 +122,34 @@ describe('NotificationServicesController', () => {
       );
     };
 
-    const arrangeActAssertKeyringTest = async (
-      controllerState?: Partial<NotificationServicesControllerState>,
-    ) => {
-      const mocks = arrangeMocks();
-      const { messenger, globalMessenger, mockKeyringControllerGetState } =
-        mocks;
-      mockKeyringControllerGetState.mockReturnValue({
-        isUnlocked: true,
-        keyrings: [
-          {
-            accounts: [],
-            type: KeyringTypes.hd,
-            metadata: {
-              id: '123',
-              name: '',
-            },
-          },
-        ],
+    describe('KeyringController:stateChange (debounced)', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
       });
 
-      const controller = new NotificationServicesController({
-        messenger,
-        env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: {
-          isNotificationServicesEnabled: true,
-          subscriptionAccountsSeen: [],
-          ...controllerState,
-        },
+      afterEach(() => {
+        jest.useRealTimers();
       });
-      controller.init();
 
-      const mockEnable = jest
-        .spyOn(controller, 'enableAccounts')
-        .mockResolvedValue();
-      const mockDisable = jest
-        .spyOn(controller, 'disableAccounts')
-        .mockResolvedValue();
-
-      const act = async (addresses: string[], assertion: () => void) => {
+      const arrangeActAssertKeyringTest = async (
+        controllerState?: Partial<NotificationServicesControllerState>,
+      ): Promise<{
+        act: (addresses: string[], assertion: () => void) => Promise<void>;
+        actMultiple: (
+          addressesEvents: string[][],
+          assertion: () => void,
+        ) => Promise<void>;
+        mockEnable: jest.SpyInstance;
+        mockDisable: jest.SpyInstance;
+      }> => {
+        const mocks = arrangeMocks();
+        const { messenger, globalMessenger, mockKeyringControllerGetState } =
+          mocks;
         mockKeyringControllerGetState.mockReturnValue({
           isUnlocked: true,
           keyrings: [
             {
-              accounts: addresses,
+              accounts: [],
               type: KeyringTypes.hd,
               metadata: {
                 id: '123',
@@ -170,83 +159,169 @@ describe('NotificationServicesController', () => {
           ],
         });
 
-        await actPublishKeyringStateChange(globalMessenger, addresses);
-        await waitFor(() => {
-          assertion();
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+          state: {
+            isNotificationServicesEnabled: true,
+            subscriptionAccountsSeen: [],
+            ...controllerState,
+          },
         });
+        controller.init();
+        await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
 
-        // Clear mocks for next act/assert
-        mockEnable.mockClear();
-        mockDisable.mockClear();
+        const mockEnable = jest
+          .spyOn(controller, 'enableAccounts')
+          .mockResolvedValue();
+        const mockDisable = jest
+          .spyOn(controller, 'disableAccounts')
+          .mockResolvedValue();
+
+        const mockKeyringState = (addresses: string[]): void => {
+          mockKeyringControllerGetState.mockReturnValue({
+            isUnlocked: true,
+            keyrings: [
+              {
+                accounts: addresses,
+                type: KeyringTypes.hd,
+              },
+            ],
+          });
+        };
+
+        const cleanup = (): void => {
+          mockEnable.mockClear();
+          mockDisable.mockClear();
+        };
+
+        const act = async (
+          addresses: string[],
+          assertion: () => void,
+        ): Promise<void> => {
+          mockKeyringState(addresses);
+
+          await actPublishKeyringStateChange(globalMessenger, addresses);
+          await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+          assertion();
+
+          // Cleanup mocks for next act/assert
+          cleanup();
+        };
+
+        const actMultiple = async (
+          addressesEvents: string[][],
+          assertion: () => void,
+        ): Promise<void> => {
+          for (const addresses of addressesEvents) {
+            mockKeyringState(addresses);
+            await actPublishKeyringStateChange(globalMessenger, addresses);
+          }
+
+          await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+          assertion();
+
+          // Cleanup mocks for next act/assert
+          cleanup();
+        };
+
+        return { act, actMultiple, mockEnable, mockDisable };
       };
 
-      return { act, mockEnable, mockDisable };
-    };
+      it('event KeyringController:stateChange will not add or remove triggers when feature is disabled', async () => {
+        const { act, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest({
+            isNotificationServicesEnabled: false,
+          });
 
-    it('event KeyringController:stateChange will not add or remove triggers when feature is disabled', async () => {
-      const { act, mockEnable, mockDisable } =
-        await arrangeActAssertKeyringTest({
-          isNotificationServicesEnabled: false,
+        // listAccounts has a new address
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
+      });
+
+      it('event KeyringController:stateChange will update notification triggers when keyring accounts change', async () => {
+        const { act, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest({
+            subscriptionAccountsSeen: [ADDRESS_1],
+          });
+
+        // Act - if list accounts has been seen, then will not update
+        await act([ADDRESS_1], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
         });
 
-      // listAccounts has a new address
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
-      });
-    });
-
-    it('event KeyringController:stateChange will update notification triggers when keyring accounts change', async () => {
-      const { act, mockEnable, mockDisable } =
-        await arrangeActAssertKeyringTest({
-          subscriptionAccountsSeen: [ADDRESS_1],
+        // Act - if a new address in list, then will update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
         });
 
-      // Act - if list accounts has been seen, then will not update
-      await act([ADDRESS_1], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
+        // Act - if the list doesn't have an address, then we need to delete
+        await act([ADDRESS_2], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).toHaveBeenCalled();
+        });
+
+        // If the address is added back to the list, we will perform an update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
       });
 
-      // Act - if a new address in list, then will update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
+      it('event KeyringController:stateChange will update only once when if the number of keyring accounts do not change', async () => {
+        const { act, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest();
+
+        // Act - First list of items, so will update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
+
+        // Act - Since number of addresses in keyring has not changed, will not update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
       });
 
-      // Act - if the list doesn't have an address, then we need to delete
-      await act([ADDRESS_2], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).toHaveBeenCalled();
-      });
+      it('event KeyringController:stateChange will only update notifications once when the number of keyring accounts changes multiple times', async () => {
+        const { actMultiple, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest();
 
-      // If the address is added back to the list, we will perform an update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
-      });
-    });
+        await actMultiple(
+          [
+            // Event 1
+            [ADDRESS_1],
 
-    it('event KeyringController:stateChange will update only once when if the number of keyring accounts do not change', async () => {
-      const { act, mockEnable, mockDisable } =
-        await arrangeActAssertKeyringTest();
+            // Event 2
+            [ADDRESS_1, ADDRESS_2],
 
-      // Act - First list of items, so will update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
-      });
-
-      // Act - Since number of addresses in keyring has not changed, will not update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
+            // Event 3
+            [ADDRESS_1, ADDRESS_2, ADDRESS_3],
+          ],
+          () => {
+            expect(mockEnable).toHaveBeenCalledTimes(1);
+            expect(mockEnable).toHaveBeenCalledWith([
+              ADDRESS_1,
+              ADDRESS_2,
+              ADDRESS_3,
+            ]);
+            expect(mockDisable).not.toHaveBeenCalled();
+          },
+        );
       });
     });
 
     const arrangeActInitialisePushNotifications = (
       modifications?: (mocks: ReturnType<typeof arrangeMocks>) => void,
-    ) => {
+    ): ReturnType<typeof arrangeMocks> & {
+      mockAPIGetNotificationConfig: nock.Scope;
+    } => {
       // Arrange
       const mockAPIGetNotificationConfig = mockGetOnChainNotificationsConfig();
       const mocks = arrangeMocks();
@@ -378,7 +453,12 @@ describe('NotificationServicesController', () => {
   });
 
   describe('createOnChainTriggers', () => {
-    const arrangeMocks = (overrides?: { mockGetConfig: () => nock.Scope }) => {
+    const arrangeMocks = (overrides?: {
+      mockGetConfig: () => nock.Scope;
+    }): ReturnType<typeof mockNotificationMessenger> & {
+      mockGetConfig: nock.Scope;
+      mockUpdateNotifications: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig =
         overrides?.mockGetConfig() ?? mockGetOnChainNotificationsConfig();
@@ -419,6 +499,158 @@ describe('NotificationServicesController', () => {
       expect(mockGetConfig.isDone()).toBe(true);
       expect(mockUpdateNotifications.isDone()).toBe(true);
       expect(mockEnablePushNotifications).toHaveBeenCalled();
+    });
+
+    it('tracks accounts from all keyrings when creating triggers', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        // Mock no existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+          {
+            accounts: [ADDRESS_2],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-2',
+              name: 'SRP 2',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+      ]);
+    });
+
+    it('deduplicates and filters non-Ethereum accounts when creating triggers', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        // Mock no existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_1.toLowerCase(), 'NotAnAddress'],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+          {
+            accounts: [
+              ADDRESS_2,
+              '7xKXtg2CW6y7J2wMmkf8VbM8dYb6u3H3V8bLxT64d4oR',
+            ],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-2',
+              name: 'SRP 2',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+      ]);
+    });
+
+    it('normalizes non-checksummed mixed-case addresses before filtering', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      const nonChecksummedMixedCaseAddress =
+        '0xd8Da6bf26964af9d7eeD9e03E53415D37aa96045';
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [nonChecksummedMixedCaseAddress],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+      ]);
     });
 
     it('does not register notifications when notifications already exist and not resetting (however does update push registrations)', async () => {
@@ -475,6 +707,41 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
 
+    it('preserves user preferences when re-subscribing using enableMetamaskNotifications', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockGetConfig,
+        mockUpdateNotifications,
+      } = arrangeMocks({
+        // Mock existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [{ address: ADDRESS_1, enabled: true }],
+          }),
+      });
+
+      // User has disabled feature announcements
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+        state: {
+          isNotificationServicesEnabled: true,
+          isFeatureAnnouncementsEnabled: false,
+        },
+      });
+
+      await controller.enableMetamaskNotifications();
+
+      // Feature announcements should remain disabled
+      expect(controller.state.isFeatureAnnouncementsEnabled).toBe(false);
+      expect(controller.state.isNotificationServicesEnabled).toBe(true);
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(false);
+      expect(mockEnablePushNotifications).toHaveBeenCalled();
+    });
+
     it('throws if not given a valid auth & bearer token', async () => {
       const mocks = arrangeMocks();
       mockErrorLog();
@@ -497,14 +764,20 @@ describe('NotificationServicesController', () => {
   });
 
   describe('disableAccounts', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
+      mockUpdateNotifications: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
       const mockUpdateNotifications = mockUpdateOnChainNotifications();
       return { ...messengerMocks, mockUpdateNotifications };
     };
 
     it('disables notifications for given accounts', async () => {
-      const { messenger, mockUpdateNotifications } = arrangeMocks();
+      const {
+        messenger,
+        mockUpdateNotifications,
+        mockDeletePushNotificationLinks,
+      } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -513,6 +786,7 @@ describe('NotificationServicesController', () => {
       await controller.disableAccounts([ADDRESS_1]);
 
       expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(mockDeletePushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
     });
 
     it('throws errors when invalid auth', async () => {
@@ -537,14 +811,20 @@ describe('NotificationServicesController', () => {
   });
 
   describe('enableAccounts', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
+      mockUpdateNotifications: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
       const mockUpdateNotifications = mockUpdateOnChainNotifications();
       return { ...messengerMocks, mockUpdateNotifications };
     };
 
     it('enables notifications for given accounts', async () => {
-      const { messenger, mockUpdateNotifications } = arrangeMocks();
+      const {
+        messenger,
+        mockAddPushNotificationLinks,
+        mockUpdateNotifications,
+      } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -553,6 +833,7 @@ describe('NotificationServicesController', () => {
       await controller.enableAccounts([ADDRESS_1]);
 
       expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(mockAddPushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
     });
 
     it('throws errors when invalid auth', async () => {
@@ -577,7 +858,17 @@ describe('NotificationServicesController', () => {
   });
 
   describe('fetchAndUpdateMetamaskNotifications', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
+      mockNotificationConfigAPI: nock.Scope;
+      mockFeatureAnnouncementAPIResult: ReturnType<
+        typeof createMockFeatureAnnouncementAPIResult
+      >;
+      mockFeatureAnnouncementsAPI: nock.Scope;
+      mockOnChainNotificationsAPIResult: ReturnType<
+        typeof createMockNotificationEthSent
+      >[];
+      mockOnChainNotificationsAPI: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
 
       const mockFeatureAnnouncementAPIResult =
@@ -611,7 +902,7 @@ describe('NotificationServicesController', () => {
     const arrangeController = (
       messenger: NotificationServicesControllerMessenger,
       overrideState?: Partial<NotificationServicesControllerState>,
-    ) => {
+    ): NotificationServicesController => {
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -642,18 +933,25 @@ describe('NotificationServicesController', () => {
 
       // Should have 1 feature announcement
       expect(
-        result.filter((n) => n.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT),
+        result.filter(
+          (notification) =>
+            notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+        ),
       ).toHaveLength(1);
 
       // Should have 1 Wallet Notification
       expect(
-        result.filter((n) => n.type === TRIGGER_TYPES.ETH_SENT),
+        result.filter(
+          (notification) => notification.type === TRIGGER_TYPES.ETH_SENT,
+        ),
       ).toHaveLength(1);
 
       // Should have 1 Snap Notification
-      expect(result.filter((n) => n.type === TRIGGER_TYPES.SNAP)).toHaveLength(
-        1,
-      );
+      expect(
+        result.filter(
+          (notification) => notification.type === TRIGGER_TYPES.SNAP,
+        ),
+      ).toHaveLength(1);
 
       // Total notification length = 3
       expect(result).toHaveLength(3);
@@ -673,9 +971,11 @@ describe('NotificationServicesController', () => {
       // Should only contain snap notification
       // As this is not controlled by the global notification switch
       expect(result).toHaveLength(1);
-      expect(result.filter((n) => n.type === TRIGGER_TYPES.SNAP)).toHaveLength(
-        1,
-      );
+      expect(
+        result.filter(
+          (notification) => notification.type === TRIGGER_TYPES.SNAP,
+        ),
+      ).toHaveLength(1);
 
       // APIs should not have been called
       expect(mocks.mockFeatureAnnouncementsAPI.isDone()).toBe(false);
@@ -692,7 +992,10 @@ describe('NotificationServicesController', () => {
 
       // Should not have any feature announcements
       expect(
-        result.filter((n) => n.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT),
+        result.filter(
+          (notification) =>
+            notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+        ),
       ).toHaveLength(0);
 
       // Should not have called feature announcement API
@@ -860,7 +1163,11 @@ describe('NotificationServicesController', () => {
   });
 
   describe('markMetamaskNotificationsAsRead', () => {
-    const arrangeMocks = (options?: { onChainMarkAsReadFails: boolean }) => {
+    const arrangeMocks = (options?: {
+      onChainMarkAsReadFails: boolean;
+    }): ReturnType<typeof mockNotificationMessenger> & {
+      mockMarkAsReadAPI: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
 
       const mockMarkAsReadAPI = mockMarkNotificationsAsRead({
@@ -942,7 +1249,12 @@ describe('NotificationServicesController', () => {
   });
 
   describe('enableMetamaskNotifications', () => {
-    const arrangeMocks = (overrides?: { mockGetConfig: () => nock.Scope }) => {
+    const arrangeMocks = (overrides?: {
+      mockGetConfig: () => nock.Scope;
+    }): ReturnType<typeof mockNotificationMessenger> & {
+      mockGetConfig: nock.Scope;
+      mockUpdateNotifications: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig =
         overrides?.mockGetConfig() ?? mockGetOnChainNotificationsConfig();
@@ -1108,7 +1420,9 @@ describe('NotificationServicesController', () => {
   });
 
   describe('enablePushNotifications', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
+      mockGetConfig: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig = mockGetOnChainNotificationsConfig({
         status: 200,
@@ -1179,7 +1493,9 @@ describe('NotificationServicesController', () => {
   });
 
   describe('sendPerpPlaceOrderNotification', () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
+      mockCreatePerpAPI: nock.Scope;
+    } => {
       const messengerMocks = mockNotificationMessenger();
       const mockCreatePerpAPI = mockCreatePerpNotification({
         status: 200,
@@ -1269,12 +1585,12 @@ describe('NotificationServicesController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "metamaskNotificationsList": Array [],
-          "metamaskNotificationsReadList": Array [],
-          "subscriptionAccountsSeen": Array [],
+        {
+          "metamaskNotificationsList": [],
+          "metamaskNotificationsReadList": [],
+          "subscriptionAccountsSeen": [],
         }
-        `);
+      `);
     });
 
     it('includes expected state in state logs', () => {
@@ -1291,14 +1607,14 @@ describe('NotificationServicesController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-          Object {
-            "isFeatureAnnouncementsEnabled": false,
-            "isMetamaskNotificationsFeatureSeen": false,
-            "isNotificationServicesEnabled": false,
-            "metamaskNotificationsList": Array [],
-            "subscriptionAccountsSeen": Array [],
-          }
-        `);
+        {
+          "isFeatureAnnouncementsEnabled": false,
+          "isMetamaskNotificationsFeatureSeen": false,
+          "isNotificationServicesEnabled": false,
+          "metamaskNotificationsList": [],
+          "subscriptionAccountsSeen": [],
+        }
+      `);
     });
 
     it('persists expected state', () => {
@@ -1315,13 +1631,13 @@ describe('NotificationServicesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isFeatureAnnouncementsEnabled": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
-          "metamaskNotificationsList": Array [],
-          "metamaskNotificationsReadList": Array [],
-          "subscriptionAccountsSeen": Array [],
+          "metamaskNotificationsList": [],
+          "metamaskNotificationsReadList": [],
+          "subscriptionAccountsSeen": [],
         }
       `);
     });
@@ -1340,17 +1656,17 @@ describe('NotificationServicesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isCheckingAccountsPresence": false,
           "isFeatureAnnouncementsEnabled": false,
           "isFetchingMetamaskNotifications": false,
           "isMetamaskNotificationsFeatureSeen": false,
           "isNotificationServicesEnabled": false,
           "isUpdatingMetamaskNotifications": false,
-          "isUpdatingMetamaskNotificationsAccount": Array [],
-          "metamaskNotificationsList": Array [],
-          "metamaskNotificationsReadList": Array [],
-          "subscriptionAccountsSeen": Array [],
+          "isUpdatingMetamaskNotificationsAccount": [],
+          "metamaskNotificationsList": [],
+          "metamaskNotificationsReadList": [],
+          "subscriptionAccountsSeen": [],
         }
       `);
     });
@@ -1361,8 +1677,10 @@ describe('NotificationServicesController', () => {
 // Thus this `AnyFunc` can be used to help constrain the generic parameters correctly
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFunc = (...args: any[]) => any;
-const typedMockAction = <Action extends { handler: AnyFunc }>() =>
-  jest.fn<ReturnType<Action['handler']>, Parameters<Action['handler']>>();
+const typedMockAction = <Action extends { handler: AnyFunc }>(): jest.Mock<
+  ReturnType<Action['handler']>,
+  Parameters<Action['handler']>
+> => jest.fn<ReturnType<Action['handler']>, Parameters<Action['handler']>>();
 
 const controllerName = 'NotificationServicesController';
 
@@ -1394,7 +1712,19 @@ function getRootMessenger(): RootMessenger {
  *
  * @returns mock notification messenger and other messenger mocks
  */
-function mockNotificationMessenger() {
+function mockNotificationMessenger(): {
+  globalMessenger: RootMessenger;
+  messenger: NotificationServicesControllerMessenger;
+  mockGetBearerToken: jest.Mock;
+  mockIsSignedIn: jest.Mock;
+  mockAuthPerformSignIn: jest.Mock;
+  mockAddPushNotificationLinks: jest.Mock;
+  mockDisablePushNotifications: jest.Mock;
+  mockDeletePushNotificationLinks: jest.Mock;
+  mockEnablePushNotifications: jest.Mock;
+  mockSubscribeToPushNotifications: jest.Mock;
+  mockKeyringControllerGetState: jest.Mock;
+} {
   const globalMessenger = getRootMessenger();
 
   const messenger = new Messenger<
@@ -1414,7 +1744,9 @@ function mockNotificationMessenger() {
       'AuthenticationController:getBearerToken',
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
+      'NotificationServicesPushController:addPushNotificationLinks',
       'NotificationServicesPushController:disablePushNotifications',
+      'NotificationServicesPushController:deletePushNotificationLinks',
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:subscribeToPushNotifications',
     ],
@@ -1428,28 +1760,38 @@ function mockNotificationMessenger() {
   });
 
   const mockGetBearerToken =
-    typedMockAction<AuthenticationController.AuthenticationControllerGetBearerToken>().mockResolvedValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerGetBearerTokenAction>().mockResolvedValue(
       AuthenticationController.Mocks.MOCK_OATH_TOKEN_RESPONSE.access_token,
     );
 
   const mockIsSignedIn =
-    typedMockAction<AuthenticationController.AuthenticationControllerIsSignedIn>().mockReturnValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerIsSignedInAction>().mockReturnValue(
       true,
     );
 
   const mockAuthPerformSignIn =
-    typedMockAction<AuthenticationController.AuthenticationControllerPerformSignIn>().mockResolvedValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerPerformSignInAction>().mockResolvedValue(
       ['New Access Token'],
+    );
+
+  const mockAddPushNotificationLinks =
+    typedMockAction<NotificationServicesPushControllerAddPushNotificationLinksAction>().mockResolvedValue(
+      true,
     );
 
   const mockDisablePushNotifications =
     typedMockAction<NotificationServicesPushControllerDisablePushNotificationsAction>();
 
+  const mockDeletePushNotificationLinks =
+    typedMockAction<NotificationServicesPushControllerDeletePushNotificationLinksAction>().mockResolvedValue(
+      true,
+    );
+
   const mockEnablePushNotifications =
     typedMockAction<NotificationServicesPushControllerEnablePushNotificationsAction>();
 
   const mockSubscribeToPushNotifications =
-    typedMockAction<NotificationServicesPushControllerSubscribeToNotificationsAction>();
+    typedMockAction<NotificationServicesPushControllerSubscribeToPushNotificationsAction>();
 
   const mockKeyringControllerGetState =
     typedMockAction<KeyringControllerGetStateAction>().mockReturnValue({
@@ -1488,9 +1830,23 @@ function mockNotificationMessenger() {
 
     if (
       actionType ===
+      'NotificationServicesPushController:addPushNotificationLinks'
+    ) {
+      return mockAddPushNotificationLinks(params[0]);
+    }
+
+    if (
+      actionType ===
       'NotificationServicesPushController:disablePushNotifications'
     ) {
       return mockDisablePushNotifications();
+    }
+
+    if (
+      actionType ===
+      'NotificationServicesPushController:deletePushNotificationLinks'
+    ) {
+      return mockDeletePushNotificationLinks(params[0]);
     }
 
     if (
@@ -1518,7 +1874,9 @@ function mockNotificationMessenger() {
     mockGetBearerToken,
     mockIsSignedIn,
     mockAuthPerformSignIn,
+    mockAddPushNotificationLinks,
     mockDisablePushNotifications,
+    mockDeletePushNotificationLinks,
     mockEnablePushNotifications,
     mockSubscribeToPushNotifications,
     mockKeyringControllerGetState,
@@ -1533,15 +1891,19 @@ function mockNotificationMessenger() {
  */
 function arrangeFailureAuthAssertions(
   mocks: ReturnType<typeof mockNotificationMessenger>,
-) {
+): {
+  notLoggedIn: () => jest.Mock;
+  noBearerToken: () => jest.Mock;
+  rejectedBearerToken: () => jest.Mock;
+} {
   const testScenarios = {
-    NotLoggedIn: () => mocks.mockIsSignedIn.mockReturnValue(false),
+    notLoggedIn: (): jest.Mock => mocks.mockIsSignedIn.mockReturnValue(false),
 
     // unlikely, but in case it returns null
-    NoBearerToken: () =>
+    noBearerToken: (): jest.Mock =>
       mocks.mockGetBearerToken.mockResolvedValueOnce(null as unknown as string),
 
-    RejectedBearerToken: () =>
+    rejectedBearerToken: (): jest.Mock =>
       mocks.mockGetBearerToken.mockRejectedValueOnce(
         new Error('MOCK - no bearer token'),
       ),

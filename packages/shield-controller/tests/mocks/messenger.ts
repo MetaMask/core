@@ -12,7 +12,7 @@ type AllShieldControllerActions = MessengerActions<ShieldControllerMessenger>;
 
 type AllShieldControllerEvents = MessengerEvents<ShieldControllerMessenger>;
 
-type RootMessenger = Messenger<
+export type RootMessenger = Messenger<
   MockAnyNamespace,
   AllShieldControllerActions,
   AllShieldControllerEvents

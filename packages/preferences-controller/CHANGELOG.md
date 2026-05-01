@@ -9,12 +9,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [23.1.0]
+
+### Added
+
+- Expose missing public `PreferencesController` methods through its messenger ([#8193](https://github.com/MetaMask/core/pull/8193))
+  - The following actions are now available:
+    - `PreferencesController:setFeatureFlag`
+    - `PreferencesController:setIpfsGateway`
+    - `PreferencesController:setUseTokenDetection`
+    - `PreferencesController:setUseNftDetection`
+    - `PreferencesController:setDisplayNftMedia`
+    - `PreferencesController:setSecurityAlertsEnabled`
+    - `PreferencesController:setIsMultiAccountBalancesEnabled`
+    - `PreferencesController:setShowTestNetworks`
+    - `PreferencesController:setIsIpfsGatewayEnabled`
+    - `PreferencesController:setEnableNetworkIncomingTransactions`
+    - `PreferencesController:setShowMultiRpcModal`
+    - `PreferencesController:setSmartTransactionsOptInStatus`
+    - `PreferencesController:setUseTransactionSimulations`
+    - `PreferencesController:setTokenSortConfig`
+    - `PreferencesController:setUseSafeChainsListValidation`
+    - `PreferencesController:setPrivacyMode`
+    - `PreferencesController:setDismissSmartAccountSuggestionEnabled`
+    - `PreferencesController:setSmartAccountOptIn`
+    - `PreferencesController:setTokenNetworkFilter`
+  - Corresponding action types (e.g. `PreferencesControllerSetFeatureFlagAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [23.0.0]
+
+### Removed
+
+- **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
+  - `identities`, `lostIdentities` and `selectedAddress` along with any associated methods and types were removed.
+  - `setSmartAccountOptInForAccounts` was also removed as it is deprecated and not used in the clients.
+- Removed `@metamask/keyring-controller` and `@metamask/controller-utils` dependencies ([#7995](https://github.com/MetaMask/core/pull/7995)), ([#8115](https://github.com/MetaMask/core/pull/8115))
+
+## [22.1.0]
+
+### Added
+
+- Add support for HYPEREVM (chain ID `0x3e7`) ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add `HYPEREVM` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so HYPEREVM (Chain ID `0x3e7`) is automatically enabled in `showIncomingTransactions`
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7713](https://github.com/MetaMask/core/pull/7713))
   - The dependencies moved are:
-    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/keyring-controller` (^25.1.0)
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [22.0.0]
 
@@ -475,15 +531,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - `src/user/PreferencesController.ts` (plus `ContactEntry` copied from `src/user/AddressBookController.ts`)
     - `src/user/PreferencesController.test.ts`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...@metamask/preferences-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...@metamask/preferences-controller@23.0.0
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0
 [20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1

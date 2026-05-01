@@ -1,15 +1,19 @@
 import log from 'loglevel';
 
 import {
+  mockEndpointDeletePushNotificationLinks,
+  mockEndpointUpdatePushNotificationLinks,
+} from '../__fixtures__/mockServices';
+import type { PushNotificationEnv } from '../types/firebase';
+import {
   activatePushNotifications,
   deactivatePushNotifications,
+  deleteLinksAPI,
   updateLinksAPI,
 } from './services';
-import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockServices';
-import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = () =>
+const mockErrorLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
@@ -19,7 +23,7 @@ const MOCK_JWT = 'MOCK_JWT';
 
 describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
-    const act = async () =>
+    const act = async (): Promise<boolean> =>
       await updateLinksAPI({
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
@@ -54,6 +58,8 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('activatePushNotifications', () => {
+    // Internal testing utility - return type is inferred
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
       const params = {
         bearerToken: MOCK_JWT,
@@ -123,7 +129,56 @@ describe('NotificationServicesPushController Services', () => {
     });
   });
 
+  describe('deleteLinksAPI', () => {
+    const act = async (): Promise<boolean> =>
+      await deleteLinksAPI({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        platform: 'extension',
+        token: MOCK_REG_TOKEN,
+      });
+
+    it('should return true if links are successfully deleted', async () => {
+      const mockAPI = mockEndpointDeletePushNotificationLinks(undefined, {
+        addresses: MOCK_ADDRESSES,
+        registration_token: {
+          platform: 'extension',
+          token: MOCK_REG_TOKEN,
+        },
+      });
+      const result = await act();
+      expect(mockAPI.isDone()).toBe(true);
+      expect(result).toBe(true);
+    });
+
+    it('should return false if the links API delete fails', async () => {
+      const mockAPI = mockEndpointDeletePushNotificationLinks(
+        { status: 500 },
+        {
+          addresses: MOCK_ADDRESSES,
+          registration_token: {
+            platform: 'extension',
+            token: MOCK_REG_TOKEN,
+          },
+        },
+      );
+      const result = await act();
+      expect(mockAPI.isDone()).toBe(true);
+      expect(result).toBe(false);
+    });
+
+    it('should return false if an error is thrown', async () => {
+      jest
+        .spyOn(global, 'fetch')
+        .mockRejectedValue(new Error('MOCK FAIL FETCH'));
+      const result = await act();
+      expect(result).toBe(false);
+    });
+  });
+
   describe('deactivatePushNotifications', () => {
+    // Internal testing utility - return type is inferred
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const arrangeMocks = () => {
       const params = {
         regToken: MOCK_REG_TOKEN,

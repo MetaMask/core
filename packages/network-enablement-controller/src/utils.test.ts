@@ -74,6 +74,7 @@ describe('Utils', () => {
       enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
     ): NetworkEnablementControllerState => ({
       enabledNetworkMap,
+      nativeAssetIdentifiers: {},
     });
 
     describe('EVM namespace scenarios', () => {

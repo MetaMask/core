@@ -15,7 +15,11 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -25,25 +29,32 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
 } from '@metamask/network-controller';
+import type {
+  NetworkEnablementControllerGetStateAction,
+  NetworkEnablementControllerListPopularEvmNetworksAction,
+} from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { assert } from '@metamask/utils';
+import { assert, KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
+import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import type {
   AssetsContractController,
   StakedBalance,
 } from './AssetsContractController';
+import { shouldIncludeNativeToken } from './constants';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
+  BalanceFetchResult,
   ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
@@ -74,7 +85,10 @@ function createAccountTrackerRpcBalanceFetcher(
   includeStakedAssets: boolean,
 ): BalanceFetcher {
   // Provide empty tokens state to ensure only native and staked balances are fetched
-  const getEmptyTokensState = () => ({
+  const getEmptyTokensState = (): {
+    allTokens: Record<string, never>;
+    allDetectedTokens: Record<string, never>;
+  } => ({
     allTokens: {},
     allDetectedTokens: {},
   });
@@ -91,7 +105,9 @@ function createAccountTrackerRpcBalanceFetcher(
       return rpcBalanceFetcher.supports();
     },
 
-    async fetch(params) {
+    async fetch(
+      params: Parameters<BalanceFetcher['fetch']>[0],
+    ): Promise<BalanceFetchResult> {
       const result = await rpcBalanceFetcher.fetch(params);
 
       if (!includeStakedAssets) {
@@ -152,28 +168,11 @@ export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * The action that can be performed to update multiple native token balances in batch.
- */
-export type AccountTrackerUpdateNativeBalancesAction = {
-  type: `${typeof controllerName}:updateNativeBalances`;
-  handler: AccountTrackerController['updateNativeBalances'];
-};
-
-/**
- * The action that can be performed to update multiple staked balances in batch.
- */
-export type AccountTrackerUpdateStakedBalancesAction = {
-  type: `${typeof controllerName}:updateStakedBalances`;
-  handler: AccountTrackerController['updateStakedBalances'];
-};
-
-/**
  * The actions that can be performed using the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerActions =
   | AccountTrackerControllerGetStateAction
-  | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction;
+  | AccountTrackerControllerMethodActions;
 
 /**
  * The messenger of the {@link AccountTrackerController} for communication.
@@ -186,7 +185,10 @@ export type AllowedActions =
     }
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkEnablementControllerGetStateAction
+  | NetworkEnablementControllerListPopularEvmNetworksAction
+  | KeyringControllerGetStateAction;
 
 /**
  * The event that {@link AccountTrackerController} can emit.
@@ -211,6 +213,7 @@ export type AllowedEvents =
   | TransactionControllerUnapprovedTransactionAddedEvent
   | TransactionControllerTransactionConfirmedEvent
   | NetworkControllerNetworkAddedEvent
+  | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
 /**
@@ -227,6 +230,11 @@ type AccountTrackerPollingInput = {
   networkClientIds: NetworkClientId[];
   queryAllAccounts?: boolean;
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateNativeBalances',
+  'updateStakedBalances',
+] as const;
 
 /**
  * Controller that tracks the network balances for all user accounts.
@@ -248,6 +256,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #fetchingEnabled: () => boolean;
 
+  readonly #isOnboarded: () => boolean;
+
+  readonly #isHomepageSectionsV1Enabled: () => boolean;
+
+  /** Track if the keyring is locked */
+  #isLocked = true;
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -260,6 +275,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.accountsApiChainIds - Function that returns array of chainIds that should use Accounts-API strategy (if supported by API).
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
+   * @param options.isOnboarded - Whether the user has completed onboarding. If false, balance updates are skipped.
+   * @param options.isHomepageSectionsV1Enabled - Whether the homepage sections v1 is enabled.
    */
   constructor({
     interval = 10000,
@@ -267,9 +284,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     messenger,
     getStakedBalanceForChain,
     includeStakedAssets = false,
-    accountsApiChainIds = () => [],
-    allowExternalServices = () => true,
-    fetchingEnabled = () => true,
+    accountsApiChainIds = (): ChainIdHex[] => [],
+    allowExternalServices = (): boolean => true,
+    fetchingEnabled = (): boolean => true,
+    isOnboarded = (): boolean => true,
+    isHomepageSectionsV1Enabled = (): boolean => false,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -277,8 +296,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
     includeStakedAssets?: boolean;
     accountsApiChainIds?: () => ChainIdHex[];
+    isHomepageSectionsV1Enabled?: () => boolean;
     allowExternalServices?: () => boolean;
     fetchingEnabled?: () => boolean;
+    isOnboarded?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -304,6 +325,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.#includeStakedAssets = includeStakedAssets;
     this.#accountsApiChainIds = accountsApiChainIds;
+    this.#isHomepageSectionsV1Enabled = isHomepageSectionsV1Enabled;
 
     // Initialize balance fetchers - Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
@@ -318,6 +340,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     ];
 
     this.#fetchingEnabled = fetchingEnabled;
+    this.#isOnboarded = isOnboarded;
+
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.#isLocked = !isUnlocked;
 
     this.setIntervalLength(interval);
 
@@ -333,46 +359,77 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       (event): string => event.address,
     );
 
-    this.messenger.subscribe('NetworkController:networkAdded', async () => {
-      await this.refresh(this.#getNetworkClientIds());
+    this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      (networkConfiguration) => {
+        const { networkClientId } =
+          networkConfiguration.rpcEndpoints[
+            networkConfiguration.defaultRpcEndpointIndex
+          ];
+        this.refresh([networkClientId]).catch(() => {
+          // Silently handle refresh errors
+        });
+      },
+    );
+
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#isLocked = false;
+      const networkClientIds = this.#getNetworkClientIds();
+      this.refresh(networkClientIds).catch((error) => {
+        console.error('Error refreshing balances after keyring unlock:', error);
+      });
     });
 
-    this.messenger.subscribe('KeyringController:unlock', async () => {
-      await this.refresh(this.#getNetworkClientIds());
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#isLocked = true;
     });
 
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
-      async (transactionMeta: TransactionMeta) => {
+      (transactionMeta: TransactionMeta) => {
         const addresses = [transactionMeta.txParams.from];
         if (transactionMeta.txParams.to) {
           addresses.push(transactionMeta.txParams.to);
         }
-        await this.refreshAddresses({
+        this.refreshAddresses({
           networkClientIds: [transactionMeta.networkClientId],
           addresses,
+        }).catch(() => {
+          // Silently handle refresh errors
         });
       },
     );
 
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
-      async (transactionMeta: TransactionMeta) => {
+      (transactionMeta: TransactionMeta) => {
         const addresses = [transactionMeta.txParams.from];
         if (transactionMeta.txParams.to) {
           addresses.push(transactionMeta.txParams.to);
         }
-        await this.refreshAddresses({
+        this.refreshAddresses({
           networkClientIds: [transactionMeta.networkClientId],
           addresses,
+        }).catch(() => {
+          // Silently handle refresh errors
         });
       },
     );
 
-    this.#registerMessageHandlers();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
-  private syncAccounts(newChainIds: string[]) {
+  /**
+   * Whether the controller is active (keyring is unlocked and user is onboarded).
+   * When locked or not onboarded, balance updates should be skipped.
+   *
+   * @returns Whether the controller should perform balance updates.
+   */
+  get isActive(): boolean {
+    return !this.#isLocked && this.#isOnboarded();
+  }
+
+  #syncAccounts(newChainIds: string[]): void {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
     const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
@@ -413,9 +470,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
     Object.keys(accountsByChainId).forEach((chainId) => {
       newAddresses.forEach((address) => {
-        accountsByChainId[chainId][address] = {
-          balance: '0x0',
-        };
+        if (!accountsByChainId[chainId][address]) {
+          accountsByChainId[chainId][address] = {
+            balance: '0x0',
+          };
+        }
       });
     });
 
@@ -436,8 +495,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
-    const cfg = networkConfigurationsByChainId[chainId];
-    const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
+    const networkConfig = networkConfigurationsByChainId[chainId];
+    const { networkClientId } =
+      networkConfig.rpcEndpoints[networkConfig.defaultRpcEndpointIndex];
     const client = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -445,12 +505,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     return new Web3Provider(client.provider);
   };
 
-  readonly #getNetworkClient = (chainId: Hex) => {
+  readonly #getNetworkClient = (chainId: Hex): NetworkClient => {
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
-    const cfg = networkConfigurationsByChainId[chainId];
-    const { networkClientId } = cfg.rpcEndpoints[cfg.defaultRpcEndpointIndex];
+    const networkConfig = networkConfigurationsByChainId[chainId];
+    const { networkClientId } =
+      networkConfig.rpcEndpoints[networkConfig.defaultRpcEndpointIndex];
     return this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -489,7 +550,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param networkClientId - Optional networkClientId to fetch a network client with
    * @returns network client config
    */
-  #getCorrectNetworkClient(networkClientId?: NetworkClientId) {
+  #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
+    chainId: Hex;
+    provider: NetworkClient['provider'];
+    ethQuery: EthQuery;
+    blockTracker: NetworkClient['blockTracker'];
+  } {
     const selectedNetworkClientId =
       networkClientId ??
       this.messenger.call('NetworkController:getState').selectedNetworkClientId;
@@ -519,12 +585,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
-    return Object.values(networkConfigurationsByChainId).flatMap(
-      (networkConfiguration) =>
-        networkConfiguration.rpcEndpoints.map(
-          (rpcEndpoint) => rpcEndpoint.networkClientId,
-        ),
+
+    if (this.#isHomepageSectionsV1Enabled()) {
+      const popularEvmChainIds = this.messenger.call(
+        'NetworkEnablementController:listPopularEvmNetworks',
+      );
+      return popularEvmChainIds
+        .map((hexChainId) => {
+          const networkConfig = networkConfigurationsByChainId[hexChainId];
+          return networkConfig?.rpcEndpoints[
+            networkConfig.defaultRpcEndpointIndex
+          ]?.networkClientId;
+        })
+        .filter((id): id is NetworkClientId => id !== undefined);
+    }
+
+    const { enabledNetworkMap } = this.messenger.call(
+      'NetworkEnablementController:getState',
     );
+
+    const evmEnabledStorageKeys = enabledNetworkMap[KnownCaipNamespace.Eip155]
+      ? Object.keys(enabledNetworkMap[KnownCaipNamespace.Eip155])
+      : [];
+
+    return evmEnabledStorageKeys
+      .map((hexChainId) => {
+        const networkConfig = networkConfigurationsByChainId[hexChainId as Hex];
+        return networkConfig?.rpcEndpoints[
+          networkConfig.defaultRpcEndpointIndex
+        ]?.networkClientId;
+      })
+      .filter((id): id is NetworkClientId => id !== undefined);
   }
 
   /**
@@ -554,7 +645,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   async refresh(
     networkClientIds: NetworkClientId[],
     queryAllAccounts: boolean = false,
-  ) {
+  ): Promise<void> {
     const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
@@ -579,7 +670,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }: {
     networkClientIds: NetworkClientId[];
     addresses: string[];
-  }) {
+  }): Promise<void> {
     const checksummedAddresses = addresses.map((address) =>
       toChecksumHexAddress(address),
     );
@@ -608,7 +699,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
-  }) {
+  }): Promise<void> {
     const releaseLock = await this.#refreshMutex.acquire();
     try {
       const chainIds = networkClientIds.map((networkClientId) => {
@@ -616,9 +707,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         return chainId;
       });
 
-      this.syncAccounts(chainIds);
+      this.#syncAccounts(chainIds);
 
-      if (!this.#fetchingEnabled()) {
+      if (!this.#fetchingEnabled() || !this.isActive) {
         return;
       }
 
@@ -636,8 +727,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
       // Try each fetcher in order, removing successfully processed chains
       for (const fetcher of this.#balanceFetchers) {
-        const supportedChains = remainingChains.filter((c) =>
-          fetcher.supports(c),
+        const supportedChains = remainingChains.filter((chainId) =>
+          fetcher.supports(chainId),
         );
         if (!supportedChains.length) {
           continue;
@@ -788,7 +879,24 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ): Promise<
     Record<string, { balance: string; stakedBalance?: StakedBalance }>
   > {
-    const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
+    // Skip balance fetching if locked or not onboarded to avoid unnecessary RPC calls
+    if (!this.isActive) {
+      return {};
+    }
+
+    const { ethQuery, chainId } =
+      this.#getCorrectNetworkClient(networkClientId);
+
+    // Skip native token fetching for chains that return arbitrary large numbers
+    if (!shouldIncludeNativeToken(chainId)) {
+      // Return empty balances for chains that skip native token fetching
+      return addresses.reduce<
+        Record<string, { balance: string; stakedBalance?: StakedBalance }>
+      >((acc, address) => {
+        acc[address] = { balance: '0x0' };
+        return acc;
+      }, {});
+    }
 
     // TODO: This should use multicall when enabled by the user.
     return await Promise.all(
@@ -835,7 +943,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    */
   updateNativeBalances(
     balances: { address: string; chainId: Hex; balance: Hex }[],
-  ) {
+  ): void {
     const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
     let hasChanges = false;
 
@@ -891,7 +999,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       chainId: Hex;
       stakedBalance: StakedBalance;
     }[],
-  ) {
+  ): void {
     const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
     let hasChanges = false;
 
@@ -933,18 +1041,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         state.accountsByChainId = nextAccountsByChainId;
       });
     }
-  }
-
-  #registerMessageHandlers() {
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateNativeBalances` as const,
-      this.updateNativeBalances.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateStakedBalances` as const,
-      this.updateStakedBalances.bind(this),
-    );
   }
 }
 

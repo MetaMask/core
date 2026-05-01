@@ -1,6 +1,7 @@
+import type { OptionalDataWithOptionalCause } from '@metamask/rpc-errors';
 import { getMessageFromCode, JsonRpcError } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
-import { hasProperty, isObject } from '@metamask/utils';
+import { hasProperty, isObject, isValidJson } from '@metamask/utils';
 // ATTN: We must NOT use 'klona/full' here because it freezes properties on the clone.
 import { klona } from 'klona';
 
@@ -21,17 +22,21 @@ import type { JsonRpcRequest } from './utils';
  * @param value - The value to clone.
  * @returns The cloned value.
  */
-export const deepClone = <T>(value: T): DeepCloned<T> =>
-  klona(value) as DeepCloned<T>;
+export const deepClone = <Type>(value: Type): DeepCloned<Type> =>
+  klona(value) as DeepCloned<Type>;
 
 // Matching the default implementation of klona, this type:
 // - Removes readonly modifiers
 // - Excludes non-enumerable / symbol properties
-type DeepCloned<T> = T extends readonly (infer U)[]
-  ? DeepCloned<U>[]
-  : T extends object
-    ? { -readonly [K in keyof T & (string | number)]: DeepCloned<T[K]> }
-    : T;
+type DeepCloned<Type> = Type extends readonly (infer ArrayType)[]
+  ? DeepCloned<ArrayType>[]
+  : Type extends object
+    ? {
+        -readonly [Key in keyof Type & (string | number)]: DeepCloned<
+          Type[Key]
+        >;
+      }
+    : Type;
 
 /**
  * Standard JSON-RPC request properties.
@@ -89,7 +94,7 @@ export function makeContext<Request extends Record<string | symbol, unknown>>(
 export function propagateToContext(
   req: Record<string, unknown>,
   context: MiddlewareContext<Record<string, unknown>>,
-) {
+): void {
   Object.keys(req)
     .filter(
       (key) =>
@@ -116,7 +121,7 @@ export function propagateToContext(
 export function propagateToRequest(
   req: Record<string, unknown>,
   context: MiddlewareContext,
-) {
+): void {
   Array.from(context.keys())
     .filter(
       ((key) => typeof key === 'string' && !requestProps.includes(key)) as (
@@ -126,6 +131,31 @@ export function propagateToRequest(
     .forEach((key) => {
       req[key] = context.get(key);
     });
+}
+
+/**
+ * Deserialize the error property for a thrown error, merging in the cause where possible.
+ *
+ * @param data - The data from the thrown error.
+ * @param cause - The cause from the thrown error.
+ * @returns The deserialized data.
+ */
+function deserializeData(
+  data: unknown,
+  cause: unknown,
+): OptionalDataWithOptionalCause {
+  // If data is an object, merge with cause.
+  if (isObject(data)) {
+    return { ...data, cause: cause ?? data.cause };
+  }
+
+  // If data is a JSON value that's not mergeable.
+  if (isValidJson(data)) {
+    return data;
+  }
+
+  // If data is undefined, only use cause.
+  return { cause };
 }
 
 /**
@@ -173,10 +203,7 @@ export function deserializeError(thrown: unknown): Error | JsonRpcError<Json> {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - Our error type is outdated.
         new Error(message, { cause })
-      : new JsonRpcError(code, message, {
-          ...(isObject(data) ? data : undefined),
-          cause,
-        });
+      : new JsonRpcError(code, message, deserializeData(data, cause));
 
   if (typeof stack === 'string') {
     error.stack = stack;

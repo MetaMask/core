@@ -1,14 +1,10 @@
 import type { Patch } from 'immer';
-import sinon from 'sinon';
 
 import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
+import type { ActionConstraint } from './Messenger';
 import type { MockAnyNamespace } from './Messenger';
 
 describe('Messenger', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
   describe('registerActionHandler and call', () => {
     it('allows registering and calling an action handler', () => {
       type CountAction = {
@@ -103,8 +99,8 @@ describe('Messenger', () => {
         },
       );
 
-      messenger.registerActionHandler('Fixture:concat', (s: string) => {
-        message += s;
+      messenger.registerActionHandler('Fixture:concat', (input: string) => {
+        message += input;
       });
 
       messenger.call('Fixture:reset', 'hello');
@@ -174,6 +170,31 @@ describe('Messenger', () => {
       expect(() => {
         messenger.registerActionHandler('Fixture:ping', () => undefined);
       }).toThrow('A handler for Fixture:ping has already been registered');
+    });
+
+    it('allows overriding the action handler in child classes', () => {
+      type Action = { type: 'Fixture:ping'; handler: () => string };
+
+      const handler = jest.fn().mockReturnValue('foo');
+
+      class CustomMessenger extends Messenger<'Fixture', Action> {
+        protected getAction(
+          _actionType: Action['type'],
+        ): ActionConstraint['handler'] | undefined {
+          return handler;
+        }
+      }
+
+      const messenger = new CustomMessenger({
+        namespace: 'Fixture',
+      });
+
+      const realHandler = jest.fn().mockReturnValue('bar');
+      messenger.registerActionHandler('Fixture:ping', realHandler);
+
+      expect(messenger.call('Fixture:ping')).toBe('foo');
+      expect(handler).toHaveBeenCalled();
+      expect(realHandler).not.toHaveBeenCalled();
     });
 
     it('throws when calling unregistered action', () => {
@@ -331,12 +352,12 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.calledWithExactly('hello')).toBe(true);
-      expect(handler.callCount).toBe(1);
+      expect(handler).toHaveBeenCalledWith('hello');
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('publishes event from different namespace using MOCK_ANY_NAMESPACE', () => {
@@ -345,12 +366,12 @@ describe('Messenger', () => {
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.calledWithExactly('hello')).toBe(true);
-      expect(handler.callCount).toBe(1);
+      expect(handler).toHaveBeenCalledWith('hello');
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('automatically delegates events to parent upon first publish', () => {
@@ -368,12 +389,12 @@ describe('Messenger', () => {
         parent: parentMessenger,
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       parentMessenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.calledWithExactly('hello')).toBe(true);
-      expect(handler.callCount).toBe(1);
+      expect(handler).toHaveBeenCalledWith('hello');
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('allows publishing multiple different events to subscriber', () => {
@@ -384,18 +405,18 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const messageHandler = sinon.stub();
-      const pingHandler = sinon.stub();
+      const messageHandler = jest.fn();
+      const pingHandler = jest.fn();
       messenger.subscribe('Fixture:message', messageHandler);
       messenger.subscribe('Fixture:ping', pingHandler);
 
       messenger.publish('Fixture:message', 'hello');
       messenger.publish('Fixture:ping');
 
-      expect(messageHandler.calledWithExactly('hello')).toBe(true);
-      expect(messageHandler.callCount).toBe(1);
-      expect(pingHandler.calledWithExactly()).toBe(true);
-      expect(pingHandler.callCount).toBe(1);
+      expect(messageHandler).toHaveBeenCalledWith('hello');
+      expect(messageHandler.mock.calls).toHaveLength(1);
+      expect(pingHandler).toHaveBeenCalledWith();
+      expect(pingHandler.mock.calls).toHaveLength(1);
     });
 
     it('publishes event with no payload to subscriber', () => {
@@ -404,12 +425,12 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:ping', handler);
       messenger.publish('Fixture:ping');
 
-      expect(handler.calledWithExactly()).toBe(true);
-      expect(handler.callCount).toBe(1);
+      expect(handler).toHaveBeenCalledWith();
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('publishes event with multiple payload parameters to subscriber', () => {
@@ -421,12 +442,12 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello', 'there');
 
-      expect(handler.calledWithExactly('hello', 'there')).toBe(true);
-      expect(handler.callCount).toBe(1);
+      expect(handler).toHaveBeenCalledWith('hello', 'there');
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('publishes event once to subscriber even if subscribed multiple times', () => {
@@ -435,13 +456,13 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.subscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.calledWithExactly('hello')).toBe(true);
-      expect(handler.callCount).toBe(1);
+      expect(handler).toHaveBeenCalledWith('hello');
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('publishes event to many subscribers', () => {
@@ -450,16 +471,16 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = sinon.stub();
-      const handler2 = sinon.stub();
+      const handler1 = jest.fn();
+      const handler2 = jest.fn();
       messenger.subscribe('Fixture:message', handler1);
       messenger.subscribe('Fixture:message', handler2);
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler1.calledWithExactly('hello')).toBe(true);
-      expect(handler1.callCount).toBe(1);
-      expect(handler2.calledWithExactly('hello')).toBe(true);
-      expect(handler2.callCount).toBe(1);
+      expect(handler1).toHaveBeenCalledWith('hello');
+      expect(handler1.mock.calls).toHaveLength(1);
+      expect(handler2).toHaveBeenCalledWith('hello');
+      expect(handler2.mock.calls).toHaveLength(1);
     });
 
     describe('on first state change with an initial payload function registered', () => {
@@ -479,7 +500,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -489,8 +510,8 @@ describe('Messenger', () => {
         state.propA += 1;
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
-        expect(handler.callCount).toBe(1);
+        expect(handler.mock.calls[0]).toStrictEqual([2, 1]);
+        expect(handler.mock.calls).toHaveLength(1);
       });
 
       it('does not publish event if selected payload is the same', () => {
@@ -509,7 +530,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -518,7 +539,7 @@ describe('Messenger', () => {
 
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.callCount).toBe(0);
+        expect(handler.mock.calls).toHaveLength(0);
       });
     });
 
@@ -539,7 +560,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -549,8 +570,8 @@ describe('Messenger', () => {
         state.propA += 1;
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
-        expect(handler.callCount).toBe(1);
+        expect(handler.mock.calls[0]).toStrictEqual([2, 1]);
+        expect(handler.mock.calls).toHaveLength(1);
       });
 
       it('does not publish event if selected payload is the same', () => {
@@ -569,7 +590,7 @@ describe('Messenger', () => {
           eventType: 'Fixture:complexMessage',
           getPayload: () => [state],
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -578,7 +599,7 @@ describe('Messenger', () => {
 
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.callCount).toBe(0);
+        expect(handler.mock.calls).toHaveLength(0);
       });
     });
 
@@ -595,7 +616,7 @@ describe('Messenger', () => {
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -605,8 +626,8 @@ describe('Messenger', () => {
         state.propA += 1;
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.getCall(0)?.args).toStrictEqual([2, undefined]);
-        expect(handler.callCount).toBe(1);
+        expect(handler.mock.calls[0]).toStrictEqual([2, undefined]);
+        expect(handler.mock.calls).toHaveLength(1);
       });
 
       it('publishes event even when selected payload does not change', () => {
@@ -621,7 +642,7 @@ describe('Messenger', () => {
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -630,8 +651,8 @@ describe('Messenger', () => {
 
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.getCall(0)?.args).toStrictEqual([1, undefined]);
-        expect(handler.callCount).toBe(1);
+        expect(handler.mock.calls[0]).toStrictEqual([1, undefined]);
+        expect(handler.mock.calls).toHaveLength(1);
       });
 
       it('does not publish if selector returns undefined', () => {
@@ -646,7 +667,7 @@ describe('Messenger', () => {
         const messenger = new Messenger<'Fixture', never, MessageEvent>({
           namespace: 'Fixture',
         });
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -655,7 +676,7 @@ describe('Messenger', () => {
 
         messenger.publish('Fixture:complexMessage', state);
 
-        expect(handler.callCount).toBe(0);
+        expect(handler.mock.calls).toHaveLength(0);
       });
     });
 
@@ -669,7 +690,7 @@ describe('Messenger', () => {
           namespace: 'Fixture',
         });
 
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -678,9 +699,9 @@ describe('Messenger', () => {
         messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
         messenger.publish('Fixture:complexMessage', { prop1: 'z', prop2: 'b' });
 
-        expect(handler.getCall(0).calledWithExactly('a', undefined)).toBe(true);
-        expect(handler.getCall(1).calledWithExactly('z', 'a')).toBe(true);
-        expect(handler.callCount).toBe(2);
+        expect(handler.mock.calls[0]).toStrictEqual(['a', undefined]);
+        expect(handler.mock.calls[1]).toStrictEqual(['z', 'a']);
+        expect(handler.mock.calls).toHaveLength(2);
       });
 
       it('publishes event with selector to subscriber', () => {
@@ -692,7 +713,7 @@ describe('Messenger', () => {
           namespace: 'Fixture',
         });
 
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -700,8 +721,8 @@ describe('Messenger', () => {
         );
         messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
 
-        expect(handler.calledWithExactly('a', undefined)).toBe(true);
-        expect(handler.callCount).toBe(1);
+        expect(handler).toHaveBeenCalledWith('a', undefined);
+        expect(handler.mock.calls).toHaveLength(1);
       });
 
       it('does not publish event with selector if selector return value is unchanged', () => {
@@ -713,7 +734,7 @@ describe('Messenger', () => {
           namespace: 'Fixture',
         });
 
-        const handler = sinon.stub();
+        const handler = jest.fn();
         messenger.subscribe(
           'Fixture:complexMessage',
           handler,
@@ -722,8 +743,8 @@ describe('Messenger', () => {
         messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
         messenger.publish('Fixture:complexMessage', { prop1: 'a', prop3: 'c' });
 
-        expect(handler.calledWithExactly('a', undefined)).toBe(true);
-        expect(handler.callCount).toBe(1);
+        expect(handler).toHaveBeenCalledWith('a', undefined);
+        expect(handler.mock.calls).toHaveLength(1);
       });
     });
 
@@ -748,7 +769,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
         parent: parentMessenger,
       });
-      const handler = sinon.stub();
+      const handler = jest.fn();
 
       messenger.registerInitialEventPayload({
         eventType: 'Fixture:complexMessage',
@@ -761,11 +782,11 @@ describe('Messenger', () => {
         (obj) => obj.propA,
       );
       messenger.publish('Fixture:complexMessage', state);
-      expect(handler.callCount).toBe(0);
+      expect(handler.mock.calls).toHaveLength(0);
       state.propA += 1;
       messenger.publish('Fixture:complexMessage', state);
-      expect(handler.getCall(0)?.args).toStrictEqual([2, 1]);
-      expect(handler.callCount).toBe(1);
+      expect(handler.mock.calls[0]).toStrictEqual([2, 1]);
+      expect(handler.mock.calls).toHaveLength(1);
     });
 
     it('publishes event to many subscribers with the same selector', () => {
@@ -777,34 +798,31 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = sinon.stub();
-      const handler2 = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
+      const handler1 = jest.fn();
+      const handler2 = jest.fn();
+      const selector = jest.fn((obj: Record<string, unknown>) => obj.prop1);
       messenger.subscribe('Fixture:complexMessage', handler1, selector);
       messenger.subscribe('Fixture:complexMessage', handler2, selector);
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop3: 'c' });
 
-      expect(handler1.calledWithExactly('a', undefined)).toBe(true);
-      expect(handler1.callCount).toBe(1);
-      expect(handler2.calledWithExactly('a', undefined)).toBe(true);
-      expect(handler2.callCount).toBe(1);
-      expect(
-        selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
-      ).toBe(true);
-
-      expect(
-        selector.getCall(1).calledWithExactly({ prop1: 'a', prop2: 'b' }),
-      ).toBe(true);
-
-      expect(
-        selector.getCall(2).calledWithExactly({ prop1: 'a', prop3: 'c' }),
-      ).toBe(true);
-
-      expect(
-        selector.getCall(3).calledWithExactly({ prop1: 'a', prop3: 'c' }),
-      ).toBe(true);
-      expect(selector.callCount).toBe(4);
+      expect(handler1).toHaveBeenCalledWith('a', undefined);
+      expect(handler1.mock.calls).toHaveLength(1);
+      expect(handler2).toHaveBeenCalledWith('a', undefined);
+      expect(handler2.mock.calls).toHaveLength(1);
+      expect(selector.mock.calls[0]).toStrictEqual([
+        { prop1: 'a', prop2: 'b' },
+      ]);
+      expect(selector.mock.calls[1]).toStrictEqual([
+        { prop1: 'a', prop2: 'b' },
+      ]);
+      expect(selector.mock.calls[2]).toStrictEqual([
+        { prop1: 'a', prop3: 'c' },
+      ]);
+      expect(selector.mock.calls[3]).toStrictEqual([
+        { prop1: 'a', prop3: 'c' },
+      ]);
+      expect(selector.mock.calls).toHaveLength(4);
     });
 
     it('captures subscriber errors using captureException', () => {
@@ -816,7 +834,9 @@ describe('Messenger', () => {
       });
       const exampleError = new Error('Example error');
 
-      const handler = sinon.stub().throws(() => exampleError);
+      const handler = jest.fn(() => {
+        throw exampleError;
+      });
       messenger.subscribe('Fixture:message', handler);
 
       expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
@@ -833,7 +853,11 @@ describe('Messenger', () => {
       });
       const exampleException = 'Non-error thrown value';
 
-      const handler = sinon.stub().throws(() => exampleException);
+      const handler = jest.fn(() => {
+        // Intentionally throw a non-Error to test that Messenger wraps it
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw exampleException;
+      });
       messenger.subscribe('Fixture:message', handler);
 
       expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
@@ -861,7 +885,9 @@ describe('Messenger', () => {
       });
       const exampleError = new Error('Example error');
 
-      const handler = sinon.stub().throws(() => exampleError);
+      const handler = jest.fn(() => {
+        throw exampleError;
+      });
       messenger.subscribe('Fixture:message', handler);
 
       expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
@@ -878,7 +904,9 @@ describe('Messenger', () => {
       });
       const exampleError = new Error('Example error');
 
-      const handler = sinon.stub().throws(() => exampleError);
+      const handler = jest.fn(() => {
+        throw exampleError;
+      });
       messenger.subscribe('Fixture:message', handler);
 
       expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
@@ -893,17 +921,19 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = sinon.stub().throws(() => new Error('Example error'));
-      const handler2 = sinon.stub();
+      const handler1 = jest.fn(() => {
+        throw new Error('Example error');
+      });
+      const handler2 = jest.fn();
       messenger.subscribe('Fixture:message', handler1);
       messenger.subscribe('Fixture:message', handler2);
 
       expect(() => messenger.publish('Fixture:message', 'hello')).not.toThrow();
 
-      expect(handler1.calledWithExactly('hello')).toBe(true);
-      expect(handler1.callCount).toBe(1);
-      expect(handler2.calledWithExactly('hello')).toBe(true);
-      expect(handler2.callCount).toBe(1);
+      expect(handler1).toHaveBeenCalledWith('hello');
+      expect(handler1.mock.calls).toHaveLength(1);
+      expect(handler2).toHaveBeenCalledWith('hello');
+      expect(handler2.mock.calls).toHaveLength(1);
     });
 
     it('does not call subscriber after unsubscribing', () => {
@@ -912,12 +942,12 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.unsubscribe('Fixture:message', handler);
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.callCount).toBe(0);
+      expect(handler.mock.calls).toHaveLength(0);
     });
 
     it('does not call subscriber with selector after unsubscribing', () => {
@@ -928,17 +958,18 @@ describe('Messenger', () => {
       const messenger = new Messenger<'Fixture', never, MessageEvent>({
         namespace: 'Fixture',
       });
-      const stub = sinon.stub();
-      const handler = (current: string, previous: string | undefined) => {
+      const stub = jest.fn();
+      const handler = (current: string, previous: string | undefined): void => {
         stub(current, previous);
       };
-      const selector = (state: { prop1: string; prop2: string }) => state.prop1;
+      const selector = (state: { prop1: string; prop2: string }): string =>
+        state.prop1;
       messenger.subscribe('Fixture:complexMessage', handler, selector);
       messenger.unsubscribe('Fixture:complexMessage', handler);
 
       messenger.publish('Fixture:complexMessage', { prop1: 'a', prop2: 'b' });
 
-      expect(stub.callCount).toBe(0);
+      expect(stub.mock.calls).toHaveLength(0);
     });
 
     it('throws when publishing an event from another namespace', () => {
@@ -983,7 +1014,7 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       expect(() => messenger.unsubscribe('Fixture:message', handler)).toThrow(
         'Subscription not found for event: Fixture:message',
       );
@@ -995,13 +1026,193 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler1 = sinon.stub();
-      const handler2 = sinon.stub();
+      const handler1 = jest.fn();
+      const handler2 = jest.fn();
       messenger.subscribe('Fixture:message', handler1);
 
       expect(() => messenger.unsubscribe('Fixture:message', handler2)).toThrow(
         'Subscription not found for event: Fixture:message',
       );
+    });
+  });
+
+  describe('subscribeOnce', () => {
+    it('unsubscribes automatically after receiving the first event', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(handler).toHaveBeenCalledWith('foo');
+      expect(handler).not.toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports selectors', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        selector: ({ value }) => value,
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(handler).toHaveBeenCalledWith('foo', undefined);
+      expect(handler).not.toHaveBeenCalledWith('bar', 'foo');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports conditions without a selector', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(handler).not.toHaveBeenCalledWith('foo');
+      expect(handler).toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports conditions with a selector', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        selector: ({ value }) => value,
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(handler).not.toHaveBeenCalledWith('foo');
+      expect(handler).toHaveBeenCalledWith('bar', 'foo');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+  });
+
+  describe('waitUntil', () => {
+    it('resolves the promise when the event fires', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message');
+      messenger.publish('Fixture:message', 'foo');
+
+      expect(await promise).toStrictEqual(['foo']);
+    });
+
+    it('resolves the promise with multiple parameters', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string, string, string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message');
+      messenger.publish('Fixture:message', 'foo', 'bar', 'baz');
+
+      expect(await promise).toStrictEqual(['foo', 'bar', 'baz']);
+    });
+
+    it('supports selectors', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        selector: ({ value }) => value,
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+
+      expect(await promise).toStrictEqual(['foo', undefined]);
+    });
+
+    it('supports conditions without a selector', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(await promise).toStrictEqual(['bar']);
+    });
+
+    it('supports conditions with a selector', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        selector: ({ value }) => value,
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(await promise).toStrictEqual(['bar', 'foo']);
     });
   });
 
@@ -1012,12 +1223,12 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.clearEventSubscriptions('Fixture:message');
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.callCount).toBe(0);
+      expect(handler.mock.calls).toHaveLength(0);
     });
 
     it('does not throw when clearing event that has no subscriptions', () => {
@@ -1065,12 +1276,12 @@ describe('Messenger', () => {
         namespace: 'Fixture',
       });
 
-      const handler = sinon.stub();
+      const handler = jest.fn();
       messenger.subscribe('Fixture:message', handler);
       messenger.clearSubscriptions();
       messenger.publish('Fixture:message', 'hello');
 
-      expect(handler.callCount).toBe(0);
+      expect(handler.mock.calls).toHaveLength(0);
     });
 
     it('does not throw when clearing subscriptions on messenger that has no subscriptions', () => {
@@ -1125,11 +1336,11 @@ describe('Messenger', () => {
       class TestService {
         name = 'TestService' as const;
 
-        getType() {
+        getType(): 'api' {
           return 'api';
         }
 
-        getCount() {
+        getCount(): number {
           return 42;
         }
       }
@@ -1160,7 +1371,7 @@ describe('Messenger', () => {
 
         privateValue = 'secret';
 
-        getPrivateValue() {
+        getPrivateValue(): string {
           return this.privateValue;
         }
       }
@@ -1184,7 +1395,7 @@ describe('Messenger', () => {
       class TestService {
         name = 'TestService' as const;
 
-        async fetchData(id: string) {
+        async fetchData(id: string): Promise<string> {
           return `data-${id}`;
         }
       }
@@ -1231,7 +1442,7 @@ describe('Messenger', () => {
 
         readonly nonFunction = 'not a function';
 
-        getValue() {
+        getValue(): string {
           return 'test';
         }
       }
@@ -1267,7 +1478,7 @@ describe('Messenger', () => {
           this.name = namespace;
         }
 
-        baseMethod() {
+        baseMethod(): string {
           return 'base method';
         }
       }
@@ -1279,7 +1490,7 @@ describe('Messenger', () => {
           super({ namespace: 'ChildController' });
         }
 
-        childMethod() {
+        childMethod(): string {
           return 'child method';
         }
       }
@@ -1860,7 +2071,7 @@ describe('Messenger', () => {
       });
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        'A handler for Source:getLength has not been registered',
+        'A handler for Source:getLength has not been delegated to Destination',
       );
     });
 
@@ -1905,11 +2116,13 @@ describe('Messenger', () => {
         }),
       ).not.toThrow();
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        'A handler for Source:getLength has not been registered',
+        'A handler for Source:getLength has not been delegated to Destination',
       );
       expect(() =>
         delegatedMessenger.call('Source:getRandomString', 'test'),
-      ).toThrow('A handler for Source:getRandomString has not been registered');
+      ).toThrow(
+        'A handler for Source:getRandomString has not been delegated to Destination',
+      );
     });
 
     it('allows revoking a delegated action that is delegated elsewhere', () => {
@@ -1962,7 +2175,9 @@ describe('Messenger', () => {
 
       expect(() =>
         firstDelegatedMessenger.call('Source:getLength', 'test'),
-      ).toThrow('A handler for Source:getLength has not been registered');
+      ).toThrow(
+        'A handler for Source:getLength has not been delegated to FirstDestination',
+      );
       const thirdResult = secondDelegatedMessenger.call(
         'Source:getLength',
         'third test', // length 10

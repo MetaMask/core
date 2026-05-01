@@ -6,16 +6,21 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
-import { ShieldController } from './ShieldController';
-import type { NormalizeSignatureRequestFn } from './types';
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
-import { createMockMessenger } from '../tests/mocks/messenger';
+import { createMockMessenger, RootMessenger } from '../tests/mocks/messenger';
 import {
   generateMockSignatureRequest,
   generateMockTxMeta,
   setupCoverageResultReceived,
 } from '../tests/utils';
+import {
+  getDefaultShieldControllerState,
+  ShieldController,
+  ShieldControllerMessenger,
+} from './ShieldController';
+import type { ShieldControllerState } from './ShieldController';
+import type { NormalizeSignatureRequestFn, ShieldBackend } from './types';
 
 /**
  * Sets up a ShieldController for testing.
@@ -24,17 +29,25 @@ import {
  * @param options.coverageHistoryLimit - The coverage history limit.
  * @param options.transactionHistoryLimit - The transaction history limit.
  * @param options.normalizeSignatureRequest - The function to normalize the signature request.
+ * @param options.state - The initial state for the controller.
  * @returns Objects that have been created for testing.
  */
 function setup({
   coverageHistoryLimit,
   transactionHistoryLimit,
   normalizeSignatureRequest,
+  state,
 }: {
   coverageHistoryLimit?: number;
   transactionHistoryLimit?: number;
   normalizeSignatureRequest?: NormalizeSignatureRequestFn;
-} = {}) {
+  state?: Partial<ShieldControllerState>;
+} = {}): {
+  controller: ShieldController;
+  messenger: ShieldControllerMessenger;
+  rootMessenger: RootMessenger;
+  backend: jest.Mocked<ShieldBackend>;
+} {
   const backend = createMockBackend();
   const { messenger, rootMessenger } = createMockMessenger();
 
@@ -44,8 +57,9 @@ function setup({
     transactionHistoryLimit,
     messenger,
     normalizeSignatureRequest,
+    state,
   });
-  controller.start();
+  rootMessenger.call('ShieldController:start');
   return {
     controller,
     messenger,
@@ -70,11 +84,11 @@ describe('ShieldController', () => {
     });
 
     it('should tolerate calling start and stop multiple times', async () => {
-      const { backend, rootMessenger, messenger, controller } = setup();
-      controller.stop();
-      controller.stop();
-      controller.start();
-      controller.start();
+      const { backend, rootMessenger, messenger } = setup();
+      rootMessenger.call('ShieldController:stop');
+      rootMessenger.call('ShieldController:stop');
+      rootMessenger.call('ShieldController:start');
+      rootMessenger.call('ShieldController:start');
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = setupCoverageResultReceived(messenger);
       rootMessenger.publish(
@@ -87,8 +101,8 @@ describe('ShieldController', () => {
     });
 
     it('should no longer trigger checkCoverage when controller is stopped', async () => {
-      const { controller, rootMessenger, backend } = setup();
-      controller.stop();
+      const { rootMessenger, backend } = setup();
+      rootMessenger.call('ShieldController:stop');
       const txMeta = generateMockTxMeta();
       const coverageResultReceived = new Promise<void>((resolve, reject) => {
         rootMessenger.subscribe(
@@ -112,12 +126,12 @@ describe('ShieldController', () => {
     });
 
     it('should purge coverage history when the limit is exceeded', async () => {
-      const { controller } = setup({
+      const { controller, rootMessenger } = setup({
         coverageHistoryLimit: 1,
       });
       const txMeta = generateMockTxMeta();
-      await controller.checkCoverage(txMeta);
-      await controller.checkCoverage(txMeta);
+      await rootMessenger.call('ShieldController:checkCoverage', txMeta);
+      await rootMessenger.call('ShieldController:checkCoverage', txMeta);
       expect(controller.state.coverageResults).toHaveProperty(txMeta.id);
       expect(controller.state.coverageResults[txMeta.id].results).toHaveLength(
         1,
@@ -125,13 +139,13 @@ describe('ShieldController', () => {
     });
 
     it('should purge transaction history when the limit is exceeded', async () => {
-      const { controller } = setup({
+      const { controller, rootMessenger } = setup({
         transactionHistoryLimit: 1,
       });
       const txMeta1 = generateMockTxMeta();
       const txMeta2 = generateMockTxMeta();
-      await controller.checkCoverage(txMeta1);
-      await controller.checkCoverage(txMeta2);
+      await rootMessenger.call('ShieldController:checkCoverage', txMeta1);
+      await rootMessenger.call('ShieldController:checkCoverage', txMeta2);
       expect(controller.state.coverageResults).toHaveProperty(txMeta2.id);
       expect(controller.state.coverageResults[txMeta2.id].results).toHaveLength(
         1,
@@ -179,18 +193,26 @@ describe('ShieldController', () => {
     );
 
     it('throws an error when the coverage ID has changed', async () => {
-      const { controller, backend } = setup();
+      const { backend, rootMessenger } = setup();
       backend.checkCoverage.mockResolvedValueOnce({
         coverageId: '0x00',
+        status: 'covered',
+        metrics: {
+          latency: 0,
+        },
       });
       backend.checkCoverage.mockResolvedValueOnce({
         coverageId: '0x01',
+        status: 'covered',
+        metrics: {
+          latency: 0,
+        },
       });
       const txMeta = generateMockTxMeta();
-      await controller.checkCoverage(txMeta);
-      await expect(controller.checkCoverage(txMeta)).rejects.toThrow(
-        'Coverage ID has changed',
-      );
+      await rootMessenger.call('ShieldController:checkCoverage', txMeta);
+      await expect(
+        rootMessenger.call('ShieldController:checkCoverage', txMeta),
+      ).rejects.toThrow('Coverage ID has changed');
     });
   });
 
@@ -322,7 +344,10 @@ describe('ShieldController', () => {
       options?: {
         updateSignatureRequest?: (signatureRequest: SignatureRequest) => void;
       },
-    ) {
+    ): Promise<{
+      signatureRequest: SignatureRequest;
+      updatedSignatureRequest: SignatureRequest;
+    }> {
       const { messenger, rootMessenger } = components;
 
       // Create a promise that resolves when the state changes
@@ -376,6 +401,7 @@ describe('ShieldController', () => {
       const components = setup();
 
       components.backend.checkSignatureCoverage.mockResolvedValue({
+        // @ts-expect-error - testing mock
         coverageId: undefined,
         status: 'unknown',
       });
@@ -416,7 +442,7 @@ describe('ShieldController', () => {
     async function runTest(
       components: ReturnType<typeof setup>,
       options?: { updateTransaction: (txMeta: TransactionMeta) => void },
-    ) {
+    ): Promise<{ txMeta: TransactionMeta; updatedTxMeta: TransactionMeta }> {
       const { messenger, rootMessenger } = components;
       // Create a promise that resolves when the state changes
       const stateUpdated = new Promise((resolve) =>
@@ -465,6 +491,7 @@ describe('ShieldController', () => {
       const components = setup();
 
       components.backend.checkCoverage.mockResolvedValue({
+        // @ts-expect-error - testing mock
         coverageId: undefined,
         status: 'unknown',
       });
@@ -513,7 +540,7 @@ describe('ShieldController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', async () => {
@@ -526,11 +553,11 @@ describe('ShieldController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "coverageResults": Object {},
-          "orderedTransactionHistory": Array [],
+        {
+          "coverageResults": {},
+          "orderedTransactionHistory": [],
         }
-        `);
+      `);
     });
 
     it('persists expected state', async () => {
@@ -543,11 +570,11 @@ describe('ShieldController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "coverageResults": Object {},
-          "orderedTransactionHistory": Array [],
+        {
+          "coverageResults": {},
+          "orderedTransactionHistory": [],
         }
-        `);
+      `);
     });
 
     it('exposes expected state to UI', async () => {
@@ -560,10 +587,36 @@ describe('ShieldController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-          Object {
-            "coverageResults": Object {},
-          }
-        `);
+        {
+          "coverageResults": {},
+        }
+      `);
+    });
+  });
+
+  describe('clearState', () => {
+    it('should reset state to default values', () => {
+      const txMeta = generateMockTxMeta();
+      const { controller, rootMessenger } = setup({
+        state: {
+          // @ts-expect-error - testing mock
+          coverageResults: {
+            [txMeta.id]: {
+              results: [{ status: 'covered', coverageId: MOCK_COVERAGE_ID }],
+            },
+          },
+          orderedTransactionHistory: [txMeta.id],
+        },
+      });
+
+      expect(Object.keys(controller.state.coverageResults)).toHaveLength(1);
+      expect(controller.state.orderedTransactionHistory).toHaveLength(1);
+
+      rootMessenger.call('ShieldController:clearState');
+
+      expect(controller.state).toStrictEqual(getDefaultShieldControllerState());
+      expect(Object.keys(controller.state.coverageResults)).toHaveLength(0);
+      expect(controller.state.orderedTransactionHistory).toHaveLength(0);
     });
   });
 });

@@ -3,11 +3,16 @@ import {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from '@metamask/utils';
 
+import { createRequest } from '../test/util/helpers';
 import { createFetchMiddleware } from './fetch';
 import type { AbstractRpcServiceLike } from './types';
-import { createRequest } from '../test/util/helpers';
 
 describe('createFetchMiddleware', () => {
   it.each([
@@ -216,7 +221,7 @@ function createRpcService(): AbstractRpcServiceLike {
     async request<Params extends JsonRpcParams, Result extends Json>(
       jsonRpcRequest: JsonRpcRequest<Params>,
       _fetchOptions?: RequestInit,
-    ) {
+    ): Promise<JsonRpcResponse<Result>> {
       return {
         id: jsonRpcRequest.id,
         jsonrpc: jsonRpcRequest.jsonrpc,

@@ -1,11 +1,10 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { toHex } from '../../../controller-utils/src';
+import type { TransactionPayControllerMessenger } from '../types';
 import { parseRequiredTokens } from './required-tokens';
 import { getTokenBalance, getTokenFiatRate, getTokenInfo } from './token';
-import { toHex } from '../../../controller-utils/src';
-import { NATIVE_TOKEN_ADDRESS } from '../constants';
-import type { TransactionPayControllerMessenger } from '../types';
 
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),
@@ -36,6 +35,141 @@ describe('Required Tokens Utils', () => {
   });
 
   describe('parseRequiredTokens', () => {
+    describe('with requiredAssets', () => {
+      it('returns tokens from requiredAssets instead of parsing transaction', () => {
+        const tokenAddress = '0xabc123' as Hex;
+
+        getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        getTokenBalanceMock.mockReturnValue('5000000');
+        getTokenFiatRateMock.mockReturnValue({
+          usdRate: '1',
+          fiatRate: '1',
+        });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: tokenAddress,
+              amount: '0x2DC6C0' as Hex,
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result).toStrictEqual([
+          {
+            address: tokenAddress,
+            allowUnderMinimum: false,
+            amountFiat: '3',
+            amountHuman: '3',
+            amountRaw: '3000000',
+            amountUsd: '3',
+            balanceFiat: '5',
+            balanceHuman: '5',
+            balanceRaw: '5000000',
+            balanceUsd: '5',
+            chainId: TRANSACTION_META_MOCK.chainId,
+            decimals: 6,
+            skipIfBalance: false,
+            symbol: 'USDC',
+          },
+        ]);
+      });
+
+      it('returns multiple tokens from requiredAssets', () => {
+        const tokenAddress1 = '0xabc123' as Hex;
+        const tokenAddress2 = '0xdef456' as Hex;
+
+        getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        getTokenBalanceMock.mockReturnValue('5000000');
+        getTokenFiatRateMock.mockReturnValue({
+          usdRate: '1',
+          fiatRate: '1',
+        });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: tokenAddress1,
+              amount: '0x2DC6C0' as Hex,
+              standard: 'erc20',
+            },
+            {
+              address: tokenAddress2,
+              amount: '0x1E8480' as Hex,
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result).toHaveLength(2);
+        expect(result[0].address).toBe(tokenAddress1);
+        expect(result[1].address).toBe(tokenAddress2);
+      });
+
+      it('filters out tokens that cannot be built', () => {
+        const tokenAddress = '0xabc123' as Hex;
+
+        getTokenInfoMock.mockReturnValue(undefined);
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: tokenAddress,
+              amount: '0x2DC6C0' as Hex,
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result).toStrictEqual([]);
+      });
+
+      it('falls back to parsing transaction when requiredAssets is empty', () => {
+        getTokenInfoMock.mockReturnValue({ decimals: 3, symbol: 'TST' });
+        getTokenBalanceMock.mockReturnValue('789000');
+        getTokenFiatRateMock.mockReturnValue({
+          usdRate: '1.5',
+          fiatRate: '2',
+        });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result).toStrictEqual([
+          {
+            address: TRANSACTION_META_MOCK.txParams.to,
+            allowUnderMinimum: false,
+            amountFiat: '246.912',
+            amountHuman: '123.456',
+            amountRaw: '123456',
+            amountUsd: '185.184',
+            balanceFiat: '1578',
+            balanceHuman: '789',
+            balanceRaw: '789000',
+            balanceUsd: '1183.5',
+            chainId: TRANSACTION_META_MOCK.chainId,
+            decimals: 3,
+            skipIfBalance: false,
+            symbol: 'TST',
+          },
+        ]);
+      });
+    });
+
     it('returns token transfer required token', () => {
       getTokenInfoMock.mockReturnValue({ decimals: 3, symbol: 'TST' });
       getTokenBalanceMock.mockReturnValue('789000');
@@ -64,7 +198,6 @@ describe('Required Tokens Utils', () => {
           skipIfBalance: false,
           symbol: 'TST',
         },
-        expect.anything(),
       ]);
     });
 
@@ -111,7 +244,6 @@ describe('Required Tokens Utils', () => {
           skipIfBalance: false,
           symbol: 'TST',
         },
-        expect.anything(),
       ]);
     });
 
@@ -134,127 +266,7 @@ describe('Required Tokens Utils', () => {
 
       const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
 
-      expect(result).toStrictEqual([expect.anything()]);
-    });
-
-    it('returns gas fee required token', () => {
-      getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'TST' });
-      getTokenBalanceMock.mockReturnValue('1230000000000000000');
-
-      getTokenFiatRateMock.mockReturnValue({
-        usdRate: '4000',
-        fiatRate: '2000',
-      });
-
-      const result = parseRequiredTokens(
-        {
-          ...TRANSACTION_META_MOCK,
-          txParams: { ...TRANSACTION_META_MOCK.txParams, data: '0x1234' },
-        },
-        MESSENGER_MOCK,
-      );
-
-      expect(result).toStrictEqual([
-        {
-          address: NATIVE_TOKEN_ADDRESS,
-          allowUnderMinimum: true,
-          amountFiat: '2',
-          amountHuman: '0.001',
-          amountRaw: '1000000000000000',
-          amountUsd: '4',
-          balanceFiat: '2460',
-          balanceHuman: '1.23',
-          balanceRaw: '1230000000000000000',
-          balanceUsd: '4920',
-          chainId: TRANSACTION_META_MOCK.chainId,
-          decimals: 18,
-          skipIfBalance: true,
-          symbol: 'TST',
-        },
-      ]);
-    });
-
-    it('returns gas fee required token as one dollar if less than one dollar', () => {
-      getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'TST' });
-      getTokenBalanceMock.mockReturnValue('900000000000');
-
-      getTokenFiatRateMock.mockReturnValue({
-        usdRate: '4000',
-        fiatRate: '2000',
-      });
-
-      const result = parseRequiredTokens(
-        {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            ...TRANSACTION_META_MOCK.txParams,
-            data: '0x1234',
-            gas: toHex(100),
-          },
-        },
-        MESSENGER_MOCK,
-      );
-
-      expect(result).toStrictEqual([
-        {
-          address: NATIVE_TOKEN_ADDRESS,
-          allowUnderMinimum: true,
-          amountFiat: '0.5',
-          amountHuman: '0.00025',
-          amountRaw: '250000000000000',
-          amountUsd: '1',
-          balanceFiat: '0.0018',
-          balanceHuman: '0.0000009',
-          balanceRaw: '900000000000',
-          balanceUsd: '0.0036',
-          chainId: TRANSACTION_META_MOCK.chainId,
-          decimals: 18,
-          skipIfBalance: true,
-          symbol: 'TST',
-        },
-      ]);
-    });
-
-    it('returns gas fee required token as zero if no gas or maxFeePerGas', () => {
-      getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'TST' });
-      getTokenBalanceMock.mockReturnValue('900000000000');
-
-      getTokenFiatRateMock.mockReturnValue({
-        usdRate: '4000',
-        fiatRate: '2000',
-      });
-
-      const result = parseRequiredTokens(
-        {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            ...TRANSACTION_META_MOCK.txParams,
-            data: '0x1234',
-            gas: undefined,
-            maxFeePerGas: undefined,
-          },
-        },
-        MESSENGER_MOCK,
-      );
-
-      expect(result).toStrictEqual([
-        {
-          address: NATIVE_TOKEN_ADDRESS,
-          allowUnderMinimum: true,
-          amountFiat: '0',
-          amountHuman: '0',
-          amountRaw: '0',
-          amountUsd: '0',
-          balanceFiat: '0.0018',
-          balanceHuman: '0.0000009',
-          balanceRaw: '900000000000',
-          balanceUsd: '0.0036',
-          chainId: TRANSACTION_META_MOCK.chainId,
-          decimals: 18,
-          skipIfBalance: true,
-          symbol: 'TST',
-        },
-      ]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns empty array if no to', () => {

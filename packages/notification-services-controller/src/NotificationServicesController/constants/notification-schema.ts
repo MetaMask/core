@@ -1,3 +1,5 @@
+// Using SCREAMING_SNAKE_CASE for enum name and members to mirror snake_case API string values for readability
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum TRIGGER_TYPES {
   FEATURES_ANNOUNCEMENT = 'features_announcement',
   METAMASK_SWAP_COMPLETED = 'metamask_swap_completed',
@@ -18,6 +20,7 @@ export enum TRIGGER_TYPES {
   SNAP = 'snap',
   PLATFORM = 'platform',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export const NOTIFICATION_API_TRIGGER_TYPES_SET: Set<string> = new Set([
   TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
@@ -37,18 +40,3 @@ export const NOTIFICATION_API_TRIGGER_TYPES_SET: Set<string> = new Set([
   TRIGGER_TYPES.ERC1155_RECEIVED,
   TRIGGER_TYPES.PLATFORM,
 ]);
-
-export const NOTIFICATION_CHAINS_ID = {
-  ETHEREUM: '1',
-  OPTIMISM: '10',
-  BSC: '56',
-  BASE: '8453',
-  POLYGON: '137',
-  ARBITRUM: '42161',
-  AVALANCHE: '43114',
-  LINEA: '59144',
-  SEI: '1329',
-} as const;
-
-export type NOTIFICATION_CHAINS_IDS =
-  (typeof NOTIFICATION_CHAINS_ID)[keyof typeof NOTIFICATION_CHAINS_ID];

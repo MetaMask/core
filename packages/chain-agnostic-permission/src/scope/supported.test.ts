@@ -500,6 +500,16 @@ describe('Scope Support', () => {
           KnownSessionProperties.SolanaAccountChangedNotifications,
         ),
       ).toBe(true);
+      expect(
+        isSupportedSessionProperty(
+          KnownSessionProperties.TronAccountChangedNotifications,
+        ),
+      ).toBe(true);
+      expect(
+        isSupportedSessionProperty(
+          KnownSessionProperties.Bip122AccountChangedNotifications,
+        ),
+      ).toBe(true);
     });
 
     it('returns false for the session property', () => {

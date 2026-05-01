@@ -1,3 +1,5 @@
+import { ShieldBackend } from 'src/types';
+
 export const MOCK_COVERAGE_ID = '1';
 
 /**
@@ -5,7 +7,7 @@ export const MOCK_COVERAGE_ID = '1';
  *
  * @returns A mock backend.
  */
-export function createMockBackend() {
+export function createMockBackend(): jest.Mocked<ShieldBackend> {
   return {
     checkCoverage: jest.fn().mockResolvedValue({
       coverageId: MOCK_COVERAGE_ID,

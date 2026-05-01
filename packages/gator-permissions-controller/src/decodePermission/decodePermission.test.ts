@@ -1,28 +1,17 @@
-import {
-  createNativeTokenStreamingTerms,
-  createNativeTokenPeriodTransferTerms,
-  createERC20StreamingTerms,
-  createERC20TokenPeriodTransferTerms,
-  createTimestampTerms,
-  ROOT_AUTHORITY,
-} from '@metamask/delegation-core';
+import { ROOT_AUTHORITY } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
 import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
-import { hexToBigInt, numberToHex } from '@metamask/utils';
+import { numberToHex } from '@metamask/utils';
 
 import {
-  getPermissionDataAndExpiry,
-  identifyPermissionByEnforcers,
+  findRuleWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
 } from './decodePermission';
-import type {
-  DecodedPermission,
-  DeployedContractsByName,
-  PermissionType,
-} from './types';
+import { createPermissionRulesForContracts } from './rules';
+import type { DecodedPermission, DeployedContractsByName } from './types';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
@@ -35,14 +24,16 @@ describe('decodePermission', () => {
     ExactCalldataEnforcer,
     TimestampEnforcer,
     ValueLteEnforcer,
+    AllowedCalldataEnforcer,
     ERC20StreamingEnforcer,
     ERC20PeriodTransferEnforcer,
     NativeTokenStreamingEnforcer,
     NativeTokenPeriodTransferEnforcer,
     NonceEnforcer,
+    RedeemerEnforcer,
   } = contracts;
 
-  describe('identifyPermissionByEnforcers()', () => {
+  describe('getPermissionRuleMatchingCaveatTypes()', () => {
     const zeroAddress = '0x0000000000000000000000000000000000000000' as Hex;
 
     it('throws if multiple permission types match', () => {
@@ -58,9 +49,11 @@ describe('decodePermission', () => {
       } as unknown as DeployedContractsByName;
 
       expect(() => {
-        identifyPermissionByEnforcers({
+        findRuleWithMatchingCaveatAddresses({
           enforcers,
-          contracts: contractsWithDuplicates,
+          permissionRules: createPermissionRulesForContracts(
+            contractsWithDuplicates,
+          ),
         });
       }).toThrow('Multiple permission types match');
     });
@@ -74,8 +67,11 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -85,8 +81,40 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
+      });
+
+      it('allows RedeemerEnforcer as extra', () => {
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+          RedeemerEnforcer,
+        ];
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
+      });
+
+      it('allows TimestampEnforcer and RedeemerEnforcer as extras', () => {
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+          TimestampEnforcer,
+          RedeemerEnforcer,
+        ];
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -98,14 +126,20 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ExactCalldataEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -115,8 +149,11 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe('native-token-stream');
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe('native-token-stream');
       });
 
       it('throws if a contract is not found', () => {
@@ -131,9 +168,11 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          identifyPermissionByEnforcers({
+          findRuleWithMatchingCaveatAddresses({
             enforcers,
-            contracts: contractsWithoutTimestampEnforcer,
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -147,8 +186,11 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -158,8 +200,11 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -171,14 +216,20 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ExactCalldataEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -188,8 +239,11 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('throws if a contract is not found', () => {
@@ -204,9 +258,11 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          identifyPermissionByEnforcers({
+          findRuleWithMatchingCaveatAddresses({
             enforcers,
-            contracts: contractsWithoutTimestampEnforcer,
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -220,8 +276,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -231,8 +290,11 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -244,14 +306,20 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ERC20StreamingEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -261,8 +329,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('throws if a contract is not found', () => {
@@ -277,9 +348,11 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          identifyPermissionByEnforcers({
+          findRuleWithMatchingCaveatAddresses({
             enforcers,
-            contracts: contractsWithoutTimestampEnforcer,
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -293,8 +366,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -304,8 +380,11 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -317,14 +396,20 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ERC20PeriodTransferEnforcer];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -334,8 +419,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('throws if a contract is not found', () => {
@@ -350,9 +438,11 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          identifyPermissionByEnforcers({
+          findRuleWithMatchingCaveatAddresses({
             enforcers,
-            contracts: contractsWithoutTimestampEnforcer,
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -360,7 +450,6 @@ describe('decodePermission', () => {
 
     describe('erc20-token-revocation', () => {
       const expectedPermissionType = 'erc20-token-revocation';
-      const { AllowedCalldataEnforcer } = contracts;
 
       it('matches with two AllowedCalldataEnforcer and ValueLteEnforcer and NonceEnforcer', () => {
         const enforcers = [
@@ -369,8 +458,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -381,8 +473,11 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('rejects when only one AllowedCalldataEnforcer is provided', () => {
@@ -392,7 +487,10 @@ describe('decodePermission', () => {
           NonceEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -405,7 +503,10 @@ describe('decodePermission', () => {
           NonceEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -416,7 +517,10 @@ describe('decodePermission', () => {
           NonceEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -430,7 +534,10 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
         ];
         expect(() =>
-          identifyPermissionByEnforcers({ enforcers, contracts }),
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -441,8 +548,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = identifyPermissionByEnforcers({ enforcers, contracts });
-        expect(result).toBe(expectedPermissionType);
+        const result = findRuleWithMatchingCaveatAddresses({
+          enforcers,
+          permissionRules: createPermissionRulesForContracts(contracts),
+        });
+        expect(result.permissionType).toBe(expectedPermissionType);
       });
 
       it('throws if a contract is not found', () => {
@@ -458,719 +568,13 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          identifyPermissionByEnforcers({
+          findRuleWithMatchingCaveatAddresses({
             enforcers,
-            contracts: contractsWithoutAllowedCalldataEnforcer,
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutAllowedCalldataEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: AllowedCalldataEnforcer');
-      });
-    });
-  });
-
-  describe('getPermissionDataAndExpiry', () => {
-    const timestampBeforeThreshold = 1720000;
-    const timestampAfterThreshold = 0;
-
-    const expiryCaveat = {
-      enforcer: TimestampEnforcer,
-      terms: createTimestampTerms({
-        timestampAfterThreshold,
-        timestampBeforeThreshold,
-      }),
-      args: '0x',
-    } as const;
-
-    it('throws if an invalid permission type is provided', () => {
-      const caveats = [expiryCaveat];
-      expect(() => {
-        getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType:
-            'invalid-permission-type' as unknown as PermissionType,
-        });
-      }).toThrow('Invalid permission type');
-    });
-
-    describe('native-token-stream', () => {
-      const permissionType = 'native-token-stream';
-
-      const initialAmount = 123456n;
-      const maxAmount = 999999n;
-      const amountPerSecond = 1n;
-      const startTime = 1715664;
-
-      it('returns the correct expiry and data', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBe(timestampBeforeThreshold);
-        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
-        expect(hexToBigInt(data.maxAmount)).toBe(maxAmount);
-        expect(hexToBigInt(data.amountPerSecond)).toBe(amountPerSecond);
-        expect(data.startTime).toBe(startTime);
-      });
-
-      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
-        const caveats = [
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBeNull();
-        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
-        expect(hexToBigInt(data.maxAmount)).toBe(maxAmount);
-        expect(hexToBigInt(data.amountPerSecond)).toBe(amountPerSecond);
-        expect(data.startTime).toBe(startTime);
-      });
-
-      it('rejects invalid expiry with timestampAfterThreshold', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: createTimestampTerms({
-              timestampAfterThreshold: 1,
-              timestampBeforeThreshold,
-            }),
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
-      });
-
-      it('rejects invalid nativeTokenStream terms', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: '0x00',
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Value must be a hexadecimal string.');
-      });
-
-      it('rejects expiry terms that are too short', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: '0x1234' as Hex,
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow(
-          'Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got 6',
-        );
-      });
-
-      it('rejects expiry terms that are too long', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: `0x${'0'.repeat(68)}` as const,
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow(
-          'Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got 70',
-        );
-      });
-
-      it('rejects expiry timestamp that is not a safe integer', () => {
-        // Use maximum uint128 value which exceeds Number.MAX_SAFE_INTEGER
-        const maxUint128 = 'f'.repeat(32);
-        const termsHex = `0x${'0'.repeat(32)}${maxUint128}` as Hex;
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: termsHex,
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Value is not a safe integer');
-      });
-
-      it('handles large valid expiry timestamp', () => {
-        // Use a large but valid timestamp (year 9999: 253402300799)
-        const largeTimestamp = 253402300799;
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: createTimestampTerms({
-              timestampAfterThreshold: 0,
-              timestampBeforeThreshold: largeTimestamp,
-            }),
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBe(largeTimestamp);
-        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
-      });
-
-      it('rejects when expiry timestamp is 0', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: createTimestampTerms({
-              timestampAfterThreshold: 0,
-              timestampBeforeThreshold: 0,
-            }),
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenStreamingEnforcer,
-            terms: createNativeTokenStreamingTerms(
-              {
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow(
-          'Invalid expiry: timestampBeforeThreshold must be greater than 0',
-        );
-      });
-    });
-
-    describe('native-token-periodic', () => {
-      const permissionType = 'native-token-periodic';
-
-      const periodAmount = 123456n;
-      const periodDuration = 3600;
-      const startDate = 1715664;
-
-      it('returns the correct expiry and data', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: NativeTokenPeriodTransferEnforcer,
-            terms: createNativeTokenPeriodTransferTerms(
-              {
-                periodAmount,
-                periodDuration,
-                startDate,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBe(timestampBeforeThreshold);
-        expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
-        expect(data.periodDuration).toBe(periodDuration);
-        expect(data.startTime).toBe(startDate);
-      });
-
-      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
-        const caveats = [
-          {
-            enforcer: NativeTokenPeriodTransferEnforcer,
-            terms: createNativeTokenPeriodTransferTerms(
-              {
-                periodAmount,
-                periodDuration,
-                startDate,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBeNull();
-        expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
-        expect(data.periodDuration).toBe(periodDuration);
-        expect(data.startTime).toBe(startDate);
-      });
-
-      it('rejects invalid expiry with timestampAfterThreshold', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: createTimestampTerms({
-              timestampAfterThreshold: 1,
-              timestampBeforeThreshold,
-            }),
-            args: '0x',
-          } as const,
-          {
-            enforcer: NativeTokenPeriodTransferEnforcer,
-            terms: createNativeTokenPeriodTransferTerms(
-              {
-                periodAmount,
-                periodDuration,
-                startDate,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
-      });
-
-      it('rejects invalid nativeTokenPeriodic terms', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: NativeTokenPeriodTransferEnforcer,
-            terms: '0x00',
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Value must be a hexadecimal string.');
-      });
-    });
-
-    describe('erc20-token-stream', () => {
-      const permissionType = 'erc20-token-stream';
-
-      const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
-      const initialAmount = 555n;
-      const maxAmount = 999n;
-      const amountPerSecond = 2n;
-      const startTime = 1715665;
-
-      it('returns the correct expiry and data', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: ERC20StreamingEnforcer,
-            terms: createERC20StreamingTerms(
-              {
-                tokenAddress,
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBe(timestampBeforeThreshold);
-        expect(data.tokenAddress).toBe(tokenAddress);
-        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
-        expect(hexToBigInt(data.maxAmount)).toBe(maxAmount);
-        expect(hexToBigInt(data.amountPerSecond)).toBe(amountPerSecond);
-        expect(data.startTime).toBe(startTime);
-      });
-
-      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
-        const caveats = [
-          {
-            enforcer: ERC20StreamingEnforcer,
-            terms: createERC20StreamingTerms(
-              {
-                tokenAddress,
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBeNull();
-        expect(data.tokenAddress).toBe(tokenAddress);
-        expect(hexToBigInt(data.initialAmount)).toBe(initialAmount);
-        expect(hexToBigInt(data.maxAmount)).toBe(maxAmount);
-        expect(hexToBigInt(data.amountPerSecond)).toBe(amountPerSecond);
-        expect(data.startTime).toBe(startTime);
-      });
-
-      it('rejects invalid expiry with timestampAfterThreshold', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: createTimestampTerms({
-              timestampAfterThreshold: 1,
-              timestampBeforeThreshold,
-            }),
-            args: '0x',
-          } as const,
-          {
-            enforcer: ERC20StreamingEnforcer,
-            terms: createERC20StreamingTerms(
-              {
-                tokenAddress,
-                initialAmount,
-                maxAmount,
-                amountPerSecond,
-                startTime,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
-      });
-
-      it('rejects invalid erc20-token-stream terms', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: ERC20StreamingEnforcer,
-            terms: '0x00',
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Value must be a hexadecimal string.');
-      });
-    });
-
-    describe('erc20-token-periodic', () => {
-      const permissionType = 'erc20-token-periodic';
-
-      const tokenAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
-      const periodAmount = 123n;
-      const periodDuration = 86400;
-      const startDate = 1715666;
-
-      it('returns the correct expiry and data', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: ERC20PeriodTransferEnforcer,
-            terms: createERC20TokenPeriodTransferTerms(
-              {
-                tokenAddress,
-                periodAmount,
-                periodDuration,
-                startDate,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBe(timestampBeforeThreshold);
-        expect(data.tokenAddress).toBe(tokenAddress);
-        expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
-        expect(data.periodDuration).toBe(periodDuration);
-        expect(data.startTime).toBe(startDate);
-      });
-
-      it('returns null expiry, and correct data if no expiry caveat is provided', () => {
-        const caveats = [
-          {
-            enforcer: ERC20PeriodTransferEnforcer,
-            terms: createERC20TokenPeriodTransferTerms(
-              {
-                tokenAddress,
-                periodAmount,
-                periodDuration,
-                startDate,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toBeNull();
-        expect(data.tokenAddress).toBe(tokenAddress);
-        expect(hexToBigInt(data.periodAmount)).toBe(periodAmount);
-        expect(data.periodDuration).toBe(periodDuration);
-        expect(data.startTime).toBe(startDate);
-      });
-
-      it('rejects invalid expiry with timestampAfterThreshold', () => {
-        const caveats = [
-          {
-            enforcer: TimestampEnforcer,
-            terms: createTimestampTerms({
-              timestampAfterThreshold: 1,
-              timestampBeforeThreshold,
-            }),
-            args: '0x',
-          } as const,
-          {
-            enforcer: ERC20PeriodTransferEnforcer,
-            terms: createERC20TokenPeriodTransferTerms(
-              {
-                tokenAddress,
-                periodAmount,
-                periodDuration,
-                startDate,
-              },
-              { out: 'hex' },
-            ),
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Invalid expiry: timestampAfterThreshold must be 0');
-      });
-
-      it('rejects invalid erc20-token-periodic terms', () => {
-        const caveats = [
-          expiryCaveat,
-          {
-            enforcer: ERC20PeriodTransferEnforcer,
-            terms: '0x00',
-            args: '0x',
-          } as const,
-        ];
-
-        expect(() =>
-          getPermissionDataAndExpiry({
-            contracts,
-            caveats,
-            permissionType,
-          }),
-        ).toThrow('Value must be a hexadecimal string.');
-      });
-    });
-
-    describe('erc20-token-revocation', () => {
-      const permissionType = 'erc20-token-revocation';
-
-      it('returns the correct expiry and data', () => {
-        const caveats = [expiryCaveat];
-
-        const { expiry, data } = getPermissionDataAndExpiry({
-          contracts,
-          caveats,
-          permissionType,
-        });
-
-        expect(expiry).toStrictEqual(timestampBeforeThreshold);
-        expect(data).toStrictEqual({});
       });
     });
   });
@@ -1204,11 +608,8 @@ describe('decodePermission', () => {
       });
 
       expect(result.chainId).toBe(numberToHex(chainId));
-      expect(result.address).toBe(delegator);
-      expect(result.signer).toStrictEqual({
-        type: 'account',
-        data: { address: delegate },
-      });
+      expect(result.from).toBe(delegator);
+      expect(result.to).toStrictEqual(delegate);
       expect(result.permission).toStrictEqual({
         type: permissionType,
         data,
@@ -1216,6 +617,39 @@ describe('decodePermission', () => {
       });
       expect(result.expiry).toBe(expiry);
       expect(result.origin).toBe(specifiedOrigin);
+    });
+
+    it('includes rules when provided', () => {
+      const permissionType = 'native-token-stream' as const;
+      const data: DecodedPermission['permission']['data'] = {
+        initialAmount: '0x01',
+        maxAmount: '0x02',
+        amountPerSecond: '0x03',
+        startTime: 1715664,
+      } as const;
+      const rules = [
+        {
+          type: 'redeemer' as const,
+          data: {
+            addresses: ['0x1111111111111111111111111111111111111111' as Hex],
+          },
+        },
+      ];
+
+      const result = reconstructDecodedPermission({
+        chainId,
+        permissionType,
+        delegator,
+        delegate,
+        authority: ROOT_AUTHORITY,
+        expiry: null,
+        data,
+        justification,
+        specifiedOrigin,
+        rules,
+      });
+
+      expect(result.rules).toStrictEqual(rules);
     });
 
     it('constructs DecodedPermission with null expiry', () => {
@@ -1267,6 +701,138 @@ describe('decodePermission', () => {
           specifiedOrigin,
         }),
       ).toThrow('Invalid authority');
+    });
+  });
+
+  describe('adversarial: attempts to violate decoder expectations', () => {
+    describe('getPermissionRuleMatchingCaveatTypes()', () => {
+      it('rejects empty enforcer list', () => {
+        expect(() =>
+          findRuleWithMatchingCaveatAddresses({
+            enforcers: [],
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects enforcer list with only unknown/forbidden addresses', () => {
+        const unknown = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
+        expect(() =>
+          findRuleWithMatchingCaveatAddresses({
+            enforcers: [unknown],
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects when required enforcer count is exceeded (e.g. duplicate NonceEnforcer)', () => {
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects mix of valid known enforcers and valid but unknown enforcer address', () => {
+        const unknownEnforcer =
+          '0xbadbadbadbadbadbadbadbadbadbadbadbadbadb' as Hex;
+        const enforcers = [
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+          unknownEnforcer,
+        ];
+        expect(() =>
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects exactly one AllowedCalldataEnforcer for erc20-token-revocation (wrong multiplicity)', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
+        ).toThrow('Unable to identify permission type');
+      });
+
+      it('rejects three AllowedCalldataEnforcer for erc20-token-revocation (excess multiplicity)', () => {
+        const enforcers = [
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          AllowedCalldataEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        ];
+        expect(() =>
+          findRuleWithMatchingCaveatAddresses({
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
+        ).toThrow('Unable to identify permission type');
+      });
+    });
+
+    describe('reconstructDecodedPermission()', () => {
+      const delegator = '0x1111111111111111111111111111111111111111' as Hex;
+      const delegate = '0x2222222222222222222222222222222222222222' as Hex;
+      const data: DecodedPermission['permission']['data'] = {
+        initialAmount: '0x01',
+        maxAmount: '0x02',
+        amountPerSecond: '0x03',
+        startTime: 1715664,
+      } as const;
+
+      it('rejects authority that is not ROOT_AUTHORITY (one byte different)', () => {
+        const wrongAuthority =
+          '0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe' as Hex;
+        expect(() =>
+          reconstructDecodedPermission({
+            chainId,
+            permissionType: 'native-token-stream',
+            delegator,
+            delegate,
+            authority: wrongAuthority,
+            expiry: 1720000,
+            data,
+            justification: 'test',
+            specifiedOrigin: 'https://example.com',
+          }),
+        ).toThrow('Invalid authority');
+      });
+
+      it('rejects authority that looks like ROOT_AUTHORITY but with wrong length', () => {
+        const wrongAuthority =
+          '0xffffffffffffffffffffffffffffffffffffffff' as Hex;
+        expect(() =>
+          reconstructDecodedPermission({
+            chainId,
+            permissionType: 'native-token-stream',
+            delegator,
+            delegate,
+            authority: wrongAuthority,
+            expiry: 1720000,
+            data,
+            justification: 'test',
+            specifiedOrigin: 'https://example.com',
+          }),
+        ).toThrow('Invalid authority');
+      });
     });
   });
 });

@@ -100,8 +100,8 @@ export function asV2Middleware<
       // We know from the implementation of JsonRpcEngine.asMiddleware() that
       // legacyNext will always be passed a callback, so cb can never be
       // undefined.
-      const legacyNext = ((cb: JsonRpcEngineEndCallback) =>
-        cb(end)) as JsonRpcEngineNextCallback;
+      const legacyNext = ((callback: JsonRpcEngineEndCallback) =>
+        callback(end)) as JsonRpcEngineNextCallback;
 
       legacyMiddleware(req, res, legacyNext, end);
     });

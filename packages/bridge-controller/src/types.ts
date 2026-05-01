@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
+import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
-  GetCurrencyRateState,
+  CurrencyRateControllerGetStateAction,
   MultichainAssetsRatesControllerGetStateAction,
   TokenRatesControllerGetStateAction,
 } from '@metamask/assets-controllers';
@@ -13,8 +15,9 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
   CaipAccountId,
@@ -25,18 +28,23 @@ import type {
 } from '@metamask/utils';
 
 import type { BridgeController } from './bridge-controller';
+import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BitcoinTradeDataSchema,
   BridgeAssetSchema,
   ChainConfigurationSchema,
+  ChainRankingSchema,
   FeatureId,
   FeeDataSchema,
+  IntentSchema,
   PlatformConfigSchema,
   ProtocolSchema,
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TokenFeatureSchema,
+  QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -65,6 +73,8 @@ export enum AssetType {
 }
 
 export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
+
+export type ChainRanking = Infer<typeof ChainRankingSchema>;
 
 export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
@@ -108,7 +118,8 @@ export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
  */
 export type QuoteMetadata = {
   /**
-   * If gas is included, this is the value of the src or dest token that was used to pay for the gas
+   * If gas is included, this is the value of the src or dest token that was used to pay for the gas.
+   * Show this value to indicate transaction fees for gasless quotes.
    */
   includedTxFees?: TokenAmountValues | null;
   /**
@@ -119,6 +130,12 @@ export type QuoteMetadata = {
    * max is the max gas fee that will be used by the transaction.
    */
   gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
+  /**
+   * The total network fee required to submit the trade and any approvals. This includes
+   * the relayer fee or other native fees. Should be used for balance checks and tx submission.
+   * Note: This is only accurate for non-gasless transactions. Use {@link QuoteMetadata.includedTxFees} to
+   * get the total network fee for gasless transactions.
+   */
   totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
   totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
   /**
@@ -130,16 +147,24 @@ export type QuoteMetadata = {
    */
   minToTokenAmount: TokenAmountValues;
   /**
-   * If gas is included: toTokenAmount
-   * Otherwise: toTokenAmount - totalNetworkFee
+   * If gas is included: {@link QuoteMetadata.toTokenAmount} - {@link QuoteMetadata.includedTxFees}.
+   * Otherwise: {@link QuoteMetadata.toTokenAmount} - {@link QuoteMetadata.totalNetworkFee}.
    */
   adjustedReturn: Omit<TokenAmountValues, 'amount'>;
   /**
-   * The amount that the user will send, including fees
-   * srcTokenAmount + metabridgeFee + txFee
+   * The amount that the user will send, including fees that are paid in the src token
+   * {@link Quote.srcTokenAmount} + {@link Quote.feeData[FeeType.METABRIDGE].amount} + {@link Quote.feeData[FeeType.TX_FEE].amount}
    */
   sentAmount: TokenAmountValues;
-  swapRate: string; // destTokenAmount / sentAmount
+  /**
+   * The swap rate is the amount that the user will receive per amount sent. Accounts for fees paid in the src or dest token.
+   * This is calculated as {@link QuoteMetadata.toTokenAmount} / {@link QuoteMetadata.sentAmount}.
+   */
+  swapRate: string;
+  /**
+   * The cost of the trade, which is the difference between the amount sent and the adjusted return.
+   * This is calculated as {@link QuoteMetadata.sentAmount} - {@link QuoteMetadata.adjustedReturn}.
+   */
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 
@@ -223,6 +248,7 @@ export type QuoteRequest<
 };
 
 export enum StatusTypes {
+  SUBMITTED = 'SUBMITTED',
   UNKNOWN = 'UNKNOWN',
   FAILED = 'FAILED',
   PENDING = 'PENDING',
@@ -250,6 +276,9 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 export type Quote = Infer<typeof QuoteSchema>;
 
 export type TxData = Infer<typeof TxDataSchema>;
+
+export type Intent = Infer<typeof IntentSchema>;
+export type IntentOrderLike = Intent['order'];
 
 export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 
@@ -291,19 +320,35 @@ export enum ChainId {
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,
+  HYPEREVM = 999,
+  MEGAETH = 4326,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
+
+export type TokenFeature = Infer<typeof TokenFeatureSchema>;
+
+export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
 
 export enum RequestStatus {
   LOADING,
   FETCHED,
   ERROR,
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeUserAction {
   SELECT_DEST_NETWORK = 'selectDestNetwork',
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeBackgroundAction {
   SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
@@ -349,8 +394,30 @@ export type BridgeControllerState = {
    * the max amount that can be sent.
    */
   minimumBalanceForRentExemptionInLamports: string | null;
+  /**
+   * Security alerts for the destination token in the current quote request,
+   * populated from `token_warning` SSE events.
+   */
+  tokenWarnings: TokenFeature[];
+  /**
+   * Client-supplied security classification for the destination token in the
+   * current quote request, used as the `token_security_type_destination`
+   * analytics property. Set via the `context` arg of
+   * `updateBridgeQuoteRequestParams` and reset whenever the quote request is
+   * reset. `null` when the client has no security data for the token.
+   */
+  tokenSecurityTypeDestination: string | null;
+  /**
+   * Metadata about the completed quote stream, populated from the `complete` SSE event.
+   * Set to null at the start of each fetch and updated when the complete event is received.
+   */
+  quoteStreamComplete: QuoteStreamCompleteData | null;
 };
 
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,
 > = {
@@ -368,27 +435,23 @@ export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
   BridgeControllerState
 >;
 
-// Maps to BridgeController function names
 export type BridgeControllerActions =
   | BridgeControllerGetStateAction
-  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
-  | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
-  | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
+  | BridgeControllerMethodActions;
 
 export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
-  | GetCurrencyRateState
+  | AuthenticationControllerGetBearerTokenAction
+  | CurrencyRateControllerGetStateAction
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AssetsControllerGetExchangeRatesForBridgeAction;
 export type AllowedEvents = never;
 
 /**

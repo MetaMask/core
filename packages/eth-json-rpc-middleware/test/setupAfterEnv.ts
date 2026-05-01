@@ -3,11 +3,6 @@ const UNRESOLVED = Symbol('timedOut');
 const originalSetTimeout = global.setTimeout;
 const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
 
-// Workaround for Jest 28 bug with Node >= 19
-Object.defineProperty(global, 'performance', {
-  writable: true,
-});
-
 /**
  * Produces a sort of dummy promise which can be used in conjunction with a
  * "real" promise to determine whether the "real" promise was ever resolved. If
@@ -53,18 +48,18 @@ expect.extend({
         promise,
         treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
       ]);
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     return resolutionValue === UNRESOLVED
       ? {
-          message: () =>
+          message: (): string =>
             `Expected promise to resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it did not`,
           pass: true,
         }
       : {
-          message: () => {
+          message: (): string => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
                 ? `was rejected with ${JSON.stringify(rejectionValue, null, 2)}`

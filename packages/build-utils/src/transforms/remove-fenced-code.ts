@@ -20,6 +20,9 @@ enum DirectiveTerminus {
 }
 
 export enum DirectiveCommand {
+  // TODO: This should be `OnlyIncludeIf`, but we need to preserve
+  // backwards-compatibility for now.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ONLY_INCLUDE_IF = 'ONLY_INCLUDE_IF',
 }
 
@@ -364,7 +367,7 @@ function getInvalidFenceLineMessage(
   filePath: string,
   line: string,
   details: string,
-) {
+): string {
   return `Invalid fence line in file "${filePath}": "${line}":\n${details}`;
 }
 
@@ -375,7 +378,10 @@ function getInvalidFenceLineMessage(
  * @param details - An explanation of the error.
  * @returns The error message.
  */
-function getInvalidFenceStructureMessage(filePath: string, details: string) {
+function getInvalidFenceStructureMessage(
+  filePath: string,
+  details: string,
+): string {
   return `Invalid fence structure in file "${filePath}":\n${details}`;
 }
 
@@ -391,7 +397,7 @@ function getInvalidFencePairMessage(
   filePath: string,
   line: string,
   details: string,
-) {
+): string {
   return `Invalid fence pair in file "${filePath}" due to line "${line}":\n${details}`;
 }
 
@@ -407,7 +413,7 @@ function getInvalidParamsMessage(
   filePath: string,
   details: string,
   command?: string,
-) {
+): string {
   return `Invalid code fence parameters in file "${filePath}"${
     command ? `for command "${command}"` : ''
   }:\n${details}`;

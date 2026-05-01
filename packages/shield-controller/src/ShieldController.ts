@@ -18,6 +18,7 @@ import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
+import type { ShieldControllerMethodActions } from './ShieldController-method-action-types';
 import type {
   CoverageResult,
   NormalizeSignatureRequestFn,
@@ -25,6 +26,14 @@ import type {
 } from './types';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
+
+const MESSENGER_EXPOSED_METHODS = [
+  'start',
+  'stop',
+  'clearState',
+  'checkCoverage',
+  'checkSignatureCoverage',
+] as const;
 
 export type CoverageResultRecordEntry = {
   /**
@@ -64,17 +73,12 @@ export type ShieldControllerGetStateAction = ControllerGetStateAction<
   ShieldControllerState
 >;
 
-export type ShieldControllerCheckCoverageAction = {
-  type: `${typeof controllerName}:checkCoverage`;
-  handler: ShieldController['checkCoverage'];
-};
-
 /**
  * The internal actions available to the ShieldController.
  */
 export type ShieldControllerActions =
   | ShieldControllerGetStateAction
-  | ShieldControllerCheckCoverageAction;
+  | ShieldControllerMethodActions;
 
 export type ShieldControllerCoverageResultReceivedEvent = {
   type: `${typeof controllerName}:coverageResultReceived`;
@@ -199,9 +203,17 @@ export class ShieldController extends BaseController<
       this.#handleSignatureControllerStateChange.bind(this);
     this.#started = false;
     this.#normalizeSignatureRequest = normalizeSignatureRequest;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
-  start() {
+  /**
+   * Start the ShieldController and subscribe to the transaction and signature controller state changes.
+   */
+  start(): void {
     if (this.#started) {
       return;
     }
@@ -220,7 +232,10 @@ export class ShieldController extends BaseController<
     );
   }
 
-  stop() {
+  /**
+   * Stop the ShieldController and unsubscribe from the transaction and signature controller state changes.
+   */
+  stop(): void {
     if (!this.#started) {
       return;
     }
@@ -237,10 +252,19 @@ export class ShieldController extends BaseController<
     );
   }
 
+  /**
+   * Clears the shield state and resets to default values.
+   */
+  clearState(): void {
+    this.update(() => {
+      return getDefaultShieldControllerState();
+    });
+  }
+
   #handleSignatureControllerStateChange(
     signatureRequests: Record<string, SignatureRequest>,
     previousSignatureRequests: Record<string, SignatureRequest> | undefined,
-  ) {
+  ): void {
     const signatureRequestsArray = Object.values(signatureRequests);
     const previousSignatureRequestsArray = Object.values(
       previousSignatureRequests ?? {},
@@ -277,7 +301,7 @@ export class ShieldController extends BaseController<
   #handleTransactionControllerStateChange(
     transactions: TransactionMeta[],
     previousTransactions: TransactionMeta[] | undefined,
-  ) {
+  ): void {
     const previousTransactionsById = new Map<string, TransactionMeta>(
       previousTransactions?.map((tx) => [tx.id, tx]) ?? [],
     );
@@ -384,7 +408,7 @@ export class ShieldController extends BaseController<
     return coverageResult;
   }
 
-  #addCoverageResult(txId: string, coverageResult: CoverageResult) {
+  #addCoverageResult(txId: string, coverageResult: CoverageResult): void {
     // Assert the coverageId hasn't changed.
     const latestCoverageId = this.#getLatestCoverageId(txId);
     if (latestCoverageId && coverageResult.coverageId !== latestCoverageId) {
@@ -431,13 +455,13 @@ export class ShieldController extends BaseController<
     });
   }
 
-  async #logSignature(signatureRequest: SignatureRequest) {
+  async #logSignature(signatureRequest: SignatureRequest): Promise<void> {
     const signature = signatureRequest.rawSig;
     if (!signature) {
       throw new Error('Signature not found');
     }
 
-    const { status } = this.#getCoverageStatus(signatureRequest.id);
+    const { status } = this.#getCoverageShownStatus(signatureRequest.id);
 
     await this.#backend.logSignature({
       signatureRequest,
@@ -446,7 +470,7 @@ export class ShieldController extends BaseController<
     });
   }
 
-  async #logTransaction(txMeta: TransactionMeta) {
+  async #logTransaction(txMeta: TransactionMeta): Promise<void> {
     const transactionHash = txMeta.hash;
     if (!transactionHash) {
       throw new Error('Transaction hash not found');
@@ -457,7 +481,7 @@ export class ShieldController extends BaseController<
       throw new Error('Raw transaction hex not found');
     }
 
-    const { status } = this.#getCoverageStatus(txMeta.id);
+    const { status } = this.#getCoverageShownStatus(txMeta.id);
 
     await this.#backend.logTransaction({
       txMeta,
@@ -467,7 +491,13 @@ export class ShieldController extends BaseController<
     });
   }
 
-  #getCoverageStatus(itemId: string) {
+  /**
+   * Get the coverage shown status for a given item ID.
+   *
+   * @param itemId - The item ID to get the coverage status for.
+   * @returns The coverage status.
+   */
+  #getCoverageShownStatus(itemId: string): { status: string } {
     // The status is assigned as follows:
     // - 'shown' if we have a result
     // - 'not_shown' if we don't have a result

@@ -5,16 +5,19 @@ import type {
   EarnControllerState,
   LendingMarketWithPosition,
   LendingPositionWithMarket,
+  LendingPositionWithMarketReference,
 } from './EarnController';
 
-export const selectLendingMarkets = (state: EarnControllerState) =>
-  state.lending.markets;
+export const selectLendingMarkets = (
+  state: EarnControllerState,
+): LendingMarket[] => state.lending.markets;
 
-export const selectLendingPositions = (state: EarnControllerState) =>
-  state.lending.positions;
+export const selectLendingPositions = (
+  state: EarnControllerState,
+): LendingPositionWithMarketReference[] => state.lending.positions;
 
 export const selectLendingMarketsForChainId = (chainId: number) =>
-  createSelector(selectLendingMarkets, (markets) =>
+  createSelector(selectLendingMarkets, (markets): LendingMarket[] =>
     markets.filter((market) => market.chainId === chainId),
   );
 
@@ -38,7 +41,8 @@ export const selectLendingMarketForProtocolAndId = (
 ) =>
   createSelector(
     selectLendingMarketsByProtocolAndId,
-    (marketsByProtocolAndId) => marketsByProtocolAndId?.[protocol]?.[id],
+    (marketsByProtocolAndId): LendingMarket | undefined =>
+      marketsByProtocolAndId?.[protocol]?.[id],
   );
 
 export const selectLendingMarketsByChainId = createSelector(
@@ -160,7 +164,7 @@ export const selectLendingMarketForProtocolAndTokenAddress = (
 ) =>
   createSelector(
     selectLendingMarketByProtocolAndTokenAddress,
-    (marketsByProtocolAndTokenAddress) =>
+    (marketsByProtocolAndTokenAddress): LendingMarketWithPosition | undefined =>
       marketsByProtocolAndTokenAddress?.[protocol]?.[tokenAddress],
   );
 
@@ -195,5 +199,26 @@ export const selectLendingMarketsByChainIdAndTokenAddress = createSelector(
     }, {}),
 );
 
-export const selectIsLendingEligible = (state: EarnControllerState) =>
+export const selectIsLendingEligible = (state: EarnControllerState): boolean =>
   state.lending.isEligible;
+
+/**
+ * Selects the TRON staking state.
+ *
+ * @param state - The EarnController state.
+ * @returns The TRON staking state.
+ */
+export const selectTronStaking = (
+  state: EarnControllerState,
+): EarnControllerState['tron_staking'] => state.tron_staking;
+
+/**
+ * Selects the APY for TRON staking.
+ *
+ * @param state - The EarnController state.
+ * @returns The APY for TRON staking, or undefined if not available.
+ */
+export const selectTronStakingApy = createSelector(
+  selectTronStaking,
+  (tronStaking): string | undefined => tronStaking?.apy,
+);

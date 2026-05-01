@@ -1,5 +1,6 @@
+import { createDeferredPromise } from '@metamask/utils';
+
 import { PollingBlockTracker } from '.';
-import buildDeferred from '../tests/buildDeferred';
 import EMPTY_FUNCTION from '../tests/emptyFunction';
 import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout';
 import { withPollingBlockTracker } from '../tests/withBlockTracker';
@@ -424,7 +425,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  implementation: () => {
+                  implementation: (): never => {
                     throw thrownError;
                   },
                 },
@@ -787,7 +788,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -1740,7 +1741,7 @@ describe('PollingBlockTracker', () => {
               recordCallsToSetTimeout({
                 numAutomaticCalls: 2,
                 interceptCallback: (callback, stopPassingThroughCalls) => {
-                  return async () => {
+                  return async (): Promise<unknown> => {
                     try {
                       return await callback();
                     } catch (error: unknown) {
@@ -1795,7 +1796,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -1865,7 +1866,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -2283,7 +2284,7 @@ describe('PollingBlockTracker', () => {
               recordCallsToSetTimeout({
                 numAutomaticCalls: 2,
                 interceptCallback: (callback, stopPassingThroughCalls) => {
-                  return async () => {
+                  return async (): Promise<unknown> => {
                     try {
                       return await callback();
                     } catch (error: unknown) {
@@ -2338,7 +2339,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -2408,7 +2409,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -2756,7 +2757,7 @@ describe('PollingBlockTracker', () => {
           await withPollingBlockTracker(async ({ blockTracker }) => {
             const listener1 = EMPTY_FUNCTION;
             const { promise: promiseForLatestBlock, resolve: listener2 } =
-              buildDeferred();
+              createDeferredPromise();
 
             blockTracker.on('latest', listener1);
             blockTracker.on('latest', listener2);
@@ -2792,7 +2793,7 @@ describe('PollingBlockTracker', () => {
             async ({ blockTracker }) => {
               const listener1 = EMPTY_FUNCTION;
               const { promise: promiseForLatestBlock, resolve: listener2 } =
-                buildDeferred();
+                createDeferredPromise();
 
               blockTracker.on('latest', listener1);
               blockTracker.on('latest', listener2);
@@ -2877,7 +2878,7 @@ describe('PollingBlockTracker', () => {
           await withPollingBlockTracker(async ({ blockTracker }) => {
             const listener1 = EMPTY_FUNCTION;
             const { promise: promiseForLatestBlock, resolve: listener2 } =
-              buildDeferred();
+              createDeferredPromise();
 
             blockTracker.on('sync', listener1);
             blockTracker.on('sync', listener2);
@@ -2913,7 +2914,7 @@ describe('PollingBlockTracker', () => {
             async ({ blockTracker }) => {
               const listener1 = EMPTY_FUNCTION;
               const { promise: promiseForLatestBlock, resolve: listener2 } =
-                buildDeferred();
+                createDeferredPromise();
 
               blockTracker.on('sync', listener1);
               blockTracker.on('sync', listener2);
@@ -2943,7 +2944,7 @@ describe('PollingBlockTracker', () => {
 
           await withPollingBlockTracker(async ({ blockTracker }) => {
             const { promise: promiseForLatestBlock, resolve: listener1 } =
-              buildDeferred();
+              createDeferredPromise();
             const listener2 = EMPTY_FUNCTION;
 
             blockTracker.on('latest', listener1);
@@ -3004,7 +3005,7 @@ describe('PollingBlockTracker', () => {
             blockTracker: blockTrackerOptions,
           },
           async ({ blockTracker }) => {
-            const { promise, resolve: listener } = buildDeferred();
+            const { promise, resolve: listener } = createDeferredPromise();
 
             blockTracker.once('latest', listener);
 
@@ -3069,7 +3070,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -3140,7 +3141,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  implementation: () => {
+                  implementation: (): never => {
                     throw thrownError;
                   },
                 },
@@ -3266,7 +3267,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    implementation: () => {
+                    implementation: (): never => {
                       throw thrownError;
                     },
                   },
@@ -3337,7 +3338,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  implementation: () => {
+                  implementation: (): never => {
                     throw thrownError;
                   },
                 },

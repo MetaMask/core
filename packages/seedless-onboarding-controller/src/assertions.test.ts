@@ -1,8 +1,46 @@
 import {
   assertIsPasswordOutdatedCacheValid,
+  assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions';
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import { VaultData } from './types';
+
+describe('assertIsValidPassword', () => {
+  it('should throw when password is not a string', () => {
+    expect(() => {
+      assertIsValidPassword(null);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+
+    expect(() => {
+      assertIsValidPassword(undefined);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+
+    expect(() => {
+      assertIsValidPassword(123);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+
+    expect(() => {
+      assertIsValidPassword({});
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+
+    expect(() => {
+      assertIsValidPassword([]);
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+  });
+
+  it('should throw when password is an empty string', () => {
+    expect(() => {
+      assertIsValidPassword('');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword);
+  });
+
+  it('should not throw for valid non-empty string', () => {
+    expect(() => {
+      assertIsValidPassword('password123');
+    }).not.toThrow();
+  });
+});
 
 describe('assertIsValidVaultData', () => {
   /**
@@ -10,7 +48,7 @@ describe('assertIsValidVaultData', () => {
    *
    * @returns The valid vault data.
    */
-  const createValidVaultData = () => ({
+  const createValidVaultData = (): VaultData => ({
     toprfEncryptionKey: 'mock_encryption_key',
     toprfPwEncryptionKey: 'mock_pw_encryption_key',
     toprfAuthKeyPair: 'mock_auth_key_pair',

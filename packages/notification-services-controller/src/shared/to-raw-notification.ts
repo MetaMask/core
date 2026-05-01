@@ -16,7 +16,7 @@ import type {
 export function toRawAPINotification(
   data: UnprocessedRawNotification,
 ): NormalisedAPINotification {
-  const exhaustedAllCases = (_: never) => {
+  const exhaustedAllCases = (_: never): never => {
     const type: string = data?.notification_type;
     throw new Error(
       `toRawAPINotification - No processor found for notification kind ${type}`,

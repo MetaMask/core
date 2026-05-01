@@ -24,8 +24,15 @@ import type {
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildMockFindNetworkClientIdByChainId,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { Source } from './constants';
 import { getDefaultNftControllerState } from './NftController';
 import {
@@ -33,14 +40,6 @@ import {
   BlockaidResultType,
 } from './NftDetectionController';
 import type { NftDetectionControllerMessenger } from './NftDetectionController';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildMockFindNetworkClientIdByChainId,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 type AllActions = MessengerActions<NftDetectionControllerMessenger>;
 
@@ -53,10 +52,8 @@ const controllerName = 'NftDetectionController' as const;
 const defaultSelectedAccount = createMockInternalAccount();
 
 describe('NftDetectionController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   beforeEach(async () => {
-    clock = sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
     nock(NFT_API_BASE_URL)
       .persist()
@@ -360,8 +357,7 @@ describe('NftDetectionController', () => {
   });
 
   afterEach(() => {
-    clock.restore();
-    sinon.restore();
+    jest.useRealTimers();
   });
 
   it('should call detect NFTs on mainnet', async () => {
@@ -374,9 +370,9 @@ describe('NftDetectionController', () => {
         mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
-        const mockNfts = sinon
-          .stub(controller, 'detectNfts')
-          .returns(Promise.resolve());
+        const mockNfts = jest
+          .spyOn(controller, 'detectNfts')
+          .mockResolvedValue();
         controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           useNftDetection: true,
@@ -384,14 +380,13 @@ describe('NftDetectionController', () => {
 
         // call detectNfts
         await controller.detectNfts(['0x1']);
-        expect(mockNfts.calledOnce).toBe(true);
+        expect(mockNfts).toHaveBeenCalledTimes(1);
 
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 10,
         });
 
-        expect(mockNfts.calledTwice).toBe(false);
+        expect(mockNfts).toHaveBeenCalledTimes(1);
       },
     );
   });
@@ -484,7 +479,9 @@ describe('NftDetectionController', () => {
         mockGetSelectedAccount,
       },
       async ({ controller }) => {
-        const mockNfts = sinon.stub(controller, 'detectNfts');
+        const mockNfts = jest
+          .spyOn(controller, 'detectNfts')
+          .mockImplementation();
 
         // nock
         const mockApiCall = nock(NFT_API_BASE_URL)
@@ -504,7 +501,7 @@ describe('NftDetectionController', () => {
           userAddress: selectedAddress,
         });
 
-        expect(mockNfts.called).toBe(true);
+        expect(mockNfts).toHaveBeenCalled();
         expect(mockApiCall.isDone()).toBe(false);
       },
     );
@@ -530,8 +527,7 @@ describe('NftDetectionController', () => {
         });
 
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -611,8 +607,7 @@ describe('NftDetectionController', () => {
         });
 
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -673,8 +668,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -739,8 +733,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -806,18 +799,19 @@ describe('NftDetectionController', () => {
     await withController(
       { options: { disabled: false } },
       async ({ controller, controllerEvents }) => {
-        const mockNfts = sinon.stub(controller, 'detectNfts');
+        const mockNfts = jest
+          .spyOn(controller, 'detectNfts')
+          .mockImplementation();
         controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
 
-        expect(mockNfts.calledOnce).toBe(false);
+        expect(mockNfts).not.toHaveBeenCalled();
       },
     );
   });
@@ -842,8 +836,7 @@ describe('NftDetectionController', () => {
           useNftDetection: false,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -882,8 +875,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -910,8 +902,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         // This mock is for the call under test
@@ -952,8 +943,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
+        await jestAdvanceTime({
           duration: 1,
         });
         mockAddNfts.mockReset();
@@ -976,7 +966,9 @@ describe('NftDetectionController', () => {
         mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
-        const detectNfts = sinon.stub(controller, 'detectNfts');
+        const detectNfts = jest
+          .spyOn(controller, 'detectNfts')
+          .mockImplementation();
 
         // Repeated preference changes should only trigger 1 detection
         for (let i = 0; i < 5; i++) {
@@ -986,8 +978,8 @@ describe('NftDetectionController', () => {
             securityAlertsEnabled: true,
           });
         }
-        await advanceTime({ clock, duration: 1 });
-        expect(detectNfts.callCount).toBe(0);
+        await jestAdvanceTime({ duration: 1 });
+        expect(detectNfts).not.toHaveBeenCalled();
 
         // Irrelevant preference changes shouldn't trigger a detection
         controllerEvents.triggerPreferencesStateChange({
@@ -995,8 +987,8 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
           securityAlertsEnabled: true,
         });
-        await advanceTime({ clock, duration: 1 });
-        expect(detectNfts.callCount).toBe(0);
+        await jestAdvanceTime({ duration: 1 });
+        expect(detectNfts).not.toHaveBeenCalled();
       },
     );
   });
@@ -1027,6 +1019,236 @@ describe('NftDetectionController', () => {
         ]);
 
         expect(mockAddNfts).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
+
+  it('should stop after first page when firstPageOnly is true', async () => {
+    const mockAddNfts = jest.fn();
+    const selectedAddress = '0xFirstPage';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    // Mock first page with continuation token
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest1',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+        ],
+        continuation: 'next-page-token',
+      });
+
+    // Mock second page that should NOT be called
+    const secondPageSpy = nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=next-page-token`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest2',
+              kind: 'erc721',
+              name: 'ID 2575',
+              description: 'Description 2575',
+              image: 'image/2575.png',
+              tokenId: '2575',
+              metadata: {
+                imageOriginal: 'imageOriginal/2575.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: { addNfts: mockAddNfts },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({
+          duration: 1,
+        });
+        mockAddNfts.mockReset();
+
+        await controller.detectNfts(['0x1'], { firstPageOnly: true });
+
+        // Verify second page was NOT called because we used firstPageOnly
+        expect(secondPageSpy.isDone()).toBe(false);
+
+        // Verify only first page NFTs were added
+        expect(mockAddNfts).toHaveBeenCalledTimes(1);
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [
+            {
+              tokenAddress: '0xtest1',
+              tokenId: '2574',
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                chainId: 1,
+              },
+            },
+          ],
+          selectedAccount.address,
+          Source.Detected,
+        );
+      },
+    );
+  });
+
+  it('should stop pagination when signal is aborted', async () => {
+    const mockAddNfts = jest.fn();
+    const selectedAddress = '0xAbortSignal';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    // Mock first page with continuation token
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest1',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+        ],
+        continuation: 'next-page-token',
+      });
+
+    // Mock second page that should NOT be called
+    const secondPageSpy = nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=next-page-token`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xtest2',
+              kind: 'erc721',
+              name: 'ID 2575',
+              description: 'Description 2575',
+              image: 'image/2575.png',
+              tokenId: '2575',
+              metadata: {
+                imageOriginal: 'imageOriginal/2575.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: { addNfts: mockAddNfts },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({
+          duration: 1,
+        });
+        mockAddNfts.mockReset();
+
+        const abortController = new AbortController();
+        // Abort the signal immediately
+        abortController.abort();
+
+        await controller.detectNfts(['0x1'], {
+          signal: abortController.signal,
+        });
+
+        // Verify second page was NOT called because signal was aborted
+        expect(secondPageSpy.isDone()).toBe(false);
+
+        // Verify only first page NFTs were added
+        expect(mockAddNfts).toHaveBeenCalledTimes(1);
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [
+            {
+              tokenAddress: '0xtest1',
+              tokenId: '2574',
+              nftMetadata: {
+                description: 'Description 2574',
+                image: 'image/2574.png',
+                name: 'ID 2574',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2574.png',
+                chainId: 1,
+              },
+            },
+          ],
+          selectedAccount.address,
+          Source.Detected,
+        );
       },
     );
   });
@@ -1166,10 +1388,10 @@ async function withController<ReturnValue>(
   });
 
   const controllerEvents = {
-    triggerPreferencesStateChange: (state: PreferencesState) => {
+    triggerPreferencesStateChange: (state: PreferencesState): void => {
       messenger.publish('PreferencesController:stateChange', state, []);
     },
-    triggerNetworkStateChange: (state: NetworkState) => {
+    triggerNetworkStateChange: (state: NetworkState): void => {
       messenger.publish('NetworkController:stateChange', state, []);
     },
   };

@@ -26,21 +26,13 @@ const PermissionStruct = object({
 
 const RuleStruct = object({
   type: string(),
-  isAdjustmentAllowed: boolean(),
   data: record(string(), unknown()),
-});
-
-const AccountSignerStruct = object({
-  type: literal('account'),
-  data: object({
-    address: HexChecksumAddressStruct,
-  }),
 });
 
 const PermissionRequestStruct = object({
   chainId: StrictHexStruct,
-  address: optional(HexChecksumAddressStruct),
-  signer: AccountSignerStruct,
+  from: optional(HexChecksumAddressStruct),
+  to: HexChecksumAddressStruct,
   permission: PermissionStruct,
   rules: optional(union([array(RuleStruct), literal(null)])),
 });
@@ -52,9 +44,16 @@ export type RequestExecutionPermissionsRequestParams = Infer<
   typeof RequestExecutionPermissionsStruct
 >;
 
+export type PermissionDependency = {
+  factory: Hex;
+  factoryData: Hex;
+};
+
 export type RequestExecutionPermissionsResult = Json &
   (Infer<typeof PermissionRequestStruct> & {
     context: Hex;
+    dependencies: PermissionDependency[];
+    delegationManager: Hex;
   })[];
 
 export type ProcessRequestExecutionPermissionsHook = (

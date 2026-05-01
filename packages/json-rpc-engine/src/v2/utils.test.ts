@@ -49,7 +49,7 @@ describe('utils', () => {
     it('stringifies a JSON object', () => {
       expect(stringify({ foo: 'bar' })).toMatchInlineSnapshot(`
         "{
-          \\"foo\\": \\"bar\\"
+          "foo": "bar"
         }"
       `);
     });
@@ -59,6 +59,9 @@ describe('utils', () => {
     const TestClassSymbol = Symbol('TestClass');
 
     class TestClass {
+      // This is a computed property name, and it doesn't seem possible to make
+      // it hash private using `#`.
+      // eslint-disable-next-line no-restricted-syntax
       private readonly [TestClassSymbol] = true;
     }
 

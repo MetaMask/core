@@ -1,5 +1,5 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -16,9 +16,10 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClient,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerStateChangeEvent,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -34,7 +35,6 @@ import type {
   NftControllerState,
   NftMetadata,
 } from './NftController';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
 const controllerName = 'NftDetectionController';
 
@@ -42,7 +42,7 @@ export type NFTDetectionControllerState = Record<never, never>;
 
 export type AllowedActions =
   | ControllerGetStateAction<typeof controllerName, NFTDetectionControllerState>
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | PreferencesControllerGetStateAction
@@ -62,18 +62,6 @@ export type NftDetectionControllerMessenger = Messenger<
   AllowedActions,
   AllowedEvents
 >;
-
-/**
- * A set of supported networks for NFT detection.
- */
-const supportedNftDetectionNetworks: Set<Hex> = new Set([
-  // TODO: We should consider passing this constant from the NftDetectionController contructor
-  // to reduce the complexity to add further network into this constant
-  '0x1', // Mainnet
-  '0xe708', // Linea Mainnet
-  '0x531', // Sei
-  '0x8f', // Monad
-]);
 
 /**
  * @type ApiNft
@@ -97,6 +85,7 @@ const supportedNftDetectionNetworks: Set<Hex> = new Set([
  * @property creator - The NFT owner information object
  * @property lastSale - When this item was last sold
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNft = {
   token_id: string;
   num_sales: number | null;
@@ -114,6 +103,7 @@ export type ApiNft = {
   creator: ApiNftCreator;
   last_sale: ApiNftLastSale | null;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * @type ApiNftContract
@@ -130,6 +120,7 @@ export type ApiNft = {
  * @property description - The NFT contract description
  * @property external_link - External link containing additional information
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNftContract = {
   address: string;
   asset_contract_type: string | null;
@@ -145,6 +136,7 @@ export type ApiNftContract = {
     tokenCount?: string | null;
   };
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * @type ApiNftLastSale
@@ -155,11 +147,13 @@ export type ApiNftContract = {
  * @property total_price - URI of NFT image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNftLastSale = {
   event_timestamp: string;
   total_price: string;
   transaction: { transaction_hash: string; block_hash: string };
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * @type ApiNftCreator
@@ -170,15 +164,17 @@ export type ApiNftLastSale = {
  * @property profile_img_url - URI of NFT image associated with this owner
  * @property address - The owner address
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 export type ApiNftCreator = {
   user: { username: string };
   profile_img_url: string;
   address: string;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export type ReservoirResponse = {
   tokens: TokensResponse[];
-  continuation?: string;
+  continuation?: string | null;
 };
 
 export type TokensResponse = {
@@ -195,6 +191,7 @@ export enum BlockaidResultType {
   Malicious = 'Malicious',
 }
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export type Blockaid = {
   contract: string;
   chainId: number;
@@ -202,6 +199,7 @@ export type Blockaid = {
   malicious_score: string;
   attack_types: object;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export type Market = {
   floorAsk?: FloorAsk;
@@ -495,7 +493,9 @@ export class NftDetectionController extends BaseController<
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
    */
-  #onPreferencesControllerStateChange({ useNftDetection }: PreferencesState) {
+  #onPreferencesControllerStateChange({
+    useNftDetection,
+  }: PreferencesState): void {
     if (!useNftDetection !== this.#disabled) {
       this.#disabled = !useNftDetection;
     }
@@ -509,7 +509,7 @@ export class NftDetectionController extends BaseController<
     chainIds: string[];
     address: string;
     next?: string;
-  }) {
+  }): string {
     // from chainIds construct a string of chainIds that can be used like chainIds=1&chainIds=56
     const chainIdsString = chainIds.join('&chainIds=');
     return `${
@@ -521,13 +521,26 @@ export class NftDetectionController extends BaseController<
     address: string,
     chainIds: Hex[],
     cursor: string | undefined,
-  ) {
+  ): Promise<ReservoirResponse> {
     // Convert hex chainId to number
     const convertedChainIds = chainIds.map((chainId) =>
       convertHexToDecimal(chainId).toString(),
     );
+
+    const filteredChainIds = convertedChainIds.filter(
+      (chainId) => chainId !== '0',
+    );
+
+    // Avoid making the API call for non-EVM chains
+    if (filteredChainIds.length === 0) {
+      return {
+        tokens: [],
+        continuation: null,
+      };
+    }
+
     const url = this.#getOwnerNftApi({
-      chainIds: convertedChainIds,
+      chainIds: filteredChainIds,
       address,
       next: cursor,
     });
@@ -546,18 +559,23 @@ export class NftDetectionController extends BaseController<
    * @param chainIds - The chain IDs to detect NFTs on.
    * @param options - Options bag.
    * @param options.userAddress - The address to detect NFTs for.
+   * @param options.firstPageOnly - Whether to only detect the first page of NFTs.
+   * @param options.signal - An optional abort signal to cancel the operation.
    */
-  async detectNfts(chainIds: Hex[], options?: { userAddress?: string }) {
+  async detectNfts(
+    chainIds: Hex[],
+    options?: {
+      userAddress?: string;
+      firstPageOnly?: boolean;
+      signal?: AbortSignal;
+    },
+  ): Promise<void> {
     const userAddress =
       options?.userAddress ??
       this.messenger.call('AccountsController:getSelectedAccount').address;
 
-    // filter out unsupported chainIds
-    const supportedChainIds = chainIds.filter((chainId) =>
-      supportedNftDetectionNetworks.has(chainId),
-    );
     /* istanbul ignore if */
-    if (supportedChainIds.length === 0 || this.#disabled) {
+    if (chainIds.length === 0 || this.#disabled) {
       return;
     }
     /* istanbul ignore else */
@@ -588,11 +606,7 @@ export class NftDetectionController extends BaseController<
     let resultNftApi: ReservoirResponse;
     try {
       do {
-        resultNftApi = await this.#getOwnerNfts(
-          userAddress,
-          supportedChainIds,
-          next,
-        );
+        resultNftApi = await this.#getOwnerNfts(userAddress, chainIds, next);
         apiNfts = resultNftApi.tokens.filter(
           (elm) =>
             elm.token.isSpam === false &&
@@ -623,17 +637,17 @@ export class NftDetectionController extends BaseController<
             } = nft.token;
 
             // Use a fallback if metadata is null
-            const { imageOriginal: imageOriginalUrl } = metadata || {};
+            const { imageOriginal: imageOriginalUrl } = metadata ?? {};
 
             let ignored;
             /* istanbul ignore else */
             const { ignoredNfts } = this.#getNftState();
             if (ignoredNfts.length) {
-              ignored = ignoredNfts.find((c) => {
+              ignored = ignoredNfts.find((ignoredNft) => {
                 /* istanbul ignore next */
                 return (
-                  c.address === toChecksumHexAddress(contract) &&
-                  c.tokenId === tokenId
+                  ignoredNft.address === toChecksumHexAddress(contract) &&
+                  ignoredNft.tokenId === tokenId
                 );
               });
             }
@@ -670,7 +684,11 @@ export class NftDetectionController extends BaseController<
           .filter((nft): nft is NonNullable<typeof nft> => nft !== undefined);
 
         await this.#addNfts(nftsToAdd, userAddress, Source.Detected);
-      } while ((next = resultNftApi.continuation));
+      } while (
+        (next = resultNftApi.continuation) &&
+        !options?.firstPageOnly &&
+        !options?.signal?.aborted
+      );
       updateSucceeded();
     } catch (error) {
       updateFailed(error);

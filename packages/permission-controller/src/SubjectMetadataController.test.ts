@@ -7,7 +7,10 @@ import type {
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-import type { SubjectMetadataControllerMessenger } from './SubjectMetadataController';
+import type {
+  SubjectMetadata,
+  SubjectMetadataControllerMessenger,
+} from './SubjectMetadataController';
 import {
   SubjectMetadataController,
   SubjectType,
@@ -43,7 +46,15 @@ function getRootMessenger(): RootMessenger {
  *
  * @returns A tuple containing the messenger and a spy for the "hasPermission" action handler
  */
-function getSubjectMetadataControllerMessenger() {
+function getSubjectMetadataControllerMessenger(): readonly [
+  Messenger<
+    typeof controllerName,
+    AllSubjectMetadataControllerActions,
+    AllSubjectMetadataControllerEvents,
+    RootMessenger
+  >,
+  jest.Mock,
+] {
   const rootMessenger = getRootMessenger();
 
   const hasPermissionsSpy = jest.fn();
@@ -84,7 +95,7 @@ function getSubjectMetadata(
   name: string | null = null,
   subjectType: SubjectType | null = null,
   opts?: Record<string, Json>,
-) {
+): SubjectMetadata {
   return {
     origin,
     name,
@@ -383,7 +394,7 @@ describe('SubjectMetadataController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -400,8 +411,8 @@ describe('SubjectMetadataController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjectMetadata": Object {},
+        {
+          "subjectMetadata": {},
         }
       `);
     });
@@ -420,8 +431,8 @@ describe('SubjectMetadataController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjectMetadata": Object {},
+        {
+          "subjectMetadata": {},
         }
       `);
     });
@@ -440,8 +451,8 @@ describe('SubjectMetadataController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "subjectMetadata": Object {},
+        {
+          "subjectMetadata": {},
         }
       `);
     });

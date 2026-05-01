@@ -1,17 +1,20 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
+const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
 const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
+const DEFAULT_SUBMIT_HISTORY_LIMIT = 100;
+const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 
 /**
  * Feature flags supporting the transaction controller.
@@ -101,12 +104,21 @@ export type TransactionControllerFeatureFlags = {
   [FeatureFlag.IncomingTransactions]?: {
     /** Interval between requests to accounts API to retrieve incoming transactions. */
     pollingIntervalMs?: number;
+
+    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
+    useBackendWebSocketService?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
   [FeatureFlag.Transactions]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    /** Maximum number of entries in the submit history. */
+    submitHistoryLimit?: number;
+
+    /** Maximum number of transactions stored in state. */
+    transactionHistoryLimit?: number;
 
     /**
      * Accelerated polling is used to speed up the polling process for
@@ -116,6 +128,11 @@ export type TransactionControllerFeatureFlags = {
       /** Accelerated polling parameters on a per-chain basis. */
       perChainConfig?: {
         [chainId: Hex]: {
+          /**
+           * Block time in milliseconds.
+           */
+          blockTime?: number;
+
           /**
            * Maximum number of polling requests that can be made in a row, before
            * the normal polling resumes.
@@ -255,6 +272,40 @@ export function getBatchSizeLimit(
 }
 
 /**
+ * Retrieves the submit history limit.
+ * Defaults to 100 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The submit history limit.
+ */
+export function getSubmitHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.Transactions]?.submitHistoryLimit ??
+    DEFAULT_SUBMIT_HISTORY_LIMIT
+  );
+}
+
+/**
+ * Retrieves the transaction history limit.
+ * Defaults to 40 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The transaction history limit.
+ */
+export function getTransactionHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.Transactions]?.transactionHistoryLimit ??
+    DEFAULT_TRANSACTION_HISTORY_LIMIT
+  );
+}
+
+/**
  * Retrieves the accelerated polling parameters for a given chain ID.
  *
  * @param chainId - The chain ID.
@@ -264,7 +315,7 @@ export function getBatchSizeLimit(
 export function getAcceleratedPollingParams(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
-): { countMax: number; intervalMs: number } {
+): { blockTime: number; countMax: number; intervalMs: number } {
   const featureFlags = getFeatureFlags(messenger);
 
   const acceleratedPollingParams =
@@ -280,7 +331,11 @@ export function getAcceleratedPollingParams(
     acceleratedPollingParams?.defaultIntervalMs ??
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
-  return { countMax, intervalMs };
+  const blockTime =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.blockTime ??
+    DEFAULT_BLOCK_TIME;
+
+  return { blockTime, countMax, intervalMs };
 }
 
 /**
@@ -344,19 +399,19 @@ export function getGasEstimateFallback(
  * @param request - The request object.
  * @param request.chainId - The chain ID.
  * @param request.isCustomRPC - Whether the network RPC is added by the user.
- * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.isUpgradeWithData - Whether the transaction is an EIP-7702 upgrade combined with a call.
  * @param request.messenger - The controller messenger instance.
  * @returns The gas buffers.
  */
 export function getGasEstimateBuffer({
   chainId,
   isCustomRPC,
-  isUpgradeWithDataToSelf,
+  isUpgradeWithData,
   messenger,
 }: {
   chainId: Hex;
   isCustomRPC: boolean;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   messenger: TransactionControllerMessenger;
 }): number {
   const featureFlags = getFeatureFlags(messenger);
@@ -368,9 +423,7 @@ export function getGasEstimateBuffer({
     ? undefined
     : gasBufferFlags?.included;
 
-  const upgradeBuffer = isUpgradeWithDataToSelf
-    ? chainFlags?.eip7702
-    : undefined;
+  const upgradeBuffer = isUpgradeWithData ? chainFlags?.eip7702 : undefined;
 
   return (
     upgradeBuffer ??
@@ -420,6 +473,24 @@ export function getTimeoutAttempts(
   return (
     timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
     timeoutAttemptsFlags?.default
+  );
+}
+
+/**
+ * Checks if WebSocket-based transaction updates are enabled.
+ * When enabled, incoming transactions are fetched via event-driven updates
+ * instead of polling.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns True if WebSocket updates are enabled, false otherwise.
+ */
+export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.IncomingTransactions]
+      ?.useBackendWebSocketService ?? false
   );
 }
 

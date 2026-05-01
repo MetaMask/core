@@ -3,7 +3,6 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
-import { determineTransactionType } from '..';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
@@ -18,6 +17,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
+import { determineTransactionType } from '../utils/transaction-type';
 
 export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.MAINNET,
@@ -30,6 +30,7 @@ export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.SCROLL,
   CHAIN_IDS.SEI,
   CHAIN_IDS.MONAD,
+  CHAIN_IDS.HYPEREVM,
 ];
 
 const log = createModuleLogger(
@@ -40,9 +41,7 @@ const log = createModuleLogger(
 /**
  * A RemoteTransactionSource that fetches incoming transactions using the Accounts API.
  */
-export class AccountsApiRemoteTransactionSource
-  implements RemoteTransactionSource
-{
+export class AccountsApiRemoteTransactionSource implements RemoteTransactionSource {
   getSupportedChains(): Hex[] {
     return SUPPORTED_CHAIN_IDS;
   }
@@ -50,11 +49,11 @@ export class AccountsApiRemoteTransactionSource
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
-    const { address } = request;
+    const { address, chainIds } = request;
 
     const responseTransactions = await this.#queryTransactions(
       request,
-      SUPPORTED_CHAIN_IDS,
+      chainIds ?? SUPPORTED_CHAIN_IDS,
     );
 
     log(

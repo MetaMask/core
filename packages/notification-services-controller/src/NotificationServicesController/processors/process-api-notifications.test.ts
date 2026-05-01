@@ -1,4 +1,3 @@
-import { processAPINotifications } from './process-api-notifications';
 import {
   createMockNotificationEthSent,
   createMockNotificationEthReceived,
@@ -17,6 +16,7 @@ import {
   createMockNotificationLidoReadyToBeWithdrawn,
   createMockPlatformNotification,
 } from '../mocks/mock-raw-notifications';
+import { processAPINotifications } from './process-api-notifications';
 
 const rawNotifications = [
   createMockNotificationEthSent(),
@@ -38,7 +38,7 @@ const rawNotifications = [
 ];
 
 const rawNotificationTestSuite = rawNotifications.map(
-  (n) => [n.type, n] as const,
+  (notification) => [notification.type, notification] as const,
 );
 
 describe('process-onchain-notifications - processOnChainNotification()', () => {

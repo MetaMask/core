@@ -10,6 +10,7 @@
 // format, but also check the presence of certain files as well.
 
 /** @type {import('@yarnpkg/types')} */
+const { hasProperty } = require('@metamask/utils');
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
@@ -23,8 +24,14 @@ const { inspect } = require('util');
  * This should trend towards empty.
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  // '@metamask/json-rpc-engine': ['^9.0.3'],
+  '@tanstack/query-core': ['^4.43.0'],
 };
+
+/**
+ * These packages are allowed as peer dependencies without requiring installation as
+ * devDependencies.
+ */
+const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -51,7 +58,8 @@ module.exports = defineConfig({
       const workspaceBasename = getWorkspaceBasename(workspace);
       const isChildWorkspace = workspace.cwd !== '.';
       const isPrivate =
-        'private' in workspace.manifest && workspace.manifest.private === true;
+        hasProperty(workspace.manifest, 'private') &&
+        workspace.manifest.private === true;
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
       );
@@ -76,7 +84,7 @@ module.exports = defineConfig({
         expectWorkspaceDescription(workspace);
 
         // All non-root packages must have the same set of NPM keywords.
-        expectWorkspaceField(workspace, 'keywords', ['MetaMask', 'Ethereum']);
+        expectWorkspaceField(workspace, 'keywords', ['Ethereum', 'MetaMask']);
 
         // All non-root packages must have a homepage URL that includes its name.
         expectWorkspaceField(
@@ -109,7 +117,10 @@ module.exports = defineConfig({
 
         // All non-root packages must set up ESM- and CommonJS-compatible
         // exports correctly.
-        if (workspace.ident !== '@metamask/foundryup') {
+        if (
+          workspace.ident !== '@metamask/foundryup' &&
+          workspace.ident !== '@metamask/messenger-cli'
+        ) {
           expectCorrectWorkspaceExports(workspace);
         }
 
@@ -128,20 +139,8 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "build:docs" script.
-        expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
-
-        if (isPrivate) {
-          // All private, non-root packages must not have a "publish:preview"
-          // script.
-          workspace.unset('scripts.publish:preview');
-        } else {
-          // All non-private, non-root packages must have the same
-          // "publish:preview" script.
-          expectWorkspaceField(
-            workspace,
-            'scripts.publish:preview',
-            'yarn npm publish --tag preview',
-          );
+        if (workspace.ident !== '@metamask/messenger-cli') {
+          expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }
 
         // No non-root packages may have a "prepack" script.
@@ -390,7 +389,7 @@ async function workspaceFileExists(workspace, path) {
   try {
     await getWorkspaceFile(workspace, path);
   } catch (error) {
-    if ('code' in error && error.code === 'ENOENT') {
+    if (hasProperty(error, 'code') && error.code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -756,6 +755,10 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
 
     if (!peerDependency) {
+      continue;
+    }
+
+    if (ALLOWED_PEER_DEPENDENCIES.includes(dependencyIdent)) {
       continue;
     }
 

@@ -11,11 +11,6 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 
-import type {
-  BridgeFeatureFlags,
-  TransactionPayBridgeQuote,
-  BridgeQuoteRequest,
-} from './types';
 import { TransactionPayStrategy } from '../..';
 import { projectLogger } from '../../logger';
 import type {
@@ -29,6 +24,11 @@ import type {
 } from '../../types';
 import { calculateGasCost, calculateTransactionGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
+import type {
+  BridgeFeatureFlags,
+  TransactionPayBridgeQuote,
+  BridgeQuoteRequest,
+} from './types';
 
 const ERROR_MESSAGE_NO_QUOTES = 'No quotes found';
 const ERROR_MESSAGE_ALL_QUOTES_UNDER_MINIMUM = 'All quotes under minimum';
@@ -515,12 +515,14 @@ function normalizeQuote(
     sourceFiatRate.usdRate,
   );
 
-  const targetAmount = calculateAmount(
+  const { fiat: targetAmountFiat, usd: targetAmountUsd } = calculateAmount(
     request.targetAmountMinimum,
     quote.quote.destAsset.decimals,
     targetFiatRate.fiatRate,
     targetFiatRate.usdRate,
   );
+
+  const targetAmount = { fiat: targetAmountFiat, usd: targetAmountUsd };
 
   const targetNetwork = calculateTransactionGasCost(transaction, messenger);
 
@@ -540,6 +542,7 @@ function normalizeQuote(
         .toString(10),
     },
     fees: {
+      metaMask: { usd: '0', fiat: '0' },
       provider: {
         fiat: new BigNumber(sourceAmount.fiat)
           .minus(targetAmountMinimumFiat.fiat)
@@ -554,6 +557,7 @@ function normalizeQuote(
     original: quote,
     request,
     sourceAmount,
+    targetAmount,
     strategy: TransactionPayStrategy.Bridge,
   };
 }

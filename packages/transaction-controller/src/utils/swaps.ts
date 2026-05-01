@@ -1,13 +1,13 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { merge, pickBy } from 'lodash';
 
-import { validateIfTransactionUnapproved } from './utils';
 import { CHAIN_IDS } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType } from '../types';
+import { rpcRequest } from './provider';
+import { validateIfTransactionUnapproved } from './utils';
 
 const log = createModuleLogger(projectLogger, 'swaps');
 
@@ -106,6 +106,12 @@ const MONAD_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   decimals: 18,
 } as const;
 
+const HYPEREVM_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  name: 'Hyperliquid',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+} as const;
+
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
   [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
@@ -118,6 +124,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.MONAD]: MONAD_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export const SWAP_TRANSACTION_TYPES = [
@@ -222,7 +229,8 @@ export function updateSwapsTransaction(
  *
  * @param transactionMeta - Transaction meta object to update
  * @param updatePostTransactionBalanceRequest - Dependency bag
- * @param updatePostTransactionBalanceRequest.ethQuery - EthQuery object
+ * @param updatePostTransactionBalanceRequest.messenger - The TransactionController messenger
+ * @param updatePostTransactionBalanceRequest.networkClientId - The network client ID
  * @param updatePostTransactionBalanceRequest.getTransaction - Reading function for the latest transaction state
  * @param updatePostTransactionBalanceRequest.updateTransaction - Updating transaction function
  * @returns Updated transaction metadata and approval transaction metadata if applicable.
@@ -230,11 +238,13 @@ export function updateSwapsTransaction(
 export async function updatePostTransactionBalance(
   transactionMeta: TransactionMeta,
   {
-    ethQuery,
+    messenger,
+    networkClientId,
     getTransaction,
     updateTransaction,
   }: {
-    ethQuery: EthQuery;
+    messenger: TransactionControllerMessenger;
+    networkClientId: NetworkClientId;
     getTransaction: (transactionId: string) => TransactionMeta | undefined;
     updateTransaction: (transactionMeta: TransactionMeta, note: string) => void;
   },
@@ -251,9 +261,12 @@ export async function updatePostTransactionBalance(
   for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
     log('Querying balance', { attempt: i });
 
-    const postTransactionBalance = await query(ethQuery, 'getBalance', [
-      transactionMeta.txParams.from,
-    ]);
+    const postTransactionBalance = (await rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'eth_getBalance',
+      params: [transactionMeta.txParams.from, 'latest'],
+    })) as string;
 
     latestTransactionMeta = {
       ...(getTransaction(transactionId) ?? ({} as TransactionMeta)),
@@ -263,7 +276,7 @@ export async function updatePostTransactionBalance(
       ? getTransaction(latestTransactionMeta.approvalTxId)
       : undefined;
 
-    latestTransactionMeta.postTxBalance = postTransactionBalance.toString(16);
+    latestTransactionMeta.postTxBalance = postTransactionBalance;
 
     const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
       transactionMeta.destinationTokenAddress as string,

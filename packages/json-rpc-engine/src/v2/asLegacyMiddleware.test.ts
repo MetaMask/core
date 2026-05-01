@@ -1,18 +1,19 @@
 import type {
+  Json,
   JsonRpcFailure,
   JsonRpcRequest,
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { asLegacyMiddleware } from './asLegacyMiddleware';
-import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 import {
   getExtraneousKeys,
   makeRequest,
   makeRequestMiddleware,
 } from '../../tests/utils';
 import { JsonRpcEngine } from '../JsonRpcEngine';
+import { asLegacyMiddleware } from './asLegacyMiddleware';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
 
 describe('asLegacyMiddleware', () => {
   it('converts a v2 engine to a legacy middleware', () => {
@@ -129,7 +130,8 @@ describe('asLegacyMiddleware', () => {
   it('propagates request modifications to the legacy engine', async () => {
     const v2Engine = JsonRpcEngineV2.create<JsonRpcMiddleware<JsonRpcRequest>>({
       middleware: [
-        ({ request, next }) => next({ ...request, method: 'test_request_2' }),
+        ({ request, next }): Promise<Readonly<Json> | undefined> =>
+          next({ ...request, method: 'test_request_2' }),
       ],
     });
 
@@ -154,7 +156,10 @@ describe('asLegacyMiddleware', () => {
   it('propagates additional request properties to the v2 context and back', async () => {
     const observedContextValues: number[] = [];
 
-    const v2Middleware = jest.fn((({ context, next }) => {
+    const v2Middleware = jest.fn((({
+      context,
+      next,
+    }): Promise<Readonly<Json> | undefined> => {
       observedContextValues.push(context.assertGet('value') as number);
 
       expect(Array.from(context.keys())).toStrictEqual(['value']);

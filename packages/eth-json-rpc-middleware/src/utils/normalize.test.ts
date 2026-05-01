@@ -1,3 +1,4 @@
+import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import deepFreeze from 'deep-freeze-strict';
 import { klona } from 'klona';
 
@@ -64,7 +65,9 @@ const MESSAGE_DATA_MOCK = {
 };
 
 describe('normalizeTypedMessage', () => {
-  const parseNormalizerResult = (data: Record<string, unknown>) => {
+  const parseNormalizerResult = (
+    data: Record<string, unknown>,
+  ): TypedMessage<MessageTypes> => {
     return JSON.parse(normalizeTypedMessage(JSON.stringify(data)));
   };
 

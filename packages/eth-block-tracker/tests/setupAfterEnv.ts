@@ -3,6 +3,10 @@ declare global {
   // defined.
   /* eslint-disable-next-line @typescript-eslint/no-namespace */
   namespace jest {
+    // The generic parameter `R` must match the type specified in the Jest
+    // types for custom matchers, and this must use an interface to
+    // properly augment the existing Jest types.
+    // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/consistent-type-definitions
     interface Matchers<R> {
       toNeverResolve(): Promise<R>;
     }
@@ -47,7 +51,7 @@ expect.extend({
    * @param promise - The promise to test.
    * @returns The result of the matcher.
    */
-  async toNeverResolve(promise: Promise<any>) {
+  async toNeverResolve(promise: Promise<unknown>) {
     if (this.isNot) {
       throw new Error(
         'Using `.not.toNeverResolve(...)` is not supported. ' +
@@ -56,8 +60,8 @@ expect.extend({
       );
     }
 
-    let resolutionValue: any;
-    let rejectionValue: any;
+    let resolutionValue: unknown;
+    let rejectionValue: unknown;
     try {
       resolutionValue = await Promise.race([
         promise,
@@ -69,16 +73,16 @@ expect.extend({
 
     return resolutionValue === UNRESOLVED
       ? {
-          message: () =>
+          message: (): string =>
             `Expected promise to resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it did not`,
           pass: true,
         }
       : {
-          message: () => {
+          message: (): string => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
-                ? `was rejected with ${rejectionValue}`
-                : `resolved with ${resolutionValue}`
+                ? `was rejected with ${this.utils.stringify(rejectionValue)}`
+                : `resolved with ${this.utils.stringify(resolutionValue)}`
             }`;
           },
           pass: false,

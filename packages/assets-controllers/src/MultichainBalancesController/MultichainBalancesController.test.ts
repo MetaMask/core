@@ -732,6 +732,148 @@ describe('MultichainBalancesController', () => {
         },
       });
     });
+
+    it('removes stale balances that are no longer present in MultichainAssetsController state', async () => {
+      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
+
+      const existingBalancesState = {
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken': {
+            amount: '5.00000000',
+            unit: 'SOL',
+          },
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
+            amount: '6.00000000',
+            unit: 'SOL',
+          },
+        },
+      };
+
+      const {
+        controller,
+        messenger,
+        mockGetAssetsState,
+        mockSnapHandleRequest,
+        mockListMultichainAccounts,
+      } = setupController({
+        state: {
+          balances: existingBalancesState,
+        },
+        mocks: {
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockSolanaAccountId1]: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken',
+              ],
+            },
+          },
+          handleRequestReturnValue: {
+            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
+              amount: '6.00000000',
+              unit: 'SOL',
+            },
+          },
+          listMultichainAccounts: [],
+        },
+      });
+
+      mockSnapHandleRequest.mockReset();
+      mockListMultichainAccounts.mockReset();
+
+      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
+      mockGetAssetsState.mockReturnValue({
+        accountsAssets: {
+          [mockSolanaAccountId1]: [
+            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken',
+          ],
+        },
+      });
+      mockSnapHandleRequest.mockResolvedValueOnce({
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
+          amount: '6.00000000',
+          unit: 'SOL',
+        },
+      });
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken'],
+            removed: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
+            ],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({
+        [mockSolanaAccountId1]: {
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
+            amount: '6.00000000',
+            unit: 'SOL',
+          },
+        },
+      });
+    });
+
+    it('clears balances when an account no longer has any assets after the update', async () => {
+      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
+
+      const {
+        controller,
+        messenger,
+        mockGetAssetsState,
+        mockListMultichainAccounts,
+      } = setupController({
+        state: {
+          balances: {
+            [mockSolanaAccountId1]: {
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken': {
+                amount: '5.00000000',
+                unit: 'SOL',
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [],
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockSolanaAccountId1]: [],
+            },
+          },
+          handleRequestReturnValue: {},
+        },
+      });
+
+      mockGetAssetsState.mockReturnValue({
+        accountsAssets: {
+          [mockSolanaAccountId1]: [],
+        },
+      });
+      mockListMultichainAccounts.mockReset();
+      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: [],
+            removed: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
+            ],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({
+        [mockSolanaAccountId1]: {},
+      });
+    });
   });
 
   it('resumes updating balances after unlocking KeyringController', async () => {
@@ -760,7 +902,7 @@ describe('MultichainBalancesController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -772,7 +914,7 @@ describe('MultichainBalancesController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -785,8 +927,8 @@ describe('MultichainBalancesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "balances": Object {},
+        {
+          "balances": {},
         }
       `);
     });
@@ -801,8 +943,8 @@ describe('MultichainBalancesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "balances": Object {},
+        {
+          "balances": {},
         }
       `);
     });
