@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Force unified-account abstraction mode for HyperLiquid users: deferred `dexAbstraction → unifiedAccount` migration triggered from withdraw, trade, and other action entry points so first trades and withdrawals see unified collateral ([#8658](https://github.com/MetaMask/core/pull/8658))
-- Mode-aware spot folding and tradeable-balance support across unified-mode flows ([#8658](https://github.com/MetaMask/core/pull/8658))
+- **BREAKING:** `HyperLiquidClientService` now forces the `dexAbstraction → unifiedAccount` migration via a new internal flow, deferred until first `withdraw`, `placeOrder`, or other action entry point so users see unified collateral on their first trade/withdrawal ([#8658](https://github.com/MetaMask/core/pull/8658))
+- **BREAKING:** `addSpotBalanceToAccountState` and `HyperLiquidSubscriptionService` are now mode-aware: spot USDC is only folded into tradeable collateral for `unifiedAccount` / `portfolioMargin` modes, and `userAbstraction` is propagated through subscriptions ([#8658](https://github.com/MetaMask/core/pull/8658))
 
 ### Changed
 
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep users on `portfolioMargin` mode and recover the resolved abstraction mode after migration instead of evicting it ([#8658](https://github.com/MetaMask/core/pull/8658))
 - Retry abstraction mode after transient `userAbstraction` failures and reset the memoized readiness promise after silent migration failures ([#8658](https://github.com/MetaMask/core/pull/8658))
 - Close WebSocket-vs-REST race that could fold spot for Standard users and preserve abstraction REST results across active subscribers ([#8658](https://github.com/MetaMask/core/pull/8658))
-- Drop the pre-fetch generation guard so `userAbstraction` always resolves; treat `#cachedSpotStateUserAddress` as an unambiguous spot owner ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Drop the pre-fetch generation guard so `userAbstraction` always resolves; treat cached balances as an unambiguous spot owner ([#8658](https://github.com/MetaMask/core/pull/8658))
 - Restore HyperLiquid withdrawal for Unified Account Mode users and support arb USDC withdraw balance in unified mode ([#8658](https://github.com/MetaMask/core/pull/8658))
 - Harden unified-account migration handling and close MM Pay `$0` + analytics gaps ([#8658](https://github.com/MetaMask/core/pull/8658))
 
