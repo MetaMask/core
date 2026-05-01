@@ -144,9 +144,6 @@ function minimalAuthenticationResponse(
   } as PasskeyAuthenticationResponse;
 }
 
-/**
- * Sets up mocks for a full registration + protect flow.
- */
 function setupRegistrationMocks(): void {
   mockVerifyRegistrationResponse.mockResolvedValue({
     verified: true,
@@ -175,11 +172,6 @@ function setupAuthenticationMocks(): void {
   });
 }
 
-/**
- * Completes enrollment with a post-registration `get()` credential (same flow
- * as production): post-reg auth options, synthetic auth response, then
- * {@link PasskeyController.protectVaultKeyWithPasskey}.
- */
 async function enrollWithPostRegistrationAuth(
   controller: PasskeyController,
   options: {
@@ -471,20 +463,21 @@ describe('PasskeyController', () => {
 
     it('throws when passkey is already enrolled', async () => {
       setupRegistrationMocks();
-      const controller = createController();
-      const regOpts = controller.generateRegistrationOptions();
-      controller.update((state) => {
-        state.passkeyRecord = {
-          credential: {
-            id: TEST_CREDENTIAL_ID,
-            publicKey: TEST_PUBLIC_KEY,
-            counter: 0,
-            transports: ['internal'],
-            aaguid: '00000000-0000-0000-0000-000000000000',
+      const regOpts = createController().generateRegistrationOptions();
+      const controller = createController({
+        state: {
+          passkeyRecord: {
+            credential: {
+              id: TEST_CREDENTIAL_ID,
+              publicKey: TEST_PUBLIC_KEY,
+              counter: 0,
+              transports: ['internal'],
+              aaguid: '00000000-0000-0000-0000-000000000000',
+            },
+            encryptedVaultKey: { ciphertext: 'YQ', iv: 'Yg' },
+            keyDerivation: { method: 'userHandle' },
           },
-          encryptedVaultKey: { ciphertext: 'YQ', iv: 'Yg' },
-          keyDerivation: { method: 'userHandle' },
-        };
+        },
       });
       await expect(
         controller.protectVaultKeyWithPasskey({
