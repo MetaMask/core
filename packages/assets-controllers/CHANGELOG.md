@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Correct the seeded mUSD token decimals from `18` to `6` in `TokensController` defaults so the tracked token metadata matches contract precision ([#8664](https://github.com/MetaMask/core/pull/8664))
+- Correct the seeded mUSD token decimals from `18` to `6` in `TokensController` and `TokenDetectionController` defaults so tracked token metadata matches contract precision ([#8664](https://github.com/MetaMask/core/pull/8664))
 
 ## [105.0.0]
 
