@@ -4585,6 +4585,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-api-middleware@workspace:packages/multichain-api-middleware"
   dependencies:
+    "@metamask/accounts-controller": "npm:^37.2.0"
     "@metamask/api-specs": "npm:^0.14.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/chain-agnostic-permission": "npm:^1.5.0"
@@ -4596,6 +4597,7 @@ __metadata:
     "@metamask/permission-controller": "npm:^12.3.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
+    "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@open-rpc/meta-schema": "npm:^1.14.6"
     "@open-rpc/schema-utils-js": "npm:^2.0.5"

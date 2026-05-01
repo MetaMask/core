@@ -27,14 +27,8 @@ export {
   createPermissionMiddlewareV2,
   type PermissionMiddlewareActions,
 } from './permission-middleware';
-export type {
-  ExtractSpecifications,
-  HandlerMiddlewareFunction,
-  HookNames,
-  PermittedHandlerExport,
-} from './utils';
+export type { ExtractSpecifications } from './utils';
 export { MethodNames } from './utils';
-export * as permissionRpcMethods from './rpc-methods';
 export * from './SubjectMetadataController';
 export type {
   SubjectMetadataControllerClearStateAction,

@@ -1,19 +1,32 @@
-import type {
-  Caip25CaveatValue,
-  NormalizedScopesObject,
-} from '@metamask/chain-agnostic-permission';
+import type { NormalizedScopesObject } from '@metamask/chain-agnostic-permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
   getSessionScopes,
 } from '@metamask/chain-agnostic-permission';
-import type { Caveat } from '@metamask/permission-controller';
-import type { CaipAccountId } from '@metamask/utils';
 import type {
-  CaipChainId,
+  JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+  MethodHandler,
+} from '@metamask/json-rpc-engine';
+import type {
+  JsonRpcParams,
   JsonRpcRequest,
-  JsonRpcSuccess,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
+
+import type {
+  Caip25Caveat,
+  GetCaveatForOriginHook,
+  GetNonEvmSupportedMethodsHook,
+  SortAccountIdsByLastSelectedHook,
+} from './types';
+
+type WalletGetSessionResult = { sessionScopes: NormalizedScopesObject };
+
+export type WalletGetSessionHooks = GetCaveatForOriginHook &
+  GetNonEvmSupportedMethodsHook &
+  SortAccountIdsByLastSelectedHook;
 
 /**
  * Handler for the `wallet_getSession` RPC method as specified by [CAIP-312](https://chainagnostic.org/CAIPs/caip-312).
@@ -31,28 +44,19 @@ import type {
  * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by corresponding last selected account in the wallet.
  * @returns Nothing.
  */
-async function walletGetSessionHandler(
+async function handleWalletGetSession(
   _request: JsonRpcRequest & { origin: string },
-  response: JsonRpcSuccess<{ sessionScopes: NormalizedScopesObject }>,
-  _next: () => void,
-  end: () => void,
-  hooks: {
-    getCaveatForOrigin: (
-      endowmentPermissionName: string,
-      caveatType: string,
-    ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-    sortAccountIdsByLastSelected: (
-      accounts: CaipAccountId[],
-    ) => CaipAccountId[];
-  },
+  response: PendingJsonRpcResponse<WalletGetSessionResult>,
+  _next: JsonRpcEngineNextCallback,
+  end: JsonRpcEngineEndCallback,
+  hooks: WalletGetSessionHooks,
 ) {
-  let caveat;
+  let caveat: Caip25Caveat | undefined;
   try {
     caveat = hooks.getCaveatForOrigin(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
-    );
+    ) as Caip25Caveat | undefined;
   } catch {
     // noop
   }
@@ -71,12 +75,19 @@ async function walletGetSessionHandler(
   return end();
 }
 
-export const walletGetSession = {
-  methodNames: ['wallet_getSession'],
-  implementation: walletGetSessionHandler,
+export type WalletGetSessionHandler = MethodHandler<
+  WalletGetSessionHooks,
+  never,
+  JsonRpcParams,
+  WalletGetSessionResult,
+  { origin: string }
+>;
+
+export const walletGetSessionHandler = {
+  implementation: handleWalletGetSession,
   hookNames: {
     getCaveatForOrigin: true,
     getNonEvmSupportedMethods: true,
     sortAccountIdsByLastSelected: true,
   },
-};
+} satisfies WalletGetSessionHandler;

@@ -1326,7 +1326,7 @@
   },
   "packages/multichain-api-middleware/src/handlers/wallet-createSession.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
+      "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 2
@@ -2005,11 +2005,6 @@
     }
   },
   "packages/ramps-controller/src/RampsController.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/ramps-controller/src/RampsController.ts": {
     "no-restricted-syntax": {
       "count": 1
     }

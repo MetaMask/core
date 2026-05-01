@@ -20,7 +20,7 @@ const MUSD_METADATA: FungibleAssetMetadata = {
   type: 'erc20',
   symbol: 'mUSD',
   name: 'MetaMask USD',
-  decimals: 18,
+  decimals: 6,
 };
 
 /**

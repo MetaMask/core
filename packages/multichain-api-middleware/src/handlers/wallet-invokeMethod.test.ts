@@ -2,7 +2,7 @@ import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permiss
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
 import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
-import { walletInvokeMethod } from './wallet-invokeMethod';
+import { walletInvokeMethodHandler } from './wallet-invokeMethod';
 
 // Allow individual modules to be mocked
 jest.mock('@metamask/chain-agnostic-permission', () => ({
@@ -62,7 +62,7 @@ const createMockedHandler = () => {
   const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
   const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
-    walletInvokeMethod.implementation(request, response, next, end, {
+    walletInvokeMethodHandler.implementation(request, response, next, end, {
       getCaveatForOrigin,
       findNetworkClientIdByChainId,
       getSelectedNetworkClientId,
@@ -116,6 +116,22 @@ describe('wallet_invokeMethod', () => {
           accounts: ['nonevm:scope:0x1'],
         },
       });
+  });
+
+  it('returns invalid params when params is not a plain object', async () => {
+    const { handler, end, getCaveatForOrigin, next } = createMockedHandler();
+    const request = {
+      ...createMockedRequest(),
+      params: [
+        'not-a-plain-object',
+      ] as unknown as WalletInvokeMethodRequest['params'],
+    };
+    await handler(request);
+    expect(end).toHaveBeenCalledWith(
+      rpcErrors.invalidParams({ data: { request } }),
+    );
+    expect(getCaveatForOrigin).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {

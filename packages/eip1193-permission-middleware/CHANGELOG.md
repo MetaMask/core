@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Consolidate method handlers into a single `methodHandlers` export ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - The individual handler exports have been removed. They can still be accessed as properties on the `methodHandlers` export.
+  - The new handlers follow the format expected by `createMethodMiddleware` from `@metamask/json-rpc-engine@10.3.0`.
+  - The hook types have been updated to cohere with the corresponding `@metamask/permission-controller` methods.
 - Bump `@metamask/chain-agnostic-permission` from `^1.4.0` to `^1.5.0` ([#8290](https://github.com/MetaMask/core/pull/8290))
 - Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.4` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))

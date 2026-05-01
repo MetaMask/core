@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `factoryHooks`, `validatorHooks`, and related fields from permission specification builders ([#8551](https://github.com/MetaMask/core/pull/8551))
+- **BREAKING:** Remove permitted method handlers and types ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - The permitted method handlers were unused in practice. Replacement types for generic RPC method implementations are available in `@metamask/json-rpc-engine@10.3.0`.
 
 ## [12.3.0]
 

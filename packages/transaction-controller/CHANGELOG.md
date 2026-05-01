@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `decodeAuthorizationSignature` utility that decodes a 65-byte EIP-7702 authorization signature into RLP-canonical `r`, `s`, and `yParity` ([#8656](https://github.com/MetaMask/core/pull/8656))
+  - All `eth_sendRawTransaction` failures are prefixed `RPC submit:` for failure-surface attribution in error metrics
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
