@@ -511,13 +511,12 @@ describe('PasskeyController', () => {
 
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
-      const regResp = minimalRegistrationResponse(
-        undefined,
-        regOpts.challenge,
+      const regResp = minimalRegistrationResponse(undefined, regOpts.challenge);
+      const authOpts = controller.generatePostRegistrationAuthenticationOptions(
+        {
+          registrationResponse: regResp,
+        },
       );
-      const authOpts = controller.generatePostRegistrationAuthenticationOptions({
-        registrationResponse: regResp,
-      });
       const authResp = minimalAuthenticationResponse(
         regOpts.user.id,
         undefined,
@@ -540,13 +539,12 @@ describe('PasskeyController', () => {
 
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
-      const regResp = minimalRegistrationResponse(
-        undefined,
-        regOpts.challenge,
+      const regResp = minimalRegistrationResponse(undefined, regOpts.challenge);
+      const authOpts = controller.generatePostRegistrationAuthenticationOptions(
+        {
+          registrationResponse: regResp,
+        },
       );
-      const authOpts = controller.generatePostRegistrationAuthenticationOptions({
-        registrationResponse: regResp,
-      });
       const authResp = minimalAuthenticationResponse(
         regOpts.user.id,
         undefined,
@@ -572,13 +570,12 @@ describe('PasskeyController', () => {
 
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
-      const regResp = minimalRegistrationResponse(
-        undefined,
-        regOpts.challenge,
+      const regResp = minimalRegistrationResponse(undefined, regOpts.challenge);
+      const authOpts = controller.generatePostRegistrationAuthenticationOptions(
+        {
+          registrationResponse: regResp,
+        },
       );
-      const authOpts = controller.generatePostRegistrationAuthenticationOptions({
-        registrationResponse: regResp,
-      });
       const authResp = minimalAuthenticationResponse(
         regOpts.user.id,
         undefined,

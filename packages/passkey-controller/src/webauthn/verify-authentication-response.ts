@@ -159,9 +159,7 @@ export async function verifyAuthenticationResponse(opts: {
   const { rpIdHash, flags, counter } = parsedAuthData;
 
   const matchedRPID =
-  expectedRPIDs.length > 0
-      ? matchExpectedRPID(rpIdHash, expectedRPIDs)
-      : '';
+    expectedRPIDs.length > 0 ? matchExpectedRPID(rpIdHash, expectedRPIDs) : '';
 
   // WebAuthn only requires the user presence flag be true
   if (!flags.up) {

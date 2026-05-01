@@ -35,7 +35,9 @@ function makeAuthenticationResponse(
   };
 }
 
-function makeRecord(derivationMethod: 'prf' | 'userHandle'): Pick<PasskeyRecord, 'credential' | 'keyDerivation'> {
+function makeRecord(
+  derivationMethod: 'prf' | 'userHandle',
+): Pick<PasskeyRecord, 'credential' | 'keyDerivation'> {
   return {
     credential: {
       id: CREDENTIAL_ID,

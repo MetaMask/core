@@ -1,10 +1,10 @@
-import { base64URLToBytes } from './encoding';
 import {
   decryptWithKey,
   deriveEncryptionKey,
   encryptWithKey,
   randomBytesToBase64URL,
 } from './crypto';
+import { base64URLToBytes } from './encoding';
 
 describe('crypto', () => {
   describe('randomBytesToBase64URL', () => {

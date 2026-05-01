@@ -468,7 +468,10 @@ export class PasskeyController extends BaseController<
       // persist passkey record
       this.update((state) => {
         state.passkeyRecord = {
-          credential: { ...credential, counter: Math.max(newCounter, credential.counter) },
+          credential: {
+            ...credential,
+            counter: Math.max(newCounter, credential.counter),
+          },
           encryptedVaultKey: { ciphertext, iv },
           keyDerivation,
         };

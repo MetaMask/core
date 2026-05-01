@@ -3,10 +3,7 @@ import {
   PasskeyControllerErrorMessage,
 } from './constants';
 import { PasskeyControllerError } from './errors';
-import type {
-  PasskeyRecord,
-  PrfClientExtensionResults,
-} from './types';
+import type { PasskeyRecord, PrfClientExtensionResults } from './types';
 import { deriveEncryptionKey } from './utils/crypto';
 import { base64URLToBytes } from './utils/encoding';
 import type { PasskeyAuthenticationResponse } from './webauthn/types';

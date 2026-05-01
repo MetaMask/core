@@ -23,10 +23,10 @@ For enrollment, the wrapping key is always derived from the **post-registration*
 
 The controller supports two key derivation methods, selected automatically during enrollment:
 
-| Strategy       | When used                                                                                                                                      | Input key material                                                                 |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Strategy       | When used                                                                                                                                           | Input key material                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | **PRF**        | Post-registration assertion includes non-empty [PRF extension](https://w3c.github.io/webauthn/#prf-extension) output and registration used PRF salt | PRF evaluation output from the assertion (ceremony `prfSalt` is stored on the record) |
-| **userHandle** | Otherwise                                                                                                                                      | Random `userHandle` from registration (asserted on the post-registration `get()`)    |
+| **userHandle** | Otherwise                                                                                                                                           | Random `userHandle` from registration (asserted on the post-registration `get()`)     |
 
 Both strategies feed the input key material through **HKDF-SHA256** with the credential ID as salt and a fixed info string to produce the 32-byte AES-256 wrapping key.
 
@@ -62,13 +62,17 @@ const controller = new PasskeyController({
 const regOptions = controller.generateRegistrationOptions();
 
 // 2. Create the passkey in the browser
-const regResponse = await navigator.credentials.create({ publicKey: regOptions });
+const regResponse = await navigator.credentials.create({
+  publicKey: regOptions,
+});
 
 // 3. Post-registration authentication (same wrapping-key path as unlock)
 const authOptions = controller.generatePostRegistrationAuthenticationOptions({
   registrationResponse: regResponse,
 });
-const authResponse = await navigator.credentials.get({ publicKey: authOptions });
+const authResponse = await navigator.credentials.get({
+  publicKey: authOptions,
+});
 
 // 4. Verify registration + post-registration auth once, then persist
 await controller.protectVaultKeyWithPasskey({
