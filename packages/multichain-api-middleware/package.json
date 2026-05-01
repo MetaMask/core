@@ -51,7 +51,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^37.2.0",
+    "@metamask/accounts-controller": "^38.0.0",
     "@metamask/api-specs": "^0.14.0",
     "@metamask/chain-agnostic-permission": "^1.5.0",
     "@metamask/controller-utils": "^11.20.0",
@@ -68,7 +68,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
-    "@metamask/multichain-transactions-controller": "^7.0.4",
+    "@metamask/multichain-transactions-controller": "^7.1.0",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
