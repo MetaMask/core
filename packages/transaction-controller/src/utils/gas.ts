@@ -31,7 +31,7 @@ import {
 } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { getChainId, rpcRequest } from './provider';
-import { decodeRevert } from './revert-reason';
+import { decodeRevert, extractRevertDataHex } from './revert-reason';
 
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;
@@ -194,7 +194,7 @@ export async function estimateGas({
       },
     };
 
-    gasRevert = decodeRevert(error, 'gas');
+    gasRevert = decodeRevert(extractRevertDataHex(error), 'gas');
 
     log('Estimation failed', { ...simulationFails, fallback, gasRevert });
   }

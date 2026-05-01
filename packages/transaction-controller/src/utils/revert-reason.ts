@@ -31,32 +31,28 @@ const PANIC_CODE_MESSAGES: Record<string, string> = {
 };
 
 /**
- * Decode raw EVM revert data into a `Revert` containing both the decoded
- * human-readable message and the original raw `data`. Accepts either the
- * raw hex string directly or a thrown JSON-RPC error from which `data`
- * (or nested `data.data` on some forks) is extracted. Handles
+ * Decode raw EVM revert data hex into a `Revert` containing both the
+ * decoded human-readable message and the original raw `data`. Handles
  * `Error(string)`, `Panic(uint256)`, and falls back to a raw
  * `Custom error: 0x<selector>` reference for unknown custom errors.
  *
- * @param input - Raw revert data hex, or a thrown JSON-RPC error.
+ * @param data - Raw revert data hex.
  * @param source - Optional label included in debug logs to identify the
  * caller (e.g. `gas`, `simulation`).
  * @returns A `Revert` if any data was found, otherwise `undefined`.
  */
 export function decodeRevert(
-  input: unknown,
+  data: Hex | undefined,
   source?: string,
 ): Revert | undefined {
-  const data = toRevertDataHex(input);
-  const message = decodeMessage(data);
-
-  if (!message && !data) {
+  if (!data || data === '0x') {
     return undefined;
   }
 
+  const message = decodeMessage(data);
   const revert: Revert = {
     ...(message ? { message } : {}),
-    ...(data ? { data } : {}),
+    data,
   };
 
   logRevert(source, revert);
@@ -108,13 +104,16 @@ export async function extractRevert({
     await rpcRequest({
       messenger,
       networkClientId,
+      // `eth_estimateGas` is used instead of `eth_call` to bypass
+      // `RetryOnEmptyMiddleware`, which retries reverted `eth_call`
+      // responses and discards the original revert data.
       method: 'eth_estimateGas',
       params: [callParams],
     });
     logRevert('receipt', undefined);
     return undefined;
   } catch (error: unknown) {
-    return decodeRevert(error, 'receipt');
+    return decodeRevert(extractRevertDataHex(error), 'receipt');
   }
 }
 
@@ -134,20 +133,14 @@ export class OnChainFailureError extends Error {
 }
 
 /**
- * Coerce input to a non-empty revert data hex string. Accepts either:
- *   - A `0x`-prefixed hex string directly.
- *   - A thrown JSON-RPC error with `data` (standard) or nested
- *     `data.data` (some older node forks).
+ * Extract the revert data hex from a thrown JSON-RPC error. Reads `data`
+ * (standard) or nested `data.data` (some older node forks).
  *
- * @param input - Raw hex or thrown error.
- * @returns The revert data hex, or `undefined`.
+ * @param error - The thrown error from a JSON-RPC call.
+ * @returns The revert data hex, or `undefined` if none present.
  */
-function toRevertDataHex(input: unknown): Hex | undefined {
-  if (isHex(input)) {
-    return input === '0x' ? undefined : (input as Hex);
-  }
-
-  const data = (input as { data?: unknown } | null)?.data;
+export function extractRevertDataHex(error: unknown): Hex | undefined {
+  const data = (error as { data?: unknown } | null)?.data;
   if (isHex(data) && data !== '0x') {
     return data as Hex;
   }
@@ -193,8 +186,7 @@ function decodeMessage(data: Hex | undefined): string | undefined {
         { toHexString: () => string },
       ];
       const codeHex = code.toHexString().toLowerCase() as Hex;
-      const description = PANIC_CODE_MESSAGES[codeHex] ?? 'Unknown panic code';
-      return `Panic (${codeHex}): ${description}`;
+      return PANIC_CODE_MESSAGES[codeHex] ?? 'Unknown panic';
     } catch {
       return undefined;
     }
