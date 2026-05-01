@@ -35,7 +35,7 @@ describe('CeremonyManager', () => {
       const manager = new CeremonyManager();
       const tOld = 100_000;
       const tNew = 150_000;
-      const pruneAt = 200_000;
+      const pruneAt = tOld + CEREMONY_MAX_AGE_MS + 1;
       jest.setSystemTime(tOld);
       manager.saveRegistrationCeremony('old', {
         ...baseReg,
