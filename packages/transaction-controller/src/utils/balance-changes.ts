@@ -39,7 +39,7 @@ import type {
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 import { getNativeBalance } from './balance';
-import { decodeRevertData } from './extract-revert-reason';
+import { decodeRevert } from './revert';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
@@ -682,16 +682,10 @@ function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
 function extractRootRevert(
   call?: SimulationResponseCallTrace,
 ): Revert | undefined {
-  if (!call?.error || !call.output) {
+  if (!call?.error) {
     return undefined;
   }
-
-  const message = decodeRevertData(call.output);
-
-  return {
-    ...(message === undefined ? {} : { message }),
-    data: call.output,
-  };
+  return decodeRevert(call.output);
 }
 
 /**

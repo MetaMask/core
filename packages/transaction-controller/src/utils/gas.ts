@@ -29,9 +29,9 @@ import {
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
 } from './eip7702';
-import { logRevert, revertFromError } from './extract-revert-reason';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
 import { getChainId, rpcRequest } from './provider';
+import { logRevert, revertFromError } from './revert';
 
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;
@@ -78,7 +78,7 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
   }
 
   if (simulationFails) {
-    logRevert('gas', txMeta.id, { revert: gasRevert });
+    logRevert('gas', txMeta.id, gasRevert);
   }
 
   if (!initialParams.gas) {

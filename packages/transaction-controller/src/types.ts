@@ -27,32 +27,27 @@ type MakeJsonCompatible<T> = T extends Json
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
- * Decoded revert information from a single source (gas estimation,
- * simulation, or post-failure receipt replay).
+ * Decoded revert from a single lifecycle source.
  */
 export type Revert = {
-  /** Decoded human-readable revert reason, when available. */
+  /** Decoded human-readable revert reason. */
   message?: string;
 
-  /**
-   * Raw revert data hex returned by the EVM. Preserved so consumers can
-   * decode custom errors that the controller does not know about.
-   */
+  /** Raw revert data hex returned by the EVM. */
   data?: Hex;
 };
 
 /**
- * Revert information collected from one or more stages of a transaction's
- * lifecycle. Each source is independent and optional.
+ * Revert information across each stage where a transaction can fail.
  */
-export type RevertSources = {
-  /** Revert observed during pre-confirmation gas estimation. */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
   gas?: Revert;
 
-  /** Revert observed during transaction simulation (root call frame). */
+  /** Revert from the simulation API's root call frame. */
   simulation?: Revert;
 
-  /** Revert observed after on-chain failure, via receipt replay. */
+  /** Revert from on-chain failure, via receipt replay. */
   receipt?: Revert;
 };
 
@@ -446,23 +441,8 @@ export type TransactionMeta = {
    */
   retryCount?: number;
 
-  /**
-   * Revert information collected from each stage where a transaction can
-   * fail. Each source is independent and optional:
-   *
-   * - `gas`: populated when `eth_estimateGas` reverts during transaction
-   *   creation, allowing UI to predict failure before the user confirms.
-   * - `simulation`: populated from the root call frame returned by the
-   *   transaction simulation API when simulation indicates a revert.
-   * - `receipt`: populated when an on-chain receipt has a failed status,
-   *   by replaying the transaction via `eth_estimateGas` against the
-   *   receipt's block.
-   *
-   * Each entry contains an optional decoded `message` and the optional
-   * raw `data` hex returned by the EVM, allowing consumers to render the
-   * decoded reason or perform their own decoding (e.g. for custom errors).
-   */
-  revert?: RevertSources;
+  /** Decoded revert information from each lifecycle source. */
+  revert?: RevertData;
 
   /**
    * The transaction's 's' value as a hex string.

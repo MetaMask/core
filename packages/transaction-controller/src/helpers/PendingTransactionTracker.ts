@@ -13,14 +13,11 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 import {
-  extractRevert,
-  OnChainFailureError,
-} from '../utils/extract-revert-reason';
-import {
   getAcceleratedPollingParams,
   getTimeoutAttempts,
 } from '../utils/feature-flags';
 import { getChainId, rpcRequest } from '../utils/provider';
+import { extractRevert, OnChainFailureError } from '../utils/revert';
 import { TransactionPoller } from './TransactionPoller';
 
 /**

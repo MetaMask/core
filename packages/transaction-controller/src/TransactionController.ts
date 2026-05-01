@@ -148,7 +148,6 @@ import {
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { logRevert } from './utils/extract-revert-reason';
 import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
@@ -178,6 +177,7 @@ import {
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getChainId, getNetworkClientId, rpcRequest } from './utils/provider';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
+import { logRevert } from './utils/revert';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -4333,7 +4333,7 @@ export class TransactionController extends BaseController<
       simulationRevert = balanceChangesResult.simulationRevert;
 
       if (simulationData.error) {
-        logRevert('simulation', transactionId, { revert: simulationRevert });
+        logRevert('simulation', transactionId, simulationRevert);
       }
 
       if (
@@ -4378,13 +4378,13 @@ export class TransactionController extends BaseController<
 
         if (!this.#isBalanceChangesSkipped(txMeta)) {
           txMeta.simulationData = simulationData;
-        }
 
-        if (simulationRevert) {
-          txMeta.revert = {
-            ...txMeta.revert,
-            simulation: simulationRevert,
-          };
+          if (simulationRevert) {
+            txMeta.revert = {
+              ...txMeta.revert,
+              simulation: simulationRevert,
+            };
+          }
         }
       },
     );
