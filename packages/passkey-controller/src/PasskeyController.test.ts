@@ -631,6 +631,66 @@ describe('PasskeyController', () => {
       expect(record?.keyDerivation.method).toBe('userHandle');
     });
 
+    it('throws when post-registration assertion userHandle does not match the registration ceremony', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      const regResp = minimalRegistrationResponse(undefined, regOpts.challenge);
+      const authOpts = controller.generatePostRegistrationAuthenticationOptions(
+        {
+          registrationResponse: regResp,
+        },
+      );
+      const wrongUserHandle = bytesToBase64URL(new Uint8Array(64).fill(0xbb));
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: regResp,
+          authenticationResponse: minimalAuthenticationResponse(
+            wrongUserHandle,
+            undefined,
+            authOpts.challenge,
+          ),
+          vaultKey: 'k',
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+      });
+
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+    });
+
+    it('throws when userHandle derivation is required but assertion omits userHandle', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions({
+        prfAvailable: false,
+      });
+      const regResp = minimalRegistrationResponse(undefined, regOpts.challenge);
+      const authOpts = controller.generatePostRegistrationAuthenticationOptions(
+        {
+          registrationResponse: regResp,
+        },
+      );
+      const authResp = minimalAuthenticationResponse(
+        undefined,
+        undefined,
+        authOpts.challenge,
+      );
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: regResp,
+          authenticationResponse: authResp,
+          vaultKey: 'k',
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.AuthenticationVerificationFailed,
+      });
+    });
+
     it('uses prf derivation when extension results include PRF output', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `protectVaultKeyWithPasskey` rejects post-registration assertions whose `userHandle` is missing or does not match the in-flight registration ceremony when using `userHandle` key derivation (assertion `userHandle` is not signature-bound).
+
 ### Changed
 
 - **BREAKING:** `PasskeyController` constructor option `rpID` is replaced with `expectedRPID: string | string[]` (normalized to a string array, which may be empty). Optional `rpId` sets `rp.id` / `rpId` in generated WebAuthn options; when omitted, those fields are omitted. Verification passes that array to `verifyRegistrationResponse` / `verifyAuthenticationResponse` as `expectedRPIDs`.

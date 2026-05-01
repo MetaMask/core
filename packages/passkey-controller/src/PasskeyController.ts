@@ -458,6 +458,20 @@ export class PasskeyController extends BaseController<
           ? { method: 'prf', prfSalt: registrationCeremony.prfSalt }
           : { method: 'userHandle' };
 
+      if (
+        keyDerivation.method === 'userHandle' &&
+        authenticationResponse.response.userHandle !==
+          registrationCeremony.userHandle
+      ) {
+        log(
+          'Post-registration assertion userHandle does not match registration ceremony',
+        );
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+          { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+        );
+      }
+
       // derive key and encrypt vault key
       const encKey = deriveKeyFromAuthenticationResponse(
         authenticationResponse,
