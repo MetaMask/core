@@ -10,7 +10,7 @@ export type {
 export type {
   ChompApiServiceAssociateAddressAction,
   ChompApiServiceCreateUpgradeAction,
-  ChompApiServiceGetUpgradeAction,
+  ChompApiServiceGetUpgradesAction,
   ChompApiServiceVerifyDelegationAction,
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
@@ -18,13 +18,16 @@ export type {
   ChompApiServiceGetServiceDetailsAction,
 } from './chomp-api-service-method-action-types';
 export type {
+  AccountUpgradeStatus,
   AssociateAddressParams,
   AssociateAddressResponse,
+  AuthorizationData,
   CreateUpgradeParams,
+  CreateUpgradeResponse,
   CreateWithdrawalParams,
   CreateWithdrawalResponse,
   DelegationCaveat,
-  UpgradeResponse,
+  UpgradeEntry,
   IntentEntry,
   IntentMetadataParams,
   IntentMetadataResponse,

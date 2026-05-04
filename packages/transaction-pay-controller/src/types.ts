@@ -1,6 +1,6 @@
 import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
 import type {
-  CurrencyRateControllerActions,
+  CurrencyRateControllerGetStateAction,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
@@ -8,10 +8,13 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { BridgeControllerActions } from '@metamask/bridge-controller';
+import type { BridgeControllerFetchQuotesAction } from '@metamask/bridge-controller';
 import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
-import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
-import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
+import type {
+  BridgeStatusControllerGetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+} from '@metamask/bridge-status-controller';
+import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
@@ -20,7 +23,11 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
-import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
+import type { Quote as RampsQuote } from '@metamask/ramps-controller';
+import type {
+  RampsControllerGetQuotesAction,
+  RampsControllerGetStateAction,
+} from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -47,15 +54,17 @@ import type { TransactionPayControllerMethodActions } from './TransactionPayCont
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AssetsControllerGetStateForTransactionPayAction
-  | BridgeControllerActions
-  | BridgeStatusControllerActions
-  | CurrencyRateControllerActions
-  | GasFeeControllerActions
+  | BridgeControllerFetchQuotesAction
+  | BridgeStatusControllerGetStateAction
+  | BridgeStatusControllerSubmitTxAction
+  | CurrencyRateControllerGetStateAction
+  | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RampsControllerGetQuotesAction
+  | RampsControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -238,6 +247,9 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
+
+  /** The ramps quote received from the ramps provider. */
+  rampsQuote?: RampsQuote;
 
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId?: string;
@@ -464,6 +476,13 @@ export type PayStrategyGetQuotesRequest = {
   /** Quote requests for required tokens. */
   requests: QuoteRequest[];
 
+  /**
+   * Signal that aborts when a newer quote request supersedes this one.
+   * Strategies that perform their own network IO should forward this to
+   * their fetch calls so cancelled requests release network resources.
+   */
+  signal?: AbortSignal;
+
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
 };
@@ -493,6 +512,9 @@ export type PayStrategyGetBatchRequest<OriginalQuote> = {
 
   /** Quotes for required tokens. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
 };
 
 /** Request to check whether retrieved quotes can be executed by a strategy. */
@@ -502,6 +524,9 @@ export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
 
   /** Quotes returned by the strategy. */
   quotes: TransactionPayQuote<OriginalQuote>[];
+
+  /** Signal that aborts when a newer quote request supersedes this one. */
+  signal?: AbortSignal;
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;

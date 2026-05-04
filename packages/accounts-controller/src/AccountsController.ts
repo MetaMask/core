@@ -9,6 +9,7 @@ import type {
   SnapKeyringAccountBalancesUpdatedEvent,
   SnapKeyringAccountTransactionsUpdatedEvent,
 } from '@metamask/eth-snap-keyring';
+import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import {
   EthAccountType,
@@ -17,6 +18,7 @@ import {
   isEvmAccountType,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
@@ -47,6 +49,7 @@ import {
   isHdSnapKeyringAccount,
   isMoneyKeyringType,
   isSnapKeyringType,
+  isSnapKeyringV2Type,
   keyringTypeToName,
 } from './utils';
 
@@ -842,6 +845,66 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Get an account from a Snap keyring v1.
+   *
+   * @param address - The address of the account to retrieve.
+   * @returns The Snap account if available.
+   */
+  #getAccountFromSnapKeyringV1(address: string): InternalAccount | undefined {
+    const snapKeyring = this.#getSnapKeyring();
+
+    // We need the Snap keyring to retrieve the account from its address.
+    if (!snapKeyring) {
+      return undefined;
+    }
+
+    // This might be undefined if the Snap deleted the account before
+    // reaching that point.
+    return snapKeyring.getAccountByAddress(address);
+  }
+
+  /**
+   * Get an account from a Snap keyring v2.
+   *
+   * @param address - The address of the account to retrieve.
+   * @returns The Snap account if available.
+   */
+  #getAccountFromSnapKeyringV2(address: string): InternalAccount | undefined {
+    const keyrings = this.messenger.call(
+      'KeyringController:getKeyringsByType',
+      KeyringType.Snap,
+    );
+
+    // Snap keyring v2 are "per-Snaps", so we need to iterate over all of them to find the account.
+    for (const keyring of keyrings) {
+      if (keyring instanceof SnapKeyringV2) {
+        // We use the synchronous method here since this method is used during `:stateChange` that are
+        // use synchronous handlers.
+        const account = keyring.lookupByAddress(address);
+        if (account) {
+          return {
+            ...account,
+            // We still have to use internal account for now, so we inject some metadata.
+            metadata: {
+              name: '',
+              importTime: Date.now(),
+              lastSelected: 0,
+              keyring: {
+                type: KeyringType.Snap,
+              },
+              snap: {
+                id: keyring.snapId,
+              },
+            },
+          };
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
    * Re-publish an account event.
    *
    * @param event - The event type. This is a unique identifier for this event.
@@ -881,32 +944,16 @@ export class AccountsController extends BaseController<
     log('Synchronizing accounts with keyrings (through :stateChange)...');
 
     // State patches.
-    const generatePatch = (): StatePatch => {
-      return {
-        previous: {},
-        added: [],
-        updated: [],
-        removed: [],
-      };
-    };
-    const patches = {
-      snap: generatePatch(),
-      normal: generatePatch(),
-    };
-
-    // Gets the patch object based on the keyring type (since Snap accounts and other accounts
-    // are handled differently).
-    const patchOf = (type: string): StatePatch => {
-      if (isSnapKeyringType(type)) {
-        return patches.snap;
-      }
-      return patches.normal;
+    const patch: StatePatch = {
+      previous: {},
+      added: [],
+      updated: [],
+      removed: [],
     };
 
     // Create a map (with lower-cased addresses) of all existing accounts.
     for (const account of this.listMultichainAccounts()) {
       const address = account.address.toLowerCase();
-      const patch = patchOf(account.metadata.keyring.type);
 
       patch.previous[address] = account;
     }
@@ -919,8 +966,6 @@ export class AccountsController extends BaseController<
       if (isMoneyKeyringType(keyring.type)) {
         continue;
       }
-
-      const patch = patchOf(keyring.type);
 
       for (const accountAddress of keyring.accounts) {
         // Lower-case address to use it in the `previous` map.
@@ -945,12 +990,10 @@ export class AccountsController extends BaseController<
 
     // We might have accounts associated with removed keyrings, so we iterate
     // over all previous known accounts and check against the keyring addresses.
-    for (const patch of [patches.snap, patches.normal]) {
-      for (const [address, account] of Object.entries(patch.previous)) {
-        // If a previous address is not part of the new addesses, then it got removed.
-        if (!addresses.has(address)) {
-          patch.removed.push(account);
-        }
+    for (const [address, account] of Object.entries(patch.previous)) {
+      // If a previous address is not part of the new addesses, then it got removed.
+      if (!addresses.has(address)) {
+        patch.removed.push(account);
       }
     }
 
@@ -964,42 +1007,40 @@ export class AccountsController extends BaseController<
       (state) => {
         const { internalAccounts, accountIdByAddress } = state;
 
-        for (const patch of [patches.snap, patches.normal]) {
-          for (const account of patch.removed) {
-            delete internalAccounts.accounts[account.id];
-            delete accountIdByAddress[account.address];
+        for (const account of patch.removed) {
+          delete internalAccounts.accounts[account.id];
+          delete accountIdByAddress[account.address];
 
-            diff.removed.push(account.id);
-          }
+          diff.removed.push(account.id);
+        }
 
-          for (const added of patch.added) {
-            const account = this.#getInternalAccountFromAddressAndType(
-              added.address,
-              added.keyring,
-            );
+        for (const added of patch.added) {
+          const account = this.#getInternalAccountFromAddressAndType(
+            added.address,
+            added.keyring,
+          );
 
-            if (account) {
-              const accounts = Object.values(
-                internalAccounts.accounts,
-              ) as InternalAccount[];
+          if (account) {
+            const accounts = Object.values(
+              internalAccounts.accounts,
+            ) as InternalAccount[];
 
-              // If it's the first account, we need to select it.
-              const lastSelected =
-                accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+            // If it's the first account, we need to select it.
+            const lastSelected =
+              accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
 
-              internalAccounts.accounts[account.id] = {
-                ...account,
-                metadata: {
-                  ...account.metadata,
-                  importTime: Date.now(),
-                  lastSelected,
-                },
-              };
+            internalAccounts.accounts[account.id] = {
+              ...account,
+              metadata: {
+                ...account.metadata,
+                importTime: Date.now(),
+                lastSelected,
+              },
+            };
 
-              accountIdByAddress[account.address] = account.id;
+            accountIdByAddress[account.address] = account.id;
 
-              diff.added.push(internalAccounts.accounts[account.id]);
-            }
+            diff.added.push(internalAccounts.accounts[account.id]);
           }
         }
       },
@@ -1145,17 +1186,18 @@ export class AccountsController extends BaseController<
     address: string,
     keyring: KeyringObject,
   ): InternalAccount | undefined {
-    if (isSnapKeyringType(keyring.type)) {
-      const snapKeyring = this.#getSnapKeyring();
+    const isSnapKeyringV1 = isSnapKeyringType(keyring.type);
+    const isSnapKeyringV2 = isSnapKeyringV2Type(keyring.type);
 
-      // We need the Snap keyring to retrieve the account from its address.
-      if (!snapKeyring) {
-        return undefined;
+    if (isSnapKeyringV1 || isSnapKeyringV2) {
+      let account: InternalAccount | undefined;
+
+      if (isSnapKeyringV1) {
+        account = this.#getAccountFromSnapKeyringV1(address);
+      } else {
+        account = this.#getAccountFromSnapKeyringV2(address);
       }
 
-      // This might be undefined if the Snap deleted the account before
-      // reaching that point.
-      let account = snapKeyring.getAccountByAddress(address);
       if (account) {
         // We force the copy here, to avoid mutating the reference returned by the Snap keyring.
         account = cloneDeep(account);

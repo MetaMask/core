@@ -454,7 +454,13 @@ async function submitViaRelayExecute(
 
   log('Submitting via Relay execute', { executeBody, from });
 
-  const result = await submitRelayExecute(messenger, executeBody);
+  let result;
+  try {
+    result = await submitRelayExecute(messenger, executeBody);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Relay execute: ${message}`);
+  }
 
   log('Relay execute response', result);
 

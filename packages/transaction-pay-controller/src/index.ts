@@ -1,6 +1,7 @@
 export type {
   TransactionConfig,
   TransactionConfigCallback,
+  TransactionData,
   TransactionFiatPayment,
   TransactionFiatPaymentCallback,
   TransactionPayControllerActions,

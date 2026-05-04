@@ -248,6 +248,43 @@ export async function signAuthorizationList({
 }
 
 /**
+ * Decode a 65-byte EIP-7702 authorization signature into RLP-canonical
+ * `r`, `s`, and `yParity` (no leading zero nibbles, `0x0` for zero).
+ *
+ * @param signature - The 65-byte signature.
+ * @returns The decoded authorization fields.
+ */
+export function decodeAuthorizationSignature(signature: Hex): {
+  r: Hex;
+  s: Hex;
+  yParity: Hex;
+} {
+  // eslint-disable-next-line id-length
+  const r = toCanonicalHex(signature.slice(0, 66));
+  // eslint-disable-next-line id-length
+  const s = toCanonicalHex(signature.slice(66, 130));
+  // eslint-disable-next-line id-length
+  const v = parseInt(signature.slice(130, 132), 16);
+  const yParity = toCanonicalHex(toHex(v - 27 === 0 ? 0 : 1));
+
+  return { r, s, yParity };
+}
+
+/**
+ * Strip leading zero nibbles from a hex string to produce its RLP-canonical
+ * form. Accepts input with or without a `0x` prefix; always returns
+ * `0x`-prefixed. An all-zero input is preserved as `0x0`.
+ *
+ * @param value - Hex string with or without a `0x` prefix.
+ * @returns The canonical `0x`-prefixed hex string.
+ */
+function toCanonicalHex(value: string): Hex {
+  const raw = value.startsWith('0x') ? value.slice(2) : value;
+  const stripped = raw.replace(/^0+/u, '');
+  return stripped.length === 0 ? '0x0' : `0x${stripped}`;
+}
+
+/**
  * Signs an authorization.
  *
  * @param authorization - The authorization to sign.
@@ -284,13 +321,7 @@ async function signAuthorization(
     },
   );
 
-  // eslint-disable-next-line id-length
-  const r = signature.slice(0, 66) as Hex;
-  // eslint-disable-next-line id-length
-  const s = add0x(signature.slice(66, 130));
-  // eslint-disable-next-line id-length
-  const v = parseInt(signature.slice(130, 132), 16);
-  const yParity = toHex(v - 27 === 0 ? 0 : 1);
+  const { r, s, yParity } = decodeAuthorizationSignature(signature as Hex);
 
   const result: Required<Authorization> = {
     address,

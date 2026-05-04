@@ -213,6 +213,29 @@ describe('Across Submit', () => {
       );
     });
 
+    it('passes gas fee token to batch submission when source gas fee token is used', async () => {
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [
+          {
+            ...QUOTE_MOCK,
+            fees: {
+              ...QUOTE_MOCK.fees,
+              isSourceGasFeeToken: true,
+            },
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+        }),
+      );
+    });
+
     it('submits a 7702 batch when the quote contains a combined batch gas limit', async () => {
       const batchGasQuote = {
         ...QUOTE_MOCK,
@@ -287,6 +310,37 @@ describe('Across Submit', () => {
         expect.anything(),
         expect.objectContaining({
           type: TransactionType.perpsAcrossDeposit,
+        }),
+      );
+    });
+
+    it('passes gas fee token to single transaction submission when source gas fee token is used', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          isSourceGasFeeToken: true,
+        },
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
         }),
       );
     });

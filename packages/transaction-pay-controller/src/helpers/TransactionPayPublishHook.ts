@@ -47,7 +47,8 @@ export class TransactionPayPublishHook {
       return await this.#publishHook(transactionMeta, _signedTx);
     } catch (error) {
       log('Error', error);
-      throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`MetaMask Pay: ${message}`);
     }
   }
 

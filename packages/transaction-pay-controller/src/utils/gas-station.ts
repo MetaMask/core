@@ -4,16 +4,16 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../logger';
 import type {
   Amount,
   QuoteRequest,
   TransactionPayControllerMessenger,
-} from '../../types';
-import { getFeatureFlags, isEIP7702Chain } from '../../utils/feature-flags';
-import { calculateGasFeeTokenCost } from '../../utils/gas';
+} from '../types';
+import { getFeatureFlags, isEIP7702Chain } from './feature-flags';
+import { calculateGasFeeTokenCost } from './gas';
 
-const log = createModuleLogger(projectLogger, 'relay-gas-station');
+const log = createModuleLogger(projectLogger, 'gas-station');
 
 type GasStationCostParams = {
   firstStepData: {
