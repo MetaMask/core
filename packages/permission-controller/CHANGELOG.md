@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `PermissionController` methods through its messenger ([#8675](https://github.com/MetaMask/core/pull/8675))
+  - The following actions are now available:
+    - `PermissionController:acceptPermissionsRequest`,
+    - `PermissionController:rejectPermissionsRequest`,
+    - `PermissionController:revokePermission`,
+    - `PermissionController:updatePermissionsByCaveat`,
+    - `PermissionController:getPermission`
+  - Corresponding action types are available as well.
+
 ## [13.0.0]
 
 ### Added

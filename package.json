@@ -105,7 +105,7 @@
   "engines": {
     "node": "^18.18 || >=20"
   },
-  "packageManager": "yarn@4.10.3",
+  "packageManager": "yarn@4.14.1",
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
