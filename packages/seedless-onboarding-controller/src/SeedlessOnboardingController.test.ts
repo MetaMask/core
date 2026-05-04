@@ -969,7 +969,7 @@ describe('SeedlessOnboardingController', () => {
           ProfilePairingStatus.NotPaired,
         );
 
-        await baseMessenger.call(
+        baseMessenger.call(
           'SeedlessOnboardingController:updateProfilePairingStatus',
           ProfilePairingStatus.Paired,
         );
@@ -1018,6 +1018,7 @@ describe('SeedlessOnboardingController', () => {
             ...getMockInitialControllerState({
               withMockAuthenticatedUser: true,
               vault: mockVault.encryptedMockVault,
+              profilePairingToken: undefined,
             }),
             authConnection: AuthConnection.Telegram,
           },
@@ -1074,11 +1075,11 @@ describe('SeedlessOnboardingController', () => {
             mockPassword,
           );
 
-          await expect(
-            controller.pairProfileServiceWithSocialLogin(
+          expect(
+            await controller.pairProfileServiceWithSocialLogin(
               mockProfileServiceToken,
             ),
-          ).resolves.toBeUndefined();
+          ).toBeUndefined();
           expect(mockFetch).not.toHaveBeenCalled();
           expect(controller.state.profilePairingStatus).toBe(
             ProfilePairingStatus.Paired,
@@ -1112,11 +1113,11 @@ describe('SeedlessOnboardingController', () => {
             mockPassword,
           );
 
-          await expect(
-            controller.pairProfileServiceWithSocialLogin(
+          expect(
+            await controller.pairProfileServiceWithSocialLogin(
               mockProfileServiceToken,
             ),
-          ).resolves.toBeUndefined();
+          ).toBeUndefined();
           expect(mockFetch).not.toHaveBeenCalled();
           expect(controller.state.profilePairingStatus).toBe(
             ProfilePairingStatus.PairingInProgress,
@@ -1172,6 +1173,7 @@ describe('SeedlessOnboardingController', () => {
             ...getMockInitialControllerState({
               withMockAuthenticatedUser: true,
               vault: mockVault.encryptedMockVault,
+              profilePairingToken: undefined,
             }),
             authConnection: AuthConnection.Telegram,
           },
@@ -4068,6 +4070,47 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should preserve the state profilePairingToken when unlocking an older Telegram vault', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const stateProfilePairingToken = 'state-profile-pairing-token';
+
+      const mockEncryptionKey = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const mockPasswordEncryptionKey =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const mockAuthKeyPair =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const { encryptedMockVault } = await createMockVault(
+        mockEncryptionKey,
+        mockPasswordEncryptionKey,
+        mockAuthKeyPair,
+        MOCK_PASSWORD,
+      );
+
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              profilePairingToken: stateProfilePairingToken,
+            }),
+            authConnection: AuthConnection.Telegram,
+          },
+        },
+        async ({ controller, baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          expect(controller.state.profilePairingToken).toBe(
+            stateProfilePairingToken,
+          );
+        },
+      );
+    });
+
     it('should throw error if the vault is missing', async () => {
       await withController(async ({ baseMessenger }) => {
         await expect(
@@ -6815,6 +6858,7 @@ describe('SeedlessOnboardingController', () => {
               vault: MOCK_VAULT,
               vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
               vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+              profilePairingToken: undefined,
             }),
           },
           async ({

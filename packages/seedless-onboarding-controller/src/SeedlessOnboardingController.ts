@@ -1859,16 +1859,22 @@ export class SeedlessOnboardingController<
 
       const { vaultData, vaultEncryptionKey, vaultEncryptionSalt } =
         await this.#decryptAndParseVaultData(params);
+      const profilePairingToken =
+        this.state.profilePairingToken ?? vaultData.profilePairingToken;
+      const unlockedVaultData = {
+        ...vaultData,
+        profilePairingToken,
+      };
 
       this.update((state) => {
         state.vaultEncryptionKey = vaultEncryptionKey;
         state.vaultEncryptionSalt = vaultEncryptionSalt;
         state.revokeToken = vaultData.revokeToken;
         state.accessToken = vaultData.accessToken;
-        state.profilePairingToken = vaultData.profilePairingToken;
+        state.profilePairingToken = profilePairingToken;
       });
 
-      const deserializedVaultData = deserializeVaultData(vaultData);
+      const deserializedVaultData = deserializeVaultData(unlockedVaultData);
       this.#cachedDecryptedVaultData = deserializedVaultData;
       return deserializedVaultData;
     });
