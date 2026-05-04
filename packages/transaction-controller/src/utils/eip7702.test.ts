@@ -18,6 +18,7 @@ import type { AuthorizationList } from '../types';
 import type { TransactionMeta } from '../types';
 import {
   DELEGATION_PREFIX,
+  decodeAuthorizationSignature,
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
@@ -256,6 +257,93 @@ describe('EIP-7702 Utils', () => {
       expect(result?.[0]?.nonce).toBe('0x124');
       expect(result?.[1]?.nonce).toBe('0x125');
       expect(result?.[2]?.nonce).toBe('0x126');
+    });
+
+    it('strips leading zeroes from signature r and s to produce RLP-canonical hex', async () => {
+      const signatureWithLeadingZeros =
+        `0x0abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456781122334455667788990011223344556677889900112233445566778899001122${'1c'}` as Hex;
+
+      signAuthorizationMock
+        .mockReset()
+        .mockResolvedValueOnce(signatureWithLeadingZeros);
+
+      const result = await signAuthorizationList({
+        authorizationList: AUTHORIZATION_LIST_MOCK,
+        messenger: controllerMessenger,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      expect(result?.[0]?.r).toBe(
+        '0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678',
+      );
+      expect(result?.[0]?.s).toBe(
+        '0x1122334455667788990011223344556677889900112233445566778899001122',
+      );
+      expect(result?.[0]?.yParity).toBe('0x1');
+    });
+  });
+
+  describe('decodeAuthorizationSignature', () => {
+    it('decodes a signature with no leading zeros into r, s, and yParity', () => {
+      const result = decodeAuthorizationSignature(AUTHORIZATION_SIGNATURE_MOCK);
+
+      expect(result).toStrictEqual({
+        r: '0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292',
+        s: '0xda533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf',
+        yParity: '0x1',
+      });
+    });
+
+    it('strips a single leading zero nibble from r', () => {
+      const signature =
+        `0x0abcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678${'1122334455667788990011223344556677889900112233445566778899001122'}1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.r).toBe(
+        '0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678',
+      );
+      expect(result.s).toBe(
+        '0x1122334455667788990011223344556677889900112233445566778899001122',
+      );
+    });
+
+    it('strips multiple leading zero bytes from r', () => {
+      const signature =
+        `0x000000abcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd${'1122334455667788990011223344556677889900112233445566778899001122'}1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.r).toBe(
+        '0xabcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
+      );
+    });
+
+    it('returns 0x0 when r is all zeroes (canonical zero)', () => {
+      const signature =
+        `0x0000000000000000000000000000000000000000000000000000000000000000${'1122334455667788990011223344556677889900112233445566778899001122'}1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.r).toBe('0x0');
+    });
+
+    it('returns yParity 0x0 when v is 27', () => {
+      const signature =
+        `0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292da533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.yParity).toBe('0x0');
+    });
+
+    it('returns yParity 0x1 when v is 28', () => {
+      const signature =
+        `0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292da533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf1c` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.yParity).toBe('0x1');
     });
   });
 

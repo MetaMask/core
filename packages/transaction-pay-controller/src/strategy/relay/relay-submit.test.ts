@@ -1,4 +1,4 @@
-import { ORIGIN_METAMASK, successfulFetch } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -31,11 +31,6 @@ jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
-
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
-}));
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
@@ -132,7 +127,7 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
 
 describe('Relay Submit Utils', () => {
   const updateTransactionMock = jest.mocked(updateTransaction);
-  const successfulFetchMock = jest.mocked(successfulFetch);
+  let successfulFetchMock: jest.SpyInstance;
   const getTransactionMock = jest.mocked(getTransaction);
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
   const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
@@ -157,6 +152,8 @@ describe('Relay Submit Utils', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    successfulFetchMock = jest.spyOn(global, 'fetch');
 
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
@@ -189,11 +186,16 @@ describe('Relay Submit Utils', () => {
     );
 
     successfulFetchMock.mockResolvedValue({
+      ok: true,
       json: async () => STATUS_RESPONSE_MOCK,
     } as Response);
 
     request = cloneDeep(REQUEST_MOCK);
     request.messenger = messenger;
+  });
+
+  afterEach(() => {
+    successfulFetchMock.mockRestore();
   });
 
   describe('submitRelayQuotes', () => {
@@ -593,6 +595,7 @@ describe('Relay Submit Utils', () => {
 
     it('waits for relay status to be success', async () => {
       successfulFetchMock.mockResolvedValueOnce({
+        ok: true,
         json: async () => ({ status: 'pending' }),
       } as Response);
 
@@ -635,7 +638,7 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('throws if transaction fails to confirm', async () => {
+    it('rethrows confirmation failures bare (the Relay submit prefix is applied at RelayStrategy.execute)', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),
       );
@@ -645,10 +648,21 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('rethrows addTransaction failures bare (the Relay submit prefix is applied at RelayStrategy.execute)', async () => {
+      addTransactionMock.mockRejectedValueOnce(
+        new Error('addTransaction boom'),
+      );
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'addTransaction boom',
+      );
+    });
+
     it.each(['failure', 'refund', 'refunded'])(
       'throws if relay status is %s',
       async (status) => {
         successfulFetchMock.mockResolvedValue({
+          ok: true,
           json: async () => ({ status }),
         } as Response);
 
@@ -660,6 +674,7 @@ describe('Relay Submit Utils', () => {
 
     it('throws if relay returns unrecognized status', async () => {
       successfulFetchMock.mockResolvedValue({
+        ok: true,
         json: async () => ({ status: 'unknown_status' }),
       } as Response);
 
@@ -673,9 +688,11 @@ describe('Relay Submit Utils', () => {
       async (pendingStatus) => {
         successfulFetchMock
           .mockResolvedValueOnce({
+            ok: true,
             json: async () => ({ status: pendingStatus }),
           } as Response)
           .mockResolvedValue({
+            ok: true,
             json: async () => STATUS_RESPONSE_MOCK,
           } as Response);
 
@@ -695,6 +712,7 @@ describe('Relay Submit Utils', () => {
       successfulFetchMock
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValue({
+          ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
         } as Response);
 
@@ -727,6 +745,7 @@ describe('Relay Submit Utils', () => {
 
       successfulFetchMock
         .mockResolvedValueOnce({
+          ok: true,
           json: async () => ({ status: 'pending' }),
         } as Response)
         .mockImplementation(() => {
@@ -746,9 +765,11 @@ describe('Relay Submit Utils', () => {
 
       successfulFetchMock
         .mockResolvedValueOnce({
+          ok: true,
           json: async () => ({ status: 'pending' }),
         } as Response)
         .mockResolvedValue({
+          ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
         } as Response);
 
@@ -762,9 +783,11 @@ describe('Relay Submit Utils', () => {
 
       successfulFetchMock
         .mockResolvedValueOnce({
+          ok: true,
           json: async () => ({ status: 'pending' }),
         } as Response)
         .mockResolvedValue({
+          ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
         } as Response);
 
@@ -806,6 +829,7 @@ describe('Relay Submit Utils', () => {
 
     it('returns fallback hash if none included', async () => {
       successfulFetchMock.mockResolvedValue({
+        ok: true,
         json: async () => ({
           ...STATUS_RESPONSE_MOCK,
           txHashes: [],
@@ -1214,6 +1238,7 @@ describe('Relay Submit Utils', () => {
         request.quotes[0].request.isHyperliquidSource = true;
 
         successfulFetchMock.mockResolvedValue({
+          ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
         } as Response);
 
@@ -1277,9 +1302,11 @@ describe('Relay Submit Utils', () => {
 
         successfulFetchMock
           .mockResolvedValueOnce({
+            ok: true,
             json: async () => EXECUTE_RESPONSE_MOCK,
           } as Response)
           .mockResolvedValue({
+            ok: true,
             json: async () => STATUS_RESPONSE_MOCK,
           } as Response);
       });
@@ -1371,6 +1398,30 @@ describe('Relay Submit Utils', () => {
               requestId: REQUEST_ID_MOCK,
             }),
           }),
+        );
+      });
+
+      it('wraps /execute submission failures with the Relay execute prefix (Relay submit prefix is applied at RelayStrategy.execute)', async () => {
+        successfulFetchMock.mockReset();
+        successfulFetchMock.mockResolvedValueOnce({
+          ok: false,
+          status: 422,
+          json: async () => ({
+            message: 'failed to decode param in array[0] invalid JSON input',
+          }),
+        } as Response);
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Relay execute: 422 - failed to decode param in array[0] invalid JSON input',
+        );
+      });
+
+      it('wraps non-Error throws from /execute with the Relay execute prefix', async () => {
+        successfulFetchMock.mockReset();
+        successfulFetchMock.mockRejectedValueOnce('network down');
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Relay execute: network down',
         );
       });
 
@@ -1553,6 +1604,7 @@ describe('Relay Submit Utils', () => {
 
         successfulFetchMock.mockReset();
         successfulFetchMock.mockResolvedValue({
+          ok: true,
           json: async () => STATUS_RESPONSE_MOCK,
         } as Response);
 

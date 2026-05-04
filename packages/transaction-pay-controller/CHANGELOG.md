@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Gas Station support for Across source transactions when native balance is insufficient ([#8588](https://github.com/MetaMask/core/pull/8588))
+
+### Fixed
+
+- Pass explicit `assetId`, `providers`, and `fiat` to `RampsController:getQuotes` and persist the selected ramps quote on `TransactionFiatPayment` ([#8628](https://github.com/MetaMask/core/pull/8628))
+
+## [20.2.0]
+
+### Changed
+
+- Stop synthesising a native gas-fee required token in `parseRequiredTokens`, only token-transfer assets are returned now ([#8554](https://github.com/MetaMask/core/pull/8554))
+- Add layered submission error prefixes for failure-surface attribution in error metrics ([#8656](https://github.com/MetaMask/core/pull/8656))
+  - `MetaMask Pay:` wraps all errors from the Pay publish hook
+  - `Relay submit:` wraps all errors from the relay strategy
+  - `Relay execute:` cascades inside `Relay submit:` for `/execute` POST failures
+  - Relay non-OK responses now surface as `<status> - <body message or error>` (or just `<status>`), replacing the previous URL-leaking generic fetch failure message
+- Bump `@metamask/assets-controller` from `^6.2.1` to `^6.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/assets-controllers` from `^105.0.0` to `^105.1.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+
 ## [20.1.0]
 
 ### Added
@@ -737,7 +758,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.2.0...HEAD
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.1.0...@metamask/transaction-pay-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.1...@metamask/transaction-pay-controller@20.1.0
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.0...@metamask/transaction-pay-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...@metamask/transaction-pay-controller@20.0.0

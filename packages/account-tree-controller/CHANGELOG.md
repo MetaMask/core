@@ -7,14 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.2.0]
+
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
 - Add Stellar sort-order support ([#8464](https://github.com/MetaMask/core/pull/8464))
 - Now use `SnapController:getSnap` when applying Snap rule (instead of using `account.metadata.snap.enabled`. ([#8584](https://github.com/MetaMask/core/pull/8584))
   - As a result of this, Snap accounts that reference unavailable Snap (read, not available on the `SnapController`) will now be grouped under the Keyring rule instead (e.g being put in the "Snap Wallet" section).
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.3.0` ([#8634](https://github.com/MetaMask/core/pull/8634))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.4.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
 
 ## [7.1.0]
 
@@ -538,7 +541,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.2.0...HEAD
+[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.1.0...@metamask/account-tree-controller@7.2.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...@metamask/account-tree-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@6.0.0...@metamask/account-tree-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.1...@metamask/account-tree-controller@6.0.0

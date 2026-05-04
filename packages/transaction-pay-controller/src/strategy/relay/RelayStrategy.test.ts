@@ -108,4 +108,38 @@ describe('RelayStrategy', () => {
     });
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(executeRequest);
   });
+
+  it('wraps execute errors with the Relay submit prefix', async () => {
+    const executeRequest = {
+      messenger,
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as PayStrategyExecuteRequest<RelayQuote>;
+
+    submitRelayQuotesMock.mockRejectedValue(
+      new Error('Relay execute: 422 - Insufficient liquidity'),
+    );
+
+    const strategy = new RelayStrategy();
+    await expect(strategy.execute(executeRequest)).rejects.toThrow(
+      'Relay submit: Relay execute: 422 - Insufficient liquidity',
+    );
+  });
+
+  it('wraps non-Error throws with the Relay submit prefix', async () => {
+    const executeRequest = {
+      messenger,
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as PayStrategyExecuteRequest<RelayQuote>;
+
+    submitRelayQuotesMock.mockRejectedValue('boom');
+
+    const strategy = new RelayStrategy();
+    await expect(strategy.execute(executeRequest)).rejects.toThrow(
+      'Relay submit: boom',
+    );
+  });
 });

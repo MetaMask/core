@@ -301,6 +301,25 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    it('seeds mUSD with contract decimals when starting', async () => {
+      await withController(async ({ controller, callActionSpy }) => {
+        await controller.start();
+
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'TokensController:addTokens',
+          [
+            expect.objectContaining({
+              address: '0xaca92e438df0b2401ff60da7e4337b687a2435da',
+              decimals: 6,
+              symbol: 'mUSD',
+              name: 'MetaMask USD',
+            }),
+          ],
+          expect.any(String),
+        );
+      });
+    });
+
     it('should not poll if the controller is not active', async () => {
       await withController(
         {

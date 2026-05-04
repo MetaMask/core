@@ -83,10 +83,12 @@ describe('createPermissionRulesForChainId', () => {
 
     // erc20-token-stream
     // erc20-token-periodic
+    // erc20-token-allowance
     // native-token-stream
     // native-token-periodic
+    // native-token-allowance
     // erc20-token-revocation
-    const permissionTypeCount = 5;
+    const permissionTypeCount = 7;
     const rules = createPermissionRulesForContracts(contracts);
     expect(rules).toHaveLength(permissionTypeCount);
 
@@ -178,6 +180,52 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['erc20-token-periodic'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [erc20PeriodicEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
+
+    // native-token-allowance
+    expect(byType['native-token-allowance']).toBeDefined();
+    expect(byType['native-token-allowance'].permissionType).toBe(
+      'native-token-allowance',
+    );
+    expect(byType['native-token-allowance'].optionalEnforcers.size).toBe(2);
+    expect(
+      byType['native-token-allowance'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-allowance'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(byType['native-token-allowance'].requiredEnforcers.size).toBe(3);
+    expect(
+      Array.from(byType['native-token-allowance'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [nativeTokenPeriodicEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
+
+    // erc20-token-allowance
+    expect(byType['erc20-token-allowance']).toBeDefined();
+    expect(byType['erc20-token-allowance'].permissionType).toBe(
+      'erc20-token-allowance',
+    );
+    expect(byType['erc20-token-allowance'].optionalEnforcers.size).toBe(2);
+    expect(
+      byType['erc20-token-allowance'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-allowance'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(byType['erc20-token-allowance'].requiredEnforcers.size).toBe(3);
+    expect(
+      Array.from(byType['erc20-token-allowance'].requiredEnforcers.entries()),
     ).toStrictEqual(
       expect.arrayContaining([
         [erc20PeriodicEnforcer, 1],

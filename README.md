@@ -389,6 +389,7 @@ linkStyle default opacity:0.5
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
   multichain_account_service --> controller_utils;
+  multichain_api_middleware --> accounts_controller;
   multichain_api_middleware --> chain_agnostic_permission;
   multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;

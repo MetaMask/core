@@ -72,7 +72,7 @@ const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
  */
 const MUSD_TOKEN: Token = {
   address: MUSD_ADDRESS,
-  decimals: 18,
+  decimals: 6,
   symbol: 'mUSD',
   name: 'MetaMask USD',
 };

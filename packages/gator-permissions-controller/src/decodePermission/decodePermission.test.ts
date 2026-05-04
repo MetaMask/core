@@ -8,10 +8,16 @@ import { numberToHex } from '@metamask/utils';
 
 import {
   findRuleWithMatchingCaveatAddresses,
+  findRulesWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
+  selectUniqueRuleAndDecodedPermission,
 } from './decodePermission';
 import { createPermissionRulesForContracts } from './rules';
-import type { DecodedPermission, DeployedContractsByName } from './types';
+import type {
+  DecodedPermission,
+  DeployedContractsByName,
+  PermissionRule,
+} from './types';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
@@ -56,6 +62,33 @@ describe('decodePermission', () => {
           ),
         });
       }).toThrow('Multiple permission types match');
+    });
+
+    it('returns all matching rules from findRulesWithMatchingCaveatAddresses', () => {
+      const enforcers = [ExactCalldataEnforcer, NonceEnforcer, zeroAddress];
+      const contractsWithDuplicates = {
+        ...contracts,
+        NativeTokenStreamingEnforcer: zeroAddress,
+        NativeTokenPeriodTransferEnforcer: zeroAddress,
+      } as unknown as DeployedContractsByName;
+
+      const rules = findRulesWithMatchingCaveatAddresses({
+        enforcers,
+        permissionRules: createPermissionRulesForContracts(
+          contractsWithDuplicates,
+        ),
+      });
+
+      expect(rules).toHaveLength(3);
+      expect(
+        rules.map((matchingRule) => matchingRule.permissionType).sort(),
+      ).toStrictEqual(
+        [
+          'native-token-periodic',
+          'native-token-stream',
+          'native-token-allowance',
+        ].sort(),
+      );
     });
 
     describe('native-token-stream', () => {
@@ -180,17 +213,21 @@ describe('decodePermission', () => {
 
     describe('native-token-periodic', () => {
       const expectedPermissionType = 'native-token-periodic';
-      it('matches with required caveats', () => {
+      it('matches with required caveats alongside native-token-allowance', () => {
         const enforcers = [
           NativeTokenPeriodTransferEnforcer,
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
+          [expectedPermissionType, 'native-token-allowance'].sort(),
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -200,11 +237,15 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
+          [expectedPermissionType, 'native-token-allowance'].sort(),
+        );
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -239,11 +280,15 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
+          [expectedPermissionType, 'native-token-allowance'].sort(),
+        );
       });
 
       it('throws if a contract is not found', () => {
@@ -360,17 +405,21 @@ describe('decodePermission', () => {
 
     describe('erc20-token-periodic', () => {
       const expectedPermissionType = 'erc20-token-periodic';
-      it('matches with required caveats', () => {
+      it('matches with required caveats alongside erc20-token-allowance', () => {
         const enforcers = [
           ERC20PeriodTransferEnforcer,
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
+          [expectedPermissionType, 'erc20-token-allowance'].sort(),
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -380,11 +429,15 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
+          [expectedPermissionType, 'erc20-token-allowance'].sort(),
+        );
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -419,11 +472,15 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findRuleWithMatchingCaveatAddresses({
+        const rules = findRulesWithMatchingCaveatAddresses({
           enforcers,
           permissionRules: createPermissionRulesForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType).sort(),
+        ).toStrictEqual(
+          [expectedPermissionType, 'erc20-token-allowance'].sort(),
+        );
       });
 
       it('throws if a contract is not found', () => {
@@ -701,6 +758,155 @@ describe('decodePermission', () => {
           specifiedOrigin,
         }),
       ).toThrow('Invalid authority');
+    });
+  });
+
+  describe('selectUniqueRuleAndDecodedPermission', () => {
+    const emptyCaveats: Parameters<
+      PermissionRule['validateAndDecodePermission']
+    >[0] = [];
+
+    const dummyRuleFields = {
+      requiredEnforcers: new Map<Hex, number>(),
+      optionalEnforcers: new Set<Hex>(),
+      caveatAddressesMatch: () => true,
+    } as const;
+
+    it('returns the unique rule when exactly one candidate validates', () => {
+      const data = {
+        initialAmount: '0x1',
+        maxAmount: '0x2',
+        amountPerSecond: '0x3',
+        startTime: 1,
+      } as DecodedPermission['permission']['data'];
+
+      const rules: PermissionRule[] = [
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-stream',
+          validateAndDecodePermission: () => ({
+            isValid: true,
+            expiry: 9,
+            data,
+          }),
+        },
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-periodic',
+          validateAndDecodePermission: () => ({
+            isValid: false,
+            error: new Error('bad terms for periodic'),
+          }),
+        },
+      ];
+
+      const result = selectUniqueRuleAndDecodedPermission({
+        candidateRules: rules,
+        caveats: emptyCaveats,
+      });
+
+      expect(result.rule.permissionType).toBe('native-token-stream');
+      expect(result.expiry).toBe(9);
+      expect(result.data).toStrictEqual(data);
+    });
+
+    it('throws when no candidate rules are provided', () => {
+      expect(() =>
+        selectUniqueRuleAndDecodedPermission({
+          candidateRules: [],
+          caveats: emptyCaveats,
+        }),
+      ).toThrow('Unable to identify permission type');
+    });
+
+    it('rethrows the validation error when only one candidate exists and it fails', () => {
+      const originalError = new Error('stream validation failed');
+      const rules: PermissionRule[] = [
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-stream',
+          validateAndDecodePermission: () => ({
+            isValid: false,
+            error: originalError,
+          }),
+        },
+      ];
+
+      expect(() =>
+        selectUniqueRuleAndDecodedPermission({
+          candidateRules: rules,
+          caveats: emptyCaveats,
+        }),
+      ).toThrow(originalError);
+    });
+
+    it('throws when more than one candidate validates', () => {
+      const data = {
+        initialAmount: '0x1',
+        maxAmount: '0x2',
+        amountPerSecond: '0x3',
+        startTime: 1,
+      } as DecodedPermission['permission']['data'];
+
+      const rules: PermissionRule[] = [
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-stream',
+          validateAndDecodePermission: () => ({
+            isValid: true,
+            expiry: 1,
+            data,
+          }),
+        },
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-periodic',
+          validateAndDecodePermission: () => ({
+            isValid: true,
+            expiry: 1,
+            data,
+          }),
+        },
+      ];
+
+      expect(() =>
+        selectUniqueRuleAndDecodedPermission({
+          candidateRules: rules,
+          caveats: emptyCaveats,
+        }),
+      ).toThrow(
+        'Multiple permission types validate the same delegation caveats: native-token-stream, native-token-periodic',
+      );
+    });
+
+    it('throws with attempt details when no candidate validates', () => {
+      const rules: PermissionRule[] = [
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-stream',
+          validateAndDecodePermission: () => ({
+            isValid: false,
+            error: new Error('stream failed'),
+          }),
+        },
+        {
+          ...dummyRuleFields,
+          permissionType: 'native-token-periodic',
+          validateAndDecodePermission: () => ({
+            isValid: false,
+            error: new Error('periodic failed'),
+          }),
+        },
+      ];
+
+      expect(() =>
+        selectUniqueRuleAndDecodedPermission({
+          candidateRules: rules,
+          caveats: emptyCaveats,
+        }),
+      ).toThrow(
+        'No permission type could validate the delegation caveats. Attempts: native-token-stream: stream failed; native-token-periodic: periodic failed',
+      );
     });
   });
 

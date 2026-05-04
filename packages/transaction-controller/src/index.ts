@@ -129,6 +129,7 @@ export {
   WalletDevice,
 } from './types';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
+export { decodeAuthorizationSignature } from './utils/eip7702';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
