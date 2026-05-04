@@ -2139,6 +2139,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllTimers();
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -2386,6 +2387,7 @@ describe('BridgeStatusController', () => {
       mockMessengerCall = jest.fn();
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -2643,6 +2645,7 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -2856,6 +2859,7 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567893);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.458);
@@ -3854,6 +3858,7 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
