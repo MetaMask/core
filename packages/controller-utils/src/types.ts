@@ -198,7 +198,7 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.PolygonMainnet]: 'https://polygonscan.com',
   [BuiltInNetworkName.SeiMainnet]: 'https://seiscan.io',
   [BuiltInNetworkName.MegaETHMainnet]: 'https://megaeth.blockscout.com',
-  [BuiltInNetworkName.MonadMainnet]: 'https://explorer.monad.com',
+  [BuiltInNetworkName.MonadMainnet]: 'https://monadscan.com',
   [BuiltInNetworkName.AvalancheMainnet]: 'https://snowtrace.io',
   [BuiltInNetworkName.ZksyncMainnet]: 'https://explorer.zksync.io',
 } as const satisfies Record<BuiltInNetworkType, string>;
