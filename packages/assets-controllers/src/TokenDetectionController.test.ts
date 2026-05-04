@@ -45,13 +45,10 @@ import type { TokenDetectionControllerMessenger } from './TokenDetectionControll
 import {
   TokenDetectionController,
   controllerName,
-  mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
 import { getDefaultTokenListState } from './TokenListController';
 import type { TokenListState, TokenListToken } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
-import type { TokenV3Asset } from './tokens-api-v3';
 import type {
   TokensController,
   TokensControllerState,
@@ -63,19 +60,9 @@ jest.mock('./token-service', () => ({
   fetchAndBuildTokenListMap: jest.fn(),
 }));
 
-jest.mock('./tokens-api-v3', () => ({
-  ...jest.requireActual('./tokens-api-v3'),
-  fetchVerifiedTokensByAddresses: jest.fn(),
-}));
-
 const mockFetchAndBuildTokenListMap =
   fetchAndBuildTokenListMap as jest.MockedFunction<
     typeof fetchAndBuildTokenListMap
-  >;
-
-const mockFetchVerifiedTokensByAddresses =
-  fetchVerifiedTokensByAddresses as jest.MockedFunction<
-    typeof fetchVerifiedTokensByAddresses
   >;
 
 const DEFAULT_INTERVAL = 180000;
@@ -250,7 +237,6 @@ describe('TokenDetectionController', () => {
   const defaultSelectedAccount = createMockInternalAccount();
 
   beforeEach(async () => {
-    mockFetchVerifiedTokensByAddresses.mockResolvedValue(new Map());
     mockFetchAndBuildTokenListMap.mockResolvedValue(undefined);
     nock(TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
@@ -2635,57 +2621,6 @@ describe('TokenDetectionController', () => {
     });
   });
 
-  describe('mapChainIdWithTokenListMap', () => {
-    it('should return an empty object when given an empty input', () => {
-      const tokensChainsCache = {};
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({});
-    });
-
-    it('should return the same structure when there is no "data" property in the object', () => {
-      const tokensChainsCache = {
-        chain1: { info: 'no data property' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual(tokensChainsCache); // Expect unchanged structure
-    });
-
-    it('should map "data" property if present in the object', () => {
-      const tokensChainsCache = {
-        chain1: { data: 'someData' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({ chain1: 'someData' });
-    });
-
-    it('should handle multiple chains with mixed "data" properties', () => {
-      const tokensChainsCache = {
-        chain1: { data: 'someData1' },
-        chain2: { info: 'no data property' },
-        chain3: { data: 'someData3' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-
-      expect(result).toStrictEqual({
-        chain1: 'someData1',
-        chain2: { info: 'no data property' },
-        chain3: 'someData3',
-      });
-    });
-
-    it('should handle nested object with "data" property correctly', () => {
-      const tokensChainsCache = {
-        chain1: {
-          data: {
-            nested: 'nestedData',
-          },
-        },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
-    });
-  });
-
   describe('constructor options', () => {
     describe('useTokenDetection', () => {
       it('should disable token detection when useTokenDetection is false', async () => {
@@ -2898,38 +2833,19 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-            assetId:
-              'eip155:43114/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            occurrences: 11,
-            aggregators: [],
+          mockFetchAndBuildTokenListMap.mockResolvedValue({
+            [mockTokenAddress]: {
+              name: 'USD Coin',
+              symbol: 'USDC',
+              decimals: 6,
+              address: mockTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdc.png',
+              occurrences: 11,
+            },
           });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
@@ -2964,16 +2880,10 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {},
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
+          mockFetchAndBuildTokenListMap.mockResolvedValue({});
+
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
             chainId: chainId as Hex,
@@ -3010,57 +2920,28 @@ describe('TokenDetectionController', () => {
             getSelectedAccount: selectedAccount,
             getAccount: selectedAccount,
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                  [secondTokenAddress]: {
-                    name: 'Bancor',
-                    symbol: 'BNT',
-                    decimals: 18,
-                    address: secondTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/bnt.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-            assetId:
-              'eip155:43114/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            occurrences: 11,
-            aggregators: [],
+          mockFetchAndBuildTokenListMap.mockResolvedValue({
+            [mockTokenAddress]: {
+              name: 'USD Coin',
+              symbol: 'USDC',
+              decimals: 6,
+              address: mockTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdc.png',
+              occurrences: 11,
+            },
+            [secondTokenAddress]: {
+              name: 'Bancor',
+              symbol: 'BNT',
+              decimals: 18,
+              address: secondTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/bnt.png',
+              occurrences: 11,
+            },
           });
-          verifiedTokens.set('0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c', {
-            assetId:
-              'eip155:43114/erc20:0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-            decimals: 18,
-            iconUrl: 'https://example.com/bnt.png',
-            name: 'Bancor',
-            symbol: 'BNT',
-            occurrences: 11,
-            aggregators: [],
-          });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           // Add both tokens via websocket
           await controller.addDetectedTokensViaWs({
@@ -3110,38 +2991,19 @@ describe('TokenDetectionController', () => {
             disabled: false,
             trackMetaMetricsEvent: mockTrackMetricsEvent,
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-            assetId:
-              'eip155:43114/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            occurrences: 11,
-            aggregators: [],
+          mockFetchAndBuildTokenListMap.mockResolvedValue({
+            [mockTokenAddress]: {
+              name: 'USD Coin',
+              symbol: 'USDC',
+              decimals: 6,
+              address: mockTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdc.png',
+              occurrences: 11,
+            },
           });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           await controller.addDetectedTokensViaWs({
             tokensSlice: [mockTokenAddress],
@@ -3179,38 +3041,19 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-            assetId:
-              'eip155:43114/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            occurrences: 11,
-            aggregators: [],
+          mockFetchAndBuildTokenListMap.mockResolvedValue({
+            [mockTokenAddress]: {
+              name: 'USD Coin',
+              symbol: 'USDC',
+              decimals: 6,
+              address: mockTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdc.png',
+              occurrences: 11,
+            },
           });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           // Call the public method directly on the controller instance
           await controller.addDetectedTokensViaWs({
@@ -3251,38 +3094,19 @@ describe('TokenDetectionController', () => {
             disabled: false,
             useTokenDetection: () => true,
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-            assetId:
-              'eip155:43114/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            occurrences: 11,
-            aggregators: [],
+          mockFetchAndBuildTokenListMap.mockResolvedValue({
+            [mockTokenAddress]: {
+              name: 'USD Coin',
+              symbol: 'USDC',
+              decimals: 6,
+              address: mockTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdc.png',
+              occurrences: 11,
+            },
           });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [mockTokenAddress],
@@ -3317,24 +3141,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             useTokenDetection: () => false,
-          },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
           },
         },
         async ({ controller, callActionSpy }) => {
@@ -3414,24 +3220,6 @@ describe('TokenDetectionController', () => {
             allDetectedTokens: {},
             allIgnoredTokens: {},
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
           await controller.addDetectedTokensViaPolling({
@@ -3474,24 +3262,6 @@ describe('TokenDetectionController', () => {
             allIgnoredTokens: {
               [chainId]: {
                 [selectedAccount.address]: [checksummedTokenAddress],
-              },
-            },
-          },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [mockTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: mockTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                },
               },
             },
           },
@@ -3551,19 +3321,6 @@ describe('TokenDetectionController', () => {
             }
             return Promise.resolve(undefined);
           });
-
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-            assetId:
-              'eip155:43114/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            decimals: 6,
-            iconUrl: 'https://example.com/usdc.png',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            occurrences: 11,
-            aggregators: [],
-          });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           // Call addDetectedTokensViaPolling - with the fix, it should fetch fresh cache
           await controller.addDetectedTokensViaPolling({
@@ -3634,56 +3391,37 @@ describe('TokenDetectionController', () => {
               },
             },
           },
-          mockTokenListState: {
-            tokensChainsCache: {
-              [chainId]: {
-                timestamp: 0,
-                data: {
-                  [trackedTokenAddress]: {
-                    name: 'USD Coin',
-                    symbol: 'USDC',
-                    decimals: 6,
-                    address: trackedTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdc.png',
-                    occurrences: 11,
-                  },
-                  [ignoredTokenAddress]: {
-                    name: 'Tether USD',
-                    symbol: 'USDT',
-                    decimals: 6,
-                    address: ignoredTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/usdt.png',
-                    occurrences: 11,
-                  },
-                  [newTokenAddress]: {
-                    name: 'Bancor',
-                    symbol: 'BNT',
-                    decimals: 18,
-                    address: newTokenAddress,
-                    aggregators: [],
-                    iconUrl: 'https://example.com/bnt.png',
-                    occurrences: 11,
-                  },
-                },
-              },
-            },
-          },
         },
         async ({ controller, callActionSpy }) => {
-          const verifiedTokens = new Map<string, TokenV3Asset>();
-          verifiedTokens.set('0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c', {
-            assetId:
-              'eip155:43114/erc20:0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-            decimals: 18,
-            iconUrl: 'https://example.com/bnt.png',
-            name: 'Bancor',
-            symbol: 'BNT',
-            occurrences: 11,
-            aggregators: [],
+          mockFetchAndBuildTokenListMap.mockResolvedValue({
+            [trackedTokenAddress]: {
+              name: 'USD Coin',
+              symbol: 'USDC',
+              decimals: 6,
+              address: trackedTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdc.png',
+              occurrences: 11,
+            },
+            [ignoredTokenAddress]: {
+              name: 'Tether USD',
+              symbol: 'USDT',
+              decimals: 6,
+              address: ignoredTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/usdt.png',
+              occurrences: 11,
+            },
+            [newTokenAddress]: {
+              name: 'Bancor',
+              symbol: 'BNT',
+              decimals: 18,
+              address: newTokenAddress,
+              aggregators: [],
+              iconUrl: 'https://example.com/bnt.png',
+              occurrences: 11,
+            },
           });
-          mockFetchVerifiedTokensByAddresses.mockResolvedValue(verifiedTokens);
 
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [

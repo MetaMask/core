@@ -3944,19 +3944,19 @@ describe('TokensController', () => {
   });
 
   describe('enrichTokenMetadata', () => {
-    it('enriches token names from the token list on construction', async () => {
-      const tokenAddress = '0x01';
+    it('skips the API entirely when no tokens have rwaData', async () => {
+      // Tokens without rwaData have been confirmed as non-RWA; no lookup needed.
       const initialState: TokensControllerState = {
         allTokens: {
           [ChainId.mainnet]: {
             '0x1': [
               {
-                address: tokenAddress,
+                address: '0x01',
                 symbol: 'TKN',
                 decimals: 18,
                 aggregators: [],
                 image: undefined,
-                name: undefined,
+                name: 'Token',
               },
             ],
           },
@@ -3965,37 +3965,24 @@ describe('TokensController', () => {
         allDetectedTokens: {},
       };
 
-      mockFetchAndBuildTokenListMap.mockResolvedValue({
-        [tokenAddress]: {
-          address: tokenAddress,
-          symbol: 'TKN',
-          decimals: 18,
-          name: 'Token Name',
-          occurrences: 5,
-          aggregators: [],
-          iconUrl: '',
-        },
-      });
-
       await withController(
         { options: { state: initialState } },
         async ({ controller }) => {
-          // Allow the async enrichment to complete
-          await new Promise<void>((resolve) => {
-            process.nextTick(() => {
-              resolve();
-            });
-          });
+          await new Promise<void>((resolve) => process.nextTick(resolve));
+          expect(mockFetchAndBuildTokenListMap).not.toHaveBeenCalled();
+          // State is unchanged
           expect(
             controller.state.allTokens[ChainId.mainnet]['0x1'][0].name,
-          ).toBe('Token Name');
+          ).toBe('Token');
         },
       );
     });
 
-    it('enriches rwaData from the token list on construction', async () => {
+    it('refreshes rwaData for tokens that already have it on construction', async () => {
       const tokenAddress = '0x01';
-      const rwaData = { ticker: 'TICKER', instrumentType: 'bond' };
+      const oldRwaData: TokenRwaData = { ticker: 'OLD', instrumentType: 'bond' };
+      const newRwaData: TokenRwaData = { ticker: 'NEW', instrumentType: 'bond' };
+
       const initialState: TokensControllerState = {
         allTokens: {
           [ChainId.mainnet]: {
@@ -4006,7 +3993,8 @@ describe('TokensController', () => {
                 decimals: 18,
                 aggregators: [],
                 image: undefined,
-                name: 'Existing Name',
+                name: 'Token',
+                rwaData: oldRwaData,
               },
             ],
           },
@@ -4020,30 +4008,75 @@ describe('TokensController', () => {
           address: tokenAddress,
           symbol: 'TKN',
           decimals: 18,
-          name: 'Existing Name',
+          name: 'Token',
           occurrences: 5,
           aggregators: [],
           iconUrl: '',
-          rwaData,
+          rwaData: newRwaData,
         },
       });
 
       await withController(
         { options: { state: initialState } },
         async ({ controller }) => {
-          await new Promise<void>((resolve) => {
-            process.nextTick(() => {
-              resolve();
-            });
-          });
+          await new Promise<void>((resolve) => process.nextTick(resolve));
           expect(
             controller.state.allTokens[ChainId.mainnet]['0x1'][0].rwaData,
-          ).toStrictEqual(rwaData);
+          ).toStrictEqual(newRwaData);
         },
       );
     });
 
-    it('does not update state when no enrichment is needed', async () => {
+    it('fetches the token list for chains that have tokens with rwaData', async () => {
+      const rwaTokenAddress = '0x01';
+      const plainTokenAddress = '0x02';
+
+      const initialState: TokensControllerState = {
+        allTokens: {
+          [ChainId.mainnet]: {
+            '0x1': [
+              {
+                address: rwaTokenAddress,
+                symbol: 'RWA',
+                decimals: 18,
+                aggregators: [],
+                name: 'RWA Token',
+                rwaData: { ticker: 'RWA', instrumentType: 'bond' },
+              },
+              {
+                address: plainTokenAddress,
+                symbol: 'TKN',
+                decimals: 18,
+                aggregators: [],
+                name: 'Plain Token',
+              },
+            ],
+          },
+        },
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      mockFetchAndBuildTokenListMap.mockResolvedValue({});
+
+      await withController(
+        { options: { state: initialState } },
+        async ({ controller }) => {
+          await new Promise<void>((resolve) => process.nextTick(resolve));
+          // The token list for mainnet should be fetched since there are RWA tokens
+          expect(mockFetchAndBuildTokenListMap).toHaveBeenCalledWith(
+            ChainId.mainnet,
+            expect.any(AbortSignal),
+          );
+          // Plain token state should be unchanged
+          expect(
+            controller.state.allTokens[ChainId.mainnet]['0x1'][1].name,
+          ).toBe('Plain Token');
+        },
+      );
+    });
+
+    it('does not update state when the API returns no rwaData for existing RWA tokens', async () => {
       const tokenAddress = '0x01';
       const initialState: TokensControllerState = {
         allTokens: {
@@ -4054,8 +4087,8 @@ describe('TokensController', () => {
                 symbol: 'TKN',
                 decimals: 18,
                 aggregators: [],
-                image: undefined,
-                name: 'Already Named',
+                name: 'Token',
+                rwaData: { ticker: 'TKN', instrumentType: 'bond' },
               },
             ],
           },
@@ -4064,12 +4097,13 @@ describe('TokensController', () => {
         allDetectedTokens: {},
       };
 
+      // Token list returns the token but without rwaData
       mockFetchAndBuildTokenListMap.mockResolvedValue({
         [tokenAddress]: {
           address: tokenAddress,
           symbol: 'TKN',
           decimals: 18,
-          name: 'Already Named',
+          name: 'Token',
           occurrences: 5,
           aggregators: [],
           iconUrl: '',
@@ -4080,96 +4114,25 @@ describe('TokensController', () => {
         { options: { state: initialState } },
         async ({ controller }) => {
           const stateBefore = controller.state;
-          await new Promise<void>((resolve) => {
-            process.nextTick(() => {
-              resolve();
-            });
-          });
-          // State should be the same reference since no changes were made
+          await new Promise<void>((resolve) => process.nextTick(resolve));
           expect(controller.state.allTokens).toStrictEqual(
             stateBefore.allTokens,
           );
         },
       );
     });
-
-    it('uses cached token list on repeated enrichment calls', async () => {
-      const tokenAddress = '0x01';
-      const initialState: TokensControllerState = {
-        allTokens: {
-          [ChainId.mainnet]: {
-            '0x1': [
-              {
-                address: tokenAddress,
-                symbol: 'TKN',
-                decimals: 18,
-                aggregators: [],
-                image: undefined,
-                name: undefined,
-              },
-            ],
-          },
-        },
-        allIgnoredTokens: {},
-        allDetectedTokens: {},
-      };
-
-      mockFetchAndBuildTokenListMap.mockResolvedValue({
-        [tokenAddress]: {
-          address: tokenAddress,
-          symbol: 'TKN',
-          decimals: 18,
-          name: 'Token Name',
-          occurrences: 5,
-          aggregators: [],
-          iconUrl: '',
-        },
-      });
-
-      await withController(
-        { options: { state: initialState } },
-        async ({ controller }) => {
-          await new Promise<void>((resolve) => {
-            process.nextTick(() => {
-              resolve();
-            });
-          });
-          // First call should have fetched
-          expect(mockFetchAndBuildTokenListMap).toHaveBeenCalledTimes(1);
-          // Clear mock call count, then trigger enrichment again
-          mockFetchAndBuildTokenListMap.mockClear();
-          // Add a token to trigger enrichment
-          await controller.addToken({
-            address: '0x02',
-            symbol: 'TKN2',
-            decimals: 18,
-            networkClientId: 'mainnet',
-          });
-          await new Promise<void>((resolve) => {
-            process.nextTick(() => {
-              resolve();
-            });
-          });
-          // Second call should use cached list (not call API again)
-          expect(mockFetchAndBuildTokenListMap).not.toHaveBeenCalled();
-        },
-      );
-    });
   });
 
   describe('destroy', () => {
-    it('should clear the enrich interval and abort the abort controller', async () => {
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    it('should abort the internal abort controller', async () => {
       const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
 
       await withController({}, ({ controller }) => {
         controller.destroy();
 
-        expect(clearIntervalSpy).toHaveBeenCalled();
         expect(abortSpy).toHaveBeenCalled();
       });
 
-      clearIntervalSpy.mockRestore();
       abortSpy.mockRestore();
     });
   });

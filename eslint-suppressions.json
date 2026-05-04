@@ -428,7 +428,7 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {

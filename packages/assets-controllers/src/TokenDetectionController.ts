@@ -40,16 +40,14 @@ import type {
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
-import { fetchAndBuildTokenListMap } from './token-service';
 import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
-import type { TokenListMap, TokensChainsCache } from './TokenListController';
+import type { TokenListMap } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import { fetchVerifiedTokensByAddresses } from './tokens-api-v3';
+import { TokenListService } from './token-list-service/token-list-service';
 import type { TokensControllerGetStateAction } from './TokensController';
 import type {
   TokensControllerAddDetectedTokensAction,
@@ -121,22 +119,6 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   };
 }, {});
 
-/**
- * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
- *
- * @param tokensChainsCache - TokensChainsCache input object
- * @returns returns the map of chainId with TokenListMap
- */
-export function mapChainIdWithTokenListMap(
-  tokensChainsCache: TokensChainsCache,
-): Record<string, unknown> {
-  return mapValues(tokensChainsCache, (value) => {
-    if (isObject(value) && 'data' in value) {
-      return get(value, ['data']);
-    }
-    return value;
-  });
-}
 
 export const controllerName = 'TokenDetectionController';
 
@@ -227,12 +209,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #selectedAccountId: string;
 
-  readonly #tokenListCache = new Map<
-    Hex,
-    { data: TokenListMap; timestamp: number }
-  >();
-
-  static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
+  readonly #tokenListService: TokenListService;
 
   readonly #abortController: AbortController;
 
@@ -274,6 +251,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
    * @param options.useExternalServices - Feature Switch for using external services (default: false)
+   * @param options.tokenListService - Shared token list cache service. A new instance is created if not provided.
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -283,6 +261,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     messenger,
     useTokenDetection = (): boolean => true,
     useExternalServices = (): boolean => true,
+    tokenListService,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -301,6 +280,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     messenger: TokenDetectionControllerMessenger;
     useTokenDetection?: () => boolean;
     useExternalServices?: () => boolean;
+    tokenListService?: TokenListService;
   }) {
     super({
       name: controllerName,
@@ -312,6 +292,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     this.#abortController = new AbortController();
+    this.#tokenListService = tokenListService ?? new TokenListService();
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
@@ -364,7 +345,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           // Invalidate the mainnet token list cache so the next detection run
           // fetches the appropriate list (static vs full API) for the new
           // preference value rather than serving a stale entry.
-          this.#tokenListCache.delete(ChainId.mainnet);
+          this.#tokenListService.invalidate(ChainId.mainnet);
 
           this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
@@ -675,7 +656,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     );
 
     const tokenList = await this.#getTokenListForChain(chainId);
-
     const tokensToDetect: string[] = [];
     for (const tokenAddress of Object.keys(tokenList)) {
       if (
@@ -721,40 +701,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   async #getTokenListForChain(chainId: Hex): Promise<TokenListMap> {
-    const now = Date.now();
-
-    // Check the preference-based path first so that changing the preference
-    // (e.g. re-enabling detection on mainnet) always bypasses a stale
-    // static-list cache entry.
     const isMainnetDetectionInactive =
       !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
 
     if (isMainnetDetectionInactive) {
-      const data = this.#getStaticMainnetTokenList();
-      this.#tokenListCache.set(chainId, { data, timestamp: now });
-      return data;
+      return this.#getStaticMainnetTokenList();
     }
 
-    const cached = this.#tokenListCache.get(chainId);
-
-    if (
-      cached &&
-      now - cached.timestamp < TokenDetectionController.#tokenListCacheMaxAge
-    ) {
-      return cached.data;
-    }
-
-    const tokenList = await fetchAndBuildTokenListMap(
+    return this.#tokenListService.getTokenListForChain(
       chainId,
       this.#abortController.signal,
     );
-
-    if (!tokenList) {
-      return cached?.data ?? {};
-    }
-
-    this.#tokenListCache.set(chainId, { data: tokenList, timestamp: now });
-    return tokenList;
   }
 
   /**
@@ -894,10 +851,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const verifiedTokens =
-      (await safelyExecute(() =>
-        fetchVerifiedTokensByAddresses(chainId, tokensSlice),
-      )) ?? new Map();
+    const tokenList = await this.#getTokenListForChain(chainId);
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
@@ -907,7 +861,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
-      const tokenData = verifiedTokens.get(lowercaseTokenAddress);
+      const tokenData = tokenList[lowercaseTokenAddress];
       if (!tokenData) {
         continue;
       }
@@ -960,8 +914,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * - Checks if useTokenDetection preference is enabled (skips if disabled)
    * - Checks if external services are enabled (skips if disabled)
    * - Filters out tokens already in allTokens or allIgnoredTokens
-   * - Fetches token metadata from the v3 tokens API and filters out unverified
-   *   tokens (occurrences < 3) as a spam prevention measure
+   * - Looks up token metadata from the cached token list (TokenListService)
+   *   and filters out tokens not in the list as a spam prevention measure
    * - Balance fetching is skipped since balances are provided by the caller
    *
    * @param options - The options object
@@ -1015,10 +969,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const verifiedTokens =
-      (await safelyExecute(() =>
-        fetchVerifiedTokensByAddresses(chainId, addressesToFetch),
-      )) ?? new Map();
+    const tokenList = await this.#getTokenListForChain(chainId);
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
@@ -1027,7 +978,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
-      const tokenData = verifiedTokens.get(lowercaseTokenAddress);
+      const tokenData = tokenList[lowercaseTokenAddress];
       if (!tokenData) {
         continue;
       }
@@ -1090,6 +1041,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     super.destroy();
     this.#stopPolling();
     this.#abortController.abort();
+    this.#tokenListService.destroy();
   }
 }
 

@@ -55,11 +55,11 @@ import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
-  fetchAndBuildTokenListMap,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
-import type { TokenListMap, TokenListToken } from './TokenListController';
+import { TokenListService } from './token-list-service/token-list-service';
+import type { TokenListToken } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
@@ -242,14 +242,7 @@ export class TokensController extends BaseController<
 
   readonly #abortController: AbortController;
 
-  readonly #tokenListCache = new Map<
-    Hex,
-    { data: TokenListMap; timestamp: number }
-  >();
-
-  static readonly #tokenListCacheMaxAge = 4 * 60 * 60 * 1000;
-
-  #enrichIntervalId: ReturnType<typeof setInterval> | undefined;
+  readonly #tokenListService: TokenListService;
 
   /**
    * Tokens controller options
@@ -259,16 +252,19 @@ export class TokensController extends BaseController<
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
+   * @param options.tokenListService - Shared token list cache service. A new instance is created if not provided.
    */
   constructor({
     provider,
     state,
     messenger,
+    tokenListService,
   }: {
     chainId: Hex;
     provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
+    tokenListService?: TokenListService;
   }) {
     super({
       name: controllerName,
@@ -285,6 +281,7 @@ export class TokensController extends BaseController<
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
     this.#abortController = new AbortController();
+    this.#tokenListService = tokenListService ?? new TokenListService();
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
@@ -338,11 +335,6 @@ export class TokensController extends BaseController<
     this.#enrichTokenMetadata().catch(() => {
       // Silently handle enrichment errors on startup
     });
-    this.#enrichIntervalId = setInterval(() => {
-      this.#enrichTokenMetadata().catch(() => {
-        // Silently handle enrichment errors
-      });
-    }, TokensController.#tokenListCacheMaxAge);
   }
 
   #handleOnAccountRemoved(accountAddress: string) {
@@ -481,30 +473,12 @@ export class TokensController extends BaseController<
     return {};
   }
 
-  async #getTokenListForChain(chainId: Hex): Promise<TokenListMap> {
-    const cached = this.#tokenListCache.get(chainId);
-    const now = Date.now();
-
-    if (
-      cached &&
-      now - cached.timestamp < TokensController.#tokenListCacheMaxAge
-    ) {
-      return cached.data;
-    }
-
-    const tokenList = await fetchAndBuildTokenListMap(
-      chainId,
-      this.#abortController.signal,
-    );
-
-    if (!tokenList) {
-      return cached?.data ?? {};
-    }
-
-    this.#tokenListCache.set(chainId, { data: tokenList, timestamp: now });
-    return tokenList;
-  }
-
+  /**
+   * Refreshes `rwaData` for tokens that already have it in state, using the
+   * cached token list from {@link TokenListService}. Only tokens with an
+   * existing `rwaData` field are checked — tokens without it have already been
+   * confirmed as non-RWA and do not need a lookup.
+   */
   async #enrichTokenMetadata(): Promise<void> {
     const { allTokens } = this.state;
     const chainIds = Object.keys(allTokens) as Hex[];
@@ -517,26 +491,38 @@ export class TokensController extends BaseController<
     let hasChanges = false;
 
     for (const chainId of chainIds) {
-      const tokenList = await this.#getTokenListForChain(chainId);
-      if (Object.keys(tokenList).length === 0) {
+      const accountsForChain = updatedAllTokens[chainId];
+
+      const hasRwaTokens = Object.values(accountsForChain)
+        .flat()
+        .some((token) => token.rwaData !== undefined);
+
+      if (!hasRwaTokens) {
         continue;
       }
 
-      const accountsForChain = updatedAllTokens[chainId];
-      for (const [, tokens] of Object.entries(accountsForChain)) {
+      const tokenList = await safelyExecute(() =>
+        this.#tokenListService.getTokenListForChain(
+          chainId,
+          this.#abortController.signal,
+        ),
+      );
+
+      if (!tokenList) {
+        continue;
+      }
+
+      for (const tokens of Object.values(accountsForChain)) {
         for (const token of tokens) {
-          const cachedToken = tokenList[token.address.toLowerCase()];
-          if (!cachedToken) {
+          if (!token.rwaData) {
             continue;
           }
-          if (cachedToken.name && !token.name) {
-            token.name = cachedToken.name;
-            hasChanges = true;
+          const metadata = tokenList[token.address.toLowerCase()];
+          if (!metadata?.rwaData) {
+            continue;
           }
-          if (cachedToken.rwaData && !token.rwaData) {
-            token.rwaData = cachedToken.rwaData;
-            hasChanges = true;
-          }
+          token.rwaData = metadata.rwaData;
+          hasChanges = true;
         }
       }
     }
@@ -657,13 +643,6 @@ export class TokensController extends BaseController<
         Object.assign(state, newState);
       });
 
-      // Only enrich if the token ended up without rwaData (i.e. caller didn't
-      // provide it and the single-token metadata endpoint didn't return it).
-      if (!newEntry.rwaData) {
-        this.#enrichTokenMetadata().catch(() => {
-          // Silently handle enrichment errors
-        });
-      }
 
       return newTokens;
     } finally {
@@ -744,13 +723,6 @@ export class TokensController extends BaseController<
         state.allIgnoredTokens = newAllIgnoredTokens;
       });
 
-      // Only enrich if any token in the batch is missing rwaData.
-      const needsEnrichment = tokensToImport.some((token) => !token.rwaData);
-      if (needsEnrichment) {
-        this.#enrichTokenMetadata().catch(() => {
-          // Silently handle enrichment errors
-        });
-      }
     } finally {
       releaseLock();
     }
@@ -1380,11 +1352,8 @@ export class TokensController extends BaseController<
 
   override destroy(): void {
     super.destroy();
-    if (this.#enrichIntervalId !== undefined) {
-      clearInterval(this.#enrichIntervalId);
-      this.#enrichIntervalId = undefined;
-    }
     this.#abortController.abort();
+    this.#tokenListService.destroy();
   }
 
   /**

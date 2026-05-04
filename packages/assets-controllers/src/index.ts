@@ -177,6 +177,10 @@ export {
   getTrendingTokens,
   fetchTokenAssets,
 } from './token-service';
+export {
+  TokenListService,
+  TOKEN_LIST_STALE_TIME,
+} from './token-list-service/token-list-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
