@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
 - `generatePostRegistrationAuthenticationOptions` to issue `navigator.credentials.get()` options after `navigator.credentials.create()`, keyed to the in-flight registration ceremony (including PRF eval when a salt was used) ([#8663](https://github.com/MetaMask/core/pull/8663))
@@ -41,5 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Registration verification requires the credential `id`/`rawId` to match the credential id in authenticator data; vault wrapping key derivation uses that verified credential id so enrollment keys align with the stored credential.
 - Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@1.0.0...@metamask/passkey-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/passkey-controller@1.0.0
