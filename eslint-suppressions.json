@@ -1584,6 +1584,11 @@
       "count": 3
     }
   },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 2
