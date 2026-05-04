@@ -13,9 +13,7 @@ export class QuoteStatusUpdateError extends Error {
       quoteId: string;
     },
   ) {
-    super(
-      `${details.errorType ? `[${details.errorType}] ` : ''}${message}`,
-    );
+    super(`${details.errorType ? `[${details.errorType}] ` : ''}${message}`);
     this.details = details;
     this.name = QuoteStatusUpdateError.name;
     Object.setPrototypeOf(this, QuoteStatusUpdateError.prototype);

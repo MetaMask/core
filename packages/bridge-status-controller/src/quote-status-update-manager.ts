@@ -10,6 +10,7 @@ import {
   QuoteStatusUpdateType,
   QuoteStatusUpdateSendWithRetryResult,
 } from './constants';
+import { QuoteStatusUpdateError } from './errors';
 import type {
   BridgeStatusControllerMessenger,
   DeferredStatusUpdateEntry,
@@ -17,7 +18,6 @@ import type {
 } from './types';
 import { getJwt } from './utils/authentication';
 import { sleep } from './utils/helpers';
-import { QuoteStatusUpdateError } from './errors';
 
 /**
  * Handles reporting quote status updates (SUBMITTED / FINALISED) to the

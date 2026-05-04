@@ -41,6 +41,7 @@ import {
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
 } from './constants';
+import { QuoteStatusUpdateError } from './errors';
 import { QuoteStatusUpdateManager } from './quote-status-update-manager';
 import type {
   BridgeStatusControllerState,
@@ -105,7 +106,6 @@ import {
   checkIsDelegatedAccount,
   isCrossChainTx,
 } from './utils/transaction';
-import { QuoteStatusUpdateError } from './errors';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
