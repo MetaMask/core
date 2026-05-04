@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Implement fiat strategy submit flow with order polling and relay execution ([#8347](https://github.com/MetaMask/core/pull/8347))
+- Add Gas Station support for Across source transactions when native balance is insufficient ([#8588](https://github.com/MetaMask/core/pull/8588))
+
+### Fixed
+
+- Pass explicit `assetId`, `providers`, and `fiat` to `RampsController:getQuotes` and persist the selected ramps quote on `TransactionFiatPayment` ([#8628](https://github.com/MetaMask/core/pull/8628))
 
 ## [20.2.0]
 

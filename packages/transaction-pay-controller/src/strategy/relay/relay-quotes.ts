@@ -37,6 +37,10 @@ import {
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
@@ -48,10 +52,6 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from './gas-station';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type {

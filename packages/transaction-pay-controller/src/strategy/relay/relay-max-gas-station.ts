@@ -9,14 +9,14 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  getGasStationEligibility,
+  getGasStationCostInSourceTokenRaw,
+} from '../../utils/gas-station';
+import {
   getNativeToken,
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token';
-import {
-  getGasStationEligibility,
-  getGasStationCostInSourceTokenRaw,
-} from './gas-station';
 import type { RelayQuote, RelayTransactionStep } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-max-gas-station');
