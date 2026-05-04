@@ -58,7 +58,8 @@ export type TokenDetectionControllerDetectTokensAction = {
  * This method:
  * - Checks if useTokenDetection preference is enabled (skips if disabled)
  * - Checks if external services are enabled (skips if disabled)
- * - Looks up token metadata from the cached token list (TokenListService)
+ * - Fetches token metadata from the v3 tokens API and filters out unverified
+ * tokens (occurrences < 3) as a spam prevention measure
  * - Balance fetching is skipped since balances are provided by the websocket
  * - Ignored tokens have been filtered out by the caller
  *
@@ -79,6 +80,7 @@ export type TokenDetectionControllerAddDetectedTokensViaWsAction = {
  * - Checks if external services are enabled (skips if disabled)
  * - Filters out tokens already in allTokens or allIgnoredTokens
  * - Looks up token metadata from the cached token list (TokenListService)
+ * and filters out tokens not in the list as a spam prevention measure
  * - Balance fetching is skipped since balances are provided by the caller
  *
  * @param options - The options object
