@@ -36,6 +36,7 @@ export type {
   SeedlessOnboardingControllerCheckNodeAuthTokenExpiredAction,
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
+  SeedlessOnboardingControllerUpdateProfilePairingStatusAction,
 } from './SeedlessOnboardingController-method-action-types';
 export type {
   SeedlessOnboardingControllerOptions,
@@ -51,6 +52,7 @@ export {
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
+  ProfilePairingStatus,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError, SeedlessOnboardingError } from './errors';

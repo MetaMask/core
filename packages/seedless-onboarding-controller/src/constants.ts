@@ -25,6 +25,13 @@ export enum SeedlessOnboardingMigrationVersion {
   V1 = 1,
 }
 
+export enum ProfilePairingStatus {
+  NotPaired = 'not_paired',
+  PairingInProgress = 'pairing_in_progress',
+  Paired = 'paired',
+  PairingFailed = 'pairing_failed',
+}
+
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   VaultLocked = `${controllerName} - The operation cannot be completed while the vault is locked.`,

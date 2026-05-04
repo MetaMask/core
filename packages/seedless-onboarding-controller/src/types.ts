@@ -7,7 +7,12 @@ import {
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import { AuthConnection, SecretType, Web3AuthNetwork } from './constants';
+import {
+  AuthConnection,
+  ProfilePairingStatus,
+  SecretType,
+  Web3AuthNetwork,
+} from './constants';
 import type { SeedlessOnboardingControllerMessenger } from './SeedlessOnboardingController';
 
 /**
@@ -206,6 +211,14 @@ export type SeedlessOnboardingControllerState =
        * This is temporarily stored in state during authentication and then persisted in the vault for the later use.
        */
       profilePairingToken?: string;
+
+      /**
+       * The profile pairing status.
+       * This is used to track the profile pairing status and to prevent re-pairing the user social profile with the profile sync auth service.
+       *
+       * @default ProfilePairingStatus.NotPaired
+       */
+      profilePairingStatus: ProfilePairingStatus;
     };
 
 /**

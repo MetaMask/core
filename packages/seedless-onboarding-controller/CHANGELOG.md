@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Telegram profile-pairing support with `pairProfileServiceWithSocialLogin`, including `AuthConnection.Telegram`, new token/error types, and encrypted-vault storage for `profilePairingToken` ([#8652](https://github.com/MetaMask/core/pull/8652))
 - Add new non-persisted value, `profilePairingToken` to controller state. ([#8652](https://github.com/MetaMask/core/pull/8652))
   - `authenticateMethod` will also accept the `profilePairingToken` in the params and will save to the state.
+- Add new persisted value, `profilePairingStatus` to controller state. ([#8652](https://github.com/MetaMask/core/pull/8652))
+  - `profilePairingStatus` has the default value as `ProfilePairingStatus.NotPaired` and the value will be updated when we do the paring.
+- Add new public method, `updateProfilePairingStatus` which is used to update the controller state. ([#8652](https://github.com/MetaMask/core/pull/8652))
 
 ### Changed
 

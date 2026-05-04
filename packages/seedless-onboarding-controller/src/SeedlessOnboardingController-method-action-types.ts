@@ -111,6 +111,16 @@ export type SeedlessOnboardingControllerUpdateBackupMetadataStateAction = {
 };
 
 /**
+ * Update the profile pairing status in the controller state.
+ *
+ * @param status - The new profile pairing status.
+ */
+export type SeedlessOnboardingControllerUpdateProfilePairingStatusAction = {
+  type: `SeedlessOnboardingController:updateProfilePairingStatus`;
+  handler: SeedlessOnboardingController['updateProfilePairingStatus'];
+};
+
+/**
  * Verify the password validity by decrypting the vault.
  *
  * @param password - The password to verify.
@@ -354,6 +364,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerFetchAllSecretDataAction
   | SeedlessOnboardingControllerChangePasswordAction
   | SeedlessOnboardingControllerUpdateBackupMetadataStateAction
+  | SeedlessOnboardingControllerUpdateProfilePairingStatusAction
   | SeedlessOnboardingControllerVerifyVaultPasswordAction
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction

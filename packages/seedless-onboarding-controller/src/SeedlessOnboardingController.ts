@@ -43,7 +43,7 @@ import {
   assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions';
-import { AuthConnection } from './constants';
+import { AuthConnection, ProfilePairingStatus } from './constants';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -109,6 +109,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
+  'updateProfilePairingStatus',
 ] as const;
 
 // Actions
@@ -154,6 +155,7 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
   const initialState = {
     socialBackupsMetadata: [],
     isSeedlessOnboardingUserAuthenticated: false,
+    profilePairingStatus: ProfilePairingStatus.NotPaired,
     migrationVersion: 0,
     ...overrides,
   };
@@ -314,6 +316,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: false,
       includeInDebugSnapshot: false,
       usedInUi: false,
+    },
+    profilePairingStatus: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: true,
     },
   };
 
@@ -984,6 +992,17 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Update the profile pairing status in the controller state.
+   *
+   * @param status - The new profile pairing status.
+   */
+  updateProfilePairingStatus(status: ProfilePairingStatus): void {
+    this.update((state) => {
+      state.profilePairingStatus = status;
+    });
+  }
+
+  /**
    * Verify the password validity by decrypting the vault.
    *
    * @param password - The password to verify.
@@ -1109,40 +1128,67 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
-      const { profilePairingToken, authConnection } = this.state;
-      if (authConnection !== AuthConnection.Telegram) {
-        // we don't throw the error here, since we don't support profile pairing for other social logins yet
-        // technically, clients should not call this method for other social logins
-        log(
-          `warning: skipping profile pairing for ${authConnection} social login`,
-        );
-        return;
-      }
+      try {
+        const { profilePairingToken, authConnection, profilePairingStatus } =
+          this.state;
+        if (profilePairingStatus === ProfilePairingStatus.Paired) {
+          log('Profile pairing already completed');
+          return;
+        }
 
-      if (!profilePairingToken) {
-        log(
-          'Error: profile pairing token is not available for Telegram social login',
-        );
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
-        );
-      }
+        if (profilePairingStatus === ProfilePairingStatus.PairingInProgress) {
+          log('Profile pairing already in progress');
+          return;
+        }
 
-      const response = await this.#fetch(this.#profilePairingEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${profileSvcToken}`,
-        },
-        body: JSON.stringify({
-          jwts: [profilePairingToken],
-        }),
-      });
+        if (authConnection !== AuthConnection.Telegram) {
+          // we don't throw the error here, since we don't support profile pairing for other social logins yet
+          // technically, clients should not call this method for other social logins
+          log(
+            `warning: skipping profile pairing for ${authConnection} social login`,
+          );
+          return;
+        }
 
-      if (!response.ok) {
-        throw new Error(
-          SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService,
-        );
+        if (!profilePairingToken) {
+          log(
+            'Error: profile pairing token is not available for Telegram social login',
+          );
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+          );
+        }
+
+        this.update((state) => {
+          state.profilePairingStatus = ProfilePairingStatus.PairingInProgress;
+        });
+
+        const response = await this.#fetch(this.#profilePairingEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${profileSvcToken}`,
+          },
+          body: JSON.stringify({
+            jwts: [profilePairingToken],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService,
+          );
+        }
+
+        this.update((state) => {
+          state.profilePairingStatus = ProfilePairingStatus.Paired;
+        });
+      } catch (error) {
+        log('Error pairing profile service with social login', error);
+        this.update((state) => {
+          state.profilePairingStatus = ProfilePairingStatus.PairingFailed;
+        });
+        throw error;
       }
     });
   }
