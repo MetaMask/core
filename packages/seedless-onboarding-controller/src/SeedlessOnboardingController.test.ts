@@ -81,6 +81,7 @@ import {
 import type { SeedlessOnboardingControllerMessenger } from './SeedlessOnboardingController';
 import type {
   SeedlessOnboardingControllerOptions,
+  SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
 } from './types';
 
@@ -169,6 +170,16 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
 
 const mockFetchFunction = jest.fn() as typeof fetch;
 const mockProfilePairingEndpoint = 'https://mock-profile-pairing.example';
+
+function getMockSocialBackupMetadata(
+  overrides: Partial<SocialBackupsMetadata> = {},
+): SocialBackupsMetadata {
+  return {
+    hash: 'mock-social-backup-hash',
+    type: SecretType.Mnemonic,
+    ...overrides,
+  };
+}
 
 /**
  * Get the default vault encryptor for the Seedless Onboarding Controller.
@@ -929,25 +940,6 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('updateProfilePairingStatus', () => {
-    it('should update the profile pairing status through the messenger', async () => {
-      await withController(async ({ controller, baseMessenger }) => {
-        expect(controller.state.profilePairingStatus).toBe(
-          ProfilePairingStatus.NotPaired,
-        );
-
-        baseMessenger.call(
-          'SeedlessOnboardingController:updateProfilePairingStatus',
-          ProfilePairingStatus.Paired,
-        );
-
-        expect(controller.state.profilePairingStatus).toBe(
-          ProfilePairingStatus.Paired,
-        );
-      });
-    });
-  });
-
   describe('pairProfileServiceWithSocialLogin', () => {
     const mockPassword = 'mock-password';
     const mockProfileServiceToken = 'profile-service-token';
@@ -988,6 +980,7 @@ describe('SeedlessOnboardingController', () => {
               profilePairingToken: undefined,
             }),
             authConnection: AuthConnection.Telegram,
+            socialBackupsMetadata: [getMockSocialBackupMetadata()],
           },
         },
         async ({ controller, baseMessenger }) => {
@@ -1010,9 +1003,49 @@ describe('SeedlessOnboardingController', () => {
               jwts: [mockProfilePairingToken],
             }),
           });
-          expect(controller.state.profilePairingStatus).toBe(
-            ProfilePairingStatus.Paired,
+          expect(
+            controller.state.socialBackupsMetadata[0]?.profilePairingStatus,
+          ).toBe(ProfilePairingStatus.Paired);
+        },
+      );
+    });
+
+    it('should throw if there are no social backups to pair', async () => {
+      const mockFetch = jest.fn();
+      const mockVault = await createVaultForProfilePairing(
+        mockProfilePairingToken,
+      );
+
+      await withController(
+        {
+          fetchFunction: mockFetch,
+          profilePairingEndpoint: mockProfilePairingEndpoint,
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: mockVault.encryptedMockVault,
+              profilePairingToken: undefined,
+            }),
+            authConnection: AuthConnection.Telegram,
+            socialBackupsMetadata: [],
+          },
+        },
+        async ({ controller, baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            mockPassword,
           );
+
+          await expect(
+            controller.pairProfileServiceWithSocialLogin(
+              mockProfileServiceToken,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.NoSocialBackups,
+          );
+
+          expect(mockFetch).not.toHaveBeenCalled();
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([]);
         },
       );
     });
@@ -1033,7 +1066,11 @@ describe('SeedlessOnboardingController', () => {
               vault: mockVault.encryptedMockVault,
             }),
             authConnection: AuthConnection.Telegram,
-            profilePairingStatus: ProfilePairingStatus.Paired,
+            socialBackupsMetadata: [
+              getMockSocialBackupMetadata({
+                profilePairingStatus: ProfilePairingStatus.Paired,
+              }),
+            ],
           },
         },
         async ({ controller, baseMessenger }) => {
@@ -1048,9 +1085,49 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toBeUndefined();
           expect(mockFetch).not.toHaveBeenCalled();
-          expect(controller.state.profilePairingStatus).toBe(
-            ProfilePairingStatus.Paired,
+          expect(
+            controller.state.socialBackupsMetadata[0]?.profilePairingStatus,
+          ).toBe(ProfilePairingStatus.Paired);
+        },
+      );
+    });
+
+    it('should update the primary social backup metadata to pairing failed when the profile pairing token is unavailable', async () => {
+      const mockFetch = jest.fn();
+      const mockVault = await createVaultForProfilePairing();
+
+      await withController(
+        {
+          fetchFunction: mockFetch,
+          profilePairingEndpoint: mockProfilePairingEndpoint,
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: mockVault.encryptedMockVault,
+              profilePairingToken: undefined,
+            }),
+            authConnection: AuthConnection.Telegram,
+            socialBackupsMetadata: [getMockSocialBackupMetadata()],
+          },
+        },
+        async ({ controller, baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            mockPassword,
           );
+
+          await expect(
+            controller.pairProfileServiceWithSocialLogin(
+              mockProfileServiceToken,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+          );
+
+          expect(mockFetch).not.toHaveBeenCalled();
+          expect(
+            controller.state.socialBackupsMetadata[0]?.profilePairingStatus,
+          ).toBe(ProfilePairingStatus.PairingFailed);
         },
       );
     });
@@ -1069,6 +1146,7 @@ describe('SeedlessOnboardingController', () => {
               vault: mockVault.encryptedMockVault,
             }),
             authConnection: AuthConnection.Google,
+            socialBackupsMetadata: [getMockSocialBackupMetadata()],
           },
         },
         async ({ controller, baseMessenger }) => {
@@ -1083,47 +1161,9 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toBeUndefined();
           expect(mockFetch).not.toHaveBeenCalled();
-          expect(controller.state.profilePairingStatus).toBe(
-            ProfilePairingStatus.NotPaired,
-          );
-        },
-      );
-    });
-
-    it('should throw if the Telegram profile pairing token is unavailable', async () => {
-      const mockFetch = jest.fn();
-      const mockVault = await createVaultForProfilePairing();
-
-      await withController(
-        {
-          fetchFunction: mockFetch,
-          profilePairingEndpoint: mockProfilePairingEndpoint,
-          state: {
-            ...getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              vault: mockVault.encryptedMockVault,
-              profilePairingToken: undefined,
-            }),
-            authConnection: AuthConnection.Telegram,
-          },
-        },
-        async ({ controller, baseMessenger }) => {
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            mockPassword,
-          );
-
-          await expect(
-            controller.pairProfileServiceWithSocialLogin(
-              mockProfileServiceToken,
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
-          );
-          expect(mockFetch).not.toHaveBeenCalled();
-          expect(controller.state.profilePairingStatus).toBe(
-            ProfilePairingStatus.PairingFailed,
-          );
+          expect(
+            controller.state.socialBackupsMetadata[0]?.profilePairingStatus,
+          ).toBeUndefined();
         },
       );
     });
@@ -1146,6 +1186,7 @@ describe('SeedlessOnboardingController', () => {
               vault: mockVault.encryptedMockVault,
             }),
             authConnection: AuthConnection.Telegram,
+            socialBackupsMetadata: [getMockSocialBackupMetadata()],
           },
         },
         async ({ controller, baseMessenger }) => {
@@ -1161,9 +1202,9 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService,
           );
-          expect(controller.state.profilePairingStatus).toBe(
-            ProfilePairingStatus.PairingFailed,
-          );
+          expect(
+            controller.state.socialBackupsMetadata[0]?.profilePairingStatus,
+          ).toBe(ProfilePairingStatus.PairingFailed);
         },
       );
     });
@@ -9296,7 +9337,6 @@ describe('SeedlessOnboardingController', () => {
             pendingToBeRevokedTokens: [
               { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
             ],
-            profilePairingStatus: ProfilePairingStatus.Paired,
             refreshToken: 'refreshToken',
             revokeToken: 'revokeToken',
             socialBackupsMetadata: [],
@@ -9325,7 +9365,6 @@ describe('SeedlessOnboardingController', () => {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
-              "profilePairingStatus": "paired",
             }
           `);
         },
@@ -9353,7 +9392,6 @@ describe('SeedlessOnboardingController', () => {
             pendingToBeRevokedTokens: [
               { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
             ],
-            profilePairingStatus: ProfilePairingStatus.Paired,
             refreshToken: 'refreshToken',
             revokeToken: 'revokeToken',
             socialBackupsMetadata: [],
@@ -9384,7 +9422,6 @@ describe('SeedlessOnboardingController', () => {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
-              "profilePairingStatus": "paired",
               "userId": "userId",
             }
           `);
@@ -9413,10 +9450,13 @@ describe('SeedlessOnboardingController', () => {
             pendingToBeRevokedTokens: [
               { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
             ],
-            profilePairingStatus: ProfilePairingStatus.Paired,
             refreshToken: 'refreshToken',
             revokeToken: 'revokeToken',
-            socialBackupsMetadata: [],
+            socialBackupsMetadata: [
+              getMockSocialBackupMetadata({
+                profilePairingStatus: ProfilePairingStatus.Paired,
+              }),
+            ],
             socialLoginEmail: 'socialLoginEmail',
             userId: 'userId',
             vault: 'vault',
@@ -9453,9 +9493,14 @@ describe('SeedlessOnboardingController', () => {
                   "revokeToken": "revokeToken",
                 },
               ],
-              "profilePairingStatus": "paired",
               "refreshToken": "refreshToken",
-              "socialBackupsMetadata": [],
+              "socialBackupsMetadata": [
+                {
+                  "hash": "mock-social-backup-hash",
+                  "profilePairingStatus": "paired",
+                  "type": "mnemonic",
+                },
+              ],
               "socialLoginEmail": "socialLoginEmail",
               "userId": "userId",
               "vault": "vault",
@@ -9486,7 +9531,6 @@ describe('SeedlessOnboardingController', () => {
             pendingToBeRevokedTokens: [
               { refreshToken: 'refreshToken', revokeToken: 'revokeToken' },
             ],
-            profilePairingStatus: ProfilePairingStatus.Paired,
             refreshToken: 'refreshToken',
             revokeToken: 'revokeToken',
             socialBackupsMetadata: [],
@@ -9507,7 +9551,6 @@ describe('SeedlessOnboardingController', () => {
           ).toMatchInlineSnapshot(`
             {
               "authConnection": "google",
-              "profilePairingStatus": "paired",
               "socialLoginEmail": "socialLoginEmail",
             }
           `);

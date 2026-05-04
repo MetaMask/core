@@ -38,6 +38,11 @@ export type SocialBackupsMetadata = {
    * This is only required for `Mnemonic` secret data.
    */
   keyringId?: string;
+
+  /**
+   * The optional profile pairing status to determine if the secret data is paired with the profile sync service.
+   */
+  profilePairingStatus?: ProfilePairingStatus;
 };
 
 export type AuthenticatedUserDetails = {
@@ -211,14 +216,6 @@ export type SeedlessOnboardingControllerState =
        * This is temporarily stored in state during authentication and then persisted in the vault for the later use.
        */
       profilePairingToken?: string;
-
-      /**
-       * The profile pairing status.
-       * This is used to track the profile pairing status and to prevent re-pairing the user social profile with the profile sync auth service.
-       *
-       * @default ProfilePairingStatus.NotPaired
-       */
-      profilePairingStatus: ProfilePairingStatus;
     };
 
 /**

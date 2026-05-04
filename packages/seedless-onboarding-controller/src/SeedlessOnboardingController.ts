@@ -109,7 +109,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
-  'updateProfilePairingStatus',
 ] as const;
 
 // Actions
@@ -155,7 +154,6 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
   const initialState = {
     socialBackupsMetadata: [],
     isSeedlessOnboardingUserAuthenticated: false,
-    profilePairingStatus: ProfilePairingStatus.NotPaired,
     migrationVersion: 0,
     ...overrides,
   };
@@ -316,12 +314,6 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       persist: false,
       includeInDebugSnapshot: false,
       usedInUi: false,
-    },
-    profilePairingStatus: {
-      includeInStateLogs: true,
-      persist: true,
-      includeInDebugSnapshot: true,
-      usedInUi: true,
     },
   };
 
@@ -997,17 +989,6 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Update the profile pairing status in the controller state.
-   *
-   * @param status - The new profile pairing status.
-   */
-  updateProfilePairingStatus(status: ProfilePairingStatus): void {
-    this.update((state) => {
-      state.profilePairingStatus = status;
-    });
-  }
-
-  /**
    * Verify the password validity by decrypting the vault.
    *
    * @param password - The password to verify.
@@ -1134,15 +1115,23 @@ export class SeedlessOnboardingController<
       this.#assertIsUnlocked();
 
       try {
-        const { profilePairingToken, authConnection, profilePairingStatus } =
+        const { profilePairingToken, authConnection, socialBackupsMetadata } =
           this.state;
+
+        if (socialBackupsMetadata.length < 1) {
+          throw new Error(SeedlessOnboardingControllerErrorMessage.NoSocialBackups);
+        }
+
+        // For now, we only support profile pairing for the primary SRP.
+        const profilePairingStatus =
+          socialBackupsMetadata[0]?.profilePairingStatus;
         if (profilePairingStatus === ProfilePairingStatus.Paired) {
           log('Profile pairing already completed');
           return;
         }
 
-        // The controller lock already serializes active pairing calls, so allow
-        // retries from a persisted PairingInProgress state after a crash.
+        // The controller lock already serializes active pairing calls, so only
+        // a completed pairing should short-circuit retries.
         if (authConnection !== AuthConnection.Telegram) {
           // we don't throw the error here, since we don't support profile pairing for other social logins yet
           // technically, clients should not call this method for other social logins
@@ -1179,12 +1168,20 @@ export class SeedlessOnboardingController<
         }
 
         this.update((state) => {
-          state.profilePairingStatus = ProfilePairingStatus.Paired;
+          const primarySocialBackup = state.socialBackupsMetadata[0];
+          if (primarySocialBackup) {
+            primarySocialBackup.profilePairingStatus =
+              ProfilePairingStatus.Paired;
+          }
         });
       } catch (error) {
         log('Error pairing profile service with social login', error);
         this.update((state) => {
-          state.profilePairingStatus = ProfilePairingStatus.PairingFailed;
+          const primarySocialBackup = state.socialBackupsMetadata[0];
+          if (primarySocialBackup) {
+            primarySocialBackup.profilePairingStatus =
+              ProfilePairingStatus.PairingFailed;
+          }
         });
         throw error;
       }
