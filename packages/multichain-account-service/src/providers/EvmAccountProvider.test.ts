@@ -124,8 +124,13 @@ class MockHdKeyringV2 implements Keyring {
     .mockImplementation((options: CreateAccountOptions) => {
       const newAccounts: KeyringAccount[] = [];
 
-      if (options.type === `${AccountCreationType.Bip44DeriveIndex}`) {
-        const groupIndex = this.accounts.length;
+      if (options.type === AccountCreationType.Bip44DeriveIndex) {
+        // Derive at the caller-supplied `groupIndex` (rather than
+        // `this.accounts.length`) so that a production bug forwarding the
+        // wrong index would surface as an address/identity mismatch in
+        // tests, instead of being masked by the mock re-deriving
+        // sequentially.
+        const { groupIndex } = options;
         const { metadata, ...keyringAccount } =
           makeDerivedHdAccount(groupIndex);
         this.accounts.push(keyringAccount);
