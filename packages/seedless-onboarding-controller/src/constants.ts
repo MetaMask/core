@@ -27,7 +27,6 @@ export enum SeedlessOnboardingMigrationVersion {
 
 export enum ProfilePairingStatus {
   NotPaired = 'not_paired',
-  PairingInProgress = 'pairing_in_progress',
   Paired = 'paired',
   PairingFailed = 'pairing_failed',
 }

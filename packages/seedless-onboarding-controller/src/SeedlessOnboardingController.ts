@@ -1136,11 +1136,8 @@ export class SeedlessOnboardingController<
           return;
         }
 
-        if (profilePairingStatus === ProfilePairingStatus.PairingInProgress) {
-          log('Profile pairing already in progress');
-          return;
-        }
-
+        // The controller lock already serializes active pairing calls, so allow
+        // retries from a persisted PairingInProgress state after a crash.
         if (authConnection !== AuthConnection.Telegram) {
           // we don't throw the error here, since we don't support profile pairing for other social logins yet
           // technically, clients should not call this method for other social logins
@@ -1158,10 +1155,6 @@ export class SeedlessOnboardingController<
             SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
           );
         }
-
-        this.update((state) => {
-          state.profilePairingStatus = ProfilePairingStatus.PairingInProgress;
-        });
 
         const response = await this.#fetch(this.#profilePairingEndpoint, {
           method: 'POST',

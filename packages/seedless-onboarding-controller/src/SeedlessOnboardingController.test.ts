@@ -1088,44 +1088,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should skip pairing when profile pairing is already in progress', async () => {
-      const mockFetch = jest.fn();
-      const mockVault = await createVaultForProfilePairing(
-        mockProfilePairingToken,
-      );
-
-      await withController(
-        {
-          fetchFunction: mockFetch,
-          profilePairingEndpoint: mockProfilePairingEndpoint,
-          state: {
-            ...getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              vault: mockVault.encryptedMockVault,
-            }),
-            authConnection: AuthConnection.Telegram,
-            profilePairingStatus: ProfilePairingStatus.PairingInProgress,
-          },
-        },
-        async ({ controller, baseMessenger }) => {
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            mockPassword,
-          );
-
-          expect(
-            await controller.pairProfileServiceWithSocialLogin(
-              mockProfileServiceToken,
-            ),
-          ).toBeUndefined();
-          expect(mockFetch).not.toHaveBeenCalled();
-          expect(controller.state.profilePairingStatus).toBe(
-            ProfilePairingStatus.PairingInProgress,
-          );
-        },
-      );
-    });
-
     it('should skip pairing for non-Telegram social logins', async () => {
       const mockFetch = jest.fn();
       const mockVault = await createVaultForProfilePairing();
