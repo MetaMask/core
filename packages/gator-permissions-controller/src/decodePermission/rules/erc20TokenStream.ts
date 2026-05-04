@@ -28,12 +28,26 @@ export function makeErc20TokenStreamRule(
     erc20StreamingEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
     redeemerEnforcer,
+    logicalOrWrapperEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-stream',
-    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
+    optionalEnforcers: [
+      timestampEnforcer,
+      redeemerEnforcer,
+      allowedCalldataEnforcer,
+      logicalOrWrapperEnforcer,
+    ],
     redeemerEnforcer,
+    payeeEnforcers: {
+      allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      singlePayeeEnforcer: allowedCalldataEnforcer,
+      logicalOrWrapperEnforcer,
+    },
     timestampEnforcer,
     requiredEnforcers: {
       [erc20StreamingEnforcer]: 1,

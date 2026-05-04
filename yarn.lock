@@ -3478,23 +3478,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/delegation-core@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@metamask/delegation-core@npm:1.1.0"
-  dependencies:
-    "@metamask/abi-utils": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.4.0"
-    "@noble/hashes": "npm:^1.8.0"
-  checksum: 10/672f9e2e2b4e8c312f2cd2ff166bbc508fbdb6e141fe92e678abc9993b9ccbdd17db711477a9b97b6ce3919fa6d51d759c16f6c6fda3f89cb95e303b8aa76f7d
+"@metamask/delegation-core@link:../../../smart-accounts-kit/packages/delegation-core::locator=%40metamask%2Fgator-permissions-controller%40workspace%3Apackages%2Fgator-permissions-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/delegation-core@link:../../../smart-accounts-kit/packages/delegation-core::locator=%40metamask%2Fgator-permissions-controller%40workspace%3Apackages%2Fgator-permissions-controller"
   languageName: node
-  linkType: hard
+  linkType: soft
 
-"@metamask/delegation-deployments@npm:^0.12.0":
-  version: 0.12.0
-  resolution: "@metamask/delegation-deployments@npm:0.12.0"
-  checksum: 10/fd3b373efc1857cc867b44b4ca33db0cf8487c1109d6f2ed7e3ce10e6a65d4165b7fcc034cab92d919d6f0833e3749a055ff862adc8d7a348cdd3a0f593f6aa6
+"@metamask/delegation-deployments@link:../../../smart-accounts-kit/packages/delegation-deployments::locator=%40metamask%2Fgator-permissions-controller%40workspace%3Apackages%2Fgator-permissions-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/delegation-deployments@link:../../../smart-accounts-kit/packages/delegation-deployments::locator=%40metamask%2Fgator-permissions-controller%40workspace%3Apackages%2Fgator-permissions-controller"
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@metamask/earn-controller@workspace:packages/earn-controller":
   version: 0.0.0-use.local
@@ -4108,8 +4102,8 @@ __metadata:
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/delegation-core": "npm:^1.1.0"
-    "@metamask/delegation-deployments": "npm:^0.12.0"
+    "@metamask/delegation-core": "link:../../../smart-accounts-kit/packages/delegation-core"
+    "@metamask/delegation-deployments": "link:../../../smart-accounts-kit/packages/delegation-deployments"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^30.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
