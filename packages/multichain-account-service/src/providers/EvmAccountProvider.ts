@@ -147,7 +147,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * @param opts.entropySource - The entropy source to use for the creation of the account.
    * @param opts.groupIndex - The index of the group to create the account for.
    * @param opts.throwOnGap - Whether to throw an error if the account index is not contiguous.
-   * @returns The account ID and a boolean indicating if the account was created.
+   * @returns The created or existing keyring account(s) at the requested group
+   * index. Returns an empty array if the keyring did not create an account.
    */
   async #createAccount({
     entropySource,
@@ -157,13 +158,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
     throwOnGap: boolean;
-  }): Promise<[string, boolean]> {
-    const result = await this.withKeyringV2<Keyring, [string, boolean]>(
+  }): Promise<KeyringAccount[]> {
+    return await this.withKeyringV2<Keyring, KeyringAccount[]>(
       { id: entropySource },
       async ({ keyring }) => {
         const existing = await keyring.getAccounts();
         if (groupIndex < existing.length) {
-          return [existing[groupIndex].address, false];
+          return [existing[groupIndex]];
         }
 
         // If the throwOnGap flag is set, we throw an error to prevent index gaps.
@@ -171,16 +172,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           throw new Error('Trying to create too many accounts');
         }
 
-        const [added] = await keyring.createAccounts({
+        return await keyring.createAccounts({
           type: AccountCreationType.Bip44DeriveIndex,
           entropySource,
           groupIndex,
         });
-        return [added.address, true];
       },
     );
-
-    return result;
   }
 
   /**
@@ -241,7 +239,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
               entropySource,
               groupIndex,
             });
-            result.push(this.#getAccountId(created.address));
+            if (created) {
+              result.push(created.id);
+            } else {
+              console.warn(
+                `Failed to create EVM account for group index ${groupIndex} and entropy source: ${entropySource}, skipping...`,
+              );
+            }
           }
 
           return result;
@@ -265,17 +269,15 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     // Handle Bip44DeriveIndex (single account creation).
     const { groupIndex } = options;
 
-    const [address] = await this.#createAccount({
+    const [created] = await this.#createAccount({
       entropySource,
       groupIndex,
       throwOnGap: true,
     });
 
-    const accountId = this.#getAccountId(address);
-
     const account = this.messenger.call(
       'AccountsController:getAccount',
-      accountId,
+      created?.id,
     );
 
     // We MUST have the associated internal account.
@@ -415,20 +417,19 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         }
 
         // We have some activity on this address, we try to create the account.
-        const [address] = await this.#createAccount({
+        const [created] = await this.#createAccount({
           entropySource,
           groupIndex,
           throwOnGap: false,
         });
         assert(
-          addressFromGroupIndex === address,
+          addressFromGroupIndex === created.address,
           'Created account does not match address from group index.',
         );
 
-        const accountId = this.#getAccountId(address);
         const account = this.messenger.call(
           'AccountsController:getAccount',
-          accountId,
+          created?.id,
         );
         assertInternalAccountExists(account);
         assertIsBip44Account(account);

@@ -479,6 +479,30 @@ describe('EvmAccountProvider', () => {
     expect(keyring.createAccounts).toHaveBeenCalledTimes(2);
   });
 
+  it('warns and skips a group index when the keyring returns no created account', async () => {
+    const { provider, keyring } = setup({ accounts: [] });
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    // Simulate the keyring failing to create an account on the first call.
+    keyring.createAccounts.mockImplementationOnce(() => []);
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 1,
+      },
+    });
+
+    // The skipped index is dropped; the next index still produces an account.
+    expect(newAccounts).toHaveLength(1);
+    expect(keyring.createAccounts).toHaveBeenCalledTimes(2);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      `Failed to create EVM account for group index 0 and entropy source: ${MOCK_HD_KEYRING_1.metadata.id}, skipping...`,
+    );
+  });
+
   it('throws if the created account is not BIP-44 compatible', async () => {
     const accounts = [MOCK_HD_ACCOUNT_1];
     const { provider, mocks } = setup({
