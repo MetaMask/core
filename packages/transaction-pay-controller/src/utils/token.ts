@@ -3,7 +3,8 @@ import { Web3Provider } from '@ethersproject/providers';
 import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -338,6 +339,40 @@ export async function getLiveTokenBalance(
   const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
   const balance = await contract.balanceOf(account);
   return balance.toString();
+}
+
+/**
+ * Build a CAIP-19 asset type identifier for an EVM token.
+ *
+ * @param chainId - Hex chain ID (e.g. `0x1`).
+ * @param tokenAddress - Token contract address, or the native token address.
+ * @param slip44CoinType - SLIP-44 coin type for native tokens (defaults to 60 / ETH).
+ * @returns CAIP-19 asset type string.
+ */
+export function buildCaipAssetType(
+  chainId: Hex,
+  tokenAddress: Hex,
+  slip44CoinType = 60,
+): CaipAssetType {
+  const chainReference = String(hexToBigInt(chainId));
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    return toCaipAssetType(
+      'eip155',
+      chainReference,
+      'slip44',
+      String(slip44CoinType),
+    );
+  }
+
+  return toCaipAssetType(
+    'eip155',
+    chainReference,
+    'erc20',
+    tokenAddress,
+  );
 }
 
 function getTicker(

@@ -1175,21 +1175,22 @@ describe('Feature Flags Utils', () => {
   describe('getFiatAssetPerTransactionType', () => {
     const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
       address: '0x0000000000000000000000000000000000001010',
-      caipAssetId: 'eip155:137/slip44:966',
       chainId: '0x89',
-      decimals: 18,
     };
 
-    it('returns undefined when confirmations_pay_fiat flag is absent', () => {
+    it('returns ETH mainnet fallback when confirmations_pay_fiat flag is absent', () => {
       const result = getFiatAssetPerTransactionType(
         messenger,
-        TransactionType.predictDeposit,
+        TransactionType.contractInteraction,
       );
 
-      expect(result).toBeUndefined();
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
     });
 
-    it('returns undefined when flag exists but has no entry for the transaction type', () => {
+    it('returns hardcoded asset when flag exists but has no entry for the transaction type', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -1206,10 +1207,13 @@ describe('Feature Flags Utils', () => {
         TransactionType.predictDeposit,
       );
 
-      expect(result).toBeUndefined();
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000001010',
+        chainId: '0x89',
+      });
     });
 
-    it('returns the asset when entry matches the transaction type', () => {
+    it('returns feature flag asset when entry matches the transaction type', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -1229,7 +1233,7 @@ describe('Feature Flags Utils', () => {
       expect(result).toStrictEqual(FIAT_ASSET_MOCK);
     });
 
-    it('returns undefined when assetPerTransactionType is not defined', () => {
+    it('returns ETH mainnet fallback when assetPerTransactionType is not defined', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -1239,10 +1243,33 @@ describe('Feature Flags Utils', () => {
 
       const result = getFiatAssetPerTransactionType(
         messenger,
+        TransactionType.contractInteraction,
+      );
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
+    });
+
+    it('prefers feature flag over hardcoded asset', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.predictDeposit]: FIAT_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
         TransactionType.predictDeposit,
       );
 
-      expect(result).toBeUndefined();
+      expect(result).toStrictEqual(FIAT_ASSET_MOCK);
     });
   });
 });

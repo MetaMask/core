@@ -11,7 +11,11 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
-import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
+import {
+  computeRawFromFiatAmount,
+  getTokenFiatRate,
+  getTokenInfo,
+} from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import { DEFAULT_FIAT_CURRENCY } from './constants';
@@ -198,7 +202,6 @@ function buildRelayRequestFromAmountFiat({
   fiatAsset: {
     address: Hex;
     chainId: Hex;
-    decimals: number;
   };
   messenger: PayStrategyGetQuotesRequest['messenger'];
   requiredToken: TransactionPayRequiredToken;
@@ -214,9 +217,19 @@ function buildRelayRequestFromAmountFiat({
     return undefined;
   }
 
+  const tokenInfo = getTokenInfo(
+    messenger,
+    fiatAsset.address,
+    fiatAsset.chainId,
+  );
+
+  if (!tokenInfo) {
+    return undefined;
+  }
+
   const sourceAmountRaw = computeRawFromFiatAmount(
     amountFiat,
-    fiatAsset.decimals,
+    tokenInfo.decimals,
     sourceFiatRate.usdRate,
   );
 

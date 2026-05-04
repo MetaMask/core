@@ -9,9 +9,7 @@ import type { TransactionPayFiatAsset } from './constants';
 
 const FEATURE_FLAG_ASSET_MOCK: TransactionPayFiatAsset = {
   address: '0x0000000000000000000000000000000000000abc',
-  caipAssetId: 'eip155:10/slip44:60',
   chainId: '0xa',
-  decimals: 18,
 };
 
 describe('Fiat Utils', () => {
@@ -96,7 +94,7 @@ describe('Fiat Utils', () => {
       );
     });
 
-    it('returns hardcoded asset for first nested transaction in batch', () => {
+    it('returns hardcoded asset for supported nested transaction in batch', () => {
       const transaction = {
         nestedTransactions: [{ type: TransactionType.perpsDeposit }],
         type: TransactionType.batch,
@@ -109,7 +107,23 @@ describe('Fiat Utils', () => {
       );
     });
 
-    it('returns feature flag asset for first nested transaction in batch', () => {
+    it('skips unsupported nested types and finds supported one in batch', () => {
+      const transaction = {
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.perpsDeposit },
+        ],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
+      );
+    });
+
+    it('returns feature flag asset for supported nested transaction in batch', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {

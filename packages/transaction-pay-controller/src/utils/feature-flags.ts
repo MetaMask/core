@@ -7,6 +7,10 @@ import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
+  ETH_MAINNET_FIAT_ASSET,
+  FIAT_ASSET_ID_BY_TX_TYPE,
+} from '../strategy/fiat/constants';
+import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
@@ -75,6 +79,12 @@ type StrategyOverride = {
 type StrategyOverrides = {
   default?: StrategyOverride;
   transactionTypes: Record<string, StrategyOverride>;
+};
+
+type FiatFlags = {
+  assetPerTransactionType?: Partial<
+    Record<TransactionType, TransactionPayFiatAsset>
+  >;
 };
 
 type StrategyRoutingConfig = {
@@ -664,26 +674,35 @@ function getCaseInsensitive<Value>(
 }
 
 /**
- * Get the fiat asset override for a specific transaction type from feature flags.
+ * Get the fiat asset for a specific transaction type.
+ *
+ * Resolution order:
+ * 1. Feature flag override (`confirmations_pay_fiat.assetPerTransactionType`)
+ * 2. Hardcoded constant (`FIAT_ASSET_ID_BY_TX_TYPE`)
+ * 3. ETH mainnet fallback
  *
  * @param messenger - Controller messenger.
  * @param transactionType - Transaction type to look up.
- * @returns The fiat asset if configured, undefined otherwise.
+ * @returns The fiat asset for the given transaction type.
  */
 export function getFiatAssetPerTransactionType(
   messenger: TransactionPayControllerMessenger,
-  transactionType: TransactionType,
-): TransactionPayFiatAsset | undefined {
+  transactionType?: TransactionType,
+): TransactionPayFiatAsset {
+  if (!transactionType) {
+    return ETH_MAINNET_FIAT_ASSET;
+  }
+
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
-    | {
-        assetPerTransactionType?: Partial<
-          Record<TransactionType, TransactionPayFiatAsset>
-        >;
-      }
+    | FiatFlags
     | undefined;
 
-  return fiatFlags?.assetPerTransactionType?.[transactionType];
+  return (
+    fiatFlags?.assetPerTransactionType?.[transactionType] ??
+    FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
+    ETH_MAINNET_FIAT_ASSET
+  );
 }
 
 /**

@@ -13,7 +13,11 @@ import type {
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../../types';
-import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
+import {
+  computeRawFromFiatAmount,
+  getTokenFiatRate,
+  getTokenInfo,
+} from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
@@ -52,9 +56,7 @@ const REQUIRED_TOKEN_MOCK: TransactionPayRequiredToken = {
 
 const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: '0x0000000000000000000000000000000000001010',
-  caipAssetId: 'eip155:137/slip44:966',
   chainId: '0x89',
-  decimals: 18,
 };
 
 const FIAT_QUOTE_MOCK: RampsQuote = {
@@ -202,6 +204,7 @@ function getRequest({
 describe('getFiatQuotes', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
+  const getTokenInfoMock = jest.mocked(getTokenInfo);
   const computeRawFromFiatAmountMock = jest.mocked(computeRawFromFiatAmount);
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
@@ -215,6 +218,7 @@ describe('getFiatQuotes', () => {
       fiatRate: '2',
       usdRate: '2',
     });
+    getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'POL' });
     computeRawFromFiatAmountMock.mockReturnValue('5000000000000000000');
     getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
   });
@@ -351,6 +355,16 @@ describe('getFiatQuotes', () => {
 
   it('returns empty array if source token fiat rate is missing', async () => {
     getTokenFiatRateMock.mockReturnValue(undefined);
+    const { request } = getRequest();
+
+    const result = await getFiatQuotes(request);
+
+    expect(result).toStrictEqual([]);
+    expect(getRelayQuotesMock).not.toHaveBeenCalled();
+  });
+
+  it('returns empty array if token info is unavailable', async () => {
+    getTokenInfoMock.mockReturnValue(undefined);
     const { request } = getRequest();
 
     const result = await getFiatQuotes(request);

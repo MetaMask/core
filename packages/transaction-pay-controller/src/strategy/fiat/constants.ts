@@ -12,30 +12,22 @@ export const DEFAULT_FIAT_CURRENCY = 'USD';
 
 export type TransactionPayFiatAsset = {
   address: Hex;
-  caipAssetId: string;
   chainId: Hex;
-  decimals: number;
 };
 
 const POLYGON_POL_FIAT_ASSET: TransactionPayFiatAsset = {
   address: '0x0000000000000000000000000000000000001010',
-  caipAssetId: 'eip155:137/slip44:966',
   chainId: CHAIN_ID_POLYGON,
-  decimals: 18,
 };
 
 const ARBITRUM_ETH_FIAT_ASSET: TransactionPayFiatAsset = {
   address: NATIVE_TOKEN_ADDRESS,
-  caipAssetId: 'eip155:42161/slip44:60',
   chainId: CHAIN_ID_ARBITRUM,
-  decimals: 18,
 };
 
 export const ETH_MAINNET_FIAT_ASSET: TransactionPayFiatAsset = {
   address: NATIVE_TOKEN_ADDRESS,
-  caipAssetId: 'eip155:1/slip44:60',
   chainId: CHAIN_ID_MAINNET,
-  decimals: 18,
 };
 
 export const FIAT_ASSET_ID_BY_TX_TYPE: Partial<
