@@ -1,6 +1,5 @@
 import { publicToAddress } from '@ethereumjs/util';
 import type { Bip44Account } from '@metamask/account-api';
-import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import type {
@@ -128,19 +127,6 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Get the account ID for an EVM account.
-   *
-   * Note: Since the account ID is deterministic at the AccountsController level,
-   * we can use this method to get the account ID from the address.
-   *
-   * @param address - The address of the account.
-   * @returns The account ID.
-   */
-  #getAccountId(address: string): string {
-    return getUUIDFromAddressOfNormalAccount(address);
-  }
-
-  /**
    * Create an EVM account.
    *
    * @param opts - The options for the creation of the account.
@@ -223,7 +209,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           ) {
             if (groupIndex < existing.length) {
               // Account already exists.
-              result.push(this.#getAccountId(existing[groupIndex].address));
+              result.push(existing[groupIndex].id);
             }
           }
 
@@ -275,19 +261,27 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       throwOnGap: true,
     });
 
-    const account = this.messenger.call(
-      'AccountsController:getAccount',
-      created?.id,
+    if (created) {
+      const account = this.messenger.call(
+        'AccountsController:getAccount',
+        created.id,
+      );
+
+      // We MUST have the associated internal accunt.
+      assertInternalAccountExists(account);
+
+      const accountsArray = [account];
+      assertAreBip44Accounts(accountsArray);
+
+      this.accounts.add(account.id);
+      return accountsArray;
+    }
+
+    console.warn(
+      `Failed to create EVM account for group index ${groupIndex} and entropy source: ${entropySource}, skipping...`,
     );
 
-    // We MUST have the associated internal account.
-    assertInternalAccountExists(account);
-
-    const accountsArray = [account];
-    assertAreBip44Accounts(accountsArray);
-
-    this.accounts.add(account.id);
-    return accountsArray;
+    return [];
   }
 
   /**
@@ -422,6 +416,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           groupIndex,
           throwOnGap: false,
         });
+
+        assert(created, 'Account creation failed');
         assert(
           addressFromGroupIndex === created.address,
           'Created account does not match address from group index.',
@@ -429,7 +425,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
         const account = this.messenger.call(
           'AccountsController:getAccount',
-          created?.id,
+          created.id,
         );
         assertInternalAccountExists(account);
         assertIsBip44Account(account);

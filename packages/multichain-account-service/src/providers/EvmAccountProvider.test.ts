@@ -503,6 +503,26 @@ describe('EvmAccountProvider', () => {
     );
   });
 
+  it('warns and returns no accounts when single Bip44DeriveIndex creation fails', async () => {
+    const { provider, keyring } = setup({ accounts: [] });
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    keyring.createAccounts.mockImplementationOnce(() => []);
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(newAccounts).toStrictEqual([]);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      `Failed to create EVM account for group index 0 and entropy source: ${MOCK_HD_KEYRING_1.metadata.id}, skipping...`,
+    );
+    // The provider should not register the account when nothing was created.
+    expect(provider.getAccounts()).toStrictEqual([]);
+  });
+
   it('throws if the created account is not BIP-44 compatible', async () => {
     const accounts = [MOCK_HD_ACCOUNT_1];
     const { provider, mocks } = setup({
@@ -633,6 +653,20 @@ describe('EvmAccountProvider', () => {
     // is created (or deleted) when there is no on-chain activity.
     expect(keyring.createAccounts).not.toHaveBeenCalled();
     expect(keyring.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('throws during discovery if the keyring returns no created account', async () => {
+    const { provider, keyring } = setup({ accounts: [] });
+
+    // Transaction count > 0 (default mock), so discovery proceeds to creation.
+    keyring.createAccounts.mockImplementationOnce(() => []);
+
+    await expect(
+      provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Account creation failed');
   });
 
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
