@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add required `quoteId: string` to `QuoteResponseSchema`; quote responses without a `quoteId` will now fail validation ([#8636](https://github.com/MetaMask/core/pull/8636))
+- Add required `quoteId: string` to `QuoteResponseSchema`; quote responses without a `quoteId` will now fail validation ([#8462](https://github.com/MetaMask/core/pull/8462))
 
 ### Changed
 
