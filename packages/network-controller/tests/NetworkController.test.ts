@@ -518,6 +518,36 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x10e6": {
+                "blockExplorerUrls": [],
+                "chainId": "0x10e6",
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Mainnet",
+                "nativeCurrency": "MEGAETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-mainnet",
+                    "type": "infura",
+                    "url": "https://megaeth-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x144": {
+                "blockExplorerUrls": [],
+                "chainId": "0x144",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Zksync Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "zksync-mainnet",
+                    "type": "infura",
+                    "url": "https://zksync-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [],
                 "chainId": "0x2105",
@@ -578,6 +608,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xa": {
                 "blockExplorerUrls": [],
                 "chainId": "0xa",
@@ -605,6 +650,21 @@ describe('NetworkController', () => {
                     "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa86a": {
+                "blockExplorerUrls": [],
+                "chainId": "0xa86a",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Avalanche Mainnet",
+                "nativeCurrency": "AVAX",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "avalanche-mainnet",
+                    "type": "infura",
+                    "url": "https://avalanche-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -687,6 +747,36 @@ describe('NetworkController', () => {
                     },
                   ],
                 },
+                "0x10e6": {
+                  "blockExplorerUrls": [],
+                  "chainId": "0x10e6",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "MegaETH Mainnet",
+                  "nativeCurrency": "MEGAETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "megaeth-mainnet",
+                      "type": "infura",
+                      "url": "https://megaeth-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x144": {
+                  "blockExplorerUrls": [],
+                  "chainId": "0x144",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Zksync Mainnet",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "zksync-mainnet",
+                      "type": "infura",
+                      "url": "https://zksync-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
                 "0x18c6": {
                   "blockExplorerUrls": [
                     "https://megaexplorer.xyz",
@@ -765,6 +855,21 @@ describe('NetworkController', () => {
                     },
                   ],
                 },
+                "0x8f": {
+                  "blockExplorerUrls": [],
+                  "chainId": "0x8f",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Mainnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-mainnet",
+                      "type": "infura",
+                      "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
                 "0xa": {
                   "blockExplorerUrls": [],
                   "chainId": "0xa",
@@ -792,6 +897,21 @@ describe('NetworkController', () => {
                       "networkClientId": "arbitrum-mainnet",
                       "type": "infura",
                       "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa86a": {
+                  "blockExplorerUrls": [],
+                  "chainId": "0xa86a",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Avalanche Mainnet",
+                  "nativeCurrency": "AVAX",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "avalanche-mainnet",
+                      "type": "infura",
+                      "url": "https://avalanche-mainnet.infura.io/v3/{infuraProjectId}",
                     },
                   ],
                 },
@@ -14910,6 +15030,36 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x10e6": {
+                "blockExplorerUrls": [],
+                "chainId": "0x10e6",
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Mainnet",
+                "nativeCurrency": "MEGAETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-mainnet",
+                    "type": "infura",
+                    "url": "https://megaeth-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x144": {
+                "blockExplorerUrls": [],
+                "chainId": "0x144",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Zksync Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "zksync-mainnet",
+                    "type": "infura",
+                    "url": "https://zksync-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [],
                 "chainId": "0x2105",
@@ -14970,6 +15120,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xa": {
                 "blockExplorerUrls": [],
                 "chainId": "0xa",
@@ -14997,6 +15162,21 @@ describe('NetworkController', () => {
                     "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa86a": {
+                "blockExplorerUrls": [],
+                "chainId": "0xa86a",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Avalanche Mainnet",
+                "nativeCurrency": "AVAX",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "avalanche-mainnet",
+                    "type": "infura",
+                    "url": "https://avalanche-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -15079,6 +15259,36 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x10e6": {
+                "blockExplorerUrls": [],
+                "chainId": "0x10e6",
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Mainnet",
+                "nativeCurrency": "MEGAETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-mainnet",
+                    "type": "infura",
+                    "url": "https://megaeth-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x144": {
+                "blockExplorerUrls": [],
+                "chainId": "0x144",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Zksync Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "zksync-mainnet",
+                    "type": "infura",
+                    "url": "https://zksync-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [],
                 "chainId": "0x2105",
@@ -15139,6 +15349,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xa": {
                 "blockExplorerUrls": [],
                 "chainId": "0xa",
@@ -15166,6 +15391,21 @@ describe('NetworkController', () => {
                     "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa86a": {
+                "blockExplorerUrls": [],
+                "chainId": "0xa86a",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Avalanche Mainnet",
+                "nativeCurrency": "AVAX",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "avalanche-mainnet",
+                    "type": "infura",
+                    "url": "https://avalanche-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -15248,6 +15488,36 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x10e6": {
+                "blockExplorerUrls": [],
+                "chainId": "0x10e6",
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Mainnet",
+                "nativeCurrency": "MEGAETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-mainnet",
+                    "type": "infura",
+                    "url": "https://megaeth-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x144": {
+                "blockExplorerUrls": [],
+                "chainId": "0x144",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Zksync Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "zksync-mainnet",
+                    "type": "infura",
+                    "url": "https://zksync-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [],
                 "chainId": "0x2105",
@@ -15308,6 +15578,21 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
               "0xa": {
                 "blockExplorerUrls": [],
                 "chainId": "0xa",
@@ -15335,6 +15620,21 @@ describe('NetworkController', () => {
                     "networkClientId": "arbitrum-mainnet",
                     "type": "infura",
                     "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xa86a": {
+                "blockExplorerUrls": [],
+                "chainId": "0xa86a",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Avalanche Mainnet",
+                "nativeCurrency": "AVAX",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "avalanche-mainnet",
+                    "type": "infura",
+                    "url": "https://avalanche-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
