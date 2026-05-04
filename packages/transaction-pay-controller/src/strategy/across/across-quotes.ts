@@ -1,4 +1,5 @@
 import { successfulFetch, toHex } from '@metamask/controller-utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -26,6 +27,7 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token';
+import type { AcrossDestination } from './across-actions';
 import { getAcrossDestination } from './across-actions';
 import { normalizeAcrossRequest } from './perps';
 import { isAcrossQuoteRequest } from './requests';
@@ -104,9 +106,15 @@ async function getSingleQuote(
     sourceTokenAddress,
   );
 
-  const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
-  const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
-  const destination = getAcrossDestination(transaction, request);
+  const useExactInput =
+    (isMaxAmount ?? false) || normalizedRequest.isPostQuote === true;
+  const amount = useExactInput ? sourceTokenAmount : targetAmountMinimum;
+  const tradeType = useExactInput ? 'exactInput' : 'exactOutput';
+  const destination = getAcrossDestinationForRequest(
+    transaction,
+    request,
+    from,
+  );
   const quote = await requestAcrossApproval({
     actions: destination.actions,
     amount,
@@ -117,6 +125,7 @@ async function getSingleQuote(
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
     recipient: destination.recipient,
+    refundAddress: normalizedRequest.refundTo,
     signal,
     slippage: slippageDecimal,
     tradeType,
@@ -125,6 +134,7 @@ async function getSingleQuote(
   const originalQuote: AcrossQuoteWithoutMetaMask = {
     quote,
     request: {
+      actions: destination.actions,
       amount,
       tradeType,
     },
@@ -197,6 +207,21 @@ async function getQuoteWithGasStationHandling(
   }
 }
 
+function getAcrossDestinationForRequest(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  recipient: Hex,
+): AcrossDestination {
+  if (request.isPostQuote) {
+    return {
+      actions: [],
+      recipient,
+    };
+  }
+
+  return getAcrossDestination(transaction, request);
+}
+
 type AcrossApprovalRequest = {
   actions: AcrossAction[];
   amount: string;
@@ -207,6 +232,7 @@ type AcrossApprovalRequest = {
   originChainId: Hex;
   outputToken: Hex;
   recipient: Hex;
+  refundAddress?: Hex;
   signal?: AbortSignal;
   slippage?: number;
   tradeType: 'exactInput' | 'exactOutput';
@@ -225,6 +251,7 @@ async function requestAcrossApproval(
     originChainId,
     outputToken,
     recipient,
+    refundAddress,
     signal,
     slippage,
     tradeType,
@@ -239,6 +266,10 @@ async function requestAcrossApproval(
   params.set('destinationChainId', String(parseInt(destinationChainId, 16)));
   params.set('depositor', depositor);
   params.set('recipient', recipient);
+
+  if (refundAddress !== undefined) {
+    params.set('refundAddress', refundAddress);
+  }
 
   if (slippage !== undefined) {
     params.set('slippage', String(slippage));

@@ -571,6 +571,13 @@ async function getQuotes(
     },
   );
 
+  log('Quote strategy order', {
+    requestCount: requests?.length ?? 0,
+    requestSummaries: requests?.map(summarizeQuoteRequest) ?? [],
+    strategies: strategies.map(({ name }) => name),
+    transactionId,
+  });
+
   if (!requests?.length) {
     return {
       batchTransactions: [],
@@ -599,6 +606,12 @@ async function getQuotes(
         continue;
       }
 
+      log('Trying quote strategy', {
+        requestSummaries: requests.map(summarizeQuoteRequest),
+        strategy: name,
+        transactionId,
+      });
+
       const quotes = (await strategy.getQuotes(
         request,
       )) as TransactionPayQuote<Json>[];
@@ -607,6 +620,15 @@ async function getQuotes(
         log('Strategy returned no quotes', { strategy: name, transactionId });
         continue;
       }
+
+      const quoteSummaries = quotes.map(summarizeQuote);
+
+      log('Strategy returned quotes', {
+        quoteCount: quotes.length,
+        quoteSummaries,
+        strategy: name,
+        transactionId,
+      });
 
       const quoteSupport = await checkStrategyQuoteSupport(strategy, {
         messenger,
@@ -617,11 +639,18 @@ async function getQuotes(
 
       if (!quoteSupport) {
         log('Strategy does not support quotes', {
+          quoteSummaries,
           strategy: name,
           transactionId,
         });
         continue;
       }
+
+      log('Using quote strategy', {
+        quoteCount: quotes.length,
+        strategy: name,
+        transactionId,
+      });
 
       log('Updated', { transactionId, quotes });
 
@@ -659,4 +688,59 @@ async function getQuotes(
     batchTransactions: [],
     quotes: [],
   };
+}
+
+function summarizeQuoteRequest(request: QuoteRequest): Partial<QuoteRequest> {
+  return {
+    from: request.from,
+    isMaxAmount: request.isMaxAmount,
+    isPostQuote: request.isPostQuote,
+    refundTo: request.refundTo,
+    sourceBalanceRaw: request.sourceBalanceRaw,
+    sourceChainId: request.sourceChainId,
+    sourceTokenAddress: request.sourceTokenAddress,
+    sourceTokenAmount: request.sourceTokenAmount,
+    targetAmountMinimum: request.targetAmountMinimum,
+    targetChainId: request.targetChainId,
+    targetTokenAddress: request.targetTokenAddress,
+  };
+}
+
+function summarizeQuote(quote: TransactionPayQuote<Json>): {
+  isSourceGasFeeToken?: boolean;
+  isTargetGasFeeToken?: boolean;
+  metamaskIs7702?: boolean;
+  metamaskRequiresAuthorizationList?: boolean;
+  request?: Partial<QuoteRequest>;
+  sourceAmountRaw?: string;
+  sourceNetworkEstimateRaw?: string;
+  sourceNetworkMaxRaw?: string;
+  strategy: TransactionPayStrategy;
+  targetAmountUsd?: string;
+} {
+  const quoteWithPartialFields = quote as Partial<TransactionPayQuote<Json>>;
+  const { fees, original, request } = quoteWithPartialFields;
+  const metamask =
+    isObject(original) && isObject(original.metamask)
+      ? original.metamask
+      : undefined;
+
+  return {
+    isSourceGasFeeToken: fees?.isSourceGasFeeToken,
+    isTargetGasFeeToken: fees?.isTargetGasFeeToken,
+    metamaskIs7702:
+      typeof metamask?.is7702 === 'boolean' ? metamask.is7702 : undefined,
+    metamaskRequiresAuthorizationList:
+      metamask?.requiresAuthorizationList === true ? true : undefined,
+    request: request ? summarizeQuoteRequest(request) : undefined,
+    sourceAmountRaw: quoteWithPartialFields.sourceAmount?.raw,
+    sourceNetworkEstimateRaw: fees?.sourceNetwork?.estimate.raw,
+    sourceNetworkMaxRaw: fees?.sourceNetwork?.max.raw,
+    strategy: quote.strategy,
+    targetAmountUsd: quoteWithPartialFields.targetAmount?.usd,
+  };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

@@ -79,6 +79,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
       },
     },
     request: {
+      actions: [],
       amount: '100',
       tradeType: 'exactOutput',
     },

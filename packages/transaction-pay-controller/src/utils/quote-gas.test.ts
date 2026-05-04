@@ -153,7 +153,7 @@ describe('quote gas estimation', () => {
     });
   });
 
-  it('marks batch estimates that require an authorization list', async () => {
+  it('propagates batch estimates that require a first-time EIP-7702 authorization list', async () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
       gasLimits: [50000],

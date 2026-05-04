@@ -530,6 +530,38 @@ describe('Across Quotes', () => {
       expect((options as RequestInit).signal).toBe(controller.signal);
     });
 
+    it('uses exactInput and no post-swap actions for post-quote requests', async () => {
+      const createProxyData = buildCreateProxyData();
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo: SAFE_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [{ to: FACTORY_ADDRESS, data: createProxyData }],
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('tradeType')).toBe('exactInput');
+      expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(params.get('refundAddress')).toBe(SAFE_ADDRESS);
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
     it('uses exactOutput trade type for non-max amount quotes', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,

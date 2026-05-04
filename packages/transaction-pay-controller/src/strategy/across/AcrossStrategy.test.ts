@@ -7,6 +7,7 @@ import type { Hex } from '@metamask/utils';
 
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants';
 import type {
+  PayStrategyCheckQuoteSupportRequest,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
@@ -55,6 +56,25 @@ describe('AcrossStrategy', () => {
       },
     ],
   } as PayStrategyGetQuotesRequest;
+
+  const quoteWithAuthorizationList = {
+    request: {
+      ...baseRequest.requests[0],
+    },
+    original: {
+      metamask: {
+        gasLimits: [],
+        is7702: true,
+        requiresAuthorizationList: true,
+      },
+      quote: {},
+      request: {
+        actions: [],
+        amount: '100',
+        tradeType: 'exactInput',
+      },
+    },
+  } as TransactionPayQuote<AcrossQuote>;
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -260,63 +280,6 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
-  it('does not support authorization lists during request support checks', () => {
-    const strategy = new AcrossStrategy();
-    const result = strategy.supports({
-      ...baseRequest,
-      transaction: {
-        ...TRANSACTION_META_MOCK,
-        txParams: {
-          ...TRANSACTION_META_MOCK.txParams,
-          authorizationList: [{ address: '0xabc' as Hex }],
-        },
-      } as TransactionMeta,
-    });
-
-    expect(result).toBe(false);
-  });
-
-  it('does not support quotes that require first-time 7702 upgrades', () => {
-    const strategy = new AcrossStrategy();
-    const quote = {
-      original: {
-        metamask: {
-          gasLimits: [],
-          is7702: true,
-          requiresAuthorizationList: true,
-        },
-      },
-    } as TransactionPayQuote<AcrossQuote>;
-
-    const result = strategy.checkQuoteSupport({
-      messenger,
-      quotes: [quote],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(result).toBe(false);
-  });
-
-  it('supports 7702 quotes that do not require an authorization list', () => {
-    const strategy = new AcrossStrategy();
-    const quote = {
-      original: {
-        metamask: {
-          gasLimits: [],
-          is7702: true,
-        },
-      },
-    } as TransactionPayQuote<AcrossQuote>;
-
-    expect(
-      strategy.checkQuoteSupport({
-        messenger,
-        quotes: [quote],
-        transaction: TRANSACTION_META_MOCK,
-      }),
-    ).toBe(true);
-  });
-
   it('returns false for unsupported destination actions', () => {
     const strategy = new AcrossStrategy();
     expect(
@@ -334,9 +297,157 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
+  it('returns false for non-Predict post-quote requests', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            ...baseRequest.requests[0],
+            isPostQuote: true,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns true for Predict withdraw post-quote requests', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictWithdraw,
+        } as TransactionMeta,
+        requests: [
+          {
+            ...baseRequest.requests[0],
+            isPostQuote: true,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it('returns true when all requests are cross-chain', () => {
     const strategy = new AcrossStrategy();
     expect(strategy.supports(baseRequest)).toBe(true);
+  });
+
+  it('supports source 7702 authorization lists for Predict withdraw post-quote quotes without Across actions', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+        },
+      ],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(true);
+  });
+
+  it('does not support first-time 7702 authorization lists for non-Predict quotes', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
+  });
+
+  it('does not support first-time 7702 authorization lists for non-post-quote Across quotes', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [quoteWithAuthorizationList],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
+  });
+
+  it('does not support first-time 7702 authorization lists when the Across quote has embedded destination actions', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+          original: {
+            ...quoteWithAuthorizationList.original,
+            request: {
+              ...quoteWithAuthorizationList.original.request,
+              actions: [
+                {
+                  args: [],
+                  functionSignature: 'function transfer(address,uint256)',
+                  isNativeTransfer: false,
+                  target: '0xdef' as Hex,
+                  value: '0',
+                },
+              ],
+            },
+          },
+        },
+      ],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
+  });
+
+  it('supports 7702 quotes that do not require an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          original: {
+            ...quoteWithAuthorizationList.original,
+            metamask: {
+              gasLimits: [],
+              is7702: true,
+            },
+          },
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(true);
   });
 
   it('delegates getQuotes to across quotes', async () => {

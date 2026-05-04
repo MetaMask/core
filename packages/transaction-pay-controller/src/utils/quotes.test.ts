@@ -525,6 +525,49 @@ describe('Quotes Utils', () => {
       expect(fallbackStrategy.getQuotes).toHaveBeenCalled();
     });
 
+    it('tries next strategy when returned quotes are not supported', async () => {
+      const unsupportedStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        checkQuoteSupport: jest.fn().mockReturnValue(false),
+        execute: jest.fn(),
+      };
+
+      const fallbackStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Bridge) {
+          return unsupportedStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return fallbackStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(unsupportedStrategy.getQuotes).toHaveBeenCalled();
+      expect(unsupportedStrategy.checkQuoteSupport).toHaveBeenCalledWith({
+        messenger,
+        quotes: [QUOTE_MOCK],
+        signal: expect.any(AbortSignal),
+        transaction: TRANSACTION_META_MOCK,
+      });
+      expect(fallbackStrategy.getQuotes).toHaveBeenCalled();
+    });
+
     it('skips unknown strategies and tries the next valid strategy', async () => {
       const fallbackStrategy = {
         supports: jest.fn().mockReturnValue(true),
