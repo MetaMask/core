@@ -5876,6 +5876,321 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('TransactionController:transactionStatusUpdated (submitted)', () => {
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('calls reportSubmitted and persists deferredStatusUpdates when bridge tx reaches submitted with hash and quoteId', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusUpdateEnabled: () => true,
+            state: {
+              txHistory: MockTxHistory.getPending(),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                hash: '0xsrcTxHash1',
+                type: TransactionType.bridge,
+                status: TransactionStatus.submitted,
+                id: 'bridgeTxMetaId1',
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+              },
+            },
+          );
+
+          // State is updated synchronously via persistDeferredUpdates before any async work
+          expect(
+            Object.keys(controller.state.deferredStatusUpdates),
+          ).toHaveLength(1);
+          expect(
+            Object.values(controller.state.deferredStatusUpdates)[0]
+              .pendingStatuses,
+          ).toStrictEqual(['SUBMITTED']);
+
+          await flushPromises();
+          controller.stopAllPolling();
+        },
+      );
+    });
+
+    it('does not call reportSubmitted when txMeta has no hash', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusUpdateEnabled: () => true,
+            state: {
+              txHistory: MockTxHistory.getPending(),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                hash: undefined,
+                type: TransactionType.bridge,
+                status: TransactionStatus.submitted,
+                id: 'bridgeTxMetaId1',
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+              },
+            },
+          );
+
+          expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+          await flushPromises();
+          controller.stopAllPolling();
+        },
+      );
+    });
+
+    it('does not call reportSubmitted when historyItem has no quoteId', async () => {
+      const historyWithoutQuoteId: Record<string, BridgeHistoryItem> = {
+        bridgeTxMetaId1: {
+          ...MockTxHistory.getPending().bridgeTxMetaId1,
+          quoteId: undefined as unknown as string,
+        },
+      };
+      await withController(
+        {
+          options: {
+            isQuoteStatusUpdateEnabled: () => true,
+            state: { txHistory: historyWithoutQuoteId },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                hash: '0xsrcTxHash1',
+                type: TransactionType.bridge,
+                status: TransactionStatus.submitted,
+                id: 'bridgeTxMetaId1',
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+              },
+            },
+          );
+
+          expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+          await flushPromises();
+          controller.stopAllPolling();
+        },
+      );
+    });
+  });
+
+  describe('TransactionController:transactionSubmitted', () => {
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('calls reportSubmitted and persists deferredStatusUpdates when transactionSubmitted fires with hash and quoteId', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: MockTxHistory.getPending() },
+      });
+
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: '0xsrcTxHash1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'bridgeTxMetaId1',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      // State is updated synchronously via persistDeferredUpdates before any async work
+      expect(
+        Object.keys(controller.state.deferredStatusUpdates),
+      ).toHaveLength(1);
+      expect(
+        Object.values(controller.state.deferredStatusUpdates)[0]
+          .pendingStatuses,
+      ).toStrictEqual(['SUBMITTED']);
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+
+    it('looks up history by actionId when txMetaId is not found', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const historyKeyedByActionId: Record<string, BridgeHistoryItem> = {
+        'pre-submission-action-id': {
+          ...MockTxHistory.getPending().bridgeTxMetaId1,
+          txMetaId: undefined,
+          actionId: 'pre-submission-action-id',
+        },
+      };
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: historyKeyedByActionId },
+      });
+
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: '0xsrcTxHash1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'unknown-tx-meta-id',
+          actionId: 'pre-submission-action-id',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      expect(
+        Object.keys(controller.state.deferredStatusUpdates),
+      ).toHaveLength(1);
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+
+    it('does not call reportSubmitted when tx has no hash', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: MockTxHistory.getPending() },
+      });
+
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: undefined,
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'bridgeTxMetaId1',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+
+    it('does not call reportSubmitted when txMetaId not in history and actionId is absent', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: MockTxHistory.getPending() },
+      });
+
+      // txMetaId ('unknown-id') not in history AND no actionId provided
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: '0xsrcTxHash1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'unknown-id',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(async ({ controller }) => {
