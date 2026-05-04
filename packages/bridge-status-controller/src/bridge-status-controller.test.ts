@@ -6052,9 +6052,9 @@ describe('BridgeStatusController', () => {
       });
 
       // State is updated synchronously via persistDeferredUpdates before any async work
-      expect(
-        Object.keys(controller.state.deferredStatusUpdates),
-      ).toHaveLength(1);
+      expect(Object.keys(controller.state.deferredStatusUpdates)).toHaveLength(
+        1,
+      );
       expect(
         Object.values(controller.state.deferredStatusUpdates)[0]
           .pendingStatuses,
@@ -6105,9 +6105,9 @@ describe('BridgeStatusController', () => {
         },
       });
 
-      expect(
-        Object.keys(controller.state.deferredStatusUpdates),
-      ).toHaveLength(1);
+      expect(Object.keys(controller.state.deferredStatusUpdates)).toHaveLength(
+        1,
+      );
 
       await flushPromises();
       controller.stopAllPolling();

@@ -55,7 +55,8 @@ function buildRootAndChildMessenger(
 
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
-    getBearerTokenHandler ?? ((): Promise<string> => Promise.resolve(JWT_TOKEN)),
+    getBearerTokenHandler ??
+      ((): Promise<string> => Promise.resolve(JWT_TOKEN)),
   );
 
   return { messenger };
@@ -518,8 +519,11 @@ describe('QuoteStatusUpdateManager', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(3);
       expect(
         JSON.parse(
-          (fetchSpy.mock.calls[fetchSpy.mock.calls.length - 1][1] as RequestInit)
-            .body as string,
+          (
+            fetchSpy.mock.calls[
+              fetchSpy.mock.calls.length - 1
+            ][1] as RequestInit
+          ).body as string,
         ).newStatus,
       ).toBe(QuoteStatusUpdateType.FinalizedSuccess);
     });
@@ -970,13 +974,18 @@ describe('QuoteStatusUpdateManager', () => {
     describe('FIFO ordering of pending statuses', () => {
       it('sends SUBMITTED before FINALIZED_SUCCESS', async () => {
         const sentStatuses: string[] = [];
-        fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(
-          async (_url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-            const body = JSON.parse((init as RequestInit).body as string);
-            sentStatuses.push(body.newStatus as string);
-            return { ok: true } as Response;
-          },
-        );
+        fetchSpy = jest
+          .spyOn(globalThis, 'fetch')
+          .mockImplementation(
+            async (
+              _url: RequestInfo | URL,
+              init?: RequestInit,
+            ): Promise<Response> => {
+              const body = JSON.parse((init as RequestInit).body as string);
+              sentStatuses.push(body.newStatus as string);
+              return { ok: true } as Response;
+            },
+          );
 
         const { manager } = buildManager();
 
