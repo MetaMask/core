@@ -220,7 +220,7 @@ function validateRelaySlippage({
 
   if (slippagePercent.gt(MAX_SLIPPAGE_PERCENT)) {
     throw new Error(
-      `Relay re-quote slippage too high for transaction ${transactionId}: ` +
+      `Relay re-quote slippage too high for transaction ` +
         `${slippagePercent.toFixed(2)}% exceeds ${MAX_SLIPPAGE_PERCENT}% max`,
     );
   }
