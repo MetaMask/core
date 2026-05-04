@@ -167,6 +167,18 @@ export type SeedlessOnboardingControllerSetLockedAction = {
 };
 
 /**
+ * Pair the user social profile with the profile sync auth service.
+ *
+ * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
+ * @returns A promise that resolves to the success of the operation.
+ */
+export type SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction =
+  {
+    type: `SeedlessOnboardingController:pairProfileServiceWithSocialLogin`;
+    handler: SeedlessOnboardingController['pairProfileServiceWithSocialLogin'];
+  };
+
+/**
  * Sync the latest global password to the controller.
  * reset vault with latest globalPassword,
  * persist the latest global password authPubKey
@@ -343,18 +355,6 @@ export type SeedlessOnboardingControllerCheckAccessTokenExpiredAction = {
 };
 
 /**
- * Pair the user social profile with the profile sync auth service.
- *
- * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
- * @returns A promise that resolves to the success of the operation.
- */
-export type SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction =
-  {
-    type: `SeedlessOnboardingController:pairProfileServiceWithSocialLogin`;
-    handler: SeedlessOnboardingController['pairProfileServiceWithSocialLogin'];
-  };
-
-/**
  * Union of all SeedlessOnboardingController action types.
  */
 export type SeedlessOnboardingControllerMethodActions =
@@ -370,6 +370,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction
   | SeedlessOnboardingControllerSetLockedAction
+  | SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction
   | SeedlessOnboardingControllerSyncLatestGlobalPasswordAction
   | SeedlessOnboardingControllerSubmitGlobalPasswordAction
   | SeedlessOnboardingControllerCheckIsPasswordOutdatedAction
@@ -383,5 +384,4 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerGetAccessTokenAction
   | SeedlessOnboardingControllerCheckNodeAuthTokenExpiredAction
   | SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction
-  | SeedlessOnboardingControllerCheckAccessTokenExpiredAction
-  | SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction;
+  | SeedlessOnboardingControllerCheckAccessTokenExpiredAction;
