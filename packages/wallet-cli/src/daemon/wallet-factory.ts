@@ -25,21 +25,19 @@ export async function createWallet({
   srp: string;
 }): Promise<Wallet> {
   const wallet = new Wallet({
-    options: {
-      infuraProjectId,
-      clientVersion: '0.0.0',
-      // TODO: Implement showApprovalRequest
-      showApprovalRequest: (): undefined => undefined,
-      clientConfigApiService: new ClientConfigApiService({
-        fetch: globalThis.fetch,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      }),
-      getMetaMetricsId: (): string => 'cli',
-    },
+    infuraProjectId,
+    clientVersion: '0.0.0',
+    // TODO: Implement showApprovalRequest
+    showApprovalRequest: (): undefined => undefined,
+    clientConfigApiService: new ClientConfigApiService({
+      fetch: globalThis.fetch,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    }),
+    getMetaMetricsId: (): string => 'cli',
   });
 
   await importSecretRecoveryPhrase(wallet, password, srp);
