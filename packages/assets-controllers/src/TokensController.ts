@@ -53,12 +53,12 @@ import { v1 as random } from 'uuid';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+import { TokenListService } from './token-list-service/token-list-service';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
-import { TokenListService } from './token-list-service/token-list-service';
 import type { TokenListToken } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
@@ -643,7 +643,6 @@ export class TokensController extends BaseController<
         Object.assign(state, newState);
       });
 
-
       return newTokens;
     } finally {
       releaseLock();
@@ -722,7 +721,6 @@ export class TokensController extends BaseController<
         state.allDetectedTokens = newAllDetectedTokens;
         state.allIgnoredTokens = newAllIgnoredTokens;
       });
-
     } finally {
       releaseLock();
     }

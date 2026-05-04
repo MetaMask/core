@@ -44,10 +44,10 @@ import type { Hex } from '@metamask/utils';
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
+import { TokenListService } from './token-list-service/token-list-service';
 import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
 import type { TokenListMap } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import { TokenListService } from './token-list-service/token-list-service';
 import type { TokensControllerGetStateAction } from './TokensController';
 import type {
   TokensControllerAddDetectedTokensAction,
@@ -118,7 +118,6 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
     },
   };
 }, {});
-
 
 export const controllerName = 'TokenDetectionController';
 

@@ -3980,8 +3980,14 @@ describe('TokensController', () => {
 
     it('refreshes rwaData for tokens that already have it on construction', async () => {
       const tokenAddress = '0x01';
-      const oldRwaData: TokenRwaData = { ticker: 'OLD', instrumentType: 'bond' };
-      const newRwaData: TokenRwaData = { ticker: 'NEW', instrumentType: 'bond' };
+      const oldRwaData: TokenRwaData = {
+        ticker: 'OLD',
+        instrumentType: 'bond',
+      };
+      const newRwaData: TokenRwaData = {
+        ticker: 'NEW',
+        instrumentType: 'bond',
+      };
 
       const initialState: TokensControllerState = {
         allTokens: {
