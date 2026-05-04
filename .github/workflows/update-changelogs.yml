@@ -4,11 +4,11 @@ on:
   issue_comment:
     types:
       - created
-#  pull_request:
-#    branches:
-#      - main
-#    types:
-#      - opened
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
 
 permissions:
   contents: write
@@ -17,7 +17,7 @@ permissions:
 jobs:
   is-fork:
     name: Determine whether this PR is from a fork
-    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
+    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
@@ -115,24 +115,24 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
     steps:
-      - name: Checkout repository
+      - name: Checkout main
         uses: actions/checkout@v6
         with:
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
-      - name: Checkout pull request
+      - name: Setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+
+      - name: Overlay changelog files from current PR
         env:
           PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
           PR_BASE_REF: ${{ needs.is-release.outputs.base-ref }}
         run: |
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git fetch --no-tags origin "$PR_BASE_REF"
-          git checkout --detach "$PR_HEAD_SHA"
-
-      - name: Setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
+          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md'
 
       - name: Ensure required dependency bump entries exist across all changelogs
         id: update-changelogs
