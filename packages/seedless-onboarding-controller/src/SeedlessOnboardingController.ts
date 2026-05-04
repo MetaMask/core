@@ -1089,6 +1089,7 @@ export class SeedlessOnboardingController<
         delete state.vaultEncryptionSalt;
         delete state.revokeToken;
         delete state.accessToken;
+        delete state.profilePairingToken;
       });
 
       this.#cachedDecryptedVaultData = undefined;
