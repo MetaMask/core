@@ -105,6 +105,7 @@ import {
   checkIsDelegatedAccount,
   isCrossChainTx,
 } from './utils/transaction';
+import { QuoteStatusUpdateError } from './errors';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -173,6 +174,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addTransactionBatchFn,
     config,
     traceFn,
+    onQuoteStatusUpdateError,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
@@ -183,6 +185,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       customBridgeApiBaseUrl?: string;
     };
     traceFn?: TraceCallback;
+    onQuoteStatusUpdateError?: (error: QuoteStatusUpdateError) => void;
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -218,6 +221,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           draft.deferredStatusUpdates = updates;
         });
       },
+      onError: onQuoteStatusUpdateError,
     });
 
     // Register action handlers

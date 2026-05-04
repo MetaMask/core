@@ -17,6 +17,7 @@ import type {
 } from './types';
 import { getJwt } from './utils/authentication';
 import { sleep } from './utils/helpers';
+import { QuoteStatusUpdateError } from './errors';
 
 /**
  * Handles reporting quote status updates (SUBMITTED / FINALISED) to the
@@ -31,6 +32,18 @@ import { sleep } from './utils/helpers';
  *
  * Entries are retried every {@link QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS}
  * for up to {@link QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS}.
+ *
+ * **Note:** Non-retryable errors such as `SVM_TRADE_DESERIALIZE_FAILED` are evicted
+ *           from the retry logic since they cannot be mitigated on the client side.
+ *           In the future, we might consider including these errors in the retry mechanism
+ *           with a {@link QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS} expiration, but for now,
+ *           we exclude them to prevent excessive network  calls for errors that are expected to
+ *           fail due to backend issues.
+ *
+ * **Note:** If we fail to finalize after {@link QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES} attempts,
+ *           we currently evict the request. However, we may want to consider enqueueing these cases and
+ *           allowing retries every 30 minutes for up to 12 hours, similar to how we currently handle
+ *           "submitted" statuses.
  */
 export class QuoteStatusUpdateManager {
   readonly #messenger: BridgeStatusControllerMessenger;
@@ -59,6 +72,14 @@ export class QuoteStatusUpdateManager {
   ) => void;
 
   /**
+   * Optional callback invoked whenever an entry is evicted due to a
+   * non-recoverable condition (expired retry window, exhausted finalization
+   * retries, or a permanently non-retryable API error). Receives the eviction
+   * reason as an `Error` so callers can forward it to error-reporting services.
+   */
+  readonly #onError: ((error: QuoteStatusUpdateError) => void) | undefined;
+
+  /**
    * Tracks which keys have an in-flight #processSingleEntry call to prevent
    * concurrent processing of the same entry.
    */
@@ -72,6 +93,7 @@ export class QuoteStatusUpdateManager {
     apiBaseUrl,
     initialDeferredUpdates,
     persistDeferredUpdates,
+    onError,
   }: {
     messenger: BridgeStatusControllerMessenger;
     clientId: BridgeClientId;
@@ -80,11 +102,13 @@ export class QuoteStatusUpdateManager {
     persistDeferredUpdates: (
       updates: Record<string, DeferredStatusUpdateEntry>,
     ) => void;
+    onError?: (error: QuoteStatusUpdateError) => void;
   }) {
     this.#messenger = messenger;
     this.#clientId = clientId;
     this.#apiBaseUrl = apiBaseUrl;
     this.#persistDeferredUpdates = persistDeferredUpdates;
+    this.#onError = onError;
 
     this.#deferredRetryQueue = new Map(
       Object.entries(initialDeferredUpdates ?? {}).map(([key, entry]) => [
@@ -224,8 +248,13 @@ export class QuoteStatusUpdateManager {
       Date.now() - entry.createdAt >
       QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS
     ) {
-      console.error(
-        `QuoteStatusUpdateManager: evicting deferred retry for quote ${entry.quoteId} — exceeded 12-hour retry window`,
+      this.#onError?.(
+        new QuoteStatusUpdateError(
+          `evicting deferred retry cause it exceeded the expiration window`,
+          {
+            quoteId: entry.quoteId,
+          },
+        ),
       );
       this.#removeEntry(key);
       return;
@@ -319,8 +348,13 @@ export class QuoteStatusUpdateManager {
     }
 
     this.#removeEntry(key);
-    console.error(
-      `QuoteStatusUpdateManager: finalization retries exhausted for quote ${entry.quoteId} — evicting`,
+    this.#onError?.(
+      new QuoteStatusUpdateError(
+        `evicting due to finalization retries exhausted for quote`,
+        {
+          quoteId: entry.quoteId,
+        },
+      ),
     );
   }
 
@@ -415,8 +449,11 @@ export class QuoteStatusUpdateManager {
     // Any other error type — do not retry, evict
     this.#inFlight.delete(key);
     this.#removeEntry(key);
-    console.error(
-      `QuoteStatusUpdateManager: non-retryable error "${type}" for quote ${entry.quoteId} — evicting`,
+    this.#onError?.(
+      new QuoteStatusUpdateError(`evicting due to non-retryable error`, {
+        quoteId: entry.quoteId,
+        errorType: type,
+      }),
     );
   }
 
@@ -465,8 +502,13 @@ export class QuoteStatusUpdateManager {
     for (const [key, entry] of this.#deferredRetryQueue) {
       if (now - entry.createdAt > QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS) {
         this.#deferredRetryQueue.delete(key);
-        console.error(
-          `QuoteStatusUpdateManager: evicting deferred retry for quote ${entry.quoteId} — exceeded 12-hour retry window`,
+        this.#onError?.(
+          new QuoteStatusUpdateError(
+            `evicting deferred retry cause it exceeded the expiration window`,
+            {
+              quoteId: entry.quoteId,
+            },
+          ),
         );
         changed = true;
       }
