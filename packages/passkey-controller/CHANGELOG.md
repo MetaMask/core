@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial `@metamask/passkey-controller` ([#8422](https://github.com/MetaMask/core/pull/8422)): `PasskeyController` for WebAuthn passkey vault key protection (HKDF-derived keys, AES-256-GCM wrap/unwrap), PRF or `userHandle` derivation, challenge-keyed `CeremonyManager`, enrollment/unlock/renewal flows, `verifyPasskeyAuthentication`, selectors, and exported ceremony timing constants.
+- Initial `@metamask/passkey-controller`: `PasskeyController` for WebAuthn passkey vault key protection (HKDF-derived keys, AES-256-GCM wrap/unwrap), PRF or `userHandle` derivation, challenge-keyed `CeremonyManager`, enrollment/unlock/renewal flows, `verifyPasskeyAuthentication`, selectors, and exported ceremony timing constants. ([#8422](https://github.com/MetaMask/core/pull/8422))
 - `PasskeyControllerError` with stable `code`, optional `cause` / `context`, `toJSON`, and `toString`; `PasskeyControllerErrorCode`, `PasskeyControllerErrorMessage`, and `controllerName`. Replaces `PasskeyAuthenticationRejectedError`—use `PasskeyControllerError` and `code` for auth failures.
 - **BREAKING:** Operational error messages are prefixed with `PasskeyController - `; prefer `code` or `instanceof PasskeyControllerError` over matching raw strings.
 - `renewVaultKeyProtection` uses the same `vault_key_decryption_failed` code as `retrieveVaultKeyWithPasskey` when AES-GCM decrypt fails.
