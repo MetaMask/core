@@ -484,46 +484,36 @@ describe('EvmAccountProvider', () => {
     expect(keyring.createAccounts).toHaveBeenCalledTimes(2);
   });
 
-  it('warns and skips a group index when the keyring returns no created account', async () => {
+  it('throws when the keyring returns no created account during range creation', async () => {
     const { provider, keyring } = setup({ accounts: [] });
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
     // Simulate the keyring failing to create an account on the first call.
     keyring.createAccounts.mockImplementationOnce(() => []);
 
-    const newAccounts = await provider.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndexRange,
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      range: {
-        from: 0,
-        to: 1,
-      },
-    });
-
-    // The skipped index is dropped; the next index still produces an account.
-    expect(newAccounts).toHaveLength(1);
-    expect(keyring.createAccounts).toHaveBeenCalledTimes(2);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      `Failed to create EVM account for group index 0 and entropy source: ${MOCK_HD_KEYRING_1.metadata.id}, skipping...`,
-    );
+    await expect(
+      provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: {
+          from: 0,
+          to: 1,
+        },
+      }),
+    ).rejects.toThrow('Account creation failed');
   });
 
-  it('warns and returns no accounts when single Bip44DeriveIndex creation fails', async () => {
+  it('throws when single Bip44DeriveIndex creation returns no account', async () => {
     const { provider, keyring } = setup({ accounts: [] });
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
     keyring.createAccounts.mockImplementationOnce(() => []);
 
-    const newAccounts = await provider.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndex,
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-
-    expect(newAccounts).toStrictEqual([]);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      `Failed to create EVM account for group index 0 and entropy source: ${MOCK_HD_KEYRING_1.metadata.id}, skipping...`,
-    );
+    await expect(
+      provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow('Account creation failed');
     // The provider should not register the account when nothing was created.
     expect(provider.getAccounts()).toStrictEqual([]);
   });

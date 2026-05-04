@@ -225,13 +225,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
               entropySource,
               groupIndex,
             });
-            if (created) {
-              result.push(created.id);
-            } else {
-              console.warn(
-                `Failed to create EVM account for group index ${groupIndex} and entropy source: ${entropySource}, skipping...`,
-              );
-            }
+            assert(created, 'Account creation failed');
+            result.push(created.id);
           }
 
           return result;
@@ -261,27 +256,21 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       throwOnGap: true,
     });
 
-    if (created) {
-      const account = this.messenger.call(
-        'AccountsController:getAccount',
-        created.id,
-      );
+    assert(created, 'Account creation failed');
 
-      // We MUST have the associated internal accunt.
-      assertInternalAccountExists(account);
-
-      const accountsArray = [account];
-      assertAreBip44Accounts(accountsArray);
-
-      this.accounts.add(account.id);
-      return accountsArray;
-    }
-
-    console.warn(
-      `Failed to create EVM account for group index ${groupIndex} and entropy source: ${entropySource}, skipping...`,
+    const account = this.messenger.call(
+      'AccountsController:getAccount',
+      created.id,
     );
 
-    return [];
+    // We MUST have the associated internal accunt.
+    assertInternalAccountExists(account);
+
+    const accountsArray = [account];
+    assertAreBip44Accounts(accountsArray);
+
+    this.accounts.add(account.id);
+    return accountsArray;
   }
 
   /**
