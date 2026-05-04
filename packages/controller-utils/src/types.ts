@@ -166,9 +166,12 @@ export enum NetworksTicker {
   'optimism-mainnet' = 'ETH',
   'polygon-mainnet' = 'POL',
   'sei-mainnet' = 'SEI',
-  'megaeth-mainnet' = 'MEGAETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'megaeth-mainnet' = 'ETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'monad-mainnet' = 'MON',
   'avalanche-mainnet' = 'AVAX',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'zksync-mainnet' = 'ETH',
   rpc = '',
 }
@@ -197,7 +200,7 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.MegaETHMainnet]: 'https://megaeth.blockscout.com',
   [BuiltInNetworkName.MonadMainnet]: 'https://explorer.monad.com',
   [BuiltInNetworkName.AvalancheMainnet]: 'https://snowtrace.io',
-  [BuiltInNetworkName.ZksyncMainnet]: 'https://zkscan.io',
+  [BuiltInNetworkName.ZksyncMainnet]: 'https://explorer.zksync.io',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
@@ -224,7 +227,7 @@ export const NetworkNickname = {
   [BuiltInNetworkName.MegaETHMainnet]: 'MegaETH Mainnet',
   [BuiltInNetworkName.MonadMainnet]: 'Monad Mainnet',
   [BuiltInNetworkName.AvalancheMainnet]: 'Avalanche Mainnet',
-  [BuiltInNetworkName.ZksyncMainnet]: 'Zksync Mainnet',
+  [BuiltInNetworkName.ZksyncMainnet]: 'ZKsync Era',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
