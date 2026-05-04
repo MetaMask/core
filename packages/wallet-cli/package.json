@@ -3,21 +3,17 @@
   "version": "0.0.0",
   "description": "The CLI of @metamask/wallet",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/wallet-cli#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
-  },
-  "license": "MIT",
-  "sideEffects": false,
-  "exports": {
-    "./package.json": "./package.json"
   },
   "bin": {
     "mm": "./bin/run.mjs"
@@ -26,6 +22,14 @@
     "bin/",
     "dist/"
   ],
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
@@ -39,12 +43,6 @@
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
-  },
-  "oclif": {
-    "bin": "mm",
-    "commands": "./dist/commands",
-    "dirname": "mm",
-    "topicSeparator": " "
   },
   "dependencies": {
     "@inquirer/confirm": "^6.0.11",
@@ -66,11 +64,13 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },
+  "oclif": {
+    "bin": "mm",
+    "commands": "./dist/commands",
+    "dirname": "mm",
+    "topicSeparator": " "
+  },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }
