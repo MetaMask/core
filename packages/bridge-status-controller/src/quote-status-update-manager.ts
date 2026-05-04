@@ -7,8 +7,8 @@ import {
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
   QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS,
   QuoteStatusUpdateErrorType,
-  QuoteStatusUpdateType,
   QuoteStatusUpdateSendWithRetryResult,
+  QuoteStatusUpdateStatus,
 } from './constants';
 import { QuoteStatusUpdateError } from './errors';
 import type {
@@ -161,7 +161,7 @@ export class QuoteStatusUpdateManager {
       quoteId,
       srcTxHash,
       txMetaId,
-      pendingStatuses: [QuoteStatusUpdateType.Submitted],
+      pendingStatuses: [QuoteStatusUpdateStatus.Submitted],
     });
     this.#processSingleEntry(key);
   }
@@ -191,8 +191,8 @@ export class QuoteStatusUpdateManager {
 
     entry.pendingStatuses.push(
       success
-        ? QuoteStatusUpdateType.FinalizedSuccess
-        : QuoteStatusUpdateType.FinalizedFailure,
+        ? QuoteStatusUpdateStatus.FinalizedSuccess
+        : QuoteStatusUpdateStatus.FinalizedFailed,
     );
     this.#persistToState();
 
@@ -407,9 +407,9 @@ export class QuoteStatusUpdateManager {
   async #sendWithRetry(
     key: string,
     entry: DeferredStatusUpdateEntry,
-    status: string,
+    status: QuoteStatusUpdateStatus,
   ): Promise<QuoteStatusUpdateSendWithRetryResult> {
-    const retryableTypes: Set<string> = new Set([
+    const retryableTypes: Set<QuoteStatusUpdateErrorType> = new Set([
       QuoteStatusUpdateErrorType.ConcurrentUpdate,
       QuoteStatusUpdateErrorType.TransactionNotIndexed,
     ]);
@@ -568,7 +568,7 @@ export class QuoteStatusUpdateManager {
   readonly #updateQuoteStatus = async (
     quoteId: string,
     srcTxHash: string,
-    newStatus: string,
+    newStatus: QuoteStatusUpdateStatus,
   ): Promise<QuoteStatusUpdateResponse | undefined> => {
     // This method uses `globalThis.fetch` and reads the raw
     // `Response` (including JSON on non-2xx). Wrappers like `handleFetch` that

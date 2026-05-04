@@ -273,7 +273,7 @@ export type SourceChainTxMetaId = string;
 export type DeferredStatusUpdateEntry = {
   quoteId: string;
   srcTxHash: string;
-  pendingStatuses: string[];
+  pendingStatuses: QuoteStatusUpdateStatus[];
   createdAt: number;
   lastAttemptAt: number;
   txMetaId?: string;

@@ -17,12 +17,6 @@ export const QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS = 12 * 60 * 60 * 1000; //
 export const QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES = 6;
 export const QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS = 5_000;
 
-export enum QuoteStatusUpdateType {
-  Submitted = 'SUBMITTED',
-  FinalizedSuccess = 'FINALIZED_SUCCESS',
-  FinalizedFailure = 'FINALIZED_FAILURE',
-}
-
 export enum QuoteStatusUpdateSendWithRetryResult {
   Success = 'success',
   Retryable = 'retryable',

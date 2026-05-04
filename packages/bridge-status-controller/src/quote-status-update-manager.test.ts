@@ -9,7 +9,6 @@ import {
   QUOTE_STATUS_UPDATE_RETRY_MAX_LIFETIME_MS,
   QuoteStatusUpdateErrorType,
   QuoteStatusUpdateStatus,
-  QuoteStatusUpdateType,
 } from './constants';
 import { QuoteStatusUpdateError } from './errors';
 import { QuoteStatusUpdateManager } from './quote-status-update-manager';
@@ -68,7 +67,7 @@ function buildEntry(
   return {
     quoteId: QUOTE_ID,
     srcTxHash: SRC_TX_HASH,
-    pendingStatuses: [QuoteStatusUpdateType.Submitted],
+    pendingStatuses: [QuoteStatusUpdateStatus.Submitted],
     createdAt: Date.now(),
     lastAttemptAt: Date.now(),
     txMetaId: TX_META_ID,
@@ -390,7 +389,7 @@ describe('QuoteStatusUpdateManager', () => {
         quoteId: QUOTE_ID,
         srcTxHash: SRC_TX_HASH,
         txMetaId: TX_META_ID,
-        pendingStatuses: [QuoteStatusUpdateType.Submitted],
+        pendingStatuses: [QuoteStatusUpdateStatus.Submitted],
       });
     });
 
@@ -406,7 +405,7 @@ describe('QuoteStatusUpdateManager', () => {
       expect(url).toBe(`${API_BASE_URL}/quote/updateStatus`);
       expect(JSON.parse((init as RequestInit).body as string)).toStrictEqual({
         quoteId: QUOTE_ID,
-        newStatus: QuoteStatusUpdateType.Submitted,
+        newStatus: QuoteStatusUpdateStatus.Submitted,
         srcTxHash: SRC_TX_HASH,
       });
     });
@@ -475,7 +474,7 @@ describe('QuoteStatusUpdateManager', () => {
       // Verify FINALIZED_SUCCESS was appended before any async work completes
       const pendingCall = persistDeferredUpdates.mock.calls.find((call) =>
         call[0][QUEUE_KEY]?.pendingStatuses.includes(
-          QuoteStatusUpdateType.FinalizedSuccess,
+          QuoteStatusUpdateStatus.FinalizedSuccess,
         ),
       );
       expect(pendingCall).toBeDefined();
@@ -492,7 +491,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       const failureCall = persistDeferredUpdates.mock.calls.find((call) =>
         call[0][QUEUE_KEY]?.pendingStatuses.includes(
-          QuoteStatusUpdateType.FinalizedFailure,
+          QuoteStatusUpdateStatus.FinalizedFailed,
         ),
       );
       expect(failureCall).toBeDefined();
@@ -525,7 +524,7 @@ describe('QuoteStatusUpdateManager', () => {
             ][1] as RequestInit
           ).body as string,
         ).newStatus,
-      ).toBe(QuoteStatusUpdateType.FinalizedSuccess);
+      ).toBe(QuoteStatusUpdateStatus.FinalizedSuccess);
     });
 
     it('does not trigger a second concurrent processing when a send is in-flight', async () => {
@@ -762,7 +761,7 @@ describe('QuoteStatusUpdateManager', () => {
               Promise.resolve({
                 type: QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch,
                 currentStatus: correctedStatus,
-                newStatus: QuoteStatusUpdateType.Submitted,
+                newStatus: QuoteStatusUpdateStatus.Submitted,
                 statusCode: 400,
                 message: 'mismatch',
               }),
@@ -798,7 +797,7 @@ describe('QuoteStatusUpdateManager', () => {
               Promise.resolve({
                 type: QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch,
                 currentStatus: QuoteStatusUpdateStatus.FinalizedSuccess,
-                newStatus: QuoteStatusUpdateType.Submitted,
+                newStatus: QuoteStatusUpdateStatus.Submitted,
                 statusCode: 400,
                 message: 'mismatch',
               }),
@@ -836,7 +835,7 @@ describe('QuoteStatusUpdateManager', () => {
               Promise.resolve({
                 type: QuoteStatusUpdateErrorType.InvalidStatusTransaction,
                 currentStatus: correctedStatus,
-                newStatus: QuoteStatusUpdateType.Submitted,
+                newStatus: QuoteStatusUpdateStatus.Submitted,
                 statusCode: 400,
                 message: 'invalid',
               }),
@@ -994,8 +993,8 @@ describe('QuoteStatusUpdateManager', () => {
         manager.reportFinalised(TX_META_ID, true);
         await flushPromises();
 
-        expect(sentStatuses[0]).toBe(QuoteStatusUpdateType.Submitted);
-        expect(sentStatuses[1]).toBe(QuoteStatusUpdateType.FinalizedSuccess);
+        expect(sentStatuses[0]).toBe(QuoteStatusUpdateStatus.Submitted);
+        expect(sentStatuses[1]).toBe(QuoteStatusUpdateStatus.FinalizedSuccess);
       });
     });
   });
@@ -1045,12 +1044,12 @@ describe('QuoteStatusUpdateManager', () => {
 
       // First persist captured only ['SUBMITTED']
       expect(firstPersistStatuses).toStrictEqual([
-        QuoteStatusUpdateType.Submitted,
+        QuoteStatusUpdateStatus.Submitted,
       ]);
       // Second persist captured ['SUBMITTED', 'FINALIZED_SUCCESS']
       expect(secondPersistStatuses).toStrictEqual([
-        QuoteStatusUpdateType.Submitted,
-        QuoteStatusUpdateType.FinalizedSuccess,
+        QuoteStatusUpdateStatus.Submitted,
+        QuoteStatusUpdateStatus.FinalizedSuccess,
       ]);
     });
 
@@ -1089,8 +1088,8 @@ describe('QuoteStatusUpdateManager', () => {
       const frozenEntry = Object.freeze(
         buildEntry({
           pendingStatuses: Object.freeze([
-            QuoteStatusUpdateType.Submitted,
-          ]) as string[],
+            QuoteStatusUpdateStatus.Submitted,
+          ]) as QuoteStatusUpdateStatus[],
         }),
       );
 
