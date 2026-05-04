@@ -7,6 +7,7 @@ import type { Hex } from '@metamask/utils';
 
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants';
 import type {
+  PayStrategyCheckQuoteSupportRequest,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
@@ -55,6 +56,25 @@ describe('AcrossStrategy', () => {
       },
     ],
   } as PayStrategyGetQuotesRequest;
+
+  const quoteWithAuthorizationList = {
+    request: {
+      ...baseRequest.requests[0],
+    },
+    original: {
+      metamask: {
+        gasLimits: [],
+        is7702: true,
+        requiresAuthorizationList: true,
+      },
+      quote: {},
+      request: {
+        actions: [],
+        amount: '100',
+        tradeType: 'exactInput',
+      },
+    },
+  } as TransactionPayQuote<AcrossQuote>;
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -348,6 +368,79 @@ describe('AcrossStrategy', () => {
     });
 
     expect(result).toBe(false);
+  });
+
+  it('supports source 7702 authorization lists for Predict withdraw post-quote quotes without Across actions', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+        },
+      ],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(true);
+  });
+
+  it('does not support first-time 7702 authorization lists for non-post-quote Across quotes', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [quoteWithAuthorizationList],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
+  });
+
+  it('does not support first-time 7702 authorization lists when the Across quote has embedded destination actions', () => {
+    const strategy = new AcrossStrategy();
+    const request = {
+      messenger,
+      quotes: [
+        {
+          ...quoteWithAuthorizationList,
+          request: {
+            ...quoteWithAuthorizationList.request,
+            isPostQuote: true,
+          },
+          original: {
+            ...quoteWithAuthorizationList.original,
+            request: {
+              ...quoteWithAuthorizationList.original.request,
+              actions: [
+                {
+                  args: [],
+                  functionSignature: 'function transfer(address,uint256)',
+                  isNativeTransfer: false,
+                  target: '0xdef' as Hex,
+                  value: '0',
+                },
+              ],
+            },
+          },
+        },
+      ],
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.predictWithdraw,
+      } as TransactionMeta,
+    } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
+
+    expect(strategy.checkQuoteSupport(request)).toBe(false);
   });
 
   it('supports 7702 quotes that do not require an authorization list', () => {

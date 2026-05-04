@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Allow Across to quote Predict withdraw post-quote flows that require a first-time source-chain EIP-7702 account upgrade without embedding authorization lists in Across post-swap actions
 - Pass explicit `assetId`, `providers`, and `fiat` to `RampsController:getQuotes` and persist the selected ramps quote on `TransactionFiatPayment` ([#8628](https://github.com/MetaMask/core/pull/8628))
 
 ## [20.2.0]

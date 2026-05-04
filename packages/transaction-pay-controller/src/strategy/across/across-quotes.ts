@@ -136,6 +136,7 @@ async function getSingleQuote(
   const originalQuote: AcrossQuoteWithoutMetaMask = {
     quote,
     request: {
+      actions: destination.actions,
       amount,
       tradeType,
     },
