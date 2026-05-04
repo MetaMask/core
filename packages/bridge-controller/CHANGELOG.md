@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add required `quoteId: string` to `QuoteResponseSchema`; quote responses without a `quoteId` will now fail validation ([#8636](https://github.com/MetaMask/core/pull/8636))
+
 ### Changed
 
 - Bump `@metamask/multichain-network-controller` from `^3.0.6` to `^3.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
