@@ -263,7 +263,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       created.id,
     );
 
-    // We MUST have the associated internal accunt.
+    // We MUST have the associated internal account.
     assertInternalAccountExists(account);
 
     const accountsArray = [account];
