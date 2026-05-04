@@ -556,7 +556,12 @@ export class SeedlessOnboardingController<
             state.revokeToken = revokeToken;
           }
           state.accessToken = accessToken;
-          state.profilePairingToken = profilePairingToken;
+          if (authConnection === AuthConnection.Telegram) {
+            if (!profilePairingToken) {
+              throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken);
+            }
+            state.profilePairingToken = profilePairingToken;
+          }
 
           // we will check if the controller state is properly set with the authenticated user info
           // before setting the isSeedlessOnboardingUserAuthenticated to true
@@ -1410,7 +1415,11 @@ export class SeedlessOnboardingController<
   async getIsUserAuthenticated(): Promise<boolean> {
     try {
       this.#assertIsAuthenticatedUser(this.state);
-      return Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      const accessTokenAndRevokeTokenAreSet = Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      if (this.state.authConnection === AuthConnection.Telegram) {
+        return accessTokenAndRevokeTokenAreSet && Boolean(this.state.profilePairingToken);
+      }
+      return accessTokenAndRevokeTokenAreSet;
     } catch {
       return false;
     }

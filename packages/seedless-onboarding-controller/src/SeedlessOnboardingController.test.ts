@@ -871,39 +871,6 @@ describe('SeedlessOnboardingController', () => {
       expect(controller.state).toMatchObject(initialState);
     });
 
-    it('should initialize isSeedlessOnboardingUserAuthenticated as false for Telegram users without profilePairingToken', () => {
-      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
-        idTokens: ['newIdToken'],
-      });
-      const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
-      const mockRenewRefreshToken = jest.fn().mockResolvedValue({
-        newRevokeToken: 'newRevokeToken',
-        newRefreshToken: 'newRefreshToken',
-      });
-      const { messenger } = mockSeedlessOnboardingMessenger();
-
-      const controller = new SeedlessOnboardingController({
-        messenger,
-        encryptor: getDefaultSeedlessOnboardingVaultEncryptor(),
-        refreshJWTToken: mockRefreshJWTToken,
-        revokeRefreshToken: mockRevokeRefreshToken,
-        renewRefreshToken: mockRenewRefreshToken,
-        state: {
-          ...getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            profilePairingToken: undefined,
-          }),
-          authConnection: AuthConnection.Telegram,
-        },
-        profilePairingEndpoint: mockProfilePairingEndpoint,
-        fetchFunction: mockFetchFunction,
-      });
-
-      expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
-        false,
-      );
-    });
-
     it('should throw an error if the password outdated cache TTL is not a valid number', () => {
       const mockRefreshJWTToken = jest.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
@@ -1332,6 +1299,77 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should be able to authenticate a Telegram user with profilePairingToken', async () => {
+      await withController(
+        async ({ controller, toprfClient, baseMessenger }) => {
+          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
+
+          const authResult = await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens,
+              authConnectionId,
+              userId,
+              authConnection: AuthConnection.Telegram,
+              socialLoginEmail,
+              refreshToken,
+              revokeToken,
+              accessToken,
+              metadataAccessToken,
+              profilePairingToken: 'profile-pairing-token',
+            },
+          );
+
+          expect(authResult).toBeDefined();
+          expect(authResult.nodeAuthTokens).toStrictEqual(MOCK_NODE_AUTH_TOKENS);
+          expect(authResult.isNewUser).toBe(true);
+          expect(controller.state.authConnection).toBe(AuthConnection.Telegram);
+          expect(controller.state.profilePairingToken).toBe(
+            'profile-pairing-token',
+          );
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            true,
+          );
+        },
+      );
+    });
+
+    it('should throw an error if a Telegram user is missing profilePairingToken', async () => {
+      await withController(async ({ controller, toprfClient, baseMessenger }) => {
+        jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+          isNewUser: true,
+        });
+
+        await expect(
+          baseMessenger.call('SeedlessOnboardingController:authenticate', {
+            idTokens,
+            authConnectionId,
+            userId,
+            authConnection: AuthConnection.Telegram,
+            socialLoginEmail,
+            refreshToken,
+            revokeToken,
+            accessToken,
+            metadataAccessToken,
+          }),
+        ).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        );
+
+        expect(controller.state.nodeAuthTokens).toBeUndefined();
+        expect(controller.state.authConnectionId).toBeUndefined();
+        expect(controller.state.userId).toBeUndefined();
+        expect(controller.state.profilePairingToken).toBeUndefined();
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          false,
+        );
+      });
+    });
+
     it('should throw an error if the authentication fails', async () => {
       const JSONRPC_ERROR = {
         jsonrpc: '2.0',
@@ -1628,7 +1666,7 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    it('should return false and update state when a Telegram user is missing profilePairingToken', async () => {
+    it('should return false for a Telegram user missing profilePairingToken without mutating state', async () => {
       await withController(
         {
           state: {
@@ -1647,7 +1685,7 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toBe(false);
           expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
-            false,
+            true,
           );
         },
       );
@@ -2186,7 +2224,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should throw error if Telegram user is missing profilePairingToken during vault creation', async () => {
+    it('should allow vault creation if Telegram user is missing profilePairingToken during vault creation', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
       const mockVault = await createMockVault(
         mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD),
@@ -2206,7 +2244,7 @@ describe('SeedlessOnboardingController', () => {
             authConnection: AuthConnection.Telegram,
           },
         },
-        async ({ controller, toprfClient, baseMessenger }) => {
+        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           const updateState = (
@@ -2227,19 +2265,22 @@ describe('SeedlessOnboardingController', () => {
 
           const mockSecretDataAdd = handleMockSecretDataAdd();
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
-              MOCK_PASSWORD,
-              MOCK_SEED_PHRASE,
-              MOCK_KEYRING_ID,
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+          await baseMessenger.call(
+            'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
           );
 
           expect(mockSecretDataAdd.isDone()).toBe(true);
-          expect(controller.state.vault).toBe(mockVault.encryptedMockVault);
+
+          const decryptedVaultData = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            controller.state.vault as string,
+          );
+          const parsedVaultData = JSON.parse(decryptedVaultData as string);
+
+          expect(parsedVaultData.profilePairingToken).toBeUndefined();
         },
       );
     });

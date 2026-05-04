@@ -147,27 +147,6 @@ describe('assertIsSeedlessOnboardingUserAuthenticated', () => {
     );
   });
 
-  it('should throw InvalidProfilePairingToken for Telegram users when profilePairingToken is missing', () => {
-    expect(() => {
-      assertIsSeedlessOnboardingUserAuthenticated({
-        ...createValidAuthenticatedUser(),
-        authConnection: AuthConnection.Telegram,
-      });
-    }).toThrow(
-      SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
-    );
-  });
-
-  it('should not throw for Telegram users when profilePairingToken is present', () => {
-    expect(() => {
-      assertIsSeedlessOnboardingUserAuthenticated({
-        ...createValidAuthenticatedUser(),
-        authConnection: AuthConnection.Telegram,
-        profilePairingToken: 'profile-pairing-token',
-      });
-    }).not.toThrow();
-  });
-
   it('should not throw for a valid authenticated user', () => {
     expect(() => {
       assertIsSeedlessOnboardingUserAuthenticated(
