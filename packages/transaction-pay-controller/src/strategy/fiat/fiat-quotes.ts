@@ -14,6 +14,7 @@ import type {
 import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
+import { DEFAULT_FIAT_CURRENCY } from './constants';
 import type { TransactionPayFiatAsset } from './constants';
 import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment } from './utils';
@@ -171,7 +172,7 @@ async function getRampsQuote({
   const quotes = await messenger.call('RampsController:getQuotes', {
     amount: adjustedAmount,
     assetId: fiatAsset.caipAssetId,
-    fiat: 'USD',
+    fiat: DEFAULT_FIAT_CURRENCY,
     paymentMethods: [fiatPaymentMethod],
     providers: selectedProviderId ? [selectedProviderId] : undefined,
     walletAddress,
