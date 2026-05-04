@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `KeyringController` methods through its messenger ([#8674](https://github.com/MetaMask/core/pull/8674))
+  - The following actions are now available:
+    - `KeyringController:changePassword`,
+    - `KeyringController:exportAccount`,
+    - `KeyringController:exportEncryptionKey`,
+    - `KeyringController:getAccountKeyringType`,
+    - `KeyringController:importAccountWithStrategy`,
+    - `KeyringController:setLocked`,
+    - `KeyringController:submitEncryptionKey`,
+    - `KeyringController:submitPassword`,
+    - `KeyringController:verifyPassword`,
+  - Corresponding action types are available as well.
+
 ## [25.4.0]
 
 ### Changed
