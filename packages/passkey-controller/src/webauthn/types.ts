@@ -15,7 +15,7 @@ export type PublicKeyCredentialHint =
   | 'client-device';
 
 export type PasskeyRegistrationOptions = {
-  rp: { name: string; id: string };
+  rp: { name: string; id?: string };
   user: {
     id: Base64URL;
     name: string;

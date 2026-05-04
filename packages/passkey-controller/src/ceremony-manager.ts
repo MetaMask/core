@@ -8,9 +8,10 @@ export const WEBAUTHN_TIMEOUT_MS = 60_000;
 
 /**
  * Extra allowance beyond {@link WEBAUTHN_TIMEOUT_MS} before in-memory
- * ceremony state is discarded (covers slow UX and clock skew).
+ * ceremony state is discarded (covers slow UX, multi-step enrollment, and
+ * clock skew).
  */
-export const CEREMONY_TTL_SLACK_MS = 15_000;
+export const CEREMONY_TTL_SLACK_MS = 120_000;
 
 /**
  * Maximum age for in-flight registration or authentication ceremony state
