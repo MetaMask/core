@@ -191,6 +191,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'revokePermissions',
   'updateCaveat',
   'getCaveat',
+  'acceptPermissionsRequest',
+  'rejectPermissionsRequest',
+  'revokePermission',
+  'updatePermissionsByCaveat',
+  'getPermission',
 ] as const;
 
 /**
