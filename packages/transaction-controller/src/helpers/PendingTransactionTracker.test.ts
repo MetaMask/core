@@ -34,6 +34,9 @@ const RECEIPT_MOCK = {
   status: '0x1',
 };
 
+const REVERT_DATA_TRANSFER_EXCEEDS_BALANCE =
+  '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
 const BLOCK_MOCK = {
   baseFeePerGas: '0x456',
   timestamp: 123456,
@@ -128,6 +131,7 @@ describe('PendingTransactionTracker', () => {
   const getTransactionByHashMock = jest.fn();
   const getTransactionCountMock = jest.fn();
   const getBlockByHashMock = jest.fn();
+  const estimateGasMock = jest.fn();
 
   let blockTracker: jest.Mocked<BlockTracker>;
   let pendingTransactionTracker: PendingTransactionTracker;
@@ -182,10 +186,15 @@ describe('PendingTransactionTracker', () => {
           return getTransactionCountMock(...args);
         case 'eth_getBlockByHash':
           return getBlockByHashMock(...args);
+        case 'eth_estimateGas':
+          return estimateGasMock(...args);
         default:
           return undefined;
       }
     });
+
+    estimateGasMock.mockReset();
+    estimateGasMock.mockResolvedValue('0x5208');
 
     options = {
       blockTracker,
@@ -498,10 +507,59 @@ describe('PendingTransactionTracker', () => {
           await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(1);
-          expect(listener).toHaveBeenCalledWith(
-            TRANSACTION_SUBMITTED_MOCK,
-            new Error('Transaction failed on-chain'),
+          const [emittedTxMeta, emittedError] = listener.mock.calls[0];
+          expect(emittedTxMeta).toStrictEqual(TRANSACTION_SUBMITTED_MOCK);
+          expect(emittedError.name).toBe('OnChainFailureError');
+          expect(emittedError.message).toBe('Transaction failed on-chain');
+          expect(emittedError.revertReason).toBeUndefined();
+        });
+
+        it('with decoded revert reason when receipt has error status', async () => {
+          const listener = jest.fn();
+
+          const transactionMetaWithCall = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            txParams: {
+              ...TRANSACTION_SUBMITTED_MOCK.txParams,
+              from: `0x${'11'.repeat(20)}`,
+              to: `0x${'22'.repeat(20)}`,
+              data: '0xa9059cbb',
+            },
+          } as unknown as TransactionMeta;
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaWithCall], true),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
           );
+
+          getTransactionReceiptMock.mockResolvedValueOnce({
+            ...RECEIPT_MOCK,
+            status: '0x0',
+          });
+
+          estimateGasMock.mockRejectedValueOnce({
+            message: 'execution reverted',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          const [, emittedError] = listener.mock.calls[0];
+          expect(emittedError.name).toBe('OnChainFailureError');
+          expect(emittedError.message).toBe(
+            'Transaction failed on-chain: ERC20: transfer amount exceeds balance',
+          );
+          expect(emittedError.revert).toStrictEqual({
+            message: 'ERC20: transfer amount exceeds balance',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
         });
       });
 
@@ -1272,10 +1330,10 @@ describe('PendingTransactionTracker', () => {
       await tracker.forceCheckTransaction(transactionMeta);
 
       expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(
-        transactionMeta,
-        new Error('Transaction failed on-chain'),
-      );
+      const [, emittedError] = listener.mock.calls[0];
+      expect(emittedError.name).toBe('OnChainFailureError');
+      expect(emittedError.message).toBe('Transaction failed on-chain');
+      expect(emittedError.revertReason).toBeUndefined();
     });
 
     it('should not change transaction status if receipt status is neither success nor failure', async () => {
