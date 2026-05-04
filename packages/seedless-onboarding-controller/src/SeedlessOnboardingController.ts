@@ -1121,6 +1121,15 @@ export class SeedlessOnboardingController<
         const { profilePairingToken, authConnection, socialBackupsMetadata } =
           this.state;
 
+        if (authConnection !== AuthConnection.Telegram) {
+          // We only support profile pairing for Telegram right now, so other
+          // social logins should always be treated as a no-op.
+          log(
+            `warning: skipping profile pairing for ${authConnection} social login`,
+          );
+          return;
+        }
+
         if (socialBackupsMetadata.length < 1) {
           throw new Error(
             SeedlessOnboardingControllerErrorMessage.NoSocialBackups,
@@ -1132,17 +1141,6 @@ export class SeedlessOnboardingController<
           socialBackupsMetadata[0]?.profilePairingStatus;
         if (profilePairingStatus === ProfilePairingStatus.Paired) {
           log('Profile pairing already completed');
-          return;
-        }
-
-        // The controller lock already serializes active pairing calls, so only
-        // a completed pairing should short-circuit retries.
-        if (authConnection !== AuthConnection.Telegram) {
-          // we don't throw the error here, since we don't support profile pairing for other social logins yet
-          // technically, clients should not call this method for other social logins
-          log(
-            `warning: skipping profile pairing for ${authConnection} social login`,
-          );
           return;
         }
 

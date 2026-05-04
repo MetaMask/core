@@ -1168,6 +1168,40 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should skip pairing for non-Telegram social logins without social backups', async () => {
+      const mockFetch = jest.fn();
+      const mockVault = await createVaultForProfilePairing();
+
+      await withController(
+        {
+          fetchFunction: mockFetch,
+          profilePairingEndpoint: mockProfilePairingEndpoint,
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: mockVault.encryptedMockVault,
+            }),
+            authConnection: AuthConnection.Google,
+            socialBackupsMetadata: [],
+          },
+        },
+        async ({ controller, baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            mockPassword,
+          );
+
+          expect(
+            await controller.pairProfileServiceWithSocialLogin(
+              mockProfileServiceToken,
+            ),
+          ).toBeUndefined();
+          expect(mockFetch).not.toHaveBeenCalled();
+          expect(controller.state.socialBackupsMetadata).toStrictEqual([]);
+        },
+      );
+    });
+
     it('should throw if the profile service pairing request fails', async () => {
       const mockFetch = jest.fn().mockResolvedValue({
         ok: false,
