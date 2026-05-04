@@ -1,8 +1,6 @@
 import { hasProperty } from '@metamask/utils';
 
-import {
-  SeedlessOnboardingControllerErrorMessage,
-} from './constants';
+import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { AuthenticatedUserDetails, VaultData } from './types';
 
 /**

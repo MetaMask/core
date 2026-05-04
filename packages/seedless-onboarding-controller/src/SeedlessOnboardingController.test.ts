@@ -1365,7 +1365,9 @@ describe('SeedlessOnboardingController', () => {
           );
 
           expect(authResult).toBeDefined();
-          expect(authResult.nodeAuthTokens).toStrictEqual(MOCK_NODE_AUTH_TOKENS);
+          expect(authResult.nodeAuthTokens).toStrictEqual(
+            MOCK_NODE_AUTH_TOKENS,
+          );
           expect(authResult.isNewUser).toBe(true);
           expect(controller.state.authConnection).toBe(AuthConnection.Telegram);
           expect(controller.state.profilePairingToken).toBe(
@@ -1379,36 +1381,38 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should throw an error if a Telegram user is missing profilePairingToken', async () => {
-      await withController(async ({ controller, toprfClient, baseMessenger }) => {
-        jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
-          nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-          isNewUser: true,
-        });
+      await withController(
+        async ({ controller, toprfClient, baseMessenger }) => {
+          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: true,
+          });
 
-        await expect(
-          baseMessenger.call('SeedlessOnboardingController:authenticate', {
-            idTokens,
-            authConnectionId,
-            userId,
-            authConnection: AuthConnection.Telegram,
-            socialLoginEmail,
-            refreshToken,
-            revokeToken,
-            accessToken,
-            metadataAccessToken,
-          }),
-        ).rejects.toThrow(
-          SeedlessOnboardingControllerErrorMessage.AuthenticationError,
-        );
+          await expect(
+            baseMessenger.call('SeedlessOnboardingController:authenticate', {
+              idTokens,
+              authConnectionId,
+              userId,
+              authConnection: AuthConnection.Telegram,
+              socialLoginEmail,
+              refreshToken,
+              revokeToken,
+              accessToken,
+              metadataAccessToken,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          );
 
-        expect(controller.state.nodeAuthTokens).toBeUndefined();
-        expect(controller.state.authConnectionId).toBeUndefined();
-        expect(controller.state.userId).toBeUndefined();
-        expect(controller.state.profilePairingToken).toBeUndefined();
-        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
-          false,
-        );
-      });
+          expect(controller.state.nodeAuthTokens).toBeUndefined();
+          expect(controller.state.authConnectionId).toBeUndefined();
+          expect(controller.state.userId).toBeUndefined();
+          expect(controller.state.profilePairingToken).toBeUndefined();
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            false,
+          );
+        },
+      );
     });
 
     it('should throw an error if the authentication fails', async () => {

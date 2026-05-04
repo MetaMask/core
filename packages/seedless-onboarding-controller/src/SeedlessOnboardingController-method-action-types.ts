@@ -343,6 +343,18 @@ export type SeedlessOnboardingControllerCheckAccessTokenExpiredAction = {
 };
 
 /**
+ * Pair the user social profile with the profile sync auth service.
+ *
+ * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
+ * @returns A promise that resolves to the success of the operation.
+ */
+export type SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction =
+  {
+    type: `SeedlessOnboardingController:pairProfileServiceWithSocialLogin`;
+    handler: SeedlessOnboardingController['pairProfileServiceWithSocialLogin'];
+  };
+
+/**
  * Union of all SeedlessOnboardingController action types.
  */
 export type SeedlessOnboardingControllerMethodActions =
@@ -371,4 +383,5 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerGetAccessTokenAction
   | SeedlessOnboardingControllerCheckNodeAuthTokenExpiredAction
   | SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction
-  | SeedlessOnboardingControllerCheckAccessTokenExpiredAction;
+  | SeedlessOnboardingControllerCheckAccessTokenExpiredAction
+  | SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction;

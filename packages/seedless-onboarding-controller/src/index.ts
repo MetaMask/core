@@ -36,6 +36,7 @@ export type {
   SeedlessOnboardingControllerCheckNodeAuthTokenExpiredAction,
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
+  SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction,
 } from './SeedlessOnboardingController-method-action-types';
 export type {
   SeedlessOnboardingControllerOptions,

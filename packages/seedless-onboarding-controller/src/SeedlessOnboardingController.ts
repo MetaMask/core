@@ -109,6 +109,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
+  'pairProfileServiceWithSocialLogin',
 ] as const;
 
 // Actions
@@ -550,7 +551,9 @@ export class SeedlessOnboardingController<
           state.accessToken = accessToken;
           if (authConnection === AuthConnection.Telegram) {
             if (!profilePairingToken) {
-              throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken);
+              throw new Error(
+                SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+              );
             }
             state.profilePairingToken = profilePairingToken;
           }
@@ -1119,7 +1122,9 @@ export class SeedlessOnboardingController<
           this.state;
 
         if (socialBackupsMetadata.length < 1) {
-          throw new Error(SeedlessOnboardingControllerErrorMessage.NoSocialBackups);
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.NoSocialBackups,
+          );
         }
 
         // For now, we only support profile pairing for the primary SRP.
@@ -1412,9 +1417,13 @@ export class SeedlessOnboardingController<
   async getIsUserAuthenticated(): Promise<boolean> {
     try {
       this.#assertIsAuthenticatedUser(this.state);
-      const accessTokenAndRevokeTokenAreSet = Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      const accessTokenAndRevokeTokenAreSet =
+        Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
       if (this.state.authConnection === AuthConnection.Telegram) {
-        return accessTokenAndRevokeTokenAreSet && Boolean(this.state.profilePairingToken);
+        return (
+          accessTokenAndRevokeTokenAreSet &&
+          Boolean(this.state.profilePairingToken)
+        );
       }
       return accessTokenAndRevokeTokenAreSet;
     } catch {
