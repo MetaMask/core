@@ -325,6 +325,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     adjustedReturn: { valueInCurrency: null, usd: null },
     swapRate: '1.234',
     cost: { valueInCurrency: null, usd: null },
+    quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
   },
   accountAddress: account,
   startTime: 1729964825189,
@@ -348,6 +349,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -376,6 +378,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -409,6 +412,7 @@ const MockTxHistory = {
       originalTransactionId: txMetaId,
       batchId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -448,6 +452,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -488,6 +493,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -528,6 +534,7 @@ const MockTxHistory = {
       batchId,
       featureId: undefined,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       completionTime: 1736277625746,
       estimatedProcessingTimeInSeconds: 15,
@@ -649,7 +656,6 @@ function registerDefaultActionHandlers(
       configuration: {
         chainId: numberToHex(srcChainId),
       },
-      // @ts-expect-error: Partial mock.
       provider: mockProvider,
     }),
   );
@@ -657,7 +663,6 @@ function registerDefaultActionHandlers(
   rootMessenger.registerActionHandler('TransactionController:getState', () => ({
     transactions: [
       {
-        // @ts-expect-error: this is ok
         id: txMetaId === 'undefined' ? undefined : txMetaId,
         hash: txHash,
         status,
@@ -1608,7 +1613,6 @@ describe('BridgeStatusController', () => {
             );
             rootMessenger.registerActionHandler(
               'TransactionController:getState',
-              // @ts-expect-error: Partial mock.
               () => {
                 getStateCallCount += 1;
                 return {
@@ -2001,6 +2005,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: Solana bridge', () => {
     const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2246,6 +2251,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: Solana swap', () => {
     const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2502,6 +2508,7 @@ describe('BridgeStatusController', () => {
 
     const mockQuoteResponse: QuoteResponse<TronTradeData, TronTradeData> &
       QuoteMetadata = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       quote: {
         requestId: '123',
         srcChainId: ChainId.TRON,
@@ -2737,6 +2744,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: EVM bridge', () => {
     const mockEvmQuoteResponse = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       ...getMockQuote(),
       quote: {
         ...getMockQuote(),
@@ -3745,6 +3753,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: EVM swap', () => {
     const mockEvmQuoteResponse = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       ...getMockQuote(),
       quote: {
         ...getMockQuote(),
@@ -5901,6 +5910,7 @@ describe('BridgeStatusController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "deferredStatusUpdates": {},
             "txHistory": {},
           }
         `);

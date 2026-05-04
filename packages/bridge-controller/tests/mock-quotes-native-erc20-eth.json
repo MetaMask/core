@@ -49,7 +49,9 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": ["across"],
+      "bridges": [
+        "across"
+      ],
       "steps": [
         {
           "action": "swap",
@@ -134,7 +136,8 @@
       "gasLimit": 540099,
       "effectiveGas": 540076
     },
-    "estimatedProcessingTimeInSeconds": 45
+    "estimatedProcessingTimeInSeconds": 45,
+    "quoteId": "34c4136d-8558-4d87-bdea-eef8d2d30d6d"
   },
   {
     "quote": {
@@ -186,7 +189,9 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": ["celercircle"],
+      "bridges": [
+        "celercircle"
+      ],
       "steps": [
         {
           "action": "swap",
@@ -271,6 +276,7 @@
       "gasLimit": 682999,
       "effectiveGas": 682910
     },
-    "estimatedProcessingTimeInSeconds": 1029.717
+    "estimatedProcessingTimeInSeconds": 1029.717,
+    "quoteId": "5bf0f2f0-655c-4e13-a545-1ebad6f9d2bc"
   }
 ]

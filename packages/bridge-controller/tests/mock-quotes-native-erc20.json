@@ -46,7 +46,9 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": ["across"],
+      "bridges": [
+        "across"
+      ],
       "steps": [
         {
           "action": "swap",
@@ -154,7 +156,8 @@
       "gasLimit": 610414,
       "effectiveGas": 610300
     },
-    "estimatedProcessingTimeInSeconds": 60
+    "estimatedProcessingTimeInSeconds": 60,
+    "quoteId": "381c23bc-e3e4-48fe-bc53-257471e388ad"
   },
   {
     "quote": {
@@ -203,7 +206,9 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": ["celercircle"],
+      "bridges": [
+        "celercircle"
+      ],
       "steps": [
         {
           "action": "swap",
@@ -311,6 +316,7 @@
       "gasLimit": 664389,
       "effectiveGas": 610300
     },
-    "estimatedProcessingTimeInSeconds": 15
+    "estimatedProcessingTimeInSeconds": 15,
+    "quoteId": "4277a368-40d7-4e82-aa67-74f29dc5f98a"
   }
 ]

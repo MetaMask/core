@@ -87,6 +87,7 @@ const metricsContext = {
   stx_enabled: true,
   security_warnings: [],
   warnings: [],
+  token_security_type_destination: null,
 };
 
 const assetExchangeRates = {
