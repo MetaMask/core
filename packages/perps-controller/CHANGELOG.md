@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Rename `AccountState.availableBalance` to `spendableBalance` and `AccountState.availableToTradeBalance` to `withdrawableBalance` for clearer semantics across abstraction modes ([#8678](https://github.com/MetaMask/core/pull/8678))
 - Mode-aware spot fold: `addSpotBalanceToAccountState` now folds free spot USDC into both `spendableBalance` and `withdrawableBalance` for Unified/Portfolio modes, while Standard/DEX-abstraction modes keep spot separate ([#8678](https://github.com/MetaMask/core/pull/8678))
 - Add throttled WS-driven `userAbstraction` refresh so HL-web mode flips propagate back without requiring a restart or account switch ([#8678](https://github.com/MetaMask/core/pull/8678))
-- Sync controller from mobile — inline hardware keyring type strings in `HyperLiquidWalletService` to remove the `ExtendedKeyringTypes` import, improving portability between mobile and the core monorepo ([#8677](https://github.com/MetaMask/core/pull/8677))
 
 ## [5.0.0]
 
