@@ -80,6 +80,13 @@ export class QuoteStatusUpdateManager {
   readonly #onError: ((error: QuoteStatusUpdateError) => void) | undefined;
 
   /**
+   * Optional callback that returns whether quote-status update reporting is
+   * currently enabled. Called lazily at each decision point so that toggling a
+   * remote feature flag takes effect immediately without re-instantiation.
+   */
+  readonly #isEnabled: (() => boolean) | undefined;
+
+  /**
    * Tracks which keys have an in-flight #processSingleEntry call to prevent
    * concurrent processing of the same entry.
    */
@@ -94,6 +101,7 @@ export class QuoteStatusUpdateManager {
     initialDeferredUpdates,
     persistDeferredUpdates,
     onError,
+    isEnabled,
   }: {
     messenger: BridgeStatusControllerMessenger;
     clientId: BridgeClientId;
@@ -103,19 +111,21 @@ export class QuoteStatusUpdateManager {
       updates: Record<string, DeferredStatusUpdateEntry>,
     ) => void;
     onError?: (error: QuoteStatusUpdateError) => void;
+    isEnabled?: () => boolean;
   }) {
     this.#messenger = messenger;
     this.#clientId = clientId;
     this.#apiBaseUrl = apiBaseUrl;
     this.#persistDeferredUpdates = persistDeferredUpdates;
     this.#onError = onError;
+    this.#isEnabled = isEnabled;
 
     this.#deferredRetryQueue = new Map(
       Object.entries(initialDeferredUpdates ?? {}).map(([key, entry]) => [
         key,
         // Entries from `initialDeferredUpdates` come from Immer-managed controller
         // state, which deep-freezes all nested objects. Cloning each entry here
-        // ensures the in-memory queue holds mutable objects so that mutations like
+        // ensures the in-memory queue holds mutable objects so that mutations
         // work correctly without throwing a "read only property" error.
         { ...entry, pendingStatuses: [...entry.pendingStatuses] },
       ]),
@@ -144,6 +154,9 @@ export class QuoteStatusUpdateManager {
    * @param txMetaId - Optional transaction meta id for finalization tracking
    */
   reportSubmitted(quoteId: string, srcTxHash: string, txMetaId?: string): void {
+    if (!this.#isEnabled?.()) {
+      return;
+    }
     const key = this.#enqueue({
       quoteId,
       srcTxHash,
@@ -164,6 +177,9 @@ export class QuoteStatusUpdateManager {
    * @param success - Whether the transaction succeeded
    */
   reportFinalised(txMetaId: string, success: boolean): void {
+    if (!this.#isEnabled?.()) {
+      return;
+    }
     const matchingKey = this.#findKeyByTxMetaId(txMetaId);
     if (!matchingKey) {
       return;
@@ -230,6 +246,13 @@ export class QuoteStatusUpdateManager {
    * @param key - Deferred map key (`${quoteId}:${srcTxHash}`).
    */
   #processSingleEntry(key: string): void {
+    // Skip processing if the feature has been disabled after this entry was
+    // already scheduled. The entry remains in state and will be retried the
+    // next time the feature is re-enabled (e.g. on service-worker restart).
+    if (!this.#isEnabled?.()) {
+      return;
+    }
+
     // Row may have been removed by another path or never existed for this key.
     const entry = this.#deferredRetryQueue.get(key);
     // Do not start a second in-flight send for the same key (#sendWithRetry is async).

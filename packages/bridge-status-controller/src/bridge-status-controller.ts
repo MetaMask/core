@@ -175,6 +175,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     config,
     traceFn,
     onQuoteStatusUpdateError,
+    isQuoteStatusUpdateEnabled,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
@@ -186,6 +187,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
     traceFn?: TraceCallback;
     onQuoteStatusUpdateError?: (error: QuoteStatusUpdateError) => void;
+    isQuoteStatusUpdateEnabled?: () => boolean;
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -222,6 +224,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         });
       },
       onError: onQuoteStatusUpdateError,
+      isEnabled: isQuoteStatusUpdateEnabled,
     });
 
     // Register action handlers
