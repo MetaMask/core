@@ -1,6 +1,5 @@
 import { publicToAddress } from '@ethereumjs/util';
 import { isBip44Account } from '@metamask/account-api';
-import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { HdKeyring as LegacyHdKeyring } from '@metamask/eth-hd-keyring';
 import { AccountCreationType, EthScope } from '@metamask/keyring-api';
 import type {
@@ -191,35 +190,16 @@ function setup({
   messenger.registerActionHandler(
     'AccountsController:getAccounts',
     (accountIds: string[]) =>
-      keyring.accounts.filter(
-        (account) =>
-          accountIds.includes(account.id) ||
-          accountIds.includes(
-            getUUIDFromAddressOfNormalAccount(account.address),
-          ),
-      ),
+      keyring.accounts.filter((account) => accountIds.includes(account.id)),
   );
 
   const mockGetAccount = jest.fn().mockImplementation((id) => {
-    return keyring.accounts.find(
-      (account) =>
-        account.id === id ||
-        getUUIDFromAddressOfNormalAccount(account.address) === id,
-    );
+    return keyring.accounts.find((account) => account.id === id);
   });
 
   messenger.registerActionHandler(
     'AccountsController:getAccount',
     mockGetAccount,
-  );
-
-  const mockGetAccountByAddress = jest.fn().mockImplementation((address) => {
-    return keyring.accounts.find((account) => account.address === address);
-  });
-
-  messenger.registerActionHandler(
-    'AccountsController:getAccountByAddress',
-    mockGetAccountByAddress,
   );
 
   const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
