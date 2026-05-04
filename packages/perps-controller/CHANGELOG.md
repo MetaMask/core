@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Sync controller from mobile — inline hardware keyring type strings in `HyperLiquidWalletService` to remove the `ExtendedKeyringTypes` import, improving portability between mobile and the core monorepo ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+
 ## [5.0.0]
 
 ### Added
