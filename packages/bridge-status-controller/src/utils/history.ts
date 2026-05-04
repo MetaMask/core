@@ -2,6 +2,7 @@ import {
   StatusTypes,
   isCrossChain,
   isNonEvmChainId,
+  isStellarChainId,
   isTronChainId,
 } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -206,9 +207,10 @@ export const shouldPollHistoryItem = (
     historyItem.quote.srcChainId,
     historyItem.quote.destChainId,
   );
+  const isStellarTx = isStellarChainId(historyItem.quote.srcChainId);
   const isTronTx = isTronChainId(historyItem.quote.srcChainId);
 
-  return [isBridgeTx, isIntent, isTronTx].some(Boolean);
+  return [isBridgeTx, isIntent, isStellarTx, isTronTx].some(Boolean);
 };
 
 export const isHistoryItemTooOld = (

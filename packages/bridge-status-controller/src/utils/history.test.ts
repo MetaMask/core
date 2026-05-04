@@ -1,4 +1,4 @@
-import { StatusTypes } from '@metamask/bridge-controller';
+import { ChainId, StatusTypes } from '@metamask/bridge-controller';
 import type { Quote } from '@metamask/bridge-controller';
 
 import type {
@@ -11,6 +11,7 @@ import {
   getHistoryKey,
   getInitialHistoryItem,
   rekeyHistoryItemInState,
+  shouldPollHistoryItem,
 } from './history';
 
 describe('History Utils', () => {
@@ -149,6 +150,44 @@ describe('History Utils', () => {
         tokenSecurityTypeDestination: null,
       });
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
+    });
+  });
+
+  describe('shouldPollHistoryItem', () => {
+    const makeHistoryItem = (quote: Partial<Quote>): BridgeHistoryItem =>
+      ({
+        quote,
+        status: {
+          status: StatusTypes.PENDING,
+          srcChain: { chainId: quote.srcChainId },
+        },
+        startTime: 1,
+        estimatedProcessingTimeInSeconds: 1,
+        slippagePercentage: 0,
+        account: 'account',
+        hasApprovalTx: false,
+      }) as BridgeHistoryItem;
+
+    it('returns true for same-chain Stellar swaps', () => {
+      expect(
+        shouldPollHistoryItem(
+          makeHistoryItem({
+            srcChainId: ChainId.STELLAR,
+            destChainId: ChainId.STELLAR,
+          }),
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for same-chain Solana swaps without intent', () => {
+      expect(
+        shouldPollHistoryItem(
+          makeHistoryItem({
+            srcChainId: ChainId.SOLANA,
+            destChainId: ChainId.SOLANA,
+          }),
+        ),
+      ).toBe(false);
     });
   });
 });

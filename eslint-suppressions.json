@@ -654,9 +654,6 @@
     }
   },
   "packages/bridge-controller/src/utils/bridge.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
     "id-denylist": {
       "count": 1
     }
