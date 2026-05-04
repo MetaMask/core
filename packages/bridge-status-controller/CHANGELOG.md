@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add required `quoteId: string` to `BridgeHistoryItem` ([#8636](https://github.com/MetaMask/core/pull/8636))
+- Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors (up to 6×), defers on network failures (every 30 min for up to 12 h), and persists the queue to `deferredStatusUpdates` state across service-worker restarts ([#8636](https://github.com/MetaMask/core/pull/8636))
+- Export `QuoteStatusUpdateError`, `QuoteStatusUpdateErrorType`, `QuoteStatusUpdateStatus`, `QuoteStatusUpdateResponse` and related enums ([#8636](https://github.com/MetaMask/core/pull/8636))
+- Add optional `onQuoteStatusUpdateError` and `isQuoteStatusUpdateEnabled` constructor options to `BridgeStatusController` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+### Changed
+
+- **BREAKING:** `BridgeStatusControllerMessenger` `AllowedEvents` now requires `TransactionControllerTransactionSubmittedEvent` ([#8636](https://github.com/MetaMask/core/pull/8636))
+- `BridgeStatusController` now subscribes to `TransactionController:transactionSubmitted` and handles `TransactionStatus.submitted` to report quote status for batch EVM (STX / 7702-delegated) transactions whose hash is unavailable at `submitTx` time ([#8636](https://github.com/MetaMask/core/pull/8636))
+
 ## [71.1.0]
 
 ### Added
