@@ -523,7 +523,7 @@ describe('NetworkController', () => {
                 "chainId": "0x10e6",
                 "defaultRpcEndpointIndex": 0,
                 "name": "MegaETH Mainnet",
-                "nativeCurrency": "MEGAETH",
+                "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
                     "failoverUrls": [],
@@ -537,7 +537,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": [],
                 "chainId": "0x144",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Zksync Mainnet",
+                "name": "ZKsync Era",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
@@ -752,7 +752,7 @@ describe('NetworkController', () => {
                   "chainId": "0x10e6",
                   "defaultRpcEndpointIndex": 0,
                   "name": "MegaETH Mainnet",
-                  "nativeCurrency": "MEGAETH",
+                  "nativeCurrency": "ETH",
                   "rpcEndpoints": [
                     {
                       "failoverUrls": [],
@@ -766,7 +766,7 @@ describe('NetworkController', () => {
                   "blockExplorerUrls": [],
                   "chainId": "0x144",
                   "defaultRpcEndpointIndex": 0,
-                  "name": "Zksync Mainnet",
+                  "name": "ZKsync Era",
                   "nativeCurrency": "ETH",
                   "rpcEndpoints": [
                     {
@@ -2071,6 +2071,21 @@ describe('NetworkController', () => {
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
               },
+              'avalanche-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0xa86a',
+                  ticker: 'AVAX',
+                  network: InfuraNetworkType['avalanche-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               'base-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -2146,6 +2161,36 @@ describe('NetworkController', () => {
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
               },
+              'megaeth-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x10e6',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['megaeth-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'monad-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x8f',
+                  ticker: 'MON',
+                  network: InfuraNetworkType['monad-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               'optimism-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -2200,6 +2245,21 @@ describe('NetworkController', () => {
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
                   network: InfuraNetworkType.sepolia,
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'zksync-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x144',
+                  ticker: 'ETH',
+                  network: InfuraNetworkType['zksync-mainnet'],
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -15035,7 +15095,7 @@ describe('NetworkController', () => {
                 "chainId": "0x10e6",
                 "defaultRpcEndpointIndex": 0,
                 "name": "MegaETH Mainnet",
-                "nativeCurrency": "MEGAETH",
+                "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
                     "failoverUrls": [],
@@ -15049,7 +15109,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": [],
                 "chainId": "0x144",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Zksync Mainnet",
+                "name": "ZKsync Era",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
@@ -15264,7 +15324,7 @@ describe('NetworkController', () => {
                 "chainId": "0x10e6",
                 "defaultRpcEndpointIndex": 0,
                 "name": "MegaETH Mainnet",
-                "nativeCurrency": "MEGAETH",
+                "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
                     "failoverUrls": [],
@@ -15278,7 +15338,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": [],
                 "chainId": "0x144",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Zksync Mainnet",
+                "name": "ZKsync Era",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
@@ -15493,7 +15553,7 @@ describe('NetworkController', () => {
                 "chainId": "0x10e6",
                 "defaultRpcEndpointIndex": 0,
                 "name": "MegaETH Mainnet",
-                "nativeCurrency": "MEGAETH",
+                "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
                     "failoverUrls": [],
@@ -15507,7 +15567,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": [],
                 "chainId": "0x144",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Zksync Mainnet",
+                "name": "ZKsync Era",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": [
                   {
