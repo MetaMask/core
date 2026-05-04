@@ -1,7 +1,10 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import type {
+  SnapKeyring,
+  SnapKeyring as SnapKeyringV2,
+} from '@metamask/eth-snap-keyring/v2';
 import {
   AccountCreationType,
   assertCreateAccountOptionIsSupported,
@@ -13,8 +16,8 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
+import { Keyring, KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
@@ -71,6 +74,18 @@ export type SnapAccountProviderConfig = {
     autoRemoveExtraSnapAccounts?: boolean;
   };
 };
+
+// TODO: Move this in `eth-snap-keyring/v2` package?
+/**
+ * Checks if a given keyring is a Snap keyring (v2).
+ *
+ * @param keyring - The keyring to check.
+ * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
+ */
+function isSnapKeyring(keyring: Keyring): keyring is SnapKeyring {
+  // Using `KeyringType.Snap` (used for v2).
+  return keyring.type === KeyringType.Snap;
+}
 
 export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   readonly snapId: SnapId;
@@ -148,15 +163,15 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {
-    // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
-    // we have to use the `SnapKeyring` instance to be able to create Solana account
+    // NOTE: We're not supposed to make the keyring instance escape `withKeyringV2` but
+    // we have to use the `SnapKeyringV2` instance to be able to create Solana account
     // without triggering UI confirmation.
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
     const { createAccount, createAccounts } = await this.#withSnapKeyring<{
-      createAccount: SnapKeyring['createAccount'];
-      createAccounts: SnapKeyring['createAccounts'];
+      createAccount: SnapKeyringV2['createAccount'];
+      createAccounts: SnapKeyringV2['createAccounts'];
     }>(async ({ keyring }) => ({
       createAccount: keyring.createAccount.bind(keyring),
       createAccounts: keyring.createAccounts.bind(keyring),
@@ -165,17 +180,19 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     return {
       createAccount: async (options) =>
         // We use the "unguarded" account creation here (see explanation above).
-        await createAccount(this.snapId, options, {
+        await createAccount(options, {
           displayAccountNameSuggestion: false,
           displayConfirmation: false,
           setSelectedAccount: false,
         }),
-      createAccounts: async (options) =>
-        await createAccounts(this.snapId, options),
+      createAccounts: async (options) => await createAccounts(options),
       removeAccount: async (address: string) =>
         // Though, when removing account, we can use the normal flow.
         await this.#withSnapKeyring(async ({ keyring }) => {
-          await keyring.removeAccount(address);
+          const account = keyring.lookupByAddress(address);
+          if (account) {
+            keyring.removeAccount(account.id);
+          }
         }),
     };
   }
@@ -290,15 +307,16 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       keyring,
       metadata,
     }: {
-      keyring: SnapKeyring;
+      keyring: SnapKeyringV2;
       metadata: KeyringMetadata;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
-    return this.withKeyring<SnapKeyring, CallbackResult>(
-      { type: KeyringTypes.snap },
-      (args) => {
-        return operation(args);
+    return this.withKeyringV2<SnapKeyringV2, CallbackResult>(
+      {
+        filter: (keyring) =>
+          isSnapKeyring(keyring) && keyring.snapId === this.snapId,
       },
+      (args) => operation(args),
     );
   }
 

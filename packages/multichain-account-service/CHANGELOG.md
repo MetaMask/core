@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace `KeyringController:withKeyring` with `KeyringController:withKeyringV2` for the Snap account providers ([#8732](https://github.com/MetaMask/core/pull/8732))
 - **BREAKING:** The service messenger now requires the `SnapAccountService:ensureReady` action to be declared ([#8715](https://github.com/MetaMask/core/pull/8715))
 - **BREAKING:** Delegate Snap platform readiness to `@metamask/snap-account-service` ([#8715](https://github.com/MetaMask/core/pull/8715)), ([#8752](https://github.com/MetaMask/core/pull/8752))
   - Removed `MultichainAccountService.ensureCanUseSnapPlatform()` method and the corresponding `MultichainAccountService:ensureCanUseSnapPlatform` messenger action.
