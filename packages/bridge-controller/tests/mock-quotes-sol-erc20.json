@@ -75,9 +75,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "mayan"
-      ],
+      "bridges": ["mayan"],
       "steps": [
         {
           "action": "bridge",
@@ -226,9 +224,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "mayanMCTP"
-      ],
+      "bridges": ["mayanMCTP"],
       "steps": [
         {
           "action": "bridge",

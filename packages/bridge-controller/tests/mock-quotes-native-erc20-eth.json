@@ -49,9 +49,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "across"
-      ],
+      "bridges": ["across"],
       "steps": [
         {
           "action": "swap",
@@ -189,9 +187,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "celercircle"
-      ],
+      "bridges": ["celercircle"],
       "steps": [
         {
           "action": "swap",

@@ -46,9 +46,7 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": [
-        "across"
-      ],
+      "bridges": ["across"],
       "steps": [
         {
           "action": "swap",
@@ -206,9 +204,7 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": [
-        "celercircle"
-      ],
+      "bridges": ["celercircle"],
       "steps": [
         {
           "action": "swap",

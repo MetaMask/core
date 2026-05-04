@@ -46,9 +46,7 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": [
-        "across"
-      ],
+      "bridges": ["across"],
       "steps": [
         {
           "action": "bridge",
@@ -152,9 +150,7 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": [
-        "celercircle"
-      ],
+      "bridges": ["celercircle"],
       "steps": [
         {
           "action": "bridge",

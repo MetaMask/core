@@ -49,9 +49,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "stargate"
-      ],
+      "bridges": ["stargate"],
       "steps": [
         {
           "action": "bridge",
@@ -162,9 +160,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "celer"
-      ],
+      "bridges": ["celer"],
       "steps": [
         {
           "action": "bridge",
@@ -275,9 +271,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "across"
-      ],
+      "bridges": ["across"],
       "steps": [
         {
           "action": "bridge",
@@ -388,9 +382,7 @@
         }
       },
       "bridgeId": "lifi",
-      "bridges": [
-        "hop"
-      ],
+      "bridges": ["hop"],
       "steps": [
         {
           "action": "bridge",
@@ -498,9 +490,7 @@
         }
       },
       "bridgeId": "socket",
-      "bridges": [
-        "celer"
-      ],
+      "bridges": ["celer"],
       "steps": [
         {
           "action": "bridge",
@@ -601,9 +591,7 @@
         "logoURI": "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/eth.svg",
         "volatility": 2,
         "axelarNetworkSymbol": "ETH",
-        "subGraphIds": [
-          "chainflip-bridge"
-        ],
+        "subGraphIds": ["chainflip-bridge"],
         "enabled": true,
         "subGraphOnly": false,
         "active": true,
@@ -635,9 +623,7 @@
         }
       },
       "bridgeId": "squid",
-      "bridges": [
-        "axelar"
-      ],
+      "bridges": ["axelar"],
       "steps": [
         {
           "action": "swap",
@@ -679,10 +665,7 @@
             "logoURI": "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdc.svg",
             "axelarNetworkSymbol": "USDC",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "uusdc",
-              "cctp-uusdc-optimism-to-noble"
-            ],
+            "subGraphIds": ["uusdc", "cctp-uusdc-optimism-to-noble"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdc.svg"
@@ -711,10 +694,7 @@
             "logoURI": "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdc.svg",
             "axelarNetworkSymbol": "USDC",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "uusdc",
-              "cctp-uusdc-optimism-to-noble"
-            ],
+            "subGraphIds": ["uusdc", "cctp-uusdc-optimism-to-noble"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/0xsquid/assets/main/images/tokens/usdc.svg"
@@ -780,9 +760,7 @@
             "logoURI": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg",
             "axelarNetworkSymbol": "axlUSDC",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "uusdc"
-            ],
+            "subGraphIds": ["uusdc"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg"
@@ -812,9 +790,7 @@
             "logoURI": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg",
             "axelarNetworkSymbol": "axlUSDC",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "uusdc"
-            ],
+            "subGraphIds": ["uusdc"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg"
@@ -833,9 +809,7 @@
             "logoURI": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg",
             "axelarNetworkSymbol": "axlUSDC",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "uusdc"
-            ],
+            "subGraphIds": ["uusdc"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg"
@@ -865,9 +839,7 @@
             "logoURI": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg",
             "axelarNetworkSymbol": "axlUSDC",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "uusdc"
-            ],
+            "subGraphIds": ["uusdc"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/usdc.svg"
@@ -941,9 +913,7 @@
             "logoURI": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/weth.svg",
             "axelarNetworkSymbol": "WETH",
             "subGraphOnly": false,
-            "subGraphIds": [
-              "arbitrum-weth-wei"
-            ],
+            "subGraphIds": ["arbitrum-weth-wei"],
             "enabled": true,
             "active": true,
             "icon": "https://raw.githubusercontent.com/axelarnetwork/axelar-configs/main/images/tokens/weth.svg"
