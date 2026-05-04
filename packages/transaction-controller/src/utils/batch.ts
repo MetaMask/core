@@ -525,6 +525,90 @@ function waitForTransactionStatus(
 }
 
 /**
+ * Wait for any transaction in a batch to fail while the collected publish hooks
+ * are still waiting for every transaction signature.
+ *
+ * @param transactionIds - The IDs of the transactions in the batch.
+ * @param request - The batch request containing messenger and getTransaction.
+ * @returns A promise that rejects if any transaction fails and an unsubscribe function.
+ */
+function waitForBatchTransactionFailure(
+  transactionIds: string[],
+  request: Pick<AddTransactionBatchRequest, 'getTransaction' | 'messenger'>,
+): { promise: Promise<never>; unsubscribe: () => void } {
+  const { getTransaction, messenger } = request;
+  const transactionIdSet = new Set(transactionIds);
+  let settled = false;
+  let unsubscribe = (): void => undefined;
+
+  const getFailureError = (tx?: TransactionMeta): Error | undefined => {
+    if (!transactionIdSet.has(String(tx?.id))) {
+      return undefined;
+    }
+
+    if (
+      tx?.status === TransactionStatus.failed ||
+      tx?.status === TransactionStatus.rejected
+    ) {
+      return new Error(
+        tx.error?.message ?? `Transaction ${String(tx.id)} ${tx.status}`,
+      );
+    }
+
+    return undefined;
+  };
+
+  const promise = new Promise<never>((_resolve, reject) => {
+    const rejectIfFailed = (tx?: TransactionMeta): boolean => {
+      const error = getFailureError(tx);
+
+      if (!error) {
+        return false;
+      }
+
+      settled = true;
+      unsubscribe();
+      reject(error);
+      return true;
+    };
+
+    if (transactionIds.some((id) => rejectIfFailed(getTransaction(id)))) {
+      return;
+    }
+
+    const handler = ({
+      transactionMeta,
+    }: {
+      transactionMeta: TransactionMeta;
+    }): void => {
+      if (settled) {
+        return;
+      }
+
+      rejectIfFailed(transactionMeta);
+    };
+
+    unsubscribe = (): void =>
+      messenger.unsubscribe(
+        'TransactionController:transactionStatusUpdated',
+        handler,
+      );
+
+    messenger.subscribe('TransactionController:transactionStatusUpdated', handler);
+  });
+
+  return {
+    promise,
+    unsubscribe: (): void => {
+      if (!settled) {
+        settled = true;
+        unsubscribe();
+      }
+    },
+  };
+}
+
+/**
  * Process a batch transaction using a publish batch hook.
  *
  * @param request - The request object including the user request and necessary callbacks.
@@ -639,7 +723,15 @@ async function addTransactionBatchWithHook(
       );
     }
 
-    const { signedTransactions } = await collectHook.ready();
+    const batchFailure = waitForBatchTransactionFailure(
+      hookTransactions.map((transaction) => String(transaction.id)),
+      request,
+    );
+
+    const { signedTransactions } = await Promise.race([
+      collectHook.ready(),
+      batchFailure.promise,
+    ]).finally(batchFailure.unsubscribe);
 
     const transactions = hookTransactions.map((transaction, i) => ({
       ...transaction,
