@@ -166,7 +166,6 @@ type WithControllerArgs<ReturnValue, EKey, SupportedKeyDerivationParams> =
     ];
 
 const mockFetchFunction = jest.fn() as typeof fetch;
-const mockAuthServiceBaseUrl = 'https://mock-auth-service.example';
 const mockProfilePairingEndpoint = 'https://mock-profile-pairing.example';
 
 /**
@@ -259,7 +258,6 @@ async function withController<ReturnValue>(
     revokeRefreshToken: mockRevokeRefreshToken,
     renewRefreshToken: mockRenewRefreshToken,
     fetchFunction: mockFetchFunction,
-    idTokenMintEndpoint: mockAuthServiceBaseUrl,
     profilePairingEndpoint: mockProfilePairingEndpoint,
     ...rest,
   });
@@ -761,7 +759,6 @@ describe('SeedlessOnboardingController', () => {
         refreshJWTToken: mockRefreshJWTToken,
         revokeRefreshToken: mockRevokeRefreshToken,
         renewRefreshToken: mockRenewRefreshToken,
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -791,7 +788,6 @@ describe('SeedlessOnboardingController', () => {
             refreshJWTToken: mockRefreshJWTToken,
             revokeRefreshToken: mockRevokeRefreshToken,
             renewRefreshToken: mockRenewRefreshToken,
-            idTokenMintEndpoint: mockAuthServiceBaseUrl,
             profilePairingEndpoint: mockProfilePairingEndpoint,
             fetchFunction: mockFetchFunction,
           }),
@@ -867,7 +863,6 @@ describe('SeedlessOnboardingController', () => {
         revokeRefreshToken: mockRevokeRefreshToken,
         renewRefreshToken: mockRenewRefreshToken,
         state: initialState,
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -899,7 +894,6 @@ describe('SeedlessOnboardingController', () => {
           }),
           authConnection: AuthConnection.Telegram,
         },
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -964,145 +958,6 @@ describe('SeedlessOnboardingController', () => {
         );
         expect(getNodeDetailsSpy).toHaveBeenCalled();
       });
-    });
-  });
-
-  describe('mintProfilePairingTokenAndAuthenticate', () => {
-    const mockFetch = jest.fn();
-
-    it('should mint a profile pairing token and authenticate with the minted credentials', async () => {
-      const mintedTokenResult = {
-        idTokens: ['minted-id-token'],
-        accessToken: 'minted-access-token',
-        metadataAccessToken: 'minted-metadata-access-token',
-        refreshToken: 'minted-refresh-token',
-        revokeToken: 'minted-revoke-token',
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: jest.fn().mockResolvedValue(mintedTokenResult),
-      });
-
-      await withController(
-        {
-          fetchFunction: mockFetch,
-          idTokenMintEndpoint: mockAuthServiceBaseUrl,
-        },
-        async ({ controller }) => {
-          const authenticateResult = {
-            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-            isNewUser: false,
-          };
-          const authenticateSpy = jest
-            .spyOn(controller, 'authenticate')
-            .mockResolvedValue(authenticateResult);
-
-          const result =
-            await controller.mintProfilePairingTokenAndAuthenticate({
-              profilePairingToken: 'profile-pairing-token',
-              authConnection,
-              authConnectionId,
-              groupedAuthConnectionId,
-              userId,
-              socialLoginEmail,
-            });
-
-          expect(mockFetch).toHaveBeenCalledWith(
-            mockAuthServiceBaseUrl,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                id_token: 'profile-pairing-token',
-              }),
-            },
-          );
-          expect(authenticateSpy).toHaveBeenCalledWith({
-            idTokens: mintedTokenResult.idTokens,
-            accessToken: mintedTokenResult.accessToken,
-            metadataAccessToken: mintedTokenResult.metadataAccessToken,
-            profilePairingToken: 'profile-pairing-token',
-            authConnection,
-            authConnectionId,
-            userId,
-            groupedAuthConnectionId,
-            socialLoginEmail,
-            refreshToken: mintedTokenResult.refreshToken,
-            revokeToken: mintedTokenResult.revokeToken,
-            skipLock: true,
-          });
-          expect(result).toStrictEqual(authenticateResult);
-        },
-      );
-    });
-
-    it('should throw an error if the minting request failed', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 401,
-      });
-
-      await withController(
-        {
-          fetchFunction: mockFetch,
-          idTokenMintEndpoint: mockAuthServiceBaseUrl,
-        },
-        async ({ controller }) => {
-          const authenticateSpy = jest.spyOn(controller, 'authenticate');
-
-          await expect(
-            controller.mintProfilePairingTokenAndAuthenticate({
-              profilePairingToken: 'profile-pairing-token',
-              authConnection,
-              authConnectionId,
-              groupedAuthConnectionId,
-              userId,
-              socialLoginEmail,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToMintProfilePairingToken,
-          );
-          expect(authenticateSpy).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('should throw when the minted token response has an invalid shape', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: jest.fn().mockResolvedValue({
-          idTokens,
-          accessToken,
-          metadataAccessToken,
-          revokeToken,
-        }),
-      });
-
-      await withController(
-        {
-          fetchFunction: mockFetch,
-          idTokenMintEndpoint: mockAuthServiceBaseUrl,
-        },
-        async ({ controller }) => {
-          const authenticateSpy = jest.spyOn(controller, 'authenticate');
-
-          await expect(
-            controller.mintProfilePairingTokenAndAuthenticate({
-              profilePairingToken: 'profile-pairing-token',
-              authConnection,
-              authConnectionId,
-              groupedAuthConnectionId,
-              userId,
-              socialLoginEmail,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult,
-          );
-          expect(authenticateSpy).not.toHaveBeenCalled();
-        },
-      );
     });
   });
 
@@ -1834,6 +1689,123 @@ describe('SeedlessOnboardingController', () => {
           expect(parsedVaultData.toprfEncryptionKey).toBeDefined();
           expect(parsedVaultData.toprfPwEncryptionKey).toBeDefined();
           expect(parsedVaultData.toprfAuthKeyPair).toBeDefined();
+        },
+      );
+    });
+
+    it('should preserve the state profilePairingToken when reading access and revoke tokens from the vault', async () => {
+      const stateProfilePairingToken = 'state-profile-pairing-token';
+      const vaultProfilePairingToken = 'vault-profile-pairing-token';
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const mockVault = await createMockVault(
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD),
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD),
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD),
+        MOCK_PASSWORD,
+        revokeToken,
+        accessToken,
+        vaultProfilePairingToken,
+      );
+
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withoutMockAccessToken: true,
+              withoutMockRevokeToken: true,
+              vault: mockVault.encryptedMockVault,
+              vaultEncryptionKey: mockVault.vaultEncryptionKey,
+              vaultEncryptionSalt: mockVault.vaultEncryptionSalt,
+              profilePairingToken: stateProfilePairingToken,
+            }),
+            authConnection: AuthConnection.Telegram,
+          },
+        },
+        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+
+          const decryptedVaultData = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            controller.state.vault as string,
+          );
+          const parsedVaultData = JSON.parse(decryptedVaultData as string);
+
+          expect(parsedVaultData.accessToken).toBe(accessToken);
+          expect(parsedVaultData.revokeToken).toBe(revokeToken);
+          expect(parsedVaultData.profilePairingToken).toBe(
+            stateProfilePairingToken,
+          );
+        },
+      );
+    });
+
+    it('should carry forward the vault profilePairingToken when it is missing from state', async () => {
+      const vaultProfilePairingToken = 'vault-profile-pairing-token';
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const mockVault = await createMockVault(
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD),
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD),
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD),
+        MOCK_PASSWORD,
+        revokeToken,
+        accessToken,
+        vaultProfilePairingToken,
+      );
+
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withoutMockAccessToken: true,
+              withoutMockRevokeToken: true,
+              vault: mockVault.encryptedMockVault,
+              vaultEncryptionKey: mockVault.vaultEncryptionKey,
+              vaultEncryptionSalt: mockVault.vaultEncryptionSalt,
+              profilePairingToken: undefined,
+            }),
+            authConnection: AuthConnection.Google,
+          },
+        },
+        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+          const mockSecretDataAdd = handleMockSecretDataAdd();
+
+          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          expect(mockSecretDataAdd.isDone()).toBe(true);
+
+          const decryptedVaultData = await encryptor.decrypt(
+            MOCK_PASSWORD,
+            controller.state.vault as string,
+          );
+          const parsedVaultData = JSON.parse(decryptedVaultData as string);
+
+          expect(parsedVaultData.accessToken).toBe(accessToken);
+          expect(parsedVaultData.revokeToken).toBe(revokeToken);
+          expect(parsedVaultData.profilePairingToken).toBe(
+            vaultProfilePairingToken,
+          );
         },
       );
     });
@@ -8019,7 +7991,6 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: validToken,
         }),
         renewRefreshToken: jest.fn(),
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -8047,7 +8018,6 @@ describe('SeedlessOnboardingController', () => {
         revokeRefreshToken: jest.fn(),
         state,
         renewRefreshToken: jest.fn(),
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -8076,7 +8046,6 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: expiredToken,
         }),
         renewRefreshToken: jest.fn(),
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -8109,7 +8078,6 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: nearExpiryToken,
         }),
         renewRefreshToken: jest.fn(),
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });
@@ -8141,7 +8109,6 @@ describe('SeedlessOnboardingController', () => {
           metadataAccessToken: freshToken,
         }),
         renewRefreshToken: jest.fn(),
-        idTokenMintEndpoint: mockAuthServiceBaseUrl,
         profilePairingEndpoint: mockProfilePairingEndpoint,
         fetchFunction: mockFetchFunction,
       });

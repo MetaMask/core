@@ -41,7 +41,6 @@ import {
   assertIsPasswordOutdatedCacheValid,
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsValidPassword,
-  assertIsValidTokenMintResult,
   assertIsValidVaultData,
 } from './assertions';
 import { AuthConnection } from './constants';
@@ -350,8 +349,6 @@ export class SeedlessOnboardingController<
 
   readonly #fetch: typeof fetch;
 
-  readonly #idTokenMintEndpoint: string;
-
   readonly #profilePairingEndpoint: string;
 
   readonly #refreshJWTToken: RefreshJWTToken;
@@ -387,7 +384,6 @@ export class SeedlessOnboardingController<
    * @param options.state - Initial state to set on this controller.
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
    * @param options.fetchFunction - A function to make an HTTP request. e.g. Fetch API.
-   * @param options.idTokenMintEndpoint - The base URL of the auth service, which is used to mint the profile pairing token.
    * @param options.profilePairingEndpoint - The base URL of the profile service, which is used to pair the user social profile with the profile sync auth service.
    * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
@@ -406,7 +402,6 @@ export class SeedlessOnboardingController<
     revokeRefreshToken,
     renewRefreshToken,
     fetchFunction,
-    idTokenMintEndpoint,
     profilePairingEndpoint,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
@@ -432,7 +427,6 @@ export class SeedlessOnboardingController<
       fetchMetadataAccessCreds: this.fetchMetadataAccessCreds.bind(this),
     });
     this.#fetch = fetchFunction;
-    this.#idTokenMintEndpoint = idTokenMintEndpoint;
     this.#profilePairingEndpoint = profilePairingEndpoint;
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
@@ -481,71 +475,6 @@ export class SeedlessOnboardingController<
       await this.toprfClient.getNodeDetails();
     } catch {
       log('Failed to fetch node details');
-    }
-  }
-
-  /**
-   * Mint a profile pairing token for the user.
-   * This function is used to mint the token from the Social login (Telegram for now).
-   * The minting will return values ready for the Toprf authentication and authenticate the user.
-   *
-   * @param params - The parameters for minting the profile pairing token.
-   * @param params.profilePairingToken - The profile pairing token to be used for minting the profile pairing token.
-   * @param params.authConnection - The social login provider.
-   * @param params.authConnectionId - OAuth authConnectionId from dashboard
-   * @param params.userId - user email or id from Social login
-   * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
-   * @param params.socialLoginEmail - The user email from Social login.
-   * @returns A promise that resolves to the TOPRF Authentication result.
-   */
-  async mintProfilePairingTokenAndAuthenticate(params: {
-    profilePairingToken: string;
-    authConnection: AuthConnection;
-    authConnectionId: string;
-    userId: string;
-    groupedAuthConnectionId?: string;
-    socialLoginEmail?: string;
-  }): Promise<AuthenticateResult> {
-    try {
-      const authenticateResult = await this.#withControllerLock(async () => {
-        const { profilePairingToken, authConnection, authConnectionId, userId, groupedAuthConnectionId, socialLoginEmail } = params;
-
-        const response = await this.#fetch(this.#idTokenMintEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id_token: profilePairingToken,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(SeedlessOnboardingControllerErrorMessage.FailedToMintProfilePairingToken);
-        }
-
-        const data = await response.json();
-        assertIsValidTokenMintResult(data);
-
-        return this.authenticate({
-          profilePairingToken,
-          idTokens: data.idTokens,
-          accessToken: data.accessToken,
-          metadataAccessToken: data.metadataAccessToken,
-          authConnection,
-          authConnectionId,
-          userId,
-          groupedAuthConnectionId,
-          socialLoginEmail,
-          refreshToken: data.refreshToken,
-          revokeToken: data.revokeToken,
-          skipLock: true, // skip lock since we already have the lock
-        })
-      });
-      return authenticateResult;
-    } catch (error) {
-      log('Error minting profile pairing token', error);
-      throw error;
     }
   }
 

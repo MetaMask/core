@@ -2,96 +2,10 @@ import {
   assertIsSeedlessOnboardingUserAuthenticated,
   assertIsPasswordOutdatedCacheValid,
   assertIsValidPassword,
-  assertIsValidTokenMintResult,
   assertIsValidVaultData,
 } from './assertions';
 import { AuthConnection, SeedlessOnboardingControllerErrorMessage } from './constants';
-import { AuthenticatedUserDetails, TokenMintResult, VaultData } from './types';
-
-describe('assertIsValidTokenMintResult', () => {
-  const createValidTokenMintResult = (): TokenMintResult => ({
-    idTokens: ['id-token'],
-    accessToken: 'access-token',
-    metadataAccessToken: 'metadata-access-token',
-    revokeToken: 'revoke-token',
-    refreshToken: 'refresh-token',
-  });
-
-  it('should throw when the value is not an object', () => {
-    expect(() => {
-      assertIsValidTokenMintResult(null);
-    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-
-    expect(() => {
-      assertIsValidTokenMintResult(undefined);
-    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-
-    expect(() => {
-      assertIsValidTokenMintResult('invalid');
-    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  });
-
-  it.each([
-    [
-      'idTokens is missing',
-      (): TokenMintResult => {
-        const invalidResult = createValidTokenMintResult();
-        delete (invalidResult as Record<string, unknown>).idTokens;
-        return invalidResult;
-      },
-    ],
-    [
-      'idTokens is not an array',
-      (): TokenMintResult => ({
-        ...createValidTokenMintResult(),
-        // @ts-expect-error - invalid type for testing
-        idTokens: 'invalid',
-      }),
-    ],
-    [
-      'accessToken is missing',
-      (): TokenMintResult => {
-        const invalidResult = createValidTokenMintResult();
-        delete (invalidResult as Record<string, unknown>).accessToken;
-        return invalidResult;
-      },
-    ],
-    [
-      'metadataAccessToken is not a string',
-      (): TokenMintResult => ({
-        ...createValidTokenMintResult(),
-        // @ts-expect-error - invalid type for testing
-        metadataAccessToken: 123,
-      }),
-    ],
-    [
-      'revokeToken is missing',
-      (): TokenMintResult => {
-        const invalidResult = createValidTokenMintResult();
-        delete (invalidResult as Record<string, unknown>).revokeToken;
-        return invalidResult;
-      },
-    ],
-    [
-      'refreshToken is not a string',
-      (): TokenMintResult => ({
-        ...createValidTokenMintResult(),
-        // @ts-expect-error - invalid type for testing
-        refreshToken: false,
-      }),
-    ],
-  ])('should throw when %s', (_caseName, buildInvalidValue) => {
-    expect(() => {
-      assertIsValidTokenMintResult(buildInvalidValue());
-    }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  });
-
-  it('should not throw for a valid token mint result', () => {
-    expect(() => {
-      assertIsValidTokenMintResult(createValidTokenMintResult());
-    }).not.toThrow();
-  });
-});
+import { AuthenticatedUserDetails, VaultData } from './types';
 
 describe('assertIsValidPassword', () => {
   it('should throw when password is not a string', () => {

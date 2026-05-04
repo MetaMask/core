@@ -31,35 +31,6 @@ export type SocialBackupsMetadata = {
   keyringId?: string;
 };
 
-export type TokenMintResult = {
-  /**
-   * The ID tokens issued by the OAuth verification service.
-   * This will be provided to the TOPRF client to authenticate the user.
-   */
-  idTokens: string[];
-
-  /**
-   * The access token used for pairing with profile sync auth service and to access other services.
-   * Currently, this is being used for the Google and Apple logins.
-   */
-  accessToken: string;
-
-  /**
-   * The metadata access token used to authenticate with metadata service.
-   */
-  metadataAccessToken: string;
-
-  /**
-   * The revoke token used to revoke refresh token and get new refresh token and new revoke token.
-   */
-  revokeToken: string;
-
-  /**
-   * The refresh token used to refresh expired nodeAuthTokens.
-   */
-  refreshToken: string;
-}
-
 export type AuthenticatedUserDetails = {
   /**
    * Type of social login provider.
@@ -306,11 +277,6 @@ export type SeedlessOnboardingControllerOptions<
     SupportedKeyDerivationParams,
     EncryptionResult
   >;
-
-  /**
-   * The base URL of the auth service, which is used to mint the profile pairing token.
-   */
-  idTokenMintEndpoint: string;
 
   /**
    * The base URL of the profile service, which is used to pair the user social profile with the profile sync auth service.

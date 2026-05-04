@@ -35,6 +35,7 @@ export type SeedlessOnboardingControllerPreloadToprfNodeDetailsAction = {
  * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
  * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
  * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
+ * @param params.profilePairingToken - The profile pairing token used to pair the user social profile with the profile sync auth service later after the onboarding is complete.
  * @returns A promise that resolves to the authentication result.
  */
 export type SeedlessOnboardingControllerAuthenticateAction = {

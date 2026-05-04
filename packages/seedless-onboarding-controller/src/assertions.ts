@@ -2,34 +2,8 @@ import {
   AuthConnection,
   SeedlessOnboardingControllerErrorMessage,
 } from './constants';
-import type { AuthenticatedUserDetails, TokenMintResult, VaultData } from './types';
+import type { AuthenticatedUserDetails, VaultData } from './types';
 import { hasProperty } from '@metamask/utils';
-
-export function assertIsValidTokenMintResult(value: unknown): asserts value is TokenMintResult {
-  if (!value || typeof value !== 'object') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  }
-
-  if (!hasProperty(value, 'idTokens') || !Array.isArray(value.idTokens)) {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  }
-
-  if (!hasProperty(value, 'accessToken') || typeof value.accessToken !== 'string') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  }
-  
-  if (!hasProperty(value, 'metadataAccessToken') || typeof value.metadataAccessToken !== 'string') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  }
-
-  if (!hasProperty(value, 'revokeToken') || typeof value.revokeToken !== 'string') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  }
-  
-  if (!hasProperty(value, 'refreshToken') || typeof value.refreshToken !== 'string') {
-    throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidTokenMintResult);
-  }
-}
 
 /**
  * Assert that the provided password is a valid non-empty string.
