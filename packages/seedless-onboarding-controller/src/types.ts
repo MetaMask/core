@@ -1,9 +1,13 @@
+import type * as encryptionUtils from '@metamask/browser-passworder';
+import {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
 import { AuthConnection, SecretType, Web3AuthNetwork } from './constants';
-import { DefaultEncryptionResult, EncryptionResultConstraint, Encryptor } from '@metamask/keyring-controller';
-import type * as encryptionUtils from '@metamask/browser-passworder';
 import type { SeedlessOnboardingControllerMessenger } from './SeedlessOnboardingController';
 
 /**
@@ -329,7 +333,6 @@ export type SeedlessOnboardingControllerOptions<
    */
   passwordOutdatedCacheTTL?: number;
 };
-
 
 /**
  * A function executed within a mutually exclusive lock, with

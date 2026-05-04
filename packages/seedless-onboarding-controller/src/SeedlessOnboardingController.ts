@@ -1102,28 +1102,36 @@ export class SeedlessOnboardingController<
    * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
    * @returns A promise that resolves to the success of the operation.
    */
-  async pairProfileServiceWithSocialLogin(profileSvcToken: string): Promise<void> {
+  async pairProfileServiceWithSocialLogin(
+    profileSvcToken: string,
+  ): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
-      
+
       const { profilePairingToken, authConnection } = this.state;
       if (authConnection !== AuthConnection.Telegram) {
         // we don't throw the error here, since we don't support profile pairing for other social logins yet
         // technically, clients should not call this method for other social logins
-        log(`warning: skipping profile pairing for ${authConnection} social login`);
+        log(
+          `warning: skipping profile pairing for ${authConnection} social login`,
+        );
         return;
       }
 
       if (!profilePairingToken) {
-        log('Error: profile pairing token is not available for Telegram social login');
-        throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken);
+        log(
+          'Error: profile pairing token is not available for Telegram social login',
+        );
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+        );
       }
 
       const response = await this.#fetch(this.#profilePairingEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profileSvcToken}`,
+          Authorization: `Bearer ${profileSvcToken}`,
         },
         body: JSON.stringify({
           jwts: [profilePairingToken],
@@ -1131,7 +1139,9 @@ export class SeedlessOnboardingController<
       });
 
       if (!response.ok) {
-        throw new Error(SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService);
+        throw new Error(
+          SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService,
+        );
       }
     });
   }
@@ -2141,9 +2151,11 @@ export class SeedlessOnboardingController<
    * @param password - The password to decrypt the vault.
    * @returns The access token and revoke token.
    */
-  async #getRevokeTokenAndProfilePairingTokens(
-    password: string,
-  ): Promise<{ revokeToken: string; accessToken: string; profilePairingToken?: string }> {
+  async #getRevokeTokenAndProfilePairingTokens(password: string): Promise<{
+    revokeToken: string;
+    accessToken: string;
+    profilePairingToken?: string;
+  }> {
     let { accessToken, revokeToken, profilePairingToken } = this.state;
     // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
@@ -2157,7 +2169,8 @@ export class SeedlessOnboardingController<
       const { vaultData } = await this.#decryptAndParseVaultData({ password });
       accessToken = accessToken ?? vaultData.accessToken;
       revokeToken = revokeToken ?? vaultData.revokeToken;
-      profilePairingToken = profilePairingToken ?? vaultData.profilePairingToken;
+      profilePairingToken =
+        profilePairingToken ?? vaultData.profilePairingToken;
     }
 
     // we should always throw an error if the access token or revoke token is not available

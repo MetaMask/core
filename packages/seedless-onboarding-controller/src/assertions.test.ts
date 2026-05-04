@@ -4,7 +4,10 @@ import {
   assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions';
-import { AuthConnection, SeedlessOnboardingControllerErrorMessage } from './constants';
+import {
+  AuthConnection,
+  SeedlessOnboardingControllerErrorMessage,
+} from './constants';
 import { AuthenticatedUserDetails, VaultData } from './types';
 
 describe('assertIsValidPassword', () => {
@@ -105,7 +108,7 @@ describe('assertIsSeedlessOnboardingUserAuthenticated', () => {
     ],
     [
       'nodeAuthTokens is not an array',
-      (): AuthenticatedUserDetails   => ({
+      (): AuthenticatedUserDetails => ({
         ...createValidAuthenticatedUser(),
         // @ts-expect-error - invalid type for testing
         nodeAuthTokens: 'invalid',
@@ -118,14 +121,11 @@ describe('assertIsSeedlessOnboardingUserAuthenticated', () => {
         nodeAuthTokens: [createValidAuthenticatedUser().nodeAuthTokens[0]],
       }),
     ],
-  ])(
-    'should throw InsufficientAuthToken when %s',
-    (_caseName, buildValue) => {
-      expect(() => {
-        assertIsSeedlessOnboardingUserAuthenticated(buildValue());
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken);
-    },
-  );
+  ])('should throw InsufficientAuthToken when %s', (_caseName, buildValue) => {
+    expect(() => {
+      assertIsSeedlessOnboardingUserAuthenticated(buildValue());
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.InsufficientAuthToken);
+  });
 
   it('should throw InvalidRefreshToken when refreshToken is missing', () => {
     const invalidUser = createValidAuthenticatedUser();

@@ -1,9 +1,10 @@
+import { hasProperty } from '@metamask/utils';
+
 import {
   AuthConnection,
   SeedlessOnboardingControllerErrorMessage,
 } from './constants';
 import type { AuthenticatedUserDetails, VaultData } from './types';
-import { hasProperty } from '@metamask/utils';
 
 /**
  * Assert that the provided password is a valid non-empty string.
@@ -133,20 +134,29 @@ export function assertIsValidVaultData(
     throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
   }
 
-  if (!hasProperty(value, 'revokeToken') || typeof value.revokeToken !== 'string') {
+  if (
+    !hasProperty(value, 'revokeToken') ||
+    typeof value.revokeToken !== 'string'
+  ) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
     );
   }
 
-  if (!hasProperty(value, 'accessToken') || typeof value.accessToken !== 'string') {
+  if (
+    !hasProperty(value, 'accessToken') ||
+    typeof value.accessToken !== 'string'
+  ) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
     );
   }
 
   // if profilePairingToken is provided, it must be a string
-  if (hasProperty(value, 'profilePairingToken') && typeof value.profilePairingToken !== 'string') {
+  if (
+    hasProperty(value, 'profilePairingToken') &&
+    typeof value.profilePairingToken !== 'string'
+  ) {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
     );

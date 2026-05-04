@@ -77,10 +77,11 @@ import {
   SeedlessOnboardingController,
   getInitialSeedlessOnboardingControllerStateWithDefaults,
 } from './SeedlessOnboardingController';
+import type { SeedlessOnboardingControllerMessenger } from './SeedlessOnboardingController';
 import type {
-  SeedlessOnboardingControllerMessenger,
-} from './SeedlessOnboardingController';
-import type { SeedlessOnboardingControllerOptions, SeedlessOnboardingControllerState } from './types';
+  SeedlessOnboardingControllerOptions,
+  SeedlessOnboardingControllerState,
+} from './types';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -702,13 +703,12 @@ function getMockInitialControllerState(options?: {
     state.refreshToken = refreshToken;
     state.metadataAccessToken =
       options?.metadataAccessToken ?? metadataAccessToken;
-    state.profilePairingToken =
-      Object.prototype.hasOwnProperty.call(
-        options ?? {},
-        'profilePairingToken',
-      )
-        ? options?.profilePairingToken
-        : 'mock-profile-pairing-token';
+    state.profilePairingToken = Object.prototype.hasOwnProperty.call(
+      options ?? {},
+      'profilePairingToken',
+    )
+      ? options?.profilePairingToken
+      : 'mock-profile-pairing-token';
     state.isSeedlessOnboardingUserAuthenticated = true;
     if (!options?.withoutMockAccessToken || options?.accessToken) {
       state.accessToken = options?.accessToken ?? accessToken;
@@ -1081,7 +1081,9 @@ describe('SeedlessOnboardingController', () => {
           );
 
           await expect(
-            controller.pairProfileServiceWithSocialLogin(mockProfileServiceToken),
+            controller.pairProfileServiceWithSocialLogin(
+              mockProfileServiceToken,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
           );
@@ -1117,7 +1119,9 @@ describe('SeedlessOnboardingController', () => {
           );
 
           await expect(
-            controller.pairProfileServiceWithSocialLogin(mockProfileServiceToken),
+            controller.pairProfileServiceWithSocialLogin(
+              mockProfileServiceToken,
+            ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService,
           );
