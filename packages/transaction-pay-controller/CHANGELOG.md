@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Gas Station support for Across source transactions when native balance is insufficient ([#8588](https://github.com/MetaMask/core/pull/8588))
 
+### Changed
+
+- **BREAKING:** Narrow `AllowedActions` type to use individual action types instead of compound controller action unions (`BridgeControllerActions`, `BridgeStatusControllerActions`, `CurrencyRateControllerActions`, `GasFeeControllerActions`) ([#8670](https://github.com/MetaMask/core/pull/8670))
+
 ### Fixed
 
 - Pass explicit `assetId`, `providers`, and `fiat` to `RampsController:getQuotes` and persist the selected ramps quote on `TransactionFiatPayment` ([#8628](https://github.com/MetaMask/core/pull/8628))
