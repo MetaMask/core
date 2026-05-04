@@ -36,6 +36,7 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
@@ -152,6 +153,7 @@ export type TokensControllerActions =
 export type AllowedActions =
   | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction;
@@ -1244,8 +1246,18 @@ export class TokensController extends BaseController<
       return;
     }
 
+    // Only seed for chains that are actually configured in NetworkController.
+    // The `NetworkController:networkAdded` subscriber re-runs seeding when a
+    // supported chain is added later, so this preserves correctness without
+    // emitting state changes for chainIds downstream subscribers (e.g.
+    // TokenRatesController) cannot resolve.
+    const configuredChainIds = this.#getConfiguredMusdChainIds();
+    if (configuredChainIds.length === 0) {
+      return;
+    }
+
     this.update((state) => {
-      for (const chainId of MUSD_SUPPORTED_CHAIN_IDS) {
+      for (const chainId of configuredChainIds) {
         state.allTokens[chainId] ??= {};
         const accountTokens = state.allTokens[chainId][accountAddress] ?? [];
         const alreadyPresent = accountTokens.some(
@@ -1259,6 +1271,36 @@ export class TokensController extends BaseController<
         }
       }
     });
+  }
+
+  /**
+   * Returns the subset of `MUSD_SUPPORTED_CHAIN_IDS` that are currently
+   * configured in `NetworkController`. Returns an empty array if the
+   * NetworkController state is unavailable.
+   * 
+   * @returns The subset of `MUSD_SUPPORTED_CHAIN_IDS` that are currently configured in `NetworkController`.
+   */
+  #getConfiguredMusdChainIds(): Hex[] {
+    let networkConfigurationsByChainId:
+      | NetworkState['networkConfigurationsByChainId']
+      | undefined;
+    try {
+      ({ networkConfigurationsByChainId } = this.messenger.call(
+        'NetworkController:getState',
+      ));
+    } catch {
+      return [];
+    }
+    if (!networkConfigurationsByChainId) {
+      return [];
+    }
+    const configured: Hex[] = [];
+    for (const chainId of MUSD_SUPPORTED_CHAIN_IDS) {
+      if (networkConfigurationsByChainId[chainId]) {
+        configured.push(chainId);
+      }
+    }
+    return configured;
   }
 
   /**

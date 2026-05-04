@@ -26,6 +26,7 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import type { Patch } from 'immer';
 import nock from 'nock';
 import { v1 as uuidV1 } from 'uuid';
@@ -4324,6 +4325,73 @@ describe('TokensController', () => {
       });
     });
 
+    describe('when NetworkController has not configured every supported chain', () => {
+      it('only seeds mUSD on chains currently configured in NetworkController', async () => {
+        const account = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+
+        await withController(
+          // Only mainnet is configured in NetworkController
+          { listAccounts: [account], configuredChainIds: ['0x1'] },
+          ({ controller }) => {
+            expect(
+              controller.state.allTokens['0x1'][account.address],
+            ).toContainEqual(MUSD_TOKEN);
+            expect(controller.state.allTokens['0xe708']).toBeUndefined();
+            expect(controller.state.allTokens['0x8f']).toBeUndefined();
+          },
+        );
+      });
+
+      it('does not seed mUSD when none of the supported chains are configured', async () => {
+        const account = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+
+        await withController(
+          { listAccounts: [account], configuredChainIds: [] },
+          ({ controller }) => {
+            expect(controller.state.allTokens).toStrictEqual({});
+          },
+        );
+      });
+
+      it('does not seed mUSD when NetworkController state lacks networkConfigurationsByChainId', async () => {
+        const account = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+
+        await withController(
+          { listAccounts: [account], configuredChainIds: null },
+          ({ controller }) => {
+            expect(controller.state.allTokens).toStrictEqual({});
+          },
+        );
+      });
+
+      it('does not seed a supported chainId fired via networkAdded when NetworkController has not configured it yet', async () => {
+        const account = createMockInternalAccount({
+          address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        });
+
+        await withController(
+          // Only Linea is configured in NetworkController.
+          { listAccounts: [account], configuredChainIds: ['0xe708'] },
+          ({ controller, triggerNetworkAdded }) => {
+            expect(
+              controller.state.allTokens['0xe708'][account.address],
+            ).toContainEqual(MUSD_TOKEN);
+
+            // Even though `0x1` is in MUSD_SUPPORTED_CHAIN_IDS, seeding
+            // respects the configured chain set reported by NetworkController.
+            triggerNetworkAdded('0x1');
+            expect(controller.state.allTokens['0x1']).toBeUndefined();
+          },
+        );
+      });
+    });
+
     describe('when NetworkController:stateChange patch adds a supported chain', () => {
       it('seeds mUSD for all accounts', async () => {
         const account = createMockInternalAccount({
@@ -4422,6 +4490,16 @@ type WithControllerArgs<ReturnValue> =
         >;
         mocks?: WithControllerMockArgs;
         listAccounts?: InternalAccount[];
+        /**
+         * The set of chain IDs to report as currently configured in
+         * `NetworkController` when the `NetworkController:getState` action is
+         * invoked. Defaults to all mUSD-supported chains so existing tests
+         * see seeding behave as if every chain is configured.
+         *
+         * Pass `null` to simulate `NetworkController:getState` returning a
+         * state object without a `networkConfigurationsByChainId` property.
+         */
+        configuredChainIds?: Hex[] | null;
       },
       WithControllerCallback<ReturnValue>,
     ];
@@ -4448,6 +4526,7 @@ async function withController<ReturnValue>(
       mockNetworkClientConfigurationsByNetworkClientId = {},
       mocks = {} as WithControllerMockArgs,
       listAccounts = [],
+      configuredChainIds = ['0x1', '0xe708', '0x8f'],
     },
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
@@ -4485,6 +4564,7 @@ async function withController<ReturnValue>(
     actions: [
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
+      'NetworkController:getState',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
@@ -4521,6 +4601,37 @@ async function withController<ReturnValue>(
   messenger.registerActionHandler(
     'AccountsController:listAccounts',
     mockListAccounts,
+  );
+
+  const networkControllerStateMock: NetworkState =
+    configuredChainIds === null
+      ? // Simulate a NetworkController state object that is missing the
+        // `networkConfigurationsByChainId` property altogether.
+        ({
+          ...getDefaultNetworkControllerState(),
+          networkConfigurationsByChainId:
+            undefined as unknown as NetworkState['networkConfigurationsByChainId'],
+        } as NetworkState)
+      : {
+          ...getDefaultNetworkControllerState(),
+          networkConfigurationsByChainId:
+            configuredChainIds.reduce<
+              NetworkState['networkConfigurationsByChainId']
+            >((acc, chainId) => {
+              acc[chainId] = {
+                chainId,
+                blockExplorerUrls: [],
+                defaultRpcEndpointIndex: 0,
+                name: `Network ${chainId}`,
+                nativeCurrency: 'ETH',
+                rpcEndpoints: [],
+              } as never;
+              return acc;
+            }, {}),
+        };
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    () => networkControllerStateMock,
   );
 
   const controller = new TokensController({
