@@ -123,14 +123,16 @@ async function executeAuthorizeStep(
 
   log('Signing authorize (nonce-mapping)', { domain: sign.domain });
 
-  const signature = await messenger.call(
+  // Cast needed: the AllowedActions union is too large for TypeScript to
+  // resolve the messenger return type (it degrades to `unknown`).
+  const signature = (await messenger.call(
     'KeyringController:signTypedMessage',
     {
       from,
       data: JSON.stringify(typedData),
     },
     SignTypedDataVersion.V4,
-  );
+  )) as string;
 
   log('Posting authorize signature to Relay');
 
@@ -220,14 +222,16 @@ async function executeDepositStep(
     action: action.type,
   });
 
-  const signature = await messenger.call(
+  // Cast needed: the AllowedActions union is too large for TypeScript to
+  // resolve the messenger return type (it degrades to `unknown`).
+  const signature = (await messenger.call(
     'KeyringController:signTypedMessage',
     {
       from,
       data: JSON.stringify(signatureData),
     },
     SignTypedDataVersion.V4,
-  );
+  )) as string;
 
   // eslint-disable-next-line id-length
   const r = signature.slice(0, 66);
