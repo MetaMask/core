@@ -637,10 +637,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param txMeta - The transaction meta from the successful submission
    * @param txMeta.id - The transaction meta id to use as the new key
    * @param txMeta.hash - The transaction hash to set on the history item
+   * @param txMeta.batchId - The transaction batch id to set on the history item
    */
   readonly #rekeyHistoryItem = (
     actionId: string,
-    txMeta: { id: string; hash?: string },
+    txMeta: { id: string; hash?: string; batchId?: string },
   ): void => {
     this.update((state) => {
       rekeyHistoryItemInState(state, actionId, txMeta);
@@ -1311,8 +1312,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 tokenSecurityTypeDestination,
               });
 
-              const { tradeMeta, approvalMeta } =
-                await this.#handleEvmTransactionBatch({
+              let tradeMeta: TransactionMeta;
+              let approvalMeta: TransactionMeta | undefined;
+              try {
+                const batchTxResults = await this.#handleEvmTransactionBatch({
                   isBridgeTx,
                   resetApproval: quoteResponse.resetApproval,
                   approval:
@@ -1326,9 +1329,29 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                   isDelegatedAccount,
                 });
 
-              // Rekey history from actionId to tradeMeta.id
+                tradeMeta = batchTxResults.tradeMeta;
+                approvalMeta = batchTxResults.approvalMeta;
+              } catch (batchError) {
+                // Clean up the pre-submission history item so failed batch
+                // submissions don't leave ghost BridgeHistoryItems with
+                // txMetaId: undefined that accumulate in persisted state and
+                // are never resolved (restartPollingForIncompleteHistoryItems
+                // skips items without a txMetaId).
+                this.#deleteHistoryItem(batchHistoryKey);
+                throw batchError;
+              }
+
+              // Rekey history from actionId to tradeMeta.id.
+              // For STX, suppress the txHash at this stage: the submitted hash
+              // is not yet finalised on-chain, so we leave it undefined until
+              // #onTransactionConfirmed fires (matching the getInitialHistoryItem
+              // behaviour for STX pre-submission items).
               approvalTxId = approvalMeta?.id;
-              this.#rekeyHistoryItem(batchHistoryKey, tradeMeta);
+              this.#rekeyHistoryItem(batchHistoryKey, {
+                id: tradeMeta.id,
+                hash: isStxEnabledOnClient ? undefined : tradeMeta.hash,
+                batchId: tradeMeta.batchId,
+              });
               // Update approvalTxId in history if approval was included
               if (approvalTxId) {
                 this.#updateHistoryItem({
@@ -1417,18 +1440,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
 
     try {
-      // For non-batch EVM transactions, history was already added/rekeyed above
-      // Only add history here for non-EVM and batch EVM transactions
-      const isNonBatchEvm =
-        !isNonEvmChainId(quoteResponse.quote.srcChainId) &&
-        !isStxEnabledOnClient &&
-        !quoteResponse.quote.gasIncluded7702 &&
-        !isDelegatedAccount;
-
-      let historyKey: string = txMeta.id;
-      if (!isNonBatchEvm) {
+      // History is added and rekeyed inside the submission paths for all EVM
+      // transactions (both non-batch and batch). Only non-EVM transactions
+      // need to add history here after successful submission.
+      const historyKey: string = txMeta.id;
+      if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
         // Add swap or bridge tx to history
-        historyKey = this.#addTxToHistory({
+        this.#addTxToHistory({
           accountAddress: selectedAccount.address,
           bridgeTxMeta: txMeta, // Only the id and hash fields are used by the BridgeStatusController
           quoteResponse,

@@ -4608,6 +4608,56 @@ describe('BridgeStatusController', () => {
       );
     });
 
+    it('removes the pre-submission history item when batch EVM submission fails', async () => {
+      const mockActionId = '9999999999.000';
+      jest
+        .spyOn(transactionUtils, 'generateActionId')
+        .mockReturnValue(mockActionId);
+
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // getAccountByAddress (for batch params)
+      mockMessengerCall.mockReturnValueOnce('arbitrum'); // getNetworkClientIdByChainId
+      addTransactionBatchFn.mockRejectedValueOnce(
+        new Error('User rejected the batch transaction'),
+      );
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              {
+                ...quoteWithoutApproval,
+                quote: {
+                  ...quoteWithoutApproval.quote,
+                  gasIncluded: true,
+                  gasIncluded7702: true,
+                  feeData: {
+                    ...quoteWithoutApproval.quote.feeData,
+                    txFee: {
+                      maxFeePerGas: '1395348',
+                      maxPriorityFeePerGas: '1000001',
+                    },
+                  },
+                },
+              },
+              false, // STX off, gasIncluded7702=true forces batch path
+            ),
+          ).rejects.toThrow('User rejected the batch transaction');
+
+          // The ghost history item keyed by batchActionId must be deleted on failure.
+          // Without the fix it would linger with txMetaId: undefined and status: PENDING,
+          // skipped forever by restartPollingForIncompleteHistoryItems, and accumulate
+          // on every subsequent failed batch submission.
+          expect(controller.state.txHistory[mockActionId]).toBeUndefined();
+          expect(Object.keys(controller.state.txHistory)).toHaveLength(0);
+        },
+      );
+    });
+
     it('should gracefully handle isAtomicBatchSupported failure', async () => {
       // Manually set up mocks without setupEventTrackingMocks
       // to control the isAtomicBatchSupported mock

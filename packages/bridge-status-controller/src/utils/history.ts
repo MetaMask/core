@@ -17,7 +17,7 @@ import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
   actionId: string,
-  txMeta: { id: string; hash?: string },
+  txMeta: { id: string; hash?: string; batchId?: string },
 ): boolean => {
   const historyItem = state.txHistory[actionId];
   if (!historyItem) {
@@ -28,6 +28,9 @@ export const rekeyHistoryItemInState = (
     ...historyItem,
     txMetaId: txMeta.id,
     originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
+    // Propagate batchId from the submitted txMeta if the pre-submission item
+    // did not yet have one (it was created before the TX existed).
+    batchId: historyItem.batchId ?? txMeta.batchId,
     status: {
       ...historyItem.status,
       srcChain: {

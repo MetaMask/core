@@ -1125,7 +1125,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": undefined,
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 15,
@@ -3721,7 +3721,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
 exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": undefined,
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
@@ -3857,7 +3857,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": undefined,
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
