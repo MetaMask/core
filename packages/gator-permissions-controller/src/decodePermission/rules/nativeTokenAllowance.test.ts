@@ -1,7 +1,4 @@
-import {
-  createNativeTokenPeriodTransferTerms,
-  createTimestampTerms,
-} from '@metamask/delegation-core';
+import { createTimestampTerms } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
 import {
   CHAIN_ID,
@@ -9,9 +6,8 @@ import {
 } from '@metamask/delegation-deployments';
 
 import { createPermissionRulesForContracts } from '.';
-import { MAX_PERIOD_DURATION } from '../utils';
 
-describe('native-token-periodic rule', () => {
+describe('native-token-allowance rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
   const {
@@ -21,7 +17,7 @@ describe('native-token-periodic rule', () => {
   } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
-    (candidate) => candidate.permissionType === 'native-token-periodic',
+    (candidate) => candidate.permissionType === 'native-token-allowance',
   );
   if (!rule) {
     throw new Error('Rule not found');
@@ -42,26 +38,24 @@ describe('native-token-periodic rule', () => {
     args: '0x' as const,
   };
 
+  const PERIOD_AMOUNT_HEX = 100n.toString(16).padStart(64, '0');
+  const PERIOD_DURATION_MAX_HEX = 'f'.repeat(64);
+  const START_DATE_HEX = (1715664).toString(16).padStart(64, '0');
+  const ALLOWANCE_TERMS =
+    `0x${PERIOD_AMOUNT_HEX}${PERIOD_DURATION_MAX_HEX}${START_DATE_HEX}` as Hex;
+
   it('rejects duplicate NativeTokenPeriodTransferEnforcer caveats', () => {
-    const terms = createNativeTokenPeriodTransferTerms(
-      {
-        periodAmount: 100n,
-        periodDuration: 86400,
-        startDate: 1715664,
-      },
-      { out: 'hex' },
-    );
     const caveats = [
       expiryCaveat,
       exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
-        terms,
+        terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
-        terms,
+        terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
     ];
@@ -92,26 +86,17 @@ describe('native-token-periodic rule', () => {
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
-    // this is here as a type guard
     if (result.isValid) {
       throw new Error('Expected invalid result');
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-periodic terms: expected 96 bytes',
+      'Invalid native-token-allowance terms: expected 96 bytes',
     );
   });
 
   it('rejects when terms have trailing bytes', () => {
-    const validTerms = createNativeTokenPeriodTransferTerms(
-      {
-        periodAmount: 100n,
-        periodDuration: 86400,
-        startDate: 1715664,
-      },
-      { out: 'hex' },
-    );
-    const termsWithTrailing = `${validTerms}deadbeef` as Hex;
+    const termsWithTrailing = `${ALLOWANCE_TERMS}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
       exactCalldataCaveat,
@@ -124,13 +109,12 @@ describe('native-token-periodic rule', () => {
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
-    // this is here as a type guard
     if (result.isValid) {
       throw new Error('Expected invalid result');
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-periodic terms: expected 96 bytes',
+      'Invalid native-token-allowance terms: expected 96 bytes',
     );
   });
 
@@ -144,21 +128,13 @@ describe('native-token-periodic rule', () => {
       },
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
-        terms: createNativeTokenPeriodTransferTerms(
-          {
-            periodAmount: 100n,
-            periodDuration: 86400,
-            startDate: 1715664,
-          },
-          { out: 'hex' },
-        ),
+        terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
     ];
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
-    // this is here as a type guard
     if (result.isValid) {
       throw new Error('Expected invalid result');
     }
@@ -168,20 +144,13 @@ describe('native-token-periodic rule', () => {
     );
   });
 
-  it('successfully decodes valid native-token-periodic caveats', () => {
+  it('successfully decodes valid native-token-allowance caveats', () => {
     const caveats = [
       expiryCaveat,
       exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
-        terms: createNativeTokenPeriodTransferTerms(
-          {
-            periodAmount: 100n,
-            periodDuration: 86400,
-            startDate: 1715664,
-          },
-          { out: 'hex' },
-        ),
+        terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
     ];
@@ -189,79 +158,21 @@ describe('native-token-periodic rule', () => {
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
 
-    // this is here as a type guard
     if (!result.isValid) {
       throw new Error('Expected valid result');
     }
 
     expect(result.expiry).toBe(1720000);
-    expect(result.data.periodAmount).toBeDefined();
-    expect(result.data.periodDuration).toBe(86400);
-    expect(result.data.startTime).toBe(1715664);
+    expect(result.data).toStrictEqual({
+      allowanceAmount: `0x${PERIOD_AMOUNT_HEX}`,
+      startTime: 1715664,
+    });
   });
 
-  it('rejects when periodDuration is 0', () => {
-    const periodAmountHex = 100n.toString(16).padStart(64, '0');
-    const periodDurationZero = '0'.repeat(64);
-    const startDateHex = (1715664).toString(16).padStart(64, '0');
+  it('successfully decodes when periodDuration uses uppercase UINT256_MAX', () => {
+    const uppercaseMax = 'F'.repeat(64);
     const terms =
-      `0x${periodAmountHex}${periodDurationZero}${startDateHex}` as Hex;
-    const caveats = [
-      expiryCaveat,
-      exactCalldataCaveat,
-      {
-        enforcer: NativeTokenPeriodTransferEnforcer,
-        terms,
-        args: '0x' as const,
-      },
-    ];
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid native-token-periodic terms: periodDuration must be a positive number',
-    );
-  });
-
-  it('rejects when startTime is 0', () => {
-    const periodAmountHex = 100n.toString(16).padStart(64, '0');
-    const periodDurationHex = (86400).toString(16).padStart(64, '0');
-    const startTimeZero = '0'.repeat(64);
-    const terms =
-      `0x${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
-    const caveats = [
-      expiryCaveat,
-      exactCalldataCaveat,
-      {
-        enforcer: NativeTokenPeriodTransferEnforcer,
-        terms,
-        args: '0x' as const,
-      },
-    ];
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid native-token-periodic terms: startTime must be a positive number',
-    );
-  });
-
-  it('rejects when periodAmount is 0', () => {
-    const periodAmountZero = '0'.repeat(64);
-    const periodDurationHex = (86400).toString(16).padStart(64, '0');
-    const startDateHex = (1715664).toString(16).padStart(64, '0');
-    const terms =
-      `0x${periodAmountZero}${periodDurationHex}${startDateHex}` as Hex;
+      `0x${PERIOD_AMOUNT_HEX}${uppercaseMax}${START_DATE_HEX}` as Hex;
 
     const caveats = [
       expiryCaveat,
@@ -269,82 +180,89 @@ describe('native-token-periodic rule', () => {
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms,
-        args: '0x' as const,
-      },
-    ];
-
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid native-token-periodic terms: periodAmount must be a positive number',
-    );
-  });
-
-  it('rejects when periodDuration exceeds MAX_PERIOD_DURATION', () => {
-    const terms = createNativeTokenPeriodTransferTerms(
-      {
-        periodAmount: 100n,
-        periodDuration: MAX_PERIOD_DURATION + 1,
-        startDate: 1715664,
-      },
-      { out: 'hex' },
-    );
-
-    const caveats = [
-      expiryCaveat,
-      exactCalldataCaveat,
-      {
-        enforcer: NativeTokenPeriodTransferEnforcer,
-        terms,
-        args: '0x' as const,
-      },
-    ];
-
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid native-token-periodic terms: periodDuration must be less than or equal to MAX_PERIOD_DURATION',
-    );
-  });
-
-  it('accepts when periodDuration equals MAX_PERIOD_DURATION', () => {
-    const caveats = [
-      expiryCaveat,
-      exactCalldataCaveat,
-      {
-        enforcer: NativeTokenPeriodTransferEnforcer,
-        terms: createNativeTokenPeriodTransferTerms(
-          {
-            periodAmount: 100n,
-            periodDuration: MAX_PERIOD_DURATION,
-            startDate: 1715664,
-          },
-          { out: 'hex' },
-        ),
         args: '0x' as const,
       },
     ];
 
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
+  });
 
-    // this is here as a type guard
-    if (!result.isValid) {
-      throw new Error('Expected valid result');
+  it('rejects when periodDuration is not UINT256_MAX', () => {
+    const nonMaxDuration = (86400).toString(16).padStart(64, '0');
+    const terms =
+      `0x${PERIOD_AMOUNT_HEX}${nonMaxDuration}${START_DATE_HEX}` as Hex;
+
+    const caveats = [
+      expiryCaveat,
+      exactCalldataCaveat,
+      {
+        enforcer: NativeTokenPeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
     }
 
-    expect(result.data.periodDuration).toBe(MAX_PERIOD_DURATION);
+    expect(result.error.message).toContain(
+      'Invalid native-token-allowance terms: periodDuration must be UINT256_MAX',
+    );
+  });
+
+  it('rejects when startTime is 0', () => {
+    const startTimeZero = '0'.repeat(64);
+    const terms =
+      `0x${PERIOD_AMOUNT_HEX}${PERIOD_DURATION_MAX_HEX}${startTimeZero}` as Hex;
+    const caveats = [
+      expiryCaveat,
+      exactCalldataCaveat,
+      {
+        enforcer: NativeTokenPeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid native-token-allowance terms: startTime must be a positive number',
+    );
+  });
+
+  it('rejects when allowanceAmount is 0', () => {
+    const allowanceZero = '0'.repeat(64);
+    const terms =
+      `0x${allowanceZero}${PERIOD_DURATION_MAX_HEX}${START_DATE_HEX}` as Hex;
+
+    const caveats = [
+      expiryCaveat,
+      exactCalldataCaveat,
+      {
+        enforcer: NativeTokenPeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid native-token-allowance terms: allowanceAmount must be a positive number',
+    );
   });
 });

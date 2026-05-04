@@ -53,7 +53,7 @@
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/permission-controller": "^12.3.0",
+    "@metamask/permission-controller": "^13.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.9.0",
     "lodash": "^4.17.21"

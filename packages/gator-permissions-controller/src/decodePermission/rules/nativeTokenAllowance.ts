@@ -1,4 +1,4 @@
-import { hexToBigInt, hexToNumber } from '@metamask/utils';
+import { hexToNumber } from '@metamask/utils';
 
 import type {
   ChecksumCaveat,
@@ -9,18 +9,23 @@ import type {
 import {
   getByteLength,
   getTermsByEnforcer,
-  MAX_PERIOD_DURATION,
   splitHex,
+  UINT256_MAX,
+  ZERO_32_BYTES,
 } from '../utils';
 import { makePermissionRule } from './makePermissionRule';
 
 /**
- * Creates the native-token-periodic permission rule.
+ * Creates the native-token-allowance permission rule.
+ *
+ * This permission shares the same enforcer set as `native-token-periodic` but
+ * is distinguished by a `periodDuration` of `UINT256_MAX`, which effectively
+ * disables the periodic reset and turns the caveat into a one-off allowance.
  *
  * @param enforcers - Checksummed enforcer addresses for the chain.
- * @returns The native-token-periodic permission rule.
+ * @returns The native-token-allowance permission rule.
  */
-export function makeNativeTokenPeriodicRule(
+export function makeNativeTokenAllowanceRule(
   enforcers: ChecksumEnforcersByChainId,
 ): PermissionRule {
   const {
@@ -31,7 +36,7 @@ export function makeNativeTokenPeriodicRule(
     redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
-    permissionType: 'native-token-periodic',
+    permissionType: 'native-token-allowance',
     optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
     redeemerEnforcer,
     timestampEnforcer,
@@ -49,13 +54,13 @@ export function makeNativeTokenPeriodicRule(
 }
 
 /**
- * Decodes native-token-periodic permission data from caveats; throws on invalid.
+ * Decodes native-token-allowance permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
  * @param enforcers - Addresses of the enforcers.
  * @param enforcers.nativeTokenPeriodicEnforcer - Address of the NativeTokenPeriodicEnforcer.
  * @param enforcers.exactCalldataEnforcer - Address of the ExactCalldataEnforcer.
- * @returns Decoded periodic terms.
+ * @returns Decoded allowance terms.
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
@@ -83,41 +88,33 @@ function validateAndDecodeData(
   const EXPECTED_TERMS_BYTELENGTH = 96; // 32 + 32 + 32
 
   if (getByteLength(terms) !== EXPECTED_TERMS_BYTELENGTH) {
-    throw new Error('Invalid native-token-periodic terms: expected 96 bytes');
+    throw new Error('Invalid native-token-allowance terms: expected 96 bytes');
   }
 
-  const [periodAmount, periodDurationRaw, startTimeRaw] = splitHex(
+  const [allowanceAmount, periodDurationRaw, startTimeRaw] = splitHex(
     terms,
     [32, 32, 32],
   );
 
-  const periodDuration = hexToNumber(periodDurationRaw);
+  if (periodDurationRaw.toLowerCase() !== UINT256_MAX) {
+    throw new Error(
+      'Invalid native-token-allowance terms: periodDuration must be UINT256_MAX',
+    );
+  }
+
   const startTime = hexToNumber(startTimeRaw);
-  const periodAmountBigInt = hexToBigInt(periodAmount);
-
-  if (periodAmountBigInt === 0n) {
-    throw new Error(
-      'Invalid native-token-periodic terms: periodAmount must be a positive number',
-    );
-  }
-
-  if (periodDuration === 0) {
-    throw new Error(
-      'Invalid native-token-periodic terms: periodDuration must be a positive number',
-    );
-  }
-
-  if (periodDuration > MAX_PERIOD_DURATION) {
-    throw new Error(
-      'Invalid native-token-periodic terms: periodDuration must be less than or equal to MAX_PERIOD_DURATION',
-    );
-  }
 
   if (startTime === 0) {
     throw new Error(
-      'Invalid native-token-periodic terms: startTime must be a positive number',
+      'Invalid native-token-allowance terms: startTime must be a positive number',
     );
   }
 
-  return { periodAmount, periodDuration, startTime };
+  if (allowanceAmount === ZERO_32_BYTES) {
+    throw new Error(
+      'Invalid native-token-allowance terms: allowanceAmount must be a positive number',
+    );
+  }
+
+  return { allowanceAmount, startTime };
 }

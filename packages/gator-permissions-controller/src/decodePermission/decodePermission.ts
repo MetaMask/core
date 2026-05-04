@@ -1,9 +1,34 @@
-import type { Hex } from '@metamask/delegation-core';
+import type { Caveat, Hex } from '@metamask/delegation-core';
 import { ROOT_AUTHORITY } from '@metamask/delegation-core';
 import { numberToHex } from '@metamask/utils';
 
-import type { DecodedPermission, PermissionType } from './types';
-import type { PermissionRule } from './types';
+import type {
+  DecodedPermission,
+  PermissionType,
+  PermissionRule,
+  ValidateAndDecodeResult,
+} from './types';
+
+/**
+ * Returns every permission rule whose caveat-address pattern matches the given
+ * enforcer list for the chain. Used when more than one permission type can
+ * share the same enforcer set; the caller must disambiguate by validating
+ * caveat terms (see {@link selectUniqueRuleAndDecodedPermission}).
+ *
+ * @param args - The arguments to this function.
+ * @param args.enforcers - List of enforcer contract addresses (hex strings).
+ * @param args.permissionRules - The permission rules for the chain.
+ * @returns All rules that match, possibly empty.
+ */
+export const findRulesWithMatchingCaveatAddresses = ({
+  enforcers,
+  permissionRules,
+}: {
+  enforcers: Hex[];
+  permissionRules: PermissionRule[];
+}): PermissionRule[] => {
+  return permissionRules.filter((rule) => rule.caveatAddressesMatch(enforcers));
+};
 
 /**
  * Returns the unique permission rule that matches a given set of enforcer
@@ -29,9 +54,10 @@ export const findRuleWithMatchingCaveatAddresses = ({
   enforcers: Hex[];
   permissionRules: PermissionRule[];
 }): PermissionRule => {
-  const matchingRules = permissionRules.filter((rule) =>
-    rule.caveatAddressesMatch(enforcers),
-  );
+  const matchingRules = findRulesWithMatchingCaveatAddresses({
+    enforcers,
+    permissionRules,
+  });
 
   if (matchingRules.length === 0) {
     throw new Error('Unable to identify permission type');
@@ -40,6 +66,89 @@ export const findRuleWithMatchingCaveatAddresses = ({
     throw new Error('Multiple permission types match');
   }
   return matchingRules[0];
+};
+
+type SuccessfulValidateAndDecodeResult = Extract<
+  ValidateAndDecodeResult,
+  { isValid: true }
+>;
+
+type RuleAndDecodedPermission = {
+  rule: PermissionRule;
+  rules: SuccessfulValidateAndDecodeResult['rules'];
+  data: SuccessfulValidateAndDecodeResult['data'];
+  expiry: SuccessfulValidateAndDecodeResult['expiry'];
+};
+
+/**
+ * Runs {@link PermissionRule.validateAndDecodePermission} on each candidate
+ * rule. Use when several rules share the same caveat addresses.
+ *
+ * @param args - The arguments to this function.
+ * @param args.candidateRules - Rules whose addresses already match the caveats.
+ * @param args.caveats - Caveats from the delegation.
+ * @returns The unique rule and decoded expiry/data when exactly one rule validates.
+ * @throws If `candidateRules` is empty, if no rule validates, or if more than one rule validates.
+ */
+export const selectUniqueRuleAndDecodedPermission = ({
+  candidateRules,
+  caveats,
+}: {
+  candidateRules: PermissionRule[];
+  caveats: Caveat<Hex>[];
+}): RuleAndDecodedPermission => {
+  if (candidateRules.length === 0) {
+    throw new Error('Unable to identify permission type');
+  }
+
+  const successfulDecodingResult: RuleAndDecodedPermission[] = [];
+
+  const failedAttempts: { permissionType: PermissionType; error: Error }[] = [];
+
+  for (const rule of candidateRules) {
+    const decodeResult = rule.validateAndDecodePermission(caveats);
+    if (decodeResult.isValid) {
+      successfulDecodingResult.push({
+        rule,
+        rules: decodeResult.rules,
+        data: decodeResult.data,
+        expiry: decodeResult.expiry,
+      });
+    } else {
+      failedAttempts.push({
+        permissionType: rule.permissionType,
+        error: decodeResult.error,
+      });
+    }
+  }
+
+  if (successfulDecodingResult.length === 1) {
+    return successfulDecodingResult[0];
+  }
+
+  if (successfulDecodingResult.length > 1) {
+    const types = successfulDecodingResult
+      .map((result) => result.rule.permissionType)
+      .join(', ');
+    throw new Error(
+      `Multiple permission types validate the same delegation caveats: ${types}`,
+    );
+  }
+
+  if (failedAttempts.length === 1) {
+    throw failedAttempts[0].error;
+  }
+
+  const details = failedAttempts
+    .map(
+      (attempt) =>
+        `${String(attempt.permissionType)}: ${attempt.error.message}`,
+    )
+    .join('; ');
+
+  throw new Error(
+    `No permission type could validate the delegation caveats. Attempts: ${details}`,
+  );
 };
 
 /**

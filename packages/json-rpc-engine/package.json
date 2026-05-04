@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "10.2.4",
+  "version": "10.3.0",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
     "Ethereum",
