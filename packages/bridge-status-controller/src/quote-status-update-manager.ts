@@ -87,7 +87,14 @@ export class QuoteStatusUpdateManager {
     this.#persistDeferredUpdates = persistDeferredUpdates;
 
     this.#deferredRetryQueue = new Map(
-      Object.entries(initialDeferredUpdates ?? {}),
+      Object.entries(initialDeferredUpdates ?? {}).map(([key, entry]) => [
+        key,
+        // Entries from `initialDeferredUpdates` come from Immer-managed controller
+        // state, which deep-freezes all nested objects. Cloning each entry here
+        // ensures the in-memory queue holds mutable objects so that mutations like
+        // work correctly without throwing a "read only property" error.
+        { ...entry, pendingStatuses: [...entry.pendingStatuses] },
+      ]),
     );
 
     this.#dropExpiredEntries();

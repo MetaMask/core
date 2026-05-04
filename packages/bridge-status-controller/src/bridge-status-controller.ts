@@ -115,6 +115,7 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  // Deferred status updates used by QuoteStatusUpdateManager
   deferredStatusUpdates: {
     includeInStateLogs: false,
     persist: true,
