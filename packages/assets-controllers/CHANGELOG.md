@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Wraps `@tanstack/query-core` to cache results in-memory for 4 hours per chain ID, matching `TokenListController`'s existing threshold.
   - Multiple controllers sharing the same `TokenListService` instance share the same cache: only one HTTP request is made per chain per 4-hour window regardless of how many callers invoke `fetchTokensByChainId`.
   - Exported from the package as `TokenListService` and `buildTokenListMap`.
-- Add `@tanstack/query-core` as a direct dependency ([#8700](https://github.com/MetaMask/core/pull/8700))
+- Add `@tanstack/query-core` `^5.62.16` as a direct dependency ([#8700](https://github.com/MetaMask/core/pull/8700))
 - Expose missing public `AccountTrackerController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
   - The following actions are now available:
     - `AccountTrackerController:refresh`
