@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `batchSellDestStablecoins` chain-level feature flag to bridge configuration ([#8705](https://github.com/MetaMask/core/pull/8705))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
