@@ -286,10 +286,11 @@ export class TokensController extends BaseController<
     );
     const chainDataMap = Object.fromEntries(chainDataEntries);
 
-    // Read the live state inside the updater so we only patch metadata fields
-    // and never discard tokens added or modified during the async gap above.
-    const selectedAddress = this.#getSelectedAddress();
+    // Read selectedAddress inside the updater so it reflects the live account
+    // at the moment the state write happens, not a snapshot taken before the
+    // async fetch gap above.
     this.update((state) => {
+      const selectedAddress = this.#getSelectedAddress();
       for (const chainId of chainIds) {
         const chainData = chainDataMap[chainId];
         const tokens = state.allTokens[chainId]?.[selectedAddress];

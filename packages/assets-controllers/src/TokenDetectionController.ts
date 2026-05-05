@@ -792,7 +792,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const tokensWithBalance: Token[] = [];
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
-        const tokenListEntry = chainData[nonZeroTokenAddress];
+        // chainData keys are lowercase (normalised by buildTokenListMap);
+        // balance keys are checksummed, so normalise before lookup.
+        const tokenListEntry = chainData[nonZeroTokenAddress.toLowerCase()];
         if (!tokenListEntry) {
           continue;
         }
@@ -894,8 +896,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const tokenListMap =
-      await this.#tokenListService.fetchTokensByChainId(chainId);
+    let tokenListMap: TokenListMap;
+    try {
+      tokenListMap = await this.#tokenListService.fetchTokensByChainId(chainId);
+    } catch {
+      // If the token list fetch fails, skip detection rather than throwing.
+      // This matches the pre-existing behaviour where an empty tokensChainsCache
+      // from TokenListController would simply produce no detected tokens.
+      return;
+    }
     const chainCache = this.#applyMusdDefaultToTokensChainsCache(chainId, {
       [chainId]: { data: tokenListMap, timestamp: Date.now() },
     });
@@ -993,8 +1002,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const tokenListMap =
-      await this.#tokenListService.fetchTokensByChainId(chainId);
+    let tokenListMap: TokenListMap;
+    try {
+      tokenListMap = await this.#tokenListService.fetchTokensByChainId(chainId);
+    } catch {
+      // If the token list fetch fails, skip detection rather than throwing.
+      // This matches the pre-existing behaviour where an empty tokensChainsCache
+      // from TokenListController would simply produce no detected tokens.
+      return;
+    }
     const chainCache = this.#applyMusdDefaultToTokensChainsCache(chainId, {
       [chainId]: { data: tokenListMap, timestamp: Date.now() },
     });

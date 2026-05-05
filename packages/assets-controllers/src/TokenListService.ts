@@ -12,13 +12,14 @@ const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
  * Shared service for fetching and caching the token list per chain.
  *
  * Callers invoke `fetchTokensByChainId` directly. TanStack Query caches the
- * result for 4 hours so that multiple controllers share the same in-memory
- * cache without redundant network requests.
+ * normalised `TokenListMap` for 4 hours so that multiple controllers share the
+ * same in-memory cache without redundant network requests or per-token
+ * formatting work on cache hits.
  */
 export class TokenListService {
   readonly #queryClient: QueryClient;
 
-  readonly #abortController: AbortController;
+  #abortController: AbortController;
 
   constructor() {
     this.#abortController = new AbortController();
@@ -47,28 +48,29 @@ export class TokenListService {
    * @returns A map of lowercase token address → token metadata.
    */
   async fetchTokensByChainId(chainId: Hex): Promise<TokenListMap> {
-    const tokens = await this.#queryClient.fetchQuery({
+    return await this.#queryClient.fetchQuery({
       queryKey: ['TokenListService:fetchTokensByChainId', chainId],
       queryFn: async () => {
         const list = (await fetchTokenListByChainId(
           chainId,
           this.#abortController.signal,
         )) as TokenListToken[] | undefined;
-        return list ?? [];
+        return buildTokenListMap(list ?? [], chainId);
       },
       staleTime: FOUR_HOURS_MS,
       gcTime: FOUR_HOURS_MS,
     });
-
-    return buildTokenListMap(tokens, chainId);
   }
 
   /**
-   * Abort any in-flight requests and clear the query cache.
+   * Abort in-flight requests, clear the query cache, and reset the abort
+   * controller so subsequent `fetchTokensByChainId` calls are not stuck with an
+   * already-aborted signal (which would cache empty results).
    */
   destroy(): void {
     this.#abortController.abort();
     this.#queryClient.clear();
+    this.#abortController = new AbortController();
   }
 }
 
@@ -85,7 +87,7 @@ export function buildTokenListMap(
 ): TokenListMap {
   const tokenListMap: TokenListMap = {};
   for (const token of tokens) {
-    tokenListMap[token.address] = {
+    tokenListMap[token.address.toLowerCase()] = {
       ...token,
       aggregators: formatAggregatorNames(token.aggregators),
       iconUrl: formatIconUrlWithProxy({

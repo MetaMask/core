@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import * as assetsUtil from './assetsUtil';
 import { fetchTokenListByChainId } from './token-service';
 import type { TokenListToken } from './TokenListController';
 import { buildTokenListMap, TokenListService } from './TokenListService';
@@ -79,6 +80,49 @@ describe('TokenListService', () => {
     service.destroy();
   });
 
+  it('does not re-run map formatting on cache hits for the same chain', async () => {
+    const chainId = '0xa86a' as Hex;
+    const apiTokens = [
+      {
+        name: 'Token A',
+        symbol: 'TKA',
+        decimals: 18,
+        address: '0x1000000000000000000000000000000000000001',
+        occurrences: 1,
+        aggregators: ['bancor'] as string[],
+        iconUrl: '',
+      },
+      {
+        name: 'Token B',
+        symbol: 'TKB',
+        decimals: 6,
+        address: '0x2000000000000000000000000000000000000002',
+        occurrences: 1,
+        aggregators: ['cmc'] as string[],
+        iconUrl: '',
+      },
+    ];
+    mockedFetchTokenListByChainId.mockResolvedValue(apiTokens);
+
+    const formatAggregatorsSpy = jest.spyOn(
+      assetsUtil,
+      'formatAggregatorNames',
+    );
+    const formatIconSpy = jest.spyOn(assetsUtil, 'formatIconUrlWithProxy');
+
+    const service = new TokenListService();
+    await service.fetchTokensByChainId(chainId);
+    await service.fetchTokensByChainId(chainId);
+
+    expect(mockedFetchTokenListByChainId).toHaveBeenCalledTimes(1);
+    expect(formatAggregatorsSpy).toHaveBeenCalledTimes(2);
+    expect(formatIconSpy).toHaveBeenCalledTimes(2);
+
+    formatAggregatorsSpy.mockRestore();
+    formatIconSpy.mockRestore();
+    service.destroy();
+  });
+
   it('treats an undefined API response as an empty list', async () => {
     mockedFetchTokenListByChainId.mockResolvedValue(undefined);
 
@@ -90,16 +134,38 @@ describe('TokenListService', () => {
 
   it('clearing the cache via destroy causes the next fetch to hit the network again', async () => {
     const chainId = '0x1' as Hex;
-    mockedFetchTokenListByChainId.mockResolvedValue([]);
+    const apiToken = {
+      name: 'Restored After Destroy',
+      symbol: 'RAD',
+      decimals: 18,
+      address: '0x1000000000000000000000000000000000000001',
+      occurrences: 1,
+      aggregators: [] as string[],
+      iconUrl: '',
+    };
+    mockedFetchTokenListByChainId.mockImplementation(
+      async (_chainId, abortSignal) => {
+        // Mirror token-service: aborted fetches resolve to undefined, not a list.
+        if (abortSignal.aborted) {
+          return undefined;
+        }
+        return [apiToken];
+      },
+    );
 
     const service = new TokenListService();
-    await service.fetchTokensByChainId(chainId);
-    await service.fetchTokensByChainId(chainId);
+    const first = await service.fetchTokensByChainId(chainId);
+    const cached = await service.fetchTokensByChainId(chainId);
     expect(mockedFetchTokenListByChainId).toHaveBeenCalledTimes(1);
+    expect(cached).toStrictEqual(first);
+    expect(first[apiToken.address]).toMatchObject({ symbol: 'RAD' });
 
     service.destroy();
 
-    await service.fetchTokensByChainId(chainId);
+    const afterDestroy = await service.fetchTokensByChainId(chainId);
     expect(mockedFetchTokenListByChainId).toHaveBeenCalledTimes(2);
+    expect(afterDestroy[apiToken.address]).toMatchObject({ symbol: 'RAD' });
+
+    service.destroy();
   });
 });

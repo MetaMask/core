@@ -4240,8 +4240,16 @@ async function withController<ReturnValue>(
   const mockFetchTokensByChainId = jest
     .fn<Promise<TokenListMap>, [Hex]>()
     .mockImplementation((chainId: Hex) => {
+      const data = currentTokenListState.tokensChainsCache[chainId]?.data ?? {};
+      // Normalise keys to lowercase to match buildTokenListMap's output so that
+      // lookups using lowercased addresses (as done in production code) work correctly.
       return Promise.resolve(
-        currentTokenListState.tokensChainsCache[chainId]?.data ?? {},
+        Object.fromEntries(
+          Object.entries(data).map(([addr, token]) => [
+            addr.toLowerCase(),
+            token,
+          ]),
+        ),
       );
     });
   const tokenListService = {
@@ -4318,9 +4326,18 @@ async function withController<ReturnValue>(
       },
       mockTokenListGetState: (state: TokenListState) => {
         currentTokenListState = state;
-        mockFetchTokensByChainId.mockImplementation((chainId: Hex) =>
-          Promise.resolve(state.tokensChainsCache[chainId]?.data ?? {}),
-        );
+        mockFetchTokensByChainId.mockImplementation((chainId: Hex) => {
+          const data = state.tokensChainsCache[chainId]?.data ?? {};
+          // Normalise keys to lowercase to match buildTokenListMap's output.
+          return Promise.resolve(
+            Object.fromEntries(
+              Object.entries(data).map(([addr, token]) => [
+                addr.toLowerCase(),
+                token,
+              ]),
+            ),
+          );
+        });
       },
       mockGetNetworkClientById: (
         handler: (
