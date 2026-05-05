@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "cf20fa64fa5d919c87005f35578498b37f522e2a",
-  "lastSyncedMobileBranch": "feat/unified-account",
-  "lastSyncedCoreCommit": "6f8329297fd1d61ff72d8359d32856d1bda7559f",
-  "lastSyncedCoreBranch": "feat/perps/controller-apr-30",
-  "lastSyncedDate": "2026-04-30T15:10:24Z",
-  "sourceChecksum": "a1ead6bd8f4bf1aae32c95aa27a3b6cddf1c4e4b74ea4761952ea313cb109c80"
+  "lastSyncedMobileCommit": "355c9b656b9b51e154212666275f6d83ccb60fc5",
+  "lastSyncedMobileBranch": "main",
+  "lastSyncedCoreCommit": "fe175509d6f54207a06ebc710a9e5c07c5bc2cd8",
+  "lastSyncedCoreBranch": "feat/perps/sync-4-may-2026",
+  "lastSyncedDate": "2026-05-04T14:25:52Z",
+  "sourceChecksum": "2e7e9eab35667ca1bed2e2c3cd2f59361467910574b428ec47e9c6a7d0958bf5"
 }

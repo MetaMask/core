@@ -76,7 +76,7 @@ export type PasskeyRecord = {
  */
 export type PasskeyRegistrationCeremony = {
   userHandle: Base64URLString;
-  prfSalt: Base64URLString;
+  prfSalt?: Base64URLString;
   challenge: Base64URLString;
   /** When this ceremony was started (ms since epoch); used for TTL pruning. */
   createdAt: number;

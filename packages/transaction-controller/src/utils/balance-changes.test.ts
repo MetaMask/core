@@ -318,6 +318,7 @@ describe('Balance Change Utils', () => {
               tokenBalanceChanges: [],
             },
             gasUsed: undefined,
+            simulationRevert: undefined,
           });
         },
       );
@@ -336,6 +337,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -358,6 +360,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });
@@ -485,6 +488,7 @@ describe('Balance Change Utils', () => {
               ],
             },
             gasUsed: undefined,
+            simulationRevert: undefined,
           });
         },
       );
@@ -554,6 +558,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -596,6 +601,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -653,6 +659,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -765,6 +772,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -788,6 +796,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -816,6 +825,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -841,6 +851,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -872,6 +883,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -931,6 +943,7 @@ describe('Balance Change Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });
@@ -963,6 +976,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1009,6 +1023,7 @@ describe('Balance Change Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1053,7 +1068,67 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
+      });
+
+      it('returns simulationRevert with decoded message and raw data when output is set', async () => {
+        const data =
+          '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              error: 'execution reverted',
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'execution reverted',
+                output: data as Hex,
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationRevert).toStrictEqual({
+          message: 'ERC20: transfer amount exceeds balance',
+          data,
+        });
+      });
+
+      it('returns simulationRevert from root frame only, ignoring nested errors', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [
+                  {
+                    calls: [],
+                    logs: [],
+                    error: 'execution reverted: nested caught error',
+                  },
+                ],
+                logs: [],
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationRevert).toBeUndefined();
       });
     });
 
@@ -1076,6 +1151,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1096,6 +1172,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1120,6 +1197,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1149,6 +1227,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1178,6 +1257,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1199,6 +1279,7 @@ describe('Balance Change Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });

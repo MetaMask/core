@@ -4,9 +4,21 @@ import { randomBytes } from '@noble/ciphers/webcrypto';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 
+import { bytesToBase64URL } from './encoding';
+
 const PASSKEY_HKDF_INFO = 'metamask:passkey:encryption-key:v1';
 
 const AES_GCM_IV_LENGTH = 12;
+
+/**
+ * Generates random bytes and returns them as a base64url string (no padding).
+ *
+ * @param byteLength - Number of bytes to generate (e.g. WebAuthn challenge length).
+ * @returns Base64url-encoded random bytes.
+ */
+export function randomBytesToBase64URL(byteLength: number): string {
+  return bytesToBase64URL(randomBytes(byteLength));
+}
 
 /**
  * Derives an AES-256 encryption key from input key material and a credential ID

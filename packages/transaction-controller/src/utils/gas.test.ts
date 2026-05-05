@@ -536,6 +536,29 @@ describe('gas', () => {
           },
         });
       });
+
+      it('sets revert.gas when the estimate error carries revert data', async () => {
+        const data =
+          '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
+        mockQuery({
+          getBlockByNumberResponse: {
+            gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+            number: BLOCK_NUMBER_MOCK,
+          },
+          estimateGasError: {
+            message: 'execution reverted',
+            data,
+          },
+        });
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.revert?.gas).toStrictEqual({
+          message: 'ERC20: transfer amount exceeds balance',
+          data,
+        });
+      });
     });
   });
 
@@ -558,6 +581,7 @@ describe('gas', () => {
         estimatedGas: toHex(GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: undefined,
+        gasRevert: undefined,
         isUpgradeWithData: false,
       });
     });
@@ -582,6 +606,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         estimatedGas: expect.any(String),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        gasRevert: undefined,
         isUpgradeWithData: false,
         simulationFails: {
           reason: 'TestError',
@@ -592,6 +617,55 @@ describe('gas', () => {
           },
         },
       });
+    });
+
+    it('returns gasRevert decoded from estimate error data', async () => {
+      mockQuery({
+        getBlockByNumberResponse: {
+          gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          number: BLOCK_NUMBER_MOCK,
+        },
+        estimateGasError: {
+          message: 'execution reverted',
+          data: '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000',
+        },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.gasRevert).toStrictEqual({
+        message: 'ERC20: transfer amount exceeds balance',
+        data: '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000',
+      });
+    });
+
+    it('returns no gasRevert when error has only a message and no data', async () => {
+      mockQuery({
+        getBlockByNumberResponse: {
+          gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          number: BLOCK_NUMBER_MOCK,
+        },
+        estimateGasError: {
+          message:
+            'execution reverted: NativeBalanceChangeEnforcer:exceeded-balance-decrease',
+        },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.gasRevert).toBeUndefined();
     });
 
     it('returns estimated gas as 35% of block gas limit on error', async () => {
@@ -618,6 +692,7 @@ describe('gas', () => {
         estimatedGas: toHex(fallbackGas),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        gasRevert: undefined,
         isUpgradeWithData: false,
       });
     });
@@ -643,6 +718,7 @@ describe('gas', () => {
         estimatedGas: toHex(FIXED_ESTIMATE_GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        gasRevert: undefined,
         isUpgradeWithData: false,
       });
     });
@@ -808,6 +884,7 @@ describe('gas', () => {
           estimatedGas: toHex(SIMULATE_GAS_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          gasRevert: undefined,
           isUpgradeWithData: false,
         });
       });
@@ -860,6 +937,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          gasRevert: undefined,
           isUpgradeWithData: true,
         });
       });
@@ -993,6 +1071,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          gasRevert: undefined,
           isUpgradeWithData: true,
         });
       });
@@ -1028,6 +1107,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          gasRevert: undefined,
           isUpgradeWithData: true,
           simulationFails: undefined,
         });
@@ -1064,6 +1144,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: expect.any(String),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          gasRevert: undefined,
           isUpgradeWithData: true,
           simulationFails: {
             debug: {

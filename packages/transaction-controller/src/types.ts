@@ -416,6 +416,9 @@ export type TransactionMeta = {
    */
   retryCount?: number;
 
+  /** Decoded revert information from each lifecycle source. */
+  revert?: RevertData;
+
   /**
    * The transaction's 's' value as a hex string.
    */
@@ -2324,4 +2327,29 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/**
+ * Decoded revert from a single lifecycle source.
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason. */
+  message?: string;
+
+  /** Raw revert data hex returned by the EVM. */
+  data?: Hex;
+};
+
+/**
+ * Revert information across each stage where a transaction can fail.
+ */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert from the simulation API's root call frame. */
+  simulation?: Revert;
+
+  /** Revert from on-chain failure, via receipt replay. */
+  receipt?: Revert;
 };

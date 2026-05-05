@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
+### Added
+
+- Add Gas Station support for Across source transactions when native balance is insufficient ([#8588](https://github.com/MetaMask/core/pull/8588))
+
+### Changed
+
+- **BREAKING:** Narrow `AllowedActions` type to use individual action types instead of compound controller action unions (`BridgeControllerActions`, `BridgeStatusControllerActions`, `CurrencyRateControllerActions`, `GasFeeControllerActions`) ([#8670](https://github.com/MetaMask/core/pull/8670))
+
+### Fixed
+
+- Pass explicit `assetId`, `providers`, and `fiat` to `RampsController:getQuotes` and persist the selected ramps quote on `TransactionFiatPayment` ([#8628](https://github.com/MetaMask/core/pull/8628))
+
+## [20.2.0]
+
 ### Changed
 
 - Stop synthesising a native gas-fee required token in `parseRequiredTokens`, only token-transfer assets are returned now ([#8554](https://github.com/MetaMask/core/pull/8554))
@@ -748,7 +764,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.2.0...@metamask/transaction-pay-controller@21.0.0
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.1.0...@metamask/transaction-pay-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.1...@metamask/transaction-pay-controller@20.1.0
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.0...@metamask/transaction-pay-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@19.3.0...@metamask/transaction-pay-controller@20.0.0

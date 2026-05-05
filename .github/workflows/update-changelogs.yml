@@ -4,11 +4,11 @@ on:
   issue_comment:
     types:
       - created
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
+#  pull_request:
+#    branches:
+#      - main
+#    types:
+#      - opened
 
 permissions:
   contents: write

@@ -1,7 +1,3 @@
-import type {
-  Quote as RampsQuote,
-  QuotesResponse as RampsQuotesResponse,
-} from '@metamask/ramps-controller';
 import {
   TransactionMeta,
   TransactionType,
@@ -22,13 +18,4 @@ export function deriveFiatAssetForFiatPayment(
   }
 
   return FIAT_ASSET_ID_BY_TX_TYPE[transactionType as TransactionType];
-}
-
-export function pickBestFiatQuote(
-  quotes: RampsQuotesResponse,
-): RampsQuote | undefined {
-  return quotes.success?.find(
-    // TODO: Implement provider selection logic; force Transak staging for now.
-    (quote) => quote.provider === '/providers/transak-native-staging',
-  );
 }

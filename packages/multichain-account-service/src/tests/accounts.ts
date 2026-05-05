@@ -327,6 +327,11 @@ export class MockAccountBuilder<Account extends KeyringAccount> {
     return this;
   }
 
+  withAddress(address: string): this {
+    this.#account.address = address;
+    return this;
+  }
+
   withAddressSuffix(suffix: string) {
     this.#account.address += suffix;
     return this;
