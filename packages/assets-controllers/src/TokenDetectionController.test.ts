@@ -47,7 +47,8 @@ import {
   mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
 import { getDefaultTokenListState } from './TokenListController';
-import type { TokenListState, TokenListToken } from './TokenListController';
+import type { TokenListMap, TokenListState, TokenListToken } from './TokenListController';
+import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
 import type {
   TokensController,
@@ -207,7 +208,6 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:getState',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
-      'TokenListController:getState',
       'PreferencesController:getState',
       'TokensController:addTokens',
       'NetworkController:findNetworkClientIdByChainId',
@@ -217,7 +217,6 @@ function buildTokenDetectionControllerMessenger(
       'KeyringController:lock',
       'KeyringController:unlock',
       'NetworkController:networkDidChange',
-      'TokenListController:stateChange',
       'PreferencesController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
@@ -1864,447 +1863,6 @@ describe('TokenDetectionController', () => {
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
-          },
-        );
-      });
-    });
-  });
-
-  describe('TokenListController:stateChange', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    describe('when "disabled" is false', () => {
-      it('should detect tokens if the token list is non-empty', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerTokenListStateChange,
-            mockNetworkState,
-          }) => {
-            // Set selectedNetworkClientId to avalanche (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
-            mockNetworkState({
-              ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'avalanche',
-            });
-            const tokenList = {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
-              },
-            };
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                '0xa86a': {
-                  timestamp: 0,
-                  data: tokenList,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addTokens',
-              [sampleTokenA],
-              'avalanche',
-            );
-          },
-        );
-      });
-
-      it('should not detect tokens if the token list is empty', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerTokenListStateChange,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {},
-            };
-            mockTokenListGetState(tokenListState);
-
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            expect(callActionSpy).not.toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
-            );
-          },
-        );
-      });
-
-      describe('when keyring is locked', () => {
-        it('should not detect tokens', async () => {
-          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-            [sampleTokenA.address]: new BN(1),
-          });
-          const selectedAccount = createMockInternalAccount({
-            address: '0x0000000000000000000000000000000000000001',
-          });
-          await withController(
-            {
-              options: {
-                disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              },
-              isKeyringUnlocked: false,
-              mocks: {
-                getSelectedAccount: selectedAccount,
-                getAccount: selectedAccount,
-              },
-            },
-            async ({
-              mockTokenListGetState,
-              callActionSpy,
-              triggerTokenListStateChange,
-            }) => {
-              const tokenListState = {
-                ...getDefaultTokenListState(),
-                tokensChainsCache: {
-                  [ChainId.sepolia]: {
-                    data: {
-                      [sampleTokenA.address]: {
-                        name: sampleTokenA.name,
-                        symbol: sampleTokenA.symbol,
-                        decimals: sampleTokenA.decimals,
-                        address: sampleTokenA.address,
-                        occurrences: 1,
-                        aggregators: sampleTokenA.aggregators,
-                        iconUrl: sampleTokenA.image,
-                      },
-                    },
-                    timestamp: 0,
-                  },
-                },
-              };
-              mockTokenListGetState(tokenListState);
-
-              triggerTokenListStateChange(tokenListState);
-              await jestAdvanceTime({ duration: 1 });
-
-              expect(callActionSpy).not.toHaveBeenCalledWith(
-                'TokensController:addDetectedTokens',
-              );
-            },
-          );
-        });
-      });
-    });
-
-    describe('when "disabled" is true', () => {
-      it('should not detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerTokenListStateChange,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            expect(callActionSpy).not.toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
-            );
-          },
-        );
-      });
-    });
-
-    describe('when previous and incoming tokensChainsCache are equal with the same timestamp', () => {
-      it('should not call detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            triggerTokenListStateChange,
-            controller,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-            // This should set the tokensChainsCache value
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            const mockTokens = jest.spyOn(controller, 'detectTokens');
-
-            // Re-trigger state change so that incoming list is equal the current list in state
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-            expect(mockTokens).toHaveBeenCalledTimes(0);
-          },
-        );
-      });
-    });
-
-    describe('when previous and incoming tokensChainsCache are equal with different timestamp', () => {
-      it('should not call detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            triggerTokenListStateChange,
-            controller,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-            // This should set the tokensChainsCache value
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            const mockTokens = jest.spyOn(controller, 'detectTokens');
-
-            // Re-trigger state change so that incoming list is equal the current list in state
-            triggerTokenListStateChange({
-              ...tokenListState,
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 3424, // same list with different timestamp should not trigger detectTokens again
-                },
-              },
-            });
-            await jestAdvanceTime({ duration: 1 });
-            expect(mockTokens).toHaveBeenCalledTimes(0);
-          },
-        );
-      });
-    });
-
-    describe('when previous and incoming tokensChainsCache are not equal', () => {
-      it('should call detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            triggerTokenListStateChange,
-            controller,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-            // This should set the tokensChainsCache value
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            const mockTokens = jest.spyOn(controller, 'detectTokens');
-
-            // Re-trigger state change so that incoming list is equal the current list in state
-            triggerTokenListStateChange({
-              ...tokenListState,
-              tokensChainsCache: {
-                ...tokenListState.tokensChainsCache,
-                [ChainId['linea-mainnet']]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 5546454,
-                },
-              },
-            });
-            await jestAdvanceTime({ duration: 1 });
-            expect(mockTokens).toHaveBeenCalledTimes(1);
           },
         );
       });
@@ -4044,10 +3602,10 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it('should fetch fresh token metadata cache from TokenListController at call time', async () => {
-      // This test verifies the fix for the bug where addDetectedTokensViaPolling used
-      // a stale/empty tokensChainsCache from construction time instead of fetching
-      // fresh data from TokenListController:getState at call time.
+    it('should fetch fresh token metadata cache from TokenListService at call time', async () => {
+      // This test verifies that addDetectedTokensViaPolling fetches the token list
+      // from the TokenListService at call time (not at construction time), so that
+      // tokens added to the service after construction are still detected.
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       const checksummedTokenAddress =
         '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
@@ -4252,7 +3810,6 @@ type WithControllerCallback<ReturnValue> = ({
   callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
-  triggerTokenListStateChange,
   triggerPreferencesStateChange,
   triggerSelectedAccountChange,
   triggerNetworkDidChange,
@@ -4263,6 +3820,7 @@ type WithControllerCallback<ReturnValue> = ({
   mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
   mockTokensGetState: (state: TokensControllerState) => void;
+  /** Updates the mock TokenListService to return a specific token list state. */
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
   mockGetNetworkClientById: (
@@ -4280,7 +3838,6 @@ type WithControllerCallback<ReturnValue> = ({
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
-  triggerTokenListStateChange: (state: TokenListState) => void;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
@@ -4394,14 +3951,23 @@ async function withController<ReturnValue>(
       ...mockTokensState,
     }),
   );
-  const mockTokenListStateFunc = jest.fn<TokenListState, []>();
-  messenger.registerActionHandler(
-    'TokenListController:getState',
-    mockTokenListStateFunc.mockReturnValue({
-      ...getDefaultTokenListState(),
-      ...mockTokenListState,
-    }),
-  );
+
+  // Build the initial TokenListState and a mutable reference so tests can update it.
+  let currentTokenListState: TokenListState = {
+    ...getDefaultTokenListState(),
+    ...mockTokenListState,
+  };
+  const mockFetchTokensByChainId = jest
+    .fn<Promise<TokenListMap>, [Hex]>()
+    .mockImplementation((chainId: Hex) => {
+      return Promise.resolve(
+        currentTokenListState.tokensChainsCache[chainId]?.data ?? {},
+      );
+    });
+  const tokenListService = {
+    fetchTokensByChainId: mockFetchTokensByChainId,
+  } as unknown as TokenListService;
+
   const mockPreferencesState = jest.fn<PreferencesState, []>();
   messenger.registerActionHandler(
     'PreferencesController:getState',
@@ -4448,6 +4014,7 @@ async function withController<ReturnValue>(
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
     messenger: tokenDetectionControllerMessenger,
+    tokenListService,
     ...options,
   });
   try {
@@ -4470,7 +4037,10 @@ async function withController<ReturnValue>(
         mockPreferencesState.mockReturnValue(state);
       },
       mockTokenListGetState: (state: TokenListState) => {
-        mockTokenListStateFunc.mockReturnValue(state);
+        currentTokenListState = state;
+        mockFetchTokensByChainId.mockImplementation((chainId: Hex) =>
+          Promise.resolve(state.tokensChainsCache[chainId]?.data ?? {}),
+        );
       },
       mockGetNetworkClientById: (
         handler: (
@@ -4500,9 +4070,6 @@ async function withController<ReturnValue>(
       },
       triggerKeyringLock: () => {
         messenger.publish('KeyringController:lock');
-      },
-      triggerTokenListStateChange: (state: TokenListState) => {
-        messenger.publish('TokenListController:stateChange', state, []);
       },
       triggerPreferencesStateChange: (state: PreferencesState) => {
         messenger.publish('PreferencesController:stateChange', state, []);

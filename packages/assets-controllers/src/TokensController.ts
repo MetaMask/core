@@ -53,10 +53,8 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
-import type {
-  TokenListStateChange,
-  TokenListToken,
-} from './TokenListController';
+import type { TokenListToken } from './TokenListController';
+import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
@@ -161,7 +159,6 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
   | AccountsControllerSelectedEvmAccountChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
@@ -217,16 +214,19 @@ export class TokensController extends BaseController<
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
+   * @param options.tokenListService - Shared service for fetching token metadata per chain.
    */
   constructor({
     provider,
     state,
     messenger,
+    tokenListService,
   }: {
     chainId: Hex;
     provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
+    tokenListService: TokenListService;
   }) {
     super({
       name: controllerName,
@@ -261,44 +261,38 @@ export class TokensController extends BaseController<
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
-        const { allTokens } = this.state;
-        const selectedAddress = this.#getSelectedAddress();
+    // Enrich persisted tokens with name/rwaData from the token list once at init.
+    this.#enrichTokensFromTokenList(tokenListService).catch(() => {
+      // Tokens remain usable without metadata enrichment
+    });
+  }
 
-        // Deep clone the `allTokens` object to ensure mutability
-        const updatedAllTokens = cloneDeep(allTokens);
-
-        for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data ?? {};
-
-          if (updatedAllTokens[chainId as Hex]) {
-            if (updatedAllTokens[chainId as Hex][selectedAddress]) {
-              const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
-
-              for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address.toLowerCase()];
-                if (cachedToken && cachedToken.name && !token.name) {
-                  token.name = cachedToken.name; // Update the token name
-                }
-                if (cachedToken?.rwaData) {
-                  token.rwaData = cachedToken.rwaData; // Update the token RWA data
-                }
-              }
-            }
+  async #enrichTokensFromTokenList(
+    tokenListService: TokenListService,
+  ): Promise<void> {
+    const { allTokens } = this.state;
+    const selectedAddress = this.#getSelectedAddress();
+    const chainIds = Object.keys(allTokens) as Hex[];
+    if (chainIds.length === 0) {
+      return;
+    }
+    const updatedAllTokens = cloneDeep(allTokens);
+    for (const chainId of chainIds) {
+      const chainData = await tokenListService.fetchTokensByChainId(chainId);
+      const tokens = updatedAllTokens[chainId]?.[selectedAddress];
+      if (tokens) {
+        for (const token of tokens) {
+          const cachedToken = chainData[token.address.toLowerCase()];
+          if (cachedToken?.name && !token.name) {
+            token.name = cachedToken.name;
+          }
+          if (cachedToken?.rwaData) {
+            token.rwaData = cachedToken.rwaData;
           }
         }
-
-        // Update the state with the modified tokens
-        this.update(() => {
-          return {
-            ...this.state,
-            allTokens: updatedAllTokens,
-          };
-        });
-      },
-    );
+      }
+    }
+    this.update(() => ({ ...this.state, allTokens: updatedAllTokens }));
   }
 
   #handleOnAccountRemoved(accountAddress: string) {
