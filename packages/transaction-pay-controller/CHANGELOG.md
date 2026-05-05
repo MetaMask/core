@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
 - Bump `@metamask/ramps-controller` from `^13.2.0` to `^13.3.0` ([#8698](https://github.com/MetaMask/core/pull/8698))
 
+### Fixed
+
+- Detect EIP-7702 batch gas estimation failures during quote calculation and substitute the configured `relayFallbackGas` (or caller-provided `fallbackGas`) instead of returning the upstream block-gas-limit fallback as if it were a successful estimate. When `fallbackOnSimulationFailure` is not set, batch failures now throw consistently with the single-transaction path.
+
 ## [21.0.0]
 
 ### Added

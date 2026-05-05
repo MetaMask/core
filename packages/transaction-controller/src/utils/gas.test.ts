@@ -1,6 +1,7 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 import { remove0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { cloneDeep } from 'lodash';
 
 import type {
@@ -1322,6 +1323,234 @@ describe('gas', () => {
             type: undefined,
           }),
         ],
+      });
+    });
+
+    it('falls back when EIP-7702 simulation fails and upgrade is required', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: false,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      getGasEstimateFallbackMock.mockReturnValue(
+        GAS_ESTIMATE_FALLBACK_FIXED_MOCK,
+      );
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('estimate failed'),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        gasLimits: [FIXED_ESTIMATE_GAS_MOCK],
+        requiresAuthorizationList: true,
+        simulationFails: expect.objectContaining({
+          reason: 'estimate failed',
+        }),
+        totalGasLimit: FIXED_ESTIMATE_GAS_MOCK,
+      });
+    });
+
+    it('falls back to feature-flag fallback when EIP-7702 simulation fails and no per-tx gas hints provided', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('estimate failed'),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      const expectedFallback = Math.floor(
+        (BLOCK_GAS_LIMIT_MOCK * DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK) / 100,
+      );
+
+      expect(result).toStrictEqual({
+        gasLimits: [expectedFallback],
+        simulationFails: expect.objectContaining({
+          reason: 'estimate failed',
+        }),
+        totalGasLimit: expectedFallback,
+      });
+    });
+
+    it('falls back to fixed feature-flag fallback when EIP-7702 simulation fails', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      getGasEstimateFallbackMock.mockReturnValue(
+        GAS_ESTIMATE_FALLBACK_FIXED_MOCK,
+      );
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('estimate failed'),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        gasLimits: [FIXED_ESTIMATE_GAS_MOCK],
+        simulationFails: expect.objectContaining({
+          reason: 'estimate failed',
+        }),
+        totalGasLimit: FIXED_ESTIMATE_GAS_MOCK,
+      });
+    });
+
+    it('sums per-tx gas hints with fallback once when EIP-7702 simulation fails', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      getGasEstimateFallbackMock.mockReturnValue(
+        GAS_ESTIMATE_FALLBACK_FIXED_MOCK,
+      );
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('estimate failed'),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+      });
+
+      const hintTotal =
+        new BigNumber(GAS_MOCK_1).toNumber() +
+        new BigNumber(GAS_MOCK_2).toNumber();
+      const expectedTotal = hintTotal + FIXED_ESTIMATE_GAS_MOCK;
+
+      expect(result).toStrictEqual({
+        gasLimits: [expectedTotal],
+        simulationFails: expect.objectContaining({
+          reason: 'estimate failed',
+        }),
+        totalGasLimit: expectedTotal,
+      });
+    });
+
+    it('sums partial per-tx gas hints with fallback once when EIP-7702 simulation fails', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      getGasEstimateFallbackMock.mockReturnValue(
+        GAS_ESTIMATE_FALLBACK_FIXED_MOCK,
+      );
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('estimate failed'),
+      });
+
+      const partialBatchParams: BatchTransactionParams[] = [
+        {
+          data: DATA_MOCK,
+          to: TO_MOCK,
+          value: VALUE_MOCK,
+          gas: GAS_MOCK_1,
+        },
+        {
+          data: DATA_MOCK_2,
+          to: TO_MOCK,
+          value: VALUE_MOCK_2,
+        },
+      ];
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: partialBatchParams,
+      });
+
+      const expectedTotal =
+        new BigNumber(GAS_MOCK_1).toNumber() + FIXED_ESTIMATE_GAS_MOCK;
+
+      expect(result).toStrictEqual({
+        gasLimits: [expectedTotal],
+        simulationFails: expect.objectContaining({
+          reason: 'estimate failed',
+        }),
+        totalGasLimit: expectedTotal,
       });
     });
 

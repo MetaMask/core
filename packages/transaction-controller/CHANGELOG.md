@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `TransactionController:updateSelectedGasFeeToken`
     - `TransactionController:updateTransactionGasFees`
   - Corresponding action types are available as well.
+- Surface `simulationFails` on `EstimateGasBatchResult` so callers can detect EIP-7702 batch gas estimation failures.
+
+### Fixed
+
+- Stop returning a block-gas-limit-derived value as the EIP-7702 batch gas limit when simulation fails. The fallback is now `sum(per-tx gas hints) + configured fallback`, applied once for the unsimulated portion, instead of a percentage of the block gas limit (or fixed) value, that gets surfaced as a successful estimate.
 
 ## [65.1.0]
 

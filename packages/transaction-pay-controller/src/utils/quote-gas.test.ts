@@ -1,12 +1,13 @@
 import type { Hex } from '@metamask/utils';
 
 import { getMessengerMock } from '../tests/messenger-mock';
-import { getGasBuffer } from './feature-flags';
+import { getFallbackGas, getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 import { estimateQuoteGasLimits } from './quote-gas';
 
 jest.mock('./feature-flags', () => ({
   ...jest.requireActual('./feature-flags'),
+  getFallbackGas: jest.fn(),
   getGasBuffer: jest.fn(),
 }));
 
@@ -16,6 +17,7 @@ jest.mock('./gas', () => ({
 }));
 
 describe('quote gas estimation', () => {
+  const getFallbackGasMock = jest.mocked(getFallbackGas);
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const estimateGasLimitMock = jest.mocked(estimateGasLimit);
 
@@ -43,6 +45,7 @@ describe('quote gas estimation', () => {
     jest.resetAllMocks();
 
     getGasBufferMock.mockReturnValue(1);
+    getFallbackGasMock.mockReturnValue({ estimate: 200000, max: 400000 });
   });
 
   it('throws when there are no transactions', async () => {
@@ -355,6 +358,126 @@ describe('quote gas estimation', () => {
           value: '0x0',
         }),
       ],
+    });
+  });
+
+  describe('on batch simulation failure', () => {
+    const SIMULATION_FAILS_MOCK = {
+      reason: 'estimate failed',
+      debug: {},
+    };
+
+    it('throws when simulation fails and fallbackOnSimulationFailure is false', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 99999999,
+        gasLimits: [99999999],
+        simulationFails: SIMULATION_FAILS_MOCK,
+      });
+
+      await expect(
+        estimateQuoteGasLimits({
+          messenger,
+          transactions: TRANSACTIONS_MOCK,
+        }),
+      ).rejects.toThrow('Batch gas estimation failed: estimate failed');
+    });
+
+    it('throws with a generic reason when simulation fails without a reason', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 99999999,
+        gasLimits: [99999999],
+        simulationFails: { debug: {} },
+      });
+
+      await expect(
+        estimateQuoteGasLimits({
+          messenger,
+          transactions: TRANSACTIONS_MOCK,
+        }),
+      ).rejects.toThrow('Batch gas estimation failed: unknown reason');
+    });
+
+    it('uses feature-flag fallback for the EIP-7702 batch when simulation fails', async () => {
+      getGasBufferMock.mockReturnValue(1.5);
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 99999999,
+        gasLimits: [99999999],
+        simulationFails: SIMULATION_FAILS_MOCK,
+        requiresAuthorizationList: true,
+      });
+
+      const result = await estimateQuoteGasLimits({
+        fallbackOnSimulationFailure: true,
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        batchGasLimit: {
+          estimate: 300000,
+          max: 600000,
+        },
+        gasLimits: [
+          {
+            estimate: 300000,
+            max: 600000,
+          },
+        ],
+        is7702: true,
+        requiresAuthorizationList: true,
+        totalGasEstimate: 600000,
+        totalGasLimit: 600000,
+        usedBatch: true,
+      });
+    });
+
+    it('uses caller-provided fallbackGas over the feature-flag fallback', async () => {
+      getGasBufferMock.mockReturnValue(1);
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 99999999,
+        gasLimits: [99999999],
+        simulationFails: SIMULATION_FAILS_MOCK,
+      });
+
+      const result = await estimateQuoteGasLimits({
+        fallbackGas: { estimate: 50000, max: 75000 },
+        fallbackOnSimulationFailure: true,
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      });
+
+      expect(getFallbackGasMock).not.toHaveBeenCalled();
+      expect(result.batchGasLimit).toStrictEqual({
+        estimate: 50000,
+        max: 75000,
+      });
+      expect(result.totalGasLimit).toBe(75000);
+    });
+
+    it('fans out the fallback per transaction for non-7702 batch on simulation failure', async () => {
+      getGasBufferMock.mockReturnValue(1);
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 99999999,
+        gasLimits: [99999999, 99999999],
+        simulationFails: SIMULATION_FAILS_MOCK,
+      });
+
+      const result = await estimateQuoteGasLimits({
+        fallbackOnSimulationFailure: true,
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        gasLimits: [
+          { estimate: 200000, max: 400000 },
+          { estimate: 200000, max: 400000 },
+        ],
+        is7702: false,
+        totalGasEstimate: 800000,
+        totalGasLimit: 800000,
+        usedBatch: true,
+      });
     });
   });
 });

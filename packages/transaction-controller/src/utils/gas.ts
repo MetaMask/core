@@ -44,6 +44,7 @@ export type UpdateGasRequest = {
 export type EstimateGasBatchResult = {
   gasLimits: number[];
   requiresAuthorizationList?: true;
+  simulationFails?: TransactionMeta['simulationFails'];
   totalGasLimit: number;
 };
 
@@ -260,13 +261,46 @@ export async function estimateGasBatch({
       type,
     };
 
-    const { estimatedGas: gasLimitHex } = await estimateGas({
+    const {
+      blockGasLimit,
+      estimatedGas: gasLimitHex,
+      simulationFails,
+    } = await estimateGas({
       isSimulationEnabled: true,
       getSimulationConfig,
       messenger,
       networkClientId,
       txParams: params,
     });
+
+    if (simulationFails) {
+      // Estimation failed and `estimateGas` substituted a block-gas-limit-derived
+      // fallback into `gasLimitHex`. That value is unsafe to surface as a
+      // batch gas limit on EIP-7702 because callers (e.g. `transaction-pay-controller`)
+      // multiply it by the gas price to compute fiat estimates and quote
+      // submission gas, producing wildly inflated numbers.
+      //
+      // Instead, sum any caller-provided per-transaction gas hints and add the
+      // chain's configured fallback exactly once for the unknown portion.
+      const totalGasLimit = computeBatch7702FallbackTotal({
+        blockGasLimit,
+        chainId,
+        messenger,
+        transactions,
+      });
+
+      log('EIP-7702 gas estimation failed, using fallback', {
+        simulationFails,
+        totalGasLimit,
+      });
+
+      return {
+        gasLimits: [totalGasLimit],
+        ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+        simulationFails,
+        totalGasLimit,
+      };
+    }
 
     const totalGasLimit = new BigNumber(gasLimitHex).toNumber();
 
@@ -424,6 +458,52 @@ export async function simulateGasBatch({
       'Cannot estimate transaction batch total gas as simulation failed',
     );
   }
+}
+
+/**
+ * Compute a safe `totalGasLimit` for an EIP-7702 batch when simulation has
+ * failed. Sums any caller-provided per-transaction gas hints and adds the
+ * configured fallback exactly once for the unsimulated portion.
+ *
+ * @param options - Options object.
+ * @param options.blockGasLimit - The latest block gas limit (hex), used as the
+ * basis for the percentage-based fallback when no fixed value is configured.
+ * @param options.chainId - Chain ID.
+ * @param options.messenger - The controller messenger instance.
+ * @param options.transactions - The batch transactions, optionally carrying
+ * per-tx `gas` hints.
+ * @returns The fallback total gas limit.
+ */
+function computeBatch7702FallbackTotal({
+  blockGasLimit,
+  chainId,
+  messenger,
+  transactions,
+}: {
+  blockGasLimit: string;
+  chainId: Hex;
+  messenger: TransactionControllerMessenger;
+  transactions: BatchTransactionParams[];
+}): number {
+  const hintedGas = transactions.reduce((acc, transaction) => {
+    if (transaction.gas === undefined) {
+      return acc;
+    }
+
+    return acc.plus(new BigNumber(transaction.gas));
+  }, new BigNumber(0));
+
+  const { fixed, percentage } = getGasEstimateFallback(chainId, messenger);
+
+  const fallbackBN =
+    fixed === undefined
+      ? new BigNumber(hexToBN(blockGasLimit).toString())
+          .multipliedBy(percentage)
+          .dividedBy(100)
+          .integerValue(BigNumber.ROUND_FLOOR)
+      : new BigNumber(fixed);
+
+  return hintedGas.plus(fallbackBN).toNumber();
 }
 
 /**
