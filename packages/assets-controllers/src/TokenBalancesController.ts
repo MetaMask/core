@@ -291,7 +291,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getChainPollingConfig',
   'updateBalances',
   'resetState',
-];
+] as const;
 
 export class TokenBalancesController extends StaticIntervalPollingController<{
   chainIds: ChainIdHex[];
