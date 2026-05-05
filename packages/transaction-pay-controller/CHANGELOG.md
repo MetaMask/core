@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount`
+- Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
 
 ## [21.0.0]
 
