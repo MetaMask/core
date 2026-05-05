@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat(accounts-controller): use `KeyringV1Adapter` for `SnapKeyring` (v2) accounts ([#8703](https://github.com/MetaMask/core/pull/8703))
-
 ## [0.2.0]
 
 ### Changed
