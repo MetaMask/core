@@ -1,15 +1,9 @@
-import { QueryClient } from '@tanstack/query-core';
 import type { Hex } from '@metamask/utils';
+import { QueryClient } from '@tanstack/query-core';
 
-import {
-  formatAggregatorNames,
-  formatIconUrlWithProxy,
-} from './assetsUtil';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 import { fetchTokenListByChainId } from './token-service';
-import type {
-  TokenListMap,
-  TokenListToken,
-} from './TokenListController';
+import type { TokenListMap, TokenListToken } from './TokenListController';
 
 // 4 hours — mirrors TokenListController's DEFAULT_THRESHOLD
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;

@@ -46,7 +46,11 @@ import {
   controllerName,
 } from './TokenDetectionController';
 import { getDefaultTokenListState } from './TokenListController';
-import type { TokenListMap, TokenListState, TokenListToken } from './TokenListController';
+import type {
+  TokenListMap,
+  TokenListState,
+  TokenListToken,
+} from './TokenListController';
 import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
 import type {

@@ -629,9 +629,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     );
 
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(
-      chainCache[chainId]?.data ?? {},
-    )) {
+    for (const tokenAddress of Object.keys(chainCache[chainId]?.data ?? {})) {
       if (
         [
           tokensAddresses,
@@ -916,8 +914,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
       // Check map of validated tokens (cache keys are lowercase)
-      const tokenData =
-        chainCache[chainId]?.data?.[lowercaseTokenAddress];
+      const tokenData = chainCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
         continue;
@@ -1040,8 +1037,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       }
 
       // Check map of validated tokens (cache keys are lowercase)
-      const tokenData =
-        chainCache[chainId]?.data?.[lowercaseTokenAddress];
+      const tokenData = chainCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
         continue;
