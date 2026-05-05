@@ -813,7 +813,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return tokensSlice;
     }
     if (
-      tokensSlice.some((a) => isEqualCaseInsensitive(a, MUSD_ERC20_ADDRESS_LOWER))
+      tokensSlice.some((a) =>
+        isEqualCaseInsensitive(a, MUSD_ERC20_ADDRESS_LOWER),
+      )
     ) {
       return tokensSlice;
     }
@@ -884,9 +886,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           if (musdListToken) {
             const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
               musdListToken;
-            eventTokensDetails.push(
-              `${symbol} - ${MUSD_ERC20_ADDRESS_LOWER}`,
-            );
+            eventTokensDetails.push(`${symbol} - ${MUSD_ERC20_ADDRESS_LOWER}`);
             tokensWithBalance.push({
               address: MUSD_ERC20_ADDRESS_LOWER,
               decimals,

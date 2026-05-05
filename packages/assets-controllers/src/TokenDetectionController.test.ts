@@ -3511,7 +3511,11 @@ describe('TokenDetectionController', () => {
             },
           },
         },
-        async ({ controller, callActionSpy, mockFindNetworkClientIdByChainId }) => {
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
           mockFindNetworkClientIdByChainId(() => 'mainnet');
           await controller.addDetectedTokensViaWs({
             tokensSlice: [],
@@ -3837,7 +3841,11 @@ describe('TokenDetectionController', () => {
             },
           },
         },
-        async ({ controller, callActionSpy, mockFindNetworkClientIdByChainId }) => {
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
           mockFindNetworkClientIdByChainId(() => 'mainnet');
           await controller.addDetectedTokensViaPolling({
             tokensSlice: [],

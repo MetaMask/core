@@ -63,6 +63,10 @@ import type {
   AccountTrackerControllerUpdateStakedBalancesAction,
 } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import {
+  MUSD_ERC20_ADDRESS_LOWER,
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+} from './constants';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
@@ -81,7 +85,6 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
-import { MUSD_ERC20_ADDRESS_LOWER, MUSD_TOKEN_DETECTION_CHAIN_IDS } from './constants';
 import { createBatchedHandler } from './utils/create-batch-handler';
 
 const MUSD_IMPORT_CHAIN_ID_SET = new Set<Hex>(MUSD_TOKEN_DETECTION_CHAIN_IDS);
