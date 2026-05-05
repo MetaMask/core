@@ -16,6 +16,45 @@ describe('validators', () => {
             '1': {
               isActiveDest: true,
               isActiveSrc: true,
+              batchSellDestStablecoins: [
+                'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                'eip155:1/slip44:60',
+              ],
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          chainRanking: [{ chainId: 'eip155:1', name: 'Ethereum' }],
+        },
+        type: 'batch sell destination stablecoins',
+        expected: true,
+      },
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              batchSellDestStablecoins: ['not-a-caip-asset-type'],
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          chainRanking: [{ chainId: 'eip155:1', name: 'Ethereum' }],
+        },
+        type: 'malformed batch sell destination stablecoins',
+        expected: false,
+      },
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
               isGaslessSwapEnabled: true,
             },
             '10': { isActiveDest: true, isActiveSrc: true },
