@@ -53,7 +53,7 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
-import type { TokenListToken } from './TokenListController';
+import type { TokenListMap, TokenListToken } from './TokenListController';
 import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
@@ -278,13 +278,24 @@ export class TokensController extends BaseController<
     // Fetch all chain data concurrently before touching state so the async gap
     // is as short as possible and we never hold a stale T0 snapshot while
     // awaiting individual chain requests.
-    const chainDataEntries = await Promise.all(
+    // Promise.allSettled ensures a transient error on one chain does not
+    // prevent other chains from being enriched.
+    const results = await Promise.allSettled(
       chainIds.map(async (chainId) => {
         const data = await tokenListService.fetchTokensByChainId(chainId);
         return [chainId, data] as const;
       }),
     );
-    const chainDataMap = Object.fromEntries(chainDataEntries);
+    const chainDataMap = Object.fromEntries(
+      results
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<readonly [Hex, TokenListMap]> =>
+            result.status === 'fulfilled',
+        )
+        .map((result) => result.value),
+    );
 
     // Read selectedAddress inside the updater so it reflects the live account
     // at the moment the state write happens, not a snapshot taken before the

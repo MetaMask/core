@@ -48,8 +48,12 @@ export class TokenListService {
    * @returns A map of lowercase token address → token metadata.
    */
   async fetchTokensByChainId(chainId: Hex): Promise<TokenListMap> {
-    return await this.#queryClient.fetchQuery({
-      queryKey: ['TokenListService:fetchTokensByChainId', chainId],
+    const queryKey = ['TokenListService:fetchTokensByChainId', chainId];
+    // On failure, TanStack Query v5 sets isInvalidated=true and leaves state.data
+    // undefined, so the next fetchQuery call always triggers a fresh network request
+    // rather than serving the cached error. No manual cache eviction is needed.
+    return this.#queryClient.fetchQuery({
+      queryKey,
       queryFn: async () => {
         const list = (await fetchTokenListByChainId(
           chainId,
