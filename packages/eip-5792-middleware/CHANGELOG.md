@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support for EIP7702 to Money Account keyring.
+- Allow EIP-7702 authorizations from accounts in the Money keyring.
 
 ### Changed
 
