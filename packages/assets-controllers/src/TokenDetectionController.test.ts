@@ -3279,6 +3279,157 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should not add tokens when useTokenDetection is false', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should not add tokens when useExternalServices is false', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useExternalServices: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('does not append a duplicate mUSD entry when the slice already includes mUSD', async () => {
+      const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const usdcChecksummed =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+      await withController(
+        {
+          options: { disabled: false },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {
+                  [usdcAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: usdcAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [
+              toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              usdcAddress,
+            ],
+            chainId: ChainId.mainnet,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              }),
+              expect.objectContaining({ address: usdcChecksummed }),
+            ]),
+            'mainnet',
+          );
+          const addTokensCall = callActionSpy.mock.calls.find(
+            (call) => call[0] === 'TokensController:addTokens',
+          );
+          const payload = addTokensCall?.[1] as { address: string }[];
+          const musdRows = payload.filter((t) =>
+            t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+          );
+          expect(musdRows).toHaveLength(1);
+        },
+      );
+    });
   });
 
   describe('addDetectedTokensViaPolling', () => {
@@ -3729,6 +3880,183 @@ describe('TokenDetectionController', () => {
             ],
             'avalanche',
           );
+        },
+      );
+    });
+
+    it('should skip if useExternalServices is disabled', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+            useExternalServices: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should ignore slice addresses that are not in the token list map', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const unknownAddress = '0x0000000000000000000000000000000000000002';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress, unknownAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: checksummedTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+            ],
+            'avalanche',
+          );
+        },
+      );
+    });
+
+    it('does not append a duplicate mUSD entry when the slice already includes mUSD', async () => {
+      const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const usdcChecksummed =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: { disabled: false, useTokenDetection: () => true },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+          mockTokensState: {
+            allTokens: {},
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {
+                  [usdcAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: usdcAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [
+              toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              usdcAddress,
+            ],
+            chainId: ChainId.mainnet,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              }),
+              expect.objectContaining({ address: usdcChecksummed }),
+            ]),
+            'mainnet',
+          );
+          const addTokensCall = callActionSpy.mock.calls.find(
+            (call) => call[0] === 'TokensController:addTokens',
+          );
+          const payload = addTokensCall?.[1] as { address: string }[];
+          const musdRows = payload.filter((t) =>
+            t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+          );
+          expect(musdRows).toHaveLength(1);
         },
       );
     });

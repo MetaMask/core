@@ -47,18 +47,20 @@ export class TokenListService {
    * @returns A map of lowercase token address → token metadata.
    */
   async fetchTokensByChainId(chainId: Hex): Promise<TokenListMap> {
-    const raw = await this.#queryClient.fetchQuery({
+    const tokens = await this.#queryClient.fetchQuery({
       queryKey: ['TokenListService:fetchTokensByChainId', chainId],
-      queryFn: () =>
-        fetchTokenListByChainId(
+      queryFn: async () => {
+        const list = (await fetchTokenListByChainId(
           chainId,
           this.#abortController.signal,
-        ) as Promise<TokenListToken[] | undefined>,
+        )) as TokenListToken[] | undefined;
+        return list ?? [];
+      },
       staleTime: FOUR_HOURS_MS,
       gcTime: FOUR_HOURS_MS,
     });
 
-    return buildTokenListMap(raw ?? [], chainId);
+    return buildTokenListMap(tokens, chainId);
   }
 
   /**
