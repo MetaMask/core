@@ -270,17 +270,32 @@ export class TokensController extends BaseController<
   async #enrichTokensFromTokenList(
     tokenListService: TokenListService,
   ): Promise<void> {
-    const { allTokens } = this.state;
-    const selectedAddress = this.#getSelectedAddress();
-    const chainIds = Object.keys(allTokens) as Hex[];
+    const chainIds = Object.keys(this.state.allTokens) as Hex[];
     if (chainIds.length === 0) {
       return;
     }
-    const updatedAllTokens = cloneDeep(allTokens);
-    for (const chainId of chainIds) {
-      const chainData = await tokenListService.fetchTokensByChainId(chainId);
-      const tokens = updatedAllTokens[chainId]?.[selectedAddress];
-      if (tokens) {
+
+    // Fetch all chain data concurrently before touching state so the async gap
+    // is as short as possible and we never hold a stale T0 snapshot while
+    // awaiting individual chain requests.
+    const chainDataEntries = await Promise.all(
+      chainIds.map(async (chainId) => {
+        const data = await tokenListService.fetchTokensByChainId(chainId);
+        return [chainId, data] as const;
+      }),
+    );
+    const chainDataMap = Object.fromEntries(chainDataEntries);
+
+    // Read the live state inside the updater so we only patch metadata fields
+    // and never discard tokens added or modified during the async gap above.
+    const selectedAddress = this.#getSelectedAddress();
+    this.update((state) => {
+      for (const chainId of chainIds) {
+        const chainData = chainDataMap[chainId];
+        const tokens = state.allTokens[chainId]?.[selectedAddress];
+        if (!tokens || !chainData) {
+          continue;
+        }
         for (const token of tokens) {
           const cachedToken = chainData[token.address.toLowerCase()];
           if (cachedToken?.name && !token.name) {
@@ -291,8 +306,7 @@ export class TokensController extends BaseController<
           }
         }
       }
-    }
-    this.update(() => ({ ...this.state, allTokens: updatedAllTokens }));
+    });
   }
 
   #handleOnAccountRemoved(accountAddress: string) {

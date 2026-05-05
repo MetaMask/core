@@ -44,7 +44,6 @@ import type { TokenDetectionControllerMessenger } from './TokenDetectionControll
 import {
   TokenDetectionController,
   controllerName,
-  mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
 import { getDefaultTokenListState } from './TokenListController';
 import type { TokenListMap, TokenListState, TokenListToken } from './TokenListController';
@@ -2796,57 +2795,6 @@ describe('TokenDetectionController', () => {
           );
         },
       );
-    });
-  });
-
-  describe('mapChainIdWithTokenListMap', () => {
-    it('should return an empty object when given an empty input', () => {
-      const tokensChainsCache = {};
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({});
-    });
-
-    it('should return the same structure when there is no "data" property in the object', () => {
-      const tokensChainsCache = {
-        chain1: { info: 'no data property' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual(tokensChainsCache); // Expect unchanged structure
-    });
-
-    it('should map "data" property if present in the object', () => {
-      const tokensChainsCache = {
-        chain1: { data: 'someData' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({ chain1: 'someData' });
-    });
-
-    it('should handle multiple chains with mixed "data" properties', () => {
-      const tokensChainsCache = {
-        chain1: { data: 'someData1' },
-        chain2: { info: 'no data property' },
-        chain3: { data: 'someData3' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-
-      expect(result).toStrictEqual({
-        chain1: 'someData1',
-        chain2: { info: 'no data property' },
-        chain3: 'someData3',
-      });
-    });
-
-    it('should handle nested object with "data" property correctly', () => {
-      const tokensChainsCache = {
-        chain1: {
-          data: {
-            nested: 'nestedData',
-          },
-        },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
     });
   });
 

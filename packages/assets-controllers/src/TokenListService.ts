@@ -32,6 +32,10 @@ export class TokenListService {
       defaultOptions: {
         queries: {
           staleTime: FOUR_HOURS_MS,
+          // fetchQuery never creates an observer, so entries are immediately
+          // inactive. Without an explicit gcTime the default 5-minute GC would
+          // evict them long before the 4-hour staleTime window expires.
+          gcTime: FOUR_HOURS_MS,
           retry: false,
         },
       },
@@ -57,6 +61,7 @@ export class TokenListService {
           this.#abortController.signal,
         ) as Promise<TokenListToken[] | undefined>,
       staleTime: FOUR_HOURS_MS,
+      gcTime: FOUR_HOURS_MS,
     });
 
     return buildTokenListMap(raw ?? [], chainId);
