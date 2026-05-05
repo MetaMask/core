@@ -113,16 +113,16 @@ jobs:
     runs-on: ubuntu-latest
     environment: default-branch
     steps:
-      - name: Check out the base ref
+      - name: Check out the base branch
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.is-release.outputs.base-ref }}
+          ref: ${{ needs.is-release.outputs.merge-base }}
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
       - name: Detach HEAD (to prevent accidental pushes)
         run: git checkout --detach HEAD
 
-      - name: Setup environment
+      - name: Set up environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
