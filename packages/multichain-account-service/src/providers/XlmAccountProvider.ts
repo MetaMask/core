@@ -37,8 +37,8 @@ export const XLM_ACCOUNT_PROVIDER_DEFAULT_CONFIG: XlmAccountProviderConfig = {
     backOffMs: 1000,
   },
   createAccounts: {
-    batched: false,
-    timeoutMs: 3000,
+    batched: true,
+    timeoutMs: 10000,
   },
   resyncAccounts: {
     autoRemoveExtraSnapAccounts: true,
