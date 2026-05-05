@@ -24,7 +24,6 @@ const buildContracts = (): DeployedContractsByName => ({
   AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
   AllowedTargetsEnforcer: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
   RedeemerEnforcer: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-  LogicalOrWrapperEnforcer: '0xcccccccccccccccccccccccccccccccccccccccc',
 });
 
 describe('getChecksumEnforcersByChainId', () => {
@@ -58,9 +57,6 @@ describe('getChecksumEnforcersByChainId', () => {
         contracts.AllowedTargetsEnforcer,
       ),
       redeemerEnforcer: getChecksumAddress(contracts.RedeemerEnforcer),
-      logicalOrWrapperEnforcer: getChecksumAddress(
-        contracts.LogicalOrWrapperEnforcer,
-      ),
     });
   });
 
@@ -88,7 +84,6 @@ describe('createPermissionRulesForChainId', () => {
       allowedCalldataEnforcer,
       allowedTargetsEnforcer,
       redeemerEnforcer,
-      logicalOrWrapperEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
     // erc20-token-stream
@@ -167,7 +162,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].permissionType).toBe(
       'erc20-token-stream',
     );
-    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(4);
+    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(3);
     expect(
       byType['erc20-token-stream'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
@@ -177,11 +172,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(
       byType['erc20-token-stream'].optionalEnforcers.has(
         allowedCalldataEnforcer,
-      ),
-    ).toBe(true);
-    expect(
-      byType['erc20-token-stream'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
       ),
     ).toBe(true);
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
@@ -200,7 +190,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].permissionType).toBe(
       'erc20-token-periodic',
     );
-    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(4);
+    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(3);
     expect(
       byType['erc20-token-periodic'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
@@ -210,11 +200,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(
       byType['erc20-token-periodic'].optionalEnforcers.has(
         allowedCalldataEnforcer,
-      ),
-    ).toBe(true);
-    expect(
-      byType['erc20-token-periodic'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
       ),
     ).toBe(true);
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
@@ -261,7 +246,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-allowance'].permissionType).toBe(
       'erc20-token-allowance',
     );
-    expect(byType['erc20-token-allowance'].optionalEnforcers.size).toBe(4);
+    expect(byType['erc20-token-allowance'].optionalEnforcers.size).toBe(3);
     expect(
       byType['erc20-token-allowance'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
@@ -271,11 +256,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(
       byType['erc20-token-allowance'].optionalEnforcers.has(
         allowedCalldataEnforcer,
-      ),
-    ).toBe(true);
-    expect(
-      byType['erc20-token-allowance'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
       ),
     ).toBe(true);
     expect(byType['erc20-token-allowance'].requiredEnforcers.size).toBe(3);
@@ -294,17 +274,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-revocation'].permissionType).toBe(
       'erc20-token-revocation',
     );
-    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(3);
+    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
     expect(
       byType['erc20-token-revocation'].optionalEnforcers.has(redeemerEnforcer),
-    ).toBe(true);
-    expect(
-      byType['erc20-token-revocation'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
-      ),
     ).toBe(true);
     expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
     expect(

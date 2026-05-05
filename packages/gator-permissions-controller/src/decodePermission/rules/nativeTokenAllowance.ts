@@ -36,7 +36,6 @@ export function makeNativeTokenAllowanceRule(
     allowedCalldataEnforcer,
     allowedTargetsEnforcer,
     redeemerEnforcer,
-    logicalOrWrapperEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'native-token-allowance',
@@ -50,7 +49,6 @@ export function makeNativeTokenAllowanceRule(
       allowedCalldataEnforcer,
       allowedTargetsEnforcer,
       singlePayeeEnforcer: allowedTargetsEnforcer,
-      logicalOrWrapperEnforcer,
     },
     timestampEnforcer,
     requiredEnforcers: {
