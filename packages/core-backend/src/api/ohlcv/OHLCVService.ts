@@ -122,8 +122,7 @@ export type OHLCVServiceEvents =
   | OHLCVServiceChainStatusChangedEvent
   | OHLCVServiceSubscriptionErrorEvent;
 
-export type AllowedEvents =
-  BackendWebSocketServiceConnectionStateChangedEvent;
+export type AllowedEvents = BackendWebSocketServiceConnectionStateChangedEvent;
 
 export type OHLCVServiceMessenger = Messenger<
   typeof SERVICE_NAME,
@@ -170,8 +169,10 @@ export class OHLCVService {
 
     this.#trace =
       options.traceFn ??
-      ((<Result>(_request: TraceRequest, fn?: (context?: TraceContext) => Result) =>
-        fn?.()) as TraceCallback);
+      ((<Result>(
+        _request: TraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ) => fn?.()) as TraceCallback);
 
     this.#messenger.registerMethodActionHandlers(
       this,

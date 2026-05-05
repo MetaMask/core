@@ -84,9 +84,7 @@ const getMessenger = (): {
   const mockSubscribe = jest.fn();
   const mockChannelHasSubscription = jest.fn().mockReturnValue(false);
   const mockGetSubscriptionsByChannel = jest.fn().mockReturnValue([]);
-  const mockFindSubscriptionsByChannelPrefix = jest
-    .fn()
-    .mockReturnValue([]);
+  const mockFindSubscriptionsByChannelPrefix = jest.fn().mockReturnValue([]);
   const mockAddChannelCallback = jest.fn();
   const mockRemoveChannelCallback = jest.fn();
   const mockGetConnectionInfo = jest.fn();
@@ -299,7 +297,8 @@ describe('OHLCVService', () => {
 
     it('should publish barUpdated events when WebSocket delivers data', async () => {
       await withService(async ({ service, mocks, messenger }) => {
-        let capturedCallback: (n: ServerNotificationMessage) => void = jest.fn();
+        let capturedCallback: (n: ServerNotificationMessage) => void =
+          jest.fn();
 
         mocks.subscribe.mockImplementation((opts) => {
           capturedCallback = opts.callback;
@@ -524,10 +523,7 @@ describe('OHLCVService', () => {
     it('should publish chainStatusChanged down on DISCONNECTED', async () => {
       await withService(async ({ mocks, messenger, rootMessenger }) => {
         const statusListener = jest.fn();
-        messenger.subscribe(
-          'OHLCVService:chainStatusChanged',
-          statusListener,
-        );
+        messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         // Simulate a system notification marking a chain as up
         const systemCallback = getSystemNotificationCallback(mocks);
@@ -568,10 +564,7 @@ describe('OHLCVService', () => {
     it('should forward chain-down notifications via chainStatusChanged event', async () => {
       await withService(async ({ mocks, messenger }) => {
         const statusListener = jest.fn();
-        messenger.subscribe(
-          'OHLCVService:chainStatusChanged',
-          statusListener,
-        );
+        messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         const systemCallback = getSystemNotificationCallback(mocks);
         systemCallback({
@@ -592,10 +585,7 @@ describe('OHLCVService', () => {
     it('should forward chain-up notifications', async () => {
       await withService(async ({ mocks, messenger }) => {
         const statusListener = jest.fn();
-        messenger.subscribe(
-          'OHLCVService:chainStatusChanged',
-          statusListener,
-        );
+        messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         const systemCallback = getSystemNotificationCallback(mocks);
         systemCallback({
