@@ -40,7 +40,11 @@ const ERC7579_EXEC_TYPE_TRY = '01';
 
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
-const KEYRING_TYPES_SUPPORTING_7702 = ['HD Key Tree', 'Simple Key Pair', 'Money Keyring'];
+const KEYRING_TYPES_SUPPORTING_7702 = [
+  'HD Key Tree',
+  'Simple Key Pair',
+  'Money Keyring',
+];
 
 /**
  * Check whether a given account's keyring supports EIP-7702 authorization
@@ -149,9 +153,10 @@ export async function isAccountUpgradedToEIP7702(
 
   const isSupported = Boolean(
     delegationAddress &&
-    contractAddresses.some(
-      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
-    ),
+      contractAddresses.some(
+        (contract) =>
+          contract.toLowerCase() === delegationAddress.toLowerCase(),
+      ),
   );
 
   return {
