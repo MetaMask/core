@@ -13,7 +13,7 @@ export const EXECUTION_PERMISSION_REDEEMER_RULE_TYPE = 'redeemer' as const;
 
 /**
  * `Rule.type` / `wallet_getSupportedExecutionPermissions` `ruleTypes` entry for
- * payee allowlists (AllowedCalldataEnforcer / AllowedTargetsEnforcer). Hosts 
+ * payee allowlists (AllowedCalldataEnforcer / AllowedTargetsEnforcer). Hosts
  * should advertise this for every supported execution permission type that supports
  * payee restrictions.
  */

@@ -139,7 +139,7 @@ export function makePermissionRule({
         // todo: this is a temporary fix to exclude payee rules from erc20-token-revocation
         // a nicer solution may be to pass an array of permissionRule decoders to the makePermissionRule
         // function.
-        if (permissionType !== "erc20-token-revocation") {
+        if (permissionType !== 'erc20-token-revocation') {
           const payeeAddresses = tryExtractPayeeAddresses(
             checksumCaveats,
             payeeEnforcers,
@@ -228,7 +228,9 @@ function tryExtractPayeeAddresses(
   requiredEnforcers: Map<Hex, number>,
 ): Hex[] | null {
   if (requiredEnforcers.has(enforcers.singlePayeeEnforcer)) {
-    throw new Error('Invalid payee caveats: singlePayeeEnforcer may not be a required caveat');
+    throw new Error(
+      'Invalid payee caveats: singlePayeeEnforcer may not be a required caveat',
+    );
   }
 
   const singlePayeeCaveats = caveats.filter(
@@ -237,12 +239,14 @@ function tryExtractPayeeAddresses(
 
   // this should not be possible, unless the singlePayeeCaveat is also included for a different rule, for the permission itself
   if (singlePayeeCaveats.length > 1) {
-    throw new Error('Invalid payee caveats: multiple singlePayeeEnforcer caveats');
+    throw new Error(
+      'Invalid payee caveats: multiple singlePayeeEnforcer caveats',
+    );
   }
 
   const singlePayeeCaveat = singlePayeeCaveats[0] ?? null;
 
-  if (singlePayeeCaveat) { 
+  if (singlePayeeCaveat) {
     return extractPayeeAddressesFromCaveat(singlePayeeCaveat, enforcers);
   }
 
