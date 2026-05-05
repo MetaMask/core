@@ -10,6 +10,8 @@ export type {
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerRequestProfilePairingAction,
 } from './AuthenticationController-method-action-types';

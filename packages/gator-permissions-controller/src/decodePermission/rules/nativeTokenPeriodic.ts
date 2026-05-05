@@ -6,7 +6,12 @@ import type {
   DecodedPermission,
   PermissionRule,
 } from '../types';
-import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
+import {
+  getByteLength,
+  getTermsByEnforcer,
+  MAX_PERIOD_DURATION,
+  splitHex,
+} from '../utils';
 import { makePermissionRule } from './makePermissionRule';
 
 /**
@@ -23,10 +28,12 @@ export function makeNativeTokenPeriodicRule(
     nativeTokenPeriodicEnforcer,
     exactCalldataEnforcer,
     nonceEnforcer,
+    redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'native-token-periodic',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
+    redeemerEnforcer,
     timestampEnforcer,
     requiredEnforcers: {
       [nativeTokenPeriodicEnforcer]: 1,
@@ -83,6 +90,7 @@ function validateAndDecodeData(
     terms,
     [32, 32, 32],
   );
+
   const periodDuration = hexToNumber(periodDurationRaw);
   const startTime = hexToNumber(startTimeRaw);
   const periodAmountBigInt = hexToBigInt(periodAmount);
@@ -96,6 +104,12 @@ function validateAndDecodeData(
   if (periodDuration === 0) {
     throw new Error(
       'Invalid native-token-periodic terms: periodDuration must be a positive number',
+    );
+  }
+
+  if (periodDuration > MAX_PERIOD_DURATION) {
+    throw new Error(
+      'Invalid native-token-periodic terms: periodDuration must be less than or equal to MAX_PERIOD_DURATION',
     );
   }
 

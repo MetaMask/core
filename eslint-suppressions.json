@@ -88,11 +88,6 @@
       "count": 2
     }
   },
-  "packages/account-tree-controller/src/rules/snap.ts": {
-    "@typescript-eslint/prefer-optional-chain": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/type-utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -108,12 +103,12 @@
   },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/accounts-controller/src/AccountsController.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/accounts-controller/src/index.ts": {
@@ -170,7 +165,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 8
+      "count": 7
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
@@ -279,19 +274,6 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
-    "@typescript-eslint/no-misused-promises": {
-      "count": 3
-    }
-  },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
     "no-restricted-syntax": {
       "count": 3
@@ -318,9 +300,6 @@
   },
   "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 2
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     },
     "no-restricted-syntax": {
@@ -1350,7 +1329,7 @@
   },
   "packages/multichain-api-middleware/src/handlers/wallet-createSession.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
+      "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 2
@@ -1549,7 +1528,7 @@
   },
   "packages/network-controller/src/rpc-service/rpc-service.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/network-controller/tests/NetworkController.provider.test.ts": {
@@ -1606,6 +1585,11 @@
     },
     "no-restricted-syntax": {
       "count": 3
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
     }
   },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
@@ -1751,9 +1735,6 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/mocks/mockResponses.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
     "@typescript-eslint/naming-convention": {
       "count": 1
     }
@@ -1863,11 +1844,6 @@
       "count": 2
     }
   },
-  "packages/profile-sync-controller/src/sdk/__fixtures__/auth.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    }
-  },
   "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
@@ -1887,11 +1863,6 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 2
-    }
-  },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-srp.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-srp.ts": {
@@ -2042,11 +2013,6 @@
     }
   },
   "packages/ramps-controller/src/RampsController.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/ramps-controller/src/RampsController.ts": {
     "no-restricted-syntax": {
       "count": 1
     }
@@ -2258,11 +2224,6 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
     "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
-    "import-x/no-relative-packages": {
       "count": 1
     }
   },

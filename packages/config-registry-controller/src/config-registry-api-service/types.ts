@@ -19,7 +19,7 @@ const AssetSchema = type({
 });
 
 const AssetsSchema = type({
-  listUrl: string(),
+  listUrl: optional(string()),
   native: AssetSchema,
   governance: optional(AssetSchema),
 });

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- `RampsService` routes `RampsEnvironment.Development` to dev-api base URLs; regions requests in development omit the `-cache` hostname segment used in staging and production ([#8574](https://github.com/MetaMask/core/pull/8574))
+
+### Fixed
+
+- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text ([#8596](https://github.com/MetaMask/core/pull/8596)).
+
+## [13.2.0]
+
+### Changed
+
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ### Fixed
@@ -273,7 +284,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove eligibility concept from RampsController. The `eligibility` state, `updateEligibility()` method, and `getEligibility()` service method have been removed. The `Eligibility` type and `RampsServiceGetEligibilityAction` are no longer exported. ([#7651](https://github.com/MetaMask/core/pull/7645))
+- **BREAKING:** Remove eligibility concept from RampsController. The `eligibility` state, `updateEligibility()` method, and `getEligibility()` service method have been removed. The `Eligibility` type and `RampsServiceGetEligibilityAction` are no longer exported. ([#7651](https://github.com/MetaMask/core/pull/7651))
 
 ## [3.0.0]
 
@@ -319,7 +330,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...HEAD
+[13.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...@metamask/ramps-controller@13.2.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...@metamask/ramps-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.1...@metamask/ramps-controller@12.1.0

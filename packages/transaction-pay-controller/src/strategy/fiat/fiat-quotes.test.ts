@@ -9,6 +9,7 @@ import type { Hex } from '@metamask/utils';
 import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyGetQuotesRequest,
+  TransactionFiatPayment,
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../../types';
@@ -17,7 +18,7 @@ import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import { getFiatQuotes } from './fiat-quotes';
-import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
+import { deriveFiatAssetForFiatPayment } from './utils';
 
 jest.mock('../relay/relay-quotes');
 jest.mock('../../utils/token');
@@ -66,6 +67,8 @@ const FIAT_QUOTE_MOCK: RampsQuote = {
     providerFee: 0.5,
   },
 };
+
+const SELECTED_PROVIDER_ID = '/providers/transak-native-staging';
 
 const FIAT_QUOTES_RESPONSE_MOCK: RampsQuotesResponse = {
   customActions: [],
@@ -123,47 +126,69 @@ function getRequest({
   amountFiat = '10',
   fiatPaymentMethod = '/payments/debit-credit-card',
   rampsQuotes = FIAT_QUOTES_RESPONSE_MOCK,
+  selectedProviderId = SELECTED_PROVIDER_ID as string | null,
   tokens = [REQUIRED_TOKEN_MOCK],
   throwsOnRampsQuotes,
 }: {
   amountFiat?: string;
   fiatPaymentMethod?: string;
   rampsQuotes?: RampsQuotesResponse;
+  selectedProviderId?: string | null;
   tokens?: TransactionPayRequiredToken[];
   throwsOnRampsQuotes?: Error;
 } = {}): {
   callMock: jest.Mock;
   request: PayStrategyGetQuotesRequest;
 } {
-  const callMock = jest.fn((action: string) => {
-    if (action === 'TransactionPayController:getState') {
-      return {
-        transactionData: {
-          [TRANSACTION_ID]: {
-            fiatPayment: {
-              amountFiat,
+  const callMock = jest.fn(
+    (action: string, requestArg?: Record<string, unknown>) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID]: {
+              fiatPayment: {
+                amountFiat,
+              },
+              isLoading: false,
+              tokens,
             },
-            isLoading: false,
-            tokens,
           },
-        },
-      };
-    }
-
-    if (action === 'RampsController:getQuotes') {
-      if (throwsOnRampsQuotes) {
-        throw throwsOnRampsQuotes;
+        };
       }
 
-      return rampsQuotes;
-    }
+      if (action === 'RampsController:getState') {
+        return {
+          providers: {
+            selected: selectedProviderId ? { id: selectedProviderId } : null,
+          },
+        };
+      }
 
-    throw new Error(`Unexpected action: ${action}`);
-  });
+      if (action === 'RampsController:getQuotes') {
+        if (throwsOnRampsQuotes) {
+          throw throwsOnRampsQuotes;
+        }
+
+        return rampsQuotes;
+      }
+
+      if (action === 'TransactionPayController:updateFiatPayment') {
+        const { callback } = requestArg as unknown as {
+          callback: (fiatPayment: TransactionFiatPayment) => void;
+        };
+        const fiatPayment: TransactionFiatPayment = {};
+        callback(fiatPayment);
+        return undefined;
+      }
+
+      throw new Error(`Unexpected action: ${action}`);
+    },
+  );
 
   return {
     callMock,
     request: {
+      accountSupports7702: false,
       fiatPaymentMethod,
       messenger: {
         call: callMock,
@@ -181,7 +206,6 @@ describe('getFiatQuotes', () => {
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
   );
-  const pickBestFiatQuoteMock = jest.mocked(pickBestFiatQuote);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -193,7 +217,6 @@ describe('getFiatQuotes', () => {
     });
     computeRawFromFiatAmountMock.mockReturnValue('5000000000000000000');
     getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
-    pickBestFiatQuoteMock.mockReturnValue(FIAT_QUOTE_MOCK);
   });
 
   it('returns combined fiat quote and calls ramps with adjusted amount', async () => {
@@ -219,8 +242,19 @@ describe('getFiatQuotes', () => {
       'RampsController:getQuotes',
       expect.objectContaining({
         amount: 20,
+        assetId: FIAT_ASSET_MOCK.caipAssetId,
+        fiat: 'USD',
         paymentMethods: ['/payments/debit-credit-card'],
+        providers: [SELECTED_PROVIDER_ID],
         walletAddress: WALLET_ADDRESS,
+      }),
+    );
+
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionPayController:updateFiatPayment',
+      expect.objectContaining({
+        callback: expect.any(Function),
+        transactionId: TRANSACTION_ID,
       }),
     );
 
@@ -301,16 +335,15 @@ describe('getFiatQuotes', () => {
       throw new Error(`Unexpected action: ${action}`);
     });
 
-    const request: PayStrategyGetQuotesRequest = {
+    const result = await getFiatQuotes({
+      accountSupports7702: false,
       fiatPaymentMethod: '/payments/debit-credit-card',
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],
       requests: [],
       transaction: TRANSACTION_MOCK,
-    };
-
-    const result = await getFiatQuotes(request);
+    });
 
     expect(result).toStrictEqual([]);
     expect(getRelayQuotesMock).not.toHaveBeenCalled();
@@ -425,9 +458,15 @@ describe('getFiatQuotes', () => {
     );
   });
 
-  it('returns empty array if preferred fiat quote is missing', async () => {
-    pickBestFiatQuoteMock.mockReturnValue(undefined);
-    const { request } = getRequest();
+  it('returns empty array if no quotes in success array', async () => {
+    const { request } = getRequest({
+      rampsQuotes: {
+        customActions: [],
+        error: [],
+        sorted: [],
+        success: [],
+      },
+    });
 
     const result = await getFiatQuotes(request);
 
@@ -435,7 +474,6 @@ describe('getFiatQuotes', () => {
   });
 
   it('handles ramps response without success property', async () => {
-    pickBestFiatQuoteMock.mockReturnValue(undefined);
     const { request } = getRequest({
       rampsQuotes: {
         customActions: [],
@@ -447,6 +485,72 @@ describe('getFiatQuotes', () => {
     const result = await getFiatQuotes(request);
 
     expect(result).toStrictEqual([]);
+  });
+
+  it('passes undefined providers when no provider is selected', async () => {
+    const { callMock, request } = getRequest({
+      selectedProviderId: null,
+    });
+
+    await getFiatQuotes(request);
+
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getQuotes',
+      expect.objectContaining({
+        providers: undefined,
+      }),
+    );
+  });
+
+  it('stores rampsQuote on fiat payment state via updateFiatPayment', async () => {
+    const fiatPaymentState: TransactionFiatPayment = {};
+    const callMock = jest.fn(
+      (action: string, requestArg?: Record<string, unknown>) => {
+        if (action === 'TransactionPayController:getState') {
+          return {
+            transactionData: {
+              [TRANSACTION_ID]: {
+                fiatPayment: { amountFiat: '10' },
+                isLoading: false,
+                tokens: [REQUIRED_TOKEN_MOCK],
+              },
+            },
+          };
+        }
+
+        if (action === 'RampsController:getState') {
+          return {
+            providers: { selected: { id: SELECTED_PROVIDER_ID } },
+          };
+        }
+
+        if (action === 'RampsController:getQuotes') {
+          return FIAT_QUOTES_RESPONSE_MOCK;
+        }
+
+        if (action === 'TransactionPayController:updateFiatPayment') {
+          const { callback } = requestArg as unknown as {
+            callback: (fp: TransactionFiatPayment) => void;
+          };
+          callback(fiatPaymentState);
+          return undefined;
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      },
+    );
+
+    await getFiatQuotes({
+      accountSupports7702: false,
+      fiatPaymentMethod: '/payments/debit-credit-card',
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyGetQuotesRequest['messenger'],
+      requests: [],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(fiatPaymentState.rampsQuote).toStrictEqual(FIAT_QUOTE_MOCK);
   });
 
   it('returns empty array if ramps quotes fetch throws', async () => {
@@ -474,15 +578,22 @@ describe('getFiatQuotes', () => {
   });
 
   it('sets providerFiat fee to zero when ramps provider/network fees are missing', async () => {
-    pickBestFiatQuoteMock.mockReturnValue({
+    const quoteWithoutFees: RampsQuote = {
       provider: '/providers/transak-native-staging',
       quote: {
         amountIn: 20,
         amountOut: 5,
         paymentMethod: '/payments/debit-credit-card',
       },
-    } as RampsQuote);
-    const { request } = getRequest();
+    };
+    const { request } = getRequest({
+      rampsQuotes: {
+        customActions: [],
+        error: [],
+        sorted: [],
+        success: [quoteWithoutFees],
+      },
+    });
 
     const result = await getFiatQuotes(request);
 

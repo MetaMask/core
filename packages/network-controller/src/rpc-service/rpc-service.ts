@@ -63,9 +63,8 @@ export type RpcServiceOptions = {
    */
   policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
   /**
-   * A function that checks if the user is currently offline. If it returns true,
-   * connection errors will not be retried, preventing degraded and break
-   * callbacks from being triggered.
+   * A function that checks if the user is currently offline. If it returns
+   * true, onDegraded and onBreak callbacks will not be called.
    */
   isOffline: () => boolean;
 };
@@ -322,6 +321,12 @@ export class RpcService {
   readonly #fetchOptions: FetchOptions;
 
   /**
+   * A function that checks if the user is currently offline. If it returns
+   * true, onDegraded and onBreak callbacks will not be called.
+   */
+  readonly #isOffline: () => boolean;
+
+  /**
    * A `loglevel` logger.
    */
   readonly #logger: RpcServiceOptions['logger'];
@@ -356,18 +361,13 @@ export class RpcService {
     );
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#logger = logger;
+    this.#isOffline = isOffline;
 
     this.#policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
       maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
       ...policyOptions,
       retryFilterPolicy: handleWhen((error) => {
-        // If user is offline, don't retry any errors
-        // This prevents degraded/break callbacks from being triggered
-        if (isOffline()) {
-          return false;
-        }
-
         return (
           // Ignore errors where the request failed to establish
           isConnectionError(error) ||
@@ -451,7 +451,7 @@ export class RpcService {
       // doesn't function the way it is intended, at least in the context of an
       // RpcService. However, we are making a bet that we won't need to use it
       // other than how we are already using it.
-      if (!('isolated' in data)) {
+      if (!hasProperty(data, 'isolated') && !this.#isOffline()) {
         listener({
           ...data,
           endpointUrl: this.endpointUrl.toString(),
@@ -480,12 +480,14 @@ export class RpcService {
     >,
   ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded((data) => {
-      listener({
-        ...data,
-        endpointUrl: this.endpointUrl.toString(),
-        rpcMethodName: this.#currentRpcMethodName,
-        traceId: this.#currentTraceId,
-      });
+      if (!this.#isOffline()) {
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+          traceId: this.#currentTraceId,
+        });
+      }
     });
   }
 

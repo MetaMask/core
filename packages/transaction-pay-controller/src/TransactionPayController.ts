@@ -12,6 +12,7 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
   TransactionConfigCallback,
@@ -25,7 +26,7 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { pollTransactionChanges } from './utils/transaction';
+import { getTransaction, pollTransactionChanges } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
@@ -119,14 +120,22 @@ export class TransactionPayController extends BaseController<
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         refundTo: transactionData.refundTo,
+        accountOverride: transactionData.accountOverride,
       };
+
+      const previousAccountOverride = config.accountOverride;
 
       callback(config);
 
+      transactionData.accountOverride = config.accountOverride;
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
+
+      if (config.accountOverride !== previousAccountOverride) {
+        transactionData.paymentToken = undefined;
+      }
     });
   }
 
@@ -207,6 +216,7 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
+    let shouldUpdateFiatToken = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -215,6 +225,10 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalAccountOverride = current?.accountOverride;
+      const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
+      const originalFiatPaymentMethodId =
+        current?.fiatPayment?.selectedPaymentMethodId;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -236,18 +250,52 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
+      const isAccountOverrideUpdated =
+        current.accountOverride !== originalAccountOverride;
+      const isFiatAmountUpdated =
+        current.fiatPayment?.amountFiat !== originalFiatPaymentAmount;
+      const isFiatPaymentMethodUpdated =
+        current.fiatPayment?.selectedPaymentMethodId !==
+        originalFiatPaymentMethodId;
 
       if (
         isPaymentTokenUpdated ||
         isIsMaxUpdated ||
         isTokensUpdated ||
-        isPostQuoteUpdated
+        isPostQuoteUpdated ||
+        isAccountOverrideUpdated
       ) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
       }
+
+      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
+        shouldUpdateQuotes = true;
+      }
+
+      if (isFiatPaymentMethodUpdated) {
+        shouldUpdateFiatToken = true;
+      }
     });
+
+    if (shouldUpdateFiatToken) {
+      const transaction = getTransaction(
+        transactionId,
+        this.messenger,
+      ) as TransactionMeta;
+      const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+      if (fiatAsset) {
+        try {
+          this.messenger.call(
+            'RampsController:setSelectedToken',
+            fiatAsset.caipAssetId,
+          );
+        } catch {
+          // Intentionally no-op — tokens may not be loaded in RampsController yet.
+        }
+      }
+    }
 
     if (shouldUpdateQuotes) {
       updateQuotes({

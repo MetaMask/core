@@ -4,6 +4,12 @@ export type {
   AsyncJsonrpcMiddleware,
 } from './createAsyncMiddleware';
 export { createAsyncMiddleware } from './createAsyncMiddleware';
+export type {
+  CreateMethodMiddlewareOptions,
+  MethodHandler,
+  MethodHandlerImplementation,
+} from './createMethodMiddleware';
+export { createMethodMiddleware } from './createMethodMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export { getUniqueId } from './getUniqueId';
 export { createIdRemapMiddleware } from './idRemapMiddleware';

@@ -11,6 +11,8 @@ export { AccountTrackerController } from './AccountTrackerController';
 export type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
+  AccountTrackerControllerRefreshAction,
+  AccountTrackerControllerSyncBalanceWithAddressesAction,
 } from './AccountTrackerController-method-action-types';
 export type {
   AssetsContractControllerActions,
@@ -42,6 +44,10 @@ export {
   AssetsContractController,
 } from './AssetsContractController';
 export * from './CurrencyRateController';
+export type {
+  CurrencyRateControllerSetCurrentCurrencyAction,
+  CurrencyRateControllerUpdateExchangeRateAction,
+} from './CurrencyRateController-method-action-types';
 export type {
   NftControllerState,
   NftControllerMessenger,
@@ -91,6 +97,8 @@ export { TokenBalancesController } from './TokenBalancesController';
 export type {
   TokenBalancesControllerUpdateChainPollingConfigsAction,
   TokenBalancesControllerGetChainPollingConfigAction,
+  TokenBalancesControllerUpdateBalancesAction,
+  TokenBalancesControllerResetStateAction,
 } from './TokenBalancesController-method-action-types';
 export type {
   TokenDetectionControllerMessenger,
@@ -166,6 +174,7 @@ export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
+  SPOT_PRICES_SUPPORT_INFO,
 } from './token-prices-service';
 export {
   searchTokens,

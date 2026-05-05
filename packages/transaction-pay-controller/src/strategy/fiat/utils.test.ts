@@ -2,8 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
 import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
-import type { FiatQuotesResponse } from './types';
-import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
+import { deriveFiatAssetForFiatPayment } from './utils';
 
 describe('Fiat Utils', () => {
   describe('deriveFiatAssetForFiatPayment', () => {
@@ -38,48 +37,6 @@ describe('Fiat Utils', () => {
       } as TransactionMeta;
 
       const result = deriveFiatAssetForFiatPayment(transaction);
-
-      expect(result).toBeUndefined();
-    });
-  });
-
-  describe('pickBestFiatQuote', () => {
-    it('returns transak-native-staging quote when present', () => {
-      const quotes = {
-        customActions: [],
-        error: [],
-        sorted: [],
-        success: [
-          {
-            provider: '/providers/moonpay',
-            quote: { amountIn: 10, amountOut: 20, paymentMethod: 'card' },
-          },
-          {
-            provider: '/providers/transak-native-staging',
-            quote: { amountIn: 11, amountOut: 22, paymentMethod: 'card' },
-          },
-        ],
-      } as FiatQuotesResponse;
-
-      const result = pickBestFiatQuote(quotes);
-
-      expect(result).toStrictEqual(quotes.success[1]);
-    });
-
-    it('returns undefined when transak-native-staging quote is missing', () => {
-      const quotes = {
-        customActions: [],
-        error: [],
-        sorted: [],
-        success: [
-          {
-            provider: '/providers/moonpay',
-            quote: { amountIn: 10, amountOut: 20, paymentMethod: 'card' },
-          },
-        ],
-      } as FiatQuotesResponse;
-
-      const result = pickBestFiatQuote(quotes);
 
       expect(result).toBeUndefined();
     });

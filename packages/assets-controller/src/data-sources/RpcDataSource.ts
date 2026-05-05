@@ -8,7 +8,6 @@ import type {
   NetworkState,
   NetworkStatus,
 } from '@metamask/network-controller';
-import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
@@ -72,8 +71,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AssetsControllerGetStateAction
-  | NetworkEnablementControllerGetStateAction;
+  | AssetsControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
 export type RpcDataSourceAllowedEvents =
@@ -116,6 +114,8 @@ export type RpcDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /** Resolves CAIP-2 chain ID to CAIP-19 native asset ID from the cached native asset map. */
+  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -197,6 +197,8 @@ export class RpcDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
+
   readonly #timeout: number;
 
   readonly #tokenDetectionEnabled: () => boolean;
@@ -232,6 +234,7 @@ export class RpcDataSource extends AbstractDataSource<
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#getNativeAssetForChain = options.getNativeAssetForChain;
     this.#timeout = options.timeout ?? 10_000;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
@@ -262,6 +265,7 @@ export class RpcDataSource extends AbstractDataSource<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
+        customAssets?: Record<string, string[]>;
       } => {
         const state = this.#messenger.call('AssetsController:getState');
         return {
@@ -269,6 +273,7 @@ export class RpcDataSource extends AbstractDataSource<
             string,
             Record<string, { amount: string }>
           >,
+          customAssets: (state.customAssets ?? {}) as Record<string, string[]>,
         };
       },
     };
@@ -277,7 +282,14 @@ export class RpcDataSource extends AbstractDataSource<
     this.#balanceFetcher = new BalanceFetcher(
       this.#multicallClient,
       balanceFetcherMessenger,
-      { pollingInterval: balanceInterval },
+      {
+        pollingInterval: balanceInterval,
+        isNativeAsset: (assetId: Caip19AssetId): boolean => {
+          const { chainId } = parseCaipAssetType(assetId);
+          const nativeId = this.#getNativeAssetForChain(chainId);
+          return nativeId?.toLowerCase() === assetId.toLowerCase();
+        },
+      },
     );
     // Polling controller awaits this callback; rejections must not become unhandled.
     this.#balanceFetcher.setOnBalanceUpdate(async (result) => {
@@ -342,8 +354,11 @@ export class RpcDataSource extends AbstractDataSource<
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const existingMetadata = this.#getExistingAssetsMetadata();
 
+    const nativeAssetId = this.#getNativeAssetForChain(chainId);
     for (const balance of balances) {
-      const isNative = balance.assetId.includes('/slip44:');
+      const isNative =
+        existingMetadata[balance.assetId]?.type === 'native' ||
+        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
       if (isNative) {
         const chainStatus = this.#chainStatuses[chainId];
 
@@ -906,7 +921,7 @@ export class RpcDataSource extends AbstractDataSource<
         const hexChainId = caipChainIdToHex(chainId);
 
         // Build a single AssetFetchEntry[] for native + custom ERC-20s
-        const nativeAssetId = this.#buildNativeAssetId(chainId);
+        const nativeAssetId = this.#getNativeAssetForChain(chainId);
         const assetsToFetch: AssetFetchEntry[] = [
           { assetId: nativeAssetId, address: ZERO_ADDRESS },
         ];
@@ -1295,12 +1310,20 @@ export class RpcDataSource extends AbstractDataSource<
           chainId: hexChainId,
           accountId,
           accountAddress: address as Address,
+          ...(request.customAssetsOnly === true
+            ? { customAssetsOnly: true }
+            : {}),
         };
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled and external services allowed
-        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
+        // Token detection is only relevant for "regular" subscriptions —
+        // a customAssetsOnly subscription should never run detection.
+        if (
+          request.customAssetsOnly !== true &&
+          this.#tokenDetectionEnabled() &&
+          this.#useExternalService()
+        ) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,
@@ -1354,20 +1377,6 @@ export class RpcDataSource extends AbstractDataSource<
       this.#activeSubscriptions.delete(subscriptionId);
       log('Unsubscribed and stopped polling', { subscriptionId });
     }
-  }
-
-  /**
-   * Build the native asset ID for a given chain using NetworkEnablementController state.
-   *
-   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:1")
-   * @returns The CAIP-19 native asset ID (e.g., "eip155:1/slip44:60")
-   */
-  #buildNativeAssetId(chainId: ChainId): Caip19AssetId {
-    const { nativeAssetIdentifiers } = this.#messenger.call(
-      'NetworkEnablementController:getState',
-    );
-
-    return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
   }
 
   /**

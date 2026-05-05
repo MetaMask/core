@@ -2,7 +2,7 @@ import { generateActionTypesContent } from './generate-content';
 import type { SourceInfo } from './parse-source';
 
 describe('generateActionTypesContent', () => {
-  it('generates action types for a controller with one method', () => {
+  it('generates action types for a controller with one method', async () => {
     const controller: SourceInfo = {
       name: 'FooController',
       filePath: '/some/path/FooController.ts',
@@ -11,26 +11,33 @@ describe('generateActionTypesContent', () => {
         {
           name: 'doSomething',
           jsDoc: '',
-          signature: 'doSomething',
         },
       ],
     };
 
-    const result = generateActionTypesContent(controller);
+    const result = await generateActionTypesContent(controller, 'prettier');
+    expect(result).toMatchInlineSnapshot(`
+      "/**
+       * This file is auto generated.
+       * Do not edit manually.
+       */
 
-    expect(result).toContain('This file is auto generated.');
-    expect(result).toContain(
-      "import type { FooController } from './FooController';",
-    );
-    expect(result).toContain('export type FooControllerDoSomethingAction = {');
-    expect(result).toContain('type: `FooController:doSomething`;');
-    expect(result).toContain("handler: FooController['doSomething'];");
-    expect(result).toContain(
-      'export type FooControllerMethodActions = FooControllerDoSomethingAction;',
-    );
+      import type { FooController } from './FooController';
+
+      export type FooControllerDoSomethingAction = {
+        type: \`FooController:doSomething\`;
+        handler: FooController['doSomething'];
+      };
+
+      /**
+       * Union of all FooController action types.
+       */
+      export type FooControllerMethodActions = FooControllerDoSomethingAction;
+      "
+    `);
   });
 
-  it('generates action types for a controller with multiple methods', () => {
+  it('generates action types for a controller with multiple methods', async () => {
     const controller: SourceInfo = {
       name: 'BarController',
       filePath: '/some/path/BarController.ts',
@@ -41,16 +48,66 @@ describe('generateActionTypesContent', () => {
       ],
     };
 
-    const result = generateActionTypesContent(controller);
+    const result = await generateActionTypesContent(controller, 'prettier');
+    expect(result).toMatchInlineSnapshot(`
+      "/**
+       * This file is auto generated.
+       * Do not edit manually.
+       */
 
-    expect(result).toContain('export type BarControllerMethodAAction = {');
-    expect(result).toContain('export type BarControllerMethodBAction = {');
-    expect(result).toContain(
-      'export type BarControllerMethodActions = BarControllerMethodAAction | BarControllerMethodBAction;',
-    );
+      import type { BarController } from './BarController';
+
+      export type BarControllerMethodAAction = {
+        type: \`BarController:methodA\`;
+        handler: BarController['methodA'];
+      };
+
+      export type BarControllerMethodBAction = {
+        type: \`BarController:methodB\`;
+        handler: BarController['methodB'];
+      };
+
+      /**
+       * Union of all BarController action types.
+       */
+      export type BarControllerMethodActions =
+        | BarControllerMethodAAction
+        | BarControllerMethodBAction;
+      "
+    `);
   });
 
-  it('includes JSDoc comments when present', () => {
+  it('formats the generated content with Oxfmt if specified', async () => {
+    const controller: SourceInfo = {
+      name: 'BazController',
+      filePath: '/some/path/BazController.ts',
+
+      methods: [{ name: 'doSomething', jsDoc: '' }],
+    };
+
+    const result = await generateActionTypesContent(controller, 'oxfmt');
+    expect(result).toMatchInlineSnapshot(`
+      "/**
+       * This file is auto generated.
+       * Do not edit manually.
+       */
+
+      import type { BazController } from './BazController';
+
+      export type BazControllerDoSomethingAction = {
+        type: \`BazController:doSomething\`;
+        handler: BazController['doSomething'];
+      };
+
+      /**
+       * Union of all BazController action types.
+       */
+      export type BazControllerMethodActions = BazControllerDoSomethingAction;
+      "
+    `);
+  });
+
+  it('includes JSDoc comments when present', async () => {
     const controller: SourceInfo = {
       name: 'FooController',
       filePath: '/some/path/FooController.ts',
@@ -59,17 +116,16 @@ describe('generateActionTypesContent', () => {
         {
           name: 'doSomething',
           jsDoc: '/**\n * Does something.\n */',
-          signature: 'doSomething',
         },
       ],
     };
 
-    const result = generateActionTypesContent(controller);
+    const result = await generateActionTypesContent(controller, 'prettier');
 
     expect(result).toContain('/**\n * Does something.\n */');
   });
 
-  it('generates no union type for controllers with no methods', () => {
+  it('generates no union type for controllers with no methods', async () => {
     const controller: SourceInfo = {
       name: 'EmptyController',
       filePath: '/some/path/EmptyController.ts',
@@ -77,7 +133,7 @@ describe('generateActionTypesContent', () => {
       methods: [],
     };
 
-    const result = generateActionTypesContent(controller);
+    const result = await generateActionTypesContent(controller, 'prettier');
 
     expect(result).not.toContain('EmptyControllerMethodActions');
   });
