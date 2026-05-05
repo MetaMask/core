@@ -183,6 +183,7 @@ jobs:
         id: push-changes
         env:
           NEW_COMMIT_ID: ${{ steps.commit-updated-changelogs.outputs.new-commit-id }}
+          PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
           PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
         run: |
           if [[ -n "$NEW_COMMIT_ID" ]]; then
