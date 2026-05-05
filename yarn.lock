@@ -2579,7 +2579,8 @@ __metadata:
     "@metamask/keyring-api": "npm:^23.1.0"
     "@metamask/keyring-controller": "npm:^25.4.0"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-sdk": "npm:^2.1.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^30.1.0"
     "@metamask/providers": "npm:^22.1.0"
@@ -4240,7 +4241,7 @@ __metadata:
     "@metamask/eth-simple-keyring": "npm:^12.0.2"
     "@metamask/keyring-api": "npm:^23.1.0"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/utils": "npm:^11.9.0"
@@ -4287,21 +4288,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-sdk@npm:^2.0.2":
-  version: 2.0.2
-  resolution: "@metamask/keyring-sdk@npm:2.0.2"
+"@metamask/keyring-sdk@npm:^2.0.2, @metamask/keyring-sdk@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "@metamask/keyring-sdk@npm:2.1.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/keyring-api": "npm:^23.1.0"
-    "@metamask/keyring-utils": "npm:^3.2.0"
+    "@metamask/keyring-utils": "npm:^3.3.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
     async-mutex: "npm:^0.5.0"
     ethereum-cryptography: "npm:^2.2.1"
     uuid: "npm:^9.0.1"
-  checksum: 10/2f456613df81580b032215ddf1c90fa9440442d631945329094a488743a71fdbbfe787c2c0809a315a1368ddbf9d3755faa936c54094cb32958fe8222f7e7a86
+  checksum: 10/17384972f02f31472b7fc2b850ab6e988ff5eda59d3c92d62d39feaa59cf9e280ee97643b560e72ee75f95f5cf2d218fa0a3e2dd3308814f938935985457c530
   languageName: node
   linkType: hard
 
@@ -4337,15 +4338,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.1.0, @metamask/keyring-utils@npm:^3.2.0":
-  version: 3.2.0
-  resolution: "@metamask/keyring-utils@npm:3.2.0"
+"@metamask/keyring-utils@npm:^3.2.0, @metamask/keyring-utils@npm:^3.3.0":
+  version: 3.3.0
+  resolution: "@metamask/keyring-utils@npm:3.3.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.11.0"
     bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/e71aa1b9ec9a24c72ea6d4864a10f11e68e5b77789728067230ec40cee2e85ad69073404d2fa62c760f014fd910fb68b3305a08f906f2534b9119e2a26d06a2b
+  checksum: 10/a91d150f3e9e65ade619f3cc02959f8eb478330cb3f793f228f9a3ef2d75ee68f518167740c779719fead0b23b80536d1299c2196e07742c1b4340b988bb0801
   languageName: node
   linkType: hard
 
@@ -4496,7 +4497,7 @@ __metadata:
     "@metamask/eth-money-keyring": "npm:^2.0.4"
     "@metamask/keyring-api": "npm:^23.1.0"
     "@metamask/keyring-controller": "npm:^25.4.0"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -4552,7 +4553,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^25.4.0"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
     "@metamask/keyring-snap-client": "npm:^9.0.2"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
@@ -5797,7 +5798,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0, @metamask/utils@npm:^11.10.0, @metamask/utils@npm:^11.11.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.1, @metamask/utils@npm:^11.9.0":
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.10.0, @metamask/utils@npm:^11.11.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.1, @metamask/utils@npm:^11.9.0":
   version: 11.11.0
   resolution: "@metamask/utils@npm:11.11.0"
   dependencies:
