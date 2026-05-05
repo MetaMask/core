@@ -115,17 +115,12 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
     steps:
-      - name: Checkout main
+      - name: Checkout repository
         uses: actions/checkout@v6
         with:
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
-      - name: Setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
-
-      - name: Overlay changelog files from current PR
+      - name: Checkout pull request
         env:
           PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
           PR_BASE_REF: ${{ needs.is-release.outputs.base-ref }}
@@ -133,6 +128,11 @@ jobs:
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git fetch --no-tags origin "$PR_BASE_REF"
           git checkout --detach "$PR_HEAD_SHA"
+
+      - name: Setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
 
       - name: Ensure required dependency bump entries exist across all changelogs
         id: update-changelogs
