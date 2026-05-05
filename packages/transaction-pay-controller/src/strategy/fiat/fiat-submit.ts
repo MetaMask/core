@@ -19,7 +19,7 @@ import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
+import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 
@@ -107,41 +107,6 @@ function parseOrderId(
   }
 
   return { orderCode: parts[3], providerCode: parts[1] };
-}
-
-/**
- * Converts the order's human-readable crypto amount to a raw token amount.
- *
- * @param options - The conversion options.
- * @param options.cryptoAmount - Human-readable crypto amount from the completed order.
- * @param options.decimals - Token decimals for the fiat asset.
- * @returns The raw token amount as a string.
- */
-function getRawSourceAmountFromOrder({
-  cryptoAmount,
-  decimals,
-}: {
-  cryptoAmount: RampsOrder['cryptoAmount'];
-  decimals: number;
-}): string {
-  const normalizedAmount = new BigNumber(String(cryptoAmount));
-
-  if (!normalizedAmount.isFinite() || normalizedAmount.lte(0)) {
-    throw new Error(
-      `Invalid fiat order crypto amount: ${String(cryptoAmount)}`,
-    );
-  }
-
-  const rawAmount = normalizedAmount
-    .shiftedBy(decimals)
-    .decimalPlaces(0, BigNumber.ROUND_DOWN)
-    .toFixed(0);
-
-  if (!new BigNumber(rawAmount).gt(0)) {
-    throw new Error('Computed fiat order source amount is not positive');
-  }
-
-  return rawAmount;
 }
 
 /**
@@ -334,9 +299,10 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const sourceAmountRaw = getRawSourceAmountFromOrder({
-    cryptoAmount: order.cryptoAmount,
-    decimals: fiatAsset.decimals,
+  const sourceAmountRaw = await resolveSourceAmountRaw({
+    messenger,
+    order,
+    fiatAsset,
   });
 
   const baseRequest = quotes[0].request;

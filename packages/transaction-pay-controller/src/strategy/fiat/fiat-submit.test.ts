@@ -20,7 +20,7 @@ import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import { submitFiatQuotes } from './fiat-submit';
 import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
+import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
 
 jest.mock('./utils');
 jest.mock('../relay/relay-quotes');
@@ -231,6 +231,7 @@ describe('submitFiatQuotes', () => {
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
   );
+  const resolveSourceAmountRawMock = jest.mocked(resolveSourceAmountRaw);
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
 
@@ -239,6 +240,7 @@ describe('submitFiatQuotes', () => {
     jest.useRealTimers();
 
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
+    resolveSourceAmountRawMock.mockResolvedValue('1000000000000000000');
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_RESULT_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({
       transactionHash: '0x1234',
@@ -255,6 +257,7 @@ describe('submitFiatQuotes', () => {
       },
       status: RampsOrderStatus.Completed,
     });
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
     const { callMock, request } = getRequest({ order });
 
     const result = await submitFiatQuotes(request);
@@ -265,6 +268,11 @@ describe('submitFiatQuotes', () => {
       'order-123',
       WALLET_ADDRESS_MOCK,
     );
+    expect(resolveSourceAmountRawMock).toHaveBeenCalledWith({
+      messenger: expect.anything(),
+      order,
+      fiatAsset: FIAT_ASSET_MOCK,
+    });
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
     expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
       expect.objectContaining({
@@ -502,20 +510,16 @@ describe('submitFiatQuotes', () => {
     );
   });
 
-  it.each([
-    ['0', 'Invalid fiat order crypto amount: 0'],
-    ['-1', 'Invalid fiat order crypto amount: -1'],
-    ['NaN', 'Invalid fiat order crypto amount: NaN'],
-  ])(
-    'throws if order crypto amount is invalid (%s)',
-    async (cryptoAmount, expectedError) => {
-      const { request } = getRequest({
-        order: getFiatOrderMock({ cryptoAmount }),
-      });
+  it('throws if resolveSourceAmountRaw rejects', async () => {
+    resolveSourceAmountRawMock.mockRejectedValue(
+      new Error('Invalid fiat order crypto amount: 0'),
+    );
+    const { request } = getRequest();
 
-      await expect(submitFiatQuotes(request)).rejects.toThrow(expectedError);
-    },
-  );
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Invalid fiat order crypto amount: 0',
+    );
+  });
 
   it('throws if request has no fiat quotes', async () => {
     const { request } = getRequest();
@@ -535,10 +539,11 @@ describe('submitFiatQuotes', () => {
     );
   });
 
-  it('throws if crypto amount rounds to zero after decimal shift', async () => {
-    const { request } = getRequest({
-      order: getFiatOrderMock({ cryptoAmount: '0.0000000000000000001' }),
-    });
+  it('throws if resolveSourceAmountRaw throws for zero amount', async () => {
+    resolveSourceAmountRawMock.mockRejectedValue(
+      new Error('Computed fiat order source amount is not positive'),
+    );
+    const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Computed fiat order source amount is not positive',

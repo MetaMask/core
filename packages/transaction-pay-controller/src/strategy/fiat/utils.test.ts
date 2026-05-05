@@ -1,8 +1,59 @@
+import { Interface } from '@ethersproject/abi';
+import { Web3Provider } from '@ethersproject/providers';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
+import type { RampsOrder } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
-import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
-import { deriveFiatAssetForFiatPayment } from './utils';
+import { NATIVE_TOKEN_ADDRESS } from '../../constants';
+import { getMessengerMock } from '../../tests/messenger-mock';
+import { FIAT_ASSET_ID_BY_TX_TYPE, TransactionPayFiatAsset } from './constants';
+import {
+  deriveFiatAssetForFiatPayment,
+  getRawSourceAmountFromOrderCryptoAmount,
+  resolveSourceAmountRaw,
+} from './utils';
+
+jest.mock('@ethersproject/providers', () => ({
+  ...jest.requireActual('@ethersproject/providers'),
+  Web3Provider: jest.fn(),
+}));
+
+const TX_HASH_MOCK = '0xabc123';
+const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+const ERC20_ADDRESS_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
+const CHAIN_ID_MOCK = '0x1' as Hex;
+const NETWORK_CLIENT_ID_MOCK = 'net-client-1';
+const PROVIDER_MOCK = { request: jest.fn() };
+
+const NATIVE_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
+  address: NATIVE_TOKEN_ADDRESS,
+  caipAssetId: 'eip155:1/slip44:60',
+  chainId: CHAIN_ID_MOCK,
+  decimals: 18,
+};
+
+const ERC20_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
+  address: ERC20_ADDRESS_MOCK,
+  caipAssetId: 'eip155:1/erc20:0x2222222222222222222222222222222222222222',
+  chainId: CHAIN_ID_MOCK,
+  decimals: 6,
+};
+
+const erc20Interface = new Interface(abiERC20);
+
+function buildTransferCallData(to: Hex, amount: string): string {
+  return erc20Interface.encodeFunctionData('transfer', [to, amount]);
+}
+
+function getOrderMock(overrides: Partial<RampsOrder> = {}): RampsOrder {
+  return {
+    cryptoAmount: '1.5',
+    txHash: TX_HASH_MOCK,
+    ...overrides,
+  } as RampsOrder;
+}
 
 describe('Fiat Utils', () => {
   describe('deriveFiatAssetForFiatPayment', () => {
@@ -39,6 +90,134 @@ describe('Fiat Utils', () => {
       const result = deriveFiatAssetForFiatPayment(transaction);
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('resolveSourceAmountRaw', () => {
+    const {
+      messenger,
+      findNetworkClientIdByChainIdMock,
+      getNetworkClientByIdMock,
+    } = getMessengerMock();
+
+    let mockGetTransaction: jest.Mock;
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+
+      mockGetTransaction = jest.fn();
+
+      findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+      getNetworkClientByIdMock.mockReturnValue({
+        provider: PROVIDER_MOCK,
+      } as never);
+
+      (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
+        getTransaction: mockGetTransaction,
+      }));
+    });
+
+    it('returns on-chain amount when txHash is present and read succeeds', async () => {
+      mockGetTransaction.mockResolvedValue({
+        data: buildTransferCallData(WALLET_ADDRESS_MOCK, '7000000'),
+        value: { toString: () => '0' },
+      });
+
+      const result = await resolveSourceAmountRaw({
+        messenger,
+        order: getOrderMock(),
+        fiatAsset: ERC20_FIAT_ASSET_MOCK,
+      });
+
+      expect(result).toBe('7000000');
+    });
+
+    it('falls back to cryptoAmount when txHash is missing', async () => {
+      const result = await resolveSourceAmountRaw({
+        messenger,
+        order: getOrderMock({ txHash: '' }),
+        fiatAsset: ERC20_FIAT_ASSET_MOCK,
+      });
+
+      expect(result).toBe('1500000');
+      expect(mockGetTransaction).not.toHaveBeenCalled();
+    });
+
+    it('falls back to cryptoAmount when on-chain read returns undefined', async () => {
+      mockGetTransaction.mockResolvedValue(null);
+
+      const result = await resolveSourceAmountRaw({
+        messenger,
+        order: getOrderMock(),
+        fiatAsset: ERC20_FIAT_ASSET_MOCK,
+      });
+
+      expect(result).toBe('1500000');
+    });
+
+    it('falls back to cryptoAmount when on-chain read throws', async () => {
+      mockGetTransaction.mockRejectedValue(new Error('Network error'));
+
+      const result = await resolveSourceAmountRaw({
+        messenger,
+        order: getOrderMock(),
+        fiatAsset: ERC20_FIAT_ASSET_MOCK,
+      });
+
+      expect(result).toBe('1500000');
+    });
+
+    it('returns on-chain native token amount when txHash is present', async () => {
+      mockGetTransaction.mockResolvedValue({
+        value: { toString: () => '2000000000000000000' },
+      });
+
+      const result = await resolveSourceAmountRaw({
+        messenger,
+        order: getOrderMock(),
+        fiatAsset: NATIVE_FIAT_ASSET_MOCK,
+      });
+
+      expect(result).toBe('2000000000000000000');
+    });
+  });
+
+  describe('getRawSourceAmountFromOrderCryptoAmount', () => {
+    it('converts human-readable amount to raw token amount', () => {
+      expect(
+        getRawSourceAmountFromOrderCryptoAmount({
+          cryptoAmount: '1.2345',
+          decimals: 18,
+        }),
+      ).toBe('1234500000000000000');
+    });
+
+    it('truncates fractional sub-decimal amounts', () => {
+      expect(
+        getRawSourceAmountFromOrderCryptoAmount({
+          cryptoAmount: '1.1234567',
+          decimals: 6,
+        }),
+      ).toBe('1123456');
+    });
+
+    it.each([
+      ['0', 'Invalid fiat order crypto amount: 0'],
+      ['-1', 'Invalid fiat order crypto amount: -1'],
+      ['NaN', 'Invalid fiat order crypto amount: NaN'],
+    ])('throws for invalid crypto amount %s', (cryptoAmount, expectedError) => {
+      expect(() =>
+        getRawSourceAmountFromOrderCryptoAmount({ cryptoAmount, decimals: 18 }),
+      ).toThrow(expectedError);
+    });
+
+    it('throws when computed amount rounds to zero', () => {
+      expect(() =>
+        getRawSourceAmountFromOrderCryptoAmount({
+          cryptoAmount: '0.0000000000000000001',
+          decimals: 18,
+        }),
+      ).toThrow('Computed fiat order source amount is not positive');
     });
   });
 });
