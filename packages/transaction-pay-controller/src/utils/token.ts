@@ -364,8 +364,7 @@ export function buildCaipAssetType(
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    const coinType =
-      slip44CoinType ?? SLIP44_COIN_TYPE_BY_CHAIN[chainId] ?? 60;
+    const coinType = slip44CoinType ?? SLIP44_COIN_TYPE_BY_CHAIN[chainId] ?? 60;
 
     return toCaipAssetType(
       'eip155',
@@ -375,12 +374,7 @@ export function buildCaipAssetType(
     );
   }
 
-  return toCaipAssetType(
-    'eip155',
-    chainReference,
-    'erc20',
-    tokenAddress,
-  );
+  return toCaipAssetType('eip155', chainReference, 'erc20', tokenAddress);
 }
 
 function getTicker(

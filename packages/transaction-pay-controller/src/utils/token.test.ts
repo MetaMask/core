@@ -842,14 +842,13 @@ describe('Token Utils', () => {
 
   describe('buildCaipAssetType', () => {
     it('returns slip44 asset type for native token on mainnet', () => {
-      expect(
-        buildCaipAssetType('0x1' as Hex, NATIVE_TOKEN_ADDRESS),
-      ).toBe('eip155:1/slip44:60');
+      expect(buildCaipAssetType('0x1' as Hex, NATIVE_TOKEN_ADDRESS)).toBe(
+        'eip155:1/slip44:60',
+      );
     });
 
     it('returns slip44 asset type for Polygon native token with auto-mapped coin type', () => {
-      const polygonNative =
-        '0x0000000000000000000000000000000000001010' as Hex;
+      const polygonNative = '0x0000000000000000000000000000000000001010' as Hex;
 
       expect(buildCaipAssetType('0x89' as Hex, polygonNative)).toBe(
         'eip155:137/slip44:966',
@@ -857,8 +856,7 @@ describe('Token Utils', () => {
     });
 
     it('returns slip44 asset type with explicit coin type override', () => {
-      const polygonNative =
-        '0x0000000000000000000000000000000000001010' as Hex;
+      const polygonNative = '0x0000000000000000000000000000000000001010' as Hex;
 
       expect(buildCaipAssetType('0x89' as Hex, polygonNative, 966)).toBe(
         'eip155:137/slip44:966',
@@ -866,8 +864,7 @@ describe('Token Utils', () => {
     });
 
     it('returns erc20 asset type for ERC-20 token', () => {
-      const usdcAddress =
-        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex;
+      const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex;
 
       expect(buildCaipAssetType('0x1' as Hex, usdcAddress)).toBe(
         `eip155:1/erc20:${usdcAddress}`,
@@ -875,9 +872,9 @@ describe('Token Utils', () => {
     });
 
     it('defaults slip44CoinType to 60 for native tokens', () => {
-      expect(
-        buildCaipAssetType('0xa4b1' as Hex, NATIVE_TOKEN_ADDRESS),
-      ).toBe('eip155:42161/slip44:60');
+      expect(buildCaipAssetType('0xa4b1' as Hex, NATIVE_TOKEN_ADDRESS)).toBe(
+        'eip155:42161/slip44:60',
+      );
     });
   });
 });

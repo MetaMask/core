@@ -722,9 +722,7 @@ describe('TransactionPayController', () => {
 
     it('does not call setSelectedToken when fiat asset cannot be derived', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetForFiatPaymentMock.mockReturnValue(
-        undefined as never,
-      );
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined as never);
 
       const updateTransactionData = getUpdateTransactionData();
 
