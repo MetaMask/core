@@ -5,7 +5,6 @@ export const VERSION = '2.0.0';
 export const KEYRING_TYPES_SUPPORTING_7702 = [
   KeyringTypes.hd,
   KeyringTypes.simple,
-  KeyringTypes.money,
 ];
 
 export enum MessageType {

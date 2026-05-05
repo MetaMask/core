@@ -19,7 +19,6 @@ const CHAIN_ID_MOCK = '0x123';
 const FROM_MOCK = '0xabc123';
 const FROM_MOCK_HARDWARE = '0xdef456';
 const FROM_MOCK_SIMPLE = '0x789abc';
-const FROM_MOCK_MONEY = '0xaabbcc';
 const DELEGATION_ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678';
 
 type AllActions = MessengerActions<EIP5792Messenger>;
@@ -133,14 +132,6 @@ describe('EIP-5792', () => {
               },
             },
           },
-          [FROM_MOCK_MONEY]: {
-            address: FROM_MOCK_MONEY,
-            metadata: {
-              keyring: {
-                type: KeyringTypes.money,
-              },
-            },
-          },
         },
       },
     } as unknown as AccountsControllerState);
@@ -238,31 +229,6 @@ describe('EIP-5792', () => {
       });
     });
 
-    it('includes atomic capability if not yet upgraded and money keyring', async () => {
-      isAtomicBatchSupportedMock.mockResolvedValueOnce([
-        {
-          chainId: CHAIN_ID_MOCK,
-          delegationAddress: undefined,
-          isSupported: false,
-          upgradeContractAddress: DELEGATION_ADDRESS_MOCK,
-        },
-      ]);
-
-      const capabilities = await getCapabilities(
-        getCapabilitiesHooks,
-        messenger,
-        FROM_MOCK_MONEY,
-        [CHAIN_ID_MOCK],
-      );
-
-      expect(capabilities).toStrictEqual({
-        [CHAIN_ID_MOCK]: {
-          atomic: {
-            status: 'ready',
-          },
-        },
-      });
-    });
 
     it('does not include atomic capability if chain not supported', async () => {
       isAtomicBatchSupportedMock.mockResolvedValueOnce([]);
