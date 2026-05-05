@@ -132,7 +132,7 @@ jobs:
         run: |
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git fetch --no-tags origin "$PR_BASE_REF"
-          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md'
+          git checkout --detach "$PR_HEAD_SHA"
 
       - name: Ensure required dependency bump entries exist across all changelogs
         id: update-changelogs
