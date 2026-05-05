@@ -1203,15 +1203,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         continue;
       }
       const existing = tokensByChain.get(chainId) ?? [];
-      if (
-        existing.some((addr) =>
-          isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
-        )
-      ) {
-        continue;
+      const alreadyHasMusd = existing.some((addr) =>
+        isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+      );
+      if (!alreadyHasMusd) {
+        tokensByChain.set(chainId, [...existing, MUSD_ERC20_ADDRESS_LOWER]);
       }
-      const next = [...existing, MUSD_ERC20_ADDRESS_LOWER];
-      tokensByChain.set(chainId, next);
     }
 
     // Add detected tokens via TokenDetectionController (handles preference check,

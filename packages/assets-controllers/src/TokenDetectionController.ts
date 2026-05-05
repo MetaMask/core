@@ -762,9 +762,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @returns New map including mUSD when applicable.
    */
   #mergeMusdIntoTokenListMap(chainId: Hex, data: TokenListMap): TokenListMap {
-    if (!MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
-      return data;
-    }
     return {
       ...data,
       [MUSD_ERC20_ADDRESS_LOWER]: this.#buildMusdTokenListToken(chainId),
@@ -817,16 +814,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         isEqualCaseInsensitive(a, MUSD_ERC20_ADDRESS_LOWER),
       )
     ) {
-      return tokensSlice;
-    }
-    const listData = this.#tokensChainsCache[chainId]?.data;
-    if (!listData) {
-      return tokensSlice;
-    }
-    const hasMusd = Object.keys(listData).some((k) =>
-      isEqualCaseInsensitive(k, MUSD_ERC20_ADDRESS_LOWER),
-    );
-    if (!hasMusd) {
       return tokensSlice;
     }
     return [...tokensSlice, MUSD_ERC20_ADDRESS_LOWER];

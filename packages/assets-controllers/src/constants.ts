@@ -1,7 +1,4 @@
-import {
-  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
-  ChainId,
-} from '@metamask/controller-utils';
+import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 export enum Source {
@@ -33,11 +30,11 @@ export const MUSD_ERC20_ADDRESS_LOWER =
  * EVM chains where mUSD is always merged into the token-detection candidate list.
  * Metadata matches `GET /v3/assets` on `tokens.api.cx.metamask.io` (assetIds CAIP-19).
  */
-export const MUSD_TOKEN_DETECTION_CHAIN_IDS: readonly Hex[] = [
-  ChainId.mainnet,
-  ChainId['linea-mainnet'],
+export const MUSD_TOKEN_DETECTION_CHAIN_IDS = [
+  '0x1', // Ethereum mainnet (eip155:1)
+  '0xe708', // Linea (eip155:59144)
   '0x8f', // Monad mainnet (eip155:143)
-] as const;
+] as const satisfies readonly Hex[];
 
 /** Raw `aggregators` keys from the Tokens API (same shape as token list cache). */
 export type MusdTokenDetectionMetadata = {
@@ -51,13 +48,13 @@ export const MUSD_TOKEN_METADATA_BY_CHAIN: Record<
   (typeof MUSD_TOKEN_DETECTION_CHAIN_IDS)[number],
   MusdTokenDetectionMetadata
 > = {
-  [ChainId.mainnet]: {
+  '0x1': {
     name: 'MetaMask USD',
     symbol: 'MUSD',
     decimals: 6,
     aggregators: ['metamask', 'liFi', 'socket', 'rubic', 'rango'],
   },
-  [ChainId['linea-mainnet']]: {
+  '0xe708': {
     name: 'MetaMask USD',
     symbol: 'MUSD',
     decimals: 6,
