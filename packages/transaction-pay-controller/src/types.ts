@@ -156,11 +156,12 @@ export type TransactionPayControllerMessenger = Messenger<
 
 /**
  * Keyring types that support EIP-7702 authorization signing.
- * Hardware wallets, snap keyrings, and money keyrings do not support 7702.
+ * Hardware wallets, snap keyrings, and custody keyrings are excluded.
  */
 export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
   'HD Key Tree',
   'Simple Key Pair',
+  'Money Keyring',
 ];
 
 /** Options for the TransactionPayController. */

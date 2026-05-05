@@ -27,6 +27,7 @@ import type {
   KeyringObject,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
@@ -875,12 +876,20 @@ export class AccountsController extends BaseController<
       KeyringType.Snap,
     );
 
-    // Snap keyring v2 are "per-Snaps", so we need to iterate over all of them to find the account.
+    // Snap keyring v2 are "per-Snaps" (and can be accessed using their v1 adapter), so we need to
+    // iterate over all of them to find the account.
+    // NOTE: `:getKeyringsByType` will only return v1 instances, that's why we need to use their v1
+    // adapter + `unwrap` method to get the reference to their v2 instance.
     for (const keyring of keyrings) {
-      if (keyring instanceof SnapKeyringV2) {
+      if (keyring instanceof KeyringV1Adapter) {
+        // NOTE: We already filtering by `KeyringType.Snap`, so we are sure that those adapters
+        // are wrapping a Snap keyring v2.
+        const adapter = keyring as KeyringV1Adapter<SnapKeyringV2>;
+        const keyringV2 = adapter.unwrap();
+
         // We use the synchronous method here since this method is used during `:stateChange` that are
         // use synchronous handlers.
-        const account = keyring.lookupByAddress(address);
+        const account = keyringV2.lookupByAddress(address);
         if (account) {
           return {
             ...account,
@@ -893,7 +902,7 @@ export class AccountsController extends BaseController<
                 type: KeyringType.Snap,
               },
               snap: {
-                id: keyring.snapId,
+                id: keyringV2.snapId,
               },
             },
           };
