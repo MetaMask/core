@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `PasskeyController` verifies registration and authentication responses with `requireUserVerification: true`, so the WebAuthn user verification (UV) flag must be set; assertions with user presence only no longer pass verification ([#8696](https://github.com/MetaMask/core/pull/8696))
+
 ## [2.0.0]
 
 ### Added
