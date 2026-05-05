@@ -3423,7 +3423,8 @@ describe('TokenDetectionController', () => {
           );
           const payload = addTokensCall?.[1] as { address: string }[];
           const musdRows = payload.filter(
-            (t) => t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+            (tokenRow) =>
+              tokenRow.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
           );
           expect(musdRows).toHaveLength(1);
         },
@@ -4052,7 +4053,8 @@ describe('TokenDetectionController', () => {
           );
           const payload = addTokensCall?.[1] as { address: string }[];
           const musdRows = payload.filter(
-            (t) => t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+            (tokenRow) =>
+              tokenRow.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
           );
           expect(musdRows).toHaveLength(1);
         },

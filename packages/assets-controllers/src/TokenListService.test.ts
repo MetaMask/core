@@ -83,9 +83,7 @@ describe('TokenListService', () => {
     mockedFetchTokenListByChainId.mockResolvedValue(undefined);
 
     const service = new TokenListService();
-    await expect(
-      service.fetchTokensByChainId('0x1' as Hex),
-    ).resolves.toStrictEqual({});
+    expect(await service.fetchTokensByChainId('0x1' as Hex)).toStrictEqual({});
 
     service.destroy();
   });
