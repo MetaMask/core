@@ -322,21 +322,21 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     createBridgeSelector(
       [
         (state) => state,
-        ({ quoteRequest: { srcChainId } }) => srcChainId,
-        ({ quoteRequest: { srcTokenAddress } }) => srcTokenAddress,
+        ({ quoteRequest: [{ srcChainId }] }) => srcChainId,
+        ({ quoteRequest: [{ srcTokenAddress }] }) => srcTokenAddress,
       ],
       selectExchangeRateByChainIdAndAddress,
     ),
     createBridgeSelector(
       [
         (state) => state,
-        ({ quoteRequest: { destChainId } }) => destChainId,
-        ({ quoteRequest: { destTokenAddress } }) => destTokenAddress,
+        ({ quoteRequest: [{ destChainId }] }) => destChainId,
+        ({ quoteRequest: [{ destTokenAddress }] }) => destTokenAddress,
       ],
       selectExchangeRateByChainIdAndAddress,
     ),
     createBridgeSelector(
-      [(state) => state, ({ quoteRequest: { srcChainId } }) => srcChainId],
+      [(state) => state, ({ quoteRequest: [{ srcChainId }] }) => srcChainId],
       (state, chainId) =>
         selectExchangeRateByChainIdAndAddress(state, chainId, AddressZero),
     ),
@@ -497,7 +497,7 @@ const selectActiveQuote = createBridgeSelector(
 const selectIsQuoteGoingToRefresh = createBridgeSelector(
   [
     selectBridgeFeatureFlags,
-    (state) => state.quoteRequest.insufficientBal,
+    (state) => state.quoteRequest[0]?.insufficientBal,
     (state) => state.quotesRefreshCount,
   ],
   (featureFlags, insufficientBal, quotesRefreshCount) =>
@@ -505,7 +505,7 @@ const selectIsQuoteGoingToRefresh = createBridgeSelector(
 );
 
 const selectQuoteRefreshRate = createBridgeSelector(
-  [selectBridgeFeatureFlags, (state) => state.quoteRequest.srcChainId],
+  [selectBridgeFeatureFlags, (state) => state.quoteRequest[0]?.srcChainId],
   (featureFlags, srcChainId) =>
     (srcChainId
       ? featureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
@@ -522,8 +522,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 

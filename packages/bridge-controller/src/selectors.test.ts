@@ -239,13 +239,15 @@ describe('Bridge Selectors', () => {
   describe('selectIsQuoteExpired', () => {
     const mockState = {
       quotes: [],
-      quoteRequest: {
-        srcChainId: '1',
-        destChainId: '137',
-        srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        destTokenAddress: '0x0000000000000000000000000000000000000000',
-        insufficientBal: false,
-      },
+      quoteRequest: [
+        {
+          srcChainId: '1',
+          destChainId: '137',
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          destTokenAddress: '0x0000000000000000000000000000000000000000',
+          insufficientBal: false,
+        },
+      ],
       quotesLastFetched: Date.now(),
       quotesLoadingStatus: RequestStatus.FETCHED,
       quoteFetchError: null,
@@ -344,10 +346,12 @@ describe('Bridge Selectors', () => {
     it('should handle quote expiration when srcChainId is unset', () => {
       const stateWithOldQuote = {
         ...mockState,
-        quoteRequest: {
-          ...mockState.quoteRequest,
-          srcChainId: undefined,
-        },
+        quoteRequest: [
+          {
+            ...mockState.quoteRequest,
+            srcChainId: undefined,
+          },
+        ],
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
         remoteFeatureFlags: {
@@ -432,13 +436,15 @@ describe('Bridge Selectors', () => {
             },
           },
         ],
-        quoteRequest: {
-          srcChainId: '1',
-          destChainId: '137',
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          destTokenAddress: '0x0000000000000000000000000000000000000000',
-          insufficientBal: false,
-        },
+        quoteRequest: [
+          {
+            srcChainId: '1',
+            destChainId: '137',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            destTokenAddress: '0x0000000000000000000000000000000000000000',
+            insufficientBal: false,
+          },
+        ],
         quotesLastFetched: Date.now(),
         quotesLoadingStatus: RequestStatus.FETCHED,
         quoteFetchError: null,
@@ -658,13 +664,15 @@ describe('Bridge Selectors', () => {
           ],
           currencyRates,
           marketData,
-          quoteRequest: {
-            ...mockState.quoteRequest,
-            srcChainId: chainId,
-            destChainId: chainId,
-            srcTokenAddress: srcAsset.address,
-            destTokenAddress: destAsset.address,
-          },
+          quoteRequest: [
+            {
+              ...mockState.quoteRequest,
+              srcChainId: chainId,
+              destChainId: chainId,
+              srcTokenAddress: srcAsset.address,
+              destTokenAddress: destAsset.address,
+            },
+          ],
         };
       };
 
@@ -1217,7 +1225,7 @@ describe('Bridge Selectors', () => {
       const result = selectBridgeQuotes(
         {
           ...mockState,
-          quoteRequest: { ...mockState.quoteRequest, insufficientBal: true },
+          quoteRequest: [{ ...mockState.quoteRequest, insufficientBal: true }],
         },
         mockClientParams,
       );
@@ -1339,11 +1347,13 @@ describe('Bridge Selectors', () => {
       const solanaState = {
         ...mockState,
         quotes: [solanaQuote],
-        quoteRequest: {
-          ...mockState.quoteRequest,
-          srcChainId: ChainId.SOLANA,
-          srcTokenAddress: 'solanaNativeAddress',
-        },
+        quoteRequest: [
+          {
+            ...mockState.quoteRequest,
+            srcChainId: ChainId.SOLANA,
+            srcTokenAddress: 'solanaNativeAddress',
+          },
+        ],
       } as unknown as BridgeAppState;
 
       const result = selectBridgeQuotes(solanaState, mockClientParams);

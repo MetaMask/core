@@ -148,6 +148,7 @@ export {
 
 export {
   isValidQuoteRequest,
+  isValidQuoteRequestBatch,
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './utils/quote';

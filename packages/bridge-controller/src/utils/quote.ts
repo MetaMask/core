@@ -83,6 +83,12 @@ export const isValidQuoteRequest = (
   );
 };
 
+export const isValidQuoteRequestBatch = (
+  quoteRequests: Partial<GenericQuoteRequest>[],
+  requireAmount = true,
+): quoteRequests is GenericQuoteRequest[] =>
+  quoteRequests.every((req) => isValidQuoteRequest(req, requireAmount));
+
 /**
  * Generates a pseudo-unique string that identifies each quote by aggregator, bridge, and steps
  *

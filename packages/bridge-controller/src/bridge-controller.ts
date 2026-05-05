@@ -80,7 +80,7 @@ import type {
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
-import { isValidQuoteRequest, sortQuotes } from './utils/quote';
+import { isValidQuoteRequestBatch, sortQuotes } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import type { FeatureId } from './utils/validators';
@@ -168,7 +168,7 @@ const metadata: StateMetadata<BridgeControllerState> = {
  * controller and need to be provided by the client for analytics
  */
 type BridgePollingInput = {
-  updatedQuoteRequest: GenericQuoteRequest;
+  quoteRequests: GenericQuoteRequest[];
   context: Pick<
     RequiredEventContextFromClient,
     UnifiedSwapBridgeEventName.QuotesError
@@ -315,62 +315,54 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     await this.#fetchBridgeQuotes(pollingInput);
   };
 
+  /**
+   * Updates the quote request at the specified index with the given parameters, then starts
+   * polling for quotes.
+   *
+   * @param paramsToUpdate - The parameters to update in the quote request at the specified index
+   * @param context - metrics context
+   * @param quoteRequestIndex - The index of the quote request to update
+   * @param quoteRequestCount - The number of quote requests in the UI
+   */
   updateBridgeQuoteRequestParams = async (
     paramsToUpdate: Partial<GenericQuoteRequest> & {
       walletAddress: GenericQuoteRequest['walletAddress'];
     },
     context: BridgePollingInput['context'],
+    quoteRequestIndex: number = 0,
+    quoteRequestCount: number = 1,
   ) => {
-    this.#trackInputChangedEvents(paramsToUpdate);
-    this.resetState(AbortReason.QuoteRequestUpdated);
-    const updatedQuoteRequest = {
-      ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
-      ...paramsToUpdate,
-    };
+    this.#trackInputChangedEvents(paramsToUpdate, quoteRequestIndex);
+    this.resetState(AbortReason.QuoteRequestUpdated, quoteRequestIndex);
     this.update((state) => {
-      state.quoteRequest = updatedQuoteRequest;
+      state.quoteRequest = state.quoteRequest
+        .slice(0, quoteRequestIndex)
+        .concat(paramsToUpdate)
+        .concat(
+          state.quoteRequest.slice(quoteRequestIndex + 1, quoteRequestCount),
+        );
       state.tokenSecurityTypeDestination =
         context.token_security_type_destination ?? null;
     });
 
-    if (isValidQuoteRequest(updatedQuoteRequest)) {
+    if (isValidQuoteRequestBatch(this.state.quoteRequest)) {
       this.#quotesFirstFetched = Date.now();
-      const isSrcChainNonEVM = isNonEvmChainId(updatedQuoteRequest.srcChainId);
-      const providerConfig = isSrcChainNonEVM
-        ? undefined
-        : this.#getNetworkClientByChainId(
-            formatChainIdToHex(updatedQuoteRequest.srcChainId),
-          )?.configuration;
-
-      let insufficientBal: boolean | undefined;
-      let resetApproval: boolean = Boolean(paramsToUpdate.resetApproval);
-      if (isSrcChainNonEVM) {
-        // If the source chain is not an EVM network, use value from params
-        insufficientBal = paramsToUpdate.insufficientBal;
-      } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
-        // If the rpcUrl is a tenderly fork (e2e tests), set insufficientBal=true
-        // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
-        insufficientBal = true;
-      } else {
-        // Set loading status if RPC calls are made before the quotes are fetched
-        this.update((state) => {
-          state.quotesLoadingStatus = RequestStatus.LOADING;
-        });
-        resetApproval = await this.#shouldResetApproval(updatedQuoteRequest);
-        // Otherwise query the src token balance from the RPC provider
-        insufficientBal =
-          paramsToUpdate.insufficientBal ??
-          (await this.#hasInsufficientBalance(updatedQuoteRequest));
-      }
 
       // Set refresh rate based on the source chain before starting polling
       this.setChainIntervalLength();
+
+      // Update the insufficientBal and resetApproval params for the quote request
+      const quoteWithInsufficientBalAndResetApproval =
+        await this.#appendInsufficientBalAndResetApproval(
+          this.state.quoteRequest[quoteRequestIndex],
+        );
+      this.update((state) => {
+        state.quoteRequest[quoteRequestIndex] =
+          quoteWithInsufficientBalAndResetApproval;
+      });
+
       this.startPolling({
-        updatedQuoteRequest: {
-          ...updatedQuoteRequest,
-          insufficientBal,
-          resetApproval,
-        },
+        quoteRequests: this.state.quoteRequest,
         context,
       });
     }
@@ -457,20 +449,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Fetches the exchange rates for the assets in the quote request if they are not already in the state
    * In addition to the selected tokens, this also fetches the native asset for the source and destination chains
    *
-   * @param quoteRequest - The quote request
-   * @param quoteRequest.srcChainId - The source chain ID
-   * @param quoteRequest.srcTokenAddress - The source token address
-   * @param quoteRequest.destChainId - The destination chain ID
-   * @param quoteRequest.destTokenAddress - The destination token address
+   * @param quoteRequests - The quote requests to fetch the exchange rates for
    */
-  readonly #fetchAssetExchangeRates = async ({
-    srcChainId,
-    srcTokenAddress,
-    destChainId,
-    destTokenAddress,
-  }: Partial<GenericQuoteRequest>) => {
+  readonly #fetchAssetExchangeRates = async (
+    quoteRequests: Partial<GenericQuoteRequest>[],
+  ) => {
     const assetIds: Set<CaipAssetType> = new Set([]);
     const exchangeRateSources = this.#getExchangeRateSources();
+    const { srcChainId, srcTokenAddress, destChainId, destTokenAddress } =
+      // TODO fetch rates for all quote requests
+      quoteRequests[0];
     if (
       srcTokenAddress &&
       srcChainId &&
@@ -555,6 +543,44 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
+  readonly #appendInsufficientBalAndResetApproval = async (
+    quoteRequest: GenericQuoteRequest,
+  ) => {
+    const isSrcChainNonEVM = isNonEvmChainId(quoteRequest.srcChainId);
+    const providerConfig = isSrcChainNonEVM
+      ? undefined
+      : this.#getNetworkClientByChainId(
+          formatChainIdToHex(quoteRequest.srcChainId),
+        )?.configuration;
+
+    let insufficientBal: boolean | undefined;
+    let resetApproval: boolean = Boolean(quoteRequest.resetApproval);
+    if (isSrcChainNonEVM) {
+      // If the source chain is not an EVM network, use value from params
+      insufficientBal = quoteRequest.insufficientBal;
+    } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
+      // If the rpcUrl is a tenderly fork (e2e tests), set insufficientBal=true
+      // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
+      insufficientBal = true;
+    } else {
+      // Set loading status if RPC calls are made before the quotes are fetched
+      this.update((state) => {
+        state.quotesLoadingStatus = RequestStatus.LOADING;
+      });
+      resetApproval = await this.#shouldResetApproval(quoteRequest);
+      // Otherwise query the src token balance from the RPC provider
+      insufficientBal =
+        quoteRequest.insufficientBal ??
+        (await this.#hasInsufficientBalance(quoteRequest));
+    }
+
+    return {
+      ...quoteRequest,
+      insufficientBal,
+      resetApproval,
+    };
+  };
+
   readonly #shouldResetApproval = async (quoteRequest: GenericQuoteRequest) => {
     if (isNonEvmChainId(quoteRequest.srcChainId)) {
       return false;
@@ -608,11 +634,24 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#location = location;
   };
 
-  resetState = (reason = AbortReason.ResetState) => {
+  resetState = (
+    reason = AbortReason.ResetState,
+    quoteRequestIndex: number | null = null,
+  ) => {
     this.stopPollingForQuotes(reason);
     this.update((state) => {
+      // Clear all requests if index is null
+      const quoteRequests =
+        quoteRequestIndex === null
+          ? DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest
+          : [...state.quoteRequest];
+      // Otherwise only clear the specified request
+      if (quoteRequestIndex !== null) {
+        quoteRequests[quoteRequestIndex] =
+          DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0];
+      }
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
-      state.quoteRequest = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest;
+      state.quoteRequest = quoteRequests;
       state.quotesInitialLoadTime =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
       state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
@@ -640,7 +679,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   setChainIntervalLength = () => {
     const { state } = this;
-    const { srcChainId } = state.quoteRequest;
+    // Batch requests are all in the same chain. Use the first one to determine refresh rate
+    const { srcChainId } = state.quoteRequest[0];
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
 
     const refreshRateOverride = srcChainId
@@ -651,13 +691,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #fetchBridgeQuotes = async ({
-    updatedQuoteRequest,
+    quoteRequests,
     context,
   }: BridgePollingInput) => {
     this.#abortController?.abort(AbortReason.NewQuoteRequest);
     this.#abortController = new AbortController();
 
-    this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
+    this.#fetchAssetExchangeRates(quoteRequests).catch((error) =>
       console.warn('Failed to fetch asset exchange rates', error),
     );
 
@@ -672,7 +712,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
 
     this.update((state) => {
-      state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
       state.quoteStreamComplete =
@@ -680,6 +719,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
+
+    const [updatedQuoteRequest] = quoteRequests;
 
     const jwt = await this.#getJwt();
 
@@ -710,7 +751,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Use SSE if enabled and return early
           if (shouldStream) {
             await this.#handleQuoteStreaming(
-              updatedQuoteRequest,
+              quoteRequests,
               jwt,
               selectedAccount,
             );
@@ -797,7 +838,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #handleQuoteStreaming = async (
-    updatedQuoteRequest: GenericQuoteRequest,
+    quoteRequests: GenericQuoteRequest[],
     jwt?: string,
     selectedAccount?: InternalAccount,
   ) => {
@@ -814,7 +855,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     await fetchBridgeQuoteStream(
       this.#fetchFn,
-      updatedQuoteRequest,
+      quoteRequests,
       this.#abortController?.signal,
       this.#clientId,
       jwt,
@@ -913,8 +954,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #getMultichainSelectedAccount(
     walletAddress?: GenericQuoteRequest['walletAddress'],
+    quoteRequestIndex: number = 0,
   ) {
-    const addressToUse = walletAddress ?? this.state.quoteRequest.walletAddress;
+    const addressToUse =
+      walletAddress ?? this.state.quoteRequest[quoteRequestIndex].walletAddress;
     if (!addressToUse) {
       throw new Error('Account address is required');
     }
@@ -952,11 +995,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
-  readonly #getRequestMetadata = (): Omit<
+  readonly #getRequestMetadata = (
+    quoteRequestIndex: number = 0,
+  ): Omit<
     RequestMetadata,
     'stx_enabled' | 'usd_amount_source' | 'security_warnings'
   > => {
-    const { walletAddress } = this.state.quoteRequest;
+    const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
+    const { walletAddress } = quoteRequest;
     const accountHardwareType = getAccountHardwareType(
       walletAddress
         ? this.#getMultichainSelectedAccount(walletAddress)
@@ -964,9 +1010,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     return {
-      slippage_limit: this.state.quoteRequest.slippage,
-      swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
-      custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
+      slippage_limit: quoteRequest.slippage,
+      swap_type: getSwapTypeFromQuote(quoteRequest),
+      custom_slippage: isCustomSlippage(quoteRequest.slippage),
       account_hardware_type: accountHardwareType,
       is_hardware_wallet: accountHardwareType !== null,
     };
@@ -997,6 +1043,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       RequiredEventContextFromClient,
       EventName
     >[EventName],
+    quoteRequestIndex: number = 0,
   ): CrossChainSwapsEventProperties<EventName> => {
     const clientProps = propertiesFromClient as Record<string, unknown>;
     const baseProperties = {
@@ -1004,11 +1051,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       location: clientProps?.location ?? this.#location,
       action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
+    const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...baseProperties,
@@ -1016,7 +1064,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.PageViewed:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
@@ -1025,7 +1073,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.QuotesValidationFailed:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           refresh_count: this.state.quotesRefreshCount,
@@ -1034,7 +1082,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
@@ -1045,22 +1093,22 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.QuotesRequested:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
-          has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
+          has_sufficient_funds: !quoteRequest.insufficientBal,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesError:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
           error_message: this.state.quoteFetchError,
-          has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
+          has_sufficient_funds: !quoteRequest.insufficientBal,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.AllQuotesOpened:
@@ -1068,7 +1116,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.QuoteSelected:
         return {
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
@@ -1080,7 +1128,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...baseProperties,
           ...getRequestParams(
-            this.state.quoteRequest,
+            quoteRequest,
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
@@ -1113,6 +1161,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #trackInputChangedEvents = (
     paramsToUpdate: Partial<GenericQuoteRequest>,
+    quoteRequestIndex: number = 0,
   ) => {
     Object.entries(paramsToUpdate).forEach(([key, value]) => {
       const inputKey = toInputChangedPropertyKey[key as keyof QuoteRequest];
@@ -1123,7 +1172,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       if (
         inputKey &&
         inputValue !== undefined &&
-        value !== this.state.quoteRequest[key as keyof GenericQuoteRequest]
+        this.state.quoteRequest[quoteRequestIndex] &&
+        value !==
+          this.state.quoteRequest[quoteRequestIndex][
+            key as keyof GenericQuoteRequest
+          ]
       ) {
         this.trackUnifiedSwapBridgeEvent(
           UnifiedSwapBridgeEventName.InputChanged,
@@ -1142,6 +1195,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    *
    * @param eventName - The name of the event to track
    * @param propertiesFromClient - Properties that can't be calculated from the event name and need to be provided by the client
+   * @param quoteRequestIndex - The index of the quote request to track the event for
    * @example
    * this.trackUnifiedSwapBridgeEvent(UnifiedSwapBridgeEventName.ActionOpened, {
    *   location: MetaMetricsSwapsEventSource.MainView,
@@ -1156,11 +1210,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       RequiredEventContextFromClient,
       EventName
     >[EventName],
+    quoteRequestIndex: number = 0,
   ) => {
     try {
       const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
         eventName,
         propertiesFromClient,
+        quoteRequestIndex,
       );
 
       this.#trackMetaMetricsFn(eventName, combinedPropertiesForEvent);
