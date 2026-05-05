@@ -646,9 +646,7 @@ describe('TransactionPayController', () => {
     const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
-      caipAssetId: CAIP_ASSET_ID_MOCK,
       chainId: '0x89' as Hex,
-      decimals: 18,
     };
 
     let setSelectedTokenMock: jest.Mock;
@@ -724,7 +722,9 @@ describe('TransactionPayController', () => {
 
     it('does not call setSelectedToken when fiat asset cannot be derived', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(
+        undefined as never,
+      );
 
       const updateTransactionData = getUpdateTransactionData();
 

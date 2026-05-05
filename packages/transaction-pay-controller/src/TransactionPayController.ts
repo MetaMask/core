@@ -24,6 +24,7 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
+import { buildCaipAssetType } from './utils/token';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { getTransaction, pollTransactionChanges } from './utils/transaction';
@@ -284,12 +285,15 @@ export class TransactionPayController extends BaseController<
         transactionId,
         this.messenger,
       ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
       if (fiatAsset) {
         try {
           this.messenger.call(
             'RampsController:setSelectedToken',
-            fiatAsset.caipAssetId,
+            buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
           );
         } catch {
           // Intentionally no-op — tokens may not be loaded in RampsController yet.

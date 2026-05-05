@@ -847,7 +847,16 @@ describe('Token Utils', () => {
       ).toBe('eip155:1/slip44:60');
     });
 
-    it('returns slip44 asset type for Polygon native token', () => {
+    it('returns slip44 asset type for Polygon native token with auto-mapped coin type', () => {
+      const polygonNative =
+        '0x0000000000000000000000000000000000001010' as Hex;
+
+      expect(buildCaipAssetType('0x89' as Hex, polygonNative)).toBe(
+        'eip155:137/slip44:966',
+      );
+    });
+
+    it('returns slip44 asset type with explicit coin type override', () => {
       const polygonNative =
         '0x0000000000000000000000000000000000001010' as Hex;
 

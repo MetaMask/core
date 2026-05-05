@@ -341,29 +341,40 @@ export async function getLiveTokenBalance(
   return balance.toString();
 }
 
+const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
+  [CHAIN_ID_POLYGON]: 966, // POL
+};
+
 /**
  * Build a CAIP-19 asset type identifier for an EVM token.
  *
+ * For native tokens the SLIP-44 coin type is resolved automatically from
+ * a built-in chain→coin-type map, falling back to 60 (ETH).  Callers can
+ * override via the optional third parameter.
+ *
  * @param chainId - Hex chain ID (e.g. `0x1`).
  * @param tokenAddress - Token contract address, or the native token address.
- * @param slip44CoinType - SLIP-44 coin type for native tokens (defaults to 60 / ETH).
+ * @param slip44CoinType - Optional SLIP-44 coin type override for native tokens.
  * @returns CAIP-19 asset type string.
  */
 export function buildCaipAssetType(
   chainId: Hex,
   tokenAddress: Hex,
-  slip44CoinType = 60,
+  slip44CoinType?: number,
 ): CaipAssetType {
   const chainReference = String(hexToBigInt(chainId));
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
+    const coinType =
+      slip44CoinType ?? SLIP44_COIN_TYPE_BY_CHAIN[chainId] ?? 60;
+
     return toCaipAssetType(
       'eip155',
       chainReference,
       'slip44',
-      String(slip44CoinType),
+      String(coinType),
     );
   }
 

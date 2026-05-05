@@ -14,6 +14,7 @@ import type {
   TransactionPayRequiredToken,
 } from '../../types';
 import {
+  buildCaipAssetType,
   computeRawFromFiatAmount,
   getTokenFiatRate,
   getTokenInfo,
@@ -201,7 +202,10 @@ function getRequest({
   };
 }
 
+const FIAT_ASSET_CAIP_ID_MOCK = 'eip155:137/slip44:966';
+
 describe('getFiatQuotes', () => {
+  const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTokenInfoMock = jest.mocked(getTokenInfo);
@@ -213,6 +217,7 @@ describe('getFiatQuotes', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
     getTokenFiatRateMock.mockReturnValue({
       fiatRate: '2',
@@ -246,7 +251,7 @@ describe('getFiatQuotes', () => {
       'RampsController:getQuotes',
       expect.objectContaining({
         amount: 20,
-        assetId: FIAT_ASSET_MOCK.caipAssetId,
+        assetId: FIAT_ASSET_CAIP_ID_MOCK,
         fiat: 'USD',
         paymentMethods: ['/payments/debit-credit-card'],
         providers: [SELECTED_PROVIDER_ID],

@@ -12,6 +12,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  buildCaipAssetType,
   computeRawFromFiatAmount,
   getTokenFiatRate,
   getTokenInfo,
@@ -170,7 +171,7 @@ async function getRampsQuote({
 
   const quotes = await messenger.call('RampsController:getQuotes', {
     amount: adjustedAmount,
-    assetId: fiatAsset.caipAssetId,
+    assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     fiat: DEFAULT_FIAT_CURRENCY,
     paymentMethods: [fiatPaymentMethod],
     providers: selectedProviderId ? [selectedProviderId] : undefined,
