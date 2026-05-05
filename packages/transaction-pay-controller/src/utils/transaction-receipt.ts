@@ -2,6 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '../types';
 import { getNativeToken } from './token';
@@ -58,7 +59,7 @@ export async function getTransferredAmountFromTxHash({
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    return tx.value.toString();
+    return positiveOrUndefined(tx.value.toString());
   }
 
   if (!tx.data?.startsWith(ERC20_TRANSFER_SELECTOR)) {
@@ -67,5 +68,9 @@ export async function getTransferredAmountFromTxHash({
 
   const decoded = erc20Interface.decodeFunctionData('transfer', tx.data);
 
-  return decoded._value.toString();
+  return positiveOrUndefined(decoded._value.toString());
+}
+
+function positiveOrUndefined(amount: string): string | undefined {
+  return new BigNumber(amount).gt(0) ? amount : undefined;
 }
