@@ -229,7 +229,6 @@ describe('EIP-5792', () => {
       });
     });
 
-
     it('does not include atomic capability if chain not supported', async () => {
       isAtomicBatchSupportedMock.mockResolvedValueOnce([]);
 
