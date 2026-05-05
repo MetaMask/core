@@ -752,7 +752,8 @@ describe('makePermissionRule', () => {
   it('rejects an ERC20 payee caveat with the wrong calldata start index', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress = '0x3333333333333333333333333333333333333333' as const;
-    const paddedAddress = `0x${payeeAddress.slice(2).padStart(64, '0')}` as const;
+    const paddedAddress =
+      `0x${payeeAddress.slice(2).padStart(64, '0')}` as const;
 
     const rule = makePermissionRule({
       permissionType: 'erc20-token-stream',

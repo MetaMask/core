@@ -31,10 +31,7 @@ export function makeErc20TokenRevocationRule(
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-revocation',
-    optionalEnforcers: [
-      timestampEnforcer,
-      redeemerEnforcer,
-    ],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
     redeemerEnforcer,
     payeeEnforcers: {
       allowedCalldataEnforcer,
