@@ -39,7 +39,6 @@ export function makeNativeTokenPeriodicRule(
       timestampEnforcer,
       redeemerEnforcer,
       allowedTargetsEnforcer,
-      logicalOrWrapperEnforcer,
     ],
     redeemerEnforcer,
     payeeEnforcers: {

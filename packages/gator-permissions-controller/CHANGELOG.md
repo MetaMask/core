@@ -9,9 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support payee-restricting caveats when decoding execution permissions
-  - Permission decoding now recognizes `AllowedTargetsEnforcer`, `AllowedCalldataEnforcer`, and `LogicalOrWrapperEnforcer` as optional caveats for payee extraction on execution permission types and extracts a `payee` rule containing the allowlisted addresses.
-  - Export new `EXECUTION_PERMISSION_PAYEE_RULE_TYPE` constant and `PayeeRule` type.
+- Add `payee` rule to execution permission decoding for all known permission types ([#8668](https://github.com/MetaMask/core/pull/8668))
 - Support `RedeemerEnforcer` caveat when decoding execution permissions ([#8537](https://github.com/MetaMask/core/pull/8537))
   - Permission decoding now recognizes the `RedeemerEnforcer` as an optional caveat on all execution permission types and extracts a `redeemer` rule containing the allowlisted addresses.
   - `DecodedPermission` type now includes an optional `rules` property for rules recovered from caveats.

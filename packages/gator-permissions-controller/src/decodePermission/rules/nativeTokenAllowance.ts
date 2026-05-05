@@ -44,7 +44,6 @@ export function makeNativeTokenAllowanceRule(
       timestampEnforcer,
       redeemerEnforcer,
       allowedTargetsEnforcer,
-      logicalOrWrapperEnforcer,
     ],
     redeemerEnforcer,
     payeeEnforcers: {

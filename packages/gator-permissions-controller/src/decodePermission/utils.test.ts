@@ -111,7 +111,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-stream'].permissionType).toBe(
       'native-token-stream',
     );
-    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(4);
+    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(3);
     expect(
       byType['native-token-stream'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
@@ -121,11 +121,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(
       byType['native-token-stream'].optionalEnforcers.has(
         allowedTargetsEnforcer,
-      ),
-    ).toBe(true);
-    expect(
-      byType['native-token-stream'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
       ),
     ).toBe(true);
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
@@ -144,7 +139,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].permissionType).toBe(
       'native-token-periodic',
     );
-    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(4);
+    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(3);
     expect(
       byType['native-token-periodic'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
@@ -154,11 +149,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(
       byType['native-token-periodic'].optionalEnforcers.has(
         allowedTargetsEnforcer,
-      ),
-    ).toBe(true);
-    expect(
-      byType['native-token-periodic'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
       ),
     ).toBe(true);
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
@@ -243,7 +233,7 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-allowance'].permissionType).toBe(
       'native-token-allowance',
     );
-    expect(byType['native-token-allowance'].optionalEnforcers.size).toBe(4);
+    expect(byType['native-token-allowance'].optionalEnforcers.size).toBe(3);
     expect(
       byType['native-token-allowance'].optionalEnforcers.has(timestampEnforcer),
     ).toBe(true);
@@ -253,11 +243,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(
       byType['native-token-allowance'].optionalEnforcers.has(
         allowedTargetsEnforcer,
-      ),
-    ).toBe(true);
-    expect(
-      byType['native-token-allowance'].optionalEnforcers.has(
-        logicalOrWrapperEnforcer,
       ),
     ).toBe(true);
     expect(byType['native-token-allowance'].requiredEnforcers.size).toBe(3);

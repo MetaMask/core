@@ -1,3 +1,4 @@
+import { encodeSingle } from '@metamask/abi-utils';
 import {
   createAllowedCalldataTerms,
   createAllowedTargetsTerms,
@@ -8,7 +9,7 @@ import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
-import { getChecksumAddress } from '@metamask/utils';
+import { bytesToHex, getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
@@ -21,6 +22,7 @@ describe('makePermissionRule', () => {
   const allowedCalldataEnforcer = contracts.AllowedCalldataEnforcer;
   const allowedTargetsEnforcer = contracts.AllowedTargetsEnforcer;
   const logicalOrWrapperEnforcer = contracts.LogicalOrWrapperEnforcer;
+  const EMPTY_ARGS = new Uint8Array();
 
   const payeeEnforcersNative = {
     allowedCalldataEnforcer,
@@ -396,7 +398,7 @@ describe('makePermissionRule', () => {
     ]);
   });
 
-  it('includes payee rule with multiple addresses via LogicalOrWrapperEnforcer (native)', () => {
+  it('includes payee rule with multiple addresses via AllowedTargetsEnforcer (native)', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress1 = '0x4444444444444444444444444444444444444444' as Hex;
     const payeeAddress2 = '0x5555555555555555555555555555555555555555' as Hex;
@@ -406,7 +408,7 @@ describe('makePermissionRule', () => {
       timestampEnforcer,
       redeemerEnforcer,
       payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [logicalOrWrapperEnforcer],
+      optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
       validateAndDecodeData,
     });
@@ -418,28 +420,9 @@ describe('makePermissionRule', () => {
         args: '0x' as Hex,
       },
       {
-        enforcer: logicalOrWrapperEnforcer,
-        terms: createLogicalOrWrapperTerms({
-          caveatGroups: [
-            [
-              {
-                enforcer: allowedTargetsEnforcer,
-                terms: createAllowedTargetsTerms({
-                  targets: [payeeAddress1],
-                }),
-                args: '0x00',
-              },
-            ],
-            [
-              {
-                enforcer: allowedTargetsEnforcer,
-                terms: createAllowedTargetsTerms({
-                  targets: [payeeAddress2],
-                }),
-                args: '0x00',
-              },
-            ],
-          ],
+        enforcer: allowedTargetsEnforcer,
+        terms: createAllowedTargetsTerms({
+          targets: [payeeAddress1, payeeAddress2],
         }),
         args: '0x' as Hex,
       },
@@ -554,7 +537,7 @@ describe('makePermissionRule', () => {
                   startIndex: 4,
                   value: padded1,
                 }),
-                args: '0x00',
+                args: EMPTY_ARGS,
               },
             ],
             [
@@ -564,7 +547,7 @@ describe('makePermissionRule', () => {
                   startIndex: 4,
                   value: padded2,
                 }),
-                args: '0x00',
+                args: EMPTY_ARGS,
               },
             ],
           ],
@@ -590,6 +573,48 @@ describe('makePermissionRule', () => {
         },
       },
     ]);
+  });
+
+  it('rejects LogicalOrWrapperEnforcer for native payee caveats', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress = '0x4444444444444444444444444444444444444444' as Hex;
+
+    const rule = makePermissionRule({
+      permissionType: 'native-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersNative,
+      optionalEnforcers: [logicalOrWrapperEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: createLogicalOrWrapperTerms({
+          caveatGroups: [
+            [
+              {
+                enforcer: allowedTargetsEnforcer,
+                terms: createAllowedTargetsTerms({
+                  targets: [payeeAddress],
+                }),
+                args: EMPTY_ARGS,
+              },
+            ],
+          ],
+        }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
   });
 
   it('does not include payee rule when no payee caveat is present', () => {
@@ -642,16 +667,17 @@ describe('makePermissionRule', () => {
     expect(rule.caveatAddressesMatch([])).toBe(false);
   });
 
-  it('ignores unrecognised inner enforcers in LogicalOrWrapperEnforcer', () => {
+  it('rejects unrecognised inner enforcers in LogicalOrWrapperEnforcer', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress = '0x4444444444444444444444444444444444444444' as Hex;
+    const paddedAddress = `0x${payeeAddress.slice(2).padStart(64, '0')}`;
     const unknownEnforcer = '0x9999999999999999999999999999999999999999' as Hex;
 
     const rule = makePermissionRule({
-      permissionType: 'native-token-stream',
+      permissionType: 'erc20-token-stream',
       timestampEnforcer,
       redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      payeeEnforcers: payeeEnforcersErc20,
       optionalEnforcers: [logicalOrWrapperEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
       validateAndDecodeData,
@@ -669,11 +695,12 @@ describe('makePermissionRule', () => {
           caveatGroups: [
             [
               {
-                enforcer: allowedTargetsEnforcer,
-                terms: createAllowedTargetsTerms({
-                  targets: [payeeAddress],
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: paddedAddress,
                 }),
-                args: '0x00',
+                args: EMPTY_ARGS,
               },
             ],
             [
@@ -681,7 +708,7 @@ describe('makePermissionRule', () => {
                 enforcer: unknownEnforcer,
                 terms:
                   '0x0000000000000000000000000000000000000000000000000000000000000001',
-                args: '0x00',
+                args: EMPTY_ARGS,
               },
             ],
           ],
@@ -692,29 +719,18 @@ describe('makePermissionRule', () => {
 
     const result = rule.validateAndDecodePermission(caveats);
 
-    expect(result.isValid).toBe(true);
-    if (!result.isValid) {
-      throw new Error('Expected valid result');
-    }
-    expect(result.rules).toStrictEqual([
-      {
-        type: 'payee',
-        data: {
-          addresses: [getChecksumAddress(payeeAddress)],
-        },
-      },
-    ]);
+    expect(result.isValid).toBe(false);
   });
 
-  it('returns null payee when LogicalOrWrapper inner caveats are all unrecognised', () => {
+  it('rejects LogicalOrWrapper when inner caveats are all unrecognised', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const unknownEnforcer = '0x9999999999999999999999999999999999999999' as Hex;
 
     const rule = makePermissionRule({
-      permissionType: 'native-token-stream',
+      permissionType: 'erc20-token-stream',
       timestampEnforcer,
       redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      payeeEnforcers: payeeEnforcersErc20,
       optionalEnforcers: [logicalOrWrapperEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
       validateAndDecodeData,
@@ -735,7 +751,7 @@ describe('makePermissionRule', () => {
                 enforcer: unknownEnforcer,
                 terms:
                   '0x0000000000000000000000000000000000000000000000000000000000000001',
-                args: '0x00',
+                args: EMPTY_ARGS,
               },
             ],
           ],
@@ -746,14 +762,10 @@ describe('makePermissionRule', () => {
 
     const result = rule.validateAndDecodePermission(caveats);
 
-    expect(result.isValid).toBe(true);
-    if (!result.isValid) {
-      throw new Error('Expected valid result');
-    }
-    expect(result.rules).toBeUndefined();
+    expect(result.isValid).toBe(false);
   });
 
-  it('returns null payee when singlePayeeEnforcer is unrecognised', () => {
+  it('rejects when singlePayeeEnforcer is unrecognised', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const unknownEnforcer = '0x8888888888888888888888888888888888888888' as Hex;
 
@@ -788,11 +800,413 @@ describe('makePermissionRule', () => {
 
     const result = rule.validateAndDecodePermission(caveats);
 
-    expect(result.isValid).toBe(true);
-    if (!result.isValid) {
-      throw new Error('Expected valid result');
-    }
-    expect(result.rules).toBeUndefined();
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects LogicalOrWrapperEnforcer when a group has more than one inner caveat', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress1 = '0x4444444444444444444444444444444444444444' as Hex;
+    const payeeAddress2 = '0x5555555555555555555555555555555555555555' as Hex;
+    const padded1 = `0x${payeeAddress1.slice(2).padStart(64, '0')}`;
+    const padded2 = `0x${payeeAddress2.slice(2).padStart(64, '0')}`;
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [logicalOrWrapperEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: createLogicalOrWrapperTerms({
+          caveatGroups: [
+            [
+              {
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: padded1,
+                }),
+                args: EMPTY_ARGS,
+              },
+              {
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: padded2,
+                }),
+                args: EMPTY_ARGS,
+              },
+            ],
+          ],
+        }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects LogicalOrWrapperEnforcer with no caveat groups', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [logicalOrWrapperEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: bytesToHex(encodeSingle('((address,bytes,bytes)[])[]', [])),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects LogicalOrWrapperEnforcer with non-empty args', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress = '0x4444444444444444444444444444444444444444' as Hex;
+    const paddedAddress = `0x${payeeAddress.slice(2).padStart(64, '0')}`;
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [logicalOrWrapperEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: createLogicalOrWrapperTerms({
+          caveatGroups: [
+            [
+              {
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: paddedAddress,
+                }),
+                args: EMPTY_ARGS,
+              },
+            ],
+          ],
+        }),
+        args: '0x00' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects when both LogicalOrWrapperEnforcer and single-payee caveats are present', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress1 = '0x4444444444444444444444444444444444444444' as Hex;
+    const payeeAddress2 = '0x5555555555555555555555555555555555555555' as Hex;
+    const padded1 = `0x${payeeAddress1.slice(2).padStart(64, '0')}`;
+    const padded2 = `0x${payeeAddress2.slice(2).padStart(64, '0')}`;
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [allowedCalldataEnforcer, logicalOrWrapperEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedCalldataEnforcer,
+        terms: createAllowedCalldataTerms({
+          startIndex: 4,
+          value: padded1,
+        }),
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: createLogicalOrWrapperTerms({
+          caveatGroups: [
+            [
+              {
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: padded2,
+                }),
+                args: EMPTY_ARGS,
+              },
+            ],
+          ],
+        }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects an ERC20 payee caveat with the wrong calldata start index', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress = '0x3333333333333333333333333333333333333333' as Hex;
+    const paddedAddress = `0x${payeeAddress.slice(2).padStart(64, '0')}`;
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [allowedCalldataEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedCalldataEnforcer,
+        terms: createAllowedCalldataTerms({
+          startIndex: 36,
+          value: paddedAddress,
+        }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects an ERC20 payee caveat when the calldata value is not one address', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [allowedCalldataEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedCalldataEnforcer,
+        terms: createAllowedCalldataTerms({
+          startIndex: 4,
+          value: '0x1234',
+        }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects a payee caveat with non-zero args', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress = '0x2222222222222222222222222222222222222222' as Hex;
+
+    const rule = makePermissionRule({
+      permissionType: 'native-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersNative,
+      optionalEnforcers: [allowedTargetsEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedTargetsEnforcer,
+        terms: createAllowedTargetsTerms({ targets: [payeeAddress] }),
+        args: '0x01' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects a native payee caveat with no targets', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+
+    const rule = makePermissionRule({
+      permissionType: 'native-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersNative,
+      optionalEnforcers: [allowedTargetsEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedTargetsEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects multiple LogicalOrWrapperEnforcer caveats', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress1 = '0x4444444444444444444444444444444444444444' as Hex;
+    const payeeAddress2 = '0x5555555555555555555555555555555555555555' as Hex;
+    const padded1 = `0x${payeeAddress1.slice(2).padStart(64, '0')}`;
+    const padded2 = `0x${payeeAddress2.slice(2).padStart(64, '0')}`;
+
+    const rule = makePermissionRule({
+      permissionType: 'erc20-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersErc20,
+      optionalEnforcers: [logicalOrWrapperEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: createLogicalOrWrapperTerms({
+          caveatGroups: [
+            [
+              {
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: padded1,
+                }),
+                args: EMPTY_ARGS,
+              },
+            ],
+          ],
+        }),
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: logicalOrWrapperEnforcer,
+        terms: createLogicalOrWrapperTerms({
+          caveatGroups: [
+            [
+              {
+                enforcer: allowedCalldataEnforcer,
+                terms: createAllowedCalldataTerms({
+                  startIndex: 4,
+                  value: padded2,
+                }),
+                args: EMPTY_ARGS,
+              },
+            ],
+          ],
+        }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('rejects multiple single-payee caveats', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+    const payeeAddress1 = '0x2222222222222222222222222222222222222222' as Hex;
+    const payeeAddress2 = '0x3333333333333333333333333333333333333333' as Hex;
+
+    const rule = makePermissionRule({
+      permissionType: 'native-token-stream',
+      timestampEnforcer,
+      redeemerEnforcer,
+      payeeEnforcers: payeeEnforcersNative,
+      optionalEnforcers: [allowedTargetsEnforcer],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const result = rule.validateAndDecodePermission([
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedTargetsEnforcer,
+        terms: createAllowedTargetsTerms({ targets: [payeeAddress1] }),
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: allowedTargetsEnforcer,
+        terms: createAllowedTargetsTerms({ targets: [payeeAddress2] }),
+        args: '0x' as Hex,
+      },
+    ]);
+
+    expect(result.isValid).toBe(false);
   });
 
   it('handles multiple singlePayeeEnforcer caveats gracefully (e.g. revocation)', () => {

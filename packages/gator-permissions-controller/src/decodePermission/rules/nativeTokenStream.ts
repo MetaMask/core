@@ -34,7 +34,6 @@ export function makeNativeTokenStreamRule(
       timestampEnforcer,
       redeemerEnforcer,
       allowedTargetsEnforcer,
-      logicalOrWrapperEnforcer,
     ],
     redeemerEnforcer,
     payeeEnforcers: {
