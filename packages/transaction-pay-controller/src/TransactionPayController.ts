@@ -24,9 +24,9 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { buildCaipAssetType } from './utils/token';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
+import { buildCaipAssetType } from './utils/token';
 import { getTransaction, pollTransactionChanges } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [

@@ -14,13 +14,13 @@ import type {
   QuoteRequest,
   TransactionPayQuote,
 } from '../../types';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import { submitFiatQuotes } from './fiat-submit';
 import type { FiatQuote } from './types';
-import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import { deriveFiatAssetForFiatPayment } from './utils';
 
 jest.mock('./utils');

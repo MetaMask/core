@@ -1,11 +1,11 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { ETH_MAINNET_FIAT_ASSET, FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
-import { deriveFiatAssetForFiatPayment } from './utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
+import { ETH_MAINNET_FIAT_ASSET, FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
 import type { TransactionPayFiatAsset } from './constants';
+import { deriveFiatAssetForFiatPayment } from './utils';
 
 const FEATURE_FLAG_ASSET_MOCK: TransactionPayFiatAsset = {
   address: '0x0000000000000000000000000000000000000abc',
