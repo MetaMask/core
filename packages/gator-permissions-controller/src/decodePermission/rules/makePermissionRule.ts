@@ -182,7 +182,7 @@ function extractPayeeAddressFromCaveat(
 
   if (checksumEnforcer === payeeEnforcerAddresses.allowedCalldataEnforcer) {
     const decoded = decodeAllowedCalldataTerms(terms);
-    const address:Hex = `0x${decoded.value.slice(-40)}`;
+    const address: Hex = `0x${decoded.value.slice(-40)}`;
     return getChecksumAddress(address);
   }
 
