@@ -765,6 +765,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateIncomingTransactions',
   'updateTransaction',
   'wipeTransactions',
+  'updateSecurityAlertResponse',
+  'updatePreviousGasParams',
+  'updateRequiredTransactionIds',
+  'updateSelectedGasFeeToken',
+  'updateTransactionGasFees',
 ] as const;
 
 /**
