@@ -20,6 +20,10 @@ export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 export const HYPERCORE_USDC_DECIMALS = 8;
 export const USDC_DECIMALS = 6;
 
+export const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
+  [CHAIN_ID_POLYGON]: 966, // POL
+};
+
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet
   '0x1': [

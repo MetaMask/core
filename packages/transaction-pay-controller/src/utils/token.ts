@@ -10,6 +10,7 @@ import { BigNumber } from 'bignumber.js';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  SLIP44_COIN_TYPE_BY_CHAIN,
   STABLECOINS,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
@@ -340,10 +341,6 @@ export async function getLiveTokenBalance(
   const balance = await contract.balanceOf(account);
   return balance.toString();
 }
-
-const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
-  [CHAIN_ID_POLYGON]: 966, // POL
-};
 
 /**
  * Build a CAIP-19 asset type identifier for an EVM token.
