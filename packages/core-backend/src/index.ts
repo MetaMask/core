@@ -81,6 +81,31 @@ export type {
 } from './ApiPlatformClientService';
 
 // ============================================================================
+// OHLCV SERVICE
+// ============================================================================
+
+export {
+  OHLCVService,
+  OHLCV_SERVICE_ALLOWED_ACTIONS,
+  OHLCV_SERVICE_ALLOWED_EVENTS,
+} from './api/ohlcv';
+
+export type {
+  OHLCVBar,
+  OHLCVSubscriptionOptions,
+  OHLCVSystemNotificationData,
+  OHLCVServiceOptions,
+  OHLCVServiceActions,
+  OHLCVServiceAllowedActions,
+  OHLCVServiceBarUpdatedEvent,
+  OHLCVServiceChainStatusChangedEvent,
+  OHLCVServiceSubscriptionErrorEvent,
+  OHLCVServiceEvents,
+  OHLCVServiceAllowedEvents,
+  OHLCVServiceMessenger,
+} from './api/ohlcv';
+
+// ============================================================================
 // API PLATFORM CLIENT
 // ============================================================================
 
