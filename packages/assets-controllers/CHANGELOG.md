@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `AccountTrackerController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
+  - The following actions are now available:
+    - `AccountTrackerController:refresh`
+    - `AccountTrackerController:syncBalanceWithAddresses`
+  - Corresponding action types are available as well.
+- Expose missing public `TokenBalancesController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
+  - The following actions are now available:
+    - `TokenBalancesController:updateBalances`
+    - `TokenBalancesController:resetState`
+  - Corresponding action types are available as well.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))

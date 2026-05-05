@@ -11,6 +11,8 @@ export { AccountTrackerController } from './AccountTrackerController';
 export type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
+  AccountTrackerControllerRefreshAction,
+  AccountTrackerControllerSyncBalanceWithAddressesAction,
 } from './AccountTrackerController-method-action-types';
 export type {
   AssetsContractControllerActions,
@@ -95,6 +97,8 @@ export { TokenBalancesController } from './TokenBalancesController';
 export type {
   TokenBalancesControllerUpdateChainPollingConfigsAction,
   TokenBalancesControllerGetChainPollingConfigAction,
+  TokenBalancesControllerUpdateBalancesAction,
+  TokenBalancesControllerResetStateAction,
 } from './TokenBalancesController-method-action-types';
 export type {
   TokenDetectionControllerMessenger,
