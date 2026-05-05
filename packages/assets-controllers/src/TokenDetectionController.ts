@@ -29,7 +29,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerGetStateAction,
-  NetworkControllerNetworkAddedEvent,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -43,13 +42,22 @@ import type { Hex } from '@metamask/utils';
 import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
-import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
+import {
+  formatIconUrlWithProxy,
+  isTokenDetectionSupportedForNetwork,
+} from './assetsUtil';
+import {
+  MUSD_ERC20_ADDRESS_LOWER,
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+  MUSD_TOKEN_METADATA_BY_CHAIN,
+  SUPPORTED_NETWORKS_ACCOUNTS_API_V4,
+} from './constants';
 import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
 import type {
   GetTokenListState,
   TokenListMap,
   TokenListStateChange,
+  TokenListToken,
   TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
@@ -60,36 +68,6 @@ import type {
 } from './TokensController-method-action-types';
 
 const DEFAULT_INTERVAL = 180000;
-
-/**
- * Canonical contract address for MetaMask USD (mUSD) — same across every
- * chain we deploy it to.
- */
-const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
-
-/**
- * Pre-built Token entry for mUSD — used when seeding default state.
- */
-const MUSD_TOKEN: Token = {
-  address: MUSD_ADDRESS,
-  decimals: 6,
-  symbol: 'mUSD',
-  name: 'MetaMask USD',
-};
-
-/**
- * Hex chain IDs on which mUSD is deployed and should be added by default.
- * - 0x1     — Ethereum mainnet (1)
- * - 0xe708  — Linea (59144)
- * - 0x8f    — Monad mainnet (143)
- * - 0x279f  — Monad testnet (10143)
- */
-const MUSD_SUPPORTED_CHAIN_IDS: ReadonlySet<Hex> = new Set<Hex>([
-  '0x1',
-  '0xe708',
-  '0x8f',
-  '0x279f',
-]);
 
 type LegacyToken = {
   name: string;
@@ -123,6 +101,10 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
     },
   };
 }, {});
+
+const MUSD_TOKEN_DETECTION_CHAIN_ID_SET = new Set<Hex>(
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+);
 
 /**
  * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
@@ -177,7 +159,6 @@ export type TokenDetectionControllerEvents =
 
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
-  | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | KeyringControllerLockEvent
@@ -243,9 +224,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   readonly #useTokenDetection: () => boolean;
 
   readonly #useExternalServices: () => boolean;
-
-  /** Tracks whether default tokens (mUSD) have been seeded for the current session. */
-  #defaultTokensSeeded = false;
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
@@ -400,13 +378,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           this.#selectedAccountId !== selectedAccount.id;
         if (isSelectedAccountIdChanged) {
           this.#selectedAccountId = selectedAccount.id;
-          // Re-seed mUSD for the newly selected account. addTokens only adds
-          // tokens for the currently selected account, so we need to re-run
-          // it whenever the active account changes.
-          this.#defaultTokensSeeded = false;
-          this.#seedDefaultTokens().catch(() => {
-            // Silently handle default-token seeding errors
-          });
           this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
             chainIds,
@@ -424,23 +395,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           chainIds: [transactionMeta.chainId],
         }).catch(() => {
           // Silently handle token detection errors
-        });
-      },
-    );
-
-    // Re-seed mUSD whenever a network is added. Covers the case where the
-    // user adds a supported chain (e.g. Monad testnet) after the controller
-    // has already started — the chain wasn't configured at start() time so
-    // findNetworkClientIdByChainId would have skipped it.
-    this.messenger.subscribe(
-      'NetworkController:networkAdded',
-      ({ chainId }) => {
-        if (!MUSD_SUPPORTED_CHAIN_IDS.has(chainId)) {
-          return;
-        }
-        this.#defaultTokensSeeded = false;
-        this.#seedDefaultTokens().catch(() => {
-          // Silently handle default-token seeding errors
         });
       },
     );
@@ -474,9 +428,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    */
   async start(): Promise<void> {
     this.enable();
-    // Seed mUSD as a default token via TokensController:addTokens. Runs
-    // once per session; idempotent because addTokens dedupes on address.
-    await this.#seedDefaultTokens();
     await this.#startPolling();
   }
 
@@ -619,7 +570,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const { tokensChainsCache } = this.messenger.call(
         'TokenListController:getState',
       );
-      this.#tokensChainsCache = tokensChainsCache ?? {};
+      this.#tokensChainsCache = this.#applyMusdDefaultToTokensChainsCache(
+        chainId,
+        tokensChainsCache ?? {},
+      );
     }
 
     return true;
@@ -766,55 +720,114 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       }),
       {},
     );
+    const dataWithMusd = this.#mergeMusdIntoTokenListMap(ChainId.mainnet, data);
     return {
       '0x1': {
-        data,
+        data: dataWithMusd,
         timestamp: 0,
       },
     };
   }
 
   /**
-   * Seed mUSD into `TokensController.allTokens` via the public `addTokens`
-   * action for every supported chain that is currently configured in
-   * `NetworkController`.
+   * mUSD token list row derived from Tokens API v3/assets (baked in for offline detection).
    *
-   * Runs once per session (idempotent guard via `#defaultTokensSeeded`), but
-   * `addTokens` itself dedupes by contract address so re-running is safe.
-   *
-   * @returns Promise that resolves once seeding has been attempted on every
-   * supported chain.
+   * @param chainId - Hex chain id (mainnet, Linea, or Monad).
+   * @returns Token list entry for the detection cache.
    */
-  async #seedDefaultTokens(): Promise<void> {
-    if (this.#defaultTokensSeeded) {
-      return;
-    }
-    this.#defaultTokensSeeded = true;
+  #buildMusdTokenListToken(chainId: Hex): TokenListToken {
+    const meta =
+      MUSD_TOKEN_METADATA_BY_CHAIN[
+        chainId as (typeof MUSD_TOKEN_DETECTION_CHAIN_IDS)[number]
+      ];
+    return {
+      address: MUSD_ERC20_ADDRESS_LOWER,
+      name: meta.name,
+      symbol: meta.symbol,
+      decimals: meta.decimals,
+      aggregators: [...meta.aggregators],
+      iconUrl: formatIconUrlWithProxy({
+        chainId,
+        tokenAddress: MUSD_ERC20_ADDRESS_LOWER,
+      }),
+      occurrences: 999,
+    };
+  }
 
-    const { networkConfigurationsByChainId } = this.messenger.call(
-      'NetworkController:getState',
+  /**
+   * Merge mUSD into a flat token map when the chain is one of the default mUSD networks.
+   *
+   * @param chainId - Network being detected.
+   * @param data - Existing token map for that chain.
+   * @returns New map including mUSD when applicable.
+   */
+  #mergeMusdIntoTokenListMap(chainId: Hex, data: TokenListMap): TokenListMap {
+    if (!MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+      return data;
+    }
+    return {
+      ...data,
+      [MUSD_ERC20_ADDRESS_LOWER]: this.#buildMusdTokenListToken(chainId),
+    };
+  }
+
+  /**
+   * Shallow-clone the token list cache for the current chain and merge mUSD so we never
+   * mutate `TokenListController` state by reference.
+   *
+   * @param chainId - Network being detected.
+   * @param cache - Full tokens-by-chain cache from `TokenListController`.
+   * @returns Cache object safe to read and mutate for this detection pass.
+   */
+  #applyMusdDefaultToTokensChainsCache(
+    chainId: Hex,
+    cache: TokensChainsCache,
+  ): TokensChainsCache {
+    if (!MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+      return cache;
+    }
+    const existing = cache[chainId];
+    return {
+      ...cache,
+      [chainId]: {
+        data: this.#mergeMusdIntoTokenListMap(chainId, existing?.data ?? {}),
+        timestamp: existing?.timestamp ?? 0,
+      },
+    };
+  }
+
+  /**
+   * If mUSD is in the (possibly merged) token list for this chain, include its address
+   * in the slice so we still run detection when balance is zero (single-call / Accounts API
+   * / WebSocket do not list the contract when balance is zero).
+   *
+   * @param tokensSlice - Address batch from the caller.
+   * @param chainId - Network being updated.
+   * @returns The slice, possibly with mUSD appended.
+   */
+  #includeMusdInTokenDetectionSlice(
+    tokensSlice: string[],
+    chainId: Hex,
+  ): string[] {
+    if (!MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+      return tokensSlice;
+    }
+    if (
+      tokensSlice.some((a) => isEqualCaseInsensitive(a, MUSD_ERC20_ADDRESS_LOWER))
+    ) {
+      return tokensSlice;
+    }
+    const listData = this.#tokensChainsCache[chainId]?.data;
+    if (!listData) {
+      return tokensSlice;
+    }
+    const hasMusd = Object.keys(listData).some((k) =>
+      isEqualCaseInsensitive(k, MUSD_ERC20_ADDRESS_LOWER),
     );
-
-    for (const supportedChainId of MUSD_SUPPORTED_CHAIN_IDS) {
-      if (!networkConfigurationsByChainId[supportedChainId]) {
-        continue;
-      }
-
-      try {
-        const networkClientId = this.messenger.call(
-          'NetworkController:findNetworkClientIdByChainId',
-          supportedChainId,
-        );
-        await this.messenger.call(
-          'TokensController:addTokens',
-          [MUSD_TOKEN],
-          networkClientId,
-        );
-      } catch {
-        // Silently handle per-chain seeding errors so one failure does not
-        // block seeding on the remaining supported chains.
-      }
+    if (!hasMusd) {
+      return tokensSlice;
     }
+    return [...tokensSlice, MUSD_ERC20_ADDRESS_LOWER];
   }
 
   async #addDetectedTokens({
@@ -851,6 +864,41 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           name,
           ...(rwaData && { rwaData }),
         });
+      }
+
+      // mUSD is always in the chain token cache on supported networks, but
+      // getBalancesInSingleCall omits zero balances; still add mUSD so the wallet
+      // shows the asset (balance updates via the usual balance pipeline).
+      if (MUSD_TOKEN_DETECTION_CHAIN_ID_SET.has(chainId)) {
+        const musdInSlice = tokensSlice.some((addr) =>
+          isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+        );
+        const musdHasNonZeroFromRpc = Object.keys(balances).some((addr) =>
+          isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+        );
+        if (musdInSlice && !musdHasNonZeroFromRpc) {
+          const listData = this.#tokensChainsCache[chainId].data;
+          const musdListToken = Object.entries(listData).find(([key]) =>
+            isEqualCaseInsensitive(key, MUSD_ERC20_ADDRESS_LOWER),
+          )?.[1];
+          if (musdListToken) {
+            const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
+              musdListToken;
+            eventTokensDetails.push(
+              `${symbol} - ${MUSD_ERC20_ADDRESS_LOWER}`,
+            );
+            tokensWithBalance.push({
+              address: MUSD_ERC20_ADDRESS_LOWER,
+              decimals,
+              symbol,
+              aggregators,
+              image: iconUrl,
+              isERC721: false,
+              name,
+              ...(rwaData && { rwaData }),
+            });
+          }
+        }
       }
 
       if (tokensWithBalance.length) {
@@ -909,12 +957,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const { tokensChainsCache } = this.messenger.call(
       'TokenListController:getState',
     );
-    this.#tokensChainsCache = tokensChainsCache ?? {};
+    this.#tokensChainsCache = this.#applyMusdDefaultToTokensChainsCache(
+      chainId,
+      tokensChainsCache ?? {},
+    );
+
+    const effectiveSlice = this.#includeMusdInTokenDetectionSlice(
+      tokensSlice,
+      chainId,
+    );
 
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
-    for (const tokenAddress of tokensSlice) {
+    for (const tokenAddress of effectiveSlice) {
       // Normalize addresses explicitly (don't assume input format)
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
@@ -1005,7 +1061,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const { tokensChainsCache } = this.messenger.call(
       'TokenListController:getState',
     );
-    this.#tokensChainsCache = tokensChainsCache ?? {};
+    this.#tokensChainsCache = this.#applyMusdDefaultToTokensChainsCache(
+      chainId,
+      tokensChainsCache ?? {},
+    );
 
     const selectedAddress = this.#getSelectedAddress();
 
@@ -1022,10 +1081,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       allIgnoredTokens[chainId]?.[selectedAddress] ?? []
     ).map((address) => address.toLowerCase());
 
+    const effectiveSlice = this.#includeMusdInTokenDetectionSlice(
+      tokensSlice,
+      chainId,
+    );
+
     const tokensWithBalance: Token[] = [];
     const eventTokensDetails: string[] = [];
 
-    for (const tokenAddress of tokensSlice) {
+    for (const tokenAddress of effectiveSlice) {
       const lowercaseTokenAddress = tokenAddress.toLowerCase();
       const checksummedTokenAddress = toChecksumHexAddress(tokenAddress);
 
