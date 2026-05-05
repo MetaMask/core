@@ -7,6 +7,8 @@ import {
   NATIVE_TOKEN_ADDRESS,
 } from '../../constants';
 
+export const DEFAULT_FIAT_CURRENCY = 'USD';
+
 export type TransactionPayFiatAsset = {
   address: Hex;
   caipAssetId: string;

@@ -1,6 +1,9 @@
 import type {
+  BasePermission,
+  MetaMaskBasePermissionData,
   PermissionRequest,
   PermissionTypes,
+  Rule,
 } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -8,6 +11,49 @@ import type { Hex } from '@metamask/utils';
 
 export type DeployedContractsByName =
   (typeof DELEGATOR_CONTRACTS)[number][number];
+
+/**
+ * Permission type for an unbounded ERC-20 token allowance.
+ *
+ * Encoded on-chain as an ERC20PeriodTransferEnforcer caveat with
+ * `periodDuration` set to `UINT256_MAX` so that the allowance never resets
+ * within any realistic time horizon.
+ *
+ * Not yet defined in `@metamask/7715-permission-types`, so declared locally.
+ */
+type Erc20TokenAllowancePermission = BasePermission & {
+  type: 'erc20-token-allowance';
+  data: MetaMaskBasePermissionData & {
+    allowanceAmount: Hex;
+    startTime?: number | null;
+    tokenAddress: Hex;
+  };
+};
+
+/**
+ * Permission type for an unbounded native token allowance.
+ *
+ * Encoded on-chain as a NativeTokenPeriodTransferEnforcer caveat with
+ * `periodDuration` set to `UINT256_MAX`.
+ *
+ * Not yet defined in `@metamask/7715-permission-types`, so declared locally.
+ */
+type NativeTokenAllowancePermission = BasePermission & {
+  type: 'native-token-allowance';
+  data: MetaMaskBasePermissionData & {
+    allowanceAmount: Hex;
+    startTime?: number | null;
+  };
+};
+
+/**
+ * Extended permission union, including types not yet published in
+ * `@metamask/7715-permission-types` but supported by this package's decoder.
+ */
+type ExtendedPermissionTypes =
+  | PermissionTypes
+  | Erc20TokenAllowancePermission
+  | NativeTokenAllowancePermission;
 
 // This is a somewhat convoluted type - it includes all of the fields that are decoded from the permission context.
 /**
@@ -19,11 +65,11 @@ export type DeployedContractsByName =
  * `TimestampEnforcer` terms, as well as the `origin` property.
  */
 export type DecodedPermission = Pick<
-  PermissionRequest<PermissionTypes>,
+  PermissionRequest<ExtendedPermissionTypes>,
   'chainId' | 'from' | 'to'
 > & {
   permission: Omit<
-    PermissionRequest<PermissionTypes>['permission'],
+    PermissionRequest<ExtendedPermissionTypes>['permission'],
     'isAdjustmentAllowed'
   > & {
     // PermissionRequest type does not work well without the specific permission type, so we amend it here
@@ -31,6 +77,8 @@ export type DecodedPermission = Pick<
   };
   expiry: number | null;
   origin: string;
+  /** Rules recovered from caveats (e.g. redeemer allowlist). */
+  rules?: Rule[];
 };
 
 /**
@@ -51,6 +99,7 @@ export type ChecksumEnforcersByChainId = {
   timestampEnforcer: Hex;
   nonceEnforcer: Hex;
   allowedCalldataEnforcer: Hex;
+  redeemerEnforcer: Hex;
 };
 
 /** Caveat with checksummed enforcer address; used by rule decode functions. */
@@ -65,6 +114,7 @@ export type ValidateAndDecodeResult =
       isValid: true;
       expiry: number | null;
       data: DecodedPermission['permission']['data'];
+      rules?: Rule[];
     }
   | { isValid: false; error: Error };
 

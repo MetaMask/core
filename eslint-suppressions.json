@@ -471,9 +471,6 @@
     }
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
     "no-restricted-syntax": {
       "count": 4
     }
@@ -1329,7 +1326,7 @@
   },
   "packages/multichain-api-middleware/src/handlers/wallet-createSession.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
+      "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 2
@@ -1528,7 +1525,7 @@
   },
   "packages/network-controller/src/rpc-service/rpc-service.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/network-controller/tests/NetworkController.provider.test.ts": {
@@ -1585,6 +1582,11 @@
     },
     "no-restricted-syntax": {
       "count": 3
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
     }
   },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
@@ -2008,11 +2010,6 @@
     }
   },
   "packages/ramps-controller/src/RampsController.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/ramps-controller/src/RampsController.ts": {
     "no-restricted-syntax": {
       "count": 1
     }

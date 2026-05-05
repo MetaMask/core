@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+
 ## [30.1.0]
 
 ### Added
@@ -39,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 - Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
   - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
+
+### Fixed
+
+- Restore retries for failed requests even if the user is offline, preventing a bad user experience if the reported offline status is inaccurate or stuck ([#8623](https://github.com/MetaMask/core/pull/8623))
 
 ## [30.0.1]
 

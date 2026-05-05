@@ -10,6 +10,16 @@ export type AuthenticationControllerPerformSignInAction = {
   handler: AuthenticationController['performSignIn'];
 };
 
+/**
+ * Marks profile pairing as needed. Clients call this when the SRP set
+ * changes (e.g. a new keyring was added) so the next auto-sign-in cycle
+ * re-runs `performSignIn` and re-pairs.
+ */
+export type AuthenticationControllerRequestProfilePairingAction = {
+  type: `AuthenticationController:requestProfilePairing`;
+  handler: AuthenticationController['requestProfilePairing'];
+};
+
 export type AuthenticationControllerPerformSignOutAction = {
   type: `AuthenticationController:performSignOut`;
   handler: AuthenticationController['performSignOut'];
@@ -85,6 +95,7 @@ export type AuthenticationControllerIsSignedInAction = {
  */
 export type AuthenticationControllerMethodActions =
   | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerRequestProfilePairingAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerGetBearerTokenAction
   | AuthenticationControllerGetSessionProfileAction

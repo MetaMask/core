@@ -1,6 +1,6 @@
 export { asLegacyMiddleware } from './asLegacyMiddleware';
 export { getUniqueId } from '../getUniqueId';
-export { selectHooks, createMethodMiddleware } from './createMethodMiddleware';
+export { createMethodMiddleware } from './createMethodMiddleware';
 export type { MethodHandler } from './createMethodMiddleware';
 export { createOriginMiddleware } from './createOriginMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
@@ -18,11 +18,17 @@ export type {
 export { JsonRpcServer } from './JsonRpcServer';
 export { MiddlewareContext } from './MiddlewareContext';
 export type { EmptyContext, ContextConstraint } from './MiddlewareContext';
-export { isNotification, isRequest, JsonRpcEngineError } from './utils';
+export {
+  isNotification,
+  isRequest,
+  JsonRpcEngineError,
+  selectHooks,
+} from './utils';
 export type {
   Json,
   JsonRpcCall,
   JsonRpcNotification,
   JsonRpcParams,
   JsonRpcRequest,
+  UnionToIntersection,
 } from './utils';

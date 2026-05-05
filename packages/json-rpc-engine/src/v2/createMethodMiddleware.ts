@@ -3,13 +3,15 @@ import { ActionConstraint, Messenger } from '@metamask/messenger';
 import { JsonRpcMiddleware, Next } from './JsonRpcEngineV2';
 import { ContextConstraint } from './MiddlewareContext';
 import {
+  assertExpectedHooks,
+  createHandlerMessenger,
+  selectHooks,
   Json,
   JsonRpcParams,
   JsonRpcRequest,
   UnionToIntersection,
 } from './utils';
 
-// The helpers below seem excessive, but they are required for inference of hooks/actions.
 type HandlerActions<Handler> = Handler extends {
   implementation: (options: infer Options) => unknown;
 }
@@ -26,6 +28,9 @@ type HandlerHooks<Handler> = Handler extends {
     : never
   : never;
 
+/**
+ * A `JsonRpcEngineV2` method middleware handler.
+ */
 export type MethodHandler<
   Hooks extends Record<string, unknown> = never,
   MessengerActions extends ActionConstraint = never,
@@ -62,18 +67,33 @@ type AnyMethodHandler = {
   actionNames?: readonly string[];
 };
 
-export type CreateMethodMiddlewareOptions<
+type CreateMethodMiddlewareBaseOptions<
   Handlers extends Record<string, AnyMethodHandler>,
 > = {
   handlers: Handlers;
-  messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
-  hooks: UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
+  hooks: [HandlerHooks<Handlers[keyof Handlers]>] extends [never]
+    ? Record<string, never>
+    : UnionToIntersection<HandlerHooks<Handlers[keyof Handlers]>>;
 };
+
+/**
+ * Options for {@link createMethodMiddleware}.
+ */
+export type CreateMethodMiddlewareOptions<
+  Handlers extends Record<string, AnyMethodHandler>,
+> = CreateMethodMiddlewareBaseOptions<Handlers> &
+  ([HandlerActions<Handlers[keyof Handlers]>] extends [never]
+    ? {
+        messenger?: undefined;
+      }
+    : {
+        messenger: Messenger<string, HandlerActions<Handlers[keyof Handlers]>>;
+      });
 
 type ResolvedHandler = {
   implementation: AnyMethodHandler['implementation'];
   hooks: Record<string, unknown>;
-  messenger: Messenger<string, ActionConstraint>;
+  messenger?: Messenger<string, ActionConstraint> | undefined;
 };
 
 /**
@@ -94,25 +114,25 @@ export function createMethodMiddleware<
   const { messenger: rootMessenger } = options;
   const allHooks = options.hooks as Record<string, unknown>;
 
+  const expectedHookNames = new Set(
+    Object.values(options.handlers).flatMap((handler) =>
+      handler.hookNames ? Object.getOwnPropertyNames(handler.hookNames) : [],
+    ),
+  );
+  assertExpectedHooks(allHooks, expectedHookNames);
+
   const handlers = Object.entries(options.handlers).reduce<
     Record<string, ResolvedHandler>
   >((accumulator, [handlerName, handler]) => {
     const handlerHooks = selectHooks(allHooks, handler.hookNames) ?? {};
-    const handlerMessenger = new Messenger<
-      string,
-      HandlerActions<Handlers[keyof Handlers]>,
-      never,
-      typeof rootMessenger
+    const handlerMessenger = createHandlerMessenger<
+      HandlerActions<Handlers[keyof Handlers]>
     >({
       namespace: handlerName,
-      parent: rootMessenger,
-    });
-
-    rootMessenger.delegate({
-      actions: (handler.actionNames ?? []) as HandlerActions<
-        Handlers[keyof Handlers]
-      >['type'][],
-      messenger: handlerMessenger,
+      actionNames: handler.actionNames as
+        | readonly HandlerActions<Handlers[keyof Handlers]>['type'][]
+        | undefined,
+      rootMessenger,
     });
 
     accumulator[handlerName] = {
@@ -133,36 +153,4 @@ export function createMethodMiddleware<
 
     return implementation({ request, context, next, hooks, messenger });
   };
-}
-
-/**
- * Returns the subset of the specified `hooks` that are included in the
- * `hookNames` object. This is a Principle of Least Authority (POLA) measure
- * to ensure that each RPC method implementation only has access to the
- * API "hooks" it needs to do its job.
- *
- * @param hooks - The hooks to select from.
- * @param hookNames - The names of the hooks to select.
- * @returns The selected hooks.
- * @template Hooks - The hooks to select from.
- * @template HookName - The names of the hooks to select.
- */
-export function selectHooks<
-  Hooks extends Record<string, unknown>,
-  HookName extends keyof Hooks,
->(
-  hooks: Hooks,
-  hookNames?: Record<HookName, true>,
-): Pick<Hooks, HookName> | undefined {
-  if (hookNames) {
-    return Object.keys(hookNames).reduce<Partial<Pick<Hooks, HookName>>>(
-      (hookSubset, _hookName) => {
-        const hookName = _hookName as HookName;
-        hookSubset[hookName] = hooks[hookName];
-        return hookSubset;
-      },
-      {},
-    ) as Pick<Hooks, HookName>;
-  }
-  return undefined;
 }

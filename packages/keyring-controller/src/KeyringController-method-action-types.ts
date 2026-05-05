@@ -59,6 +59,17 @@ export type KeyringControllerAddNewKeyringAction = {
 };
 
 /**
+ * Method to verify a given password validity. Throws an
+ * error if the password is invalid.
+ *
+ * @param password - Password of the keyring.
+ */
+export type KeyringControllerVerifyPasswordAction = {
+  type: `KeyringController:verifyPassword`;
+  handler: KeyringController['verifyPassword'];
+};
+
+/**
  * Returns the status of the vault.
  *
  * @returns Boolean returning true if the vault is unlocked.
@@ -78,6 +89,18 @@ export type KeyringControllerIsUnlockedAction = {
 export type KeyringControllerExportSeedPhraseAction = {
   type: `KeyringController:exportSeedPhrase`;
   handler: KeyringController['exportSeedPhrase'];
+};
+
+/**
+ * Gets the private key from the keyring controlling an address.
+ *
+ * @param password - Password of the keyring.
+ * @param address - Address to export.
+ * @returns Promise resolving to the private key for an address.
+ */
+export type KeyringControllerExportAccountAction = {
+  type: `KeyringController:exportAccount`;
+  handler: KeyringController['exportAccount'];
 };
 
 /**
@@ -158,6 +181,19 @@ export type KeyringControllerPersistAllKeyringsAction = {
 };
 
 /**
+ * Imports an account with the specified import strategy.
+ *
+ * @param strategy - Import strategy name.
+ * @param args - Array of arguments to pass to the underlying stategy.
+ * @throws Will throw when passed an unrecognized strategy.
+ * @returns Promise resolving to the imported account address.
+ */
+export type KeyringControllerImportAccountWithStrategyAction = {
+  type: `KeyringController:importAccountWithStrategy`;
+  handler: KeyringController['importAccountWithStrategy'];
+};
+
+/**
  * Removes an account from keyring state.
  *
  * @param address - Address of the account to remove.
@@ -167,6 +203,16 @@ export type KeyringControllerPersistAllKeyringsAction = {
 export type KeyringControllerRemoveAccountAction = {
   type: `KeyringController:removeAccount`;
   handler: KeyringController['removeAccount'];
+};
+
+/**
+ * Deallocates all secrets and locks the wallet.
+ *
+ * @returns Promise resolving when the operation completes.
+ */
+export type KeyringControllerSetLockedAction = {
+  type: `KeyringController:setLocked`;
+  handler: KeyringController['setLocked'];
 };
 
 /**
@@ -267,6 +313,53 @@ export type KeyringControllerPatchUserOperationAction = {
 export type KeyringControllerSignUserOperationAction = {
   type: `KeyringController:signUserOperation`;
   handler: KeyringController['signUserOperation'];
+};
+
+/**
+ * Changes the password used to encrypt the vault.
+ *
+ * @param password - The new password.
+ * @returns Promise resolving when the operation completes.
+ */
+export type KeyringControllerChangePasswordAction = {
+  type: `KeyringController:changePassword`;
+  handler: KeyringController['changePassword'];
+};
+
+/**
+ * Attempts to decrypt the current vault and load its keyrings, using the
+ * given encryption key and salt. The optional salt can be used to check for
+ * consistency with the vault salt.
+ *
+ * @param encryptionKey - Key to unlock the keychain.
+ * @param encryptionSalt - Optional salt to unlock the keychain.
+ * @returns Promise resolving when the operation completes.
+ */
+export type KeyringControllerSubmitEncryptionKeyAction = {
+  type: `KeyringController:submitEncryptionKey`;
+  handler: KeyringController['submitEncryptionKey'];
+};
+
+/**
+ * Exports the vault encryption key.
+ *
+ * @returns The vault encryption key.
+ */
+export type KeyringControllerExportEncryptionKeyAction = {
+  type: `KeyringController:exportEncryptionKey`;
+  handler: KeyringController['exportEncryptionKey'];
+};
+
+/**
+ * Attempts to decrypt the current vault and load its keyrings,
+ * using the given password.
+ *
+ * @param password - Password to unlock the keychain.
+ * @returns Promise resolving when the operation completes.
+ */
+export type KeyringControllerSubmitPasswordAction = {
+  type: `KeyringController:submitPassword`;
+  handler: KeyringController['submitPassword'];
 };
 
 /**
@@ -416,6 +509,17 @@ export type KeyringControllerWithControllerAction = {
 };
 
 /**
+ * Gets the type of the keyring that manages the specified account.
+ *
+ * @param account - The account address to look up.
+ * @returns A promise that resolves to the type of the keyring managing the account.
+ */
+export type KeyringControllerGetAccountKeyringTypeAction = {
+  type: `KeyringController:getAccountKeyringType`;
+  handler: KeyringController['getAccountKeyringType'];
+};
+
+/**
  * Union of all KeyringController action types.
  */
 export type KeyringControllerMethodActions =
@@ -423,15 +527,19 @@ export type KeyringControllerMethodActions =
   | KeyringControllerCreateNewVaultAndRestoreAction
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerAddNewKeyringAction
+  | KeyringControllerVerifyPasswordAction
   | KeyringControllerIsUnlockedAction
   | KeyringControllerExportSeedPhraseAction
+  | KeyringControllerExportAccountAction
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerDecryptMessageAction
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerPersistAllKeyringsAction
+  | KeyringControllerImportAccountWithStrategyAction
   | KeyringControllerRemoveAccountAction
+  | KeyringControllerSetLockedAction
   | KeyringControllerSignMessageAction
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
@@ -440,8 +548,13 @@ export type KeyringControllerMethodActions =
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
+  | KeyringControllerChangePasswordAction
+  | KeyringControllerSubmitEncryptionKeyAction
+  | KeyringControllerExportEncryptionKeyAction
+  | KeyringControllerSubmitPasswordAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerWithKeyringUnsafeAction
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerWithKeyringV2UnsafeAction
-  | KeyringControllerWithControllerAction;
+  | KeyringControllerWithControllerAction
+  | KeyringControllerGetAccountKeyringTypeAction;

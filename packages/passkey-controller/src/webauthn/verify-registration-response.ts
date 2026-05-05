@@ -53,10 +53,10 @@ export type VerifiedRegistrationResponse =
  *   `navigator.credentials.create()`, serialized as JSON.
  * @param opts.expectedChallenge - The base64url challenge that was passed
  *   to the authenticator (must match `clientDataJSON.challenge`).
- * @param opts.expectedOrigin - One or more acceptable origins (e.g.
- *   `"chrome-extension://..."` or `"https://metamask.io"`).
- * @param opts.expectedRPID - The Relying Party ID domain. The
- *   authenticator's `rpIdHash` is compared against `SHA-256(expectedRPID)`.
+ * @param opts.expectedOrigin - One or more acceptable values for
+ *   `clientDataJSON.origin` (WebAuthn). Extension and HTTPS contexts differ by scheme.
+ * @param opts.expectedRPIDs - Relying Party ID strings. The authenticator's
+ *   `rpIdHash` must equal `SHA-256(rpID)` for at least one entry.
  * @param opts.requireUserVerification - When `true`, verification fails
  *   if the UV flag is not set. Defaults to `false`.
  * @param opts.supportedAlgorithmIDs - COSE algorithm identifiers accepted
@@ -69,7 +69,7 @@ export async function verifyRegistrationResponse(opts: {
   response: PasskeyRegistrationResponse;
   expectedChallenge: string;
   expectedOrigin: string | string[];
-  expectedRPID: string;
+  expectedRPIDs: string[];
   requireUserVerification?: boolean;
   supportedAlgorithmIDs?: number[];
 }): Promise<VerifiedRegistrationResponse> {
@@ -77,7 +77,7 @@ export async function verifyRegistrationResponse(opts: {
     response,
     expectedChallenge,
     expectedOrigin,
-    expectedRPID,
+    expectedRPIDs,
     requireUserVerification = false,
     supportedAlgorithmIDs = [COSEALG.EdDSA, COSEALG.ES256, COSEALG.RS256],
   } = opts;
@@ -165,7 +165,9 @@ export async function verifyRegistrationResponse(opts: {
     aaguid,
   } = parsedAuthData;
 
-  matchExpectedRPID(rpIdHash, [expectedRPID]);
+  if (expectedRPIDs.length > 0) {
+    matchExpectedRPID(rpIdHash, expectedRPIDs);
+  }
 
   // Make sure someone was physically present
   if (!flags.up) {
