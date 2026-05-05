@@ -289,7 +289,9 @@ type StakedBalanceUpdate = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateChainPollingConfigs',
   'getChainPollingConfig',
-] as const;
+  'updateBalances',
+  'resetState',
+];
 
 export class TokenBalancesController extends StaticIntervalPollingController<{
   chainIds: ChainIdHex[];
