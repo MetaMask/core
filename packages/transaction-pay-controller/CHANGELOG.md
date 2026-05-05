@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687)).
 - Implement fiat strategy submit flow with order polling and relay execution ([#8347](https://github.com/MetaMask/core/pull/8347))
 
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^13.2.0` to `^13.3.0` so Transaction Pay consumes the ramps circuit-breaker error-key release published in this PR ([#8692](https://github.com/MetaMask/core/pull/8692)).
+
 ## [21.0.0]
 
 ### Added
