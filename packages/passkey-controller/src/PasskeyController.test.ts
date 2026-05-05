@@ -1673,7 +1673,7 @@ describe('PasskeyController', () => {
         expect.objectContaining({
           expectedOrigin: 'chrome-extension://abc123',
           expectedRPIDs: ['custom-rp.com'],
-          requireUserVerification: false,
+          requireUserVerification: true,
         }),
       );
     });
@@ -1723,7 +1723,7 @@ describe('PasskeyController', () => {
             id: TEST_CREDENTIAL_ID,
             counter: 0,
           }),
-          requireUserVerification: false,
+          requireUserVerification: true,
         }),
       );
     });
