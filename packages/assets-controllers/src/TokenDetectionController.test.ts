@@ -3370,8 +3370,7 @@ describe('TokenDetectionController', () => {
 
     it('does not append a duplicate mUSD entry when the slice already includes mUSD', async () => {
       const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-      const usdcChecksummed =
-        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const usdcChecksummed = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
       await withController(
         {
@@ -3423,8 +3422,8 @@ describe('TokenDetectionController', () => {
             (call) => call[0] === 'TokensController:addTokens',
           );
           const payload = addTokensCall?.[1] as { address: string }[];
-          const musdRows = payload.filter((t) =>
-            t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+          const musdRows = payload.filter(
+            (t) => t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
           );
           expect(musdRows).toHaveLength(1);
         },
@@ -3988,8 +3987,7 @@ describe('TokenDetectionController', () => {
 
     it('does not append a duplicate mUSD entry when the slice already includes mUSD', async () => {
       const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-      const usdcChecksummed =
-        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const usdcChecksummed = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
       const selectedAccount = createMockInternalAccount({
         address: '0x0000000000000000000000000000000000000001',
       });
@@ -4053,8 +4051,8 @@ describe('TokenDetectionController', () => {
             (call) => call[0] === 'TokensController:addTokens',
           );
           const payload = addTokensCall?.[1] as { address: string }[];
-          const musdRows = payload.filter((t) =>
-            t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+          const musdRows = payload.filter(
+            (t) => t.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
           );
           expect(musdRows).toHaveLength(1);
         },

@@ -1,8 +1,8 @@
 import type { Hex } from '@metamask/utils';
 
+import { fetchTokenListByChainId } from './token-service';
 import type { TokenListToken } from './TokenListController';
 import { buildTokenListMap, TokenListService } from './TokenListService';
-import { fetchTokenListByChainId } from './token-service';
 
 jest.mock('./token-service', () => ({
   fetchTokenListByChainId: jest.fn(),
@@ -37,9 +37,9 @@ describe('buildTokenListMap', () => {
       address: '0xabc0000000000000000000000000000000000001',
       aggregators: ['Bancor', 'CMC'],
     });
-    expect(
-      map['0xabc0000000000000000000000000000000000001'].iconUrl,
-    ).toContain('https://static.cx.metamask.io');
+    expect(map['0xabc0000000000000000000000000000000000001'].iconUrl).toContain(
+      'https://static.cx.metamask.io',
+    );
   });
 
   it('returns an empty map when the token array is empty', () => {
@@ -83,9 +83,9 @@ describe('TokenListService', () => {
     mockedFetchTokenListByChainId.mockResolvedValue(undefined);
 
     const service = new TokenListService();
-    await expect(service.fetchTokensByChainId('0x1' as Hex)).resolves.toStrictEqual(
-      {},
-    );
+    await expect(
+      service.fetchTokensByChainId('0x1' as Hex),
+    ).resolves.toStrictEqual({});
 
     service.destroy();
   });
