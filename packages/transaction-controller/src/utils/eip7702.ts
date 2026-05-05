@@ -40,7 +40,7 @@ const ERC7579_EXEC_TYPE_TRY = '01';
 
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
-const KEYRING_TYPES_SUPPORTING_7702 = ['HD Key Tree', 'Simple Key Pair'];
+const KEYRING_TYPES_SUPPORTING_7702 = ['HD Key Tree', 'Simple Key Pair', 'Money Keyring'];
 
 /**
  * Check whether a given account's keyring supports EIP-7702 authorization
