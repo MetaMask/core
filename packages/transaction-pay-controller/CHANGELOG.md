@@ -13,9 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add feature-flag-driven fiat asset resolution in `deriveFiatAssetForFiatPayment` ([#8631](https://github.com/MetaMask/core/pull/8631))
-  - Read asset per transaction type from `confirmations_pay_fiat` remote feature flag before falling back to hardcoded map
-  - Fall back to ETH on mainnet when neither feature flag nor hardcoded map has an entry
+- Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
 
 ## [21.0.0]
 
