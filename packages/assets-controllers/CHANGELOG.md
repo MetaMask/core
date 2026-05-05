@@ -9,15 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Switch the default mUSD asset from upfront `allTokens` state seeding to detection-based discovery on Ethereum mainnet (`0x1`), Linea (`0xe708`), and Monad mainnet (`0x8f`)
+  - `TokenDetectionController` now merges mUSD into the in-memory token list cache for these chains so it is treated as a regular detection candidate, replacing the previous `start()`-time `TokensController:addTokens` call and the per-event re-seed runs.
+  - `TokenBalancesController` schedules mUSD for import on the same chains even when the Accounts API returns a zero balance, so users without a current mUSD balance still see the token.
+  - Drops Monad testnet (`0x279f`) from the default mUSD chain list.
 - Bump `@metamask/network-enablement-controller` from `^5.0.2` to `^5.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 
+### Removed
+
+- Stop seeding mUSD directly into `TokensController` state and remove the related event subscriptions
+  - `TokensController` no longer subscribes to `KeyringController:unlock`, `AccountsController:accountAdded`, `AccountsController:selectedEvmAccountChange`, `NetworkController:networkAdded`, or `NetworkController:stateChange` for mUSD seeding purposes.
+  - `TokensControllerMessenger` no longer requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, or `KeyringControllerUnlockEvent` as allowed events.
+  - Detection-based discovery (see Changed) covers the same user-facing behavior on supported chains.
+
 ## [105.1.0]
 
 ### Added
 
+- Seed mUSD (`0xaca92e438df0b2401ff60da7e4337b687a2435da`) into `allTokens` state as a default tracked asset on Ethereum mainnet (`0x1`), Linea (`0xe708`), Monad mainnet (`0x8f`), and Monad testnet (`0x279f`) ([#8620](https://github.com/MetaMask/core/pull/8620))
+  - `TokenDetectionController.start()` now calls `TokensController:addTokens` for mUSD on every supported chain that is configured in `NetworkController` — this is the primary trigger and uses the proven `addTokens` API. Re-runs on `AccountsController:selectedEvmAccountChange` (since `addTokens` only seeds for the currently selected account).
+  - `TokensController` also seeds mUSD directly into state as a defense-in-depth measure: at startup for existing EVM accounts, on accounts already in persisted `allTokens` state, on `AccountsController:accountAdded`, on `AccountsController:selectedEvmAccountChange`, on `KeyringController:unlock`, on `NetworkController:networkAdded`, and on `NetworkController:stateChange` add patches.
+  - `TokensControllerMessenger` now requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, and `KeyringControllerUnlockEvent` as allowed events.
 - Add ZetaChain network support (`7000`/`0x1b58`) ([#8627](https://github.com/MetaMask/core/pull/8627))
 
 ### Changed
@@ -28,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.3.0` ([#8634](https://github.com/MetaMask/core/pull/8634))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+### Fixed
+
+- Correct the seeded mUSD token decimals from `18` to `6` in `TokensController` and `TokenDetectionController` defaults so tracked token metadata matches contract precision ([#8664](https://github.com/MetaMask/core/pull/8664))
 
 ## [105.0.0]
 
