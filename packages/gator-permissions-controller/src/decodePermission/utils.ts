@@ -22,7 +22,6 @@ const ENFORCER_CONTRACT_NAMES = {
   AllowedCalldataEnforcer: 'AllowedCalldataEnforcer',
   AllowedTargetsEnforcer: 'AllowedTargetsEnforcer',
   RedeemerEnforcer: 'RedeemerEnforcer',
-  LogicalOrWrapperEnforcer: 'LogicalOrWrapperEnforcer',
 };
 
 /**
@@ -119,10 +118,6 @@ export const getChecksumEnforcersByChainId = (
     ENFORCER_CONTRACT_NAMES.RedeemerEnforcer,
   );
 
-  const logicalOrWrapperEnforcer = getChecksumContractAddress(
-    ENFORCER_CONTRACT_NAMES.LogicalOrWrapperEnforcer,
-  );
-
   return {
     erc20StreamingEnforcer,
     erc20PeriodicEnforcer,
@@ -135,7 +130,6 @@ export const getChecksumEnforcersByChainId = (
     allowedCalldataEnforcer,
     allowedTargetsEnforcer,
     redeemerEnforcer,
-    logicalOrWrapperEnforcer,
   };
 };
 

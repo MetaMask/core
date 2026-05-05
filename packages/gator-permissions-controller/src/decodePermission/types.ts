@@ -101,7 +101,6 @@ export type ChecksumEnforcersByChainId = {
   allowedCalldataEnforcer: Hex;
   allowedTargetsEnforcer: Hex;
   redeemerEnforcer: Hex;
-  logicalOrWrapperEnforcer: Hex;
 };
 
 /** Caveat with checksummed enforcer address; used by rule decode functions. */

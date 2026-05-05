@@ -2,8 +2,7 @@ import type { Hex } from '@metamask/utils';
 
 /**
  * Execution permission rule restricting which addresses may receive payments
- * (on-chain AllowedCalldataEnforcer / AllowedTargetsEnforcer caveat, optionally
- * wrapped in a LogicalOrWrapperEnforcer for multiple payees).
+ * (on-chain AllowedCalldataEnforcer / AllowedTargetsEnforcer caveat).
  */
 export type PayeeRule = {
   type: 'payee';

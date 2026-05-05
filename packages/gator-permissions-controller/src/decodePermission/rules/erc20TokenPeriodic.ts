@@ -32,7 +32,6 @@ export function makeErc20TokenPeriodicRule(
     allowedCalldataEnforcer,
     allowedTargetsEnforcer,
     redeemerEnforcer,
-    logicalOrWrapperEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-periodic',
@@ -40,14 +39,12 @@ export function makeErc20TokenPeriodicRule(
       timestampEnforcer,
       redeemerEnforcer,
       allowedCalldataEnforcer,
-      logicalOrWrapperEnforcer,
     ],
     redeemerEnforcer,
     payeeEnforcers: {
       allowedCalldataEnforcer,
       allowedTargetsEnforcer,
       singlePayeeEnforcer: allowedCalldataEnforcer,
-      logicalOrWrapperEnforcer,
     },
     timestampEnforcer,
     requiredEnforcers: {

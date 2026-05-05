@@ -31,7 +31,6 @@ export function makeErc20TokenStreamRule(
     allowedCalldataEnforcer,
     allowedTargetsEnforcer,
     redeemerEnforcer,
-    logicalOrWrapperEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-stream',
@@ -39,14 +38,12 @@ export function makeErc20TokenStreamRule(
       timestampEnforcer,
       redeemerEnforcer,
       allowedCalldataEnforcer,
-      logicalOrWrapperEnforcer,
     ],
     redeemerEnforcer,
     payeeEnforcers: {
       allowedCalldataEnforcer,
       allowedTargetsEnforcer,
       singlePayeeEnforcer: allowedCalldataEnforcer,
-      logicalOrWrapperEnforcer,
     },
     timestampEnforcer,
     requiredEnforcers: {

@@ -3,7 +3,6 @@ import type { Caveat } from '@metamask/delegation-core';
 import {
   decodeAllowedCalldataTerms,
   decodeAllowedTargetsTerms,
-  decodeLogicalOrWrapperTerms,
   decodeRedeemerTerms,
 } from '@metamask/delegation-core';
 import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
@@ -30,14 +29,11 @@ import {
 
 const ERC20_TRANSFER_PAYEE_START_INDEX = 4;
 const ERC20_PAYEE_VALUE_BYTE_LENGTH = 32;
-const PAYEE_CAVEAT_ARGS = '0x' as const;
-const LOGICAL_OR_WRAPPER_CAVEAT_ARGS = '0x' as const;
 
 type PayeeEnforcerAddresses = {
   allowedCalldataEnforcer: Hex;
   allowedTargetsEnforcer: Hex;
   singlePayeeEnforcer: Hex;
-  logicalOrWrapperEnforcer: Hex;
 };
 
 /**
@@ -140,16 +136,21 @@ export function makePermissionRule({
           });
         }
 
-        const payeeAddresses = tryExtractPayeeAddresses(
-          checksumCaveats,
-          payeeEnforcers,
-          requiredEnforcersMap,
-        );
-        if (payeeAddresses) {
-          rules.push({
-            type: EXECUTION_PERMISSION_PAYEE_RULE_TYPE,
-            data: { addresses: payeeAddresses },
-          });
+        // todo: this is a temporary fix to exclude payee rules from erc20-token-revocation
+        // a nicer solution may be to pass an array of permissionRule decoders to the makePermissionRule
+        // function.
+        if (permissionType !== "erc20-token-revocation") {
+          const payeeAddresses = tryExtractPayeeAddresses(
+            checksumCaveats,
+            payeeEnforcers,
+            requiredEnforcersMap,
+          );
+          if (payeeAddresses) {
+            rules.push({
+              type: EXECUTION_PERMISSION_PAYEE_RULE_TYPE,
+              data: { addresses: payeeAddresses },
+            });
+          }
         }
 
         return {
@@ -174,28 +175,26 @@ export function makePermissionRule({
  * @param payeeEnforcerAddresses.allowedTargetsEnforcer - AllowedTargetsEnforcer address.
  * @returns The checksummed payee addresses, or null if the enforcer is unrecognised.
  */
-function tryExtractPayeeAddressesFromCaveat(
+function extractPayeeAddressesFromCaveat(
   caveat: Caveat<Hex>,
   payeeEnforcerAddresses: {
     allowedCalldataEnforcer: Hex;
     allowedTargetsEnforcer: Hex;
   },
-): Hex[] | null {
+): Hex[] {
   const checksumEnforcer = getChecksumAddress(caveat.enforcer);
 
   if (checksumEnforcer === payeeEnforcerAddresses.allowedCalldataEnforcer) {
-    assertPayeeCaveatArgs(caveat.args);
-
     const decoded = decodeAllowedCalldataTerms(caveat.terms);
     if (decoded.startIndex !== ERC20_TRANSFER_PAYEE_START_INDEX) {
       throw new Error(
-        `Invalid AllowedCalldataEnforcer payee terms: startIndex must be ${ERC20_TRANSFER_PAYEE_START_INDEX}`,
+        `Invalid payee caveat: AllowedCalldataEnforcer startIndex must be ${ERC20_TRANSFER_PAYEE_START_INDEX}`,
       );
     }
 
     if (getByteLength(decoded.value) !== ERC20_PAYEE_VALUE_BYTE_LENGTH) {
       throw new Error(
-        `Invalid AllowedCalldataEnforcer payee terms: value must be ${ERC20_PAYEE_VALUE_BYTE_LENGTH} bytes`,
+        `Invalid payee caveat: AllowedCalldataEnforcer value must be ${ERC20_PAYEE_VALUE_BYTE_LENGTH} bytes long`,
       );
     }
 
@@ -204,61 +203,22 @@ function tryExtractPayeeAddressesFromCaveat(
   }
 
   if (checksumEnforcer === payeeEnforcerAddresses.allowedTargetsEnforcer) {
-    assertPayeeCaveatArgs(caveat.args);
-
     const decoded = decodeAllowedTargetsTerms(caveat.terms);
-    return decoded.targets.map((target) => getChecksumAddress(target));
+    return decoded.targets.map(getChecksumAddress);
   }
 
-  return null;
-}
-
-/**
- * Asserts that payee caveat args match the expected empty value.
- *
- * @param args - The caveat args to validate.
- */
-function assertPayeeCaveatArgs(args: Hex): void {
-  if (args !== PAYEE_CAVEAT_ARGS) {
-    throw new Error(`Invalid payee caveat args: must be ${PAYEE_CAVEAT_ARGS}`);
-  }
-}
-
-/**
- * Extracts payee addresses from the specified payee caveat.
- *
- * @param caveat - The caveat to decode.
- * @param enforcers - Payee enforcer addresses.
- * @returns The checksummed payee addresses.
- */
-function extractPayeeAddressesFromExpectedCaveat(
-  caveat: Caveat<Hex>,
-  enforcers: PayeeEnforcerAddresses,
-): Hex[] {
-  if (getChecksumAddress(caveat.enforcer) !== enforcers.singlePayeeEnforcer) {
-    throw new Error(
-      'Invalid payee caveat: must use the configured single-payee enforcer',
-    );
-  }
-
-  const addresses = tryExtractPayeeAddressesFromCaveat(caveat, enforcers);
-  if (!addresses) {
-    throw new Error('Invalid payee caveat: unable to decode payee address');
-  }
-
-  return addresses;
+  throw new Error('Invalid payee caveat: unrecognised enforcer');
 }
 
 /**
  * Attempts to extract payee addresses from caveats, handling both single-payee
- * (direct enforcer) and multi-payee (LogicalOrWrapperEnforcer) cases.
+ * (direct enforcer) and multi-payee (RedeemerEnforcer).
  *
  * @param caveats - Checksummed caveats from the delegation.
  * @param enforcers - Payee enforcer addresses.
  * @param enforcers.allowedCalldataEnforcer - AllowedCalldataEnforcer address.
  * @param enforcers.allowedTargetsEnforcer - AllowedTargetsEnforcer address.
  * @param enforcers.singlePayeeEnforcer - The specific enforcer for single-payee in this permission type.
- * @param enforcers.logicalOrWrapperEnforcer - The LogicalOrWrapperEnforcer address.
  * @param requiredEnforcers - Required enforcer counts for the permission rule.
  * @returns Array of checksummed payee addresses, or null if no payee caveat is found.
  */
@@ -267,75 +227,23 @@ function tryExtractPayeeAddresses(
   enforcers: PayeeEnforcerAddresses,
   requiredEnforcers: Map<Hex, number>,
 ): Hex[] | null {
-  const logicalOrCaveats = caveats.filter(
-    (caveat) => caveat.enforcer === enforcers.logicalOrWrapperEnforcer,
-  );
-
-  if (logicalOrCaveats.length > 1) {
-    throw new Error('Invalid caveats');
+  if (requiredEnforcers.has(enforcers.singlePayeeEnforcer)) {
+    throw new Error('Invalid payee caveats: singlePayeeEnforcer may not be a required caveat');
   }
 
-  const requiredSinglePayeeCount =
-    requiredEnforcers.get(enforcers.singlePayeeEnforcer) ?? 0;
   const singlePayeeCaveats = caveats.filter(
     (caveat) => caveat.enforcer === enforcers.singlePayeeEnforcer,
   );
 
-  if (singlePayeeCaveats.length > requiredSinglePayeeCount + 1) {
-    throw new Error('Invalid caveats');
+  // this should not be possible, unless the singlePayeeCaveat is also included for a different rule, for the permission itself
+  if (singlePayeeCaveats.length > 1) {
+    throw new Error('Invalid payee caveats: multiple singlePayeeEnforcer caveats');
   }
 
-  const singlePayeeCaveat =
-    singlePayeeCaveats[requiredSinglePayeeCount] ?? null;
+  const singlePayeeCaveat = singlePayeeCaveats[0] ?? null;
 
-  if (logicalOrCaveats.length === 1 && singlePayeeCaveat) {
-    throw new Error(
-      'Invalid payee caveats: use either LogicalOrWrapperEnforcer or a single-payee caveat',
-    );
-  }
-
-  if (logicalOrCaveats.length === 1) {
-    if (enforcers.singlePayeeEnforcer !== enforcers.allowedCalldataEnforcer) {
-      throw new Error(
-        'Invalid LogicalOrWrapperEnforcer payee caveat: only ERC20 payees may use LogicalOrWrapperEnforcer',
-      );
-    }
-
-    const [logicalOrCaveat] = logicalOrCaveats;
-    if (logicalOrCaveat.args !== LOGICAL_OR_WRAPPER_CAVEAT_ARGS) {
-      throw new Error(
-        `Invalid LogicalOrWrapperEnforcer payee args: must be ${LOGICAL_OR_WRAPPER_CAVEAT_ARGS}`,
-      );
-    }
-
-    const decoded = decodeLogicalOrWrapperTerms(logicalOrCaveat.terms);
-    if (decoded.caveatGroups.length === 0) {
-      throw new Error(
-        'Invalid LogicalOrWrapperEnforcer payee terms: must contain at least one caveat group',
-      );
-    }
-
-    return decoded.caveatGroups.flatMap((group) => {
-      if (group.length !== 1) {
-        throw new Error(
-          'Invalid LogicalOrWrapperEnforcer payee terms: each caveat group must contain exactly one caveat',
-        );
-      }
-
-      const addresses = extractPayeeAddressesFromExpectedCaveat(
-        group[0],
-        enforcers,
-      );
-
-      return addresses;
-    });
-  }
-
-  if (singlePayeeCaveat) {
-    return extractPayeeAddressesFromExpectedCaveat(
-      singlePayeeCaveat,
-      enforcers,
-    );
+  if (singlePayeeCaveat) { 
+    return extractPayeeAddressesFromCaveat(singlePayeeCaveat, enforcers);
   }
 
   return null;
