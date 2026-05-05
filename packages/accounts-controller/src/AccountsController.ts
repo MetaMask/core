@@ -4,13 +4,12 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type {
   SnapKeyringAccountAssetListUpdatedEvent,
   SnapKeyringAccountBalancesUpdatedEvent,
   SnapKeyringAccountTransactionsUpdatedEvent,
 } from '@metamask/eth-snap-keyring';
-import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
+import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
 import {
   EthAccountType,
@@ -28,7 +27,8 @@ import type {
   KeyringObject,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { isScopeEqualToAny, Keyring } from '@metamask/keyring-utils';
+import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
+import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { isCaipChainId } from '@metamask/utils';
