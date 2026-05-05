@@ -7,22 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-
 ### Changed
 
 - Bump `@metamask/signature-controller` from `^39.1.2` to `^39.2.0` ([#8478](https://github.com/MetaMask/core/pull/8478))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.0.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [5.1.1]
@@ -137,13 +126,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added metrics in the Shield coverage response to track the latency ([#7133](https://github.com/MetaMask/core/pull/7133))
+- Added metrics in the Shield coverage response to track the latency ( [#7133](https://github.com/MetaMask/core/pull/7133))
 
 ## [2.0.0]
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/signature-controller` from `^35.0.0` to `^36.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^35.0.0` to `^36.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
 
 ## [1.2.0]
 

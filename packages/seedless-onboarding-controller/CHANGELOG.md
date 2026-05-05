@@ -7,18 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
-
 ### Added
 
 - Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
@@ -34,8 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.4.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/toprf-secure-backup` from `^0.11.0` to `^1.0.0` ([#7284](https://github.com/MetaMask/core/pull/7284))
 - **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
   - `SecretType` is now derived internally from `EncAccountDataType`
@@ -283,6 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller.([#6169](https://github.com/MetaMask/core/pull/6169))
+
 - Added `revokeRefreshToken` function to revoke refresh token and update vault with the new revoke token.([#6187](https://github.com/MetaMask/core/pull/6187))
 
 ## [2.4.0]
@@ -331,7 +320,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `PrivateKey sync` feature to the controller. ([#5948](https://github.com/MetaMask/core/pull/5948))
+- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
   - **BREAKING** Updated controller methods signatures.
   - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
   - added `addNewSecretData` method implementation to support adding different secret data types.
@@ -354,7 +343,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault
   - check for token expired in toprf call, refresh token and retry if expired
   - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
-- Removed `recoveryRatelimitCache` from the controller state.. ([#5976](https://github.com/MetaMask/core/pull/5976))
+- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
 - **BREAKING:** Changed `syncLatestGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
   - removed parameter `oldPassword`
   - no longer verifying old password

@@ -7,18 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Fix incorrect PR link in signature-controller changelog ([#8501](https://github.com/MetaMask/core/pull/8501))
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-
-### Changed
-
-- Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
-- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.4.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
-- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
-
 ## [39.2.0]
 
 ### Changed
@@ -346,7 +334,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [22.0.0]
 

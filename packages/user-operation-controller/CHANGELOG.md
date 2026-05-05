@@ -7,24 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.4.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.0.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
-- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 
 ## [41.2.0]
 
@@ -170,7 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0`, ([#6171](https://github.com/MetaMask/core/pull/6171), [#6027](https://github.com/MetaMask/core/pull/6027))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171)), ([#6027](https://github.com/MetaMask/core/pull/6027))
 - Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 
@@ -331,8 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
-- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^39.0.0` to `^40.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^39.0.0` to `^40.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
 
 ## [18.0.0]
 
@@ -364,7 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `PendingUserOperationTracker` now uses a new polling interface that accepts the generic parameter `PollingInput` ([#4752](https://github.com/MetaMask/core/pull/4752))
 - **BREAKING:** The inherited `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
 - **BREAKING:** The inherited `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
-- Bump `@metamask/transaction-controller` from `^37.1.0` to `^37.3.0` ([#4754](https://github.com/MetaMask/core/pull/4754), [#4805](https://github.com/MetaMask/core/pull/4805))
+- Bump `@metamask/transaction-controller` from `^37.1.0` to `^37.3.0` ([#4754](https://github.com/MetaMask/core/pull/4754),[#4805](https://github.com/MetaMask/core/pull/4805))
 - Bump `@metamask/approval-controller` from `^7.0.4` to `^7.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
 - Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
 - Bump `@metamask/transaction-controller` from `^37.0.0` to `^37.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
@@ -381,7 +369,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -392,8 +380,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
-- **BREAKING:** Bump devDependency and peerDependency `@metamask/transaction-controller` from `^35.0.0` to `^36.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
-- **BREAKING:** Bump devDependency and peerDependency `@metamask/gas-fee-controller` from `^19.0.0` to `^20.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/transaction-controller` from `^35.0.0` to `^36.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/gas-fee-controller` from `^19.0.0` to `^20.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
 - Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
 - Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
 - Bump `@metamask/polling-controller` from `^9.0.1` to `^10.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
