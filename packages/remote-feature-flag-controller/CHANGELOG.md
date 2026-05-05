@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
+- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
+- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
+- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
+- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
+- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
@@ -42,14 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags ([#7511](https://github.com/MetaMask/core/pull/7511)):
+- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags: ([#7511](https://github.com/MetaMask/core/pull/7511))
   - Persist threshold values in controller state to avoid recalculating on app restart
   - Skip cryptographic operations for non-threshold arrays
   - Batch cache updates and cleanup into single state change
   - Automatically remove stale cache entries when flags are deleted
-- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511)) for native `crypto.subtle.digest` optimization ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` for native `crypto.subtle.digest` optimization ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Remove `@noble/hashes` dependency since hashing utilities are now available in upgraded `@metamask/utils` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Changes to exported types ([#7511](https://github.com/MetaMask/core/pull/7511)):
+- Changes to exported types: ([#7511](https://github.com/MetaMask/core/pull/7511))
   - Add optional field `thresholdCache` to `RemoteFeatureFlagControllerState`
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
 
@@ -169,9 +181,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Deprecate `ClientConfigApiService` constructor options `onBreak` and `onDegraded` in favor of methods ([#5109](https://github.com/MetaMask/core/pull/5109))
-- Add `@metamask/controller-utils@^11.5.0` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Add `@metamask/controller-utils@^11.5.0` as a dependency, ([#5109](https://github.com/MetaMask/core/pull/5109), [#5272](https://github.com/MetaMask/core/pull/5272))
   - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`
-- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0`, ([#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [1.3.0]
