@@ -7,7 +7,11 @@
  * chain-status forwarding, and automatic resubscription on reconnect.
  */
 
-import type { TraceCallback } from '@metamask/controller-utils';
+import type {
+  TraceCallback,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
 import type {
@@ -143,29 +147,6 @@ export type OHLCVServiceMessenger = Messenger<
  * - Reconnect resilience: resubscribes all active channels on reconnect
  * - Chain-status forwarding: listens to system-notifications for chain up/down
  *
- * @example
- * ```typescript
- * const service = new OHLCVService({ messenger });
- *
- * // Subscribe from a UI hook
- * await messenger.call('OHLCVService:subscribe', {
- *   assetId: 'eip155:8453/erc20:0x833...',
- *   interval: '1m',
- *   currency: 'usd',
- * });
- *
- * // Listen for bar updates
- * messenger.subscribe('OHLCVService:barUpdated', ({ channel, bar }) => {
- *   chart.appendBar(bar);
- * });
- *
- * // Unsubscribe when the view unmounts
- * await messenger.call('OHLCVService:unsubscribe', {
- *   assetId: 'eip155:8453/erc20:0x833...',
- *   interval: '1m',
- *   currency: 'usd',
- * });
- * ```
  */
 export class OHLCVService {
   readonly name = SERVICE_NAME;
@@ -187,10 +168,15 @@ export class OHLCVService {
   ) {
     this.#messenger = options.messenger;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.#trace = options.traceFn ?? (((_req: any, fn?: any) => fn?.()) as TraceCallback);
+    this.#trace =
+      options.traceFn ??
+      ((<Result>(_request: TraceRequest, fn?: (context?: TraceContext) => Result) =>
+        fn?.()) as TraceCallback);
 
-    this.#messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
@@ -201,9 +187,7 @@ export class OHLCVService {
   }
 
   /**
-   * Register the system-notifications channel callback. Must be called after
-   * construction so that clients are not forced to instantiate services in a
-   * specific order.
+   * Register the system-notifications channel callback.
    */
   init(): void {
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
