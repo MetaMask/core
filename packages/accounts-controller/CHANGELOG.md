@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use `KeyringV1Adapter` for `SnapKeyring` v2 accounts ([#8703](https://github.com/MetaMask/core/pull/8703))
+  - `SnapKeyring` v2 instances will be adapted/wrapped by a v1 keyring adapter, making it compatible with the current `KeyringController` keyrings management.
+- Bump `@metamask/keyring-utils` from `^3.1.0` to `^3.2.1` ([#8703](https://github.com/MetaMask/core/pull/8703))
+
 ## [38.0.0]
 
 ### Added
 
-- Add support for `SnapKeyring` v2 accounts ([#8513](https://github.com/MetaMask/core/pull/8513)), ([#8703](https://github.com/MetaMask/core/pull/8703))
+- Add support for `SnapKeyring` v2 accounts ([#8513](https://github.com/MetaMask/core/pull/8513))
 
 ### Changed
 
