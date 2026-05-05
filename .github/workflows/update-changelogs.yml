@@ -159,37 +159,34 @@ jobs:
           MERGE_BASE: ${{ needs.is-release.outputs.merge-base }}
         run: |
           yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
-          if git diff --quiet; then
-            echo "changelogs-updated=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "changelogs-updated=true" >> "$GITHUB_OUTPUT"
         shell: bash
+        # If changelogs were updated but there were other validation errors
+        # found, we need to still create a commit below
+        continue-on-error: true
 
       - name: Commit updated changelogs
-        if: ${{ steps.update-changelogs.outputs.changelogs-updated == 'true' }}
         id: commit-updated-changelogs
         run: |
+          if git diff --quiet; then
+            # Nothing to commit; no changelogs updated
+            exit 0
+          fi
+
           git add -- '**/CHANGELOG.md'
           git commit -m "chore: Update dependency bump changelog entries"
+
           new_commit_id="$(git log -1 --pretty='format:%h')"
           echo "new-commit-id=${new_commit_id}" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - name: Check out pull request completely
-        env:
-          PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
-        run: |
-          git checkout "$PR_HEAD_SHA"
-        shell: bash
-
-      - name: Cherry-pick new commit and push it
+      - name: Cherry-pick new commit on top of pull request branch and push it
         id: push-changes
         env:
           NEW_COMMIT_ID: ${{ steps.commit-updated-changelogs.outputs.new-commit-id }}
           PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
         run: |
           if [[ -n "$NEW_COMMIT_ID" ]]; then
+            git checkout "$PR_HEAD_SHA"
             git cherry-pick "$NEW_COMMIT_ID"
             git push origin "HEAD:$PR_HEAD_REF"
             echo "changes-pushed=true" >> "$GITHUB_OUTPUT"
