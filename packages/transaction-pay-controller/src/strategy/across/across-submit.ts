@@ -577,10 +577,7 @@ function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
  */
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
   if (isPredictWithdrawTransaction(transaction)) {
-    return (
-      TransactionType.predictAcrossWithdraw ??
-      ('predictAcrossWithdraw' as TransactionType)
-    );
+    return TransactionType.predictAcrossWithdraw;
   }
 
   switch (transaction.type) {
