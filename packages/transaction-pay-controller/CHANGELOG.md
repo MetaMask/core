@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Re-run `parseRequiredTokens` for in-flight transactions when token info, token rates, or currency rates become available, recovering required-token state when those state sources resolved after the transaction was first parsed. Previously the only retry trigger was a `txParams.data` change, which left consumers stuck when they gated `data` edits on having a resolved required token.
+- Re-run `parseRequiredTokens` for in-flight transactions when token info, token rates, or currency rates become available, recovering required-token state when those state sources resolved after the transaction was first parsed. Previously the only retry trigger was a `txParams.data` change, which left consumers stuck when they gated `data` edits on having a resolved required token. ([#8714](https://github.com/MetaMask/core/pull/8714))
 
 ## [21.0.0]
 

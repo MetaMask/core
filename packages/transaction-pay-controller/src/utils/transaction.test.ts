@@ -51,7 +51,9 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
-  const getAssetsUnifyStateFeatureMock = jest.mocked(getAssetsUnifyStateFeature);
+  const getAssetsUnifyStateFeatureMock = jest.mocked(
+    getAssetsUnifyStateFeature,
+  );
   const {
     messenger,
     getTransactionControllerStateMock,
