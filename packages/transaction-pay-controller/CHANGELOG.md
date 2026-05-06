@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687)).
 - Implement fiat strategy submit flow with order polling and relay execution ([#8347](https://github.com/MetaMask/core/pull/8347))
 
 ### Changed
 
 - Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
+- Bump `@metamask/bridge-controller` from `^71.0.0` to `^71.1.0` ([#8706](https://github.com/MetaMask/core/pull/8706))
+- Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
+- Bump `@metamask/ramps-controller` from `^13.2.0` to `^13.3.0` ([#8698](https://github.com/MetaMask/core/pull/8698))
 
 ## [21.0.0]
 
