@@ -130,8 +130,10 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Start the promise but don't await immediately.
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
 
+      // Should not resolve yet since platform is not ready.
       let resolved = false;
       void ensurePromise.then(() => {
         resolved = true;
@@ -140,6 +142,7 @@ describe('SnapPlatformWatcher', () => {
 
       expect(resolved).toBe(false);
 
+      // Publish state change with isReady: true.
       publishIsReadyState(rootMessenger, true);
 
       await ensurePromise;
@@ -150,9 +153,13 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Make platform ready first.
       publishIsReadyState(rootMessenger, true);
+
+      // Make platform unavailable
       publishIsReadyState(rootMessenger, false);
 
+      // Should throw error since platform is not ready now.
       await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
         'Snap platform cannot be used now.',
       );
@@ -162,15 +169,24 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Make platform ready
       publishIsReadyState(rootMessenger, true);
+
+      // Should work
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
 
+      // Make platform unavailable.
       publishIsReadyState(rootMessenger, false);
+
+      // Should fail.
       await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
         'Snap platform cannot be used now.',
       );
 
+      // Make platform ready again.
       publishIsReadyState(rootMessenger, true);
+
+      // Should work again.
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
     });
 
@@ -178,12 +194,15 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Start multiple concurrent calls.
       const promise1 = watcher.ensureCanUseSnapPlatform();
       const promise2 = watcher.ensureCanUseSnapPlatform();
       const promise3 = watcher.ensureCanUseSnapPlatform();
 
+      // Make platform ready.
       publishIsReadyState(rootMessenger, true);
 
+      // All promises should resolve.
       expect(await Promise.all([promise1, promise2, promise3])).toStrictEqual([
         undefined,
         undefined,
@@ -196,12 +215,15 @@ describe('SnapPlatformWatcher', () => {
       const watcher = new SnapPlatformWatcher(messenger);
       const resolveSpy = jest.fn();
 
+      // Access the private deferred promise through ensureCanUsePlatform.
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
       void ensurePromise.then(resolveSpy);
 
+      // Make platform ready multiple times.
       publishIsReadyState(rootMessenger, true);
       publishIsReadyState(rootMessenger, true);
 
+      // Should only resolve once.
       await ensurePromise;
       expect(resolveSpy).toHaveBeenCalledTimes(1);
     });
@@ -210,6 +232,7 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Start the promise
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
       let resolved = false;
       void ensurePromise.then(() => {
@@ -217,10 +240,12 @@ describe('SnapPlatformWatcher', () => {
         return null;
       });
 
+      // Publish false state (should be ignored since we haven't been ready yet).
       publishIsReadyState(rootMessenger, false);
       expect(resolved).toBe(false);
       expect(watcher.isReady).toBe(false);
 
+      // Now make it ready..
       publishIsReadyState(rootMessenger, true);
       await ensurePromise;
       expect(resolved).toBe(true);
@@ -230,11 +255,15 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Start waiting for the platform.
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
 
+      // Make platform ready (resolves the deferred; continuation is queued as microtask).
       publishIsReadyState(rootMessenger, true);
+      // Before the continuation runs, make platform not ready again.
       publishIsReadyState(rootMessenger, false);
 
+      // The continuation runs after both publishes; it sees isReady false and throws.
       await expect(ensurePromise).rejects.toThrow(
         'Snap platform cannot be used now.',
       );
@@ -243,6 +272,7 @@ describe('SnapPlatformWatcher', () => {
     it('resolves immediately if platform is already ready', async () => {
       const { messenger, mocks } = setup();
 
+      // Make the platform ready before creating the watcher.
       mocks.SnapController.getState.mockReturnValue({
         isReady: true,
       } as SnapControllerState);
