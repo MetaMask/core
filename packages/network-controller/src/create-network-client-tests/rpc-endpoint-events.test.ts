@@ -470,6 +470,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                     },
                   );
@@ -593,6 +595,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                     },
                   );
@@ -706,6 +710,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         primaryEndpointUrl: rpcUrl,
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -718,6 +724,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         primaryEndpointUrl: rpcUrl,
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -730,6 +738,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         primaryEndpointUrl: rpcUrl,
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                     },
                   );
@@ -855,6 +865,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         primaryEndpointUrl: rpcUrl,
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -867,6 +879,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         primaryEndpointUrl: rpcUrl,
                         retryReason: 'non_successful_http_status',
                         rpcMethodName: 'eth_blockNumber',
+                        duration: undefined,
+                        traceId: undefined,
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -878,6 +892,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
                         rpcMethodName: 'eth_blockNumber',
+                        duration: expect.any(Number),
+                        traceId: undefined,
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -889,6 +905,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
                         rpcMethodName: 'eth_gasPrice',
+                        duration: expect.any(Number),
+                        traceId: undefined,
                       });
                     },
                   );
@@ -1090,6 +1108,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     retryReason: 'non_successful_http_status',
                     rpcMethodName: 'eth_blockNumber',
+                    duration: undefined,
+                    traceId: undefined,
                   });
                 },
               );
@@ -1168,6 +1188,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     rpcMethodName: 'eth_blockNumber',
+                    duration: expect.any(Number),
+                    traceId: undefined,
                   });
                 },
               );
@@ -1257,6 +1279,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     primaryEndpointUrl: rpcUrl,
                     retryReason: 'non_successful_http_status',
                     rpcMethodName: 'eth_blockNumber',
+                    duration: undefined,
+                    traceId: undefined,
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
@@ -1267,6 +1291,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     primaryEndpointUrl: rpcUrl,
                     retryReason: 'non_successful_http_status',
                     rpcMethodName: 'eth_blockNumber',
+                    duration: undefined,
+                    traceId: undefined,
                   });
                 },
               );
@@ -1427,6 +1453,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
                     rpcMethodName: 'eth_blockNumber',
+                    duration: expect.any(Number),
+                    traceId: undefined,
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
@@ -1436,6 +1464,8 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
                     rpcMethodName: 'eth_gasPrice',
+                    duration: expect.any(Number),
+                    traceId: undefined,
                   });
                 },
               );

@@ -350,25 +350,32 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded(({ rpcMethodName, ...rest }) => {
-    const error = getError(rest);
-    const type: DegradedEventType =
-      error === undefined ? 'slow_success' : 'retries_exhausted';
-    messenger.publish('NetworkController:rpcEndpointChainDegraded', {
-      chainId: configuration.chainId,
-      networkClientId: id,
-      error,
-      rpcMethodName,
-      type,
-      retryReason: error === undefined ? undefined : classifyRetryReason(error),
-    });
-  });
+  rpcServiceChain.onDegraded(
+    ({ rpcMethodName, duration, traceId, ...rest }) => {
+      const error = getError(rest);
+      const type: DegradedEventType =
+        error === undefined ? 'slow_success' : 'retries_exhausted';
+      messenger.publish('NetworkController:rpcEndpointChainDegraded', {
+        chainId: configuration.chainId,
+        networkClientId: id,
+        error,
+        rpcMethodName,
+        duration,
+        traceId,
+        type,
+        retryReason:
+          error === undefined ? undefined : classifyRetryReason(error),
+      });
+    },
+  );
 
   rpcServiceChain.onServiceDegraded(
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
       rpcMethodName,
+      duration,
+      traceId,
       ...rest
     }) => {
       const error = getError(rest);
@@ -382,6 +389,8 @@ function createRpcServiceChain({
         endpointUrl,
         error,
         rpcMethodName,
+        duration,
+        traceId,
         type,
         retryReason:
           error === undefined ? undefined : classifyRetryReason(error),

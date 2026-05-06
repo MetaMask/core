@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The `ServicePolicy` type's `onDegraded` event now emits `{ duration: number }` instead of `void` when the service succeeds but takes longer than the `degradedThreshold` ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `void` has been removed from the event's type union. Listeners that checked for `undefined` data should now check for the `duration` property instead.
+  - The event still emits a `FailureReason` when retries are exhausted.
 - Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
 - Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
 - Update `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, and `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680))
