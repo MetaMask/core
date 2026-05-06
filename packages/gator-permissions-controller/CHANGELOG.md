@@ -9,18 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-
 ### Added
 
-- Add `payee` rule to execution permission decoding for all known permission types ([#8668](https://github.com/MetaMask/core/pull/8668))
-- Support `RedeemerEnforcer` caveat when decoding execution permissions ([#8537](https://github.com/MetaMask/core/pull/8537))
-  - Permission decoding now recognizes the `RedeemerEnforcer` as an optional caveat on all execution permission types and extracts a `redeemer` rule containing the allowlisted addresses.
-  - `DecodedPermission` type now includes an optional `rules` property for rules recovered from caveats.
-  - Export new `EXECUTION_PERMISSION_REDEEMER_RULE_TYPE` constant and `RedeemerRule` type.
-- New decoding rules for `native-token-allowance` and `erc20-token-allowance` ([#8553](https://github.com/MetaMask/core/pull/8553))
+- Add `payee` rule decoding for execution permissions, extracting allowed recipient addresses from `AllowedTargetsEnforcer` (native token) and `AllowedCalldataEnforcer` (ERC-20 token) caveats ([#8668](https://github.com/MetaMask/core/pull/8668))
+- Add `redeemer` rule decoding for execution permissions, extracting addresses from `RedeemerEnforcer` caveats ([#8537](https://github.com/MetaMask/core/pull/8537))
+- Add `native-token-allowance` and `erc20-token-allowance` execution permission type decoding ([#8553](https://github.com/MetaMask/core/pull/8553))
 
 ### Changed
 
@@ -29,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^64.2.0` to `^65.1.0` ([#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
-
+- Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+  
 ## [4.0.0]
 
 ### Changed
