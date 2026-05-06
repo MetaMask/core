@@ -282,6 +282,22 @@ describe('TokenApiClient', () => {
       expect(calledUrl).toContain('includeTokenSecurityData=true');
     });
 
+    it('passes unknown query params through to the URL', async () => {
+      const mockResponse = [
+        { address: '0xtrending', symbol: 'TRD', chainId: 1 },
+      ];
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.token.fetchV3TrendingTokens(['eip155:1'], {
+        vsCurrency: 'eur',
+        customFlag: true,
+      });
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).toContain('vsCurrency=eur');
+      expect(calledUrl).toContain('customFlag=true');
+    });
+
     it('fetches v3 top gainers', async () => {
       const mockResponse = [
         { address: '0xgainer', symbol: 'GAIN', chainId: 1 },

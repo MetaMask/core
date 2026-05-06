@@ -169,6 +169,24 @@ export type TrendingSortOption =
   | 'h6_trending'
   | 'h24_trending';
 
+/**
+ * Query options for the v3 trending tokens endpoint.
+ *
+ * Known parameters are explicitly typed for autocomplete and documentation.
+ * The index signature allows new API parameters to pass through without
+ * requiring a core release.
+ */
+export type V3TrendingQueryOptions = {
+  sortBy?: TrendingSortOption;
+  minLiquidity?: number;
+  minVolume24hUsd?: number;
+  maxVolume24hUsd?: number;
+  minMarketCap?: number;
+  maxMarketCap?: number;
+  includeTokenSecurityData?: boolean;
+  [key: string]: string | number | boolean | string[] | undefined;
+};
+
 // ============================================================================
 // UTILITY TYPES
 // ============================================================================
