@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The event still emits a `FailureReason` when retries are exhausted.
 - Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
 - Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
-- Update `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, and `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680))
+- Update `BUILT_IN_NETWORKS`, `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680), [#8713](https://github.com/MetaMask/core/pull/8713))
 
 ## [11.20.0]
 
