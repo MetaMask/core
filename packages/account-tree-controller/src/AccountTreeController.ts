@@ -59,6 +59,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearState',
   'syncWithUserStorage',
   'syncWithUserStorageAtLeastOnce',
+  'init',
+  'reinit',
 ] as const;
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
