@@ -174,6 +174,7 @@ export {
 
 export {
   selectBridgeQuotes,
+  selectBridgeQuotesBatch,
   selectDefaultSlippagePercentage,
   type BridgeAppState,
   selectExchangeRateByChainIdAndAddress,

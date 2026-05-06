@@ -25,6 +25,7 @@ import type {
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteResponse,
+  TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
@@ -550,6 +551,83 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   sortedQuotes: selectSortedBridgeQuotes,
   recommendedQuote: selectRecommendedQuote,
   activeQuote: selectActiveQuote,
+  quotesLastFetchedMs: (state) => state.quotesLastFetched,
+  isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
+  quoteFetchError: (state) => state.quoteFetchError,
+  quotesRefreshCount: (state) => state.quotesRefreshCount,
+  quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
+  isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
+});
+
+const selectRecommendedQuotes = createBridgeSelector(
+  [
+    selectSortedBridgeQuotes,
+    (_, { requestCount }: { requestCount: number }) => requestCount,
+  ],
+  (quotes, requestCount) =>
+    quotes.reduce((acc, quote) => {
+      const requestIndex = quote.quoteRequestIndex ?? 0;
+      acc[requestIndex] ??= quote;
+      return acc;
+    }, Array<(QuoteResponse & QuoteMetadata) | null>(requestCount).fill(null)),
+);
+
+const selectMetadataSum = createBridgeSelector(
+  [
+    selectRecommendedQuotes,
+    (
+      _,
+      {
+        key,
+      }: { key: 'totalNetworkFee' | 'minToTokenAmount' | 'toTokenAmount' },
+    ) => key,
+  ],
+  (recommendedQuotes, key) =>
+    recommendedQuotes.reduce<TokenAmountValues>(
+      (acc, quote) => {
+        acc.usd = new BigNumber(acc.usd ?? 0)
+          .plus(quote?.[key]?.usd ?? 0)
+          .toString();
+        acc.valueInCurrency = new BigNumber(acc.valueInCurrency ?? 0)
+          .plus(quote?.[key]?.valueInCurrency ?? 0)
+          .toString();
+        acc.amount = new BigNumber(acc.amount ?? 0)
+          .plus(quote?.[key]?.amount ?? 0)
+          .toString();
+        return acc;
+      },
+      { usd: null, valueInCurrency: null, amount: '0' },
+    ),
+);
+
+/**
+ * Selects the recommended quotes for a batch of quote requests.
+ *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @param sortOrder - The sort order of the quotes
+ * @param requestCount - The number of quote requests fetched in the batch
+ * @returns The recommendedQuotes, totalReceived, minimumReceived, totalNetworkFee, and other quote fetching metadata
+ *
+ * @example
+ * ```ts
+ * const quoteBatch = useSelector(state => selectBridgeQuotesBatch(
+ *   { ...state.metamask },
+ *   {
+ *     sortOrder: state.bridge.sortOrder,
+ *     requestCount: 4,
+ *   }
+ * ));
+ * ```
+ */
+export const selectBridgeQuotesBatch = createStructuredBridgeSelector({
+  recommendedQuotes: selectRecommendedQuotes,
+  totalReceived: (state, opts) =>
+    selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
+  minimumReceived: (state, opts) =>
+    selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
+  // TODO call estimation API
+  totalNetworkFee: (state, opts) =>
+    selectMetadataSum(state, { ...opts, key: 'totalNetworkFee' }),
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,
