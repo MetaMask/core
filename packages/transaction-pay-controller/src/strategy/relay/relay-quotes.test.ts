@@ -454,6 +454,68 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('funds the delegator (transaction.txParams.from) rather than request.from when they differ', async () => {
+      const delegatorAddress =
+        '0xabcdef0000000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: delegatorAddress,
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.txs[0]).toStrictEqual({
+        to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        data: '0xa9059cbb000000000000000000000000abcdef0000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000007b',
+        value: '0x0',
+      });
+    });
+
+    it('falls back to request.from for the funding recipient when transaction.txParams.from is unset', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.txs[0]).toStrictEqual({
+        to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567891000000000000000000000000000000000000000000000000000000000000007b',
+        value: '0x0',
+      });
+    });
+
     it('includes request in quote', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
