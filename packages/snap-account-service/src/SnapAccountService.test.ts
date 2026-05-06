@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -6,7 +7,10 @@ import type {
 } from '@metamask/messenger';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 
-import type { SnapAccountServiceMessenger } from './SnapAccountService';
+import type {
+  SnapAccountServiceMessenger,
+  SnapAccountServiceOptions,
+} from './SnapAccountService';
 import { SnapAccountService } from './SnapAccountService';
 
 /**
@@ -26,6 +30,10 @@ type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
     getState: jest.MockedFunction<() => SnapControllerState>;
+  };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  KeyringController: {
+    getState: jest.MockedFunction<() => { keyrings: { type: string }[] }>;
   };
 };
 
@@ -54,48 +62,10 @@ function getMessenger(
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['SnapController:getState'],
-    events: ['SnapController:stateChange'],
+    actions: ['SnapController:getState', 'KeyringController:getState'],
+    events: ['SnapController:stateChange', 'KeyringController:stateChange'],
   });
   return messenger;
-}
-
-/**
- * Constructs the service under test with sensible defaults.
- *
- * @param args - The arguments to this function.
- * @param args.options - The options that the service constructor takes.
- * @returns The new service, root messenger, service messenger, and mocks.
- */
-function setup({
-  options = {},
-}: {
-  options?: Partial<ConstructorParameters<typeof SnapAccountService>[0]>;
-} = {}): {
-  service: SnapAccountService;
-  rootMessenger: RootMessenger;
-  messenger: SnapAccountServiceMessenger;
-  mocks: Mocks;
-} {
-  const rootMessenger = getRootMessenger();
-  const messenger = getMessenger(rootMessenger);
-
-  const mocks: Mocks = {
-    SnapController: {
-      getState: jest
-        .fn()
-        .mockReturnValue({ isReady: true } as SnapControllerState),
-    },
-  };
-
-  rootMessenger.registerActionHandler(
-    'SnapController:getState',
-    mocks.SnapController.getState,
-  );
-
-  const service = new SnapAccountService({ messenger, ...options });
-
-  return { service, rootMessenger, messenger, mocks };
 }
 
 /**
@@ -113,6 +83,75 @@ function publishSnapIsReady(
     { isReady } as SnapControllerState,
     [],
   );
+}
+
+/**
+ * Publishes a KeyringController stateChange event on the root messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param keyrings - The keyrings to publish.
+ */
+function publishKeyrings(
+  rootMessenger: RootMessenger,
+  keyrings: { type: string }[],
+): void {
+  rootMessenger.publish(
+    'KeyringController:stateChange',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { keyrings } as any,
+    [],
+  );
+}
+
+/**
+ * Constructs the service under test with sensible defaults.
+ *
+ * @param args - The arguments to this function.
+ * @param args.snapIsReady - Initial value of `SnapController.isReady`.
+ * @param args.keyrings - Initial keyrings returned by `KeyringController:getState`.
+ * @param args.config - Optional service config.
+ * @returns The new service, root messenger, service messenger, and mocks.
+ */
+function setup({
+  snapIsReady = true,
+  keyrings = [{ type: KeyringTypes.snap }],
+  config,
+}: {
+  snapIsReady?: boolean;
+  keyrings?: { type: string }[];
+  config?: SnapAccountServiceOptions['config'];
+} = {}): {
+  service: SnapAccountService;
+  rootMessenger: RootMessenger;
+  messenger: SnapAccountServiceMessenger;
+  mocks: Mocks;
+} {
+  const rootMessenger = getRootMessenger();
+  const messenger = getMessenger(rootMessenger);
+
+  const mocks: Mocks = {
+    SnapController: {
+      getState: jest
+        .fn()
+        .mockReturnValue({ isReady: snapIsReady } as SnapControllerState),
+    },
+    KeyringController: {
+      getState: jest.fn().mockReturnValue({ keyrings }),
+    },
+  };
+
+  rootMessenger.registerActionHandler(
+    'SnapController:getState',
+    mocks.SnapController.getState,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:getState',
+    mocks.KeyringController.getState,
+  );
+
+  const service = new SnapAccountService({ messenger, config });
+
+  return { service, rootMessenger, messenger, mocks };
 }
 
 const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as const;
@@ -134,14 +173,7 @@ describe('SnapAccountService', () => {
     });
 
     it('waits for the Snap platform to become ready', async () => {
-      const rootMessenger = getRootMessenger();
-      const messenger = getMessenger(rootMessenger);
-      rootMessenger.registerActionHandler(
-        'SnapController:getState',
-        () => ({ isReady: false }) as SnapControllerState,
-      );
-
-      const service = new SnapAccountService({ messenger });
+      const { service, rootMessenger } = setup({ snapIsReady: false });
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -152,6 +184,78 @@ describe('SnapAccountService', () => {
       expect(resolved).toBe(false);
 
       publishSnapIsReady(rootMessenger, true);
+
+      await ensurePromise;
+      expect(resolved).toBe(true);
+    });
+
+    it('waits for the Snap keyring to appear via KeyringController:stateChange', async () => {
+      const { service, rootMessenger } = setup({ keyrings: [] });
+
+      let resolved = false;
+      const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
+        resolved = true;
+        return undefined;
+      });
+
+      // Flush microtasks so #waitForSnapKeyring subscribes.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(resolved).toBe(false);
+
+      publishKeyrings(rootMessenger, [{ type: KeyringTypes.snap }]);
+
+      await ensurePromise;
+      expect(resolved).toBe(true);
+    });
+
+    it('rejects if the Snap keyring does not appear within snapKeyringTimeoutMs', async () => {
+      const { service } = setup({
+        keyrings: [],
+        config: {
+          snapPlatformWatcher: { snapKeyringTimeoutMs: 1_000 },
+        },
+      });
+
+      jest.useFakeTimers();
+      const ensurePromise = service.ensureReady(MOCK_SNAP_ID);
+      // Attach rejection handler before advancing timers to avoid unhandled rejection.
+      // eslint-disable-next-line jest/valid-expect -- assertion is awaited after advancing timers
+      const expectRejection = expect(ensurePromise).rejects.toThrow(
+        'Snap platform or keyrings still not ready. Aborting.',
+      );
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(1_000 + 1);
+      jest.useRealTimers();
+
+      await expectRejection;
+    });
+
+    it('awaits config.snapPlatformWatcher.ensureOnboardingComplete before resolving', async () => {
+      let resolveOnboarding: (() => void) | undefined;
+      const ensureOnboardingComplete = jest.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveOnboarding = resolve;
+          }),
+      );
+
+      const { service } = setup({
+        config: { snapPlatformWatcher: { ensureOnboardingComplete } },
+      });
+
+      let resolved = false;
+      const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
+        resolved = true;
+        return undefined;
+      });
+
+      await Promise.resolve();
+      expect(ensureOnboardingComplete).toHaveBeenCalledTimes(1);
+      expect(resolved).toBe(false);
+
+      resolveOnboarding?.();
 
       await ensurePromise;
       expect(resolved).toBe(true);

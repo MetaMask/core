@@ -1,3 +1,7 @@
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerStateChangeEvent,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetStateAction,
@@ -6,10 +10,7 @@ import type {
 import { SnapId } from '@metamask/snaps-sdk';
 
 import type { SnapAccountServiceEnsureReadyAction } from './SnapAccountService-method-action-types';
-import {
-  SnapPlatformWatcher,
-  SnapPlatformWatcherOptions,
-} from './SnapPlatformWatcher';
+import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's
@@ -31,7 +32,9 @@ export type SnapAccountServiceActions = SnapAccountServiceEnsureReadyAction;
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
  */
-type AllowedActions = SnapControllerGetStateAction;
+type AllowedActions =
+  | SnapControllerGetStateAction
+  | KeyringControllerGetStateAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -41,7 +44,9 @@ export type SnapAccountServiceEvents = never;
 /**
  * Events from other messengers that {@link SnapAccountService} subscribes to.
  */
-type AllowedEvents = SnapControllerStateChangeEvent;
+type AllowedEvents =
+  | SnapControllerStateChangeEvent
+  | KeyringControllerStateChangeEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -54,11 +59,33 @@ export type SnapAccountServiceMessenger = Messenger<
 >;
 
 /**
+ * Configuration for the {@link SnapPlatformWatcher} used by the service.
+ */
+export type SnapPlatformWatcherConfig = {
+  /**
+   * Resolves when onboarding is complete.
+   */
+  ensureOnboardingComplete?: () => Promise<void>;
+  /**
+   * How long to wait for the Snap keyring to appear before rejecting (ms).
+   */
+  snapKeyringTimeoutMs?: number;
+};
+
+/**
+ * Configuration for the {@link SnapAccountService}.
+ */
+export type SnapAccountServiceConfig = {
+  snapPlatformWatcher?: SnapPlatformWatcherConfig;
+};
+
+/**
  * The options that {@link SnapAccountService} takes.
  */
 export type SnapAccountServiceOptions = {
   messenger: SnapAccountServiceMessenger;
-} & SnapPlatformWatcherOptions;
+  config?: SnapAccountServiceConfig;
+};
 
 /**
  * Service responsible for managing account management snaps.
@@ -78,16 +105,16 @@ export class SnapAccountService {
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
-   * @param args.ensureOnboardingComplete - Optional callback that resolves when onboarding is complete.
+   * @param args.config - Optional service configuration.
    */
-  constructor({
-    messenger,
-    ensureOnboardingComplete,
-  }: SnapAccountServiceOptions) {
+  constructor({ messenger, config }: SnapAccountServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#watcher = new SnapPlatformWatcher(messenger, {
-      ensureOnboardingComplete,
+      ensureOnboardingComplete:
+        config?.snapPlatformWatcher?.ensureOnboardingComplete,
+      snapKeyringWaitTimeoutMs:
+        config?.snapPlatformWatcher?.snapKeyringTimeoutMs,
     });
 
     this.#messenger.registerMethodActionHandlers(
