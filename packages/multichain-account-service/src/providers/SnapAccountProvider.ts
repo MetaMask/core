@@ -114,12 +114,12 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Ensures that the Snap platform is ready to be used.
+   * Ensures that the Snap is ready to be used.
    *
-   * @returns A promise that resolves when the platform is ready.
-   * @throws An error if the platform is not ready (only effective once the platform has been ready at least once).
+   * @returns A promise that resolves when the Snap is ready.
+   * @throws An error if the Snap could not become ready.
    */
-  async ensureCanUseSnapPlatform(): Promise<void> {
+  async ensureReady(): Promise<void> {
     return this.messenger.call('SnapAccountService:ensureReady', this.snapId);
   }
 
@@ -308,7 +308,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       keyring: RestrictedSnapKeyring;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
-    await this.ensureCanUseSnapPlatform();
+    await this.ensureReady();
 
     return await operation({
       client: this.#client,

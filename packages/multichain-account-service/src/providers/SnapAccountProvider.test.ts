@@ -949,11 +949,11 @@ describe('SnapAccountProvider', () => {
     });
   });
 
-  describe('ensureCanUseSnapPlatform', () => {
+  describe('ensureReady', () => {
     it('delegates Snap platform readiness check to SnapAccountService:ensureReady', async () => {
       const { provider, mocks } = setup();
 
-      await provider.ensureCanUseSnapPlatform();
+      await provider.ensureReady();
 
       expect(mocks.SnapAccountService.ensureReady).toHaveBeenCalledTimes(1);
     });
