@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "7.2.0",
+  "version": "7.3.0",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "Ethereum",
@@ -56,9 +56,9 @@
     "@metamask/accounts-controller": "^38.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/keyring-api": "^23.1.0",
-    "@metamask/keyring-controller": "^25.4.0",
+    "@metamask/keyring-controller": "^25.5.0",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/multichain-account-service": "^8.0.1",
+    "@metamask/multichain-account-service": "^9.0.0",
     "@metamask/profile-sync-controller": "^28.0.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",

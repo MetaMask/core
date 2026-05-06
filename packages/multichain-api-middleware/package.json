@@ -57,7 +57,7 @@
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/json-rpc-engine": "^10.3.0",
     "@metamask/network-controller": "^30.1.0",
-    "@metamask/permission-controller": "^13.0.0",
+    "@metamask/permission-controller": "^13.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/utils": "^11.9.0",
