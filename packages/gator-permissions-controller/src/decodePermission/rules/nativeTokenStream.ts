@@ -1,6 +1,5 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
 
-import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -8,6 +7,7 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
+import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the native-token-stream permission rule.
@@ -23,10 +23,23 @@ export function makeNativeTokenStreamRule(
     nativeTokenStreamingEnforcer,
     exactCalldataEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
+    redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'native-token-stream',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [
+      timestampEnforcer,
+      redeemerEnforcer,
+      allowedTargetsEnforcer,
+    ],
+    redeemerEnforcer,
+    payeeEnforcers: {
+      allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      singlePayeeEnforcer: allowedTargetsEnforcer,
+    },
     timestampEnforcer,
     requiredEnforcers: {
       [nativeTokenStreamingEnforcer]: 1,

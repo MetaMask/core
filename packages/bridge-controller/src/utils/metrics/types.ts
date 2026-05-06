@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
+import type { SortOrder, StatusTypes } from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
@@ -8,7 +9,6 @@ import type {
   MetricsSwapType,
   PollingStatus,
 } from './constants';
-import type { SortOrder, StatusTypes } from '../../types';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml
@@ -20,7 +20,15 @@ export type RequestParams = {
   token_symbol_destination: string | null;
   token_address_source: CaipAssetType;
   token_address_destination: CaipAssetType | null;
+  token_security_type_destination: string | null;
 };
+
+export type AccountHardwareType =
+  | 'Ledger'
+  | 'Trezor'
+  | 'QR Hardware'
+  | 'Lattice'
+  | null;
 
 export type RequestMetadata = {
   slippage_limit?: number; // undefined === auto
@@ -28,6 +36,7 @@ export type RequestMetadata = {
   usd_amount_source: number; // Use quoteResponse when available
   stx_enabled: boolean;
   is_hardware_wallet: boolean;
+  account_hardware_type: AccountHardwareType;
   swap_type: MetricsSwapType;
   security_warnings: string[];
 };
@@ -81,7 +90,9 @@ export type QuoteWarning =
   | 'insufficient_gas_balance'
   | 'insufficient_gas_for_selected_quote'
   | 'insufficient_balance'
+  | 'market_closed'
   | 'price_impact'
+  | 'quote_expired'
   | 'tx_alert';
 
 /**
@@ -112,6 +123,7 @@ type RequiredEventContextFromClientBase = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_address_source: RequestParams['token_address_source'];
     token_address_destination: RequestParams['token_address_destination'];
+    token_security_type_destination: RequestParams['token_security_type_destination'];
     chain_id_source: RequestParams['chain_id_source'];
     chain_id_destination: RequestParams['chain_id_destination'];
   } & Pick<RequestMetadata, 'security_warnings'>;
@@ -144,8 +156,11 @@ type RequiredEventContextFromClientBase = {
       RequestParams,
       | 'token_symbol_source'
       | 'token_symbol_destination'
+      | 'token_address_source'
+      | 'token_address_destination'
       | 'chain_id_source'
       | 'chain_id_destination'
+      | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
     };
@@ -163,15 +178,22 @@ type RequiredEventContextFromClientBase = {
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
-    (TradeData &
+      (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<
           RequestMetadata,
-          'stx_enabled' | 'usd_amount_source' | 'is_hardware_wallet'
+          | 'stx_enabled'
+          | 'usd_amount_source'
+          | 'is_hardware_wallet'
+          | 'account_hardware_type'
         > &
         Pick<
           RequestParams,
-          'token_symbol_source' | 'token_symbol_destination'
+          | 'token_symbol_source'
+          | 'token_symbol_destination'
+          | 'token_address_source'
+          | 'token_address_destination'
+          | 'token_security_type_destination'
         > & { error_message: string }) // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
@@ -263,7 +285,11 @@ export type RequiredEventContextFromClient = {
  */
 export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: RequestParams;
-  [UnifiedSwapBridgeEventName.PageViewed]: RequestParams;
+  [UnifiedSwapBridgeEventName.PageViewed]: RequestParams &
+    Omit<
+      RequestMetadata,
+      'stx_enabled' | 'usd_amount_source' | 'security_warnings'
+    >;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
     input_value: string;

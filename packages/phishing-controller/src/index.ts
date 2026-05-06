@@ -14,6 +14,13 @@ export type {
   BulkTokenScanResponse,
   SimilarAddressMatch,
   SimilarityOptions,
+  ApprovalsResponse,
+  Approval,
+  Allowance,
+  ApprovalAsset,
+  Exposure,
+  Spender,
+  ApprovalFeature,
 } from './types';
 export type { TokenScanCacheData } from './types';
 export { TokenScanResultType } from './types';
@@ -21,5 +28,20 @@ export {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
+  ApprovalResultType,
+  ApprovalFeatureType,
 } from './types';
 export type { CacheEntry } from './CacheManager';
+
+export type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerTestOriginAction,
+  PhishingControllerIsBlockedRequestAction,
+  PhishingControllerBypassAction,
+  PhishingControllerScanUrlAction,
+  PhishingControllerBulkScanUrlsAction,
+  PhishingControllerBulkScanTokensAction,
+  PhishingControllerScanAddressAction,
+  PhishingControllerGetApprovalsAction,
+  PhishingControllerCheckAddressPoisoningAction,
+} from './PhishingController-method-action-types';

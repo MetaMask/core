@@ -3,8 +3,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
 import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -16,6 +14,10 @@ import type {
 import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
+import { DEFAULT_FIAT_CURRENCY } from './constants';
+import type { TransactionPayFiatAsset } from './constants';
+import type { FiatQuote } from './types';
+import { deriveFiatAssetForFiatPayment } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-strategy');
 
@@ -35,7 +37,8 @@ const log = createModuleLogger(projectLogger, 'fiat-strategy');
 export async function getFiatQuotes(
   request: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
-  const { fiatPaymentMethod, messenger, transaction } = request;
+  const { accountSupports7702, fiatPaymentMethod, messenger, transaction } =
+    request;
   const transactionId = transaction.id;
 
   const state = messenger.call('TransactionPayController:getState');
@@ -76,6 +79,7 @@ export async function getFiatQuotes(
     }
 
     const relayQuotes = await getRelayQuotes({
+      accountSupports7702,
       messenger,
       requests: [relayRequest],
       transaction,
@@ -113,22 +117,20 @@ export async function getFiatQuotes(
       transactionId,
     });
 
-    const quotes = await messenger.call('RampsController:getQuotes', {
-      amount: adjustedAmount,
-      paymentMethods: [fiatPaymentMethod],
+    const fiatQuote = await getRampsQuote({
+      adjustedAmount,
+      fiatAsset,
+      fiatPaymentMethod,
+      messenger,
       walletAddress,
     });
 
-    log('Fetched ramps quotes', {
-      rampsQuotesCount: quotes.success?.length ?? 0,
+    messenger.call('TransactionPayController:updateFiatPayment', {
+      callback: (fiatPayment) => {
+        fiatPayment.rampsQuote = fiatQuote;
+      },
       transactionId,
     });
-
-    const fiatQuote = pickBestFiatQuote(quotes);
-
-    if (!fiatQuote) {
-      throw new Error('No matching ramps quote found for selected provider');
-    }
 
     return [
       combineQuotes({
@@ -149,6 +151,45 @@ function getRequiredTokens(
   tokens?: TransactionPayRequiredToken[],
 ): TransactionPayRequiredToken[] {
   return tokens?.filter((token) => !token.skipIfBalance) ?? [];
+}
+
+async function getRampsQuote({
+  adjustedAmount,
+  fiatAsset,
+  fiatPaymentMethod,
+  messenger,
+  walletAddress,
+}: {
+  adjustedAmount: number;
+  fiatAsset: TransactionPayFiatAsset;
+  fiatPaymentMethod: string;
+  messenger: PayStrategyGetQuotesRequest['messenger'];
+  walletAddress: string;
+}): Promise<RampsQuote> {
+  const rampsState = messenger.call('RampsController:getState');
+  const selectedProviderId = rampsState.providers.selected?.id;
+
+  const quotes = await messenger.call('RampsController:getQuotes', {
+    amount: adjustedAmount,
+    assetId: fiatAsset.caipAssetId,
+    fiat: DEFAULT_FIAT_CURRENCY,
+    paymentMethods: [fiatPaymentMethod],
+    providers: selectedProviderId ? [selectedProviderId] : undefined,
+    walletAddress,
+  });
+
+  log('Fetched ramps quotes', {
+    quotesCount: quotes.success?.length ?? 0,
+    selectedProviderId,
+  });
+
+  const quote = quotes.success?.[0];
+
+  if (!quote) {
+    throw new Error('No matching ramps quote found for selected provider');
+  }
+
+  return quote;
 }
 
 function buildRelayRequestFromAmountFiat({

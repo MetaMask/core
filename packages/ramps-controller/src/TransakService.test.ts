@@ -6,6 +6,7 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll, isDone } from 'nock';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
@@ -16,7 +17,6 @@ import {
   TransakOrderIdTransformer,
   TransakApiError,
 } from './TransakService';
-import { flushPromises } from '../../../tests/helpers';
 
 // === Test Constants ===
 
@@ -657,6 +657,32 @@ describe('TransakService', () => {
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '401'");
+    });
+
+    it('does not retry on failure even when retries are enabled', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/verify')
+        .reply(500)
+        .post('/api/v2/auth/verify')
+        .reply(200, {
+          data: {
+            accessToken: 'should-not-be-used',
+            ttl: 3600,
+            created: '2025-01-01T00:00:00.000Z',
+          },
+        });
+
+      const { service } = getService({
+        options: { policyOptions: { maxRetries: 3 } },
+      });
+
+      const promise = service.verifyUserOtp('a@b.com', '000000', 'st');
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '500'");
+      expect(service.getAccessToken()).toBeNull();
     });
   });
 

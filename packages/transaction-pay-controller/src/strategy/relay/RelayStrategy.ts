@@ -1,6 +1,3 @@
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import type { RelayQuote } from './types';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -8,6 +5,9 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { getRelayQuotes } from './relay-quotes';
+import { submitRelayQuotes } from './relay-submit';
+import type { RelayQuote } from './types';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
@@ -24,6 +24,11 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
   async execute(
     request: PayStrategyExecuteRequest<RelayQuote>,
   ): ReturnType<PayStrategy<RelayQuote>['execute']> {
-    return await submitRelayQuotes(request);
+    try {
+      return await submitRelayQuotes(request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Relay submit: ${message}`);
+    }
   }
 }

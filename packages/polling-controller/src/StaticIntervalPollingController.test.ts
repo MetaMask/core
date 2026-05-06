@@ -2,8 +2,8 @@ import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import { createDeferredPromise } from '@metamask/utils';
 
-import { StaticIntervalPollingController } from './StaticIntervalPollingController';
 import { jestAdvanceTime } from '../../../tests/helpers';
+import { StaticIntervalPollingController } from './StaticIntervalPollingController';
 
 const TICK_TIME = 5;
 

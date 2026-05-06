@@ -18,6 +18,7 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer';
 import { ProviderRouter } from '../routing/ProviderRouter';
+import { WebSocketConnectionState } from '../types';
 import type {
   AccountState,
   AggregatedProviderConfig,
@@ -78,6 +79,7 @@ import type {
   WithdrawParams,
   WithdrawResult,
   RawLedgerUpdate,
+  PerpsReadOptions,
 } from '../types';
 
 /**
@@ -296,10 +298,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     ).flat();
   }
 
-  async getOrderFills(params?: GetOrderFillsParams): Promise<OrderFill[]> {
+  async getOrderFills(
+    params?: GetOrderFillsParams,
+    options?: PerpsReadOptions,
+  ): Promise<OrderFill[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
-        const fills = await provider.getOrderFills(params);
+        const fills = await provider.getOrderFills(params, options);
         return fills.map((fill) => ({ ...fill, providerId: id }));
       }),
     );
@@ -318,10 +323,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#extractSuccessfulResults(results, 'getOrFetchFills').flat();
   }
 
-  async getOrders(params?: GetOrdersParams): Promise<Order[]> {
+  async getOrders(
+    params?: GetOrdersParams,
+    options?: PerpsReadOptions,
+  ): Promise<Order[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
-        const orders = await provider.getOrders(params);
+        const orders = await provider.getOrders(params, options);
         return orders.map((order) => ({ ...order, providerId: id }));
       }),
     );
@@ -340,10 +348,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
   }
 
-  async getFunding(params?: GetFundingParams): Promise<Funding[]> {
+  async getFunding(
+    params?: GetFundingParams,
+    options?: PerpsReadOptions,
+  ): Promise<Funding[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([_providerId, provider]) => {
-        const funding = await provider.getFunding(params);
+        const funding = await provider.getFunding(params, options);
         // Funding type doesn't have providerId - we could add it if needed
         return funding;
       }),
@@ -375,6 +386,17 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }): Promise<RawLedgerUpdate[]> {
     // Delegate to default provider (protocol-specific)
     return this.#getDefaultProvider().getUserNonFundingLedgerUpdates(params);
+  }
+
+  /**
+   * Resolve the currently selected CAIP account identifier. Accounts are
+   * shared across sub-providers (same InternalAccountController), so the
+   * default provider's view is authoritative.
+   *
+   * @returns Resolved CAIP account id from the default sub-provider.
+   */
+  async getCurrentAccountId(): Promise<CaipAccountId> {
+    return this.#getDefaultProvider().getCurrentAccountId();
   }
 
   /**
@@ -676,6 +698,37 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   async ping(timeoutMs?: number): Promise<void> {
     return this.#getDefaultProvider().ping(timeoutMs);
+  }
+
+  getWebSocketConnectionState(): WebSocketConnectionState {
+    const provider = this.#getDefaultProvider();
+    if (provider.getWebSocketConnectionState) {
+      return provider.getWebSocketConnectionState();
+    }
+    return WebSocketConnectionState.Disconnected;
+  }
+
+  subscribeToConnectionState(
+    listener: (
+      state: WebSocketConnectionState,
+      reconnectionAttempt: number,
+    ) => void,
+  ): () => void {
+    const provider = this.#getDefaultProvider();
+    if (provider.subscribeToConnectionState) {
+      return provider.subscribeToConnectionState(listener);
+    }
+    listener(WebSocketConnectionState.Disconnected, 0);
+    return () => {
+      /* noop */
+    };
+  }
+
+  async reconnect(): Promise<void> {
+    const provider = this.#getDefaultProvider();
+    if (provider.reconnect) {
+      await provider.reconnect();
+    }
   }
 
   // ============================================================================

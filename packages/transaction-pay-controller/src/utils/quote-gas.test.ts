@@ -1,9 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
+import { getMessengerMock } from '../tests/messenger-mock';
 import { getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 import { estimateQuoteGasLimits } from './quote-gas';
-import { getMessengerMock } from '../tests/messenger-mock';
 
 jest.mock('./feature-flags', () => ({
   ...jest.requireActual('./feature-flags'),
@@ -149,6 +149,37 @@ describe('quote gas estimation', () => {
       is7702: true,
       totalGasEstimate: 75000,
       totalGasLimit: 75000,
+      usedBatch: true,
+    });
+  });
+
+  it('marks batch estimates that require an authorization list', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 50000,
+      gasLimits: [50000],
+      requiresAuthorizationList: true,
+    });
+
+    const result = await estimateQuoteGasLimits({
+      messenger,
+      transactions: TRANSACTIONS_MOCK,
+    });
+
+    expect(result).toStrictEqual({
+      batchGasLimit: {
+        estimate: 50000,
+        max: 50000,
+      },
+      gasLimits: [
+        {
+          estimate: 50000,
+          max: 50000,
+        },
+      ],
+      is7702: true,
+      requiresAuthorizationList: true,
+      totalGasEstimate: 50000,
+      totalGasLimit: 50000,
       usedBatch: true,
     });
   });

@@ -1,5 +1,6 @@
 export type {
   Address,
+  AssetFetchEntry,
   AssetsBalanceState,
   ChainId,
   GetProviderFunction,
@@ -10,7 +11,12 @@ export type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './types';
-export { MulticallClient, type MulticallClientConfig } from './clients';
+export {
+  MulticallClient,
+  type MulticallClientConfig,
+  TokensApiClient,
+  type TokensApiClientConfig,
+} from './clients';
 export {
   BalanceFetcher,
   TokenDetector,

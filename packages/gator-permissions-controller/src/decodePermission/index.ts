@@ -1,6 +1,8 @@
 export {
   findRuleWithMatchingCaveatAddresses,
+  findRulesWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
+  selectUniqueRuleAndDecodedPermission,
 } from './decodePermission';
 export { createPermissionRulesForContracts } from './rules';
 

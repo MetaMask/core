@@ -2,6 +2,12 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
+import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
+import type {
+  GasFeeToken,
+  TransactionMeta,
+} from '../../../transaction-controller/src';
+import { getMessengerMock } from '../tests/messenger-mock';
 import { getFallbackGas, getGasBuffer } from './feature-flags';
 import {
   calculateGasCost,
@@ -10,12 +16,6 @@ import {
   estimateGasLimit,
 } from './gas';
 import { getTokenBalance, getTokenFiatRate } from './token';
-import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
-import type {
-  GasFeeToken,
-  TransactionMeta,
-} from '../../../transaction-controller/src';
-import { getMessengerMock } from '../tests/messenger-mock';
 
 jest.mock('./token');
 jest.mock('./feature-flags', () => ({

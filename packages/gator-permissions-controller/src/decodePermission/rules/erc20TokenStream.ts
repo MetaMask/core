@@ -1,6 +1,5 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
 
-import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -13,6 +12,7 @@ import {
   splitHex,
   ZERO_32_BYTES,
 } from '../utils';
+import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-stream permission rule.
@@ -28,10 +28,23 @@ export function makeErc20TokenStreamRule(
     erc20StreamingEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
+    redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-stream',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [
+      timestampEnforcer,
+      redeemerEnforcer,
+      allowedCalldataEnforcer,
+    ],
+    redeemerEnforcer,
+    payeeEnforcers: {
+      allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      singlePayeeEnforcer: allowedCalldataEnforcer,
+    },
     timestampEnforcer,
     requiredEnforcers: {
       [erc20StreamingEnforcer]: 1,

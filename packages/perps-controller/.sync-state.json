@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "9c2fbb121e832c2f7f4012a132b1b87eda9b6758",
-  "lastSyncedMobileBranch": "feat/perps/di-refactor-remove-controller-deps",
-  "lastSyncedCoreCommit": "7fc921027bd37a4acebf1c48a7c18a394e6e549e",
-  "lastSyncedCoreBranch": "feat/perps/controller-migration-sync",
-  "lastSyncedDate": "2026-02-26T14:23:21Z",
-  "sourceChecksum": "7c15b984a902c2543d8c846b0f720c2aa4f5ed0a35dd03140c0481216ed71b34"
+  "lastSyncedMobileCommit": "106369c46bd01ee87faeaf51530fe67ad03ca178",
+  "lastSyncedMobileBranch": "fix/perps/flip-position-tat-2123",
+  "lastSyncedCoreCommit": "db4cc9ec8ff8530d8e9e0e3737b358e3269ce1b2",
+  "lastSyncedCoreBranch": "feat/perps/controller-sync-may-5",
+  "lastSyncedDate": "2026-05-05T20:50:44Z",
+  "sourceChecksum": "894eb0960741e569f1f025dbaaff6e1ffcab2489a80ad71e74cdf43af98aa764"
 }

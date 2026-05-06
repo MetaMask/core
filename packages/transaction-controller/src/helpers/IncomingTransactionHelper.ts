@@ -8,7 +8,6 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
@@ -17,6 +16,7 @@ import {
   isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
 import { caip2ToHex } from '../utils/utils';
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 
 export enum WebSocketState {
   CONNECTED = 'connected',
@@ -70,6 +70,8 @@ export class IncomingTransactionHelper {
   readonly #trimTransactions: (
     transactions: TransactionMeta[],
   ) => TransactionMeta[];
+
+  #isTransactionHistoryRetrievalActive = false;
 
   readonly #updateTransactions?: boolean;
 
@@ -220,7 +222,13 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    if (this.#isTransactionHistoryRetrievalActive) {
+      return;
+    }
+
     log('Started transaction history retrieval (event-driven)');
+
+    this.#isTransactionHistoryRetrievalActive = true;
 
     this.update().catch((error) => {
       log('Initial update in transaction history retrieval failed', error);
@@ -238,7 +246,13 @@ export class IncomingTransactionHelper {
   }
 
   #stopTransactionHistoryRetrieval(): void {
+    if (!this.#isTransactionHistoryRetrievalActive) {
+      return;
+    }
+
     log('Stopped transaction history retrieval');
+
+    this.#isTransactionHistoryRetrievalActive = false;
 
     this.#messenger.unsubscribe(
       'AccountActivityService:transactionUpdated',

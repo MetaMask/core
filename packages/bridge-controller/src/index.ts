@@ -9,6 +9,7 @@ export {
 } from './utils/metrics/constants';
 
 export type {
+  AccountHardwareType,
   RequiredEventContextFromClient,
   CrossChainSwapsEventProperties,
   TradeData,
@@ -20,6 +21,7 @@ export type {
 } from './utils/metrics/types';
 
 export {
+  getAccountHardwareType,
   formatProviderLabel,
   getRequestParams,
   getSwapType,
@@ -57,6 +59,16 @@ export type {
   FeatureFlagsPlatformConfig,
 } from './types';
 
+export type {
+  BridgeControllerUpdateBridgeQuoteRequestParamsAction,
+  BridgeControllerFetchQuotesAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BridgeControllerSetLocationAction,
+  BridgeControllerResetStateAction,
+  BridgeControllerSetChainIntervalLengthAction,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+} from './bridge-controller-method-action-types';
+
 export { AbortReason } from './utils/metrics/constants';
 
 export { StatusTypes } from './types';
@@ -69,6 +81,7 @@ export {
   BridgeUserAction,
   BridgeBackgroundAction,
   type TokenFeature,
+  type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
 } from './types';
@@ -79,6 +92,8 @@ export {
   BridgeAssetSchema,
   FeatureId,
   TokenFeatureType,
+  validateQuoteStreamComplete,
+  QuoteStreamCompleteReason,
 } from './utils/validators';
 
 export {

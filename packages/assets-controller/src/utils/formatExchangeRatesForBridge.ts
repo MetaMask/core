@@ -5,11 +5,17 @@ import {
   MarketDataDetails,
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
+  getNativeTokenAddress,
 } from '@metamask/assets-controllers';
 import { Hex, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
-import type { AssetPrice, FungibleAssetPrice, Caip19AssetId } from '../types';
+import type {
+  AssetMetadata,
+  AssetPrice,
+  FungibleAssetPrice,
+  Caip19AssetId,
+} from '../types';
 
 /**
  * Exchange rates in the format expected by the bridge controller:
@@ -30,22 +36,25 @@ export type BridgeExchangeRatesFormat = {
  * a single action when useAssetsControllerForRates is true.
  *
  * @param params - Conversion parameters.
+ * @param params.assetsInfo - Metadata map keyed by CAIP-19 asset ID; used to determine native assets via `type === 'native'`.
  * @param params.assetsPrice - Map of CAIP-19 asset ID to price data (must include both `price` and `usdPrice`).
  * @param params.selectedCurrency - ISO 4217 currency code (e.g. 'usd').
- * @param params.nativeAssetIdentifiers - Optional map of CAIP-2 chain ID to native asset ID (e.g. from NetworkEnablementController state). When provided, used for EVM native lookups.
+ * @param params.nativeAssetIdentifiers - Map of CAIP-2 chain ID to native asset ID. Used for EVM native lookups.
  * @param params.networkConfigurationsByChainId - Optional map of Hex chain ID to network config (e.g. from NetworkController state). Used to resolve native currency symbol via `nativeCurrency`; keys are Hex (e.g. '0x1').
  * @returns Bridge-compatible conversionRates, currencyRates, marketData, currentCurrency.
  */
 export function formatExchangeRatesForBridge(params: {
+  assetsInfo: Record<string, AssetMetadata>;
   assetsPrice: Record<string, AssetPrice>;
   selectedCurrency: string;
-  nativeAssetIdentifiers?: Record<string, string>;
+  nativeAssetIdentifiers: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
 }): BridgeExchangeRatesFormat {
   const {
+    assetsInfo,
     assetsPrice,
     selectedCurrency,
-    nativeAssetIdentifiers = {},
+    nativeAssetIdentifiers,
     networkConfigurationsByChainId = {},
   } = params;
   const conversionRates: MultichainAssetsRatesControllerState['conversionRates'] =
@@ -83,15 +92,16 @@ export function formatExchangeRatesForBridge(params: {
     const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
+      const isNative = assetsInfo[assetId]?.type === 'native';
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
       const chainIdParsed = parseCaipChainId(parsed.chainId);
 
       if (chainIdParsed.namespace === KnownCaipNamespace.Eip155) {
         const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
 
-        const nativeAssetId = nativeAssetIdentifiers[parsed.chainId] as
-          | Caip19AssetId
-          | undefined;
+        const nativeAssetId = (
+          isNative ? assetId : nativeAssetIdentifiers[parsed.chainId]
+        ) as Caip19AssetId | undefined;
 
         const nativeCurrencySymbol =
           networkConfigurationsByChainId[chainIdHex]?.nativeCurrency;
@@ -110,12 +120,12 @@ export function formatExchangeRatesForBridge(params: {
 
         let tokenAddress: Hex | undefined;
         if (parsed.assetNamespace === 'erc20') {
-          tokenAddress = toChecksumAddress(String(parsed.assetReference));
-        } else if (parsed.assetNamespace === 'slip44') {
-          tokenAddress = '0x0000000000000000000000000000000000000000';
+          tokenAddress = toChecksumAddress(parsed.assetReference);
+        } else if (isNative) {
+          tokenAddress = toChecksumAddress(getNativeTokenAddress(chainIdHex));
         }
 
-        if (tokenAddress && nativeAssetId) {
+        if (tokenAddress) {
           const priceInNative =
             nativeAssetUsdPrice > 0 ? usdPrice / nativeAssetUsdPrice : usdPrice;
           if (!marketData[chainIdHex]) {
@@ -131,7 +141,7 @@ export function formatExchangeRatesForBridge(params: {
           } as MarketDataDetails;
         }
 
-        if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
+        if (isNative) {
           currencyRates[nativeCurrencySymbol] = {
             conversionDate: lastUpdatedInSeconds,
             conversionRate: price,

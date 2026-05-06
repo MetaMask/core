@@ -9,17 +9,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  RELAY_DEPOSIT_TYPES,
-  RELAY_FAILURE_STATUSES,
-  RELAY_PENDING_STATUSES,
-} from './constants';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
-import type {
-  RelayExecuteRequest,
-  RelayQuote,
-  RelayStatusResponse,
-} from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -42,6 +31,19 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import {
+  RELAY_DEPOSIT_TYPES,
+  RELAY_FAILURE_STATUSES,
+  RELAY_PENDING_STATUSES,
+} from './constants';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+import { getRelayStatus, submitRelayExecute } from './relay-api';
+import type {
+  RelayExecuteRequest,
+  RelayQuote,
+  RelayStatusResponse,
+  RelayTransactionStep,
+} from './types';
 
 const FALLBACK_HASH = '0x0' as Hex;
 
@@ -99,7 +101,11 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, transaction, messenger);
+  if (quote.request.isHyperliquidSource) {
+    await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
+  } else {
+    await submitTransactions(quote, transaction, messenger);
+  }
 
   const targetHash = await waitForRelayCompletion(
     quote.original,
@@ -216,7 +222,7 @@ async function waitForRelayCompletion(
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
-  params: RelayQuote['steps'][0]['items'][0]['data'],
+  params: RelayTransactionStep['items'][0]['data'],
   messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
   const featureFlags = getFeatureFlags(messenger);
@@ -310,8 +316,14 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
   const { steps } = quote.original;
-  const params = steps.flatMap((step) => step.items).map((item) => item.data);
-  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
+  const txSteps = steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
+  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
+  )?.kind;
 
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);
@@ -387,14 +399,24 @@ async function submitViaRelayExecute(
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
+
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
+    networkClientId,
     nestedTransactions: allParams.map((params) => ({
       data: (params.data ?? '0x') as Hex,
       to: params.to as Hex,
       value: (params.value ?? '0x0') as Hex,
     })),
+    txParams: {
+      ...transaction.txParams,
+      from,
+    },
   } as TransactionMeta;
 
   const delegation = await messenger.call(
@@ -432,7 +454,13 @@ async function submitViaRelayExecute(
 
   log('Submitting via Relay execute', { executeBody, from });
 
-  const result = await submitRelayExecute(messenger, executeBody);
+  let result;
+  try {
+    result = await submitRelayExecute(messenger, executeBody);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Relay execute: ${message}`);
+  }
 
   log('Relay execute response', result);
 
@@ -538,7 +566,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
-        type: getRelayDepositType(transaction.type),
+        type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
     );
   } else {
@@ -563,7 +591,7 @@ async function submitViaTransactionController(
         type: getTransactionType(
           isPostQuote,
           index,
-          transaction.type,
+          getEffectiveTransactionType(transaction),
           normalizedParams.length,
         ),
       };
@@ -650,4 +678,25 @@ function getRelayDepositType(
     (originalType && RELAY_DEPOSIT_TYPES[originalType]) ??
     TransactionType.relayDeposit
   );
+}
+
+/**
+ * Get the effective transaction type, resolving through nested transactions
+ * when the top-level type is `batch`.
+ *
+ * @param transaction - The transaction metadata.
+ * @returns The resolved type from nested transactions, or the top-level type.
+ */
+function getEffectiveTransactionType(
+  transaction: TransactionMeta,
+): TransactionMeta['type'] {
+  if (transaction.type !== TransactionType.batch) {
+    return transaction.type;
+  }
+
+  const nestedType = transaction.nestedTransactions?.find(
+    (tx) => tx.type && RELAY_DEPOSIT_TYPES[tx.type] !== undefined,
+  )?.type;
+
+  return nestedType ?? transaction.type;
 }

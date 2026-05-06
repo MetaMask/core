@@ -20,16 +20,7 @@ import type {
   MarketOverview,
   MarketOverviewEntry,
 } from './ai-digest-types';
-
-export type AiDigestControllerFetchMarketInsightsAction = {
-  type: `${typeof controllerName}:fetchMarketInsights`;
-  handler: AiDigestController['fetchMarketInsights'];
-};
-
-export type AiDigestControllerFetchMarketOverviewAction = {
-  type: `${typeof controllerName}:fetchMarketOverview`;
-  handler: AiDigestController['fetchMarketOverview'];
-};
+import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types';
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -37,9 +28,8 @@ export type AiDigestControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type AiDigestControllerActions =
-  | AiDigestControllerFetchMarketInsightsAction
-  | AiDigestControllerFetchMarketOverviewAction
-  | AiDigestControllerGetStateAction;
+  | AiDigestControllerGetStateAction
+  | AiDigestControllerMethodActions;
 
 export type AiDigestControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -82,6 +72,11 @@ const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
   },
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchMarketInsights',
+  'fetchMarketOverview',
+] as const;
+
 export class AiDigestController extends BaseController<
   typeof controllerName,
   AiDigestControllerState,
@@ -101,17 +96,9 @@ export class AiDigestController extends BaseController<
     });
 
     this.#digestService = digestService;
-    this.#registerMessageHandlers();
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchMarketInsights`,
-      this.fetchMarketInsights.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchMarketOverview`,
-      this.fetchMarketOverview.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

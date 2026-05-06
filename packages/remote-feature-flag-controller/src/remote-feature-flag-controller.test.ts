@@ -6,6 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { flushPromises } from '../../../tests/helpers';
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
@@ -18,7 +19,6 @@ import type {
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-import { flushPromises } from '../../../tests/helpers';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,

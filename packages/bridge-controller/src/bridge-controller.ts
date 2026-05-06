@@ -67,10 +67,10 @@ import {
 } from './utils/metrics/constants';
 import {
   formatProviderLabel,
+  getAccountHardwareType,
   getRequestParams,
   getSwapTypeFromQuote,
   isCustomSlippage,
-  isHardwareWallet,
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
 } from './utils/metrics/properties';
@@ -146,6 +146,18 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  tokenSecurityTypeDestination: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  quoteStreamComplete: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -164,8 +176,29 @@ type BridgePollingInput = {
     Pick<
       RequiredEventContextFromClient,
       UnifiedSwapBridgeEventName.QuotesRequested
-    >[UnifiedSwapBridgeEventName.QuotesRequested];
+    >[UnifiedSwapBridgeEventName.QuotesRequested] &
+    /**
+     * Client-supplied security classification for the destination token
+     * (e.g. from token security/scanning data). Stored on the controller
+     * and merged into every analytics event that includes
+     * `token_address_destination`. Pass `null` when no security data is
+     * available for the selected destination token.
+     */
+    Pick<
+      RequiredEventContextFromClient[UnifiedSwapBridgeEventName.InputSourceDestinationSwitched],
+      'token_security_type_destination'
+    >;
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateBridgeQuoteRequestParams',
+  'fetchQuotes',
+  'stopPollingForQuotes',
+  'setLocation',
+  'resetState',
+  'setChainIntervalLength',
+  'trackUnifiedSwapBridgeEvent',
+] as const;
 
 export class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
   typeof BRIDGE_CONTROLLER_NAME,
@@ -272,30 +305,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
 
-    // Register action handlers
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:setChainIntervalLength`,
-      this.setChainIntervalLength.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:updateBridgeQuoteRequestParams`,
-      this.updateBridgeQuoteRequestParams.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:resetState`,
-      this.resetState.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:trackUnifiedSwapBridgeEvent`,
-      this.trackUnifiedSwapBridgeEvent.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:stopPollingForQuotes`,
-      this.stopPollingForQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${BRIDGE_CONTROLLER_NAME}:fetchQuotes`,
-      this.fetchQuotes.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -317,6 +329,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     };
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
+      state.tokenSecurityTypeDestination =
+        context.token_security_type_destination ?? null;
     });
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
@@ -614,6 +628,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.tokenSecurityTypeDestination =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.tokenSecurityTypeDestination;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
     });
   };
 
@@ -657,6 +675,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
       state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
+      state.quoteStreamComplete =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
@@ -853,6 +873,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             }
           });
         },
+        onComplete: (data) => {
+          this.update((state) => {
+            state.quoteStreamComplete = data;
+          });
+        },
         onClose: async () => {
           // Wait for all pending appendFeesToQuotes operations to complete
           // before setting quotesLoadingStatus to FETCHED
@@ -929,15 +954,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    | 'stx_enabled'
-    | 'usd_amount_source'
-    | 'security_warnings'
-    | 'is_hardware_wallet'
+    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
   > => {
+    const { walletAddress } = this.state.quoteRequest;
+    const accountHardwareType = getAccountHardwareType(
+      walletAddress
+        ? this.#getMultichainSelectedAccount(walletAddress)
+        : undefined,
+    );
+
     return {
       slippage_limit: this.state.quoteRequest.slippage,
       swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
       custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
+      account_hardware_type: accountHardwareType,
+      is_hardware_wallet: accountHardwareType !== null,
     };
   };
 
@@ -975,45 +1006,59 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     };
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
+        return {
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
+          ...baseProperties,
+        };
       case UnifiedSwapBridgeEventName.PageViewed:
         return {
-          ...getRequestParams(this.state.quoteRequest),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
+          ...this.#getRequestMetadata(),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesValidationFailed:
         return {
-          ...getRequestParams(this.state.quoteRequest),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesReceived:
         return {
-          ...getRequestParams(this.state.quoteRequest),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
-          ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
         return {
-          ...getRequestParams(this.state.quoteRequest),
-          ...this.#getRequestMetadata(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
           ),
+          ...this.#getRequestMetadata(),
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesError:
         return {
-          ...getRequestParams(this.state.quoteRequest),
-          ...this.#getRequestMetadata(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
           ),
+          ...this.#getRequestMetadata(),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
@@ -1022,19 +1067,22 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
       case UnifiedSwapBridgeEventName.QuoteSelected:
         return {
-          ...getRequestParams(this.state.quoteRequest),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
-          ),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.Failed: {
         // Populate the properties that the error occurred before the tx was submitted
         return {
           ...baseProperties,
-          ...getRequestParams(this.state.quoteRequest),
+          ...getRequestParams(
+            this.state.quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           ...propertiesFromClient,
@@ -1043,6 +1091,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
       case UnifiedSwapBridgeEventName.AssetPickerOpened:
         return baseProperties;
+      // Inject `token_security_type_destination` from controller state so the
+      // field is always present on this event. `baseProperties` (which spreads
+      // `propertiesFromClient`) wins if the client supplies a value explicitly.
+      case UnifiedSwapBridgeEventName.InputSourceDestinationSwitched:
+        return {
+          token_security_type_destination:
+            this.state.tokenSecurityTypeDestination,
+          ...baseProperties,
+        };
       // These events may be published after the bridge-controller state is reset
       // So the BridgeStatusController populates all the properties
       case UnifiedSwapBridgeEventName.Submitted:

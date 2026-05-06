@@ -2,30 +2,21 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from './gas-station';
-import { fetchRelayQuote } from './relay-api';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import type {
-  RelayQuote,
-  RelayQuoteMetamask,
-  RelayQuoteRequest,
-} from './types';
 import { TransactionPayStrategy } from '../..';
-import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
+  HYPERCORE_USDC_ADDRESS,
+  HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
+  USDC_DECIMALS,
   STABLECOINS,
 } from '../../constants';
 import { projectLogger } from '../../logger';
@@ -46,6 +37,10 @@ import {
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
@@ -56,6 +51,15 @@ import {
   TokenAddressTarget,
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { fetchRelayQuote } from './relay-api';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+import type {
+  RelayQuote,
+  RelayQuoteMetamask,
+  RelayQuoteRequest,
+  RelayTransactionStep,
+} from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -74,13 +78,15 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests (which have both target=0 and source=0)
-      // but keep post-quote requests (identified by isPostQuote flag)
-      .filter(
-        (singleRequest) =>
-          singleRequest.targetAmountMinimum !== '0' ||
-          singleRequest.isPostQuote,
-      )
+      .filter((singleRequest) => {
+        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+        const isPostQuote = Boolean(singleRequest.isPostQuote);
+        const isExactInputRequest =
+          Boolean(singleRequest.isMaxAmount) &&
+          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+
+        return hasTargetMinimum || isPostQuote || isExactInputRequest;
+      })
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);
@@ -187,7 +193,12 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const {
+    accountSupports7702: supports7702,
+    messenger,
+    signal,
+    transaction,
+  } = fullRequest;
 
   const {
     from,
@@ -218,6 +229,7 @@ async function getSingleQuote(
     const useExactInput = isMaxAmount || request.isPostQuote;
 
     const useExecute =
+      supports7702 &&
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
@@ -249,7 +261,7 @@ async function getSingleQuote(
 
     log('Request body', body);
 
-    const quote = await fetchRelayQuote(messenger, body);
+    const quote = await fetchRelayQuote(messenger, body, signal);
 
     log('Fetched relay quote', quote);
 
@@ -378,15 +390,27 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
 
   if (isHyperliquidDeposit) {
     newRequest.targetChainId = CHAIN_ID_HYPERCORE;
-    newRequest.targetTokenAddress = '0x00000000000000000000000000000000';
+    newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
     newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(2)
+      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
       .toString(10);
 
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
       normalizedRequest: newRequest,
     });
+  }
+
+  // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
+  if (request.isHyperliquidSource) {
+    newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
+    newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
+
+    if (newRequest.sourceTokenAmount) {
+      newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
+        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
+        .toString(10);
+    }
   }
 
   return newRequest;
@@ -455,23 +479,9 @@ async function normalizeQuote(
     request.targetTokenAddress,
   );
 
-  const additionalTargetAmountUsd =
-    quote.request.tradeType === 'EXACT_INPUT'
-      ? subsidizedFeeUsd
-      : new BigNumber(0);
-
-  if (additionalTargetAmountUsd.gt(0)) {
-    log(
-      'Including subsidized fee in target amount',
-      additionalTargetAmountUsd.toString(10),
-    );
-  }
-
-  const baseTargetAmountUsd = isTargetStablecoin
+  const targetAmountUsd = isTargetStablecoin
     ? new BigNumber(currencyOut.amountFormatted)
     : new BigNumber(currencyOut.amountUsd);
-
-  const targetAmountUsd = baseTargetAmountUsd.plus(additionalTargetAmountUsd);
 
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 
@@ -537,7 +547,15 @@ function getFiatRates(
   sourceFiatRate: FiatRates;
   usdToFiatRate: BigNumber;
 } {
-  const { sourceChainId, sourceTokenAddress } = request;
+  // For HyperLiquid source, the normalized chain/token (HyperCore + Perps USDC)
+  // won't have a fiat rate entry. Use Arbitrum USDC instead since Perps USDC
+  // is pegged 1:1.
+  const sourceChainId = request.isHyperliquidSource
+    ? CHAIN_ID_ARBITRUM
+    : request.sourceChainId;
+  const sourceTokenAddress = request.isHyperliquidSource
+    ? ARBITRUM_USDC_ADDRESS
+    : request.sourceTokenAddress;
 
   const finalSourceTokenAddress =
     sourceChainId === CHAIN_ID_POLYGON &&
@@ -607,7 +625,25 @@ async function calculateSourceNetworkCost(
     };
   }
 
-  const relayParams = quote.steps
+  // HyperLiquid withdrawals are gasless -- the "deposit" step is an HL
+  // sendAsset (off-chain signature), not an on-chain transaction.
+  if (request.isHyperliquidSource) {
+    log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
+
+    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+    return {
+      estimate: zeroAmount,
+      max: zeroAmount,
+      gasLimits: [],
+      is7702: false,
+    };
+  }
+
+  const txSteps = quote.steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const relayParams = txSteps
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
@@ -777,7 +813,7 @@ async function calculateSourceNetworkCost(
  * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
-  params: RelayQuote['steps'][0]['items'][0]['data'][],
+  params: RelayTransactionStep['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
   fromOverride?: Hex,
 ): Promise<{
@@ -806,7 +842,7 @@ async function calculateSourceNetworkGasLimit(
 }
 
 function toRelayQuoteGasTransaction(
-  singleParams: RelayQuote['steps'][0]['items'][0]['data'],
+  singleParams: RelayTransactionStep['items'][0]['data'],
   fromOverride?: Hex,
 ): QuoteGasTransaction {
   return {
@@ -920,7 +956,6 @@ function getTransferRecipient(data: Hex): Hex {
     .decodeFunctionData('transfer', data)
     .to.toLowerCase();
 }
-
 function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   const subsidizedFee = quote.fees?.subsidized;
   const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');

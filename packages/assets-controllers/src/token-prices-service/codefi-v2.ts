@@ -15,6 +15,7 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
+import type { MarketDataDetails } from '../TokenRatesController';
 import type {
   AbstractTokenPricesService,
   EvmAssetAddressWithChain,
@@ -23,7 +24,6 @@ import type {
   ExchangeRatesByCurrency,
   NativeAssetIdentifiersMap,
 } from './abstract-token-prices-service';
-import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -285,6 +285,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
   '0x505': 'eip155:1285/slip44:1285', // Moonriver - Native symbol: MOVR
   '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet - Native symbol: SEI
+  '0x6f0': 'eip155:1776/slip44:22000119', // Injective Mainnet - Native symbol: INJ
   '0x74c': 'eip155:1868/erc20:0x0000000000000000000000000000000000000000', // Soneium - Native symbol: ETH
   '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
   '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
@@ -316,8 +317,10 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
-  '0xdef1': 'eip155:57073/erc20:0x0000000000000000000000000000000000000000', // Ink Mainnet - Native symbol: ETH
+  '0xdef1': 'eip155:57073/slip44:60', // Ink Mainnet - Native symbol: ETH
   '0x3dc': 'eip155:988/erc20:0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
+  '0xf043a': 'eip155:984122/slip44:984122', // Forma - Native symbol: TIA (Celestia)
+  '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
@@ -568,9 +571,10 @@ export function resetSupportedCurrenciesCache(): void {
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
-export class CodefiTokenPricesServiceV2
-  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
-{
+export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
+  SupportedChainId,
+  SupportedCurrency
+> {
   readonly #policy: ServicePolicy;
 
   /**

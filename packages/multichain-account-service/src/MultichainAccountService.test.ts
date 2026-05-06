@@ -11,8 +11,9 @@ import {
   SolAccountType,
   TrxAccountType,
 } from '@metamask/keyring-api';
+import type { Keyring } from '@metamask/keyring-api/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
-import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import { traceFallback } from './analytics';
 import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
@@ -1537,13 +1538,13 @@ describe('MultichainAccountService', () => {
         );
 
         rootMessenger.registerActionHandler(
-          'KeyringController:withKeyring',
+          'KeyringController:withKeyringV2',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
-              (keyring) => keyring.type === 'HD Key Tree',
+              (keyring) => keyring.type === KeyringType.Hd,
             ) as KeyringObject;
             return operation({
-              keyring: {} as unknown as EthKeyring,
+              keyring: {} as unknown as Keyring,
               metadata: newKeyring.metadata,
             });
           },
@@ -1580,13 +1581,13 @@ describe('MultichainAccountService', () => {
         );
 
         rootMessenger.registerActionHandler(
-          'KeyringController:withKeyring',
+          'KeyringController:withKeyringV2',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
               (keyring) => keyring.type === 'HD Key Tree',
             ) as KeyringObject;
             return operation({
-              keyring: {} as unknown as EthKeyring,
+              keyring: {} as unknown as Keyring,
               metadata: newKeyring.metadata,
             });
           },

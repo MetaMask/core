@@ -6,13 +6,6 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
-import {
-  getDefaultShieldControllerState,
-  ShieldController,
-  ShieldControllerMessenger,
-} from './ShieldController';
-import type { ShieldControllerState } from './ShieldController';
-import type { NormalizeSignatureRequestFn, ShieldBackend } from './types';
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
 import { createMockMessenger, RootMessenger } from '../tests/mocks/messenger';
@@ -21,6 +14,13 @@ import {
   generateMockTxMeta,
   setupCoverageResultReceived,
 } from '../tests/utils';
+import {
+  getDefaultShieldControllerState,
+  ShieldController,
+  ShieldControllerMessenger,
+} from './ShieldController';
+import type { ShieldControllerState } from './ShieldController';
+import type { NormalizeSignatureRequestFn, ShieldBackend } from './types';
 
 /**
  * Sets up a ShieldController for testing.

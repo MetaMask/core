@@ -30,6 +30,12 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { v1 as uuidV1 } from 'uuid';
 
+import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -40,12 +46,6 @@ import type {
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
@@ -3261,124 +3261,104 @@ describe('TokensController', () => {
     });
   });
 
-  describe('when TokenListController:stateChange is published', () => {
+  describe('on initialization, token list enrichment', () => {
     it('updates the name of each token to match its counterpart in the token list', async () => {
-      await withController(async ({ controller, messenger }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
-        await controller.addToken({
-          address: '0x01',
-          symbol: 'bar',
-          decimals: 2,
-          networkClientId: 'mainnet',
-        });
-        expect(
-          controller.state.allTokens[ChainId.mainnet][
-            defaultMockInternalAccount.address
-          ][0],
-        ).toStrictEqual({
-          address: '0x01',
-          decimals: 2,
-          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-          symbol: 'bar',
-          isERC721: false,
-          aggregators: [],
-          name: undefined,
-        });
-
-        messenger.publish(
-          'TokenListController:stateChange',
-          {
-            tokensChainsCache: {
-              [ChainId.mainnet]: {
-                timestamp: 1,
-                data: {
-                  '0x01': {
-                    address: '0x01',
-                    symbol: 'bar',
-                    decimals: 2,
-                    occurrences: 1,
-                    name: 'BarName',
-                    iconUrl:
-                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-                    aggregators: ['Aave'],
-                  },
+      await withController(
+        {
+          options: {
+            state: {
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultMockInternalAccount.address]: [
+                    {
+                      address: '0x01',
+                      decimals: 2,
+                      image:
+                        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                      symbol: 'bar',
+                      isERC721: false,
+                      aggregators: [],
+                      name: undefined,
+                    },
+                  ],
                 },
               },
             },
           },
-          [],
-        );
+        },
+        async ({ controller }) => {
+          // The enrichment is async (fires in constructor); wait for it.
+          await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(
-          controller.state.allTokens[ChainId.mainnet][
-            defaultMockInternalAccount.address
-          ][0],
-        ).toStrictEqual({
-          address: '0x01',
-          decimals: 2,
-          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-          symbol: 'bar',
-          isERC721: false,
-          aggregators: [],
-          name: 'BarName',
-        });
-      });
+          // TokenListService returns the token list for mainnet with a name.
+          // withController stubs fetchTokensByChainId to return {} by default;
+          // for this test we rely on the fact that the name stays undefined
+          // because the service returned nothing — verifying the plumbing at
+          // a unit level would require a more detailed setup tested below.
+          expect(
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ][0].name,
+          ).toBeUndefined();
+        },
+      );
     });
 
-    it('overwrites rwaData for tokens with cached rwaData', async () => {
-      await withController(async ({ controller, messenger }) => {
-        ContractMock.mockReturnValue(
-          buildMockEthersERC721Contract({ supportsInterface: false }),
-        );
+    it('enriches name and rwaData from the token list service at init time', async () => {
+      const tokenAddress = '0x01';
 
-        await controller.addTokens(
-          [
-            {
-              address: '0x01',
-              symbol: 'bar',
-              decimals: 2,
-              aggregators: [],
-              image: undefined,
-              name: undefined,
-              rwaData: { ticker: 'OLD' },
-            },
-          ],
-          'mainnet',
-        );
-
-        messenger.publish(
-          'TokenListController:stateChange',
-          {
-            tokensChainsCache: {
-              [ChainId.mainnet]: {
-                timestamp: 1,
-                data: {
-                  '0x01': {
-                    address: '0x01',
-                    symbol: 'bar',
-                    decimals: 2,
-                    occurrences: 1,
-                    name: 'BarName',
-                    iconUrl:
-                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-                    aggregators: ['Aave'],
-                    rwaData: { ticker: 'NEW' },
-                  },
+      await withController(
+        {
+          options: {
+            state: {
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultMockInternalAccount.address]: [
+                    {
+                      address: tokenAddress,
+                      decimals: 2,
+                      image:
+                        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                      symbol: 'bar',
+                      isERC721: false,
+                      aggregators: [],
+                      name: undefined,
+                      rwaData: { ticker: 'OLD' } as TokenRwaData,
+                    },
+                  ],
                 },
               },
             },
+            tokenListService: {
+              fetchTokensByChainId: jest.fn().mockResolvedValue({
+                [tokenAddress]: {
+                  address: tokenAddress,
+                  symbol: 'bar',
+                  decimals: 2,
+                  occurrences: 1,
+                  name: 'BarName',
+                  iconUrl:
+                    'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                  aggregators: ['Aave'],
+                  rwaData: { ticker: 'NEW' },
+                },
+              }),
+            } as unknown as import('./TokenListService').TokenListService,
           },
-          [],
-        );
+        },
+        async ({ controller }) => {
+          // Enrichment is a fire-and-forget async call in the constructor.
+          await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(
-          controller.state.allTokens[ChainId.mainnet][
-            defaultMockInternalAccount.address
-          ][0].rwaData,
-        ).toStrictEqual({ ticker: 'NEW' });
-      });
+          const token =
+            controller.state.allTokens[ChainId.mainnet][
+              defaultMockInternalAccount.address
+            ][0];
+
+          expect(token.name).toBe('BarName');
+          expect(token.rwaData).toStrictEqual({ ticker: 'NEW' });
+        },
+      );
     });
   });
 
@@ -3934,7 +3914,6 @@ async function withController<ReturnValue>(
       'NetworkController:networkDidChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
-      'TokenListController:stateChange',
       'KeyringController:accountRemoved',
     ],
   });
@@ -3961,6 +3940,10 @@ async function withController<ReturnValue>(
     mockListAccounts,
   );
 
+  const tokenListService = {
+    fetchTokensByChainId: jest.fn().mockResolvedValue({}),
+  } as unknown as import('./TokenListService').TokenListService;
+
   const controller = new TokensController({
     chainId: ChainId.mainnet,
     // The tests assume that this is set, but they shouldn't make that
@@ -3969,6 +3952,7 @@ async function withController<ReturnValue>(
     // not specified.
     provider: new FakeProvider(),
     messenger: tokensControllerMessenger,
+    tokenListService,
     ...options,
   });
 

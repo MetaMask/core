@@ -1,16 +1,16 @@
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 
+import type { WalletMiddlewareParams } from '../wallet';
 import type {
   GetSupportedExecutionPermissionsResult,
   ProcessGetSupportedExecutionPermissionsHook,
 } from './wallet-get-supported-execution-permissions';
 import { createWalletGetSupportedExecutionPermissionsHandler } from './wallet-get-supported-execution-permissions';
-import type { WalletMiddlewareParams } from '../wallet';
 
 const RESULT_MOCK: GetSupportedExecutionPermissionsResult = {
   'native-token-allowance': {
     chainIds: ['0x123', '0x345'] as Hex[],
-    ruleTypes: ['expiry'],
+    ruleTypes: ['expiry', 'redeemer'],
   },
   'erc20-token-allowance': {
     chainIds: ['0x123'] as Hex[],
@@ -18,7 +18,7 @@ const RESULT_MOCK: GetSupportedExecutionPermissionsResult = {
   },
   'erc721-token-allowance': {
     chainIds: ['0x123'] as Hex[],
-    ruleTypes: ['expiry'],
+    ruleTypes: ['expiry', 'redeemer'],
   },
 };
 

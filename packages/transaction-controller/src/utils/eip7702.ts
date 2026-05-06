@@ -1,14 +1,10 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
-import { query, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import { toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger, add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import {
-  getEIP7702ContractAddresses,
-  getEIP7702SupportedChains,
-} from './feature-flags';
 import { ABI_IERC7821 } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -18,13 +14,62 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '../types';
+import {
+  getEIP7702ContractAddresses,
+  getEIP7702SupportedChains,
+} from './feature-flags';
+import { rpcRequest } from './provider';
 
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 export const ERROR_MESSGE_PUBLIC_KEY = 'EIP-7702 public key not specified';
 
+/**
+ * ERC-7579 ModeCode encoding for the ERC-7821 `execute` function.
+ *
+ * Layout: | CallType (1 byte) | ExecType (1 byte) | Unused (4 bytes) | ModeSelector (4 bytes) | ModePayload (22 bytes) |
+ *
+ * - CallType 0x01 = batch
+ * - ExecType 0x00 = default (revert on failure)
+ * - ExecType 0x01 = try (skip on failure)
+ */
+const ERC7579_CALL_TYPE_BATCH = '01';
+const ERC7579_EXEC_TYPE_DEFAULT = '00';
+const ERC7579_EXEC_TYPE_TRY = '01';
+
 const log = createModuleLogger(projectLogger, 'eip-7702');
+
+const KEYRING_TYPES_SUPPORTING_7702 = [
+  'HD Key Tree',
+  'Simple Key Pair',
+  'Money Keyring',
+];
+
+/**
+ * Check whether a given account's keyring supports EIP-7702 authorization
+ * signing.
+ *
+ * Looks up the account's keyring via `KeyringController:getState` and returns
+ * `true` only when the keyring type is in the supported list.
+ * Returns `false` when the keyring cannot be resolved.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - The account address to check.
+ * @returns Whether the account supports EIP-7702.
+ */
+export function doesAccountSupportEIP7702(
+  messenger: TransactionControllerMessenger,
+  account: string,
+): boolean {
+  const { keyrings } = messenger.call('KeyringController:getState');
+
+  return keyrings.some(
+    (k: { type: string; accounts: string[] }) =>
+      KEYRING_TYPES_SUPPORTING_7702.includes(k.type) &&
+      k.accounts.some((a: string) => a.toLowerCase() === account.toLowerCase()),
+  );
+}
 
 /**
  * Determine if a chain supports EIP-7702 using LaunchDarkly feature flag.
@@ -49,14 +94,21 @@ export function doesChainSupportEIP7702(
  * Retrieve the delegation address for an account.
  *
  * @param address - The address to check.
- * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @param messenger - The TransactionController messenger.
+ * @param networkClientId - The network client ID to use.
  * @returns  The delegation address if it exists.
  */
 export async function getDelegationAddress(
   address: Hex,
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
 ): Promise<Hex | undefined> {
-  const code = await query(ethQuery, 'eth_getCode', [address]);
+  const code = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  })) as string;
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
   const hasDelegation =
@@ -74,7 +126,7 @@ export async function getDelegationAddress(
  * @param chainId - The chain ID.
  * @param publicKey - Public key used to validate EIP-7702 contract signatures in feature flags.
  * @param messenger - The messenger instance.
- * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @param networkClientId - The network client ID to use.
  * @returns An object with the results of the check.
  */
 export async function isAccountUpgradedToEIP7702(
@@ -82,7 +134,7 @@ export async function isAccountUpgradedToEIP7702(
   chainId: Hex,
   publicKey: Hex,
   messenger: TransactionControllerMessenger,
-  ethQuery: EthQuery,
+  networkClientId: NetworkClientId,
 ): Promise<{
   delegationAddress: Hex | undefined;
   isSupported: boolean;
@@ -93,14 +145,17 @@ export async function isAccountUpgradedToEIP7702(
     publicKey,
   );
 
-  const delegationAddress = await getDelegationAddress(address, ethQuery);
+  const delegationAddress = await getDelegationAddress(
+    address,
+    messenger,
+    networkClientId,
+  );
 
   const isSupported = Boolean(
     delegationAddress &&
-      contractAddresses.some(
-        (contract) =>
-          contract.toLowerCase() === delegationAddress.toLowerCase(),
-      ),
+    contractAddresses.some(
+      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
+    ),
   );
 
   return {
@@ -114,12 +169,18 @@ export async function isAccountUpgradedToEIP7702(
  *
  * @param from - The sender address.
  * @param transactions - The transactions to batch.
+ * @param options - Options bag.
+ * @param options.atomic - Whether the batch should be atomic. Defaults to `true`.
+ * When `true`, uses ERC-7579 ExecType `default` and all calls revert together.
+ * When `false`, uses ERC-7579 ExecType `try` and individual calls can fail independently.
  * @returns The batch transaction.
  */
 export function generateEIP7702BatchTransaction(
   from: Hex,
   transactions: BatchTransactionParams[],
+  options?: { atomic?: boolean },
 ): BatchTransactionParams {
+  const atomic = options?.atomic ?? true;
   const erc7821Contract = Contract.getInterface(ABI_IERC7821);
 
   const calls = transactions.map((transaction) => {
@@ -132,8 +193,8 @@ export function generateEIP7702BatchTransaction(
     ];
   });
 
-  // Single batch mode, no opData.
-  const mode = '0x01'.padEnd(66, '0');
+  const execType = atomic ? ERC7579_EXEC_TYPE_DEFAULT : ERC7579_EXEC_TYPE_TRY;
+  const mode = `0x${ERC7579_CALL_TYPE_BATCH}${execType}`.padEnd(66, '0');
 
   const callData = defaultAbiCoder.encode([CALLS_SIGNATURE], [calls]);
 
@@ -191,6 +252,43 @@ export async function signAuthorizationList({
 }
 
 /**
+ * Decode a 65-byte EIP-7702 authorization signature into RLP-canonical
+ * `r`, `s`, and `yParity` (no leading zero nibbles, `0x0` for zero).
+ *
+ * @param signature - The 65-byte signature.
+ * @returns The decoded authorization fields.
+ */
+export function decodeAuthorizationSignature(signature: Hex): {
+  r: Hex;
+  s: Hex;
+  yParity: Hex;
+} {
+  // eslint-disable-next-line id-length
+  const r = toCanonicalHex(signature.slice(0, 66));
+  // eslint-disable-next-line id-length
+  const s = toCanonicalHex(signature.slice(66, 130));
+  // eslint-disable-next-line id-length
+  const v = parseInt(signature.slice(130, 132), 16);
+  const yParity = toCanonicalHex(toHex(v - 27 === 0 ? 0 : 1));
+
+  return { r, s, yParity };
+}
+
+/**
+ * Strip leading zero nibbles from a hex string to produce its RLP-canonical
+ * form. Accepts input with or without a `0x` prefix; always returns
+ * `0x`-prefixed. An all-zero input is preserved as `0x0`.
+ *
+ * @param value - Hex string with or without a `0x` prefix.
+ * @returns The canonical `0x`-prefixed hex string.
+ */
+function toCanonicalHex(value: string): Hex {
+  const raw = value.startsWith('0x') ? value.slice(2) : value;
+  const stripped = raw.replace(/^0+/u, '');
+  return stripped.length === 0 ? '0x0' : `0x${stripped}`;
+}
+
+/**
  * Signs an authorization.
  *
  * @param authorization - The authorization to sign.
@@ -227,13 +325,7 @@ async function signAuthorization(
     },
   );
 
-  // eslint-disable-next-line id-length
-  const r = signature.slice(0, 66) as Hex;
-  // eslint-disable-next-line id-length
-  const s = add0x(signature.slice(66, 130));
-  // eslint-disable-next-line id-length
-  const v = parseInt(signature.slice(130, 132), 16);
-  const yParity = toHex(v - 27 === 0 ? 0 : 1);
+  const { r, s, yParity } = decodeAuthorizationSignature(signature as Hex);
 
   const result: Required<Authorization> = {
     address,

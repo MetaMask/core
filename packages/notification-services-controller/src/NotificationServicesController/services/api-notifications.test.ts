@@ -1,4 +1,3 @@
-import * as OnChainNotifications from './api-notifications';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
@@ -9,6 +8,7 @@ import {
   createMockNotificationERC20Sent,
   createMockPlatformNotification,
 } from '../mocks';
+import * as OnChainNotifications from './api-notifications';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];

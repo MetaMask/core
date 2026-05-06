@@ -11,6 +11,8 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { generateMockTxMeta } from '../tests/utils';
 import {
   controllerName,
   SubscriptionControllerErrorMessage,
@@ -51,8 +53,6 @@ import {
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
 } from './types';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { generateMockTxMeta } from '../tests/utils';
 
 type AllActions = MessengerActions<SubscriptionControllerMessenger>;
 
@@ -1207,6 +1207,31 @@ describe('SubscriptionController', () => {
             approveAmount: '108000000000000000000',
             paymentAddress: '0xspender',
             paymentTokenAddress: '0xtoken',
+            chainId: '0x1',
+          });
+        },
+      );
+    });
+
+    it('matches the payment token address case-insensitively', async () => {
+      await withController(
+        {
+          state: {
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ controller }) => {
+          const result = controller.getCryptoApproveTransactionParams({
+            chainId: '0x1',
+            paymentTokenAddress: '0xToKeN',
+            productType: PRODUCT_TYPES.SHIELD,
+            interval: RECURRING_INTERVALS.month,
+          });
+
+          expect(result).toStrictEqual({
+            approveAmount: '108000000000000000000',
+            paymentAddress: '0xspender',
+            paymentTokenAddress: '0xToKeN',
             chainId: '0x1',
           });
         },

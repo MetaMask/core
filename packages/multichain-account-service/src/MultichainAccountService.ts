@@ -82,9 +82,7 @@ export type StateKeys = {
 export type ServiceState = {
   [entropySource: StateKeys['entropySource']]: {
     [groupIndex: string]: {
-      [
-        providerName: StateKeys['providerName']
-      ]: Bip44Account<KeyringAccount>['id'][];
+      [providerName: StateKeys['providerName']]: Bip44Account<KeyringAccount>['id'][];
     };
   };
 };
@@ -119,6 +117,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'resyncAccounts',
   'removeMultichainAccountWallet',
   'ensureCanUseSnapPlatform',
+  'init',
 ] as const;
 
 /**

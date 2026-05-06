@@ -1,22 +1,19 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { Json } from '@metamask/utils';
 import { freeze } from 'immer';
 
-import { PendingTransactionTracker } from './PendingTransactionTracker';
-import { TransactionPoller } from './TransactionPoller';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
+import { rpcRequest } from '../utils/provider';
+import { PendingTransactionTracker } from './PendingTransactionTracker';
+import { TransactionPoller } from './TransactionPoller';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const NONCE_MOCK = '0x2';
 const BLOCK_NUMBER_MOCK = '0x123';
-
-const ETH_QUERY_MOCK = {} as unknown as EthQuery;
 
 const TRANSACTION_SUBMITTED_MOCK = {
   id: ID_MOCK,
@@ -37,6 +34,9 @@ const RECEIPT_MOCK = {
   status: '0x1',
 };
 
+const REVERT_DATA_TRANSFER_EXCEEDS_BALANCE =
+  '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
 const BLOCK_MOCK = {
   baseFeePerGas: '0x456',
   timestamp: 123456,
@@ -44,8 +44,9 @@ const BLOCK_MOCK = {
 
 jest.mock('./TransactionPoller');
 
-jest.mock('@metamask/controller-utils', () => ({
-  query: jest.fn(),
+jest.mock('../utils/provider', () => ({
+  ...jest.requireActual('../utils/provider'),
+  rpcRequest: jest.fn(),
 }));
 
 /**
@@ -80,8 +81,20 @@ function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
  */
 function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
   return {
-    call: jest.fn().mockReturnValue({
-      remoteFeatureFlags: {},
+    call: jest.fn().mockImplementation((method: string) => {
+      if (method === 'NetworkController:getNetworkClientById') {
+        return {
+          configuration: { chainId: CHAIN_ID_MOCK },
+        };
+      }
+
+      if (method === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {},
+        };
+      }
+
+      return undefined;
     }),
   } as unknown as jest.Mocked<TransactionControllerMessenger>;
 }
@@ -96,9 +109,21 @@ function mockFeatureFlags(
   messenger: jest.Mocked<TransactionControllerMessenger>,
   featureFlags: Json,
 ): void {
-  messenger.call.mockReturnValue({
-    remoteFeatureFlags: featureFlags,
-  } as never);
+  (messenger.call as jest.Mock).mockImplementation((method: string) => {
+    if (method === 'NetworkController:getNetworkClientById') {
+      return {
+        configuration: { chainId: CHAIN_ID_MOCK },
+      };
+    }
+
+    if (method === 'RemoteFeatureFlagController:getState') {
+      return {
+        remoteFeatureFlags: featureFlags,
+      };
+    }
+
+    return undefined;
+  });
 }
 
 describe('PendingTransactionTracker', () => {
@@ -106,6 +131,7 @@ describe('PendingTransactionTracker', () => {
   const getTransactionByHashMock = jest.fn();
   const getTransactionCountMock = jest.fn();
   const getBlockByHashMock = jest.fn();
+  const estimateGasMock = jest.fn();
 
   let blockTracker: jest.Mocked<BlockTracker>;
   let pendingTransactionTracker: PendingTransactionTracker;
@@ -148,33 +174,34 @@ describe('PendingTransactionTracker', () => {
 
     jest.mocked(TransactionPoller).mockImplementation(() => transactionPoller);
 
-    jest.mocked(query).mockImplementation(
-      // Query arguments are not typed
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (_ethQuery, method, args: any[] = []) => {
-        switch (method) {
-          case 'getTransactionReceipt':
-            return getTransactionReceiptMock(...args);
-          case 'getTransactionByHash':
-            return getTransactionByHashMock(...args);
-          case 'getTransactionCount':
-            return getTransactionCountMock(...args);
-          case 'getBlockByHash':
-            return getBlockByHashMock(...args);
-          default:
-            return undefined;
-        }
-      },
-    );
+    jest.mocked(rpcRequest).mockImplementation(async ({ method, params }) => {
+      const args = Array.isArray(params) ? params : [];
+
+      switch (method) {
+        case 'eth_getTransactionReceipt':
+          return getTransactionReceiptMock(...args);
+        case 'eth_getTransactionByHash':
+          return getTransactionByHashMock(...args);
+        case 'eth_getTransactionCount':
+          return getTransactionCountMock(...args);
+        case 'eth_getBlockByHash':
+          return getBlockByHashMock(...args);
+        case 'eth_estimateGas':
+          return estimateGasMock(...args);
+        default:
+          return undefined;
+      }
+    });
+
+    estimateGasMock.mockReset();
+    estimateGasMock.mockResolvedValue('0x5208');
 
     options = {
       blockTracker,
-      getChainId: jest.fn(() => CHAIN_ID_MOCK),
-      getEthQuery: jest.fn(() => ETH_QUERY_MOCK),
-      getNetworkClientId: jest.fn(() => NETWORK_CLIENT_ID_MOCK),
       getTransactions: jest.fn(),
       getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
       isTimeoutEnabled: jest.fn((_transactionMeta: TransactionMeta) => true),
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
       publishTransaction: jest.fn(),
       messenger,
     };
@@ -480,10 +507,59 @@ describe('PendingTransactionTracker', () => {
           await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(1);
-          expect(listener).toHaveBeenCalledWith(
-            TRANSACTION_SUBMITTED_MOCK,
-            new Error('Transaction failed on-chain'),
+          const [emittedTxMeta, emittedError] = listener.mock.calls[0];
+          expect(emittedTxMeta).toStrictEqual(TRANSACTION_SUBMITTED_MOCK);
+          expect(emittedError.name).toBe('OnChainFailureError');
+          expect(emittedError.message).toBe('Transaction failed on-chain');
+          expect(emittedError.revertReason).toBeUndefined();
+        });
+
+        it('with decoded revert reason when receipt has error status', async () => {
+          const listener = jest.fn();
+
+          const transactionMetaWithCall = {
+            ...TRANSACTION_SUBMITTED_MOCK,
+            txParams: {
+              ...TRANSACTION_SUBMITTED_MOCK.txParams,
+              from: `0x${'11'.repeat(20)}`,
+              to: `0x${'22'.repeat(20)}`,
+              data: '0xa9059cbb',
+            },
+          } as unknown as TransactionMeta;
+
+          pendingTransactionTracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: (): TransactionMeta[] =>
+              freeze([transactionMetaWithCall], true),
+          });
+
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
           );
+
+          getTransactionReceiptMock.mockResolvedValueOnce({
+            ...RECEIPT_MOCK,
+            status: '0x0',
+          });
+
+          estimateGasMock.mockRejectedValueOnce({
+            message: 'execution reverted',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
+
+          await onPoll();
+
+          expect(listener).toHaveBeenCalledTimes(1);
+          const [, emittedError] = listener.mock.calls[0];
+          expect(emittedError.name).toBe('OnChainFailureError');
+          expect(emittedError.message).toBe(
+            'Transaction failed on-chain: ERC20: transfer amount exceeds balance',
+          );
+          expect(emittedError.revert).toStrictEqual({
+            message: 'ERC20: transfer amount exceeds balance',
+            data: REVERT_DATA_TRANSFER_EXCEEDS_BALANCE,
+          });
         });
       });
 
@@ -1082,13 +1158,10 @@ describe('PendingTransactionTracker', () => {
           await onPoll('0x124');
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
-          expect(options.publishTransaction).toHaveBeenCalledWith(
-            ETH_QUERY_MOCK,
-            {
-              ...TRANSACTION_SUBMITTED_MOCK,
-              firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
-            },
-          );
+          expect(options.publishTransaction).toHaveBeenCalledWith({
+            ...TRANSACTION_SUBMITTED_MOCK,
+            firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
+          });
         });
 
         it('if latest block number matches retry count exponential delay', async () => {
@@ -1257,10 +1330,10 @@ describe('PendingTransactionTracker', () => {
       await tracker.forceCheckTransaction(transactionMeta);
 
       expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(
-        transactionMeta,
-        new Error('Transaction failed on-chain'),
-      );
+      const [, emittedError] = listener.mock.calls[0];
+      expect(emittedError.name).toBe('OnChainFailureError');
+      expect(emittedError.message).toBe('Transaction failed on-chain');
+      expect(emittedError.revertReason).toBeUndefined();
     });
 
     it('should not change transaction status if receipt status is neither success nor failure', async () => {

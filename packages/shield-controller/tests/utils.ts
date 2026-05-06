@@ -11,9 +11,9 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { SignTypedDataVersion } from 'src/constants';
 import { v1 as random } from 'uuid';
 
-import type { createMockMessenger } from './mocks/messenger';
 import { coverageStatuses } from '../src/types';
 import type { CoverageResult, CoverageStatus } from '../src/types';
+import type { createMockMessenger } from './mocks/messenger';
 
 /**
  * Generate a mock transaction meta.

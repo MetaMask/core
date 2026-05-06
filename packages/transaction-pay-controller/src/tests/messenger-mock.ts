@@ -2,7 +2,11 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type { BridgeStatusControllerGetStateAction } from '@metamask/bridge-status-controller';
+import type {
+  BridgeStatusControllerGetStateAction,
+  BridgeStatusControllerSubmitTxAction,
+} from '@metamask/bridge-status-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -23,7 +27,6 @@ import type {
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
 import type { TransactionPayControllerMessenger } from '..';
-import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
@@ -128,6 +131,19 @@ export function getMessengerMock({
   > = jest.fn();
 
   const getAssetsControllerStateMock = jest.fn();
+
+  const getKeyringControllerStateMock: jest.MockedFn<
+    KeyringControllerGetStateAction['handler']
+  > = jest.fn().mockReturnValue({
+    isUnlocked: true,
+    keyrings: [
+      {
+        type: 'HD Key Tree',
+        accounts: ['0x1234567890123456789012345678901234567891'],
+        metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+      },
+    ],
+  });
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -250,6 +266,11 @@ export function getMessengerMock({
     );
   }
 
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    getKeyringControllerStateMock,
+  );
+
   const publish = messenger.publish.bind(messenger);
 
   return {
@@ -267,6 +288,7 @@ export function getMessengerMock({
     getDelegationTransactionMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
+    getKeyringControllerStateMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,

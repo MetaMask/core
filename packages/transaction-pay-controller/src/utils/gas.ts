@@ -7,11 +7,11 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getFallbackGas, getGasBuffer } from './feature-flags';
-import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { Amount } from '../types';
+import { getFallbackGas, getGasBuffer } from './feature-flags';
+import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 
 const log = createModuleLogger(projectLogger, 'gas');
 
