@@ -763,7 +763,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateCustodialTransaction',
   'updateEditableParams',
   'updateIncomingTransactions',
+  'updatePreviousGasParams',
+  'updateRequiredTransactionIds',
+  'updateSecurityAlertResponse',
+  'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
 
