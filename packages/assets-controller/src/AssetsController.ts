@@ -3166,5 +3166,8 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
     this.messenger.unregisterActionHandler('AssetsController:hideAsset');
     this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:setSelectedCurrency',
+    );
   }
 }
