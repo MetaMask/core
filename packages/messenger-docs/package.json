@@ -18,7 +18,7 @@
   "bin": "./dist/cli.mjs",
   "files": [
     "dist/",
-    "template/"
+    "site/"
   ],
   "sideEffects": false,
   "publishConfig": {
