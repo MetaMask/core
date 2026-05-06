@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Allow Across to quote Predict withdraw post-quote flows that require a first-time source-chain EIP-7702 account upgrade without embedding authorization lists in Across post-swap actions ([#8593](https://github.com/MetaMask/core/pull/8593))
 - Fix fiat strategy never being selected by routing fiat payment method through `getStrategyOrder` and allowing quote retrieval when no crypto payment token is set ([#8720](https://github.com/MetaMask/core/pull/8720))
 
 ## [21.1.0]
@@ -52,7 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Allow Across to quote Predict withdraw post-quote flows that require a first-time source-chain EIP-7702 account upgrade without embedding authorization lists in Across post-swap actions
 - Pass explicit `assetId`, `providers`, and `fiat` to `RampsController:getQuotes` and persist the selected ramps quote on `TransactionFiatPayment` ([#8628](https://github.com/MetaMask/core/pull/8628))
 
 ## [20.2.0]
