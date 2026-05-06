@@ -128,6 +128,7 @@ export const ChainConfigurationSchema = type({
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
   stablecoins: optional(array(string())),
+  batchSellDestStablecoins: optional(array(CaipAssetTypeStruct)),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),

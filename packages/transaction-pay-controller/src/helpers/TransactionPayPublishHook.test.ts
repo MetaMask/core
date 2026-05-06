@@ -190,6 +190,27 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
+  it('sets accountSupports7702 true for money keyring', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Money Keyring',
+          accounts: ['0xabc'],
+          metadata: { id: 'money-keyring', name: 'Money Keyring' },
+        },
+      ],
+    });
+
+    await runHook();
+
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountSupports7702: true,
+      }),
+    );
+  });
+
   it('throws errors from submit prefixed with MetaMask Pay', async () => {
     executeMock.mockRejectedValue(new Error('Test error'));
 
