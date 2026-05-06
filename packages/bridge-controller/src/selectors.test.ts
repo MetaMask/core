@@ -4,6 +4,8 @@ import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
+import mockQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
+import mockQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
@@ -15,6 +17,7 @@ import {
   selectMinimumBalanceForRentExemptionInSOL,
   selectDefaultSlippagePercentage,
   selectTokenWarnings,
+  selectBridgeQuotesBatch,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -1358,6 +1361,150 @@ describe('Bridge Selectors', () => {
 
       const result = selectBridgeQuotes(solanaState, mockClientParams);
       expect(result.sortedQuotes).toHaveLength(1);
+    });
+  });
+
+  describe('selectBridgeQuotesBatch', () => {
+    const getMockState = (chainId: string): BridgeAppState =>
+      ({
+        quotes: [
+          ...mockQuotesErc20Erc20.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: 1,
+          })),
+          ...mockQuotesNativeErc20.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: 0,
+          })),
+        ],
+        quoteRequest: [
+          {
+            srcChainId: '10',
+            destChainId: '137',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            destTokenAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            insufficientBal: false,
+          },
+          {
+            srcChainId: '10',
+            destChainId: '137',
+            srcTokenAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            destTokenAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            insufficientBal: false,
+          },
+        ],
+        quotesLastFetched: Date.now(),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteFetchError: null,
+        quotesRefreshCount: 0,
+        quotesInitialLoadTime: Date.now(),
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            minimumVersion: '0.0.0',
+            maxRefreshCount: 5,
+            refreshRate: 30000,
+            chainRanking: [],
+            chains: {},
+            support: true,
+          },
+        },
+        assetExchangeRates: {},
+        currencyRates: {
+          ETH: {
+            conversionRate: 1800,
+            usdConversionRate: 1800,
+          },
+        },
+        marketData: {},
+        conversionRates: {},
+        participateInMetaMetrics: true,
+        gasFeeEstimatesByChainId: {
+          [formatChainIdToHex(chainId)]: {
+            gasFeeEstimates: {
+              estimatedBaseFee: '0',
+              medium: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.1',
+              },
+              high: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.2',
+              },
+            },
+          },
+        },
+      }) as unknown as BridgeAppState;
+
+    const mockState = getMockState('10');
+
+    const mockClientParams = {
+      sortOrder: SortOrder.COST_ASC,
+      selectedQuote: null,
+    };
+
+    it('should return sorted quotes with metadata', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotesBatch(
+          {
+            ...mockState,
+            assetExchangeRates: {
+              'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
+
+      const {
+        totalReceived,
+        minimumReceived,
+        totalNetworkFee,
+        recommendedQuotes,
+        ...rest
+      } = result;
+
+      expect(totalReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "38.423182",
+          "usd": "38.423182",
+          "valueInCurrency": "7684.6364",
+        }
+      `);
+      expect(minimumReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "37.6",
+          "usd": "37.6",
+          "valueInCurrency": "7520",
+        }
+      `);
+      expect(totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0.0020959506",
+          "usd": "3.77271108",
+          "valueInCurrency": "3.77271108",
+        }
+      `);
+      expect(rest).toMatchInlineSnapshot(`
+        {
+          "isLoading": false,
+          "isQuoteGoingToRefresh": true,
+          "quoteFetchError": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+      expect(recommendedQuotes.map((quote) => quote?.quote.requestId))
+        .toMatchInlineSnapshot(`
+        [
+          "381c23bc-e3e4-48fe-bc53-257471e388ad",
+          "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
+        ]
+      `);
     });
   });
 
