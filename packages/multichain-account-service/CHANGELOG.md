@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose missing `MultichainAccountService:init` action through its messenger ([#8717](https://github.com/MetaMask/core/pull/8717))
+  - Corresponding action type is available as well.
 - Filter out `KeyringController` locked errors from sentry reporting ([#8619](https://github.com/MetaMask/core/pull/8619))
 
 ### Changed
