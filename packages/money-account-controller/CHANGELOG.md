@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0]
 
-### Uncategorized
-
-- feat(accounts-controller): use `KeyringV1Adapter` for `SnapKeyring` (v2) accounts ([#8703](https://github.com/MetaMask/core/pull/8703))
-
 ### Added
 
 - Expose missing `MoneyAccountController:init` action through its messenger ([#8718](https://github.com/MetaMask/core/pull/8718))

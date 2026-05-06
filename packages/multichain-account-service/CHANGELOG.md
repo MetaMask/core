@@ -9,20 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.0.0]
 
-### Uncategorized
-
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-- Revert "Release 912.0.0 (#8451)" ([#8451](https://github.com/MetaMask/core/pull/8451))
-- Release 912.0.0 ([#8451](https://github.com/MetaMask/core/pull/8451))
-- chore: bump `@metamask/auto-changelog` to `^6.0.0` ([#8441](https://github.com/MetaMask/core/pull/8441))
-- chore: Use Oxfmt for import sorting instead of `import-x/order` ([#8438](https://github.com/MetaMask/core/pull/8438))
-- chore: Replace Prettier with Oxfmt ([#8434](https://github.com/MetaMask/core/pull/8434))
-- feat(keyring-controller): add `withKeyringV2` support ([#8390](https://github.com/MetaMask/core/pull/8390))
-- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
-- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
-- Release/893.0.0 ([#8344](https://github.com/MetaMask/core/pull/8344))
-
 ### Added
 
 - Expose missing `MultichainAccountService:init` action through its messenger ([#8717](https://github.com/MetaMask/core/pull/8717))
@@ -58,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
   - Those providers were initially provided by the clients.
-- Add new `createMultichainAccountGroups` support to create multiple groups in batch, ([#7801](https://github.com/MetaMask/core/pull/7801), [#8190](https://github.com/MetaMask/core/pull/8190))
+- Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801), [#8190](https://github.com/MetaMask/core/pull/8190))
 - Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
   - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
   - This behavior was enabled by default and can now be turned off by the clients.
@@ -110,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0`, ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [7.0.0]
 
@@ -222,7 +208,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Added error reporting around account creation with the `ErrorReportingService` ([#7044](https://github.com/MetaMask/core/pull/7044))
   - The `@metamask/error-reporting-service` is now a peer dependency.
-- Add `MultichainAccountService.resyncAccounts` method and action, ([#7087](https://github.com/MetaMask/core/pull/7087), [#7093](https://github.com/MetaMask/core/pull/7093))
+- Add `MultichainAccountService.resyncAccounts` method and action ([#7087](https://github.com/MetaMask/core/pull/7087), [#7093](https://github.com/MetaMask/core/pull/7093))
 - Add `*AccountProvider.resyncAccounts` method ([#7087](https://github.com/MetaMask/core/pull/7087))
 
 ### Changed
@@ -245,7 +231,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Use `groupIndex` for account creations on `TrxAccountProvider` instead of the outdated `derivationPath`, ([#7010](https://github.com/MetaMask/core/pull/7010), [#7018](https://github.com/MetaMask/core/pull/7018))
+- Use `groupIndex` for account creations on `TrxAccountProvider` instead of the outdated `derivationPath` ([#7010](https://github.com/MetaMask/core/pull/7010), [#7018](https://github.com/MetaMask/core/pull/7018))
 
 ## [2.0.0]
 
@@ -355,7 +341,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Rename `MultichainAccountWallet.alignGroup` to `alignAccountsOf` ([#6595](https://github.com/MetaMask/core/pull/6595))
 - **BREAKING:** Rename `MultichainAccountGroup.align` to `alignAccounts` ([#6595](https://github.com/MetaMask/core/pull/6595))
-- Add timeout and retry mechanism to EVM discovery, ([#6609](https://github.com/MetaMask/core/pull/6609), [#6621](https://github.com/MetaMask/core/pull/6621))
+- Add timeout and retry mechanism to EVM discovery ([#6609](https://github.com/MetaMask/core/pull/6609), [#6621](https://github.com/MetaMask/core/pull/6621))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 - Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
 
@@ -440,17 +426,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow custom account providers ([#6231](https://github.com/MetaMask/core/pull/6231))
   - You can now pass an extra option `providers` in the service's constructor.
-- Add multichain account group creation support,, ([#6222](https://github.com/MetaMask/core/pull/6222), [#6238](https://github.com/MetaMask/core/pull/6238), [#6240](https://github.com/MetaMask/core/pull/6240))
+- Add multichain account group creation support ([#6222](https://github.com/MetaMask/core/pull/6222), [#6238](https://github.com/MetaMask/core/pull/6238), [#6240](https://github.com/MetaMask/core/pull/6240))
   - This includes the new actions `MultichainAccountService:createNextMultichainAccountGroup` and `MultichainAccountService:createMultichainAccountGroup`.
 - Export `MultichainAccountWallet` and `MultichainAccountGroup` types ([#6220](https://github.com/MetaMask/core/pull/6220))
 
 ### Changed
 
 - **BREAKING:** Use `KeyringAccount` instead of `InternalAccount` ([#6227](https://github.com/MetaMask/core/pull/6227))
-- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.9.0`,,, ([#6214](https://github.com/MetaMask/core/pull/6214), [#6216](https://github.com/MetaMask/core/pull/6216), [#6222](https://github.com/MetaMask/core/pull/6222), [#6248](https://github.com/MetaMask/core/pull/6248))
-- **BREAKING:** Rename `MultichainAccount` to `MultichainAccountGroup`, ([#6216](https://github.com/MetaMask/core/pull/6216), [#6219](https://github.com/MetaMask/core/pull/6219))
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.9.0` ([#6214](https://github.com/MetaMask/core/pull/6214), [#6216](https://github.com/MetaMask/core/pull/6216), [#6222](https://github.com/MetaMask/core/pull/6222), [#6248](https://github.com/MetaMask/core/pull/6248))
+- **BREAKING:** Rename `MultichainAccount` to `MultichainAccountGroup` ([#6216](https://github.com/MetaMask/core/pull/6216), [#6219](https://github.com/MetaMask/core/pull/6219))
   - The naming was confusing and since a `MultichainAccount` is also an `AccountGroup` it makes sense to have the suffix there too.
-- **BREAKING:** Rename `getMultichainAccount*` to `getMultichainAccountGroup*`, ([#6216](https://github.com/MetaMask/core/pull/6216), [#6219](https://github.com/MetaMask/core/pull/6219))
+- **BREAKING:** Rename `getMultichainAccount*` to `getMultichainAccountGroup*` ([#6216](https://github.com/MetaMask/core/pull/6216), [#6219](https://github.com/MetaMask/core/pull/6219))
   - The naming was confusing and since a `MultichainAccount` is also an `AccountGroup` it makes sense to have the suffix there too.
 
 ## [0.3.0]
@@ -463,7 +449,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `@metamask/account-api` peer dependency, ([#6115](https://github.com/MetaMask/core/pull/6115), [#6146](https://github.com/MetaMask/core/pull/6146))
+- **BREAKING:** Add `@metamask/account-api` peer dependency ([#6115](https://github.com/MetaMask/core/pull/6115), [#6146](https://github.com/MetaMask/core/pull/6146))
 
 ## [0.2.1]
 
@@ -481,7 +467,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MultichainAccountService`, ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
+- Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@9.0.0...HEAD

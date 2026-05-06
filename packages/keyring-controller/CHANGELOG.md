@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.5.0]
 
-### Uncategorized
-
-- feat(accounts-controller): use `KeyringV1Adapter` for `SnapKeyring` (v2) accounts ([#8703](https://github.com/MetaMask/core/pull/8703))
-
 ### Added
 
 - Expose missing public `KeyringController` methods through its messenger ([#8674](https://github.com/MetaMask/core/pull/8674))
@@ -1007,7 +1003,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/keyring`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
