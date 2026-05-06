@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `TransactionController:updateTransactionGasFees`
   - Corresponding action types are available as well.
 
+### Changed
+
+- Resolve the first-time-interaction recipient through the same effective-recipient helper used when matching existing transactions ([#8723](https://github.com/MetaMask/core/pull/8723))
+
+### Fixed
+
+- Trigger the first-time-interaction warning correctly for `safeTransferFrom` token transfers by including `TransactionType.tokenMethodSafeTransferFrom` in the effective-recipient decoding logic ([#8723](https://github.com/MetaMask/core/pull/8723))
+
 ## [65.1.0]
 
 ### Added
