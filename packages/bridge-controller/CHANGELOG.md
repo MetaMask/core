@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 
+### Added
+
+- **BREAKING:** Add support for fetching batched swap transactions ([#8711](https://github.com/MetaMask/core/pull/8711))
+  - change `quoteRequest`'s type from `QuoteRequest` to `QuoteRequest[]`
+  - allow callers to update specific quote requests within a batch by adding 2 optional parameters to `updateBridgeQuoteRequest`: quoteRequestIndex and quoteRequestCount
+  - implement `selectBridgeQuotesBatch` selector which returns the recommended quote for each batched quote, and their aggregated fees and received amounts
+
 ## [71.1.1]
 
 ### Changed

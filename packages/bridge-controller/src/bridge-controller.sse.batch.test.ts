@@ -266,16 +266,37 @@ describe('BridgeController Batch SSE', function () {
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
-          quoteRequest1,
+          quoteRequest2,
+          metricsContext,
+          4,
+          1,
+        );
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          quoteRequest2,
           metricsContext,
           1,
           2,
         );
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
+          quoteRequest2,
+          metricsContext,
+          4,
+          1,
+        );
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
           quoteRequest0,
           metricsContext,
           0,
+          1,
+        );
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          quoteRequest1,
+          metricsContext,
+          1,
           2,
         );
         await rootMessenger.call(
@@ -294,13 +315,13 @@ describe('BridgeController Batch SSE', function () {
         );
 
         // Before polling starts
-        expect(stopAllPollingSpy).toHaveBeenCalledTimes(4);
-        expect(startPollingSpy).toHaveBeenCalledTimes(3);
+        expect(stopAllPollingSpy).toHaveBeenCalledTimes(5);
+        expect(startPollingSpy).toHaveBeenCalledTimes(4);
         expect(
           startPollingSpy.mock.calls
             .map((call) => call[0].updatedQuoteRequest)
             .flat()
-            .find((q) => !q),
+            .find((call) => !call),
         ).toBeUndefined();
         expect(bridgeController.state.quoteRequest).toStrictEqual([
           { ...quoteRequest0, insufficientBal: false },
@@ -325,7 +346,7 @@ describe('BridgeController Batch SSE', function () {
         expect(bridgeController.state.quotesLoadingStatus).toBe(
           RequestStatus.LOADING,
         );
-        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(3);
+        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
           mockFetchFn,
           [
@@ -396,12 +417,15 @@ describe('BridgeController Batch SSE', function () {
               quoteRequestIndex: 0,
             }))
             .concat(
-              mockBridgeQuotesErc20Erc20.map((quote) => ({
-                ...quote,
-                l1GasFeesInHexWei: '0x2',
-                resetApproval: undefined,
-                quoteRequestIndex: 1,
-              })),
+              mockBridgeQuotesErc20Erc20.map(
+                (quote) =>
+                  ({
+                    ...quote,
+                    l1GasFeesInHexWei: '0x2',
+                    resetApproval: undefined,
+                    quoteRequestIndex: 1,
+                  }) as never,
+              ),
             ),
           quotesRefreshCount: 1,
           quotesLoadingStatus: 1,
@@ -410,7 +434,7 @@ describe('BridgeController Batch SSE', function () {
         });
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy).toHaveBeenCalledTimes(0);
-        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(3);
+        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(4);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(6);
         // eslint-disable-next-line jest/no-restricted-matchers
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();

@@ -80,7 +80,11 @@ import type {
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
-import { isValidQuoteRequestBatch, sortQuotes } from './utils/quote';
+import {
+  isValidQuoteRequest,
+  isValidQuoteRequestBatch,
+  sortQuotes,
+} from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import type { FeatureId } from './utils/validators';
@@ -332,6 +336,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequestIndex: number = 0,
     quoteRequestCount: number = 1,
   ) => {
+    if (quoteRequestIndex >= quoteRequestCount) {
+      return;
+    }
     this.#trackInputChangedEvents(paramsToUpdate, quoteRequestIndex);
     this.resetState(AbortReason.QuoteRequestUpdated, quoteRequestIndex);
     this.update((state) => {
@@ -345,22 +352,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         context.token_security_type_destination ?? null;
     });
 
-    if (isValidQuoteRequestBatch(this.state.quoteRequest)) {
+    if (
+      isValidQuoteRequest(paramsToUpdate) &&
+      isValidQuoteRequestBatch(this.state.quoteRequest)
+    ) {
       this.#quotesFirstFetched = Date.now();
-
-      // Set refresh rate based on the source chain before starting polling
-      this.setChainIntervalLength();
-
       // Update the insufficientBal and resetApproval params for the quote request
       const quoteWithInsufficientBalAndResetApproval =
-        await this.#appendInsufficientBalAndResetApproval(
-          this.state.quoteRequest[quoteRequestIndex],
-        );
+        await this.#appendInsufficientBalAndResetApproval(paramsToUpdate);
       this.update((state) => {
         state.quoteRequest[quoteRequestIndex] =
           quoteWithInsufficientBalAndResetApproval;
       });
 
+      // Set refresh rate based on the source chain before starting polling
+      this.setChainIntervalLength();
       this.startPolling({
         quoteRequests: this.state.quoteRequest,
         context,
@@ -640,18 +646,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ) => {
     this.stopPollingForQuotes(reason);
     this.update((state) => {
-      // Clear all requests if index is null
-      const quoteRequests =
-        quoteRequestIndex === null
-          ? DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest
-          : [...state.quoteRequest];
-      // Otherwise only clear the specified request
-      if (quoteRequestIndex !== null) {
-        quoteRequests[quoteRequestIndex] =
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0];
-      }
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
-      state.quoteRequest = quoteRequests;
+      if (quoteRequestIndex === null) {
+        // Clear all requests if index is null
+        state.quoteRequest = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest;
+      } else {
+        // Otherwise only clear the specified request
+        state.quoteRequest
+          .slice(0, quoteRequestIndex)
+          .concat(DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0])
+          .concat(state.quoteRequest.slice(quoteRequestIndex + 1));
+      }
       state.quotesInitialLoadTime =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
       state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
@@ -954,10 +959,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #getMultichainSelectedAccount(
     walletAddress?: GenericQuoteRequest['walletAddress'],
-    quoteRequestIndex: number = 0,
   ) {
+    // Assume that all quotes in a batch are for the same account
     const addressToUse =
-      walletAddress ?? this.state.quoteRequest[quoteRequestIndex].walletAddress;
+      walletAddress ?? this.state.quoteRequest[0].walletAddress;
     if (!addressToUse) {
       throw new Error('Account address is required');
     }
