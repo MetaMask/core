@@ -4557,6 +4557,7 @@ __metadata:
     "@metamask/keyring-utils": "npm:^3.2.1"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/providers": "npm:^22.1.0"
+    "@metamask/snap-account-service": "npm:^0.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
@@ -5426,16 +5427,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snap-account-service@workspace:packages/snap-account-service":
+"@metamask/snap-account-service@npm:^0.0.0, @metamask/snap-account-service@workspace:packages/snap-account-service":
   version: 0.0.0-use.local
   resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/keyring-controller": "npm:^25.5.0"
     "@metamask/messenger": "npm:^1.2.0"
+    "@metamask/snaps-controllers": "npm:^19.0.0"
+    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
+    lodash: "npm:^4.17.21"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
