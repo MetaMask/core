@@ -3,6 +3,7 @@ import {
   NetworkType,
   convertHexToDecimal,
   InfuraNetworkType,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -37,6 +38,7 @@ import {
   buildInfuraNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
+import { MUSD_ERC20_ADDRESS_LOWER } from './constants';
 import { TOKEN_END_POINT_API } from './token-service';
 import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 import {
@@ -3149,6 +3151,94 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('adds mUSD from the token list cache when RPC reports zero balance', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          mockFindNetworkClientIdByChainId,
+          mockTokenListGetState,
+          triggerPreferencesStateChange,
+          callActionSpy,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              '0x1': {
+                chainId: '0x1',
+                name: 'Ethereum Mainnet',
+                nativeCurrency: 'ETH',
+                blockExplorerUrls: [],
+                defaultBlockExplorerUrlIndex: 0,
+                defaultRpcEndpointIndex: 0,
+                rpcEndpoints: [
+                  {
+                    networkClientId: 'mainnet',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://mainnet.infura.io/v3/test',
+                    failoverUrls: [],
+                  },
+                ],
+              },
+            },
+          });
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          });
+
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: true,
+          });
+
+          await controller.detectTokens({
+            chainIds: [ChainId.mainnet],
+            selectedAddress: selectedAccount.address,
+            forceRpc: true,
+          });
+
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: MUSD_ERC20_ADDRESS_LOWER,
+                name: 'MetaMask USD',
+                symbol: 'MUSD',
+                decimals: 6,
+              }),
+            ]),
+            'mainnet',
+          );
+        },
+      );
+    });
   });
 
   describe('mapChainIdWithTokenListMap', () => {
@@ -3403,6 +3493,45 @@ describe('TokenDetectionController', () => {
               },
             ],
             'avalanche',
+          );
+        },
+      );
+    });
+
+    it('adds mUSD from merged token list when WebSocket provides no token addresses (zero balance)', async () => {
+      await withController(
+        {
+          options: { disabled: false },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [],
+            chainId: ChainId.mainnet,
+          });
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+                name: 'MetaMask USD',
+                symbol: 'MUSD',
+                decimals: 6,
+              }),
+            ]),
+            'mainnet',
           );
         },
       );
@@ -3694,6 +3823,45 @@ describe('TokenDetectionController', () => {
               },
             ],
             'avalanche',
+          );
+        },
+      );
+    });
+
+    it('adds mUSD from merged token list when polling has no other token addresses (zero balance)', async () => {
+      await withController(
+        {
+          options: { disabled: false, useTokenDetection: () => true },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [],
+            chainId: ChainId.mainnet,
+          });
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+                name: 'MetaMask USD',
+                symbol: 'MUSD',
+                decimals: 6,
+              }),
+            ]),
+            'mainnet',
           );
         },
       );

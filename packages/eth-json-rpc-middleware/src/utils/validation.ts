@@ -199,12 +199,38 @@ export function validateTypedDataForPrototypePollution(data: string): void {
  */
 export function validateTypedMessageKeys(data: string): void {
   const parsedData = parseTypedMessage(data);
-  const allowedKeys = new Set(Object.keys(TYPED_MESSAGE_SCHEMA.properties));
+  const allowedKeys = new Set([
+    ...Object.keys(TYPED_MESSAGE_SCHEMA.properties),
+    'metadata',
+  ]);
   const hasExtraneousKey = Object.keys(parsedData).some(
     (key) => !allowedKeys.has(key),
   );
 
   if (hasExtraneousKey) {
     throw rpcErrors.invalidInput();
+  }
+
+  // Advanced Permissions adds `metadata: { justification: string, origin: string }` to eth_signTypedData requests.
+  // see GatorPermissionsController.decodePermissionFromPermissionContextForOrigin for more details.
+  const { metadata } = parsedData as { metadata?: unknown };
+  if (metadata !== undefined) {
+    if (typeof metadata !== 'object' || metadata === null) {
+      throw rpcErrors.invalidInput();
+    }
+
+    const { justification, origin } = metadata as {
+      justification?: unknown;
+      origin?: unknown;
+    };
+
+    if (typeof justification !== 'string' || typeof origin !== 'string') {
+      throw rpcErrors.invalidInput();
+    }
+
+    // we only need to check the keys length, because we already checked the known keys (justification and origin).
+    if (Object.keys(metadata).length !== 2) {
+      throw rpcErrors.invalidInput();
+    }
   }
 }

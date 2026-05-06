@@ -67,8 +67,8 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
-    it('uses staging URL when environment is Development', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+    it('uses development URL when environment is Development', async () => {
+      nock('https://on-ramp.dev-api.cx.metamask.io')
         .get('/geolocation')
         .query({
           sdk: '2.1.6',
@@ -423,8 +423,8 @@ describe('RampsService', () => {
       `);
     });
 
-    it('uses staging cache URL when environment is Development', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+    it('uses development regions URL without cache hostname', async () => {
+      nock('https://on-ramp.dev-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
           sdk: '2.1.6',

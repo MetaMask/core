@@ -83,6 +83,20 @@ export type SocialServiceFetchFollowersAction = {
 };
 
 /**
+ * Fetches a single position by its unique ID.
+ *
+ * Calls `GET ${baseUrl}/traders/position/${positionId}`.
+ *
+ * @param options - Options bag.
+ * @param options.positionId - Unique position ID (UUID).
+ * @returns The position.
+ */
+export type SocialServiceFetchPositionByIdAction = {
+  type: `SocialService:fetchPositionById`;
+  handler: SocialService['fetchPositionById'];
+};
+
+/**
  * Fetches the list of traders the current user is following.
  *
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -136,6 +150,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchOpenPositionsAction
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
+  | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction;

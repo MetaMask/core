@@ -185,6 +185,9 @@
       "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/passkey-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/permission-controller/tsconfig.build.json"
     },
     {
@@ -234,6 +237,9 @@
     },
     {
       "path": "./packages/signature-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/snap-account-service/tsconfig.build.json"
     },
     {
       "path": "./packages/social-controllers/tsconfig.build.json"

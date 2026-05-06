@@ -133,6 +133,7 @@ export type TraderProfileResponse = {
 // ---------------------------------------------------------------------------
 
 export type Position = {
+  positionId: string;
   tokenSymbol: string;
   tokenName: string;
   tokenAddress: string;
@@ -239,6 +240,11 @@ export type FetchPositionsOptions = {
 export type FetchFollowersOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
+};
+
+export type FetchPositionByIdOptions = {
+  /** Unique position ID (UUID). */
+  positionId: string;
 };
 
 export type FollowOptions = {

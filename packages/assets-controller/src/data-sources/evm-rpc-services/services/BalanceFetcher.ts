@@ -45,6 +45,13 @@ export type BalancePollingInput = {
   accountId: AccountId;
   /** Account address */
   accountAddress: Address;
+  /**
+   * When true, only fetch balances for entries in `state.customAssets`,
+   * skipping `state.assetsBalance`. Used by the supplemental RPC
+   * subscription on chains that another data source is already covering
+   * for regular balance refreshes.
+   */
+  customAssetsOnly?: boolean;
 };
 
 /**
@@ -114,6 +121,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       input.chainId,
       input.accountId,
       input.accountAddress,
+      input.customAssetsOnly === true,
     );
 
     if (this.#onBalanceUpdate && result.balances.length > 0) {
@@ -127,15 +135,15 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    *
    * @param chainId - Hex chain ID (e.g. "0x1").
    * @param accountId - Account UUID.
+   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
    * @returns Array of asset fetch entries from state for the requested chain.
    */
-  #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
+  #getAssetsToFetch(
+    chainId: ChainId,
+    accountId: AccountId,
+    customAssetsOnly: boolean,
+  ): AssetFetchEntry[] {
     const state = this.#messenger.call('AssetsController:getState');
-
-    const accountBalances = state?.assetsBalance?.[accountId];
-    if (!accountBalances) {
-      return [];
-    }
 
     // Convert hex chainId to decimal for CAIP-2 matching
     // This is safe because we are filtring with an accountId that is for evm balances only
@@ -143,27 +151,49 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
     const assetsToFetch = new Map<string, AssetFetchEntry>();
 
-    for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
-      const {
-        chain: { reference: chainReference },
-        assetReference,
-      } = parseCaipAssetType(assetId);
+    const collect = (assetId: CaipAssetType): void => {
+      const parsed = parseCaipAssetType(assetId);
 
-      if (chainReference === chainIdDecimal) {
-        const assetIdLowerCase = assetId.toLowerCase();
-        if (assetsToFetch.has(assetIdLowerCase)) {
-          continue;
-        }
+      if (parsed.chain.reference !== chainIdDecimal) {
+        return;
+      }
 
-        const isNative = this.#isNativeAsset(assetId);
-        const tokenAddress = isNative
+      const normalizedAssetId = assetId.toLowerCase();
+
+      if (assetsToFetch.has(normalizedAssetId)) {
+        return;
+      }
+
+      const isNative = this.#isNativeAsset(assetId);
+
+      assetsToFetch.set(normalizedAssetId, {
+        assetId,
+        address: isNative
           ? ZERO_ADDRESS
-          : (assetReference.toLowerCase() as Address);
+          : (parsed.assetReference.toLowerCase() as Address),
+      });
+    };
 
-        assetsToFetch.set(assetIdLowerCase, {
-          assetId,
-          address: tokenAddress,
-        });
+    // 1. Assets already tracked with a balance entry — only when not in
+    //    "customAssetsOnly" mode (otherwise another data source is already
+    //    refreshing them and we'd double-poll).
+    if (!customAssetsOnly) {
+      const accountBalances = state?.assetsBalance?.[accountId];
+      if (accountBalances) {
+        for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
+          collect(assetId);
+        }
+      }
+    }
+
+    // 2. User-added custom assets — RPC is the sole balance fetcher for
+    //    these, so they must be polled even if they have no balance entry
+    //    yet (e.g. zero balance, first fetch failed, or state was hydrated
+    //    from disk before any successful fetch).
+    const customAssets = state?.customAssets?.[accountId];
+    if (customAssets) {
+      for (const assetId of customAssets as CaipAssetType[]) {
+        collect(assetId);
       }
     }
 
@@ -177,14 +207,16 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
+   * @param customAssetsOnly - When true, skip `assetsBalance` and only include `customAssets`.
    * @returns Balance fetch result.
    */
   async #fetchBalances(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
+    customAssetsOnly: boolean,
   ): Promise<BalanceFetchResult> {
-    const assets = this.#getAssetsToFetch(chainId, accountId);
+    const assets = this.#getAssetsToFetch(chainId, accountId, customAssetsOnly);
 
     return this.fetchBalancesForAssets(
       chainId,

@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `TransactionController` methods through its messenger ([#8690](https://github.com/MetaMask/core/pull/8690))
+  - The following actions are now available:
+    - `TransactionController:updateSecurityAlertResponse`
+    - `TransactionController:updatePreviousGasParams`
+    - `TransactionController:updateRequiredTransactionIds`
+    - `TransactionController:updateSelectedGasFeeToken`
+    - `TransactionController:updateTransactionGasFees`
+  - Corresponding action types are available as well.
+
+## [65.1.0]
+
+### Added
+
+- Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687)).
+- Export `decodeAuthorizationSignature` utility that decodes a 65-byte EIP-7702 authorization signature into RLP-canonical `r`, `s`, and `yParity` ([#8656](https://github.com/MetaMask/core/pull/8656))
+  - All `eth_sendRawTransaction` failures are prefixed `RPC submit:` for failure-surface attribution in error metrics
+- Add `revert?: RevertData` field to `TransactionMeta` exposing decoded revert reason and raw data from gas estimation, simulation, and receipt replay ([#8589](https://github.com/MetaMask/core/pull/8589))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [65.0.0]
+
+### Added
+
+- Expose `TransactionController:wipeTransactions` method through `TransactionController` messenger ([#8592](https://github.com/MetaMask/core/pull/8592))
+
+### Changed
+
+- `estimateGasBatch` now skips the EIP-7702 path when the account's keyring does not support it, falling back to per-transaction gas estimation ([#8388](https://github.com/MetaMask/core/pull/8388))
+- `doesAccountSupportEIP7702` now returns `false` instead of `true` when the account is not found in any keyring ([#8388](https://github.com/MetaMask/core/pull/8388))
+- **BREAKING:** Add `KeyringControllerGetStateAction` to `AllowedActions` to enable keyring-based EIP-7702 account compatibility checks in `addTransactionBatch` ([#8388](https://github.com/MetaMask/core/pull/8388))
+  - `addTransactionBatch` now automatically checks whether the account's keyring supports EIP-7702 before attempting the 7702 batch path, falling back to STX/sequential when unsupported
+  - Clients must add `KeyringController:getState` to the TransactionController messenger's allowed actions
+
+### Fixed
+
+- Fix batch transaction signing so each transaction is signed sequentially, preventing remaining hardware wallet prompts from appearing after a rejection ([#8388](https://github.com/MetaMask/core/pull/8388))
+
+## [64.4.0]
+
+### Changed
+
+- Snapshot `txParamsOriginal` in `updateEditableParams` when `containerTypes` are first applied ([#8546](https://github.com/MetaMask/core/pull/8546))
+- Add `requiresAuthorizationList` to `TransactionController:estimateGasBatch` results when EIP-7702 batch gas estimation requires a first-time account upgrade ([#8577](https://github.com/MetaMask/core/pull/8577))
+
 ### Fixed
 
 - Gas estimation for EIP-7702 transactions now supports any upgrade-with-data transaction, not only self-targeted ones ([#8467](https://github.com/MetaMask/core/pull/8467))
@@ -2342,7 +2393,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.1.0...HEAD
+[65.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.0.0...@metamask/transaction-controller@65.1.0
+[65.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.4.0...@metamask/transaction-controller@65.0.0
+[64.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.3.0...@metamask/transaction-controller@64.4.0
 [64.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.2.0...@metamask/transaction-controller@64.3.0
 [64.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.1.0...@metamask/transaction-controller@64.2.0
 [64.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@64.0.0...@metamask/transaction-controller@64.1.0

@@ -1,6 +1,7 @@
 import type { Patch } from 'immer';
 
 import { Messenger, MOCK_ANY_NAMESPACE } from './Messenger';
+import type { ActionConstraint } from './Messenger';
 import type { MockAnyNamespace } from './Messenger';
 
 describe('Messenger', () => {
@@ -169,6 +170,31 @@ describe('Messenger', () => {
       expect(() => {
         messenger.registerActionHandler('Fixture:ping', () => undefined);
       }).toThrow('A handler for Fixture:ping has already been registered');
+    });
+
+    it('allows overriding the action handler in child classes', () => {
+      type Action = { type: 'Fixture:ping'; handler: () => string };
+
+      const handler = jest.fn().mockReturnValue('foo');
+
+      class CustomMessenger extends Messenger<'Fixture', Action> {
+        protected getAction(
+          _actionType: Action['type'],
+        ): ActionConstraint['handler'] | undefined {
+          return handler;
+        }
+      }
+
+      const messenger = new CustomMessenger({
+        namespace: 'Fixture',
+      });
+
+      const realHandler = jest.fn().mockReturnValue('bar');
+      messenger.registerActionHandler('Fixture:ping', realHandler);
+
+      expect(messenger.call('Fixture:ping')).toBe('foo');
+      expect(handler).toHaveBeenCalled();
+      expect(realHandler).not.toHaveBeenCalled();
     });
 
     it('throws when calling unregistered action', () => {
@@ -1007,6 +1033,186 @@ describe('Messenger', () => {
       expect(() => messenger.unsubscribe('Fixture:message', handler2)).toThrow(
         'Subscription not found for event: Fixture:message',
       );
+    });
+  });
+
+  describe('subscribeOnce', () => {
+    it('unsubscribes automatically after receiving the first event', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(handler).toHaveBeenCalledWith('foo');
+      expect(handler).not.toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports selectors', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        selector: ({ value }) => value,
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(handler).toHaveBeenCalledWith('foo', undefined);
+      expect(handler).not.toHaveBeenCalledWith('bar', 'foo');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports conditions without a selector', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(handler).not.toHaveBeenCalledWith('foo');
+      expect(handler).toHaveBeenCalledWith('bar');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+
+    it('supports conditions with a selector', () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const handler = jest.fn();
+      messenger.subscribeOnce('Fixture:message', handler, {
+        selector: ({ value }) => value,
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(handler).not.toHaveBeenCalledWith('foo');
+      expect(handler).toHaveBeenCalledWith('bar', 'foo');
+      expect(handler.mock.calls).toHaveLength(1);
+    });
+  });
+
+  describe('waitUntil', () => {
+    it('resolves the promise when the event fires', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message');
+      messenger.publish('Fixture:message', 'foo');
+
+      expect(await promise).toStrictEqual(['foo']);
+    });
+
+    it('resolves the promise with multiple parameters', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string, string, string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message');
+      messenger.publish('Fixture:message', 'foo', 'bar', 'baz');
+
+      expect(await promise).toStrictEqual(['foo', 'bar', 'baz']);
+    });
+
+    it('supports selectors', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        selector: ({ value }) => value,
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+
+      expect(await promise).toStrictEqual(['foo', undefined]);
+    });
+
+    it('supports conditions without a selector', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [string];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', 'foo');
+      messenger.publish('Fixture:message', 'bar');
+
+      expect(await promise).toStrictEqual(['bar']);
+    });
+
+    it('supports conditions with a selector', async () => {
+      type MessageEvent = {
+        type: 'Fixture:message';
+        payload: [{ value: string }];
+      };
+
+      const messenger = new Messenger<'Fixture', never, MessageEvent>({
+        namespace: 'Fixture',
+      });
+
+      const promise = messenger.waitUntil('Fixture:message', {
+        selector: ({ value }) => value,
+        condition: (value) => value === 'bar',
+      });
+      messenger.publish('Fixture:message', { value: 'foo' });
+      messenger.publish('Fixture:message', { value: 'bar' });
+
+      expect(await promise).toStrictEqual(['bar', 'foo']);
     });
   });
 
@@ -1865,7 +2071,7 @@ describe('Messenger', () => {
       });
 
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        'A handler for Source:getLength has not been registered',
+        'A handler for Source:getLength has not been delegated to Destination',
       );
     });
 
@@ -1910,11 +2116,13 @@ describe('Messenger', () => {
         }),
       ).not.toThrow();
       expect(() => delegatedMessenger.call('Source:getLength', 'test')).toThrow(
-        'A handler for Source:getLength has not been registered',
+        'A handler for Source:getLength has not been delegated to Destination',
       );
       expect(() =>
         delegatedMessenger.call('Source:getRandomString', 'test'),
-      ).toThrow('A handler for Source:getRandomString has not been registered');
+      ).toThrow(
+        'A handler for Source:getRandomString has not been delegated to Destination',
+      );
     });
 
     it('allows revoking a delegated action that is delegated elsewhere', () => {
@@ -1967,7 +2175,9 @@ describe('Messenger', () => {
 
       expect(() =>
         firstDelegatedMessenger.call('Source:getLength', 'test'),
-      ).toThrow('A handler for Source:getLength has not been registered');
+      ).toThrow(
+        'A handler for Source:getLength has not been delegated to FirstDestination',
+      );
       const thirdResult = secondDelegatedMessenger.call(
         'Source:getLength',
         'third test', // length 10

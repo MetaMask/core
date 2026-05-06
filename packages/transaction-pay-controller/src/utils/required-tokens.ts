@@ -2,18 +2,14 @@ import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import type {
-  FiatRates,
   TransactionPayControllerMessenger,
   TransactionPayRequiredToken,
 } from '../types';
 import {
   computeTokenAmounts,
-  getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
   getTokenInfo,
@@ -47,10 +43,8 @@ export function parseRequiredTokens(
     return assetTokens;
   }
 
-  return [
-    getTokenTransferToken(transaction, messenger),
-    getGasFeeToken(transaction, messenger),
-  ].filter(Boolean) as TransactionPayRequiredToken[];
+  const transferToken = getTokenTransferToken(transaction, messenger);
+  return transferToken ? [transferToken] : [];
 }
 
 /**
@@ -84,81 +78,6 @@ function getTokenTransferToken(
   }
 
   return buildRequiredToken(transaction, to, transferAmount, messenger);
-}
-
-/**
- * Get the gas fee token required for a transaction.
- *
- * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
- * @returns The gas fee token or undefined if it could not be determined.
- */
-function getGasFeeToken(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-): TransactionPayRequiredToken | undefined {
-  const { chainId, txParams } = transaction;
-  const { gas, maxFeePerGas } = txParams;
-  const nativeTokenAddress = getNativeToken(chainId);
-
-  const maxGasCostRawHex = add0x(
-    new BigNumber(gas ?? '0x0')
-      .multipliedBy(new BigNumber(maxFeePerGas ?? '0x0'))
-      .toString(16),
-  );
-
-  const token = buildRequiredToken(
-    transaction,
-    nativeTokenAddress,
-    maxGasCostRawHex,
-    messenger,
-  );
-
-  if (!token) {
-    return undefined;
-  }
-
-  const amountUsdValue = new BigNumber(token.amountUsd);
-
-  const hasBalance = new BigNumber(token.balanceRaw).isGreaterThanOrEqualTo(
-    token.amountRaw,
-  );
-
-  if (hasBalance || amountUsdValue.isGreaterThanOrEqualTo(1)) {
-    return {
-      ...token,
-      allowUnderMinimum: true,
-      skipIfBalance: true,
-    };
-  }
-
-  const fiatRates = getTokenFiatRate(
-    messenger,
-    nativeTokenAddress,
-    chainId,
-  ) as FiatRates;
-
-  const oneDollarRawHex = add0x(
-    new BigNumber(1).dividedBy(fiatRates.usdRate).shiftedBy(18).toString(16),
-  );
-
-  const oneDollarToken = buildRequiredToken(
-    transaction,
-    nativeTokenAddress,
-    oneDollarRawHex,
-    messenger,
-  );
-
-  /* istanbul ignore next */
-  if (!oneDollarToken) {
-    return undefined;
-  }
-
-  return {
-    ...oneDollarToken,
-    allowUnderMinimum: true,
-    skipIfBalance: true,
-  };
 }
 
 /**

@@ -194,6 +194,9 @@ async function submitTransactions(
   );
 
   let result: { result: Promise<string> } | undefined;
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? quote.request.sourceTokenAddress
+    : undefined;
 
   try {
     if (transactions.length === 1) {
@@ -201,6 +204,7 @@ async function submitTransactions(
         'TransactionController:addTransaction',
         transactions[0].params,
         {
+          gasFeeToken,
           networkClientId,
           origin: ORIGIN_METAMASK,
           requireApproval: false,
@@ -218,6 +222,7 @@ async function submitTransactions(
         disableHook: Boolean(gasLimit7702),
         disableSequential: Boolean(gasLimit7702),
         from,
+        gasFeeToken,
         gasLimit7702,
         networkClientId,
         origin: ORIGIN_METAMASK,

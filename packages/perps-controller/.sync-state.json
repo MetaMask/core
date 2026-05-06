@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "d4c68052ccec878922a9909ee95306252a959ff8",
-  "lastSyncedMobileBranch": "fix/core-sync-bugbot",
-  "lastSyncedCoreCommit": "5ea3b550b9e52744443da89da4a929ba2a7b0df7",
-  "lastSyncedCoreBranch": "feat/perps/controller-apr-23rd",
-  "lastSyncedDate": "2026-04-23T10:22:26Z",
-  "sourceChecksum": "9afe08e6639a1705e1ac7b51f47d7617e1195504ec05928783e8bf0fcda44f9d"
+  "lastSyncedMobileCommit": "106369c46bd01ee87faeaf51530fe67ad03ca178",
+  "lastSyncedMobileBranch": "fix/perps/flip-position-tat-2123",
+  "lastSyncedCoreCommit": "db4cc9ec8ff8530d8e9e0e3737b358e3269ce1b2",
+  "lastSyncedCoreBranch": "feat/perps/controller-sync-may-5",
+  "lastSyncedDate": "2026-05-05T20:50:44Z",
+  "sourceChecksum": "894eb0960741e569f1f025dbaaff6e1ffcab2489a80ad71e74cdf43af98aa764"
 }

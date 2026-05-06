@@ -13,6 +13,7 @@
 /packages/account-tree-controller            @MetaMask/accounts-engineers
 /packages/profile-sync-controller            @MetaMask/accounts-engineers
 /packages/money-account-controller           @MetaMask/accounts-engineers
+/packages/snap-account-service               @MetaMask/accounts-engineers
 
 ## Auth Team
 /packages/authenticated-user-storage         @MetaMask/auth-engineers
@@ -103,6 +104,7 @@
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
+/packages/passkey-controller             @MetaMask/web3auth
 /packages/shield-controller              @MetaMask/web3auth
 /packages/subscription-controller        @MetaMask/web3auth
 /packages/claims-controller              @MetaMask/web3auth
@@ -169,6 +171,8 @@
 /packages/geolocation-controller/CHANGELOG.md      @MetaMask/core-platform
 /packages/keyring-controller/package.json         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md         @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/passkey-controller/package.json         @MetaMask/web3auth @MetaMask/core-platform
+/packages/passkey-controller/CHANGELOG.md         @MetaMask/web3auth @MetaMask/core-platform
 /packages/logging-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/package.json            @MetaMask/confirmations @MetaMask/core-platform
@@ -241,3 +245,5 @@
 /packages/chomp-api-service/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/package.json @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/snap-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/snap-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform

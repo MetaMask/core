@@ -1,8 +1,10 @@
 import type { DeployedContractsByName, PermissionRule } from '../types';
 import { getChecksumEnforcersByChainId } from '../utils';
+import { makeErc20TokenAllowanceRule } from './erc20TokenAllowance';
 import { makeErc20TokenPeriodicRule } from './erc20TokenPeriodic';
 import { makeErc20TokenRevocationRule } from './erc20TokenRevocation';
 import { makeErc20TokenStreamRule } from './erc20TokenStream';
+import { makeNativeTokenAllowanceRule } from './nativeTokenAllowance';
 import { makeNativeTokenPeriodicRule } from './nativeTokenPeriodic';
 import { makeNativeTokenStreamRule } from './nativeTokenStream';
 
@@ -24,8 +26,10 @@ export const createPermissionRulesForContracts = (
   return [
     makeNativeTokenStreamRule(enforcers),
     makeNativeTokenPeriodicRule(enforcers),
+    makeNativeTokenAllowanceRule(enforcers),
     makeErc20TokenStreamRule(enforcers),
     makeErc20TokenPeriodicRule(enforcers),
+    makeErc20TokenAllowanceRule(enforcers),
     makeErc20TokenRevocationRule(enforcers),
   ];
 };

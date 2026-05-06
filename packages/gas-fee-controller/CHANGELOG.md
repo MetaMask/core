@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/messenger` from `^1.1.0` to `^1.1.1` ([#8373](https://github.com/MetaMask/core/pull/8373))
+- Expose missing public `GasFeeController` methods through its messenger ([#8699](https://github.com/MetaMask/core/pull/8699))
+  - The following actions are now available:
+    - `GasFeeController:enableNonRPCGasFeeApis`
+    - `GasFeeController:disableNonRPCGasFeeApis`
+  - Corresponding action types are available as well.
+- Bump `@metamask/messenger` from `^1.1.0` to `^1.2.0` ([#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Add missing `@metamask/messenger` dependency ([#8318](https://github.com/MetaMask/core/pull/8318), [#8364](https://github.com/MetaMask/core/pull/8364))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 
 ## [26.1.1]
 
