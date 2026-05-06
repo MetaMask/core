@@ -212,7 +212,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       },
     });
 
-    return  {
+    return {
       chainId,
       accountId,
       accountAddress,

@@ -456,7 +456,9 @@ export class TokenDataSource {
           (id) => !customAssetIds.has(id.toLowerCase()),
         );
         const allowedNonEvmIds = new Set([
-          ...nonEvmTokenIds.filter((id) => customAssetIds.has(id.toLowerCase())),
+          ...nonEvmTokenIds.filter((id) =>
+            customAssetIds.has(id.toLowerCase()),
+          ),
           ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
         ]);
 
