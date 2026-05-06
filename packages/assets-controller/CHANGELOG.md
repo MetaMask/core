@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 
+### Fixed
+
+- `TokenDataSource` no longer drops user-imported EVM custom asset metadata when the V3 Tokens API returns the asset ID lower-cased
+  - State stores `customAssets` checksummed (via `normalizeAssetId`), but the API can echo it lower-cased; the spam-filter bypass now compares lower-cased on both sides so customs reliably skip the `MIN_TOKEN_OCCURRENCES` filter and `assetsInfo` is populated for them.
+
 ## [6.3.0]
 
 ### Added
