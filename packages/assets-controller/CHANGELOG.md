@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [6.4.0]
+
+### Added
 
 - Expose missing `AssetsController:setSelectedCurrency` action through its messenger ([#8719](https://github.com/MetaMask/core/pull/8719))
   - Corresponding action type is available as well.
@@ -17,11 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The previous client-side `first=25` cap is removed; the API still bounds responses server-side via `occurrenceFloor`, but the long tail past the previous 25-token slice is now visible to detection.
   - `TokensApiClient` accepts an optional `queryClient` (compatible with `ApiPlatformClient.queryClient`); when provided it caches/dedupes per-chain list responses with a 5 min `staleTime` and 1 h `gcTime` under the `['assets-controller','rpc-detection','token-list',{chainId}]` key, so concurrent detector polls across accounts/instances coalesce into a single network request.
   - `RpcDataSource` accepts a new optional `queryClient` option which it forwards to `TokensApiClient`. `AssetsController` defaults this to its existing `queryApiClient.queryClient`, so consumers get the full list and shared cache automatically.
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
 - Bump `@metamask/network-enablement-controller` from `^5.0.2` to `^5.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/assets-controllers` from `^105.1.0` to `^106.0.0` ([#8721](https://github.com/MetaMask/core/pull/8721))
 
 ### Fixed
 
@@ -425,7 +431,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.4.0...HEAD
+[6.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.3.0...@metamask/assets-controller@6.4.0
 [6.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.1...@metamask/assets-controller@6.3.0
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.2.0...@metamask/assets-controller@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.1.0...@metamask/assets-controller@6.2.0

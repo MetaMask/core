@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [106.0.0]
+
 ### Added
 
 - Add `TokenListService`, a shared service for fetching and caching the token list per chain ([#8700](https://github.com/MetaMask/core/pull/8700))
@@ -3041,7 +3043,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.0...HEAD
+[106.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...@metamask/assets-controllers@106.0.0
 [105.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...@metamask/assets-controllers@105.1.0
 [105.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...@metamask/assets-controllers@105.0.0
 [104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
