@@ -28,7 +28,7 @@ import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
   getTransaction,
-  pollRateChanges,
+  subscribeTokenChanges,
   pollTransactionChanges,
 } from './utils/transaction';
 
@@ -97,7 +97,7 @@ export class TransactionPayController extends BaseController<
       this.#removeTransactionData.bind(this),
     );
 
-    pollRateChanges(
+    subscribeTokenChanges(
       messenger,
       () => this.state,
       this.#updateTransactionData.bind(this),

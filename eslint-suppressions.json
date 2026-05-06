@@ -2239,7 +2239,7 @@
   },
   "packages/transaction-pay-controller/src/utils/transaction.ts": {
     "no-restricted-syntax": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {

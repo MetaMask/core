@@ -20,7 +20,7 @@ import {
   collectTransactionIds,
   getTransaction,
   isPredictWithdrawTransaction,
-  pollRateChanges,
+  subscribeTokenChanges,
   pollTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
@@ -199,7 +199,7 @@ describe('Transaction Utils', () => {
     });
   });
 
-  describe('pollRateChanges', () => {
+  describe('subscribeTokenChanges', () => {
     function buildState(
       data: Partial<TransactionData> & {
         tokens: TransactionPayRequiredToken[];
@@ -240,7 +240,7 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      pollRateChanges(
+      subscribeTokenChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
@@ -264,13 +264,32 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      pollRateChanges(
+      subscribeTokenChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
       isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-parses required tokens when token state changes', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeTokenChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokensController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -284,7 +303,7 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      pollRateChanges(
+      subscribeTokenChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
@@ -295,7 +314,7 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not subscribe to TokenRatesController/CurrencyRateController when unify-state feature is enabled', () => {
+    it('does not subscribe to per-source events when unify-state feature is enabled', () => {
       const updateTransactionDataMock = jest.fn();
 
       getAssetsUnifyStateFeatureMock.mockReturnValue(true);
@@ -303,12 +322,13 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      pollRateChanges(
+      subscribeTokenChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
+      isolatedPublish('TokensController:stateChange', {} as never, []);
       isolatedPublish('TokenRatesController:stateChange', {} as never, []);
       isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
 
@@ -322,7 +342,7 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      pollRateChanges(
+      subscribeTokenChanges(
         isolatedMessenger,
         () =>
           buildState({
@@ -346,7 +366,7 @@ describe('Transaction Utils', () => {
           transactions: [{ ...TRANSACTION_META_MOCK, status }],
         } as TransactionControllerState);
 
-        pollRateChanges(
+        subscribeTokenChanges(
           isolatedMessenger,
           () => buildState({ tokens: [] }),
           updateTransactionDataMock,
@@ -365,7 +385,7 @@ describe('Transaction Utils', () => {
         transactions: [] as TransactionMeta[],
       } as TransactionControllerState);
 
-      pollRateChanges(
+      subscribeTokenChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,

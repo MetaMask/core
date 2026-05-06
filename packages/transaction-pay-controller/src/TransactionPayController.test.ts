@@ -19,7 +19,7 @@ import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
   getTransaction,
-  pollRateChanges,
+  subscribeTokenChanges,
   pollTransactionChanges,
 } from './utils/transaction';
 
@@ -46,7 +46,7 @@ describe('TransactionPayController', () => {
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
-  const pollRateChangesMock = jest.mocked(pollRateChanges);
+  const subscribeTokenChangesMock = jest.mocked(subscribeTokenChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
@@ -89,13 +89,13 @@ describe('TransactionPayController', () => {
     it('subscribes to rate changes for in-flight retry', () => {
       const controller = createController();
 
-      expect(pollRateChangesMock).toHaveBeenCalledWith(
+      expect(subscribeTokenChangesMock).toHaveBeenCalledWith(
         messenger,
         expect.any(Function),
         expect.any(Function),
       );
 
-      const getControllerState = pollRateChangesMock.mock.calls[0][1];
+      const getControllerState = subscribeTokenChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
     });
   });

@@ -129,23 +129,25 @@ export function pollTransactionChanges(
 }
 
 /**
- * Subscribe to rate-source state changes and re-run {@link parseRequiredTokens}
- * for in-flight transactions whose required tokens have not yet been resolved.
+ * Subscribe to token-data and rate-source state changes and re-run
+ * {@link parseRequiredTokens} for in-flight transactions whose required
+ * tokens have not yet been resolved.
  *
- * `parseRequiredTokens` returns an empty array when token fiat rates are
- * unavailable. Without this subscription, those transactions stay deadlocked:
- * the existing `TransactionController:stateChange` subscription only re-parses
- * when `txParams.data` changes, but the client typically gates `data` edits on
+ * `parseRequiredTokens` returns an empty array when any of token info,
+ * token fiat rates, or native currency rates are unavailable. Without this
+ * subscription, those transactions stay deadlocked: the existing
+ * `TransactionController:stateChange` subscription only re-parses when
+ * `txParams.data` changes, but the client typically gates `data` edits on
  * having a resolved required token. This handler closes the loop by re-parsing
- * when the underlying rate state lands, mirroring the same source selection
- * `getTokenFiatRate` uses.
+ * when any of the underlying state sources land, mirroring the same source
+ * selection `getTokenInfo` and `getTokenFiatRate` use.
  *
  * @param messenger - Controller messenger.
  * @param getControllerState - Callback returning the current pay-controller
  * state, used to find transactions with empty `tokens` to retry.
  * @param updateTransactionData - Callback to update transaction data.
  */
-export function pollRateChanges(
+export function subscribeTokenChanges(
   messenger: TransactionPayControllerMessenger,
   getControllerState: () => TransactionPayControllerState,
   updateTransactionData: UpdateTransactionDataCallback,
@@ -166,7 +168,7 @@ export function pollRateChanges(
           continue;
         }
 
-        log('Rate state changed, re-parsing required tokens', {
+        log('Token or rate state changed, re-parsing required tokens', {
           transactionId,
           source,
           patches,
@@ -189,6 +191,10 @@ export function pollRateChanges(
     return;
   }
 
+  messenger.subscribe(
+    'TokensController:stateChange',
+    buildHandler('TokensController'),
+  );
   messenger.subscribe(
     'TokenRatesController:stateChange',
     buildHandler('TokenRatesController'),
