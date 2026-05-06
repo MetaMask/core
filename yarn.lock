@@ -3479,21 +3479,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/delegation-core@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@metamask/delegation-core@npm:1.1.0"
+"@metamask/delegation-core@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/delegation-core@npm:2.0.0"
   dependencies:
     "@metamask/abi-utils": "npm:^3.0.0"
     "@metamask/utils": "npm:^11.4.0"
     "@noble/hashes": "npm:^1.8.0"
-  checksum: 10/672f9e2e2b4e8c312f2cd2ff166bbc508fbdb6e141fe92e678abc9993b9ccbdd17db711477a9b97b6ce3919fa6d51d759c16f6c6fda3f89cb95e303b8aa76f7d
+  checksum: 10/b473160e4cb4a6d463c6015de6e90d057034d2e8f2905068e1f44f93c8247618c5d84a155e86dfaa125dacb040951643517b9a76961bf8d215c194dc4d1cc0ad
   languageName: node
   linkType: hard
 
-"@metamask/delegation-deployments@npm:^0.12.0":
-  version: 0.12.0
-  resolution: "@metamask/delegation-deployments@npm:0.12.0"
-  checksum: 10/fd3b373efc1857cc867b44b4ca33db0cf8487c1109d6f2ed7e3ce10e6a65d4165b7fcc034cab92d919d6f0833e3749a055ff862adc8d7a348cdd3a0f593f6aa6
+"@metamask/delegation-deployments@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "@metamask/delegation-deployments@npm:1.3.0"
+  checksum: 10/58f4aafb5f0e3cbc543811cbc0100efab4ed67b9c9794b83192962153e4edbe12fd6ab6fa7be689503309862a65eb7fde771f632893d38ab54f8171aa682b34f
   languageName: node
   linkType: hard
 
@@ -4109,8 +4109,8 @@ __metadata:
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/delegation-core": "npm:^1.1.0"
-    "@metamask/delegation-deployments": "npm:^0.12.0"
+    "@metamask/delegation-core": "npm:^2.0.0"
+    "@metamask/delegation-deployments": "npm:^1.3.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^30.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
