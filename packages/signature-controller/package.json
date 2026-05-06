@@ -58,7 +58,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^11.20.0",
     "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/gator-permissions-controller": "^4.0.0",
+    "@metamask/gator-permissions-controller": "^4.1.0",
     "@metamask/keyring-controller": "^25.4.0",
     "@metamask/logging-controller": "^8.0.1",
     "@metamask/messenger": "^1.2.0",
