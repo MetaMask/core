@@ -693,57 +693,62 @@ describe('TransactionPayController', () => {
       decimals: 18,
     };
 
-    let setSelectedTokenMock: jest.Mock;
-
-    beforeEach(() => {
-      setSelectedTokenMock = jest.fn();
-      messenger.registerActionHandler(
-        'RampsController:setSelectedToken' as never,
-        setSelectedTokenMock as never,
-      );
-    });
-
-    function getUpdateTransactionData(): UpdateTransactionDataCallback {
+    function getControllerAndUpdateTransactionData(): {
+      controller: TransactionPayController;
+      updateTransactionData: UpdateTransactionDataCallback;
+    } {
       const controller = createController();
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
         tokenAddress: TOKEN_ADDRESS_MOCK,
         chainId: CHAIN_ID_MOCK,
       });
-      return updatePaymentTokenMock.mock.calls[0][1].updateTransactionData;
+      return {
+        controller,
+        updateTransactionData:
+          updatePaymentTokenMock.mock.calls[0][1].updateTransactionData,
+      };
     }
 
-    it('does not call setSelectedToken when only fiat amount changes', () => {
+    it('does not set caipAssetId when only fiat amount changes', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { amountFiat: '100' };
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('calls RampsController:setSelectedToken when payment method changes', () => {
+    it('stores caipAssetId in fiatPayment when payment method changes', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(setSelectedTokenMock).toHaveBeenCalledWith(CAIP_ASSET_ID_MOCK);
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBe(CAIP_ASSET_ID_MOCK);
     });
 
     it('triggers quote update when fiat payment changes', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { updateTransactionData } = getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { amountFiat: '100' };
@@ -752,36 +757,45 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not call setSelectedToken when transaction is not found', () => {
+    it('does not set caipAssetId when transaction is not found', () => {
       getTransactionMock.mockReturnValue(undefined);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('does not call setSelectedToken when fiat asset cannot be derived', () => {
+    it('does not set caipAssetId when fiat asset cannot be derived', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('does not call setSelectedToken when fiat payment does not change', () => {
+    it('does not set caipAssetId when fiat payment does not change', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.sourceAmounts = [
@@ -789,23 +803,10 @@ describe('TransactionPayController', () => {
         ];
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
-    });
-
-    it('does not throw when setSelectedToken throws', () => {
-      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
-      setSelectedTokenMock.mockImplementation(() => {
-        throw new Error('Tokens not loaded');
-      });
-
-      const updateTransactionData = getUpdateTransactionData();
-
-      expect(() => {
-        updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-          data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
-        });
-      }).not.toThrow();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
   });
 });

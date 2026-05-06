@@ -286,14 +286,11 @@ export class TransactionPayController extends BaseController<
       ) as TransactionMeta;
       const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
       if (fiatAsset) {
-        try {
-          this.messenger.call(
-            'RampsController:setSelectedToken',
-            fiatAsset.caipAssetId,
-          );
-        } catch {
-          // Intentionally no-op — tokens may not be loaded in RampsController yet.
-        }
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = fiatAsset.caipAssetId;
+          }
+        });
       }
     }
 
