@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  type TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -87,7 +90,9 @@ export async function getRelayQuotes(
 
         return hasTargetMinimum || isPostQuote || isExactInputRequest;
       })
-      .map((singleRequest) => normalizeRequest(singleRequest));
+      .map((singleRequest) =>
+        normalizeRequest(singleRequest, request.transaction),
+      );
 
     log('Normalized requests', normalizedRequests);
 
@@ -346,10 +351,21 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
+  // Deliver the acquired token to the account that executes the delegation
+  // (transaction.txParams.from = delegator), not request.from (which can be an
+  // accountOverride / funding account). The teller / vault contract called by
+  // the inner delegation pulls funds via transferFrom(msg.sender, ...), and
+  // msg.sender after executeFromExecutor is the delegator EOA, so funds must
+  // land at the delegator, not the override.
+  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
+
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(request.from, request.targetAmountMinimum),
+      data: buildTokenTransferData(
+        fundingRecipient,
+        request.targetAmountMinimum,
+      ),
       value: '0x0',
     },
     {
@@ -366,12 +382,22 @@ async function processTransactions(
  * @param request - Quote request to normalize.
  * @returns Normalized request.
  */
-function normalizeRequest(request: QuoteRequest): QuoteRequest {
+function normalizeRequest(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): QuoteRequest {
   const newRequest = {
     ...request,
   };
 
+  // Only rewrite an Arbitrum-USDC target to a direct Hypercore deposit when the
+  // parent transaction is actually a Perps deposit. Without this gate, every
+  // Arbitrum-USDC quote (e.g. Money Account deposits) is silently rewritten to
+  // Hypercore, which then fails because the inner delegation runs on Arbitrum.
+  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+
   const isHyperliquidDeposit =
+    isPerpsDeposit &&
     !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===

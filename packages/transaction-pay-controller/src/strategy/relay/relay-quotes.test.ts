@@ -2751,7 +2751,10 @@ describe('Relay Quotes Utils', () => {
         accountSupports7702: true,
         messenger,
         requests: [arbitrumToHyperliquidRequest],
-        transaction: TRANSACTION_META_MOCK,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        },
       });
 
       const body = JSON.parse(
@@ -2763,6 +2766,37 @@ describe('Relay Quotes Utils', () => {
           amount: '12300',
           destinationChainId: 1337,
           destinationCurrency: '0x00000000000000000000000000000000',
+        }),
+      );
+    });
+
+    it('does not convert to Hyperliquid deposit when parent transaction is not a Perps deposit', async () => {
+      const arbitrumUsdcRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [arbitrumUsdcRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          destinationChainId: Number(CHAIN_ID_ARBITRUM),
+          destinationCurrency: ARBITRUM_USDC_ADDRESS,
         }),
       );
     });
