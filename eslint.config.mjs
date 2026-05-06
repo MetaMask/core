@@ -80,7 +80,7 @@ const config = createConfig([
       'merged-packages/**',
       '.yarn/**',
       'scripts/create-package/package-template/**',
-      'packages/messenger-docs/template/**',
+      'packages/messenger-docs/site/**',
     ],
   },
   {
