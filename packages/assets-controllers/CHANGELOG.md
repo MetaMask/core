@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `TokenListService`, a shared service for fetching and caching the token list per chain ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Wraps `@tanstack/query-core` to cache results in-memory for 4 hours per chain ID, matching `TokenListController`'s existing threshold.
+  - Multiple controllers sharing the same `TokenListService` instance share the same cache: only one HTTP request is made per chain per 4-hour window regardless of how many callers invoke `fetchTokensByChainId`.
+  - Exported from the package as `TokenListService` and `buildTokenListMap`.
+- Add `@tanstack/query-core` `^5.62.16` as a direct dependency ([#8700](https://github.com/MetaMask/core/pull/8700))
 - Expose missing public `AccountTrackerController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
   - The following actions are now available:
     - `AccountTrackerController:refresh`
@@ -22,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `TokenDetectionController` now requires a `tokenListService: TokenListService` constructor option ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Token list data is fetched directly from `TokenListService` instead of reading `TokenListController` state on each detection pass.
+  - `GetTokenListState` has been removed from `AllowedActions` and `TokenListStateChange` has been removed from `AllowedEvents` on `TokenDetectionControllerMessenger`.
+- **BREAKING:** `TokensController` now requires a `tokenListService: TokenListService` constructor option ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - `TokenListStateChange` has been removed from `AllowedEvents` on `TokensControllerMessenger`.
+  - Token `name` and `rwaData` enrichment now happens once at controller initialization instead of reactively on every `TokenListController:stateChange` event.
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
 - Switch the default mUSD asset from upfront `allTokens` state seeding to detection-based discovery on Ethereum mainnet (`0x1`), Linea (`0xe708`), and Monad mainnet (`0x8f`) ([#8688](https://github.com/MetaMask/core/pull/8688))
   - `TokenDetectionController` now merges mUSD into the in-memory token list cache for these chains so it is treated as a regular detection candidate, replacing the previous `start()`-time `TokensController:addTokens` call and the per-event re-seed runs.
@@ -34,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `TokenDetectionController` no longer restarts token detection when `TokenListController` publishes a `stateChange` event ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Detection is still triggered on wallet unlock, account change, network change, and preference changes; the extra restart that occurred whenever `TokenListController` refreshed its cache is gone.
 - Stop seeding mUSD directly into `TokensController` state and remove the related event subscriptions ([#8688](https://github.com/MetaMask/core/pull/8688))
   - `TokensController` no longer subscribes to `KeyringController:unlock`, `AccountsController:accountAdded`, `AccountsController:selectedEvmAccountChange`, `NetworkController:networkAdded`, or `NetworkController:stateChange` for mUSD seeding purposes.
   - `TokensControllerMessenger` no longer requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, or `KeyringControllerUnlockEvent` as allowed events.

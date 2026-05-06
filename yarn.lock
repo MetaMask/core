@@ -2860,6 +2860,7 @@ __metadata:
     "@metamask/storage-service": "npm:^1.0.1"
     "@metamask/transaction-controller": "npm:^65.1.0"
     "@metamask/utils": "npm:^11.9.0"
+    "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^29.5.14"

@@ -423,12 +423,12 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "no-restricted-syntax": {
-      "count": 6
+      "count": 3
     }
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
@@ -475,7 +475,7 @@
       "count": 6
     },
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/assets-controllers/src/TokensController.ts": {
@@ -486,7 +486,7 @@
       "count": 1
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 4
+      "count": 3
     },
     "id-length": {
       "count": 1
@@ -498,7 +498,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     },
     "require-atomic-updates": {
       "count": 1
