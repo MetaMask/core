@@ -18,10 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service messenger no longer needs `SnapController:getState` or `SnapController:stateChange`.
 - **BREAKING:** Rename `SnapAccountProvider.ensureCanUseSnapPlatform()` to `ensureReady()` ([#8715](https://github.com/MetaMask/core/pull/8715))
 
-### Added
-
-- Add `@metamask/snap-account-service` dependency ([#8715](https://github.com/MetaMask/core/pull/8715))
-
 ## [9.0.0]
 
 ### Added
