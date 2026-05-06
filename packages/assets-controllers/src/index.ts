@@ -128,6 +128,7 @@ export type {
   TokenListControllerMessenger,
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
+export { TokenListService, buildTokenListMap } from './TokenListService';
 export type {
   ContractExchangeRates,
   ContractMarketData,

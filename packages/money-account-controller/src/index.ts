@@ -17,4 +17,5 @@ export type {
   MoneyAccountControllerClearStateAction,
   MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
+  MoneyAccountControllerInitAction,
 } from './MoneyAccountController-method-action-types';

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- Expose missing `MoneyAccountController:init` action through its messenger ([#8718](https://github.com/MetaMask/core/pull/8718))
+  - Corresponding action type is available as well.
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+
 ## [0.2.0]
 
 ### Changed
@@ -24,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountController` ([#8361](https://github.com/MetaMask/core/pull/8361))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.2.0...@metamask/money-account-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.1.0...@metamask/money-account-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-controller@0.1.0
