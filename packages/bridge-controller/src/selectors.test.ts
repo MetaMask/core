@@ -17,7 +17,7 @@ import {
   selectMinimumBalanceForRentExemptionInSOL,
   selectDefaultSlippagePercentage,
   selectTokenWarnings,
-  selectBridgeQuotesBatch,
+  selectBatchSellQuotes,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -1389,7 +1389,7 @@ describe('Bridge Selectors', () => {
     });
   });
 
-  describe('selectBridgeQuotesBatch', () => {
+  describe('selectBatchSellQuotes', () => {
     const getMockState = (chainId: string): BridgeAppState =>
       ({
         quotes: [
@@ -1469,7 +1469,7 @@ describe('Bridge Selectors', () => {
 
     it('should return sorted quotes with metadata', () => {
       const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
-        selectBridgeQuotesBatch(
+        selectBatchSellQuotes(
           {
             ...mockState,
             assetExchangeRates: {
@@ -1534,7 +1534,7 @@ describe('Bridge Selectors', () => {
 
     it('should return metadata when quotes are empty', () => {
       const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
-        selectBridgeQuotesBatch(
+        selectBatchSellQuotes(
           {
             ...mockState,
             quotes: [],

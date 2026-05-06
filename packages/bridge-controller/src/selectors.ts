@@ -604,16 +604,17 @@ const selectMetadataSum = createBridgeSelector(
 );
 
 /**
- * Selects the recommended quotes for a batch of quote requests.
+ * Selects the recommended swap quotes for a batch of quote requests.
  *
  * @param state - The state of the bridge controller and its dependency controllers
  * @param sortOrder - The sort order of the quotes
  * @param requestCount - The number of quote requests fetched in the batch
- * @returns The recommendedQuotes, totalReceived, minimumReceived, totalNetworkFee, and other quote fetching metadata
+ * @returns The quotes for multiple quote requests, including their recommendedQuotes,
+ * totalReceived, minimumReceived, totalNetworkFee, and other quote fetching metadata.
  *
  * @example
  * ```ts
- * const quoteBatch = useSelector(state => selectBridgeQuotesBatch(
+ * const quotes = useSelector(state => selectBridgeQuotesBatch(
  *   { ...state.metamask },
  *   {
  *     sortOrder: state.bridge.sortOrder,
@@ -622,7 +623,7 @@ const selectMetadataSum = createBridgeSelector(
  * ));
  * ```
  */
-export const selectBridgeQuotesBatch = createStructuredBridgeSelector({
+export const selectBatchSellQuotes = createStructuredBridgeSelector({
   recommendedQuotes: selectRecommendedQuotes,
   totalReceived: (state, opts) =>
     selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),

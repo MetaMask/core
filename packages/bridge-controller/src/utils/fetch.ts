@@ -307,15 +307,14 @@ const getQuoteRequestId = ({
   destChainId,
   srcTokenAddress,
   destTokenAddress,
-}: QuoteRequest): string => {
-  return `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`.toLowerCase();
-};
+}: QuoteRequest): string =>
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+
 const getQuoteResponseId = ({
   srcAsset: { address: srcTokenAddress, chainId: srcChainId },
   destAsset: { address: destTokenAddress, chainId: destChainId },
-}: QuoteResponse['quote']): string => {
-  return `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`.toLowerCase();
-};
+}: QuoteResponse['quote']): string =>
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
 
 /**
  * Fetches quotes from the bridge-api
@@ -351,9 +350,13 @@ export async function fetchBridgeQuoteStream(
   },
   clientVersion?: string,
 ): Promise<void> {
-  const isBatchRequest = quoteRequests.length > 1;
+  /**
+   * If the request includes multiple quote requests, it is a batch sell request.
+   * A batch sell consists of multiple swaps that are executed in a single tx submission.
+   */
+  const isBatchSellRequest = quoteRequests.length > 1;
   const normalizedQuoteRequests = quoteRequests.map(formatQuoteRequest);
-  const quoteRequestIds = isBatchRequest
+  const quoteRequestIds = isBatchSellRequest
     ? normalizedQuoteRequests.map(getQuoteRequestId)
     : undefined;
 
@@ -384,7 +387,7 @@ export async function fetchBridgeQuoteStream(
                   data: getEthUsdtResetData(matchingQuoteRequest.destChainId),
                 }
               : undefined,
-          ...(isBatchRequest && {
+          ...(isBatchSellRequest && {
             quoteRequestIndex: matchedQuoteRequestIdx,
           }),
         });
@@ -449,7 +452,20 @@ export async function fetchBridgeQuoteStream(
     }
   };
 
-  if (quoteRequests.length > 1) {
+  const sharedFetchOptions = {
+    signal,
+    onMessage,
+    onError: (error: unknown) => {
+      // Rethrow error to prevent silent fetch failures
+      throw error;
+    },
+    onClose: async () => {
+      await serverEventHandlers.onClose();
+    },
+    fetchFn,
+  };
+
+  if (isBatchSellRequest) {
     const urlStream = `${bridgeApiBaseUrl}/getBatchQuoteStream`;
     await fetchServerEvents(urlStream, {
       method: 'POST',
@@ -458,16 +474,7 @@ export async function fetchBridgeQuoteStream(
         ...getClientHeaders({ clientId, clientVersion, jwt }),
         'Content-Type': 'application/json',
       },
-      signal,
-      onMessage,
-      onError: (error) => {
-        // Rethrow error to prevent silent fetch failures
-        throw error;
-      },
-      onClose: async () => {
-        await serverEventHandlers.onClose();
-      },
-      fetchFn,
+      ...sharedFetchOptions,
     });
     return;
   }
@@ -479,15 +486,6 @@ export async function fetchBridgeQuoteStream(
       ...getClientHeaders({ clientId, clientVersion, jwt }),
       'Content-Type': 'text/event-stream',
     },
-    signal,
-    onMessage,
-    onError: (error) => {
-      // Rethrow error to prevent silent fetch failures
-      throw error;
-    },
-    onClose: async () => {
-      await serverEventHandlers.onClose();
-    },
-    fetchFn,
+    ...sharedFetchOptions,
   });
 }

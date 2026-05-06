@@ -77,7 +77,7 @@ export const mockSseEventSource = (
  * @param delay - the delay in milliseconds
  * @returns a delayed stream of quotes
  */
-export const mockSseBatchEventSource = (
+export const mockSseBatchSellEventSource = (
   mockQuotes: QuoteResponse[][],
   delay: number = 3000,
 ): MockSseResponse => {

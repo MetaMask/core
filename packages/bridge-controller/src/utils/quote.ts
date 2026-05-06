@@ -83,7 +83,7 @@ export const isValidQuoteRequest = (
   );
 };
 
-export const isValidQuoteRequestBatch = (
+export const isValidBatchSellQuoteRequest = (
   quoteRequests: Partial<GenericQuoteRequest>[],
   requireAmount = true,
 ): quoteRequests is GenericQuoteRequest[] =>

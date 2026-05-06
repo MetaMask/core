@@ -11,7 +11,7 @@ import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import {
   advanceToNthTimerThenFlush,
-  mockSseBatchEventSource,
+  mockSseBatchSellEventSource,
 } from '../tests/mock-sse';
 import { BridgeController } from './bridge-controller';
 import {
@@ -202,7 +202,7 @@ async function withController<ReturnValue>(
   });
 }
 
-describe('BridgeController Batch SSE', function () {
+describe('BridgeController BatchSell (multiple quote requests) SSE', function () {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
@@ -222,7 +222,7 @@ describe('BridgeController Batch SSE', function () {
         consoleLogSpy,
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
-          return mockSseBatchEventSource([
+          return mockSseBatchSellEventSource([
             mockBridgeQuotesNativeErc20 as QuoteResponse[],
             mockBridgeQuotesErc20Erc20 as QuoteResponse[],
           ]);

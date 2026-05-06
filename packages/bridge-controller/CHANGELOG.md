@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add support for fetching batched swap transactions ([#8711](https://github.com/MetaMask/core/pull/8711))
+- **BREAKING:** Add support for BatchSell quotes ([#8711](https://github.com/MetaMask/core/pull/8711))
   - change `quoteRequest`'s type from `QuoteRequest` to `QuoteRequest[]`
   - allow callers to update specific quote requests within a batch by adding 2 optional parameters to `updateBridgeQuoteRequest`: quoteRequestIndex and quoteRequestCount
-  - implement `selectBridgeQuotesBatch` selector which returns the recommended quote for each batched quote, and their aggregated fees and received amounts
+  - export `isValidBatchSellQuoteRequest` request validator
+  - fetch multiple swap quotes through a single SSE stream and append `quoteRequestIndex` to link each one to its originating quoteRequest
+  - implement `selectBatchSellQuotes` selector which returns the recommended quote for each batched quote, and their aggregated fees and received amounts
 
 ### Changed
 

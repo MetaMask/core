@@ -148,7 +148,7 @@ export {
 
 export {
   isValidQuoteRequest,
-  isValidQuoteRequestBatch,
+  isValidBatchSellQuoteRequest,
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './utils/quote';
@@ -174,7 +174,7 @@ export {
 
 export {
   selectBridgeQuotes,
-  selectBridgeQuotesBatch,
+  selectBatchSellQuotes,
   selectDefaultSlippagePercentage,
   type BridgeAppState,
   selectExchangeRateByAssetId,

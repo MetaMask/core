@@ -82,7 +82,7 @@ import type {
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
 import {
   isValidQuoteRequest,
-  isValidQuoteRequestBatch,
+  isValidBatchSellQuoteRequest,
   sortQuotes,
 } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
@@ -357,7 +357,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     if (
       isValidQuoteRequest(paramsToUpdate) &&
-      isValidQuoteRequestBatch(this.state.quoteRequest)
+      isValidBatchSellQuoteRequest(this.state.quoteRequest)
     ) {
       this.#quotesFirstFetched = Date.now();
       // Update the insufficientBal and resetApproval params for the quote request

@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`BridgeController Batch SSE should trigger quote polling if request is valid 1`] = `
+exports[`BridgeController BatchSell (multiple quote requests) SSE should trigger quote polling if request is valid 1`] = `
 {
   "assetExchangeRates": {
     "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
@@ -58,7 +58,7 @@ exports[`BridgeController Batch SSE should trigger quote polling if request is v
 }
 `;
 
-exports[`BridgeController Batch SSE should trigger quote polling if request is valid 2`] = `
+exports[`BridgeController BatchSell (multiple quote requests) SSE should trigger quote polling if request is valid 2`] = `
 [
   [
     "Unified SwapBridge Input Changed",
