@@ -32,7 +32,6 @@ import type {
 } from '@metamask/network-controller';
 import type { SnapAccountServiceEnsureReadyAction } from '@metamask/snap-account-service';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
 
 import type { serviceName } from './MultichainAccountService';
 import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';

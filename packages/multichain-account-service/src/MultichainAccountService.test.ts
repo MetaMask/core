@@ -52,7 +52,6 @@ import {
 import {
   MOCK_HD_KEYRING_1,
   MOCK_HD_KEYRING_2,
-  MOCK_SNAP_KEYRING,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   makeMockAccountProvider,

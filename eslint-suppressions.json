@@ -1299,11 +1299,6 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/src/snaps/SnapPlatformWatcher.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "packages/multichain-account-service/src/tests/accounts.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
@@ -1311,7 +1306,7 @@
   },
   "packages/multichain-account-service/src/tests/messenger.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/multichain-api-middleware/src/handlers/types.ts": {
