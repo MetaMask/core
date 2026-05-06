@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `lastSelected` (timestamp) to account group tree node metadata, ([#8261](https://github.com/MetaMask/core/pull/8261), [#8300](https://github.com/MetaMask/core/pull/8300))
+- Add `lastSelected` (timestamp) to account group tree node metadata ([#8261](https://github.com/MetaMask/core/pull/8261)), ([#8300](https://github.com/MetaMask/core/pull/8300))
   - `group.metadata.lastSelected` is set to `Date.now()` whenever a group becomes the selected group, either via `setSelectedAccountGroup` or `AccountsController:selectedAccountChange`.
   - The value is persisted in `accountGroupsMetadata` and restored on `init`/`reinit`.
   - The value is not synchronize through backup and sync.
@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `AccountTreeController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
+- Expose missing public `AccountTreeController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - The following actions are now available:
     - `AccountTreeController:getAccountWalletObject`
     - `AccountTreeController:getAccountWalletObjects`
@@ -110,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0`, ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/multichain-account-service` from `^7.0.0` to `^7.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ### Removed
@@ -137,7 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/snaps-sdk` from `^9.0.0` to `^10.3.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Bump `@metamask/snaps-utils` from `^11.0.0` to `^11.7.0` ([#7550](https://github.com/MetaMask/core/pull/7550))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Move peer dependencies for controller and service packages to direct dependencies, ([#7209](https://github.com/MetaMask/core/pull/7209), [#7437](https://github.com/MetaMask/core/pull/7437), [#7515](https://github.com/MetaMask/core/pull/7515), [#7594](https://github.com/MetaMask/core/pull/7594), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7678](https://github.com/MetaMask/core/pull/7678), [#7713](https://github.com/MetaMask/core/pull/7713), [#7849](https://github.com/MetaMask/core/pull/7849), [#7869](https://github.com/MetaMask/core/pull/7869))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7437](https://github.com/MetaMask/core/pull/7437), [#7515](https://github.com/MetaMask/core/pull/7515), [#7594](https://github.com/MetaMask/core/pull/7594), [#7550](https://github.com/MetaMask/core/pull/7550), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7678](https://github.com/MetaMask/core/pull/7678), [#7713](https://github.com/MetaMask/core/pull/7713), [#7849](https://github.com/MetaMask/core/pull/7849)), ([#7869](https://github.com/MetaMask/core/pull/7869))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^35.0.2)
     - `@metamask/keyring-controller` (^25.1.0)
@@ -255,16 +255,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Set the `setAccountGroupName`'s option `autoHandleConflict` to `true` for all backup & sync operations ([#6697](https://github.com/MetaMask/core/pull/6697))
-- Add new group naming for non-HD keyring accounts, ([#6679](https://github.com/MetaMask/core/pull/6679), [#6696](https://github.com/MetaMask/core/pull/6696))
+- Add new group naming for non-HD keyring accounts ([#6679](https://github.com/MetaMask/core/pull/6679)), ([#6696](https://github.com/MetaMask/core/pull/6696))
   - Hardware-wallet account groups are now named: "Ledger|Trezor|QR|Lattice|OneKey Account N".
   - Private key account groups are now named: "Imported Account N".
   - Snap account groups are now named: "Snap Account N".
-- Account group names now use natural indexing as a fallback,, ([#6677](https://github.com/MetaMask/core/pull/6677), [#6679](https://github.com/MetaMask/core/pull/6679), [#6696](https://github.com/MetaMask/core/pull/6696))
+- Account group names now use natural indexing as a fallback ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679)), ([#6696](https://github.com/MetaMask/core/pull/6696))
   - If a user names his accounts without any indexes, we would just use the number of accounts to compute the next available index.
 
 ### Fixed
 
-- Fix group naming for non-HD keyring accounts, ([#6677](https://github.com/MetaMask/core/pull/6677), [#6679](https://github.com/MetaMask/core/pull/6679))
+- Fix group naming for non-HD keyring accounts ([#6677](https://github.com/MetaMask/core/pull/6677)), ([#6679](https://github.com/MetaMask/core/pull/6679))
   - Previously, the first non-HD keyring account would start as `Account 2` as opposed to `Account 1` and thus subsequent group names were off as well.
 
 ## [1.0.0]
@@ -340,13 +340,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AccountWalletObject.status` support, ([#6571](https://github.com/MetaMask/core/pull/6571), [#6578](https://github.com/MetaMask/core/pull/6578))
+- Add `AccountWalletObject.status` support ([#6571](https://github.com/MetaMask/core/pull/6571)), ([#6578](https://github.com/MetaMask/core/pull/6578))
   - The `status` field will now report the current wallet status.
   - Uses `MultichainAccountService` to report on-going operations (discovery, alignment, account creations) for `AccountWalletEntropyObject` multichain account wallet objects.
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.7.0` to `^0.8.0`, ([#6571](https://github.com/MetaMask/core/pull/6571), [#6578](https://github.com/MetaMask/core/pull/6578))
+- **BREAKING:** Bump peer dependency `@metamask/multichain-account-service` from `^0.7.0` to `^0.8.0` ([#6571](https://github.com/MetaMask/core/pull/6571)), ([#6578](https://github.com/MetaMask/core/pull/6578))
 - **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.9.0` to `^0.12.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
 
 ## [0.14.0]
@@ -366,7 +366,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional configuration through new `AccountTreeControllerConfig.backupAndSync` options.
   - Add `@metamask/superstruct` for data validation.
 - **BREAKING:** Add `@metamask/multichain-account-service` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344))
-- **BREAKING:** Add `@metamask/profile-sync-controller` peer dependency, ([#6344](https://github.com/MetaMask/core/pull/6344), [#6558](https://github.com/MetaMask/core/pull/6558))
+- **BREAKING:** Add `@metamask/profile-sync-controller` peer dependency ([#6344](https://github.com/MetaMask/core/pull/6344)), ([#6558](https://github.com/MetaMask/core/pull/6558))
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6470](https://github.com/MetaMask/core/pull/6470))
 
 ### Changed
@@ -446,7 +446,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add support for `AccountsController:accountRenamed` event handling for state 1 and legacy account syncing compatibility ([#6251](https://github.com/MetaMask/core/pull/6251))
-- Add `AccountTreeController:getAccountsFromSelectedAccountGroup` action,, ([#6266](https://github.com/MetaMask/core/pull/6266), [#6248](https://github.com/MetaMask/core/pull/6248), [#6265](https://github.com/MetaMask/core/pull/6265))
+- Add `AccountTreeController:getAccountsFromSelectedAccountGroup` action ([#6266](https://github.com/MetaMask/core/pull/6266)), ([#6248](https://github.com/MetaMask/core/pull/6248)), ([#6265](https://github.com/MetaMask/core/pull/6265))
   - This action can be used to get all accounts from the currently selected account group.
   - This action also support `AccountSelector` support to filter out accounts based on some criterias.
 - Add persistence support for user customizations ([#6221](https://github.com/MetaMask/core/pull/6221))
@@ -457,14 +457,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `{wallet,group}.type` tag ([#6214](https://github.com/MetaMask/core/pull/6214))
   - This `type` can be used as a tag to strongly-type (tagged-union) the `AccountGroupObject`.
   - The `type` from `wallet.metadata` has been moved to `wallet.type` instead and can be used to (tagged-union) the `AccountWalletObject`.
-- Add `{wallet,group}.metadata` metadata object, ([#6214](https://github.com/MetaMask/core/pull/6214), [#6258](https://github.com/MetaMask/core/pull/6258))
+- Add `{wallet,group}.metadata` metadata object ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6258](https://github.com/MetaMask/core/pull/6258))
   - Given the `{wallet,group}.type` you will now have access to specific metadata information (e.g. `group.metadata.groupIndex` for multichain account groups or `wallet.metadata.entropy.id` for multichain account wallets)
 - Automatically prune empty groups and wallets upon account removal ([#6234](https://github.com/MetaMask/core/pull/6234))
   - This ensures that there aren't any empty nodes in the `AccountTreeController` state.
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.9.0`,,, ([#6214](https://github.com/MetaMask/core/pull/6214), [#6216](https://github.com/MetaMask/core/pull/6216), [#6222](https://github.com/MetaMask/core/pull/6222), [#6248](https://github.com/MetaMask/core/pull/6248))
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.3.0` to `^0.9.0` ([#6214](https://github.com/MetaMask/core/pull/6214)), ([#6216](https://github.com/MetaMask/core/pull/6216)), ([#6222](https://github.com/MetaMask/core/pull/6222)), ([#6248](https://github.com/MetaMask/core/pull/6248))
 - **BREAKING:** Remove use of in-memory wallets and groups (`AccountTree{Wallet,Object}`) ([#6265](https://github.com/MetaMask/core/pull/6265))
   - Those types are not ready to be used and adds no value for now.
 - **BREAKING:** Move `wallet.metadata.type` tag to `wallet` node ([#6214](https://github.com/MetaMask/core/pull/6214))
@@ -503,7 +503,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `@metamask/account-api` peer dependency, ([#6115](https://github.com/MetaMask/core/pull/6115), [#6146](https://github.com/MetaMask/core/pull/6146))
+- **BREAKING:** Add `@metamask/account-api` peer dependency ([#6115](https://github.com/MetaMask/core/pull/6115)), ([#6146](https://github.com/MetaMask/core/pull/6146))
 - **BREAKING:** Types `AccountWallet` and `AccountGroup` have been respectively renamed to `AccountWalletObject` and `AccountGroupObject` ([#6115](https://github.com/MetaMask/core/pull/6115))
   - Those names are now used by the `@metamask/account-api` package to define higher-level interfaces.
 - **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` from `^12.0.0` to `^14.0.0` ([#6035](https://github.com/MetaMask/core/pull/6035))
