@@ -144,7 +144,9 @@ export type QuxAction = {
     const result = await runCLI(['--help']);
 
     expect(result.exitCode).toBe(0);
-    expect(result.all).toContain('Generate Messenger API documentation');
+    expect(result.all).toContain(
+      'Produces documentation for the platform API, the set of actions and events\navailable in clients through the message bus',
+    );
   });
 
   it('exits with error when no scannable directories found', async () => {
