@@ -1,8 +1,6 @@
 import nock from 'nock';
 
 import {
-  getMockUpdateOnChainNotifications,
-  getMockOnChainNotificationsConfig,
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
@@ -22,32 +20,6 @@ export const mockFetchFeatureAnnouncementNotifications = (
   const mockEndpoint = nock(mockResponse.url)
     .get('')
     .query(true)
-    .reply(reply.status, reply.body);
-
-  return mockEndpoint;
-};
-
-export const mockUpdateOnChainNotifications = (
-  mockReply?: MockReply,
-): nock.Scope => {
-  const mockResponse = getMockUpdateOnChainNotifications();
-  const reply = mockReply ?? { status: 204 };
-
-  const mockEndpoint = nock(mockResponse.url)
-    .post('')
-    .reply(reply.status, reply.body);
-
-  return mockEndpoint;
-};
-
-export const mockGetOnChainNotificationsConfig = (
-  mockReply?: MockReply,
-): nock.Scope => {
-  const mockResponse = getMockOnChainNotificationsConfig();
-  const reply = mockReply ?? { status: 200, body: mockResponse.response };
-
-  const mockEndpoint = nock(mockResponse.url)
-    .post('')
     .reply(reply.status, reply.body);
 
   return mockEndpoint;

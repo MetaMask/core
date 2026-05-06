@@ -7,7 +7,6 @@ import type {
   UnprocessedRawNotification,
 } from '../types/notification-api';
 import { makeApiCall } from '../utils/utils';
-import { notificationsConfigCache } from './notification-config-cache';
 
 export type NotificationTrigger = {
   id: string;
@@ -18,15 +17,6 @@ export type NotificationTrigger = {
 
 export type ENV = 'prd' | 'uat' | 'dev';
 
-const TRIGGER_API_ENV = {
-  dev: 'https://trigger.dev-api.cx.metamask.io',
-  uat: 'https://trigger.uat-api.cx.metamask.io',
-  prd: 'https://trigger.api.cx.metamask.io',
-} satisfies Record<ENV, string>;
-
-export const TRIGGER_API = (env: ENV = 'prd'): string =>
-  TRIGGER_API_ENV[env] ?? TRIGGER_API_ENV.prd;
-
 const NOTIFICATION_API_ENV = {
   dev: 'https://notification.dev-api.cx.metamask.io',
   uat: 'https://notification.uat-api.cx.metamask.io',
@@ -36,114 +26,24 @@ const NOTIFICATION_API_ENV = {
 export const NOTIFICATION_API = (env: ENV = 'prd'): string =>
   NOTIFICATION_API_ENV[env] ?? NOTIFICATION_API_ENV.prd;
 
-// Gets notification settings for each account provided
-export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
-  env: ENV = 'prd',
-): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
-
-// Used to create/update account notifications for each account provided
-export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd'): string =>
-  `${TRIGGER_API(env)}/api/v2/notifications`;
-
-// Lists notifications for each account provided
+// Lists notifications for each address provided.
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
   `${NOTIFICATION_API(env)}/api/v3/notifications`;
 
-// Marks notifications as read
+// Marks notifications as read.
 export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
 
 /**
- * fetches notification config (accounts enabled vs disabled)
- *
- * @param bearerToken - jwt
- * @param addresses - list of addresses to check
- * @param env - the environment to use for the API call
- * NOTE the API will return addresses config with false if they have not been created before.
- * NOTE this is cached for 1s to prevent multiple update calls
- * @returns object of notification config, or null if missing
- */
-export async function getNotificationsApiConfigCached(
-  bearerToken: string,
-  addresses: string[],
-  env: ENV = 'prd',
-): Promise<{ address: string; enabled: boolean }[]> {
-  if (addresses.length === 0) {
-    return [];
-  }
-
-  const normalizedAddresses = addresses.map((addr) => addr.toLowerCase());
-
-  const cached = notificationsConfigCache.get(normalizedAddresses);
-  if (cached) {
-    return cached;
-  }
-
-  type RequestBody = { address: string }[];
-  type Response = { address: string; enabled: boolean }[];
-  const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
-  const apiResponse = await makeApiCall(
-    bearerToken,
-    TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
-    'POST',
-    body,
-  )
-    .then<Response | null>((response) => (response.ok ? response.json() : null))
-    .catch(() => null);
-
-  const result = apiResponse ?? [];
-
-  if (result.length > 0) {
-    notificationsConfigCache.set(result);
-  }
-
-  return result;
-}
-
-/**
- * updates notifications for a given addresses
- *
- * @param bearerToken - jwt
- * @param addresses - list of addresses to check
- * @param env - the environment to use for the API call
- * @returns void
- */
-export async function updateOnChainNotifications(
-  bearerToken: string,
-  addresses: { address: string; enabled: boolean }[],
-  env: ENV = 'prd',
-): Promise<void> {
-  if (addresses.length === 0) {
-    return;
-  }
-
-  const normalizedAddresses = addresses.map((item) => ({
-    ...item,
-    address: item.address.toLowerCase(),
-  }));
-
-  type RequestBody = { address: string; enabled: boolean }[];
-  const body: RequestBody = normalizedAddresses;
-  await makeApiCall(
-    bearerToken,
-    TRIGGER_API_NOTIFICATIONS_ENDPOINT(env),
-    'POST',
-    body,
-  )
-    .then(() => notificationsConfigCache.set(normalizedAddresses))
-    .catch(() => null);
-}
-
-/**
- * Fetches on-chain notifications for the given addresses
+ * Fetches on-chain notifications for the given addresses.
  *
  * @param bearerToken - The JSON Web Token used for authentication in the API call.
- * @param addresses - List of addresses
- * @param locale - to generate translated notifications
- * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
- * @param env - the environment to use for the API call
- * @returns A promise that resolves to an array of NormalisedAPINotification objects. If no notifications are enabled or an error occurs, it may return an empty array.
+ * @param addresses - List of addresses to fetch notifications for.
+ * @param locale - User's locale, used to translate server-rendered notifications.
+ * @param platform - Filters notifications for a specific platform.
+ * @param env - The environment to use for the API call.
+ * @returns An array of {@link NormalisedAPINotification}. Returns an empty array on transport or parse errors.
  */
 export async function getAPINotifications(
   bearerToken: string,

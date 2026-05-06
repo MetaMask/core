@@ -1,8 +1,6 @@
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
-  TRIGGER_API_NOTIFICATIONS_ENDPOINT,
-  TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
 } from '../services/api-notifications';
 import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import { PERPS_API_CREATE_ORDERS } from '../services/perp-notifications';
@@ -24,22 +22,6 @@ export const getMockFeatureAnnouncementResponse = () => {
     url: FEATURE_ANNOUNCEMENT_API,
     requestMethod: 'GET',
     response: CONTENTFUL_RESPONSE,
-  } satisfies MockResponse;
-};
-
-export const getMockUpdateOnChainNotifications = () => {
-  return {
-    url: TRIGGER_API_NOTIFICATIONS_ENDPOINT(),
-    requestMethod: 'POST',
-    response: null,
-  } satisfies MockResponse;
-};
-
-export const getMockOnChainNotificationsConfig = () => {
-  return {
-    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
-    requestMethod: 'POST',
-    response: [{ address: '0xTestAddress', enabled: true }],
   } satisfies MockResponse;
 };
 /* eslint-enable @typescript-eslint/explicit-function-return-type */

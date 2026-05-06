@@ -1,4 +1,9 @@
 import type {
+  AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
+  AuthenticatedUserStorageServicePutNotificationPreferencesAction,
+  NotificationPreferences,
+} from '@metamask/authenticated-user-storage';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -17,6 +22,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { debounce } from 'lodash';
 import log from 'loglevel';
@@ -36,9 +42,7 @@ import {
 import type { ENV } from './services/api-notifications';
 import {
   getAPINotifications,
-  getNotificationsApiConfigCached,
   markNotificationsAsRead,
-  updateOnChainNotifications,
 } from './services/api-notifications';
 import { getFeatureAnnouncementNotifications } from './services/feature-announcements';
 import { createPerpOrderNotification } from './services/perp-notifications';
@@ -226,6 +230,9 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | AuthenticationController.AuthenticationControllerIsSignedInAction
   | AuthenticationController.AuthenticationControllerPerformSignInAction
+  // Authenticated User Storage Requests
+  | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
+  | AuthenticatedUserStorageServicePutNotificationPreferencesAction
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerMethodActions;
 
@@ -652,6 +659,60 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
+   * Registers (or unregisters) the supplied addresses in the user's
+   * notification-preferences blob in {@link AuthenticatedUserStorageService}.
+   *
+   * `putNotificationPreferences` replaces the entire blob, so we read the
+   * current preferences, merge the supplied updates into
+   * `walletActivity.accounts`, and write the result back. If no preferences
+   * have been stored yet, a fresh blob with sensible defaults is created.
+   *
+   * @param updates - Addresses to register, each with the desired `enabled`
+   * flag.
+   */
+  async #registerWalletActivityAddresses(
+    updates: { address: string; enabled: boolean }[],
+  ): Promise<void> {
+    if (updates.length === 0) {
+      return;
+    }
+
+    const currentPreferences = (await this.messenger.call(
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+    )) ?? {
+      walletActivity: { enabled: true, accounts: [] },
+      marketing: { enabled: false },
+      perps: { enabled: false },
+      socialAI: { enabled: false, mutedTraderProfileIds: [] },
+    };
+
+    const accountsByAddress = new Map(
+      currentPreferences.walletActivity.accounts.map((account) => [
+        account.address.toLowerCase(),
+        { ...account, address: account.address.toLowerCase() as Hex },
+      ]),
+    );
+    for (const update of updates) {
+      const address = update.address.toLowerCase() as Hex;
+      accountsByAddress.set(address, { address, enabled: update.enabled });
+    }
+
+    const nextPreferences: NotificationPreferences = {
+      ...currentPreferences,
+      walletActivity: {
+        ...currentPreferences.walletActivity,
+        accounts: [...accountsByAddress.values()],
+      },
+    };
+
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putNotificationPreferences',
+      nextPreferences,
+      this.#featureAnnouncementEnv.platform,
+    );
+  }
+
+  /**
    * Sets the state of notification creation process.
    *
    * This method updates the `isUpdatingMetamaskNotifications` state, which can be used to indicate
@@ -735,18 +796,14 @@ export class NotificationServicesController extends BaseController<
    */
   public async enablePushNotifications(): Promise<void> {
     try {
-      const { bearerToken } = await this.#getBearerToken();
-      const { accounts } = this.#accounts.listAccounts();
-      const addressesWithNotifications = await getNotificationsApiConfigCached(
-        bearerToken,
-        accounts,
-        this.#env,
+      const preferences = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
       );
-      const addresses = addressesWithNotifications
-        .filter((addressConfig) => Boolean(addressConfig.enabled))
-        .map((addressConfig) => addressConfig.address);
-      if (addresses.length > 0) {
-        await this.#pushNotifications.enablePushNotifications(addresses);
+      const enabledAddresses = (preferences?.walletActivity.accounts ?? [])
+        .filter((account) => account.enabled)
+        .map((account) => account.address);
+      if (enabledAddresses.length > 0) {
+        await this.#pushNotifications.enablePushNotifications(enabledAddresses);
       }
     } catch {
       // Do nothing, failing silently.
@@ -766,18 +823,20 @@ export class NotificationServicesController extends BaseController<
     try {
       this.#setIsCheckingAccountsPresence(true);
 
-      // Retrieve user storage
-      const { bearerToken } = await this.#getBearerToken();
-      const addressesWithNotifications = await getNotificationsApiConfigCached(
-        bearerToken,
-        accounts,
-        this.#env,
+      const preferences = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+      const enabledByAddress = new Map(
+        (preferences?.walletActivity.accounts ?? []).map((account) => [
+          account.address.toLowerCase(),
+          account.enabled,
+        ]),
       );
 
       const result: Record<string, boolean> = {};
-      addressesWithNotifications.forEach((a) => {
-        result[a.address] = a.enabled;
-      });
+      for (const address of accounts) {
+        result[address] = enabledByAddress.get(address.toLowerCase()) ?? false;
+      }
       return result;
     } catch (error) {
       log.error('Failed to check accounts presence', error);
@@ -826,29 +885,26 @@ export class NotificationServicesController extends BaseController<
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
-      const { bearerToken } = await this.#getBearerToken();
+      // Sign-in gate. AUS uses its own bearer-token retrieval through the
+      // messenger, but we still want to fail fast if the user isn't signed in.
+      await this.#getBearerToken();
 
       const { accounts } = this.#accounts.listAccounts();
 
-      // 1. See if has enabled notifications before
-      const addressesWithNotifications = await getNotificationsApiConfigCached(
-        bearerToken,
-        accounts,
-        this.#env,
+      // 1. See if the user has enabled notifications for any address before.
+      const preferences = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
       );
+      let accountsWithNotifications: string[] = (
+        preferences?.walletActivity.accounts ?? []
+      )
+        .filter((account) => account.enabled)
+        .map((account) => account.address);
 
-      // Notifications API can return array with addresses set to false
-      // So assert that at least one address is enabled
-      let accountsWithNotifications = addressesWithNotifications
-        .filter((addressConfig) => Boolean(addressConfig.enabled))
-        .map((addressConfig) => addressConfig.address);
-
-      // 2. Enable Notifications (if no accounts subscribed or we are resetting)
+      // 2. Register all accounts (if none are currently enabled or we are resetting)
       if (accountsWithNotifications.length === 0 || opts?.resetNotifications) {
-        await updateOnChainNotifications(
-          bearerToken,
+        await this.#registerWalletActivityAddresses(
           accounts.map((address) => ({ address, enabled: true })),
-          this.#env,
         );
         accountsWithNotifications = accounts;
       }
@@ -950,14 +1006,11 @@ export class NotificationServicesController extends BaseController<
   public async disableAccounts(accounts: string[]): Promise<void> {
     try {
       this.#updateUpdatingAccountsState(accounts);
-      // Get and Validate BearerToken and User Storage Key
-      const { bearerToken } = await this.#getBearerToken();
+      // Sign-in gate.
+      await this.#getBearerToken();
 
-      // Delete these UUIDs (Mutates User Storage)
-      await updateOnChainNotifications(
-        bearerToken,
+      await this.#registerWalletActivityAddresses(
         accounts.map((address) => ({ address, enabled: false })),
-        this.#env,
       );
 
       await this.#pushNotifications.deletePushNotificationLinks(accounts);
@@ -987,11 +1040,10 @@ export class NotificationServicesController extends BaseController<
     try {
       this.#updateUpdatingAccountsState(accounts);
 
-      const { bearerToken } = await this.#getBearerToken();
-      await updateOnChainNotifications(
-        bearerToken,
+      // Sign-in gate.
+      await this.#getBearerToken();
+      await this.#registerWalletActivityAddresses(
         accounts.map((address) => ({ address, enabled: true })),
-        this.#env,
       );
 
       await this.#pushNotifications.addPushNotificationLinks(accounts);
@@ -1037,16 +1089,14 @@ export class NotificationServicesController extends BaseController<
       if (isGlobalNotifsEnabled) {
         try {
           const { bearerToken } = await this.#getBearerToken();
-          const { accounts } = this.#accounts.listAccounts();
+          const preferences = await this.messenger.call(
+            'AuthenticatedUserStorageService:getNotificationPreferences',
+          );
           const addressesWithNotifications = (
-            await getNotificationsApiConfigCached(
-              bearerToken,
-              accounts,
-              this.#env,
-            )
+            preferences?.walletActivity.accounts ?? []
           )
-            .filter((addressConfig) => Boolean(addressConfig.enabled))
-            .map((addressConfig) => addressConfig.address);
+            .filter((account) => account.enabled)
+            .map((account) => account.address);
           const notifications = await getAPINotifications(
             bearerToken,
             addressesWithNotifications,
