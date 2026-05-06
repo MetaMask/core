@@ -488,12 +488,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ].flat(),
         )
         .filter(
-          (assetId) =>
-            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
-        )
-        .filter(
           (assetId: CaipAssetType | undefined): assetId is CaipAssetType =>
-            assetId !== undefined,
+            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
         ),
     );
 
