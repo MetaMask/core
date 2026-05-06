@@ -344,7 +344,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quoteRequest = state.quoteRequest
         .slice(0, quoteRequestIndex)
-        .concat(paramsToUpdate)
+        .concat({
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0],
+          ...paramsToUpdate,
+        })
         .concat(
           state.quoteRequest.slice(quoteRequestIndex + 1, quoteRequestCount),
         );
