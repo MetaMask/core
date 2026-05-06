@@ -822,6 +822,11 @@ export class AssetsController extends BaseController<
       getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
         this.#getNativeAssetMap()[chainId] ??
         `${chainId}/erc20:${ZERO_ADDRESS}`,
+      // Share the API platform's TanStack Query client so the RPC token
+      // detector caches/dedupes its top-token-list fetches alongside the rest
+      // of the package's API calls. Caller-provided rpcConfig.queryClient
+      // wins via the spread below.
+      queryClient: queryApiClient.queryClient,
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
     });

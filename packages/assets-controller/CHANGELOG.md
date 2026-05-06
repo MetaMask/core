@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Expose missing `AssetsController:setSelectedCurrency` action through its messenger ([#8719](https://github.com/MetaMask/core/pull/8719))
   - Corresponding action type is available as well.
+- RPC token detection now uses the same endpoint as `TokenListController` (`token.api.cx.metamask.io/tokens/{chainId}`) instead of the v3 `tokens.api.cx.metamask.io/v3/chains/.../assets` host, with no client-side `first` cap and a shared TanStack Query cache
+  - Mirrors `TokenListController.getTokensURL` exactly: same query parameters (`occurrenceFloor`, `includeNativeAssets=false`, `includeTokenFees=false`, `includeAssetType=false`, `includeERC20Permit=false`, `includeStorage=false`, `includeRwaData=true`), per-chain occurrence floor (`1` on Linea / MegaETH / Tempo mainnets, `3` elsewhere), and the Linea-mainnet aggregator filter (`lineaTeam`-flagged or ≥ 3 aggregators).
+  - Detection now also picks up `iconUrl` and `aggregators` returned by the API; previously only `address`/`symbol`/`name`/`decimals`/`occurrences` were forwarded into `TokenListEntry`.
+  - The previous client-side `first=25` cap is removed; the API still bounds responses server-side via `occurrenceFloor`, but the long tail past the previous 25-token slice is now visible to detection.
+  - `TokensApiClient` accepts an optional `queryClient` (compatible with `ApiPlatformClient.queryClient`); when provided it caches/dedupes per-chain list responses with a 5 min `staleTime` and 1 h `gcTime` under the `['assets-controller','rpc-detection','token-list',{chainId}]` key, so concurrent detector polls across accounts/instances coalesce into a single network request.
+  - `RpcDataSource` accepts a new optional `queryClient` option which it forwards to `TokensApiClient`. `AssetsController` defaults this to its existing `queryApiClient.queryClient`, so consumers get the full list and shared cache automatically.
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
 - Bump `@metamask/network-enablement-controller` from `^5.0.2` to `^5.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))

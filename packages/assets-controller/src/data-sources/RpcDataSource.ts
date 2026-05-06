@@ -52,6 +52,7 @@ import {
 import type {
   BalancePollingInput,
   DetectionPollingInput,
+  TokenListQueryClient,
 } from './evm-rpc-services';
 import type {
   Address,
@@ -103,6 +104,12 @@ export type RpcDataSourceConfig = {
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
   timeout?: number;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls. Pass `apiPlatformClient.queryClient`
+   * to share the cache with other API clients in the host app.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 export type RpcDataSourceOptions = {
@@ -128,6 +135,11 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 /**
@@ -300,8 +312,13 @@ export class RpcDataSource extends AbstractDataSource<
       }
     });
 
-    // Initialize TokenDetector with polling interval
-    const tokensApiClient = new TokensApiClient();
+    // Initialize TokenDetector with polling interval. The TokensApiClient is
+    // configured with the shared TanStack Query client (when the controller
+    // provides one) so concurrent detector polls/accounts/instances share a
+    // single in-flight request and cached result per chain.
+    const tokensApiClient = new TokensApiClient({
+      queryClient: options.queryClient,
+    });
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokensApiClient,
