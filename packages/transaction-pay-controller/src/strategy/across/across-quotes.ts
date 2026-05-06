@@ -21,9 +21,7 @@ import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
 } from '../../utils/gas-station';
-import {
-  estimateQuoteGasLimits,
-} from '../../utils/quote-gas';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
   getNativeToken,
@@ -544,14 +542,16 @@ async function calculateSourceNetworkCost(
   const relaxPrefundedSourceEstimate =
     isPredictWithdraw &&
     new BigNumber(request.sourceTokenAmount).gt(request.sourceBalanceRaw);
-  const gasEstimateTransactions = orderedTransactions.map((orderedTransaction) => ({
-    chainId: toHex(orderedTransaction.chainId),
-    data: orderedTransaction.data,
-    from,
-    gas: orderedTransaction.gas,
-    to: orderedTransaction.to,
-    value: orderedTransaction.value ?? '0x0',
-  }));
+  const gasEstimateTransactions = orderedTransactions.map(
+    (orderedTransaction) => ({
+      chainId: toHex(orderedTransaction.chainId),
+      data: orderedTransaction.data,
+      from,
+      gas: orderedTransaction.gas,
+      to: orderedTransaction.to,
+      value: orderedTransaction.value ?? '0x0',
+    }),
+  );
 
   const gasEstimates = await estimateAcrossQuoteGasLimits({
     fallbackGas: acrossFallbackGas,
@@ -907,29 +907,65 @@ function combinePostQuoteGas(
 
   const totalGasEstimate = gasResult.totalGasEstimate + originalTxGas;
   const totalGasLimit = gasResult.totalGasLimit + originalTxGas;
+  const originalSourceNetwork = calculateOriginalSourceNetworkCost({
+    gas: originalTxGas,
+    messenger,
+    swapTx,
+    transaction,
+  });
 
   return {
     ...gasResult,
     sourceNetwork: {
-      estimate: calculateGasCost({
-        chainId: toHex(swapTx.chainId),
-        gas: totalGasEstimate,
-        maxFeePerGas: swapTx.maxFeePerGas,
-        maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
-        messenger,
-      }),
-      max: calculateGasCost({
-        chainId: toHex(swapTx.chainId),
-        gas: totalGasLimit,
-        isMax: true,
-        maxFeePerGas: swapTx.maxFeePerGas,
-        maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
-        messenger,
-      }),
+      estimate: sumAmounts([
+        gasResult.sourceNetwork.estimate,
+        originalSourceNetwork.estimate,
+      ]),
+      max: sumAmounts([gasResult.sourceNetwork.max, originalSourceNetwork.max]),
     },
     gasLimits,
     totalGasEstimate,
     totalGasLimit,
+  };
+}
+
+function calculateOriginalSourceNetworkCost({
+  gas,
+  messenger,
+  swapTx,
+  transaction,
+}: {
+  gas: number;
+  messenger: TransactionPayControllerMessenger;
+  swapTx: AcrossSwapApprovalResponse['swapTx'];
+  transaction: TransactionMeta;
+}): TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'] {
+  const originalTransactionWithGas = transaction.nestedTransactions?.find(
+    (tx) => tx.gas,
+  );
+  const maxFeePerGas =
+    originalTransactionWithGas?.maxFeePerGas ??
+    transaction.txParams.maxFeePerGas;
+  const maxPriorityFeePerGas =
+    originalTransactionWithGas?.maxPriorityFeePerGas ??
+    transaction.txParams.maxPriorityFeePerGas;
+
+  return {
+    estimate: calculateGasCost({
+      chainId: transaction.chainId ?? toHex(swapTx.chainId),
+      gas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      messenger,
+    }),
+    max: calculateGasCost({
+      chainId: transaction.chainId ?? toHex(swapTx.chainId),
+      gas,
+      isMax: true,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      messenger,
+    }),
   };
 }
 

@@ -450,6 +450,85 @@ describe('Across Quotes', () => {
       expect(result[0].original.metamask.is7702).toBe(true);
     });
 
+    it('preserves Across per-leg gas pricing when adding original post-quote gas fees', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [21000, 21000],
+      });
+
+      const amountByMaxFeePerGas = {
+        '0x2': { estimate: '20', max: '200' },
+        '0x3': { estimate: '30', max: '300' },
+        '0x5': { estimate: '50', max: '500' },
+      };
+
+      calculateGasCostMock.mockImplementation(({ isMax, maxFeePerGas }) => {
+        const amounts =
+          amountByMaxFeePerGas[
+            maxFeePerGas as keyof typeof amountByMaxFeePerGas
+          ];
+        const raw = isMax ? amounts.max : amounts.estimate;
+
+        return {
+          fiat: raw,
+          human: raw,
+          raw,
+          usd: raw,
+        };
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () =>
+          ({
+            ...QUOTE_MOCK,
+            approvalTxns: [
+              {
+                chainId: 1,
+                data: '0xaaaa' as Hex,
+                maxFeePerGas: '0x2',
+                maxPriorityFeePerGas: '0x1',
+                to: '0xapprove1' as Hex,
+              },
+            ],
+            swapTx: {
+              ...QUOTE_MOCK.swapTx,
+              maxFeePerGas: '0x3',
+              maxPriorityFeePerGas: '0x1',
+            },
+          }) as unknown as AcrossSwapApprovalResponse,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          chainId: '0x1',
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            maxFeePerGas: '0x5',
+            maxPriorityFeePerGas: '0x1',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate.raw).toBe('100');
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('1000');
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: 21000,
+          maxFeePerGas: '0x5',
+        }),
+      );
+    });
+
     it('re-quotes max amount quotes after reserving source token for gas fee token', async () => {
       const adjustedSourceAmount = '999999999999999900';
 
@@ -631,10 +710,10 @@ describe('Across Quotes', () => {
       );
       expect(result[0].fees.isSourceGasFeeToken).toBe(true);
       expect(result[0].fees.sourceNetwork.max).toStrictEqual({
-        fiat: '6.9',
-        human: '1.725',
-        raw: '1725000000000000000',
-        usd: '3.45',
+        fiat: '13.8',
+        human: '3.45',
+        raw: '3450000000000000000',
+        usd: '6.9',
       });
     });
 

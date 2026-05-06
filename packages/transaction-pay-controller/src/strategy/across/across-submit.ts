@@ -18,7 +18,9 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { accountSupports7702 } from '../../utils/7702';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { getGasBuffer } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
@@ -26,8 +28,6 @@ import {
   isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import { accountSupports7702 } from '../../utils/7702';
-import { getGasBuffer } from '../../utils/feature-flags';
 import { getAcrossOrderedTransactions } from './transactions';
 import type { AcrossQuote } from './types';
 
@@ -162,8 +162,7 @@ async function submitTransactions(
     (shouldEstimate7702SubmitBatch(parentTransaction, quote) &&
       accountSupports7702(messenger, from));
 
-  const shouldEstimateGasLimit7702 =
-    !quotedGasLimit7702 && shouldUse7702Submit;
+  const shouldEstimateGasLimit7702 = !quotedGasLimit7702 && shouldUse7702Submit;
 
   const estimatedGasLimit7702 = shouldEstimateGasLimit7702
     ? await estimateSubmitBatchGasLimit7702({
