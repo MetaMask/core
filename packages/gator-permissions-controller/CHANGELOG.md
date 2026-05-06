@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+
 ### Added
 
 - Add `payee` rule to execution permission decoding for all known permission types ([#8668](https://github.com/MetaMask/core/pull/8668))
