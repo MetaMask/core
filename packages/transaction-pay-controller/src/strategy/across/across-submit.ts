@@ -130,8 +130,13 @@ async function submitTransactions(
   const shouldPrependOriginalTransaction =
     quote.request.isPostQuote === true &&
     parentTransaction.txParams.to !== undefined;
-  const gasLimitOffset = shouldPrependOriginalTransaction ? 1 : 0;
-  const transactionCount = orderedTransactions.length + gasLimitOffset;
+  const hasPrependedOriginalGasLimit =
+    shouldPrependOriginalTransaction &&
+    !is7702 &&
+    quoteGasLimits.length > orderedTransactions.length;
+  const gasLimitOffset = hasPrependedOriginalGasLimit ? 1 : 0;
+  const transactionCount =
+    orderedTransactions.length + (shouldPrependOriginalTransaction ? 1 : 0);
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
@@ -203,7 +208,9 @@ async function submitTransactions(
     ? [
         buildOriginalTransaction(
           parentTransaction,
-          submitAs7702 ? undefined : quoteGasLimits[0]?.max,
+          submitAs7702 || !hasPrependedOriginalGasLimit
+            ? undefined
+            : quoteGasLimits[0]?.max,
         ),
       ]
     : [];
@@ -236,6 +243,7 @@ async function submitTransactions(
   const gasFeeToken = quote.fees.isSourceGasFeeToken
     ? quote.request.sourceTokenAddress
     : undefined;
+  const excludeNativeTokenForFee = gasFeeToken ? true : undefined;
 
   try {
     if (transactions.length === 1) {
@@ -243,6 +251,7 @@ async function submitTransactions(
         'TransactionController:addTransaction',
         transactions[0].params,
         {
+          excludeNativeTokenForFee,
           gasFeeToken,
           networkClientId,
           origin: ORIGIN_METAMASK,
@@ -260,6 +269,7 @@ async function submitTransactions(
         disable7702: !submitAs7702,
         disableHook: submitAs7702,
         disableSequential: submitAs7702,
+        excludeNativeTokenForFee,
         from,
         gasFeeToken,
         gasLimit7702,
