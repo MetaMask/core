@@ -80,6 +80,9 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
   checkQuoteSupport(
     request: PayStrategyCheckQuoteSupportRequest<AcrossQuote>,
   ): boolean {
+    // Gas planning can discover that TransactionController would add an
+    // authorization list for a first-time 7702 upgrade. `is7702` alone is not a
+    // blocker because it also covers already-upgraded accounts.
     const requiresAuthorizationList = request.quotes.some(
       (quote) => quote.original.metamask.requiresAuthorizationList,
     );

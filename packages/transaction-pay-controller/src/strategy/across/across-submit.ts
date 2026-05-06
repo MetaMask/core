@@ -326,6 +326,13 @@ type AcrossStatusResponse = {
   txHash?: Hex;
 };
 
+/**
+ * Poll Across until a submitted deposit reaches a terminal status.
+ *
+ * @param transactionHash - Source-chain deposit transaction hash.
+ * @param messenger - Controller messenger.
+ * @returns Destination/fill transaction hash when available, otherwise the source hash.
+ */
 async function waitForAcrossCompletion(
   transactionHash: Hex | undefined,
   messenger: TransactionPayControllerMessenger,
@@ -401,6 +408,17 @@ async function waitForAcrossCompletion(
   }
 }
 
+/**
+ * Check whether submit should estimate a 7702 batch gas limit.
+ *
+ * This is needed for Predict withdraw post-quote flows that pay source-chain
+ * gas with the source token, because the final submit batch can differ from the
+ * batch shape that Across quoted.
+ *
+ * @param parentTransaction - Original transaction metadata.
+ * @param quote - Across quote selected for execution.
+ * @returns Whether submit should try to estimate the final 7702 batch gas.
+ */
 function shouldEstimate7702SubmitBatch(
   parentTransaction: TransactionMeta,
   quote: TransactionPayQuote<AcrossQuote>,
@@ -412,6 +430,22 @@ function shouldEstimate7702SubmitBatch(
   );
 }
 
+/**
+ * Estimate the 7702 batch gas limit for the actual submit payload.
+ *
+ * Quotes can contain a combined 7702 gas limit that only covered the Across
+ * approval/swap legs. When submit prepends the original transaction, estimate
+ * the final batch shape so the gas limit covers every submitted leg.
+ *
+ * @param args - Estimation arguments.
+ * @param args.chainId - Source chain ID.
+ * @param args.from - Sender address.
+ * @param args.messenger - Controller messenger.
+ * @param args.orderedTransactions - Across approval/swap legs in submission order.
+ * @param args.parentTransaction - Original transaction that may be prepended.
+ * @param args.shouldPrependOriginalTransaction - Whether to include the original transaction in the estimate.
+ * @returns Hex gas limit, or `undefined` when estimation is unavailable.
+ */
 async function estimateSubmitBatchGasLimit7702({
   chainId,
   from,
@@ -475,6 +509,13 @@ async function estimateSubmitBatchGasLimit7702({
   }
 }
 
+/**
+ * Build the original parent transaction as a prepared batch leg.
+ *
+ * @param transaction - Original transaction metadata.
+ * @param gasLimit - Optional gas limit to pin on the original leg.
+ * @returns Prepared transaction params and transaction type for the original leg.
+ */
 function buildOriginalTransaction(
   transaction: TransactionMeta,
   gasLimit?: number,
@@ -491,6 +532,12 @@ function buildOriginalTransaction(
   };
 }
 
+/**
+ * Get the transaction type to use for the original batch leg.
+ *
+ * @param transaction - Original transaction metadata.
+ * @returns `predictWithdraw` for Predict withdrawals; otherwise the original type.
+ */
 function getOriginalTransactionType(
   transaction: TransactionMeta,
 ): TransactionMeta['type'] {
@@ -501,6 +548,12 @@ function getOriginalTransactionType(
   return transaction.type;
 }
 
+/**
+ * Check whether the original transaction already has a usable gas limit.
+ *
+ * @param transaction - Original transaction metadata.
+ * @returns Whether the original or nested transaction gas is a positive integer.
+ */
 function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
   const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
   const rawGas = nestedGas ?? transaction.txParams.gas;
@@ -516,6 +569,12 @@ function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
   );
 }
 
+/**
+ * Get the transaction type for the Across bridge/deposit leg.
+ *
+ * @param transaction - Original parent transaction.
+ * @returns Across-specific transaction type for known flows, or the original type.
+ */
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
   if (isPredictWithdrawTransaction(transaction)) {
     return (
@@ -536,6 +595,20 @@ function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
   }
 }
 
+/**
+ * Build TransactionController params for an Across approval or swap leg.
+ *
+ * @param from - Sender address.
+ * @param params - Across transaction fields.
+ * @param params.chainId - Source chain ID.
+ * @param params.data - Transaction calldata.
+ * @param params.gasLimit - Optional gas limit.
+ * @param params.to - Recipient contract address.
+ * @param params.value - Optional native value.
+ * @param params.maxFeePerGas - Optional EIP-1559 max fee.
+ * @param params.maxPriorityFeePerGas - Optional EIP-1559 priority fee.
+ * @returns TransactionController params.
+ */
 function buildTransactionParams(
   from: Hex,
   params: {
@@ -561,6 +634,12 @@ function buildTransactionParams(
   };
 }
 
+/**
+ * Normalize an optional numeric string or hex string into a hex value.
+ *
+ * @param value - Optional value to normalize.
+ * @returns Hex value, or `undefined` when no value is provided.
+ */
 function normalizeOptionalHex(value?: string): Hex | undefined {
   if (value === undefined) {
     return undefined;
@@ -569,6 +648,12 @@ function normalizeOptionalHex(value?: string): Hex | undefined {
   return toHex(value);
 }
 
+/**
+ * Convert full TransactionController params into batch transaction params.
+ *
+ * @param params - Transaction params.
+ * @returns Batch-compatible transaction params.
+ */
 function toBatchTransactionParams(
   params: TransactionParams,
 ): BatchTransactionParams {

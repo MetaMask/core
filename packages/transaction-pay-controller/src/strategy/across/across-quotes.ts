@@ -172,6 +172,10 @@ async function getQuoteWithGasStationHandling(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
+  // Phase 1 uses the requested source amount to discover whether Across will
+  // pay source-chain gas with the source token, and what the max gas cost is.
+  // Phase 2 repeats the quote with that max gas cost reserved from the source
+  // amount, so execution can fund both the Across deposit and token-paid gas.
   const phase1Quote = await getSingleQuote(request, fullRequest);
 
   if (
