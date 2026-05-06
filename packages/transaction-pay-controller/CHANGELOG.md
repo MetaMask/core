@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Allow EIP-7702 authorizations from accounts in the Money keyring. ([#8687](https://github.com/MetaMask/core/pull/8687))
+- Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687))
 - Implement fiat strategy submit flow with order polling and relay execution ([#8347](https://github.com/MetaMask/core/pull/8347))
 
 ### Changed
