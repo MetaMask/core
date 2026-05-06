@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [21.0.1]
 
-### Uncategorized
-
-- Release 959.0.0 ([#8704](https://github.com/MetaMask/core/pull/8704))
-- Revert "Release/959.0.0" ([#8702](https://github.com/MetaMask/core/pull/8702))
-
 ### Added
 
 - Allow EIP-7702 authorizations from accounts in the Money keyring. ([#8687](https://github.com/MetaMask/core/pull/8687))
