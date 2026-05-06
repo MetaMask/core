@@ -32,6 +32,7 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -45,20 +46,29 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
+import {
+  formatAggregatorNames,
+  formatIconUrlWithProxy,
+  shouldFetchSecurityData,
+} from './assetsUtil';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
+  fetchSecurityDataForAssets,
 } from './token-service';
 import type {
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import type { TokenSecurityInfo } from './token-service';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
+import { convertHexToDecimal } from '@metamask/controller-utils';
+import type { CaipAssetType } from '@metamask/utils';
+import { parseCaipAssetType } from '@metamask/utils';
 
 /**
  * @type SuggestedAssetMeta
@@ -132,6 +142,7 @@ const metadata: StateMetadata<TokensControllerState> = {
 
 const controllerName = 'TokensController';
 
+
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensControllerState
@@ -147,6 +158,7 @@ export type TokensControllerActions =
 export type AllowedActions =
   | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction;
@@ -209,6 +221,8 @@ export class TokensController extends BaseController<
 
   readonly #abortController: AbortController;
 
+  readonly #useExternalServices: () => boolean;
+
   /**
    * Tokens controller options
    *
@@ -217,16 +231,19 @@ export class TokensController extends BaseController<
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
+   * @param options.useExternalServices - Callback that returns whether external API calls are allowed (privacy/basic functionality toggle).
    */
   constructor({
     provider,
     state,
     messenger,
+    useExternalServices = (): boolean => true,
   }: {
     chainId: Hex;
     provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
+    useExternalServices?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -239,6 +256,7 @@ export class TokensController extends BaseController<
     });
 
     this.#provider = provider;
+    this.#useExternalServices = useExternalServices;
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
@@ -299,6 +317,75 @@ export class TokensController extends BaseController<
         });
       },
     );
+  }
+
+  /**
+   * Initialize the controller by scanning current account's tokens for security data.
+   * Should be called by clients after all controllers are instantiated.
+   */
+  async init(): Promise<void> {
+    await this.#scanCurrentAccountTokensSecurity();
+  }
+
+  /**
+   * Scans all tokens across all chains for the current selected account for security data.
+   * Only fetches for tokens that have no security data or stale data (>12 hours).
+   * Called on app startup (via init()) and when user switches accounts.
+   */
+  async #scanCurrentAccountTokensSecurity(): Promise<void> {
+    // Respect basic functionality toggle
+    if (!this.#useExternalServices()) {
+      return;
+    }
+
+    try {
+      const selectedAddress = this.#getSelectedAddress();
+      const { allTokens } = this.state;
+
+      // Scan tokens across all chains for this account
+      for (const [chainId, tokensByAccount] of Object.entries(allTokens)) {
+        const accountTokens = tokensByAccount[selectedAddress];
+        if (!accountTokens || accountTokens.length === 0) {
+          continue; // No tokens on this chain for this account
+        }
+
+        // Filter tokens that need scanning (no security data OR stale)
+        const tokensNeedingScan = accountTokens.filter(
+          (token) =>
+            !token.security ||
+            shouldFetchSecurityData(token.security.lastFetchedAt),
+        );
+
+        if (tokensNeedingScan.length === 0) {
+          continue; // All tokens on this chain have fresh security data
+        }
+
+        // Fetch security data (batching handled internally)
+        const addresses = tokensNeedingScan.map((token) => token.address);
+        const securityDataMap = await this.#fetchSecurityDataBatch(
+          addresses,
+          chainId as Hex,
+        );
+
+        // Update state with new security data for this chain
+        this.update((state) => {
+          const tokens = state.allTokens[chainId as Hex]?.[selectedAddress];
+          if (!tokens) {
+            return;
+          }
+
+          tokens.forEach((token) => {
+            const checksumAddress = toChecksumHexAddress(token.address);
+            if (securityDataMap[checksumAddress]) {
+              token.security = securityDataMap[checksumAddress];
+            }
+          });
+        });
+      }
+    } catch (error) {
+      // Fail-open: log but don't block
+      console.warn('Failed to scan tokens for security data:', error);
+    }
   }
 
   #handleOnAccountRemoved(accountAddress: string) {
@@ -366,11 +453,60 @@ export class TokensController extends BaseController<
 
   /**
    * Handles the selected account change in the accounts controller.
+   * Updates the selected account ID and scans tokens for security data.
    *
    * @param selectedAccount - The new selected account
    */
   #onSelectedAccountChange(selectedAccount: InternalAccount) {
     this.#selectedAccountId = selectedAccount.id;
+    // Scan tokens for the new account (fire-and-forget)
+    this.#scanCurrentAccountTokensSecurity().catch((error) => {
+      console.warn('Failed to scan tokens on account change:', error);
+    });
+  }
+
+  /**
+   * Fetch security data for multiple tokens in batch.
+   * Extracts only the resultType and lastFetchedAt to keep state minimal.
+   * Respects basic functionality toggle: returns empty map if external services disabled.
+   * Fail-open: returns empty map on error, never blocks token addition.
+   *
+   * @param tokenAddresses - Array of token addresses to fetch security data for.
+   * @param chainId - Chain ID for the tokens.
+   * @returns Promise resolving to a map of address to security info.
+   */
+  async #fetchSecurityDataBatch(
+    tokenAddresses: string[],
+    chainId: Hex,
+  ): Promise<Record<string, TokenSecurityInfo>> {
+    if (tokenAddresses.length === 0) {
+      return {};
+    }
+
+    // Respect basic functionality toggle
+    if (!this.#useExternalServices()) {
+      return {};
+    }
+
+    // Build CAIP-19 asset IDs for ERC20 tokens
+    const chainIdDecimal = convertHexToDecimal(chainId);
+    const assetIds: CaipAssetType[] = tokenAddresses.map(
+      (address) =>
+        `eip155:${chainIdDecimal}/erc20:${address.toLowerCase()}` as CaipAssetType,
+    );
+
+    // Fetch security data (handles batching internally)
+    const securityDataByAssetId = await fetchSecurityDataForAssets(assetIds);
+
+    // Map back from assetId -> token address
+    const securityMap: Record<string, TokenSecurityInfo> = {};
+    for (const [assetId, security] of Object.entries(securityDataByAssetId)) {
+      const { assetReference } = parseCaipAssetType(assetId as CaipAssetType);
+      const checksummedAddress = toChecksumHexAddress(assetReference);
+      securityMap[checksummedAddress] = security;
+    }
+
+    return securityMap;
   }
 
   /**
@@ -475,6 +611,16 @@ export class TokensController extends BaseController<
         name,
         ...(rwaData !== undefined && { rwaData }),
       };
+
+      // Fetch security data for the token
+      const securityDataMap = await this.#fetchSecurityDataBatch(
+        [address],
+        chainIdToUse,
+      );
+      if (securityDataMap[address]) {
+        newEntry.security = securityDataMap[address];
+      }
+
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
@@ -541,6 +687,16 @@ export class TokensController extends BaseController<
       return output;
     }, {});
     try {
+      // Fetch security data for tokens being imported (only scan new/updated tokens)
+      // Batching is handled automatically inside #fetchSecurityDataBatch
+      const importAddresses = tokensToImport.map((token) =>
+        toChecksumHexAddress(token.address),
+      );
+      const securityDataMap = await this.#fetchSecurityDataBatch(
+        importAddresses,
+        interactingChainId,
+      );
+
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name, rwaData } =
           tokenToAdd;
@@ -554,6 +710,12 @@ export class TokensController extends BaseController<
           name,
           ...(rwaData && { rwaData }),
         };
+
+        // Attach security data to the token being imported
+        if (securityDataMap[checksumAddress]) {
+          formattedToken.security = securityDataMap[checksumAddress];
+        }
+
         newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
         return formattedToken;

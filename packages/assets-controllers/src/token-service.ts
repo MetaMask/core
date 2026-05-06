@@ -554,6 +554,67 @@ export async function fetchTokenAssets(
 }
 
 /**
+ * Minimal token security information type for displaying trust badges.
+ * Includes timestamp for smart caching (12-hour freshness).
+ */
+export type TokenSecurityInfo = Pick<TokenSecurityData, 'resultType'> & {
+  lastFetchedAt: number;
+};
+
+/**
+ * Fetches security data for assets by CAIP-19 ID.
+ * Handles batching automatically (max 100 assets per API call) using serial processing.
+ * Returns a map of assetId -> TokenSecurityInfo with timestamps.
+ * Fails open on errors (returns partial results, continues with remaining batches).
+ *
+ * @param assetIds - Array of CAIP-19 asset IDs (e.g., 'eip155:1/erc20:0x...', 'eip155:1/slip44:60')
+ * @returns Map of assetId to security info with resultType and lastFetchedAt
+ */
+export async function fetchSecurityDataForAssets(
+  assetIds: CaipAssetType[],
+): Promise<Record<string, TokenSecurityInfo>> {
+  if (assetIds.length === 0) {
+    return {};
+  }
+
+  // Import reduceInBatchesSerially dynamically to avoid circular dependency
+  const { reduceInBatchesSerially } = await import('./assetsUtil.js');
+
+  return await reduceInBatchesSerially({
+    values: assetIds,
+    batchSize: 100,
+    eachBatch: async (workingResult, batch) => {
+      try {
+        const assets = await fetchTokenAssets(batch, {
+          includeTokenSecurityData: true,
+        });
+
+        const now = Date.now();
+        const batchResults: Record<string, TokenSecurityInfo> = {};
+
+        for (const asset of assets) {
+          if (asset.securityData?.resultType) {
+            batchResults[asset.assetId] = {
+              resultType: asset.securityData.resultType,
+              lastFetchedAt: now,
+            };
+          }
+        }
+
+        return { ...workingResult, ...batchResults } as Record<
+          string,
+          TokenSecurityInfo
+        >;
+      } catch (error) {
+        console.warn('Failed to fetch security data for batch:', error);
+        return workingResult as Record<string, TokenSecurityInfo>; // Fail-open: skip this batch, keep previous results
+      }
+    },
+    initialResult: {} as Record<string, TokenSecurityInfo>,
+  });
+}
+
+/**
  * Fetch metadata for the token address provided for a given network. This request is cancellable
  * using the abort signal passed in.
  *

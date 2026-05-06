@@ -13,6 +13,7 @@ import {
   query,
   safelyExecuteWithTimeout,
   toChecksumHexAddress,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -33,6 +34,7 @@ import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerListPopularEvmNetworksAction,
 } from '@metamask/network-enablement-controller';
+import { Slip44Service } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionControllerTransactionConfirmedEvent,
@@ -58,6 +60,13 @@ import type {
   ProcessedBalance,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+import { shouldFetchSecurityData } from './assetsUtil';
+import type { CaipAssetType } from '@metamask/utils';
+import {
+  fetchSecurityDataForAssets,
+  type TokenSecurityInfo,
+} from './token-service';
+import { SPOT_PRICES_SUPPORT_INFO } from './token-prices-service/codefi-v2';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -125,6 +134,7 @@ function createAccountTrackerRpcBalanceFetcher(
   };
 }
 
+
 /**
  * AccountInformation
  *
@@ -133,10 +143,13 @@ function createAccountTrackerRpcBalanceFetcher(
  * balance - Hex string of an account balance in wei
  *
  * stakedBalance - Hex string of an account staked balance in wei
+ *
+ * nativeSecurity - Security information for the native token on this chain
  */
 export type AccountInformation = {
   balance: string;
   stakedBalance?: string;
+  nativeSecurity?: TokenSecurityInfo;
 };
 
 /**
@@ -262,6 +275,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #isHomepageSectionsV1Enabled: () => boolean;
 
+  readonly #allowExternalServices: () => boolean;
+
   /** Track if the keyring is locked */
   #isLocked = true;
 
@@ -343,6 +358,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.#fetchingEnabled = fetchingEnabled;
     this.#isOnboarded = isOnboarded;
+    this.#allowExternalServices = allowExternalServices;
 
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isLocked = !isUnlocked;
@@ -544,6 +560,92 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       fetch: originalFetcher.fetch.bind(originalFetcher),
     };
   };
+
+  /**
+   * Resolves the CAIP-19 asset ID for a native token on a given chain.
+   * Uses SPOT_PRICES_SUPPORT_INFO constant first, then falls back to Slip44Service.
+   *
+   * @param chainId - The chain ID in hex format (e.g., "0x1")
+   * @returns The CAIP-19 asset ID (e.g., "eip155:1/slip44:60")
+   */
+  async #getNativeAssetId(chainId: Hex): Promise<string> {
+    // Step 1: Check if we have it in the price API constant
+    const knownAssetId =
+      SPOT_PRICES_SUPPORT_INFO[
+        chainId as keyof typeof SPOT_PRICES_SUPPORT_INFO
+      ];
+    if (knownAssetId) {
+      return knownAssetId;
+    }
+
+    // Step 2: Compute dynamically using Slip44Service
+    const decimalChainId = convertHexToDecimal(chainId);
+    const slip44CoinType = await Slip44Service.getEvmSlip44(
+      Number(decimalChainId),
+    );
+
+    return `eip155:${decimalChainId}/slip44:${slip44CoinType}`;
+  }
+
+  /**
+   * Fetches security data for native tokens on given chains.
+   * Uses /assets API with CAIP-19 slip44 format.
+   * Respects cache - only fetches for chains with stale data.
+   * Handles batching automatically (max 100 chains per request).
+   *
+   * @param chainIds - Array of chain IDs to fetch security for
+   * @returns Map of chainId -> TokenSecurityInfo
+   */
+  async #fetchNativeTokenSecurityBatch(
+    chainIds: Hex[],
+  ): Promise<Record<Hex, TokenSecurityInfo>> {
+    if (!this.#allowExternalServices()) {
+      return {};
+    }
+
+    if (chainIds.length === 0) {
+      return {};
+    }
+
+    // Filter chains that need security data refresh (cache-aware)
+    const chainsNeedingFetch = chainIds.filter((chainId) => {
+      // Check if any account on this chain has stale/missing security data
+      const chainAccounts = this.state.accountsByChainId[chainId];
+      if (!chainAccounts) {
+        return true;
+      }
+
+      const firstAccount = Object.values(chainAccounts)[0];
+      return shouldFetchSecurityData(firstAccount?.nativeSecurity?.lastFetchedAt);
+    });
+
+    if (chainsNeedingFetch.length === 0) {
+      return {}; // All chains have fresh data
+    }
+
+    // Resolve CAIP-19 IDs for native tokens (slip44 format)
+    const caipIds = await Promise.all(
+      chainsNeedingFetch.map(async (chainId) => ({
+        chainId,
+        caipId: await this.#getNativeAssetId(chainId),
+      })),
+    );
+
+    // Fetch security data (handles batching internally)
+    const securityDataByAssetId = await fetchSecurityDataForAssets(
+      caipIds.map(({ caipId }) => caipId) as CaipAssetType[],
+    );
+
+    // Map back from assetId -> chainId
+    const securityMap: Record<Hex, TokenSecurityInfo> = {};
+    for (const { chainId, caipId } of caipIds) {
+      if (securityDataByAssetId[caipId]) {
+        securityMap[chainId] = securityDataByAssetId[caipId];
+      }
+    }
+
+    return securityMap;
+  }
 
   /**
    * Resolves a networkClientId to a network client config
@@ -856,6 +958,36 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
           );
         },
       );
+
+      // Fetch and attach native token security data (cache-aware, fail-open)
+      if (this.#allowExternalServices()) {
+        try {
+          const securityData = await this.#fetchNativeTokenSecurityBatch(
+            chainIds,
+          );
+
+          // Attach security data to all accounts on each chain
+          for (const [chainId, security] of Object.entries(securityData)) {
+            const chainAccounts = nextAccountsByChainId[chainId];
+            if (chainAccounts) {
+              for (const address of Object.keys(chainAccounts)) {
+                const currentSecurity =
+                  chainAccounts[address].nativeSecurity?.resultType;
+                if (currentSecurity !== security.resultType) {
+                  chainAccounts[address].nativeSecurity = security;
+                  hasChanges = true;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // Fail-open: log error but don't block balance updates
+          console.warn(
+            'Failed to attach native token security data:',
+            error,
+          );
+        }
+      }
 
       // Only update state if something changed
       if (hasChanges) {

@@ -26,6 +26,31 @@ import type { ContractExchangeRates } from './TokenRatesController';
 export const TOKEN_PRICES_BATCH_SIZE = 30;
 
 /**
+ * Duration in milliseconds after which security data is considered stale.
+ * 12 hours = 12 * 60 * 60 * 1000 = 43,200,000 ms
+ */
+export const SECURITY_DATA_FRESHNESS_THRESHOLD = 12 * 60 * 60 * 1000;
+
+/**
+ * Determines if security data needs to be re-fetched.
+ *
+ * @param lastFetchedAt - Timestamp (ms) when data was last fetched, or undefined if never fetched.
+ * @returns True if data is stale or missing (should fetch), false if fresh (skip fetch).
+ */
+export function shouldFetchSecurityData(
+  lastFetchedAt: number | undefined,
+): boolean {
+  if (!lastFetchedAt) {
+    return true; // Never fetched, need to fetch
+  }
+
+  const now = Date.now();
+  const age = now - lastFetchedAt;
+
+  return age > SECURITY_DATA_FRESHNESS_THRESHOLD; // Stale if > 12 hours
+}
+
+/**
  * Compares nft metadata entries to any nft entry.
  * We need this method when comparing a new fetched nft metadata, in case a entry changed to a defined value,
  * there's a need to update the nft in state.
