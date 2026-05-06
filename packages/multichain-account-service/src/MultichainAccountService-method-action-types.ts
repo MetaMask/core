@@ -6,6 +6,15 @@
 import type { MultichainAccountService } from './MultichainAccountService';
 
 /**
+ * Initialize the service and constructs the internal reprensentation of
+ * multichain accounts and wallets.
+ */
+export type MultichainAccountServiceInitAction = {
+  type: `MultichainAccountService:init`;
+  handler: MultichainAccountService['init'];
+};
+
+/**
  * Re-synchronize MetaMask accounts and the providers accounts if needed.
  *
  * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
@@ -190,6 +199,7 @@ export type MultichainAccountServiceAlignWalletAction = {
  * Union of all MultichainAccountService action types.
  */
 export type MultichainAccountServiceMethodActions =
+  | MultichainAccountServiceInitAction
   | MultichainAccountServiceResyncAccountsAction
   | MultichainAccountServiceEnsureCanUseSnapPlatformAction
   | MultichainAccountServiceGetMultichainAccountWalletAction

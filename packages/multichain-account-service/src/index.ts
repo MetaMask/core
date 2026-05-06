@@ -21,6 +21,7 @@ export type {
   MultichainAccountServiceSetBasicFunctionalityAction,
   MultichainAccountServiceAlignWalletsAction,
   MultichainAccountServiceAlignWalletAction,
+  MultichainAccountServiceInitAction,
 } from './MultichainAccountService-method-action-types';
 export {
   AccountProviderWrapper,
