@@ -248,11 +248,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'TokenRatesController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
       const transactionData = {} as TransactionData;
@@ -276,11 +272,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'CurrencyRateController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -299,11 +291,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'TokensController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('TokensController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -323,11 +311,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'AssetsController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('AssetsController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -346,21 +330,9 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'TokensController:stateChange',
-        {} as never,
-        [],
-      );
-      isolatedPublish(
-        'TokenRatesController:stateChange',
-        {} as never,
-        [],
-      );
-      isolatedPublish(
-        'CurrencyRateController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('TokensController:stateChange', {} as never, []);
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
@@ -381,11 +353,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'TokenRatesController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
       expect(parseRequiredTokensMock).not.toHaveBeenCalled();
@@ -406,11 +374,7 @@ describe('Transaction Utils', () => {
           updateTransactionDataMock,
         );
 
-        isolatedPublish(
-          'TokenRatesController:stateChange',
-          {} as never,
-          [],
-        );
+        isolatedPublish('TokenRatesController:stateChange', {} as never, []);
 
         expect(updateTransactionDataMock).not.toHaveBeenCalled();
       },
@@ -429,11 +393,7 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish(
-        'TokenRatesController:stateChange',
-        {} as never,
-        [],
-      );
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
