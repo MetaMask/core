@@ -28,7 +28,6 @@ import type {
   TrendingToken,
   TrendingSortOption,
   TopGainersSortOption,
-  V3TrendingQueryOptions,
   V1SuggestedOccurrenceFloorsResponse,
 } from './types';
 
@@ -398,21 +397,31 @@ export class TokenApiClient extends BaseApiClient {
   /**
    * Returns the TanStack Query options object for v3 trending tokens.
    *
-   * `queryOptions` accepts all known filter params plus any additional ones
-   * via the index signature on {@link V3TrendingQueryOptions}. New API
-   * parameters pass through without changes to this method.
-   *
    * @param chainIds - Array of chain IDs.
-   * @param queryOptions - Query options (see {@link V3TrendingQueryOptions}).
+   * @param queryOptions - Query options.
+   * @param queryOptions.sortBy - Sort option.
+   * @param queryOptions.minLiquidity - Minimum liquidity filter.
+   * @param queryOptions.minVolume24hUsd - Minimum 24h volume filter.
+   * @param queryOptions.maxVolume24hUsd - Maximum 24h volume filter.
+   * @param queryOptions.minMarketCap - Minimum market cap filter.
+   * @param queryOptions.maxMarketCap - Maximum market cap filter.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
    * @param options - Fetch options including cache settings.
    * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
    */
   getV3TrendingTokensQueryOptions(
     chainIds: string[],
-    queryOptions?: V3TrendingQueryOptions,
+    queryOptions?: {
+      sortBy?: TrendingSortOption;
+      minLiquidity?: number;
+      minVolume24hUsd?: number;
+      maxVolume24hUsd?: number;
+      minMarketCap?: number;
+      maxMarketCap?: number;
+      includeTokenSecurityData?: boolean;
+    },
     options?: FetchOptions,
   ): FetchQueryOptions<TrendingToken[]> {
-    const { sortBy, ...rest } = queryOptions ?? {};
     return {
       queryKey: [
         'token',
@@ -424,8 +433,13 @@ export class TokenApiClient extends BaseApiClient {
           signal,
           params: {
             chainIds,
-            sort: sortBy,
-            ...rest,
+            sort: queryOptions?.sortBy,
+            minLiquidity: queryOptions?.minLiquidity,
+            minVolume24hUsd: queryOptions?.minVolume24hUsd,
+            maxVolume24hUsd: queryOptions?.maxVolume24hUsd,
+            minMarketCap: queryOptions?.minMarketCap,
+            maxMarketCap: queryOptions?.maxMarketCap,
+            includeTokenSecurityData: queryOptions?.includeTokenSecurityData,
           },
         }),
       ...getQueryOptionsOverrides(options),
@@ -438,13 +452,28 @@ export class TokenApiClient extends BaseApiClient {
    * Get trending tokens (v3 endpoint).
    *
    * @param chainIds - Array of chain IDs.
-   * @param queryOptions - Query options (see {@link V3TrendingQueryOptions}).
+   * @param queryOptions - Query options.
+   * @param queryOptions.sortBy - Sort option.
+   * @param queryOptions.minLiquidity - Minimum liquidity filter.
+   * @param queryOptions.minVolume24hUsd - Minimum 24h volume filter.
+   * @param queryOptions.maxVolume24hUsd - Maximum 24h volume filter.
+   * @param queryOptions.minMarketCap - Minimum market cap filter.
+   * @param queryOptions.maxMarketCap - Maximum market cap filter.
+   * @param queryOptions.includeTokenSecurityData - Whether to include token security data.
    * @param options - Fetch options including cache settings.
    * @returns Array of trending tokens.
    */
   async fetchV3TrendingTokens(
     chainIds: string[],
-    queryOptions?: V3TrendingQueryOptions,
+    queryOptions?: {
+      sortBy?: TrendingSortOption;
+      minLiquidity?: number;
+      minVolume24hUsd?: number;
+      maxVolume24hUsd?: number;
+      minMarketCap?: number;
+      maxMarketCap?: number;
+      includeTokenSecurityData?: boolean;
+    },
     options?: FetchOptions,
   ): Promise<TrendingToken[]> {
     return this.queryClient.fetchQuery(

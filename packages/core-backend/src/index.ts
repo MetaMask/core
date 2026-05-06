@@ -151,7 +151,6 @@ export type {
   TrendingToken,
   TopGainersSortOption,
   TrendingSortOption,
-  V3TrendingQueryOptions,
   V1SuggestedOccurrenceFloorsResponse,
   // Tokens API types
   V1TokenSupportedNetworksResponse,
