@@ -5,6 +5,7 @@ import {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 
 import { projectLogger } from '../logger';
@@ -66,16 +67,29 @@ export function pollTransactionChanges(
         (tx) => !previousTransactions?.find((prevTx) => prevTx.id === tx.id),
       );
 
-      const updatedTransactions = transactions.filter((tx) => {
-        const previousTransaction = previousTransactions?.find(
-          (prevTx) => prevTx.id === tx.id,
-        );
+      const updatedTransactions = transactions
+        .map((tx) => {
+          const previousTransaction = previousTransactions?.find(
+            (prevTx) => prevTx.id === tx.id,
+          );
 
-        return (
-          previousTransaction &&
-          previousTransaction?.txParams.data !== tx.txParams.data
+          if (
+            !previousTransaction ||
+            previousTransaction.txParams.data === tx.txParams.data
+          ) {
+            return undefined;
+          }
+
+          return { tx, previousTransaction };
+        })
+        .filter(
+          (
+            entry,
+          ): entry is {
+            tx: TransactionMeta;
+            previousTransaction: TransactionMeta;
+          } => entry !== undefined,
         );
-      });
 
       const finalizedTransactions = transactions.filter((tx) => {
         const previousTransaction = previousTransactions?.find(
@@ -97,8 +111,17 @@ export function pollTransactionChanges(
         onTransactionFinalized(tx, removeTransactionData),
       );
 
-      [...newTransactions, ...updatedTransactions].forEach((tx) =>
-        onTransactionChange(tx, messenger, updateTransactionData),
+      newTransactions.forEach((tx) =>
+        onTransactionChange(tx, undefined, messenger, updateTransactionData),
+      );
+
+      updatedTransactions.forEach(({ tx, previousTransaction }) =>
+        onTransactionChange(
+          tx,
+          previousTransaction,
+          messenger,
+          updateTransactionData,
+        ),
       );
     },
     (state) => state.transactions,
@@ -127,32 +150,53 @@ export function pollRateChanges(
   getControllerState: () => TransactionPayControllerState,
   updateTransactionData: UpdateTransactionDataCallback,
 ): void {
-  const handler = (): void => {
-    const { transactionData } = getControllerState();
+  const buildHandler =
+    (source: string) =>
+    (_state: unknown, patches: Patch[] | undefined): void => {
+      const { transactionData } = getControllerState();
 
-    for (const [transactionId, data] of Object.entries(transactionData)) {
-      if (data.tokens.length > 0) {
-        continue;
+      for (const [transactionId, data] of Object.entries(transactionData)) {
+        if (data.tokens.length > 0) {
+          continue;
+        }
+
+        const transaction = getTransaction(transactionId, messenger);
+
+        if (!transaction || FINALIZED_STATUSES.includes(transaction.status)) {
+          continue;
+        }
+
+        log('Rate state changed, re-parsing required tokens', {
+          transactionId,
+          source,
+          patches,
+        });
+
+        onTransactionChange(
+          transaction,
+          undefined,
+          messenger,
+          updateTransactionData,
+        );
       }
-
-      const transaction = getTransaction(transactionId, messenger);
-
-      if (!transaction || FINALIZED_STATUSES.includes(transaction.status)) {
-        continue;
-      }
-
-      log('Rate state changed, re-parsing required tokens', { transactionId });
-      onTransactionChange(transaction, messenger, updateTransactionData);
-    }
-  };
+    };
 
   if (getAssetsUnifyStateFeature(messenger)) {
-    messenger.subscribe('AssetsController:stateChange', handler);
+    messenger.subscribe(
+      'AssetsController:stateChange',
+      buildHandler('AssetsController'),
+    );
     return;
   }
 
-  messenger.subscribe('TokenRatesController:stateChange', handler);
-  messenger.subscribe('CurrencyRateController:stateChange', handler);
+  messenger.subscribe(
+    'TokenRatesController:stateChange',
+    buildHandler('TokenRatesController'),
+  );
+  messenger.subscribe(
+    'CurrencyRateController:stateChange',
+    buildHandler('CurrencyRateController'),
+  );
 }
 
 /**
@@ -318,17 +362,33 @@ export function isPredictWithdrawTransaction(
  * Handle a transaction change by updating its associated data.
  *
  * @param transaction - Transaction metadata.
+ * @param previousTransaction - Previous transaction metadata, when this is an
+ * update rather than a new transaction or a rate-driven recompute. Used to
+ * surface the calldata diff in logs.
  * @param messenger - Controller messenger.
  * @param updateTransactionData - Callback to update transaction data.
  */
 function onTransactionChange(
   transaction: TransactionMeta,
+  previousTransaction: TransactionMeta | undefined,
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
 ): void {
   const tokens = parseRequiredTokens(transaction, messenger);
 
-  log('Transaction changed', { transaction, tokens });
+  log('Transaction changed', {
+    transactionId: transaction.id,
+    chainId: transaction.chainId,
+    tokens,
+    ...(previousTransaction
+      ? {
+          dataChanged: {
+            from: previousTransaction.txParams.data,
+            to: transaction.txParams.data,
+          },
+        }
+      : {}),
+  });
 
   updateTransactionData(transaction.id, (data) => {
     data.tokens = tokens;
