@@ -10,8 +10,10 @@ import { cloneDeep } from 'lodash';
 import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerState,
   UpdateTransactionDataCallback,
 } from '../types';
+import { getAssetsUnifyStateFeature } from './feature-flags';
 import { parseRequiredTokens } from './required-tokens';
 
 const log = createModuleLogger(projectLogger, 'transaction');
@@ -101,6 +103,56 @@ export function pollTransactionChanges(
     },
     (state) => state.transactions,
   );
+}
+
+/**
+ * Subscribe to rate-source state changes and re-run {@link parseRequiredTokens}
+ * for in-flight transactions whose required tokens have not yet been resolved.
+ *
+ * `parseRequiredTokens` returns an empty array when token fiat rates are
+ * unavailable. Without this subscription, those transactions stay deadlocked:
+ * the existing `TransactionController:stateChange` subscription only re-parses
+ * when `txParams.data` changes, but the client typically gates `data` edits on
+ * having a resolved required token. This handler closes the loop by re-parsing
+ * when the underlying rate state lands, mirroring the same source selection
+ * `getTokenFiatRate` uses.
+ *
+ * @param messenger - Controller messenger.
+ * @param getControllerState - Callback returning the current pay-controller
+ * state, used to find transactions with empty `tokens` to retry.
+ * @param updateTransactionData - Callback to update transaction data.
+ */
+export function pollRateChanges(
+  messenger: TransactionPayControllerMessenger,
+  getControllerState: () => TransactionPayControllerState,
+  updateTransactionData: UpdateTransactionDataCallback,
+): void {
+  const handler = (): void => {
+    const { transactionData } = getControllerState();
+
+    for (const [transactionId, data] of Object.entries(transactionData)) {
+      if (data.tokens.length > 0) {
+        continue;
+      }
+
+      const transaction = getTransaction(transactionId, messenger);
+
+      if (!transaction || FINALIZED_STATUSES.includes(transaction.status)) {
+        continue;
+      }
+
+      log('Rate state changed, re-parsing required tokens', { transactionId });
+      onTransactionChange(transaction, messenger, updateTransactionData);
+    }
+  };
+
+  if (getAssetsUnifyStateFeature(messenger)) {
+    messenger.subscribe('AssetsController:stateChange', handler);
+    return;
+  }
+
+  messenger.subscribe('TokenRatesController:stateChange', handler);
+  messenger.subscribe('CurrencyRateController:stateChange', handler);
 }
 
 /**

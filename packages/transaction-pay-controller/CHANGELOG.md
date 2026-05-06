@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^6.3.0` to `^6.4.0` ([#8721](https://github.com/MetaMask/core/pull/8721))
 - Bump `@metamask/assets-controllers` from `^105.1.0` to `^106.0.0` ([#8721](https://github.com/MetaMask/core/pull/8721))
 
+### Fixed
+
+- Re-run `parseRequiredTokens` for in-flight transactions when token rates or currency rates become available, recovering required-token state when fiat rate fetches resolved after the transaction was first parsed. Previously the only retry trigger was a `txParams.data` change, which left consumers stuck when they gated `data` edits on having a resolved required token.
+
 ## [21.0.0]
 
 ### Added

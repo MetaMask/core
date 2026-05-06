@@ -26,7 +26,11 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { getTransaction, pollTransactionChanges } from './utils/transaction';
+import {
+  getTransaction,
+  pollRateChanges,
+  pollTransactionChanges,
+} from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
@@ -91,6 +95,12 @@ export class TransactionPayController extends BaseController<
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
+    );
+
+    pollRateChanges(
+      messenger,
+      () => this.state,
+      this.#updateTransactionData.bind(this),
     );
 
     // eslint-disable-next-line no-new

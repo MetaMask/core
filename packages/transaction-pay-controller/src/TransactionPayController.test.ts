@@ -17,7 +17,11 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { getTransaction, pollTransactionChanges } from './utils/transaction';
+import {
+  getTransaction,
+  pollRateChanges,
+  pollTransactionChanges,
+} from './utils/transaction';
 
 jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
@@ -42,6 +46,7 @@ describe('TransactionPayController', () => {
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
+  const pollRateChangesMock = jest.mocked(pollRateChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
@@ -78,6 +83,21 @@ describe('TransactionPayController', () => {
 
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
+  });
+
+  describe('constructor', () => {
+    it('subscribes to rate changes for in-flight retry', () => {
+      const controller = createController();
+
+      expect(pollRateChangesMock).toHaveBeenCalledWith(
+        messenger,
+        expect.any(Function),
+        expect.any(Function),
+      );
+
+      const getControllerState = pollRateChangesMock.mock.calls[0][1];
+      expect(getControllerState()).toBe(controller.state);
+    });
   });
 
   describe('updatePaymentToken', () => {
