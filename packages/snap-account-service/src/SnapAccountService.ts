@@ -11,6 +11,7 @@ import { SnapId } from '@metamask/snaps-sdk';
 
 import type { SnapAccountServiceEnsureReadyAction } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
+import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's
@@ -59,20 +60,6 @@ export type SnapAccountServiceMessenger = Messenger<
 >;
 
 /**
- * Configuration for the {@link SnapPlatformWatcher} used by the service.
- */
-export type SnapPlatformWatcherConfig = {
-  /**
-   * Resolves when onboarding is complete.
-   */
-  ensureOnboardingComplete?: () => Promise<void>;
-  /**
-   * How long to wait for the Snap keyring to appear before rejecting (ms).
-   */
-  snapKeyringTimeoutMs?: number;
-};
-
-/**
  * Configuration for the {@link SnapAccountService}.
  */
 export type SnapAccountServiceConfig = {
@@ -110,12 +97,10 @@ export class SnapAccountService {
   constructor({ messenger, config }: SnapAccountServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
-    this.#watcher = new SnapPlatformWatcher(messenger, {
-      ensureOnboardingComplete:
-        config?.snapPlatformWatcher?.ensureOnboardingComplete,
-      snapKeyringWaitTimeoutMs:
-        config?.snapPlatformWatcher?.snapKeyringTimeoutMs,
-    });
+    this.#watcher = new SnapPlatformWatcher(
+      messenger,
+      config?.snapPlatformWatcher,
+    );
 
     this.#messenger.registerMethodActionHandlers(
       this,

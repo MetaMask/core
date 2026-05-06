@@ -210,11 +210,11 @@ describe('SnapAccountService', () => {
       expect(resolved).toBe(true);
     });
 
-    it('rejects if the Snap keyring does not appear within snapKeyringTimeoutMs', async () => {
+    it('rejects if the Snap keyring does not appear within snapKeyringWaitTimeoutMs', async () => {
       const { service } = setup({
         keyrings: [],
         config: {
-          snapPlatformWatcher: { snapKeyringTimeoutMs: 1_000 },
+          snapPlatformWatcher: { snapKeyringWaitTimeoutMs: 1_000 },
         },
       });
 

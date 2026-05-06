@@ -27,7 +27,7 @@ function stateHasSnapKeyring(state: KeyringControllerStateSlice): boolean {
   return state.keyrings.some((k) => k.type === KeyringTypes.snap);
 }
 
-export type SnapPlatformWatcherOptions = {
+export type SnapPlatformWatcherConfig = {
   /**
    * Resolves when onboarding is complete.
    */
@@ -53,12 +53,12 @@ export class SnapPlatformWatcher {
 
   constructor(
     messenger: SnapAccountServiceMessenger,
-    options: SnapPlatformWatcherOptions = {},
+    config: SnapPlatformWatcherConfig = {},
   ) {
     this.#messenger = messenger;
-    this.#ensureOnboardingComplete = options.ensureOnboardingComplete;
+    this.#ensureOnboardingComplete = config.ensureOnboardingComplete;
     this.#snapKeyringWaitTimeoutMs =
-      options.snapKeyringWaitTimeoutMs ?? DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS;
+      config.snapKeyringWaitTimeoutMs ?? DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS;
 
     this.#isReady = false;
     this.#isReadyOnce = createDeferredPromise<void>();

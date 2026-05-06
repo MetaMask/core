@@ -5,8 +5,7 @@ export type {
   SnapAccountServiceEvents,
   SnapAccountServiceMessenger,
   SnapAccountServiceOptions,
-  SnapPlatformWatcherConfig,
 } from './SnapAccountService';
 export type { SnapAccountServiceEnsureReadyAction } from './SnapAccountService-method-action-types';
 export { SnapPlatformWatcher } from './SnapPlatformWatcher';
-export type { SnapPlatformWatcherOptions } from './SnapPlatformWatcher';
+export type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
