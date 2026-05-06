@@ -652,7 +652,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         state.quoteRequest = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest;
       } else {
         // Otherwise only clear the specified request
-        state.quoteRequest
+        state.quoteRequest = state.quoteRequest
           .slice(0, quoteRequestIndex)
           .concat(DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0])
           .concat(state.quoteRequest.slice(quoteRequestIndex + 1));
