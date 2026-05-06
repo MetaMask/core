@@ -284,6 +284,11 @@ describe('PasskeyController', () => {
       ]);
       expect(options.attestation).toBe('none');
       expect(options.timeout).toBe(WEBAUTHN_TIMEOUT_MS);
+      expect(options.authenticatorSelection).toStrictEqual({
+        userVerification: 'required',
+        authenticatorAttachment: 'platform',
+        residentKey: 'preferred',
+      });
       expect(
         (options.extensions as Record<string, unknown>)?.prf,
       ).toBeDefined();
@@ -405,6 +410,21 @@ describe('PasskeyController', () => {
         }),
       ).toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
+
+    it('returns options with userVerification required', () => {
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      const authOpts = controller.generatePostRegistrationAuthenticationOptions(
+        {
+          registrationResponse: minimalRegistrationResponse(
+            undefined,
+            regOpts.challenge,
+          ),
+        },
+      );
+
+      expect(authOpts.userVerification).toBe('required');
+    });
   });
 
   describe('generateAuthenticationOptions', () => {
@@ -446,6 +466,26 @@ describe('PasskeyController', () => {
       expect(
         (authOpts.extensions as Record<string, unknown>)?.prf,
       ).toBeDefined();
+    });
+
+    it('returns options with userVerification required', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        vaultKey: 'vault-key',
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+
+      expect(authOpts.userVerification).toBe('required');
     });
   });
 
