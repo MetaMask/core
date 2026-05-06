@@ -46,13 +46,13 @@ export function getTransaction(
 }
 
 /**
- * Poll for transaction changes and update the transaction data accordingly.
+ * Subscribe to transaction changes and update the transaction data accordingly.
  *
  * @param messenger - Controller messenger.
  * @param updateTransactionData - Callback to update transaction data.
  * @param removeTransactionData - Callback to remove transaction data.
  */
-export function pollTransactionChanges(
+export function subscribeTransactionChanges(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
   removeTransactionData: (transactionId: string) => void,
@@ -67,29 +67,16 @@ export function pollTransactionChanges(
         (tx) => !previousTransactions?.find((prevTx) => prevTx.id === tx.id),
       );
 
-      const updatedTransactions = transactions
-        .map((tx) => {
-          const previousTransaction = previousTransactions?.find(
-            (prevTx) => prevTx.id === tx.id,
-          );
-
-          if (
-            !previousTransaction ||
-            previousTransaction.txParams.data === tx.txParams.data
-          ) {
-            return undefined;
-          }
-
-          return { tx, previousTransaction };
-        })
-        .filter(
-          (
-            entry,
-          ): entry is {
-            tx: TransactionMeta;
-            previousTransaction: TransactionMeta;
-          } => entry !== undefined,
+      const updatedTransactions = transactions.filter((tx) => {
+        const previousTransaction = previousTransactions?.find(
+          (prevTx) => prevTx.id === tx.id,
         );
+
+        return (
+          previousTransaction &&
+          previousTransaction?.txParams.data !== tx.txParams.data
+        );
+      });
 
       const finalizedTransactions = transactions.filter((tx) => {
         const previousTransaction = previousTransactions?.find(
@@ -111,17 +98,8 @@ export function pollTransactionChanges(
         onTransactionFinalized(tx, removeTransactionData),
       );
 
-      newTransactions.forEach((tx) =>
-        onTransactionChange(tx, undefined, messenger, updateTransactionData),
-      );
-
-      updatedTransactions.forEach(({ tx, previousTransaction }) =>
-        onTransactionChange(
-          tx,
-          previousTransaction,
-          messenger,
-          updateTransactionData,
-        ),
+      [...newTransactions, ...updatedTransactions].forEach((tx) =>
+        onTransactionChange(tx, messenger, updateTransactionData),
       );
     },
     (state) => state.transactions,
@@ -129,25 +107,14 @@ export function pollTransactionChanges(
 }
 
 /**
- * Subscribe to token-data and rate-source state changes and re-run
- * {@link parseRequiredTokens} for in-flight transactions whose required
- * tokens have not yet been resolved.
- *
- * `parseRequiredTokens` returns an empty array when any of token info,
- * token fiat rates, or native currency rates are unavailable. Without this
- * subscription, those transactions stay deadlocked: the existing
- * `TransactionController:stateChange` subscription only re-parses when
- * `txParams.data` changes, but the client typically gates `data` edits on
- * having a resolved required token. This handler closes the loop by re-parsing
- * when any of the underlying state sources land, mirroring the same source
- * selection `getTokenInfo` and `getTokenFiatRate` use.
+ * Subscribe to asset state changes and re-parse required tokens for
+ * in-flight transactions whose tokens have not yet resolved.
  *
  * @param messenger - Controller messenger.
- * @param getControllerState - Callback returning the current pay-controller
- * state, used to find transactions with empty `tokens` to retry.
+ * @param getControllerState - Callback returning the current controller state.
  * @param updateTransactionData - Callback to update transaction data.
  */
-export function subscribeTokenChanges(
+export function subscribeAssetChanges(
   messenger: TransactionPayControllerMessenger,
   getControllerState: () => TransactionPayControllerState,
   updateTransactionData: UpdateTransactionDataCallback,
@@ -168,18 +135,9 @@ export function subscribeTokenChanges(
           continue;
         }
 
-        log('Token or rate state changed, re-parsing required tokens', {
-          transactionId,
-          source,
-          patches,
-        });
+        log('Asset data changed', { transactionId, source, patches });
 
-        onTransactionChange(
-          transaction,
-          undefined,
-          messenger,
-          updateTransactionData,
-        );
+        onTransactionChange(transaction, messenger, updateTransactionData);
       }
     };
 
@@ -368,33 +326,17 @@ export function isPredictWithdrawTransaction(
  * Handle a transaction change by updating its associated data.
  *
  * @param transaction - Transaction metadata.
- * @param previousTransaction - Previous transaction metadata, when this is an
- * update rather than a new transaction or a rate-driven recompute. Used to
- * surface the calldata diff in logs.
  * @param messenger - Controller messenger.
  * @param updateTransactionData - Callback to update transaction data.
  */
 function onTransactionChange(
   transaction: TransactionMeta,
-  previousTransaction: TransactionMeta | undefined,
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
 ): void {
   const tokens = parseRequiredTokens(transaction, messenger);
 
-  log('Transaction changed', {
-    transactionId: transaction.id,
-    chainId: transaction.chainId,
-    tokens,
-    ...(previousTransaction
-      ? {
-          dataChanged: {
-            from: previousTransaction.txParams.data,
-            to: transaction.txParams.data,
-          },
-        }
-      : {}),
-  });
+  log('Transaction changed', { transaction, tokens });
 
   updateTransactionData(transaction.id, (data) => {
     data.tokens = tokens;

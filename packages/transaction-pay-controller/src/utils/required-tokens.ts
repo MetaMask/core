@@ -65,7 +65,7 @@ function getTokenTransferToken(
   const { data, to } = getTokenTransferData(transaction) ?? {};
 
   if (!to || !data) {
-    log('No token transfer detected in transaction', {
+    log('No token transfer detected', {
       transactionId: transaction.id,
     });
     return undefined;
@@ -118,7 +118,7 @@ function buildRequiredToken(
   const tokenBalance = getTokenBalance(messenger, from, chainId, tokenAddress);
 
   if (tokenDecimals === undefined || !symbol || fiatRates === undefined) {
-    log('Cannot build required token: missing data', {
+    log('Missing token data', {
       transactionId: transaction.id,
       chainId,
       tokenAddress,

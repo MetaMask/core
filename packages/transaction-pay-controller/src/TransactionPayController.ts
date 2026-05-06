@@ -28,8 +28,8 @@ import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
   getTransaction,
-  subscribeTokenChanges,
-  pollTransactionChanges,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
 } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -91,13 +91,13 @@ export class TransactionPayController extends BaseController<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    pollTransactionChanges(
+    subscribeTransactionChanges(
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
     );
 
-    subscribeTokenChanges(
+    subscribeAssetChanges(
       messenger,
       () => this.state,
       this.#updateTransactionData.bind(this),

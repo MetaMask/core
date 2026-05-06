@@ -20,8 +20,8 @@ import {
   collectTransactionIds,
   getTransaction,
   isPredictWithdrawTransaction,
-  subscribeTokenChanges,
-  pollTransactionChanges,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
@@ -91,13 +91,13 @@ describe('Transaction Utils', () => {
     });
   });
 
-  describe('pollTransactionChanges', () => {
+  describe('subscribeTransactionChanges', () => {
     it('updates state for new transactions', () => {
       const updateTransactionDataMock = jest.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
-      pollTransactionChanges(messenger, updateTransactionDataMock, noop);
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
 
       publish(
         'TransactionController:stateChange',
@@ -122,7 +122,7 @@ describe('Transaction Utils', () => {
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
-      pollTransactionChanges(messenger, updateTransactionDataMock, noop);
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
 
       publish(
         'TransactionController:stateChange',
@@ -150,7 +150,7 @@ describe('Transaction Utils', () => {
       (status) => {
         const removeTransactionDataMock = jest.fn();
 
-        pollTransactionChanges(messenger, noop, removeTransactionDataMock);
+        subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
         publish(
           'TransactionController:stateChange',
@@ -177,7 +177,7 @@ describe('Transaction Utils', () => {
     it('removes state if transaction is deleted', () => {
       const removeTransactionDataMock = jest.fn();
 
-      pollTransactionChanges(messenger, noop, removeTransactionDataMock);
+      subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
       publish(
         'TransactionController:stateChange',
@@ -201,7 +201,7 @@ describe('Transaction Utils', () => {
     });
   });
 
-  describe('subscribeTokenChanges', () => {
+  describe('subscribeAssetChanges', () => {
     function buildState(
       data: Partial<TransactionData> & {
         tokens: TransactionPayRequiredToken[];
@@ -242,13 +242,17 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish(
+        'TokenRatesController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
       const transactionData = {} as TransactionData;
@@ -266,13 +270,17 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
-      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
+      isolatedPublish(
+        'CurrencyRateController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -285,13 +293,17 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokensController:stateChange', {} as never, []);
+      isolatedPublish(
+        'TokensController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -305,13 +317,17 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
-      isolatedPublish('AssetsController:stateChange', {} as never, []);
+      isolatedPublish(
+        'AssetsController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
@@ -324,15 +340,27 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokensController:stateChange', {} as never, []);
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
-      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
+      isolatedPublish(
+        'TokensController:stateChange',
+        {} as never,
+        [],
+      );
+      isolatedPublish(
+        'TokenRatesController:stateChange',
+        {} as never,
+        [],
+      );
+      isolatedPublish(
+        'CurrencyRateController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
@@ -344,7 +372,7 @@ describe('Transaction Utils', () => {
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () =>
           buildState({
@@ -353,7 +381,11 @@ describe('Transaction Utils', () => {
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish(
+        'TokenRatesController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
       expect(parseRequiredTokensMock).not.toHaveBeenCalled();
@@ -368,13 +400,17 @@ describe('Transaction Utils', () => {
           transactions: [{ ...TRANSACTION_META_MOCK, status }],
         } as TransactionControllerState);
 
-        subscribeTokenChanges(
+        subscribeAssetChanges(
           isolatedMessenger,
           () => buildState({ tokens: [] }),
           updateTransactionDataMock,
         );
 
-        isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+        isolatedPublish(
+          'TokenRatesController:stateChange',
+          {} as never,
+          [],
+        );
 
         expect(updateTransactionDataMock).not.toHaveBeenCalled();
       },
@@ -387,13 +423,17 @@ describe('Transaction Utils', () => {
         transactions: [] as TransactionMeta[],
       } as TransactionControllerState);
 
-      subscribeTokenChanges(
+      subscribeAssetChanges(
         isolatedMessenger,
         () => buildState({ tokens: [] }),
         updateTransactionDataMock,
       );
 
-      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish(
+        'TokenRatesController:stateChange',
+        {} as never,
+        [],
+      );
 
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
