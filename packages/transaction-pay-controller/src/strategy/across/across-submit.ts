@@ -152,9 +152,13 @@ async function submitTransactions(
 
   const quotedGasLimit7702 =
     batchGasLimit === undefined ? undefined : toHex(batchGasLimit);
+  const parentHasAuthorizationList = Boolean(
+    parentTransaction.txParams.authorizationList?.length,
+  );
 
   const shouldUse7702Submit =
     Boolean(quotedGasLimit7702) ||
+    parentHasAuthorizationList ||
     (shouldEstimate7702SubmitBatch(parentTransaction, quote) &&
       accountSupports7702(messenger, from));
 

@@ -582,6 +582,70 @@ describe('Across Submit', () => {
       );
     });
 
+    it('submits post-quote predict withdraw parent authorization lists as 7702 batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            authorizationList: [{ address: '0xabc' as Hex }],
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
     it('uses the original transaction type for non-predict post-quote batches', async () => {
       const postQuote = {
         ...QUOTE_MOCK,
