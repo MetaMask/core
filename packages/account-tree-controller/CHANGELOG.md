@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `AccountTreeController` methods through its messenger ([#8716](https://github.com/MetaMask/core/pull/8716))
+  - The following actions are now available:
+    - `AccountTreeController:init`
+    - `AccountTreeController:reinit`
+  - Corresponding action types are available as well.
+
 ## [7.2.0]
 
 ### Changed
