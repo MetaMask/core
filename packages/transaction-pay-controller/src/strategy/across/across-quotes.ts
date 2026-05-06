@@ -181,12 +181,9 @@ async function getQuoteWithGasStationHandling(
     return phase1Quote;
   }
 
-  if (
-    request.isPostQuote &&
-    isPredictWithdrawTransaction(fullRequest.transaction)
-  ) {
-    return phase1Quote;
-  }
+  const requiresSourceGasReservation =
+    request.isPostQuote === true &&
+    isPredictWithdrawTransaction(fullRequest.transaction);
 
   const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
     .minus(phase1Quote.fees.sourceNetwork.max.raw)
@@ -194,6 +191,11 @@ async function getQuoteWithGasStationHandling(
 
   if (!adjustedSourceAmount.isGreaterThan(0)) {
     log('Insufficient balance after gas subtraction for Across quote');
+    if (requiresSourceGasReservation) {
+      throw new Error(
+        'Across Predict withdraw source amount cannot cover source gas fee token',
+      );
+    }
     return phase1Quote;
   }
 
@@ -217,6 +219,11 @@ async function getQuoteWithGasStationHandling(
 
     if (!phase2Quote.fees.isSourceGasFeeToken) {
       log('Across phase 2 lost gas fee token eligibility');
+      if (requiresSourceGasReservation) {
+        throw new Error(
+          'Across Predict withdraw quote lost source gas fee token eligibility',
+        );
+      }
       return phase1Quote;
     }
 
@@ -232,12 +239,25 @@ async function getQuoteWithGasStationHandling(
         gasCostRaw: phase2GasCost.toString(10),
         originalSourceAmount: request.sourceTokenAmount,
       });
+      if (requiresSourceGasReservation) {
+        throw new Error(
+          'Across Predict withdraw source gas fee token quote exceeds source amount',
+        );
+      }
       return phase1Quote;
     }
 
     return phase2Quote;
   } catch (error) {
-    log('Across phase 2 quote failed, falling back to phase 1', { error });
+    log(
+      requiresSourceGasReservation
+        ? 'Across phase 2 quote failed after source gas reservation'
+        : 'Across phase 2 quote failed, falling back to phase 1',
+      { error },
+    );
+    if (requiresSourceGasReservation) {
+      throw error;
+    }
     return phase1Quote;
   }
 }
