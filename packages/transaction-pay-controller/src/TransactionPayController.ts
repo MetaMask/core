@@ -26,6 +26,7 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
+import { setPolymarketBridgeOptions } from './utils/strategy';
 import { buildCaipAssetType } from './utils/token';
 import {
   getTransaction,
@@ -74,6 +75,7 @@ export class TransactionPayController extends BaseController<
     getStrategy,
     getStrategies,
     messenger,
+    polymarketBridgeOptions,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -86,6 +88,8 @@ export class TransactionPayController extends BaseController<
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+
+    setPolymarketBridgeOptions(polymarketBridgeOptions);
 
     this.messenger.registerMethodActionHandlers(
       this,

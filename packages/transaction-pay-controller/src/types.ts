@@ -190,9 +190,27 @@ export type TransactionPayControllerOptions = {
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
+  /** Configuration for the Polymarket Bridge strategy. When provided, enables the strategy. */
+  polymarketBridgeOptions?: PolymarketBridgeStrategyOptionsInput;
+
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
 };
+
+export type PolymarketBridgeStrategyOptionsInput =
+  | {
+      authType: 'relayer-api-key';
+      environment: 'prod' | 'preprod';
+      relayerApiKey: string;
+      relayerApiKeyAddress: string;
+    }
+  | {
+      authType: 'builder';
+      environment: 'prod' | 'preprod';
+      builderApiKey: string;
+      builderSecret: string;
+      builderPassphrase?: string;
+    };
 
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {

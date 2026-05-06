@@ -1,4 +1,5 @@
 export type {
+  PolymarketBridgeStrategyOptionsInput,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -30,3 +31,8 @@ export { TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
 export type { TransactionPayBridgeQuote } from './strategy/bridge/types';
+export { PolymarketBridgeStrategy } from './strategy/polymarket-bridge/PolymarketBridgeStrategy';
+export type {
+  PolymarketBridgeQuote,
+  PolymarketBridgeStrategyOptions,
+} from './strategy/polymarket-bridge/types';
