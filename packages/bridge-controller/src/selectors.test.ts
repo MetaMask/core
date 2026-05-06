@@ -9,7 +9,7 @@ import mockQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
-  selectExchangeRateByChainIdAndAddress,
+  selectExchangeRateByAssetId,
   selectIsAssetExchangeRateInState,
   selectBridgeQuotes,
   selectIsQuoteExpired,
@@ -31,7 +31,7 @@ const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
 
 describe('Bridge Selectors', () => {
-  describe('selectExchangeRateByChainIdAndAddress', () => {
+  describe('selectExchangeRateByAssetId', () => {
     const mockExchangeRateSources = {
       assetExchangeRates: {
         [formatAddressToAssetId(MOCK_USDC_ADDRESS, '1')?.toLowerCase() ??
@@ -64,34 +64,22 @@ describe('Bridge Selectors', () => {
       },
     } as unknown as BridgeAppState;
 
-    it('should return empty object if chainId is missing', () => {
+    it('should return empty object if chainId or address is missing', () => {
       expect(
-        selectExchangeRateByChainIdAndAddress(
-          mockExchangeRateSources,
-          undefined,
-          undefined,
-        ),
+        selectExchangeRateByAssetId(mockExchangeRateSources, undefined),
       ).toStrictEqual({});
       expect(
-        selectExchangeRateByChainIdAndAddress(mockExchangeRateSources, '1'),
-      ).toStrictEqual({
-        exchangeRate: '2468.12',
-        usdExchangeRate: '1800',
-      });
-      expect(
-        selectExchangeRateByChainIdAndAddress(
+        selectExchangeRateByAssetId(
           mockExchangeRateSources,
-          undefined,
-          MOCK_USDC_ADDRESS,
+          formatAddressToAssetId(MOCK_USDC_ADDRESS),
         ),
       ).toStrictEqual({});
     });
 
     it('should return bridge controller rate if available', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        '1',
-        MOCK_USDC_ADDRESS,
+        formatAddressToAssetId(MOCK_USDC_ADDRESS, '1'),
       );
       expect(result).toStrictEqual({
         exchangeRate: '2.5',
@@ -100,10 +88,9 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle Solana chain rates', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        SolScope.Mainnet,
-        '789',
+        formatAddressToAssetId('789', SolScope.Mainnet),
       );
       // usdExchangeRate = rate * (usdConversionRate / conversionRate) = 4.0 * (1800 / 2468.12)
       expect(result).toStrictEqual({
@@ -115,13 +102,12 @@ describe('Bridge Selectors', () => {
     });
 
     it('should return undefined usdExchangeRate for Solana when currencyRates is empty', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         {
           ...mockExchangeRateSources,
           currencyRates: {},
         } as unknown as BridgeAppState,
-        SolScope.Mainnet,
-        '789',
+        formatAddressToAssetId('789', SolScope.Mainnet),
       );
       expect(result).toStrictEqual({
         exchangeRate: '4.0',
@@ -130,7 +116,7 @@ describe('Bridge Selectors', () => {
     });
 
     it('should return rate as usdExchangeRate for Solana when user currency is USD', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         {
           ...mockExchangeRateSources,
           currencyRates: {
@@ -140,8 +126,7 @@ describe('Bridge Selectors', () => {
             },
           },
         } as unknown as BridgeAppState,
-        SolScope.Mainnet,
-        '789',
+        formatAddressToAssetId('789', SolScope.Mainnet),
       );
       // When user currency is USD, conversionRate === usdConversionRate, ratio is 1
       expect(result).toStrictEqual({
@@ -151,10 +136,12 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle EVM native asset rates', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        '1',
-        '0x0000000000000000000000000000000000000000',
+        formatAddressToAssetId(
+          '0x0000000000000000000000000000000000000000',
+          '1',
+        ),
       );
       expect(result).toStrictEqual({
         exchangeRate: '2468.12',
@@ -163,10 +150,9 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle EVM token rates', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        '1',
-        MOCK_MUSD_ADDRESS.toLowerCase(),
+        formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
       );
       expect(result).toStrictEqual({
         exchangeRate: '50.00000000000000162804',
@@ -203,8 +189,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          '1',
-          MOCK_USDC_ADDRESS,
+          formatAddressToAssetId(MOCK_USDC_ADDRESS, '1'),
         ),
       ).toBe(true);
     });
@@ -213,8 +198,7 @@ describe('Bridge Selectors', () => {
       expect(
         selectIsAssetExchangeRateInState(
           mockExchangeRateSources,
-          '1',
-          MOCK_USDC_ADDRESS,
+          formatAddressToAssetId(MOCK_USDC_ADDRESS, '1'),
         ),
       ).toBe(false);
     });
@@ -223,8 +207,7 @@ describe('Bridge Selectors', () => {
       expect(
         selectIsAssetExchangeRateInState(
           mockExchangeRateSources,
-          '1',
-          ETH_USDT_ADDRESS,
+          formatAddressToAssetId(ETH_USDT_ADDRESS, '1'),
         ),
       ).toBe(false);
     });
@@ -234,7 +217,7 @@ describe('Bridge Selectors', () => {
         false,
       );
       expect(
-        selectIsAssetExchangeRateInState(mockExchangeRateSources, '1'),
+        selectIsAssetExchangeRateInState(mockExchangeRateSources, undefined),
       ).toBe(false);
     });
   });
@@ -351,7 +334,7 @@ describe('Bridge Selectors', () => {
         ...mockState,
         quoteRequest: [
           {
-            ...mockState.quoteRequest,
+            ...mockState.quoteRequest[0],
             srcChainId: undefined,
           },
         ],
@@ -525,6 +508,46 @@ describe('Bridge Selectors', () => {
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
       expect(result.sortedQuotes[0].cost.valueInCurrency).toBe('-419.985546');
+    });
+
+    it('should return metadata when quotes are empty', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            quotes: [],
+            assetExchangeRates: {
+              [formatAddressToAssetId(
+                mockQuote.quote.srcAsset.address,
+                mockQuote.quote.srcChainId,
+              ) ?? '']: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [formatAddressToAssetId(
+                mockQuote.quote.destAsset.address,
+                mockQuote.quote.destChainId,
+              ) ?? '']: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "activeQuote": null,
+          "isLoading": false,
+          "isQuoteGoingToRefresh": true,
+          "quoteFetchError": null,
+          "quotesRefreshCount": 0,
+          "recommendedQuote": null,
+          "sortedQuotes": [],
+        }
+      `);
+      expect(result.sortedQuotes).toHaveLength(0);
     });
 
     it('should use destTokenAmount to sort quotes if exchange rate is not available', () => {
@@ -1228,7 +1251,9 @@ describe('Bridge Selectors', () => {
       const result = selectBridgeQuotes(
         {
           ...mockState,
-          quoteRequest: [{ ...mockState.quoteRequest, insufficientBal: true }],
+          quoteRequest: [
+            { ...mockState.quoteRequest[0], insufficientBal: true },
+          ],
         },
         mockClientParams,
       );
@@ -1352,7 +1377,7 @@ describe('Bridge Selectors', () => {
         quotes: [solanaQuote],
         quoteRequest: [
           {
-            ...mockState.quoteRequest,
+            ...mockState.quoteRequest[0],
             srcChainId: ChainId.SOLANA,
             srcTokenAddress: 'solanaNativeAddress',
           },
@@ -1458,7 +1483,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          mockClientParams,
+          { ...mockClientParams, requestCount: 2 },
         );
 
       const {
@@ -1505,6 +1530,67 @@ describe('Bridge Selectors', () => {
           "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
         ]
       `);
+    });
+
+    it('should return metadata when quotes are empty', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotesBatch(
+          {
+            ...mockState,
+            quotes: [],
+            assetExchangeRates: {
+              'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          { ...mockClientParams, requestCount: 2 },
+        );
+
+      const {
+        totalReceived,
+        minimumReceived,
+        totalNetworkFee,
+        recommendedQuotes,
+        ...rest
+      } = result;
+
+      expect(totalReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "0",
+          "usd": "0",
+          "valueInCurrency": "0",
+        }
+      `);
+      expect(minimumReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "0",
+          "usd": "0",
+          "valueInCurrency": "0",
+        }
+      `);
+      expect(totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0",
+          "usd": "0",
+          "valueInCurrency": "0",
+        }
+      `);
+      expect(rest).toMatchInlineSnapshot(`
+        {
+          "isLoading": false,
+          "isQuoteGoingToRefresh": true,
+          "quoteFetchError": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+      expect(mockState.quoteRequest).toHaveLength(2);
+      expect(recommendedQuotes).toStrictEqual([null, null]);
     });
   });
 

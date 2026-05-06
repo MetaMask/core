@@ -38,7 +38,10 @@ import type {
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
-import { formatChainIdToCaip } from './utils/caip-formatters';
+import {
+  formatAddressToAssetId,
+  formatChainIdToCaip,
+} from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
@@ -432,15 +435,19 @@ describe('BridgeController', function () {
           expect.objectContaining({
             assetExchangeRates: expect.any(Object),
           }),
-          quoteParams.srcChainId,
-          quoteParams.srcTokenAddress,
+          formatAddressToAssetId(
+            quoteParams.srcTokenAddress,
+            quoteParams.srcChainId,
+          ),
         );
         expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             assetExchangeRates: expect.any(Object),
           }),
-          quoteParams.destChainId,
-          quoteParams.destTokenAddress,
+          formatAddressToAssetId(
+            quoteParams.destTokenAddress,
+            quoteParams.destChainId,
+          ),
         );
 
         hasSufficientBalanceSpy.mockRestore();
@@ -566,6 +573,7 @@ describe('BridgeController', function () {
           metricsContext,
         );
         expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0],
           walletAddress: '0x123abc',
           destChainId: undefined,
         });

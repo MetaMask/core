@@ -8,7 +8,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { BridgeClientId } from './constants/bridge';
 import {
@@ -463,37 +463,33 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchAssetExchangeRates = async (
     quoteRequests: Partial<GenericQuoteRequest>[],
   ) => {
-    const assetIds: Set<CaipAssetType> = new Set([]);
     const exchangeRateSources = this.#getExchangeRateSources();
-    const { srcChainId, srcTokenAddress, destChainId, destTokenAddress } =
-      // TODO fetch rates for all quote requests
-      quoteRequests[0];
-    if (
-      srcTokenAddress &&
-      srcChainId &&
-      !selectIsAssetExchangeRateInState(
-        exchangeRateSources,
-        srcChainId,
-        srcTokenAddress,
-      )
-    ) {
-      getAssetIdsForToken(srcTokenAddress, srcChainId).forEach((assetId) =>
-        assetIds.add(assetId),
-      );
-    }
-    if (
-      destTokenAddress &&
-      destChainId &&
-      !selectIsAssetExchangeRateInState(
-        exchangeRateSources,
-        destChainId,
-        destTokenAddress,
-      )
-    ) {
-      getAssetIdsForToken(destTokenAddress, destChainId).forEach((assetId) =>
-        assetIds.add(assetId),
-      );
-    }
+
+    // Get assetIds for all quote requests
+    const assetIds = new Set(
+      quoteRequests
+        .flatMap((quoteRequest) =>
+          [
+            quoteRequest.srcTokenAddress && quoteRequest.srcChainId
+              ? getAssetIdsForToken(
+                  quoteRequest.srcTokenAddress,
+                  quoteRequest.srcChainId,
+                )
+              : undefined,
+            quoteRequest.destTokenAddress && quoteRequest.destChainId
+              ? getAssetIdsForToken(
+                  quoteRequest.destTokenAddress,
+                  quoteRequest.destChainId,
+                )
+              : undefined,
+          ].flat(),
+        )
+        .filter((assetId) => assetId !== undefined)
+        .filter(
+          (assetId) =>
+            !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
+        ),
+    );
 
     const currency = this.#getUseAssetsControllerForRates()
       ? this.messenger.call('AssetsController:getExchangeRatesForBridge')

@@ -177,7 +177,7 @@ export {
   selectBridgeQuotesBatch,
   selectDefaultSlippagePercentage,
   type BridgeAppState,
-  selectExchangeRateByChainIdAndAddress,
+  selectExchangeRateByAssetId,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,

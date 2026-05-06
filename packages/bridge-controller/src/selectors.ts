@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { AddressZero } from '@ethersproject/constants';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -10,7 +9,7 @@ import type {
   GasFeeEstimatesByChainId,
 } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
+import { isStrictHexString, parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 import {
@@ -22,7 +21,6 @@ import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
 import type {
   BridgeControllerState,
   ExchangeRate,
-  GenericQuoteRequest,
   QuoteMetadata,
   QuoteResponse,
   TokenAmountValues,
@@ -141,16 +139,17 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
   (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
 );
 
-const getExchangeRateByChainIdAndAddress = (
+/**
+ * Selects the asset exchange rate for a given chain and address
+ *
+ * @param exchangeRateSources - the controller states containing the exchange rates
+ * @param assetId - the assetId to get the exchange rate for
+ * @returns The asset exchange rate for the given assetId
+ */
+export const selectExchangeRateByAssetId = (
   exchangeRateSources: ExchangeRateSourcesForLookup,
-  chainId?: GenericQuoteRequest['srcChainId'],
-  rawAddress?: GenericQuoteRequest['srcTokenAddress'],
+  assetId?: CaipAssetType,
 ): ExchangeRate => {
-  if (!chainId) {
-    return {};
-  }
-  const address = formatAddressToCaipReference(rawAddress ?? '');
-  const assetId = formatAddressToAssetId(address, chainId);
   if (!assetId) {
     return {};
   }
@@ -169,6 +168,9 @@ const getExchangeRateByChainIdAndAddress = (
   ) {
     return bridgeControllerRate;
   }
+
+  const { chainId } = parseCaipAssetType(assetId);
+
   // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
   if (isNonEvmChainId(chainId)) {
     const conversionRatesByKey = conversionRates as
@@ -205,6 +207,9 @@ const getExchangeRateByChainIdAndAddress = (
     }
     return {};
   }
+
+  const address = formatAddressToCaipReference(assetId);
+
   // If the chain is an EVM chain, use the conversion rate from the currency rates controller
   if (isNativeAddress(address)) {
     const { symbol } = getNativeAssetForChainId(chainId);
@@ -250,32 +255,21 @@ const getExchangeRateByChainIdAndAddress = (
 };
 
 /**
- * Selects the asset exchange rate for a given chain and address
+ * Checks whether an exchange rate is available for a given assetId
  *
  * @param state The state of the bridge controller and its dependency controllers
- * @param chainId The chain ID of the asset
- * @param address The address of the asset
- * @returns The asset exchange rate for the given chain and address
- */
-export const selectExchangeRateByChainIdAndAddress = (
-  state: BridgeAppState,
-  chainId?: GenericQuoteRequest['srcChainId'],
-  address?: GenericQuoteRequest['srcTokenAddress'],
-) => {
-  return getExchangeRateByChainIdAndAddress(state, chainId, address);
-};
-
-/**
- * Checks whether an exchange rate is available for a given chain and address
- *
- * @param params The parameters to pass to {@link getExchangeRateByChainIdAndAddress}
+ * @param assetId The assetId to check
  * @returns Whether an exchange rate is available for the given chain and address
  */
 export const selectIsAssetExchangeRateInState = (
-  ...params: Parameters<typeof getExchangeRateByChainIdAndAddress>
-) =>
-  Boolean(getExchangeRateByChainIdAndAddress(...params)?.exchangeRate) &&
-  Boolean(getExchangeRateByChainIdAndAddress(...params)?.usdExchangeRate);
+  state: ExchangeRateSourcesForLookup,
+  assetId?: CaipAssetType,
+) => {
+  return (
+    Boolean(selectExchangeRateByAssetId(state, assetId)?.exchangeRate) &&
+    Boolean(selectExchangeRateByAssetId(state, assetId)?.usdExchangeRate)
+  );
+};
 
 /**
  * Selects the gas fee estimates from the gas fee controller. All potential networks
@@ -323,23 +317,32 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     createBridgeSelector(
       [
         (state) => state,
-        ({ quoteRequest: [{ srcChainId }] }) => srcChainId,
-        ({ quoteRequest: [{ srcTokenAddress }] }) => srcTokenAddress,
+        ({ quoteRequest: [{ srcChainId, srcTokenAddress }] }) =>
+          srcTokenAddress
+            ? formatAddressToAssetId(srcTokenAddress, srcChainId)
+            : undefined,
       ],
-      selectExchangeRateByChainIdAndAddress,
+      selectExchangeRateByAssetId,
     ),
     createBridgeSelector(
       [
         (state) => state,
-        ({ quoteRequest: [{ destChainId }] }) => destChainId,
-        ({ quoteRequest: [{ destTokenAddress }] }) => destTokenAddress,
+        ({ quoteRequest: [{ destChainId, destTokenAddress }] }) =>
+          destTokenAddress
+            ? formatAddressToAssetId(destTokenAddress, destChainId)
+            : undefined,
       ],
-      selectExchangeRateByChainIdAndAddress,
+      selectExchangeRateByAssetId,
     ),
     createBridgeSelector(
-      [(state) => state, ({ quoteRequest: [{ srcChainId }] }) => srcChainId],
-      (state, chainId) =>
-        selectExchangeRateByChainIdAndAddress(state, chainId, AddressZero),
+      [
+        (state) => state,
+        ({ quoteRequest: [{ srcChainId }] }) =>
+          srcChainId
+            ? getNativeAssetForChainId(srcChainId)?.assetId
+            : undefined,
+      ],
+      selectExchangeRateByAssetId,
     ),
   ],
   (
