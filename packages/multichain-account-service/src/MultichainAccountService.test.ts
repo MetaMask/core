@@ -1188,7 +1188,6 @@ describe('MultichainAccountService', () => {
         MOCK_HD_ACCOUNT_1.address,
       );
     });
-
   });
 
   describe('resyncAccounts', () => {
@@ -1560,5 +1559,4 @@ describe('MultichainAccountService', () => {
       });
     });
   });
-
 });
