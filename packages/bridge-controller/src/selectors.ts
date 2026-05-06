@@ -264,12 +264,9 @@ export const selectExchangeRateByAssetId = (
 export const selectIsAssetExchangeRateInState = (
   state: ExchangeRateSourcesForLookup,
   assetId?: CaipAssetType,
-) => {
-  return (
-    Boolean(selectExchangeRateByAssetId(state, assetId)?.exchangeRate) &&
-    Boolean(selectExchangeRateByAssetId(state, assetId)?.usdExchangeRate)
-  );
-};
+) =>
+  Boolean(selectExchangeRateByAssetId(state, assetId)?.exchangeRate) &&
+  Boolean(selectExchangeRateByAssetId(state, assetId)?.usdExchangeRate);
 
 /**
  * Selects the gas fee estimates from the gas fee controller. All potential networks
@@ -501,7 +498,11 @@ const selectActiveQuote = createBridgeSelector(
 const selectIsQuoteGoingToRefresh = createBridgeSelector(
   [
     selectBridgeFeatureFlags,
-    (state) => state.quoteRequest[0]?.insufficientBal,
+    // If at least one quote request is sufficiently funded, continue polling until max refresh count is reached
+    (state) =>
+      state.quoteRequest.every((quoteRequest) =>
+        Boolean(quoteRequest.insufficientBal),
+      ),
     (state) => state.quotesRefreshCount,
   ],
   (featureFlags, insufficientBal, quotesRefreshCount) =>

@@ -8,7 +8,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
 import type { BridgeClientId } from './constants/bridge';
 import {
@@ -336,12 +336,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequestIndex: number = 0,
     quoteRequestCount: number = 1,
   ) => {
+    // Guard against updating a quote request that doesn't exist
     if (quoteRequestIndex >= quoteRequestCount) {
       return;
     }
     this.#trackInputChangedEvents(paramsToUpdate, quoteRequestIndex);
     this.resetState(AbortReason.QuoteRequestUpdated, quoteRequestIndex);
     this.update((state) => {
+      // Update only the specified quote request and keep the rest of the quote requests unchanged
       state.quoteRequest = state.quoteRequest
         .slice(0, quoteRequestIndex)
         .concat({
@@ -355,6 +357,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         context.token_security_type_destination ?? null;
     });
 
+    // BatchSell and Unified swaps both use the same polling logic so both validations should pass
     if (
       isValidQuoteRequest(paramsToUpdate) &&
       isValidBatchSellQuoteRequest(this.state.quoteRequest)
@@ -465,8 +468,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ) => {
     const exchangeRateSources = this.#getExchangeRateSources();
 
-    // Get assetIds for all quote requests
-    const assetIds = new Set(
+    // Get unique assetIds for all quote requests
+    const assetIds = new Set<CaipAssetType>(
       quoteRequests
         .flatMap((quoteRequest) =>
           [
@@ -484,10 +487,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               : undefined,
           ].flat(),
         )
-        .filter((assetId) => assetId !== undefined)
         .filter(
           (assetId) =>
             !selectIsAssetExchangeRateInState(exchangeRateSources, assetId),
+        )
+        .filter(
+          (assetId: CaipAssetType | undefined): assetId is CaipAssetType =>
+            assetId !== undefined,
         ),
     );
 
@@ -683,7 +689,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   setChainIntervalLength = () => {
     const { state } = this;
-    // Batch requests are all in the same chain. Use the first one to determine refresh rate
+    // Assume that BatchSell quote requests all have the same source chain
+    // Use the first one to determine refresh rate
     const { srcChainId } = state.quoteRequest[0];
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
 
@@ -714,6 +721,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const shouldStream =
       sse?.enabled &&
       hasMinimumRequiredVersion(this.#clientVersion, sse.minimumVersion);
+    const isBatchSellRequest = quoteRequests.length > 1;
 
     this.update((state) => {
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
@@ -724,36 +732,40 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
 
-    const [updatedQuoteRequest] = quoteRequests;
-
     const jwt = await this.#getJwt();
 
     try {
+      const [firstQuoteRequest] = quoteRequests;
+
+      const unifiedSwapTraceName = isCrossChain(
+        firstQuoteRequest.srcChainId,
+        firstQuoteRequest.destChainId,
+      )
+        ? TraceName.BridgeQuotesFetched
+        : TraceName.SwapQuotesFetched;
+
       await this.#trace(
         {
-          name: isCrossChain(
-            updatedQuoteRequest.srcChainId,
-            updatedQuoteRequest.destChainId,
-          )
-            ? TraceName.BridgeQuotesFetched
-            : TraceName.SwapQuotesFetched,
+          name: isBatchSellRequest
+            ? TraceName.BatchSellQuotesFetched
+            : unifiedSwapTraceName,
           data: {
-            srcChainId: formatChainIdToCaip(updatedQuoteRequest.srcChainId),
-            destChainId: formatChainIdToCaip(updatedQuoteRequest.destChainId),
+            srcChainId: formatChainIdToCaip(firstQuoteRequest.srcChainId),
+            destChainId: formatChainIdToCaip(firstQuoteRequest.destChainId),
           },
         },
         async () => {
           const selectedAccount = this.#getMultichainSelectedAccount(
-            updatedQuoteRequest.walletAddress,
+            firstQuoteRequest.walletAddress,
           );
           // This call is not awaited to prevent blocking quote fetching if the snap takes too long to respond
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#setMinimumBalanceForRentExemptionInLamports(
-            updatedQuoteRequest.srcChainId,
+            firstQuoteRequest.srcChainId,
             selectedAccount?.metadata?.snap?.id,
           );
           // Use SSE if enabled and return early
-          if (shouldStream) {
+          if (shouldStream || isBatchSellRequest) {
             await this.#handleQuoteStreaming(
               quoteRequests,
               jwt,
@@ -763,7 +775,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           }
           // Otherwise use regular fetch
           const quotes = await this.fetchQuotes(
-            updatedQuoteRequest,
+            firstQuoteRequest,
             this.#abortController?.signal,
           );
           this.update((state) => {
@@ -831,11 +843,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quotesRefreshCount += 1;
     });
-    // Stop polling if the maximum number of refreshes has been reached
+    const hasNoFundedQuoteRequests = quoteRequests.every(
+      ({ insufficientBal }) => Boolean(insufficientBal),
+    );
+
     if (
-      updatedQuoteRequest.insufficientBal ||
-      (!updatedQuoteRequest.insufficientBal &&
-        this.state.quotesRefreshCount >= maxRefreshCount)
+      hasNoFundedQuoteRequests
+        ? // If all quote requests are insufficiently funded, stop polling
+          // So if a BatchSell has at least 1 sufficiently funded quote request, polling continues
+          true
+        : // Otherwise continue polling until the maximum number of refreshes has been reached
+          this.state.quotesRefreshCount >= maxRefreshCount
     ) {
       this.stopAllPolling();
     }

@@ -325,7 +325,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
         expect(startPollingSpy).toHaveBeenCalledTimes(4);
         expect(
           startPollingSpy.mock.calls
-            .map((call) => call[0].updatedQuoteRequest)
+            .map((call) => call[0].quoteRequests)
             .flat()
             .find((call) => !call),
         ).toBeUndefined();
