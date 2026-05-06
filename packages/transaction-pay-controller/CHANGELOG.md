@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix fiat strategy never being selected by routing fiat payment method through `getStrategyOrder` and allowing quote retrieval when no crypto payment token is set ([#8720](https://github.com/MetaMask/core/pull/8720))
+- Deliver the Relay-acquired token to `transaction.txParams.from` (the delegator that executes the inner delegation), not `request.from`. When `accountOverride` is set so `request.from !== txParams.from`, the previous behaviour funded the override while the inner `transferFrom(msg.sender, ...)` pulled from the delegator, causing `ERC20: transfer amount exceeds balance` reverts on Money Account deposits and any other delegation-based deposit flow with a separate funding account ([#8724](https://github.com/MetaMask/core/pull/8724))
+- Gate the Arbitrum-USDC → Hypercore quote rewrite on `transaction.type === TransactionType.perpsDeposit`. Previously every Arbitrum-USDC quote was rewritten to a direct Hypercore deposit regardless of the parent transaction, breaking Money Account deposits and any future flow targeting Arbitrum USDC for non-Perps purposes ([#8724](https://github.com/MetaMask/core/pull/8724))
 
 ## [21.1.0]
 
@@ -17,11 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687))
 - Implement fiat strategy submit flow with order polling and relay execution ([#8347](https://github.com/MetaMask/core/pull/8347))
-
-### Fixed
-
-- Deliver the Relay-acquired token to `transaction.txParams.from` (the delegator that executes the inner delegation), not `request.from` ([#8724](https://github.com/MetaMask/core/pull/8724)).
-- Gate the Arbitrum-USDC → Hypercore quote rewrite on `transaction.type === TransactionType.perpsDeposit` ([#8724](https://github.com/MetaMask/core/pull/8724)).
 
 ### Changed
 
