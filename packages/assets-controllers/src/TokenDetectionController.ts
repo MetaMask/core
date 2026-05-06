@@ -900,9 +900,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     try {
       tokenListMap = await this.#tokenListService.fetchTokensByChainId(chainId);
     } catch {
-      // If the token list fetch fails, skip detection rather than throwing.
-      // This matches the pre-existing behaviour where an empty tokensChainsCache
-      // from TokenListController would simply produce no detected tokens.
+      // These methods return void; there is no token array to return.
+      // Gracefully exit so the caller is unaffected — the next polling cycle
+      // will retry the fetch.
       return;
     }
     const chainCache = this.#applyMusdDefaultToTokensChainsCache(chainId, {
@@ -1006,9 +1006,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     try {
       tokenListMap = await this.#tokenListService.fetchTokensByChainId(chainId);
     } catch {
-      // If the token list fetch fails, skip detection rather than throwing.
-      // This matches the pre-existing behaviour where an empty tokensChainsCache
-      // from TokenListController would simply produce no detected tokens.
+      // These methods return void; there is no token array to return.
+      // Gracefully exit so the caller is unaffected — the next polling cycle
+      // will retry the fetch.
       return;
     }
     const chainCache = this.#applyMusdDefaultToTokensChainsCache(chainId, {
