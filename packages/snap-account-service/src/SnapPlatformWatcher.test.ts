@@ -295,7 +295,7 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('resolves when Snap keyring appears via stateChange (listener path)', async () => {
-      const { rootMessenger, messenger, mocks } = setup();
+      const { messenger, mocks } = setup();
       mocks.SnapController.getState.mockReturnValue({
         isReady: true,
       } as SnapControllerState);
@@ -323,8 +323,6 @@ describe('SnapPlatformWatcher', () => {
       ) => void;
       listener([{ type: KeyringTypes.snap }]);
 
-      // Avoid unused-var warning on rootMessenger.
-      expect(rootMessenger).toBeDefined();
       expect(await ensurePromise).toBeUndefined();
     });
 
@@ -342,7 +340,6 @@ describe('SnapPlatformWatcher', () => {
 
       rootMessenger.publish(
         'KeyringController:stateChange',
-
         {
           isUnlocked: true,
           keyrings: [
