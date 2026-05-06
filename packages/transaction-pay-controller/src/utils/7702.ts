@@ -1,5 +1,3 @@
-import type { KeyringControllerState } from '@metamask/keyring-controller';
-
 import type { TransactionPayControllerMessenger } from '../types';
 import { KEYRING_TYPES_SUPPORTING_7702 } from '../types';
 
@@ -19,13 +17,7 @@ export function accountSupports7702(
   messenger: TransactionPayControllerMessenger,
   account: string,
 ): boolean {
-  let keyrings: KeyringControllerState['keyrings'];
-
-  try {
-    ({ keyrings } = messenger.call('KeyringController:getState'));
-  } catch {
-    return false;
-  }
+  const { keyrings } = messenger.call('KeyringController:getState');
 
   return keyrings.some(
     (k) =>

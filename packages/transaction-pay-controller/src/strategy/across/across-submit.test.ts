@@ -129,6 +129,16 @@ describe('Across Submit', () => {
         },
       },
     });
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
