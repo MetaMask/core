@@ -11,6 +11,7 @@ import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { getAcrossDestination } from './across-actions';
 import { getAcrossQuotes } from './across-quotes';
+import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
 import { submitAcrossQuotes } from './across-submit';
 import { isSupportedAcrossPerpsDepositRequest } from './perps';
 import { isAcrossQuoteRequest } from './requests';
@@ -53,10 +54,12 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       }
     }
 
-    // Across post-swap actions cannot carry type-4/EIP-7702 authorization
-    // lists. First-time source-account upgrades discovered during batch gas
-    // planning are handled separately in `checkQuoteSupport`.
-    if (request.transaction.txParams?.authorizationList?.length) {
+    if (
+      hasUnsupportedTransactionAuthorizationList(
+        request.transaction,
+        actionableRequests,
+      )
+    ) {
       return false;
     }
 

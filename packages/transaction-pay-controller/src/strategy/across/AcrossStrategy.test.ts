@@ -217,7 +217,7 @@ describe('AcrossStrategy', () => {
     ).toBe(true);
   });
 
-  it('supports post-quote predict withdraw requests', () => {
+  it('supports post-quote predict withdraw requests with source-chain authorization lists', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({
@@ -227,6 +227,7 @@ describe('AcrossStrategy', () => {
           nestedTransactions: [{ type: TransactionType.predictWithdraw }],
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
             data: '0x12345678' as Hex,
             to: '0xdef' as Hex,
           },

@@ -26,6 +26,8 @@ import {
   isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { accountSupports7702 } from '../../utils/7702';
+import { getGasBuffer } from '../../utils/feature-flags';
 import { getAcrossOrderedTransactions } from './transactions';
 import type { AcrossQuote } from './types';
 
@@ -126,7 +128,8 @@ async function submitTransactions(
     swapType: acrossDepositType,
   });
   const shouldPrependOriginalTransaction =
-    quote.request.isPostQuote && parentTransaction.txParams.to !== undefined;
+    quote.request.isPostQuote === true &&
+    parentTransaction.txParams.to !== undefined;
   const gasLimitOffset = shouldPrependOriginalTransaction ? 1 : 0;
   const transactionCount = orderedTransactions.length + gasLimitOffset;
 
@@ -142,16 +145,38 @@ async function submitTransactions(
     throw new Error('Missing quote gas limit for Across 7702 batch');
   }
 
-  const gasLimit7702 =
+  const quotedGasLimit7702 =
     batchGasLimit === undefined ? undefined : toHex(batchGasLimit);
+
+  const shouldUse7702Submit =
+    Boolean(quotedGasLimit7702) ||
+    (shouldEstimate7702SubmitBatch(parentTransaction, quote) &&
+      accountSupports7702(messenger, from));
+
+  const shouldEstimateGasLimit7702 =
+    !quotedGasLimit7702 && shouldUse7702Submit;
+
+  const estimatedGasLimit7702 = shouldEstimateGasLimit7702
+    ? await estimateSubmitBatchGasLimit7702({
+        chainId,
+        from,
+        messenger,
+        orderedTransactions,
+        parentTransaction,
+        shouldPrependOriginalTransaction,
+      })
+    : undefined;
+
+  const gasLimit7702 = quotedGasLimit7702 ?? estimatedGasLimit7702;
+  const submitAs7702 = shouldUse7702Submit || Boolean(gasLimit7702);
 
   const acrossTransactions: PreparedAcrossTransaction[] =
     orderedTransactions.map((transaction, index) => {
-      const gasLimit = gasLimit7702
+      const gasLimit = submitAs7702
         ? undefined
         : quoteGasLimits[index + gasLimitOffset]?.max;
 
-      if (gasLimit === undefined && !gasLimit7702) {
+      if (gasLimit === undefined && !submitAs7702) {
         const quoteGasIndex = index + gasLimitOffset;
         const errorMessage =
           transaction.kind === 'approval'
@@ -175,7 +200,12 @@ async function submitTransactions(
       };
     });
   const originalTransaction = shouldPrependOriginalTransaction
-    ? [buildOriginalTransaction(parentTransaction, quoteGasLimits[0]?.max)]
+    ? [
+        buildOriginalTransaction(
+          parentTransaction,
+          submitAs7702 ? undefined : quoteGasLimits[0]?.max,
+        ),
+      ]
     : [];
   const transactions = [...originalTransaction, ...acrossTransactions];
 
@@ -227,9 +257,9 @@ async function submitTransactions(
       }));
 
       await messenger.call('TransactionController:addTransactionBatch', {
-        disable7702: !gasLimit7702,
-        disableHook: Boolean(gasLimit7702),
-        disableSequential: Boolean(gasLimit7702),
+        disable7702: !submitAs7702,
+        disableHook: submitAs7702,
+        disableSequential: submitAs7702,
         from,
         gasFeeToken,
         gasLimit7702,
@@ -344,6 +374,80 @@ async function waitForAcrossCompletion(
   }
 }
 
+function shouldEstimate7702SubmitBatch(
+  parentTransaction: TransactionMeta,
+  quote: TransactionPayQuote<AcrossQuote>,
+): boolean {
+  return (
+    isPredictWithdrawTransaction(parentTransaction) &&
+    quote.request.isPostQuote === true &&
+    quote.fees.isSourceGasFeeToken === true
+  );
+}
+
+async function estimateSubmitBatchGasLimit7702({
+  chainId,
+  from,
+  messenger,
+  orderedTransactions,
+  parentTransaction,
+  shouldPrependOriginalTransaction,
+}: {
+  chainId: Hex;
+  from: Hex;
+  messenger: TransactionPayControllerMessenger;
+  orderedTransactions: ReturnType<typeof getAcrossOrderedTransactions>;
+  parentTransaction: TransactionMeta;
+  shouldPrependOriginalTransaction: boolean;
+}): Promise<Hex | undefined> {
+  if (!accountSupports7702(messenger, from)) {
+    return undefined;
+  }
+
+  const originalTransaction = shouldPrependOriginalTransaction
+    ? [buildOriginalTransaction(parentTransaction)]
+    : [];
+
+  const acrossTransactions = orderedTransactions.map((transaction) => ({
+    params: buildTransactionParams(from, {
+      chainId: transaction.chainId,
+      data: transaction.data,
+      maxFeePerGas: transaction.maxFeePerGas,
+      maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+      to: transaction.to,
+      value: transaction.value,
+    }),
+    type: transaction.type,
+  }));
+
+  const transactions = [...originalTransaction, ...acrossTransactions];
+
+  try {
+    const result = await messenger.call(
+      'TransactionController:estimateGasBatch',
+      {
+        chainId,
+        from,
+        transactions: transactions.map(({ params }) =>
+          toBatchTransactionParams(params),
+        ),
+      },
+    );
+
+    if (result.gasLimits.length !== 1) {
+      return undefined;
+    }
+
+    const gasLimit = Math.ceil(
+      result.gasLimits[0] * getGasBuffer(messenger, chainId),
+    );
+
+    return toHex(gasLimit);
+  } catch {
+    return undefined;
+  }
+}
+
 function buildOriginalTransaction(
   transaction: TransactionMeta,
   gasLimit?: number,
@@ -372,7 +476,10 @@ function getOriginalTransactionType(
 
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
   if (isPredictWithdrawTransaction(transaction)) {
-    return TransactionType.predictAcrossWithdraw;
+    return (
+      TransactionType.predictAcrossWithdraw ??
+      ('predictAcrossWithdraw' as TransactionType)
+    );
   }
 
   switch (transaction.type) {
