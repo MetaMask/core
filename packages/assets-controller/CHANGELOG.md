@@ -16,17 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `TokensApiClient` accepts an optional `queryClient` (compatible with `ApiPlatformClient.queryClient`); when provided it caches/dedupes per-chain list responses with a 5 min `staleTime` and 1 h `gcTime` under the `['assets-controller','rpc-detection','token-list',{chainId}]` key, so concurrent detector polls across accounts/instances coalesce into a single network request.
   - `RpcDataSource` accepts a new optional `queryClient` option which it forwards to `TokensApiClient`. `AssetsController` defaults this to its existing `queryApiClient.queryClient`, so consumers get the full list and shared cache automatically.
 
-### Fixed
-
-- `TokenDataSource` no longer drops user-imported EVM custom asset metadata when the V3 Tokens API returns the asset ID lower-cased ([#8727](https://github.com/MetaMask/core/pull/8727))
-  - State stores `customAssets` checksummed (via `normalizeAssetId`), but the API can echo it lower-cased; the spam-filter bypass now compares lower-cased on both sides so customs reliably skip the `MIN_TOKEN_OCCURRENCES` filter and `assetsInfo` is populated for them.
-
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+
+### Fixed
+
+- `TokenDataSource` no longer drops user-imported EVM custom asset metadata when the V3 Tokens API returns the asset ID lower-cased ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - State stores `customAssets` checksummed (via `normalizeAssetId`), but the API can echo it lower-cased; the spam-filter bypass now compares lower-cased on both sides so customs reliably skip the `MIN_TOKEN_OCCURRENCES` filter and `assetsInfo` is populated for them.
 
 ## [6.4.0]
 
