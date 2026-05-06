@@ -2618,7 +2618,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/address-book-controller@npm:^7.1.0, @metamask/address-book-controller@npm:^7.1.1, @metamask/address-book-controller@workspace:packages/address-book-controller":
+"@metamask/address-book-controller@npm:^7.1.1, @metamask/address-book-controller@workspace:packages/address-book-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/address-book-controller@workspace:packages/address-book-controller"
   dependencies:
@@ -4986,7 +4986,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
-    "@metamask/address-book-controller": "npm:^7.1.0"
+    "@metamask/address-book-controller": "npm:^7.1.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^11.20.0"
