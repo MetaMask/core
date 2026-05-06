@@ -45,7 +45,9 @@ describe('TransactionPayController', () => {
   const getTransactionMock = jest.mocked(getTransaction);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
-  const subscribeTransactionChangesMock = jest.mocked(subscribeTransactionChanges);
+  const subscribeTransactionChangesMock = jest.mocked(
+    subscribeTransactionChanges,
+  );
   const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
