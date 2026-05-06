@@ -378,6 +378,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -423,6 +424,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -498,6 +500,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -561,6 +564,7 @@ describe('Across Quotes', () => {
         } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
         transaction: TRANSACTION_META_MOCK,
@@ -593,6 +597,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -638,6 +643,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -667,6 +673,43 @@ describe('Across Quotes', () => {
       expect(result[0].fees.sourceNetwork.max.raw).toBe('100');
     });
 
+    it('keeps native gas for post-quote predict withdraws when the account cannot use 7702', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: false,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getGasFeeTokensMock).not.toHaveBeenCalled();
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('3450000000000000000');
+    });
+
     it('uses fiat-derived source gas fee token pricing for post-quote predict withdraws when gas station cannot price the source token', async () => {
       const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
 
@@ -684,6 +727,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {

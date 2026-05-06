@@ -339,6 +339,7 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
+    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
@@ -524,6 +525,7 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
+  accountSupports7702: boolean,
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
@@ -662,6 +664,10 @@ async function calculateSourceNetworkCost(
   const hasNativeBalance = new BigNumber(nativeBalance).isGreaterThanOrEqualTo(
     finalResult.sourceNetwork.max.raw,
   );
+
+  if (isPredictWithdraw && !accountSupports7702) {
+    return finalResult;
+  }
 
   if (hasNativeBalance && !isPredictWithdraw) {
     return finalResult;

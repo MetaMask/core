@@ -11,6 +11,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type {
@@ -143,10 +144,16 @@ async function submitTransactions(
     chainId,
   );
 
-  const batchGasLimit =
-    is7702 && transactionCount > 1 ? quoteGasLimits[0]?.max : undefined;
+  const is7702Batch = is7702 && transactionCount > 1;
+  const canUseQuotedBatchGasLimit =
+    is7702Batch &&
+    (!shouldPrependOriginalTransaction ||
+      hasOriginalTransactionGas(parentTransaction));
+  const batchGasLimit = canUseQuotedBatchGasLimit
+    ? quoteGasLimits[0]?.max
+    : undefined;
 
-  if (is7702 && transactionCount > 1 && batchGasLimit === undefined) {
+  if (canUseQuotedBatchGasLimit && batchGasLimit === undefined) {
     throw new Error('Missing quote gas limit for Across 7702 batch');
   }
 
@@ -156,11 +163,18 @@ async function submitTransactions(
     parentTransaction.txParams.authorizationList?.length,
   );
 
-  const shouldUse7702Submit =
-    Boolean(quotedGasLimit7702) ||
-    parentHasAuthorizationList ||
-    (shouldEstimate7702SubmitBatch(parentTransaction, quote) &&
-      accountSupports7702(messenger, from));
+  const shouldUseGasFeeToken7702Submit = shouldEstimate7702SubmitBatch(
+    parentTransaction,
+    quote,
+  )
+    ? accountSupports7702(messenger, from)
+    : false;
+  const shouldUse7702Submit = [
+    Boolean(quotedGasLimit7702),
+    is7702Batch,
+    parentHasAuthorizationList,
+    shouldUseGasFeeToken7702Submit,
+  ].some(Boolean);
 
   const shouldEstimateGasLimit7702 = !quotedGasLimit7702 && shouldUse7702Submit;
 
@@ -485,6 +499,21 @@ function getOriginalTransactionType(
   }
 
   return transaction.type;
+}
+
+function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
+  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
+  const rawGas = nestedGas ?? transaction.txParams.gas;
+
+  if (rawGas === undefined) {
+    return false;
+  }
+
+  const gas = new BigNumber(rawGas);
+
+  return (
+    gas.isFinite() && !gas.isNaN() && gas.isInteger() && gas.isGreaterThan(0)
+  );
 }
 
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
