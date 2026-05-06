@@ -111,7 +111,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'createMultichainAccountWallet',
   'resyncAccounts',
   'removeMultichainAccountWallet',
-  'ensureCanUseSnapPlatform',
   'init',
 ] as const;
 
