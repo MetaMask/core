@@ -2,10 +2,8 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import {
-  TransactionType,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -380,6 +378,8 @@ async function processTransactions(
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
+ * @param transaction - Parent transaction metadata, used to gate
+ * Hyperliquid-specific rewrites on transaction type.
  * @returns Normalized request.
  */
 function normalizeRequest(
