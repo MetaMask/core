@@ -175,7 +175,9 @@ export class MoneyAccountBalanceService extends BaseDataService<
       messenger,
       policyOptions: {
         retryFilterPolicy: handleWhen(
-          (error) => !(error instanceof VedaResponseValidationError),
+          (error) =>
+            !(error instanceof VedaResponseValidationError) &&
+            !(error instanceof VaultConfigNotAvailableError),
         ),
         ...policyOptions,
       },
