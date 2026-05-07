@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `Eip1193Compatible` property in `KnownSessionProperties` enum to support EIP-1193-style connections established through `connect-evm` ([#8731](https://github.com/MetaMask/core/pull/8731))
+- Set `sessionProperties: { 'eip1193-compatible': true }` in `getCaip25PermissionFromLegacyPermissions` so that legacy EIP-1193 permission requests are tagged as EIP-1193-compatible ([#8731](https://github.com/MetaMask/core/pull/8731))
 
 ### Changed
 

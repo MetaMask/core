@@ -26,6 +26,7 @@ import type {
 import { cloneDeep, isEqual, pick } from 'lodash';
 
 import { CaveatTypes, PermissionKeys } from './constants';
+import { KnownSessionProperties } from './scope/constants';
 import {
   setEthAccounts,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
@@ -632,7 +633,9 @@ export const getCaip25PermissionFromLegacyPermissions =
           accounts: [],
         },
       },
-      sessionProperties: {},
+      sessionProperties: {
+        [KnownSessionProperties.Eip1193Compatible]: true,
+      },
       isMultichainOrigin: false,
     };
 
